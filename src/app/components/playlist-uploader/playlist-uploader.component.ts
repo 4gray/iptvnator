@@ -4,7 +4,7 @@ import {
     UploadInput,
     UploadFile,
     humanizeBytes,
-    UploaderOptions
+    UploaderOptions,
 } from 'ngx-uploader';
 import { ChannelStore, createChannel } from 'src/app/state';
 import { M3uService } from 'src/app/services/m3u-service.service';
@@ -13,10 +13,9 @@ import { Router } from '@angular/router';
 @Component({
     selector: 'app-playlist-uploader',
     templateUrl: './playlist-uploader.component.html',
-    styleUrls: ['./playlist-uploader.component.css']
+    styleUrls: ['./playlist-uploader.component.css'],
 })
 export class PlaylistUploaderComponent {
-    url = 'http://localhost:4900/upload';
     formData: FormData;
     files: UploadFile[];
     uploadInput: EventEmitter<UploadInput>;
@@ -24,6 +23,12 @@ export class PlaylistUploaderComponent {
     dragOver: boolean;
     options: UploaderOptions;
 
+    /**
+     * Creates an instanceof PlaylistUploaderComponent
+     * @param channelStore channels store
+     * @param m3uService m3u service
+     * @param router angulars router
+     */
     constructor(
         private channelStore: ChannelStore,
         private m3uService: M3uService,
@@ -31,13 +36,17 @@ export class PlaylistUploaderComponent {
     ) {
         this.options = {
             concurrency: 1,
-            maxUploads: 1
+            maxUploads: 1,
         };
         this.files = [];
         this.uploadInput = new EventEmitter<UploadInput>();
         this.humanizeBytes = humanizeBytes;
     }
 
+    /**
+     * Handles file upload
+     * @param output
+     */
     onUploadOutput(output: UploadOutput): void {
         if (output.type === 'allAddedToQueue') {
             if (this.files.length > 0) {
@@ -45,12 +54,12 @@ export class PlaylistUploaderComponent {
                 fileReader.onload = fileLoadedEvent => {
                     const result = (fileLoadedEvent.target as FileReader)
                         .result;
-                    // console.log(result);
+
                     const array = (result as string).split('\n');
-                    // console.log(array);
                     const playlist = this.m3uService.convertArrayToPlaylist(
                         array
                     );
+
                     playlist.segments.forEach(element => {
                         this.channelStore.add(createChannel(element));
                         this.navigateToPlayer();
@@ -91,6 +100,9 @@ export class PlaylistUploaderComponent {
         }
     }
 
+    /**
+     * Navigates to the video player route
+     */
     navigateToPlayer(): void {
         this.router.navigateByUrl('/iptv', { skipLocationChange: true });
     }

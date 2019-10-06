@@ -47,24 +47,6 @@ export class VideoPlayerComponent implements OnInit {
         ) as HTMLVideoElement;
     }
 
-    /* playVideo(playlist: any): void {
-        if (Hls.isSupported()) {
-            this.hls.loadSource(channelUrl);
-            this.hls.attachMedia(this.videoPlayer);
-
-            this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                this.videoPlayer.play();
-            });
-        } else if (
-            this.videoPlayer.canPlayType('application/vnd.apple.mpegurl')
-        ) {
-            this.videoPlayer.src = channelUrl;
-            this.videoPlayer.addEventListener('loadedmetadata', () => {
-                this.videoPlayer.play();
-            });
-        }
-    } */
-
     /**
      * Closes sidebar
      */
@@ -86,6 +68,13 @@ export class VideoPlayerComponent implements OnInit {
             this.hls.loadSource(channel.url);
             this.hls.attachMedia(this.videoPlayer);
             this.channelTitle = channel.title;
+        } else if (
+            this.videoPlayer.canPlayType('application/vnd.apple.mpegurl')
+        ) {
+            this.videoPlayer.src = channel.url;
+            this.videoPlayer.addEventListener('loadedmetadata', () => {
+                this.videoPlayer.play();
+            });
         }
     }
 }
