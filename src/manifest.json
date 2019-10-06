@@ -1,0 +1,24 @@
+{
+    "manifest_version": 2,
+    "name": "myIPTV",
+    "short_name": "myiptv",
+    "description": "IPTV Player for Chrome",
+    "version": "0.0.1",
+    "version_name": "0.0.1",
+    "icons": {
+        "144": "assets/icons/icon-144x144.png"
+    },
+    "app": {
+        "background": {
+            "scripts": ["background.js"]
+        }
+    },
+    "permissions": [
+        "storage",
+        "system.cpu",
+        "system.display",
+        "system.memory",
+        "system.network",
+        "system.storage"
+    ]
+}
