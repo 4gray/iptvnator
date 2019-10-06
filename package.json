@@ -27,7 +27,6 @@
         "@datorama/akita": "^4.10.7",
         "hls.js": "^0.12.4",
         "m3u8-file-parser": "^0.2.1",
-        "m3u8-parser": "^4.4.0",
         "material-icons": "^0.3.1",
         "ngx-uploader": "^7.1.0",
         "rxjs": "~6.4.0",
