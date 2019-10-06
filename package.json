@@ -5,6 +5,7 @@
         "ng": "ng",
         "start": "ng serve",
         "build": "ng build",
+        "build-and-deploy": "ng build --prod --base-href '/my-iptv-player-pwa'",
         "test": "ng test",
         "lint": "ng lint",
         "e2e": "ng e2e"

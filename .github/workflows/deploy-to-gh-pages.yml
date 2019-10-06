@@ -16,4 +16,4 @@ jobs:
             ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
             BRANCH: gh-pages
             FOLDER: dist/iptv-player
-            BUILD_SCRIPT: npm install && npm run-script build
+            BUILD_SCRIPT: npm install && npm run-script build-and-deploy
