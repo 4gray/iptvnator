@@ -1,0 +1,20 @@
+#video-player {
+  width: 100%;
+  height: calc(100vh - 70px);
+}
+
+.main-container {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.mat-sidenav-content {
+  background: #000;
+}
+
+.mat-sidenav {
+  width: 400px;
+}

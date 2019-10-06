@@ -1,0 +1,10 @@
+<mat-list>
+    <mat-list-item *ngFor="let channel of channelList">
+        <button
+            mat-button
+            (click)="changeChannel.emit({ url: channel.url, title: channel.inf.title})">
+            {{channel?.inf?.title || 'Unnamed Channel'}}
+        </button>
+        <mat-divider></mat-divider>
+    </mat-list-item>
+</mat-list>
