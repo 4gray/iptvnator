@@ -14,6 +14,7 @@
         }
     },
     "permissions": [
+        "app.window.fullscreen",
         "storage",
         "system.cpu",
         "system.display",
