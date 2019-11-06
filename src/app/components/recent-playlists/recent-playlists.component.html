@@ -1,0 +1,3 @@
+<button *ngFor="let playlist of playlists | keyvalue" mat-stroked-button (click)="playlistClicked.emit(playlist.value)">
+    {{playlist.key}}
+</button>

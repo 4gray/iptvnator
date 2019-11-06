@@ -1,26 +1,25 @@
-<div
-    class="drop-container"
-    ngFileDrop
-    [options]="options"
-    (uploadOutput)="onUploadOutput($event)"
-    [uploadInput]="uploadInput">
-    <p>
-        Drag files here or
-        <label class="upload-button">
-            <input
-                type="file"
-                ngFileSelect
-                [options]="options"
-                (uploadOutput)="onUploadOutput($event)"
-                [uploadInput]="uploadInput"
-                multiple>
-            browse
-        </label>
-        to upload.
-    </p>
-
-    <!-- <h3>Recent playlists:</h3>
-    TODO
-    <h3>Insert playlist by URL:</h3>
-    TODO -->
-</div>
+<mat-card>
+    <mat-card-subtitle>Add playlist</mat-card-subtitle>
+    <div class="drop-container" ngFileDrop [options]="options" (uploadOutput)="onUploadOutput($event)"
+        [uploadInput]="uploadInput">
+        <p>
+            Drag files here or
+            <label class="upload-button">
+                <input type="file" ngFileSelect [options]="options" (uploadOutput)="onUploadOutput($event)"
+                    [uploadInput]="uploadInput" multiple>
+                browse
+            </label>
+            to upload.
+        </p>
+    </div>
+</mat-card>
+<br>
+<ng-container *ngIf="(playlists | keyvalue)?.length > 0">
+    <mat-card>
+        <mat-card-subtitle>Recent playlists</mat-card-subtitle>
+        <mat-card-content>
+            <app-recent-playlists [playlists]="playlists" (playlistClicked)="setPlaylist($event)">
+            </app-recent-playlists>
+        </mat-card-content>
+    </mat-card>
+</ng-container>
