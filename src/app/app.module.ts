@@ -13,13 +13,15 @@ import { NgxUploaderModule } from 'ngx-uploader';
 import { PlaylistUploaderComponent } from './components/playlist-uploader/playlist-uploader.component';
 import { VideoPlayerComponent } from './components/video-player/video-player.component';
 import { MaterialModule } from './material.module';
+import { RecentPlaylistsComponent } from './components/recent-playlists/recent-playlists.component';
 
 @NgModule({
     declarations: [
         AppComponent,
         ChannelListContainerComponent,
         PlaylistUploaderComponent,
-        VideoPlayerComponent
+        VideoPlayerComponent,
+        RecentPlaylistsComponent,
     ],
     imports: [
         AppRoutingModule,
@@ -30,10 +32,10 @@ import { MaterialModule } from './material.module';
         MaterialModule,
         NgxUploaderModule,
         ServiceWorkerModule.register('ngsw-worker.js', {
-            enabled: environment.production
-        })
+            enabled: environment.production,
+        }),
     ],
     providers: [],
-    bootstrap: [AppComponent]
+    bootstrap: [AppComponent],
 })
 export class AppModule {}

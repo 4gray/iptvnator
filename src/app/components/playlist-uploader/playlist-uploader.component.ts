@@ -22,6 +22,7 @@ export class PlaylistUploaderComponent {
     humanizeBytes: Function;
     dragOver: boolean;
     options: UploaderOptions;
+    playlists: any;
 
     /**
      * Creates an instanceof PlaylistUploaderComponent
@@ -34,6 +35,8 @@ export class PlaylistUploaderComponent {
         private m3uService: M3uService,
         private router: Router
     ) {
+        this.getPlaylists();
+
         this.options = {
             concurrency: 1,
             maxUploads: 1,
@@ -59,11 +62,12 @@ export class PlaylistUploaderComponent {
                     const playlist = this.m3uService.convertArrayToPlaylist(
                         array
                     );
+                    this.savePlaylist(
+                        this.files[0].name,
+                        JSON.stringify(playlist)
+                    );
 
-                    playlist.segments.forEach(element => {
-                        this.channelStore.add(createChannel(element));
-                        this.navigateToPlayer();
-                    });
+                    this.setPlaylist(playlist);
                 };
                 fileReader.readAsText(this.files[0].nativeFile);
             }
@@ -105,5 +109,39 @@ export class PlaylistUploaderComponent {
      */
     navigateToPlayer(): void {
         this.router.navigateByUrl('/iptv', { skipLocationChange: true });
+    }
+
+    /**
+     * Saves playlist to the localStorage
+     * @param name name of the playlist
+     * @param playlist playlist to save
+     */
+    savePlaylist(name: string, playlist: any): void {
+        localStorage.setItem(name, playlist);
+    }
+
+    /**
+     * Reads all saved playlists from the localStorage
+     */
+    getPlaylists(): void {
+        this.playlists = { ...localStorage };
+
+        this.playlists = Object.keys(this.playlists)
+            .filter(key => key.includes('.m3u'))
+            .reduce((obj, key) => {
+                obj[key] = JSON.parse(this.playlists[key]);
+                return obj;
+            }, {});
+    }
+
+    /**
+     * Sets the given playlist as active for the current session
+     * @param playlist m3u playlist
+     */
+    setPlaylist(playlist: any): void {
+        playlist.segments.forEach(element => {
+            this.channelStore.add(createChannel(element));
+            this.navigateToPlayer();
+        });
     }
 }

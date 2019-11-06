@@ -18,4 +18,13 @@ export class M3uService {
         this.m3u8FileParser.read(m3uArray.join('\n'));
         return this.m3u8FileParser.getResult();
     }
+
+    /**
+     * Converts string to playlist structure
+     * @param m3uString playlist as string
+     */
+    convertStringToPlaylist(m3uString: string): any {
+        this.m3u8FileParser.read(m3uString);
+        return this.m3u8FileParser.getResult();
+    }
 }
