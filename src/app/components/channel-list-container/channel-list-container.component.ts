@@ -18,4 +18,13 @@ export class ChannelListContainerComponent {
         url: string;
         title: string;
     }> = new EventEmitter();
+
+    /**
+     * Search term for channel filter
+     */
+    searchTerm: any = {
+        inf: {
+            title: '',
+        },
+    };
 }
