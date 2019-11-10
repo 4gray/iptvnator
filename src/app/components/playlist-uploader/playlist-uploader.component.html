@@ -2,15 +2,18 @@
     <mat-card-subtitle>Add playlist</mat-card-subtitle>
     <div class="drop-container" ngFileDrop [options]="options" (uploadOutput)="onUploadOutput($event)"
         [uploadInput]="uploadInput">
-        <p>
-            Drag files here or
-            <label class="upload-button">
-                <input type="file" ngFileSelect [options]="options" (uploadOutput)="onUploadOutput($event)"
-                    [uploadInput]="uploadInput" multiple>
-                browse
-            </label>
-            to upload.
+        <div>
+            <mat-icon class="upload-icon">save_alt</mat-icon>
+        </div>
+        <p class="upload-title">
+            Drag & drop files here
         </p>
+        <p>or</p>
+        <input type="file" ngFileSelect [options]="options" (uploadOutput)="onUploadOutput($event)" class="inputfile"
+            name="file" id="file" [uploadInput]="uploadInput" multiple>
+        <label for="file">
+            Choose a file
+        </label>
     </div>
 </mat-card>
 <br>
