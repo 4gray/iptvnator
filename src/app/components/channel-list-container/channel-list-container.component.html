@@ -1,8 +1,11 @@
 <mat-list>
-    <mat-list-item *ngFor="let channel of channelList">
-        <button
-            mat-button
-            (click)="changeChannel.emit({ url: channel.url, title: channel.inf.title})">
+    <mat-list-item>
+        <mat-form-field class="full-width">
+            <input matInput placeholder="Search channel" [(ngModel)]="searchTerm.inf.title">
+        </mat-form-field>
+    </mat-list-item>
+    <mat-list-item *ngFor=" let channel of channelList | filterBy: searchTerm">
+        <button mat-button (click)="changeChannel.emit({ url: channel.url, title: channel.inf.title})">
             {{channel?.inf?.title || 'Unnamed Channel'}}
         </button>
         <mat-divider></mat-divider>

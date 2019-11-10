@@ -14,6 +14,8 @@ import { PlaylistUploaderComponent } from './components/playlist-uploader/playli
 import { VideoPlayerComponent } from './components/video-player/video-player.component';
 import { MaterialModule } from './material.module';
 import { RecentPlaylistsComponent } from './components/recent-playlists/recent-playlists.component';
+import { FilterPipeModule } from 'ngx-filter-pipe';
+import { FormsModule } from '@angular/forms';
 
 @NgModule({
     declarations: [
@@ -28,6 +30,8 @@ import { RecentPlaylistsComponent } from './components/recent-playlists/recent-p
         BrowserModule,
         BrowserAnimationsModule,
         FlexLayoutModule,
+        FilterPipeModule,
+        FormsModule,
         HttpClientModule,
         MaterialModule,
         NgxUploaderModule,
