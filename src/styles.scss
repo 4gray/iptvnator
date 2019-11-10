@@ -5,6 +5,11 @@ $material-icons-font-path: '~material-icons/iconfont/';
 
 @import '~material-icons/iconfont/material-icons.scss';
 
-body,html {
-  background: #eee;
+body,
+html {
+    background: #eee;
+}
+
+.mat-toolbar.mat-primary {
+    background: #000000;
 }

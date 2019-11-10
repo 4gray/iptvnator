@@ -1,8 +1,7 @@
 .drop-container {
-    /*width: 400px;*/
-    height: 100px;
-    border: 1px dashed #ccc;
-    border-radius: 10px;
+    height: 200px;
+    border: 2px dashed #ccc;
+    border-radius: 3px;
     margin: 0 auto;
     padding: 10px;
     text-align: center;
@@ -13,4 +12,41 @@ input {
     border-radius: 4px;
     border: 1px solid #ccc;
     padding: 5px;
+}
+
+.upload-title {
+    font-size: 1.25em;
+}
+
+.inputfile {
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+}
+
+.inputfile + label {
+    font-size: 1.25em;
+    font-weight: 700;
+    color: white;
+    background-color: black;
+    display: inline-block;
+}
+
+.inputfile:focus + label,
+.inputfile + label:hover {
+    background-color: red;
+}
+
+.inputfile + label {
+    cursor: pointer;
+    line-height: 35px;
+    padding: 3px 10px;
+}
+
+.upload-icon {
+    font-size: 80px;
+    width: 80px;
 }
