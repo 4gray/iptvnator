@@ -1,11 +1,11 @@
 {
-    "name": "iptv-player",
-    "short_name": "iptv-player",
+    "name": "IPTV Player",
+    "short_name": "IPTV Player",
     "theme_color": "#1976d2",
     "background_color": "#fafafa",
     "display": "standalone",
-    "scope": "/",
-    "start_url": "/my-iptv-player-pwa/",
+    "scope": "./",
+    "start_url": "./",
     "icons": [
         {
             "src": "assets/icons/icon-72x72.png",
