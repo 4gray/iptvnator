@@ -33,7 +33,7 @@ export class VideoPlayerComponent implements OnInit {
     /**
      * Sidebar object
      */
-    @ViewChild('sidenav', { static: false }) sideNav: MatSidenav;
+    @ViewChild('sidenav') sideNav: MatSidenav;
 
     constructor(private channelQuery: ChannelQuery) {}
 
