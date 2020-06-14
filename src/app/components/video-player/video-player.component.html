@@ -1,10 +1,11 @@
-<mat-sidenav-container
+<mat-drawer-container
     class="main-container"
     (backdropClick)="close()">
 
     <!-- sidebar content -->
-    <mat-sidenav
-        #sidenav
+    <mat-drawer
+        #drawer
+        mode="side"
         (keydown.escape)="close()"
         disableClose>
         <ng-container *ngIf="channels$ | async as channels">
@@ -12,14 +13,14 @@
                 [channelList]="channels"
                 (changeChannel)="playChannel($event)"></app-channel-list-container>
         </ng-container>
-    </mat-sidenav>
+    </mat-drawer>
 
-    <mat-sidenav-content>
+    <mat-drawer-content>
         <!-- toolbar with drawer icon -->
         <mat-toolbar color="primary">
             <button
                 mat-icon-button
-                (click)="sidenav.toggle()">
+                (click)="drawer.toggle()">
                 <mat-icon>menu</mat-icon>
             </button>
             myIPTV
@@ -32,5 +33,5 @@
             controls="true"
             muted="muted"></video>
 
-    </mat-sidenav-content>
-</mat-sidenav-container>
+    </mat-drawer-content>
+</mat-drawer-container>

@@ -11,10 +11,11 @@
   right: 0;
 }
 
-.mat-sidenav-content {
+.mat-drawer-content {
   background: #000;
 }
 
-.mat-sidenav {
+.mat-drawer {
   width: 400px;
+  min-width: 400px;
 }
