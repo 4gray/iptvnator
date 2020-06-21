@@ -9,6 +9,21 @@ import {
 import { ChannelStore, createChannel } from 'src/app/state';
 import { M3uService } from 'src/app/services/m3u-service.service';
 import { Router } from '@angular/router';
+import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { PLAYLISTS_STORE } from 'src/app/db.config';
+import {MatSnackBar} from '@angular/material/snack-bar';
+
+/**
+ * Describes playlist interface
+ */
+export interface Playlist {
+    id?: number;
+    title: string;
+    filename: string;
+    playlist: any;
+    importDate: number;
+    lastUsage: number;
+}
 
 @Component({
     selector: 'app-playlist-uploader',
@@ -22,18 +37,22 @@ export class PlaylistUploaderComponent {
     humanizeBytes: Function;
     dragOver: boolean;
     options: UploaderOptions;
-    playlists: any;
+    playlists: Playlist[] = [];
+    isLoading = false;
 
     /**
      * Creates an instanceof PlaylistUploaderComponent
      * @param channelStore channels store
+     * @param dbService indexeddb service
      * @param m3uService m3u service
      * @param router angulars router
      */
     constructor(
         private channelStore: ChannelStore,
+        private dbService: NgxIndexedDBService,
         private m3uService: M3uService,
-        private router: Router
+        private router: Router,
+        private snackBar: MatSnackBar
     ) {
         this.getPlaylists();
 
@@ -52,6 +71,7 @@ export class PlaylistUploaderComponent {
      */
     onUploadOutput(output: UploadOutput): void {
         if (output.type === 'allAddedToQueue') {
+            this.isLoading = true;
             if (this.files.length > 0) {
                 const fileReader = new FileReader();
                 fileReader.onload = fileLoadedEvent => {
@@ -64,7 +84,7 @@ export class PlaylistUploaderComponent {
                     );
                     this.savePlaylist(
                         this.files[0].name,
-                        JSON.stringify(playlist)
+                        playlist
                     );
 
                     this.setPlaylist(playlist);
@@ -108,6 +128,7 @@ export class PlaylistUploaderComponent {
      * Navigates to the video player route
      */
     navigateToPlayer(): void {
+        this.isLoading = false;
         this.router.navigateByUrl('/iptv', { skipLocationChange: true });
     }
 
@@ -117,21 +138,21 @@ export class PlaylistUploaderComponent {
      * @param playlist playlist to save
      */
     savePlaylist(name: string, playlist: any): void {
-        localStorage.setItem(name, playlist);
+        this.dbService.add<Playlist>('playlists', { filename: name, title: name, playlist, importDate: new Date().getMilliseconds(), lastUsage: new Date().getMilliseconds() }).then(() => {
+            console.log('playlist saved!')
+        });
     }
 
     /**
-     * Reads all saved playlists from the localStorage
+     * Reads all saved playlists from the browser store
      */
     getPlaylists(): void {
-        this.playlists = { ...localStorage };
-
-        this.playlists = Object.keys(this.playlists)
-            .filter(key => key.includes('.m3u'))
-            .reduce((obj, key) => {
-                obj[key] = JSON.parse(this.playlists[key]);
-                return obj;
-            }, {});
+        this.dbService.getAll('playlists').then(
+            (playlists: Playlist[]) => this.playlists = playlists,
+            error => {
+                console.error(error);
+            }
+        );
     }
 
     /**
@@ -139,9 +160,19 @@ export class PlaylistUploaderComponent {
      * @param playlist m3u playlist
      */
     setPlaylist(playlist: any): void {
-        playlist.segments.forEach(element => {
-            this.channelStore.add(createChannel(element));
-            this.navigateToPlayer();
-        });
+        this.channelStore.reset();        
+        const channels = playlist.segments.map(element => createChannel(element));
+        this.channelStore.upsertMany(channels);
+        this.navigateToPlayer();
+    }
+
+    /**
+     * Removes the provided playlist from the indexedDb
+     * @param playlist playlist to remove
+     */
+    removePlaylist(playlist: Playlist) {
+        this.dbService.delete(PLAYLISTS_STORE, playlist.id);
+        this.getPlaylists();
+        this.snackBar.open('Done! Playlist was removed.', null,{ duration: 2000 });
     }
 }

@@ -6,6 +6,7 @@
     <mat-drawer
         #drawer
         mode="side"
+        opened
         (keydown.escape)="close()"
         disableClose>
         <ng-container *ngIf="channels$ | async as channels">

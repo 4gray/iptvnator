@@ -1,3 +1,9 @@
+:host {
+    max-width: 800px;
+    margin: 0 auto;
+    display: block;
+}
+
 .drop-container {
     height: 200px;
     border: 2px dashed #ccc;
@@ -8,7 +14,7 @@
     color: #666;
 }
 
-input {
+#file input {
     border-radius: 4px;
     border: 1px solid #ccc;
     padding: 5px;
@@ -18,7 +24,7 @@ input {
     font-size: 1.25em;
 }
 
-.inputfile {
+.input-file {
     width: 0.1px;
     height: 0.1px;
     opacity: 0;
@@ -27,7 +33,7 @@ input {
     z-index: -1;
 }
 
-.inputfile + label {
+.input-file + label {
     font-size: 1.25em;
     font-weight: 700;
     color: white;
@@ -35,12 +41,12 @@ input {
     display: inline-block;
 }
 
-.inputfile:focus + label,
-.inputfile + label:hover {
+.input-file:focus + label,
+.input-file + label:hover {
     background-color: red;
 }
 
-.inputfile + label {
+.input-file + label {
     cursor: pointer;
     line-height: 35px;
     padding: 3px 10px;
