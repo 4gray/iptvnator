@@ -1,3 +1,10 @@
+<mat-card *ngIf="(playlists).length > 0">
+    <mat-card-content>
+        <app-recent-playlists [playlists]="playlists" (playlistClicked)="setPlaylist($event)" (removeClicked)="removePlaylist($event)">
+        </app-recent-playlists>
+    </mat-card-content>
+</mat-card>
+<br />
 <mat-card>
     <mat-card-subtitle>Add playlist</mat-card-subtitle>
     <div class="drop-container" ngFileDrop [options]="options" (uploadOutput)="onUploadOutput($event)"
@@ -9,20 +16,11 @@
             Drag & drop files here
         </p>
         <p>or</p>
-        <input type="file" ngFileSelect [options]="options" (uploadOutput)="onUploadOutput($event)" class="inputfile"
+        <input type="file" ngFileSelect [options]="options" (uploadOutput)="onUploadOutput($event)" class="input-file"
             name="file" id="file" [uploadInput]="uploadInput" multiple>
         <label for="file">
             Choose a file
         </label>
     </div>
 </mat-card>
-<br>
-<ng-container *ngIf="(playlists | keyvalue)?.length > 0">
-    <mat-card>
-        <mat-card-subtitle>Recent playlists</mat-card-subtitle>
-        <mat-card-content>
-            <app-recent-playlists [playlists]="playlists" (playlistClicked)="setPlaylist($event)">
-            </app-recent-playlists>
-        </mat-card-content>
-    </mat-card>
-</ng-container>
+<mat-progress-bar *ngIf="isLoading" mode="indeterminate"></mat-progress-bar>

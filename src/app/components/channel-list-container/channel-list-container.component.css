@@ -2,6 +2,15 @@
     width: 100%;
 }
 
-mat-list {
-    margin-top: 10px;
+#top-panel {
+    background: #eee;
+}
+
+#channels-list {
+    overflow-y: auto;
+    height: calc(100% - 65px);
+}
+
+.active {
+    background: #ddd;
 }

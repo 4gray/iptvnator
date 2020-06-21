@@ -1,3 +1,15 @@
-<button *ngFor="let playlist of playlists | keyvalue" mat-stroked-button (click)="playlistClicked.emit(playlist.value)">
-    {{playlist.key}}
-</button>
+<mat-nav-list>
+    <div mat-subheader>Recently added playlists</div>
+    <a mat-list-item *ngFor="let item of playlists; last as last" (click)="playlistClicked.emit(item.playlist);">
+        <mat-icon mat-list-icon>folder</mat-icon>
+        <div mat-line>{{ item.title || item.filename }}</div>
+        <div mat-line>Channels: {{ item.playlist?.segments.length }}</div>
+        <!--<button mat-icon-button color="primary" (click)="$event.stopPropagation(); renameClicked.emit(item)" matTooltip="Rename playlist">
+            <mat-icon>edit</mat-icon>
+        </button>-->
+        <button mat-icon-button color="primary" (click)="$event.stopPropagation(); removeClicked.emit(item)" matTooltip="Remove playlist">
+            <mat-icon>delete</mat-icon>
+        </button>
+        <mat-divider *ngIf="!last"></mat-divider>
+    </a>
+</mat-nav-list>

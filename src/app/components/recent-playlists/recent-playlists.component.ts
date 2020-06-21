@@ -1,4 +1,5 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Playlist } from '../playlist-uploader/playlist-uploader.component';
 
 @Component({
     selector: 'app-recent-playlists',
@@ -6,13 +7,15 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
     styleUrls: ['./recent-playlists.component.scss'],
 })
 export class RecentPlaylistsComponent {
-    /**
-     * Playlist object
-     */
-    @Input() playlists: any;
+    /** All available playlists */
+    @Input() playlists: Playlist[];
 
-    /**
-     * Emits on playlist click
-     */
+    /** Emits on playlist selection */
     @Output() playlistClicked: EventEmitter<any> = new EventEmitter();
+
+    /** Emits on playlist remove click */
+    @Output() removeClicked: EventEmitter<Playlist> = new EventEmitter();
+
+    /** Emits on playlist rename click */
+    @Output() renameClicked: EventEmitter<Playlist> = new EventEmitter();
 }

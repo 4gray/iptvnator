@@ -16,6 +16,9 @@ import { MaterialModule } from './material.module';
 import { RecentPlaylistsComponent } from './components/recent-playlists/recent-playlists.component';
 import { FilterPipeModule } from 'ngx-filter-pipe';
 import { FormsModule } from '@angular/forms';
+import { NgxIndexedDBModule } from 'ngx-indexed-db';
+import { dbConfig } from './db.config';
+
 
 @NgModule({
     declarations: [
@@ -33,6 +36,7 @@ import { FormsModule } from '@angular/forms';
         FilterPipeModule,
         FormsModule,
         HttpClientModule,
+        NgxIndexedDBModule.forRoot(dbConfig),
         MaterialModule,
         NgxUploaderModule,
         ServiceWorkerModule.register('ngsw-worker.js', {
