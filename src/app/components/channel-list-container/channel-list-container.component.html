@@ -1,14 +1,17 @@
 <mat-list id="top-panel">
     <mat-list-item>
         <mat-form-field class="full-width">
-            <input matInput placeholder="Search channel {{channelList?.length}}" [(ngModel)]="searchTerm.inf.title">
+            <input matInput placeholder="Search channel ({{channelList?.length}})" [(ngModel)]="searchTerm.name">
         </mat-form-field>
-        <button mat-icon-button [routerLink]="'/'" matTooltip="Upload or select other playlist"><mat-icon>create_new_folder</mat-icon></button>
+        <button mat-icon-button [routerLink]="'/'" matTooltip="Upload or select other playlist">
+            <mat-icon>create_new_folder</mat-icon>
+        </button>
     </mat-list-item>
 </mat-list>
 <mat-nav-list id="channels-list">
-    <mat-list-item *ngFor=" let channel of channelList | filterBy: searchTerm; index as i" [class.active]="selected?.id === channel.id" (click)="selectChannel(channel)">
-        {{i+1 + '. ' + channel?.inf?.title || 'Unnamed Channel'}}
+    <mat-list-item *ngFor=" let channel of channelList | filterBy: searchTerm; index as i"
+        [class.active]="selected?.id === channel.id" (click)="selectChannel(channel)">
+        {{i+1 + '. ' + channel?.name || 'Unnamed Channel'}}
         <mat-divider></mat-divider>
     </mat-list-item>
 </mat-nav-list>
