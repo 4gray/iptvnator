@@ -22,16 +22,14 @@ export class ChannelListContainerComponent {
      */
     @Output() changeChannel: EventEmitter<{
         url: string;
-        title: string;
+        name: string;
     }> = new EventEmitter();
 
     /**
      * Search term for channel filter
      */
     searchTerm: any = {
-        inf: {
-            title: '',
-        },
+        name: '',
     };
 
     /**
@@ -40,6 +38,6 @@ export class ChannelListContainerComponent {
      */
     selectChannel(channel: Channel): void {
         this.selected = channel;
-        this.changeChannel.emit({ url: channel.url, title: channel.inf.title});
+        this.changeChannel.emit({ url: channel.url, name: channel.name });
     }
 }
