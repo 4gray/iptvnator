@@ -14,3 +14,11 @@
 .active {
     background: #ddd;
 }
+
+.mat-list-base {
+    padding-top: 0;
+}
+
+::ng-deep .mat-expansion-panel-body {
+    padding: 0 !important;
+}
