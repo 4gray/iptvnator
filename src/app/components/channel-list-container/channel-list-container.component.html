@@ -9,9 +9,21 @@
     </mat-list-item>
 </mat-list>
 <mat-nav-list id="channels-list">
-    <mat-list-item *ngFor=" let channel of channelList | filterBy: searchTerm; index as i"
-        [class.active]="selected?.id === channel.id" (click)="selectChannel(channel)">
-        {{i+1 + '. ' + channel?.name || 'Unnamed Channel'}}
-        <mat-divider></mat-divider>
-    </mat-list-item>
+    <mat-accordion class="example-headers-align" multi>
+        <ng-container *ngFor="let groups of channelList | keyvalue">
+        <mat-expansion-panel *ngIf="groups.value.length > 0">
+            <mat-expansion-panel-header>
+                {{groups.key || 'Ungrouped'}} ({{groups.value.length}})
+            </mat-expansion-panel-header>
+            
+            <mat-list-item
+            *ngFor="let channel of groups.value | filterBy: searchTerm; index as i" 
+                    [class.active]="selected?.id === channel.id" (click)="selectChannel(channel)">
+                    {{i+1 + '. ' + channel?.name || 'Unnamed Channel'}}
+                    <mat-divider></mat-divider>
+                </mat-list-item>
+        </mat-expansion-panel>
+    
+        </ng-container>
+    </mat-accordion>
 </mat-nav-list>

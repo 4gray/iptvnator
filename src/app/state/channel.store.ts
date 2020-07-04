@@ -5,12 +5,9 @@ import { Channel } from './channel.model';
 export interface ChannelState extends EntityState<Channel> {}
 
 @Injectable({ providedIn: 'root' })
-@StoreConfig({ name: 'channel' })
+@StoreConfig({ name: 'channel', resettable: true })
 export class ChannelStore extends EntityStore<ChannelState> {
-
-  constructor() {
-    super();
-  }
-
+    constructor() {
+        super();
+    }
 }
-
