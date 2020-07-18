@@ -37,15 +37,17 @@ export class VideoPlayerComponent implements OnInit {
      */
     @ViewChild('sidenav') sideNav: MatSidenav;
 
+    /**
+     * Creates an instance of VideoPlayerOmponent
+     * @param channelQuery akita's channel query
+     */
     constructor(private channelQuery: ChannelQuery) {}
 
     /**
      * Sets video player and subscribes to channel list from the store
      */
     ngOnInit(): void {
-        this.channels$ = this.channelQuery
-            .selectAll()
-            .pipe(map((channels) => _.groupBy(channels, 'group.title')));
+        this.channels$ = this.channelQuery.selectAll();
         this.videoPlayer = document.getElementById(
             'video-player'
         ) as HTMLVideoElement;

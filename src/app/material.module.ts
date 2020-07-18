@@ -7,6 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 
@@ -21,6 +22,7 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
         MatProgressBarModule,
         MatSidenavModule,
         MatSnackBarModule,
+        MatTabsModule,
         MatToolbarModule,
     ],
 })

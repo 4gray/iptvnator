@@ -6,11 +6,6 @@
     background: #eee;
 }
 
-#channels-list {
-    overflow-y: auto;
-    height: calc(100% - 65px);
-}
-
 .active {
     background: #ddd;
 }
@@ -21,4 +16,11 @@
 
 ::ng-deep .mat-expansion-panel-body {
     padding: 0 !important;
+}
+
+::ng-deep.mat-tab-label,
+::ng-deep.mat-tab-label-active {
+    min-width: 0 !important;
+    padding: 3px 10px !important;
+    margin: 3px 10px !important;
 }

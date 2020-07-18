@@ -1,6 +1,6 @@
 <mat-nav-list>
     <div mat-subheader>Recently added playlists ({{playlists.length}})</div>
-    <a mat-list-item *ngFor="let item of playlists; last as last" (click)="playlistClicked.emit(item.playlist);">
+    <a mat-list-item *ngFor="let item of playlists; last as last" (click)="playlistClicked.emit(item)">
         <mat-icon mat-list-icon>folder</mat-icon>
         <div mat-line>{{ item.title || item.filename }}</div>
         <div mat-line>Channels: {{ item.playlist?.items?.length }}</div>

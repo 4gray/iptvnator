@@ -6,7 +6,14 @@
     "version": "0.0.1",
     "version_name": "0.0.1",
     "icons": {
-        "144": "assets/icons/icon-144x144.png"
+        "72": "assets/icons/icon-72x72.png",
+        "96": "assets/icons/icon-96x96.png",
+        "128": "assets/icons/icon-128x128.png",
+        "144": "assets/icons/icon-144x144.png",
+        "152": "assets/icons/icon-152x152.png",
+        "192": "assets/icons/icon-192x192.png",
+        "384": "assets/icons/icon-384x384.png",
+        "512": "assets/icons/icon-512x512.png"
     },
     "app": {
         "background": {

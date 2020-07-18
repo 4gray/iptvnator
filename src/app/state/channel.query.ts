@@ -4,9 +4,7 @@ import { ChannelStore, ChannelState } from './channel.store';
 
 @Injectable({ providedIn: 'root' })
 export class ChannelQuery extends QueryEntity<ChannelState> {
-
-  constructor(protected store: ChannelStore) {
-    super(store);
-  }
-
+    constructor(protected store: ChannelStore) {
+        super(store);
+    }
 }
