@@ -6,23 +6,25 @@ import {
     humanizeBytes,
     UploaderOptions,
 } from 'ngx-uploader';
-import { ChannelStore, createChannel, Channel } from 'src/app/state';
+import { ChannelStore, createChannel } from 'src/app/state';
 import { M3uService } from 'src/app/services/m3u-service.service';
 import { Router } from '@angular/router';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { PLAYLISTS_STORE } from 'src/app/db.config';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { guid, ID } from '@datorama/akita';
 
 /**
  * Describes playlist interface
  */
 export interface Playlist {
-    id?: number;
+    id?: ID;
     title: string;
     filename: string;
     playlist: any;
     importDate: number;
     lastUsage: number;
+    favorites: string[];
 }
 
 @Component({
@@ -46,6 +48,7 @@ export class PlaylistUploaderComponent {
      * @param dbService indexeddb service
      * @param m3uService m3u service
      * @param router angulars router
+     * @param snackBar snackbars with notification messages
      */
     constructor(
         private channelStore: ChannelStore,
@@ -74,16 +77,8 @@ export class PlaylistUploaderComponent {
             this.isLoading = true;
             if (this.files.length > 0) {
                 const fileReader = new FileReader();
-                fileReader.onload = (fileLoadedEvent) => {
-                    const result = (fileLoadedEvent.target as FileReader)
-                        .result;
-
-                    const array = (result as string).split('\n');
-                    const playlist = this.m3uService.parsePlaylist(array);
-                    this.savePlaylist(this.files[0].name, playlist);
-
-                    this.setPlaylist(playlist);
-                };
+                fileReader.onload = (fileLoadedEvent) =>
+                    this.handlePlaylist(fileLoadedEvent);
                 fileReader.readAsText(this.files[0].nativeFile);
             }
         } else if (
@@ -120,6 +115,18 @@ export class PlaylistUploaderComponent {
     }
 
     /**
+     * Parse and store uploaded playlist
+     * @param fileLoadedEvent
+     */
+    handlePlaylist(fileLoadedEvent: any): void {
+        const result = (fileLoadedEvent.target as FileReader).result;
+        const array = (result as string).split('\n');
+        const playlist = this.m3uService.parsePlaylist(array);
+        const playlistObject = this.savePlaylist(this.files[0].name, playlist);
+        this.setPlaylist(playlistObject);
+    }
+
+    /**
      * Navigates to the video player route
      */
     navigateToPlayer(): void {
@@ -132,18 +139,20 @@ export class PlaylistUploaderComponent {
      * @param name name of the playlist
      * @param playlist playlist to save
      */
-    savePlaylist(name: string, playlist: any): void {
-        this.dbService
-            .add<Playlist>('playlists', {
-                filename: name,
-                title: name,
-                playlist,
-                importDate: new Date().getMilliseconds(),
-                lastUsage: new Date().getMilliseconds(),
-            })
-            .then(() => {
-                console.log('playlist saved!');
-            });
+    savePlaylist(name: string, playlist: any): Playlist {
+        const playlistObject = {
+            id: guid(),
+            filename: name,
+            title: name,
+            playlist,
+            importDate: new Date().getMilliseconds(),
+            lastUsage: new Date().getMilliseconds(),
+            favorites: [],
+        };
+        this.dbService.add<Playlist>('playlists', playlistObject).then(() => {
+            console.log('playlist saved!');
+        });
+        return playlistObject;
     }
 
     /**
@@ -160,15 +169,19 @@ export class PlaylistUploaderComponent {
 
     /**
      * Sets the given playlist as active for the current session
-     * @param playlist m3u playlist
-     * // TODO: use typings from iptv-parser lib
+     * @param playlist playlist object
      */
-    setPlaylist(playlist: { header: any; items: Channel[] }): void {
+    setPlaylist(playlist: Playlist): void {
         this.channelStore.reset();
-        const channels = playlist.items.map((element) =>
-            createChannel(element)
+        const favorites = playlist.favorites || [];
+        const channels = playlist.playlist.items.map((element) =>
+            createChannel(element, favorites)
         );
         this.channelStore.upsertMany(channels);
+        this.channelStore.update(() => ({
+            favorites,
+            playlistId: playlist.id,
+        }));
         this.navigateToPlayer();
     }
 

@@ -11,17 +11,22 @@ export interface Channel {
     group: {
         title: string;
     };
+    fav: boolean;
 }
 
 /**
  * Creates new channel object based on the given fields
  * @param params partial channel object
  */
-export function createChannel(params: Partial<Channel>) {
+export function createChannel(
+    params: Partial<Channel>,
+    favoritesList: string[]
+) {
     return {
-        id: guid(),
+        id: params.url,
         name: params.name,
         group: params.group,
         url: params.url,
+        fav: favoritesList.includes(params.url),
     } as Channel;
 }

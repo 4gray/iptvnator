@@ -11,7 +11,7 @@ export class RecentPlaylistsComponent {
     @Input() playlists: Playlist[];
 
     /** Emits on playlist selection */
-    @Output() playlistClicked: EventEmitter<any> = new EventEmitter();
+    @Output() playlistClicked: EventEmitter<Playlist> = new EventEmitter();
 
     /** Emits on playlist remove click */
     @Output() removeClicked: EventEmitter<Playlist> = new EventEmitter();
