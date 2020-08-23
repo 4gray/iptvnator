@@ -1,0 +1,42 @@
+<mat-drawer-container
+    class="main-container"
+    (backdropClick)="close()">
+
+    <!-- sidebar content -->
+    <mat-drawer
+        #drawer
+        mode="side"
+        opened
+        (keydown.escape)="close()"
+        disableClose>
+        <ng-container *ngIf="channels$ | async as channels">
+            <app-channel-list-container
+                [channelList]="channels"
+                (changeChannel)="playChannel($event)"></app-channel-list-container>
+        </ng-container>
+    </mat-drawer>
+
+    <mat-drawer-content>
+        <!-- toolbar with drawer icon -->
+        <mat-toolbar color="primary">
+            <button
+                mat-icon-button
+                mat-toolbar="Add to favorites"
+                (click)="drawer.toggle()"
+                matTooltip="Open channels list">
+                <mat-icon>menu</mat-icon>
+            </button>
+            {{ (activeChannel$ | async)?.name}}
+            <div class="spacer"></div>
+            <!-- <mat-icon>star_outline</mat-icon> -->
+        </mat-toolbar>
+
+        <!-- player component -->
+        <video
+            id="video-player"
+            autoplay="true"
+            controls="true"
+            muted="muted"></video>
+
+    </mat-drawer-content>
+</mat-drawer-container>

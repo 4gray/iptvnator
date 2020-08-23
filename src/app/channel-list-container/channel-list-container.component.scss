@@ -1,0 +1,40 @@
+#top-panel {
+    background: #eee;
+}
+
+.active {
+    background: #ddd;
+}
+
+.mat-list-base {
+    padding-top: 0;
+}
+
+::ng-deep .mat-tab-header, ::ng-deep .mat-tab-labels {
+    height: 63px;
+    line-height: 63px;
+}
+
+::ng-deep .mat-expansion-panel-body {
+    padding: 0 !important;
+}
+
+::ng-deep.mat-tab-label,
+::ng-deep.mat-tab-label-active {
+    min-width: 0 !important;
+    padding: 3px 10px !important;
+    margin: 3px 10px !important;
+}
+
+
+::ng-deep {
+    .mat-tab-label {
+        height: 63px !important;
+    }
+    .mat-tab-label-content {
+        text-transform: uppercase;
+    }
+    .mat-expansion-panel {
+        border-radius: 0 !important;
+    }
+}

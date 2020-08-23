@@ -7,9 +7,61 @@ $material-icons-font-path: '~material-icons/iconfont/';
 
 body,
 html {
-    background: #eee;
+    background: #56598e;
+    font-family: caption;
 }
 
 .mat-toolbar.mat-primary {
     background: #000000;
+}
+
+
+html, body {
+  margin: 0;
+  padding: 0;
+
+  height: 100%;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* CAN (MUST) BE REMOVED ! Sample Global style */
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+
+  .title {
+    color: white;
+    margin: 0;
+    padding: 50px 20px;
+  }
+
+  a {
+    color: #fff !important;
+    text-transform: uppercase;
+    text-decoration: none;
+    background: #ed3330;
+    padding: 20px;
+    border-radius: 5px;
+    display: inline-block;
+    border: none;
+    transition: all 0.4s ease 0s;
+
+    &:hover {
+      background: #fff;
+      color: #ed3330 !important;
+      letter-spacing: 1px;
+      -webkit-box-shadow: 0px 5px 40px -10px rgba(0,0,0,0.57);
+      -moz-box-shadow: 0px 5px 40px -10px rgba(0,0,0,0.57);
+      box-shadow: 5px 40px -10px rgba(0,0,0,0.57);
+      transition: all 0.4s ease 0s;
+    }
+  }
+}
+
+.full-width {
+  width: 100%;
 }

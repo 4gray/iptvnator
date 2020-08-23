@@ -5,6 +5,7 @@ import { Channel } from './channel.model';
 export interface ChannelState extends EntityState<Channel> {
     favorites: string[];
     playlistId: string;
+    active: Channel;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -14,6 +15,7 @@ export class ChannelStore extends EntityStore<ChannelState> {
         super({
             favorites: [],
             playlistId: '',
+            active: undefined,
         });
     }
 

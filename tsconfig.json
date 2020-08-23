@@ -8,10 +8,10 @@
   "files": [],
   "references": [
     {
-      "path": "./tsconfig.app.json"
+      "path": "./src/tsconfig.app.json"
     },
     {
-      "path": "./tsconfig.spec.json"
+      "path": "./src/tsconfig.spec.json"
     }
   ]
 }
