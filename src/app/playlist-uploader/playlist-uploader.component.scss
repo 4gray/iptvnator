@@ -1,0 +1,99 @@
+mat-card {
+    padding: 0 !important;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.logo-container {
+    text-align: center;
+
+    .logo {
+        width: 128px;
+        padding-bottom: 20px;
+    }
+}
+
+
+::ng-deep {
+    .mat-tab-label-content {
+        text-transform: uppercase;
+    }
+}
+
+
+#recent-playlists {
+    border-radius: 0 4px 4px 0;
+    background: #eee;
+    padding: 16px 0;
+    border-left: 1px solid #ccc;
+
+    .mat-card-subtitle {
+        padding: 0px 16px;
+        text-transform: uppercase;
+        border-bottom: 1px solid #ccc;
+        height: 32px;
+        margin-bottom: 0 !important;
+    }
+}
+
+.drop-container {
+    margin: 10px;
+    padding: 10px;
+    height: 300px;
+    border: 2px dashed #ccc;
+    border-radius: 3px;
+    text-align: center;
+    color: #666;
+}
+
+.url-form {
+    margin: 15px;
+    height: 304px;
+}
+
+#file input {
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    padding: 5px;
+}
+
+.upload-title {
+    font-size: 1.25em;
+}
+
+.input-file {
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+}
+
+.input-file + label {
+    font-size: 1em;
+    font-weight: 700;
+    color: white;
+    background-color: #3f51b5;
+    display: inline-block;
+    text-transform: uppercase;
+    border-radius: 4px;
+}
+
+.input-file:focus + label,
+.input-file + label:hover {
+    background-color: #202b69;
+}
+
+.input-file + label {
+    cursor: pointer;
+    line-height: 35px;
+    padding: 3px 10px;
+}
+
+.upload-icon {
+    font-size: 80px;
+    width: 80px;
+    height: 80px;
+    padding-top: 20px;
+}

@@ -1,0 +1,25 @@
+#video-player {
+    width: 100%;
+    height: calc(100vh - 100px);
+}
+
+.main-container {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.mat-drawer-content {
+    background: #000;
+}
+
+.mat-drawer {
+    width: 400px;
+    min-width: 400px;
+}
+
+.spacer {
+    flex: 1 1 auto;
+}

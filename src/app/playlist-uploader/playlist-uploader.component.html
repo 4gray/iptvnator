@@ -1,0 +1,48 @@
+<div style="padding: 15px;">
+    <div class="logo-container">
+        <img src="./assets/icons/tv-icon.png" class="logo" />
+    </div>
+    <mat-card>
+        <div fxLayout="row" fxFlexAlign="start start">
+            <div fxFlex="50">
+                <mat-tab-group [dynamicHeight]="true">
+                    <mat-tab label="Add via file upload">
+                        <ng-template matTabContent>
+                            <div class="drop-container" ngFileDrop [options]="options"
+                                (uploadOutput)="onUploadOutput($event)" [uploadInput]="uploadInput">
+                                <mat-icon class="upload-icon">save_alt</mat-icon>
+                                <p class="upload-title">
+                                    Drag & drop files here
+                                </p>
+                                <p>or</p>
+                                <input type="file" ngFileSelect [options]="options"
+                                    (uploadOutput)="onUploadOutput($event)" class="input-file" name="file" id="file"
+                                    [uploadInput]="uploadInput" multiple>
+                                <label for="file">
+                                    Choose a playlist
+                                </label>
+                            </div>
+                        </ng-template>
+                    </mat-tab>
+                    <mat-tab label="Add via URL">
+                        <ng-template matTabContent>
+                            <div class="url-form">
+                                <mat-form-field class="full-width">
+                                    <input matInput placeholder="Playlist URL (m3u, m3u8)" [(ngModel)]="playlistUrl">
+                                </mat-form-field>
+                                <button mat-flat-button [disabled]="!playlistUrl" color="primary" (click)="sendUrl()">ADD PLAYLIST</button>
+                            </div>
+                        </ng-template>
+                    </mat-tab>
+                </mat-tab-group>
+            </div>
+            <div fxFlex="50" id="recent-playlists">
+                <mat-card-subtitle>Recently added playlists ({{playlists.length}})</mat-card-subtitle>
+                <app-recent-playlists [playlists]="playlists" (playlistClicked)="getPlaylist($event)"
+                    (removeClicked)="removePlaylist($event)">
+                </app-recent-playlists>
+            </div>
+        </div>
+    </mat-card>
+    <mat-progress-bar *ngIf="isLoading" mode="indeterminate"></mat-progress-bar>
+</div>

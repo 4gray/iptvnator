@@ -1,0 +1,21 @@
+os:
+  - linux
+  - osx
+language: node_js
+node_js:
+  - '12'
+  - '10'
+dist: xenial
+sudo: required
+services:
+  - xvfb
+before_script:
+  - export DISPLAY=:99.0
+install:
+  - npm set progress=false
+  - npm install
+script:
+  - ng lint
+  - npm run test
+  - npm run e2e
+  - npm run build
