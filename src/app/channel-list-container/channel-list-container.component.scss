@@ -28,6 +28,9 @@
 
 
 ::ng-deep {
+    .mat-tab-group {
+        height: 100%;
+    }
     .mat-tab-label {
         height: 63px !important;
     }

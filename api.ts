@@ -3,9 +3,9 @@ import { parse } from 'iptv-playlist-parser';
 import axios from 'axios';
 import { guid } from '@datorama/akita';
 import { Playlist } from './src/app/playlist-uploader/playlist.interface';
+import Nedb from 'nedb-promises-ts';
 
-const Datastore = require('nedb');
-const db = new Datastore({ filename: 'data.db', autoload: true });
+const db = new Nedb<Playlist>({ filename: 'data.db', autoload: true });
 
 export class Api {
     constructor() {
@@ -34,31 +34,27 @@ export class Api {
             event.sender.send('parse-response', { payload: playlistObject });
         });
 
-        ipcMain.on('playlists-all', (event, args) => {
-            db.find({}, { count: 1, title: 1, _id: 1 }, function (
-                err,
-                playlists
-            ) {
-                event.sender.send('playlist-all-result', {
-                    payload: playlists,
-                });
+        ipcMain.on('playlists-all', async (event, args) => {
+            const playlists = await db.find({}, { count: 1, title: 1, _id: 1 });
+            event.sender.send('playlist-all-result', {
+                payload: playlists,
             });
         });
 
-        ipcMain.on('playlist-by-id', (event, args) => {
-            db.findOne({ _id: args.id }, function (err, playlist) {
-                event.sender.send('playlist-by-id-result', {
-                    payload: playlist,
-                });
+        ipcMain.on('playlist-by-id', async (event, args) => {
+            const playlist = await db.findOne({ _id: args.id });
+            event.sender.send('playlist-by-id-result', {
+                payload: playlist,
             });
         });
 
-        ipcMain.on('playlist-remove-by-id', (event, args) => {
-            db.remove({ _id: args.id }, function (err, playlist) {
+        ipcMain.on('playlist-remove-by-id', async (event, args) => {
+            const removed = await db.remove({ _id: args.id });
+            if (removed) {
                 event.sender.send('playlist-remove-by-id-result', {
                     message: 'playlist was removed',
                 });
-            });
+            }
         });
     }
 
@@ -95,8 +91,8 @@ export class Api {
      * @param playlist playlist to add
      */
     insertToDb(playlist) {
-        db.insert(playlist, function (err, newrec) {
-            console.log('playlist was saved...', newrec._id);
+        db.insert(playlist).then((response) => {
+            console.log('playlist was saved...', response._id);
         });
     }
 }

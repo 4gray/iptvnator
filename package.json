@@ -104,12 +104,12 @@
     "@types/hls.js": "0.13.0",
     "axios": "0.19.2",
     "custom-electron-titlebar": "3.2.3",
-    "electron-better-ipc": "1.1.1",
     "hls.js": "0.14.8",
     "iptv-playlist-parser": "0.5.0",
     "lodash": "4.17.19",
     "material-icons": "0.3.1",
     "nedb": "1.8.0",
+    "nedb-promises-ts": "0.0.1-4",
     "ngx-filter-pipe": "2.1.2",
     "ngx-uploader": "10.0.0",
     "uuid": "8.3.0"

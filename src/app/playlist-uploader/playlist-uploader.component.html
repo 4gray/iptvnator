@@ -30,14 +30,14 @@
                                 <mat-form-field class="full-width">
                                     <input matInput placeholder="Playlist URL (m3u, m3u8)" [(ngModel)]="playlistUrl">
                                 </mat-form-field>
-                                <button mat-flat-button [disabled]="!playlistUrl" color="primary" (click)="sendUrl()">ADD PLAYLIST</button>
+                                <button mat-flat-button [disabled]="!playlistUrl" color="primary" (click)="sendPlaylistsUrl()">ADD PLAYLIST</button>
                             </div>
                         </ng-template>
                     </mat-tab>
                 </mat-tab-group>
             </div>
             <div fxFlex="50" id="recent-playlists">
-                <mat-card-subtitle>Recently added playlists ({{playlists.length}})</mat-card-subtitle>
+                <mat-card-subtitle>Added playlists ({{playlists.length}})</mat-card-subtitle>
                 <app-recent-playlists [playlists]="playlists" (playlistClicked)="getPlaylist($event)"
                     (removeClicked)="removePlaylist($event)">
                 </app-recent-playlists>

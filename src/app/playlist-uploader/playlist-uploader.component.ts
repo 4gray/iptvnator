@@ -34,13 +34,12 @@ export class PlaylistUploaderComponent {
         concurrency: 1,
         maxUploads: 1,
     };
-    playlists: Playlist[] = [];
+    playlists: { count: number; title: string; _id: string }[] = [];
     isLoading = false;
 
     /**
      * Creates an instanceof PlaylistUploaderComponent
      * @param channelStore channels store
-     * @param m3uService m3u service
      * @param router angulars router
      * @param snackBar snackbars with notification messages
      */
@@ -155,7 +154,10 @@ export class PlaylistUploaderComponent {
         this.router.navigateByUrl('/iptv', { skipLocationChange: true });
     }
 
-    sendUrl(): void {
+    /**
+     * Sends url of the playlist to the renderer process
+     */
+    sendPlaylistsUrl(): void {
         this.renderer.send('parse-playlist-by-url', {
             title: this.getLastUrlSegment(this.playlistUrl),
             url: this.playlistUrl,
