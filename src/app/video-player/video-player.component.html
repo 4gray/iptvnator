@@ -28,6 +28,7 @@
             </button>
             {{ (activeChannel$ | async)?.name}}
             <div class="spacer"></div>
+            <button mat-icon-button (click)="openAbout()"><mat-icon>info</mat-icon></button>
             <!-- <mat-icon>star_outline</mat-icon> -->
         </mat-toolbar>
 

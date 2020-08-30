@@ -11,6 +11,9 @@ import * as _ from 'lodash';
     styleUrls: ['./video-player.component.css'],
 })
 export class VideoPlayerComponent implements OnInit {
+    /** electrons ipc reference */
+    renderer = window.require('electron').ipcRenderer;
+
     /** Channels list */
     channels$: Observable<Channel[]>;
 
@@ -71,5 +74,12 @@ export class VideoPlayerComponent implements OnInit {
                 this.videoPlayer.play();
             });
         }
+    }
+
+    /**
+     * Opens about application dialog
+     */
+    openAbout(): void {
+        this.renderer.send('show-about');
     }
 }

@@ -1,30 +1,32 @@
-import { app, BrowserWindow, screen } from 'electron';
+import { app, BrowserWindow, Menu, MenuItem, shell } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
 import { Api } from './api';
+const openAboutWindow = require('about-window').default;
 
 let win: BrowserWindow = null;
 const args = process.argv.slice(1),
     serve = args.some((val) => val === '--serve');
 
 function createWindow(): BrowserWindow {
-    const electronScreen = screen;
-    const size = electronScreen.getPrimaryDisplay().workAreaSize;
-
     // Create the browser window.
     win = new BrowserWindow({
-        x: 0,
-        y: 0,
-        width: size.width,
-        height: size.height,
+        width: 1000,
+        height: 800,
         webPreferences: {
             nodeIntegration: true,
             allowRunningInsecureContent: serve ? true : false,
         },
         resizable: true,
         darkTheme: true,
+        icon: path.join(__dirname, 'dist/assets/icons/icon.png'),
+        titleBarStyle: 'hidden',
+        frame: false,
+        minWidth: 900,
+        minHeight: 700,
     });
-    win.setMenu(null);
+    const menu = createMenu(win);
+    Menu.setApplicationMenu(menu);
 
     if (serve) {
         win.webContents.openDevTools();
@@ -52,6 +54,67 @@ function createWindow(): BrowserWindow {
     });
 
     return win;
+}
+
+/**
+ * Creates context menu
+ * @param win browser window object
+ */
+function createMenu(win: BrowserWindow) {
+    const menu = new Menu();
+    menu.append(
+        new MenuItem({
+            label: 'File',
+            submenu: [
+                {
+                    label: 'Add playlist',
+                    click: () => win.webContents.send('add-playlist-view'),
+                },
+                {
+                    type: 'separator',
+                },
+                {
+                    label: 'Exit',
+                    click: () => app.quit(),
+                },
+            ],
+        })
+    );
+
+    menu.append(
+        new MenuItem({
+            label: 'Help',
+            submenu: [
+                {
+                    label: 'Report a bug',
+                    click: () =>
+                        shell.openExternal(
+                            'https://github.com/4gray/my-iptv-player-pwa'
+                        ),
+                },
+                {
+                    label: 'Open DevTools',
+                    click: () => win.webContents.openDevTools(),
+                },
+                {
+                    type: 'separator',
+                },
+                {
+                    label: 'About',
+                    click: () =>
+                        openAboutWindow({
+                            icon_path: path.join(
+                                __dirname,
+                                'dist/assets/icons/icon.png'
+                            ),
+                            copyright: 'Copyright (c) 2020 4gray',
+                            package_json_dir: __dirname,
+                        }),
+                },
+            ],
+        })
+    );
+    return menu;
 }
 
 try {

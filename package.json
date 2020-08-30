@@ -1,7 +1,7 @@
 {
   "name": "iptvnator",
   "version": "0.0.1",
-  "description": "IPTV player applicaion.",
+  "description": "IPTV player application.",
   "homepage": "https://github.com/4gray/my-iptv-player-pwa",
   "author": {
     "name": "4gray",
@@ -102,6 +102,7 @@
     "@angular/material": "10.1.2",
     "@datorama/akita": "5.2.2",
     "@types/hls.js": "0.13.0",
+    "about-window": "1.13.4",
     "axios": "0.19.2",
     "custom-electron-titlebar": "3.2.3",
     "hls.js": "0.14.8",

@@ -5,6 +5,8 @@ import { guid } from '@datorama/akita';
 import { Playlist } from './src/app/playlist-uploader/playlist.interface';
 import Nedb from 'nedb-promises-ts';
 
+const join = require('path').join;
+const openAboutWindow = require('about-window').default;
 const db = new Nedb<Playlist>({ filename: 'data.db', autoload: true });
 
 export class Api {
@@ -55,6 +57,14 @@ export class Api {
                     message: 'playlist was removed',
                 });
             }
+        });
+
+        ipcMain.on('show-about', () => {
+            openAboutWindow({
+                icon_path: join(__dirname, 'dist/assets/icons/icon.png'),
+                copyright: 'Copyright (c) 2020 4gray',
+                package_json_dir: __dirname,
+            });
         });
     }
 

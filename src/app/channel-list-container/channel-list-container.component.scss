@@ -26,6 +26,9 @@
     margin: 3px 10px !important;
 }
 
+.scroll-viewport {
+    min-height: calc(100vh - 142px);
+}
 
 ::ng-deep {
     .mat-tab-group {

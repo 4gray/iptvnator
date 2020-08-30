@@ -12,8 +12,8 @@
             </mat-list-item>
         </mat-list>
         <mat-nav-list id="channels-list">
-            <mat-accordion multi>
-                <mat-list-item *ngFor="let channel of _channelList | filterBy: searchTerm; index as i"
+            <cdk-virtual-scroll-viewport itemSize="50" class="scroll-viewport">
+                <mat-list-item *cdkVirtualFor="let channel of _channelList | filterBy: searchTerm; index as i"
                     [class.active]="selected?.id === channel.id" (click)="selectChannel(channel)">
                     <p matLine>
                         {{ i+1 + '. ' + channel?.name || 'Unnamed Channel' }}
@@ -23,7 +23,7 @@
                     </button> -->
                     <mat-divider></mat-divider>
                 </mat-list-item>
-            </mat-accordion>
+            </cdk-virtual-scroll-viewport>
         </mat-nav-list>
     </mat-tab>
 
@@ -42,8 +42,8 @@
                                     {{ i+1 + '. ' + channel?.name || 'Unnamed Channel' }}
                                 </p>
                                 <!-- <button mat-icon-button color="primary" (click)="favChannel(channel, $event)">
-                                    <mat-icon>star{{ channel.fav ? '' : '_outline' }}</mat-icon>
-                                </button> -->
+                                        <mat-icon>star{{ channel.fav ? '' : '_outline' }}</mat-icon>
+                                    </button> -->
                                 <mat-divider></mat-divider>
                             </mat-list-item>
                         </ng-template>
