@@ -114,6 +114,22 @@ function createMenu(win: BrowserWindow) {
             ],
         })
     );
+
+    // copy-paste shortcuts workaround for mac os
+    if (process.platform === 'darwin') {
+        menu.append(
+            new MenuItem({
+                label: 'Edit',
+                submenu: [
+                    { role: 'cut' },
+                    { role: 'copy' },
+                    { role: 'paste' },
+                    { role: 'delete' },
+                ],
+            })
+        );
+    }
+
     return menu;
 }
 
