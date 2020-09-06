@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import axios from 'axios';
 import { guid } from '@datorama/akita';
@@ -7,7 +7,11 @@ import Nedb from 'nedb-promises-ts';
 
 const join = require('path').join;
 const openAboutWindow = require('about-window').default;
-const db = new Nedb<Playlist>({ filename: 'data.db', autoload: true });
+const userData = app.getPath('userData');
+const db = new Nedb<Playlist>({
+    filename: `${userData}/db/data.db`,
+    autoload: true,
+});
 
 export class Api {
     constructor() {
