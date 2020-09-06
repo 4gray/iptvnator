@@ -1,6 +1,6 @@
 {
   "name": "iptvnator",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "IPTV player application.",
   "homepage": "https://github.com/4gray/my-iptv-player-pwa",
   "author": {
@@ -36,7 +36,7 @@
     "test": "ng test --watch=false",
     "test:watch": "ng test",
     "e2e": "npm run build:prod && cross-env TS_NODE_PROJECT='e2e/tsconfig.e2e.json' mocha --timeout 300000 --require ts-node/register e2e/**/*.e2e.ts",
-    "version": "conventional-changelog -i CHANGELOG.md -s -r 0 && git add CHANGELOG.md",
+    "version": "conventional-changelog -i CHANGELOG.md -p angular -s -r 0 && git add CHANGELOG.md",
     "lint": "ng lint"
   },
   "devDependencies": {
