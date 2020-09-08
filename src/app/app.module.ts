@@ -22,7 +22,6 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
 import { ChannelListContainerComponent } from './channel-list-container/channel-list-container.component';
 import { FilterPipeModule } from 'ngx-filter-pipe';
-import { M3uService } from './services/m3u-service.service';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -55,7 +54,7 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
         }),
         NgxUploaderModule,
     ],
-    providers: [M3uService],
+    providers: [],
     bootstrap: [AppComponent],
 })
 export class AppModule {}
