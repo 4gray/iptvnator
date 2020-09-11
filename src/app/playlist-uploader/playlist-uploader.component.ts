@@ -29,7 +29,11 @@ export class PlaylistUploaderComponent {
         allowedContentTypes: [
             'application/x-mpegurl',
             'application/octet-stream',
+            'application/mpegurl',
+            'application/vnd.apple.mpegurl',
+            'application/vnd.apple.mpegurl.audio',
             'audio/x-mpegurl',
+            'audio/mpegurl',
         ],
         concurrency: 1,
         maxUploads: 1,
@@ -55,6 +59,9 @@ export class PlaylistUploaderComponent {
         this.setRendererListeners();
     }
 
+    /**
+     * Set electrons main process listeners
+     */
     setRendererListeners(): void {
         this.renderer.on('parse-response', (event, response) => {
             this.ngZone.run(() => this.setPlaylist(response.payload));
