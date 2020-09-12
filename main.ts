@@ -24,6 +24,7 @@ function createWindow(): BrowserWindow {
         frame: false,
         minWidth: 900,
         minHeight: 700,
+        title: 'IPTVnator',
     });
     const menu = createMenu(win);
     Menu.setApplicationMenu(menu);
@@ -81,6 +82,21 @@ function createMenu(win: BrowserWindow) {
         })
     );
 
+    // copy-paste shortcuts workaround for mac os
+    if (process.platform === 'darwin') {
+        menu.append(
+            new MenuItem({
+                label: 'Edit',
+                submenu: [
+                    { role: 'cut' },
+                    { role: 'copy' },
+                    { role: 'paste' },
+                    { role: 'delete' },
+                ],
+            })
+        );
+    }
+
     menu.append(
         new MenuItem({
             label: 'Help',
@@ -114,21 +130,6 @@ function createMenu(win: BrowserWindow) {
             ],
         })
     );
-
-    // copy-paste shortcuts workaround for mac os
-    if (process.platform === 'darwin') {
-        menu.append(
-            new MenuItem({
-                label: 'Edit',
-                submenu: [
-                    { role: 'cut' },
-                    { role: 'copy' },
-                    { role: 'paste' },
-                    { role: 'delete' },
-                ],
-            })
-        );
-    }
 
     return menu;
 }
