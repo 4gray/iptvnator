@@ -50,5 +50,24 @@ export class AppComponent {
                 this.router.navigateByUrl('/', { skipLocationChange: true });
             });
         });
+
+        if (
+            (this.electronService.remote.process.platform === 'linux' ||
+                this.electronService.remote.process.platform === 'win32') &&
+            this.electronService.remote.process.argv.length > 2
+        ) {
+            const filePath = this.electronService.remote.process.argv.find(
+                (filepath) =>
+                    filepath.endsWith('.m3u') || filepath.endsWith('.m3u8')
+            );
+            if (filePath) {
+                const filePathsArray = filePath.split('/');
+                const fileName = filePathsArray[filePathsArray.length - 1];
+                this.electronService.ipcRenderer.send('open-file', {
+                    filePath,
+                    fileName,
+                });
+            }
+        }
     }
 }

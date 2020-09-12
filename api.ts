@@ -5,6 +5,7 @@ import { guid } from '@datorama/akita';
 import { Playlist } from './src/app/playlist-uploader/playlist.interface';
 import Nedb from 'nedb-promises-ts';
 
+const fs = require('fs');
 const join = require('path').join;
 const openAboutWindow = require('about-window').default;
 const userData = app.getPath('userData');
@@ -68,6 +69,28 @@ export class Api {
                 icon_path: join(__dirname, 'dist/assets/icons/icon.png'),
                 copyright: 'Copyright (c) 2020 4gray',
                 package_json_dir: __dirname,
+            });
+        });
+
+        // open playlist from file system
+        ipcMain.on('open-file', (event, args) => {
+            fs.readFile(args.filePath, 'utf-8', (err, data) => {
+                if (err) {
+                    console.log(
+                        'An error ocurred reading the file :' + err.message
+                    );
+                    return;
+                }
+                const array = (data as string).split('\n');
+                const parsedPlaylist = this.parsePlaylist(array);
+                const playlistObject = this.createPlaylistObject(
+                    args.fileName,
+                    parsedPlaylist
+                );
+                this.insertToDb(playlistObject);
+                event.sender.send('parse-response', {
+                    payload: playlistObject,
+                });
             });
         });
     }
