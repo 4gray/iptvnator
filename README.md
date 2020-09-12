@@ -1,10 +1,11 @@
 # IPTVnator - IPTV Player Application
 
-<div style="text-align: center">
+<p align="center">
   <img src="https://raw.githubusercontent.com/4gray/iptvnator/electron/src/assets/icons/favicon.256x256.png" alt="IPTVnator icon" title="Free IPTV player application" />
-
+</p>
+<p align="center">
   <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/release/4gray/iptvnator.svg?style=round-square" alt="Release"></a> ![Build and release](https://github.com/4gray/iptvnator/workflows/Build%20and%20release/badge.svg)
-</div>
+</p>
 
 |                       Select/upload a playlist                       |                   Main player interface                   |
 | :------------------------------------------------------------------: | :-------------------------------------------------------: |
