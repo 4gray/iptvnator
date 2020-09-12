@@ -10,6 +10,7 @@ import { ChannelStore, createChannel } from '../state';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Playlist } from './playlist.interface';
+import { ElectronService } from 'app/services/electron.service';
 
 @Component({
     selector: 'app-playlist-uploader',
@@ -17,9 +18,7 @@ import { Playlist } from './playlist.interface';
     styleUrls: ['./playlist-uploader.component.scss'],
 })
 export class PlaylistUploaderComponent {
-    renderer = window.require('electron').ipcRenderer;
     playlistUrl = '';
-
     formData: FormData;
     files: UploadFile[] = [];
     uploadInput: EventEmitter<UploadInput> = new EventEmitter<UploadInput>();
@@ -44,17 +43,20 @@ export class PlaylistUploaderComponent {
     /**
      * Creates an instanceof PlaylistUploaderComponent
      * @param channelStore channels store
+     * @param electronService electron service
+     * @param ngZone angulars ngZone module
      * @param router angulars router
      * @param snackBar snackbars with notification messages
      */
     constructor(
         private channelStore: ChannelStore,
+        private electronService: ElectronService,
         private ngZone: NgZone,
         private router: Router,
         private snackBar: MatSnackBar
     ) {
         // get all playlists
-        this.renderer.send('playlists-all');
+        this.electronService.ipcRenderer.send('playlists-all');
         // set all renderer listeners
         this.setRendererListeners();
     }
@@ -63,28 +65,43 @@ export class PlaylistUploaderComponent {
      * Set electrons main process listeners
      */
     setRendererListeners(): void {
-        this.renderer.on('parse-response', (event, response) => {
-            this.ngZone.run(() => this.setPlaylist(response.payload));
-        });
+        this.electronService.ipcRenderer.on(
+            'parse-response',
+            (event, response) => {
+                this.ngZone.run(() => this.setPlaylist(response.payload));
+            }
+        );
 
-        this.renderer.on('parse-url-response', (event, response) => {
-            this.ngZone.run(() => this.setPlaylist(response.payload));
-        });
+        this.electronService.ipcRenderer.on(
+            'parse-url-response',
+            (event, response) => {
+                this.ngZone.run(() => this.setPlaylist(response.payload));
+            }
+        );
 
-        this.renderer.on('playlist-all-result', (event, response) => {
-            this.ngZone.run(() => (this.playlists = response.payload));
-        });
-        this.renderer.on('playlist-by-id-result', (event, response) => {
-            this.ngZone.run(() => this.setPlaylist(response.payload));
-        });
-        this.renderer.on('playlist-remove-by-id-result', () => {
-            this.ngZone.run(() => {
-                this.snackBar.open('Done! Playlist was removed.', null, {
-                    duration: 2000,
+        this.electronService.ipcRenderer.on(
+            'playlist-all-result',
+            (event, response) => {
+                this.ngZone.run(() => (this.playlists = response.payload));
+            }
+        );
+        this.electronService.ipcRenderer.on(
+            'playlist-by-id-result',
+            (event, response) => {
+                this.ngZone.run(() => this.setPlaylist(response.payload));
+            }
+        );
+        this.electronService.ipcRenderer.on(
+            'playlist-remove-by-id-result',
+            () => {
+                this.ngZone.run(() => {
+                    this.snackBar.open('Done! Playlist was removed.', null, {
+                        duration: 2000,
+                    });
+                    this.electronService.ipcRenderer.send('playlists-all');
                 });
-                this.renderer.send('playlists-all');
-            });
-        });
+            }
+        );
     }
 
     /**
@@ -147,7 +164,7 @@ export class PlaylistUploaderComponent {
     handlePlaylist(fileLoadedEvent: Event): void {
         const result = (fileLoadedEvent.target as FileReader).result;
         const array = (result as string).split('\n');
-        this.renderer.send('parse-playlist', {
+        this.electronService.ipcRenderer.send('parse-playlist', {
             title: this.files[0].name,
             playlist: array,
         });
@@ -165,7 +182,7 @@ export class PlaylistUploaderComponent {
      * Sends url of the playlist to the renderer process
      */
     sendPlaylistsUrl(): void {
-        this.renderer.send('parse-playlist-by-url', {
+        this.electronService.ipcRenderer.send('parse-playlist-by-url', {
             title: this.getLastUrlSegment(this.playlistUrl),
             url: this.playlistUrl,
         });
@@ -194,7 +211,9 @@ export class PlaylistUploaderComponent {
      * @param playlistId playlist id to remove
      */
     removePlaylist(playlistId: string): void {
-        this.renderer.send('playlist-remove-by-id', { id: playlistId });
+        this.electronService.ipcRenderer.send('playlist-remove-by-id', {
+            id: playlistId,
+        });
     }
 
     /**
@@ -202,7 +221,9 @@ export class PlaylistUploaderComponent {
      * @param playlistId playlist id
      */
     getPlaylist(playlistId: string): void {
-        this.renderer.send('playlist-by-id', { id: playlistId });
+        this.electronService.ipcRenderer.send('playlist-by-id', {
+            id: playlistId,
+        });
     }
 
     /**

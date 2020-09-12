@@ -4,6 +4,7 @@ import { ChannelQuery, Channel } from '../state';
 import { Observable } from 'rxjs';
 import { MatSidenav } from '@angular/material/sidenav';
 import * as _ from 'lodash';
+import { ElectronService } from 'app/services/electron.service';
 
 @Component({
     selector: 'app-video-player',
@@ -11,9 +12,6 @@ import * as _ from 'lodash';
     styleUrls: ['./video-player.component.css'],
 })
 export class VideoPlayerComponent implements OnInit {
-    /** electrons ipc reference */
-    renderer = window.require('electron').ipcRenderer;
-
     /** Channels list */
     channels$: Observable<Channel[]>;
 
@@ -35,8 +33,12 @@ export class VideoPlayerComponent implements OnInit {
     /**
      * Creates an instance of VideoPlayerComponent
      * @param channelQuery akita's channel query
+     * @param electronService electron service
      */
-    constructor(private channelQuery: ChannelQuery) {}
+    constructor(
+        private channelQuery: ChannelQuery,
+        private electronService: ElectronService
+    ) {}
 
     /**
      * Sets video player and subscribes to channel list from the store
@@ -80,6 +82,6 @@ export class VideoPlayerComponent implements OnInit {
      * Opens about application dialog
      */
     openAbout(): void {
-        this.renderer.send('show-about');
+        this.electronService.ipcRenderer.send('show-about');
     }
 }
