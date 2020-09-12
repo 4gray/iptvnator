@@ -9,8 +9,9 @@ export interface Playlist {
     title: string;
     filename: string;
     playlist: any;
-    importDate: number;
-    lastUsage: number;
+    importDate: string;
+    lastUsage: string;
     favorites: string[];
     count: number;
+    url?: string;
 }

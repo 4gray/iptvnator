@@ -4,7 +4,7 @@
     </div>
     <mat-card>
         <div fxLayout="row" fxFlexAlign="start start">
-            <div fxFlex="50">
+            <div [fxFlex]="playlists?.length > 0 ? 50 : 100">
                 <mat-tab-group [dynamicHeight]="true">
                     <mat-tab label="Add via file upload">
                         <ng-template matTabContent>
@@ -36,13 +36,13 @@
                     </mat-tab>
                 </mat-tab-group>
             </div>
-            <div fxFlex="50" id="recent-playlists">
+            <div *ngIf="playlists?.length > 0" fxFlex="50" id="recent-playlists">
                 <mat-card-subtitle>Added playlists ({{playlists.length}})</mat-card-subtitle>
                 <app-recent-playlists [playlists]="playlists" (playlistClicked)="getPlaylist($event)"
                     (removeClicked)="removePlaylist($event)">
                 </app-recent-playlists>
             </div>
         </div>
+        <mat-progress-bar *ngIf="isLoading" mode="indeterminate"></mat-progress-bar>
     </mat-card>
-    <mat-progress-bar *ngIf="isLoading" mode="indeterminate"></mat-progress-bar>
 </div>

@@ -1,11 +1,22 @@
 <mat-nav-list>
     <a mat-list-item *ngFor="let item of playlists; last as last" (click)="playlistClicked.emit(item._id)">
-        <mat-icon mat-list-icon>folder</mat-icon>
+        <mat-icon mat-list-icon *ngIf="item?.url">cloud</mat-icon>
+        <mat-icon mat-list-icon *ngIf="!item?.url">folder</mat-icon>
         <div mat-line>{{ item.title || item.filename }}</div>
-        <div mat-line>Channels: {{ item.count }}</div>
+        <div mat-line class="meta">
+            Channels: {{ item.count }} <ng-container *ngIf="item.importDate?.length > 3">
+                | Added: {{item.importDate | date}}
+            </ng-container>
+        </div>
+
         <!--<button mat-icon-button color="primary" (click)="$event.stopPropagation(); renameClicked.emit(item)" matTooltip="Rename playlist">
             <mat-icon>edit</mat-icon>
         </button>-->
+
+        <!-- <button *ngIf="item.url" mat-icon-button color="primary" (click)="$event.stopPropagation(); "
+            matTooltip="Update playlist by URL">
+            <mat-icon>refresh</mat-icon>
+        </button> -->
         <button mat-icon-button color="primary" (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
             matTooltip="Remove playlist">
             <mat-icon>delete</mat-icon>

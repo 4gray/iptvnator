@@ -10,20 +10,8 @@
     padding-top: 0;
 }
 
-::ng-deep .mat-tab-header, ::ng-deep .mat-tab-labels {
-    height: 63px;
-    line-height: 63px;
-}
-
 ::ng-deep .mat-expansion-panel-body {
     padding: 0 !important;
-}
-
-::ng-deep.mat-tab-label,
-::ng-deep.mat-tab-label-active {
-    min-width: 0 !important;
-    padding: 3px 10px !important;
-    margin: 3px 10px !important;
 }
 
 .scroll-viewport {
@@ -31,12 +19,6 @@
 }
 
 ::ng-deep {
-    .mat-tab-group {
-        height: 100%;
-    }
-    .mat-tab-label {
-        height: 63px !important;
-    }
     .mat-tab-label-content {
         text-transform: uppercase;
     }
