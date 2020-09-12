@@ -22,7 +22,8 @@ export class Api {
                 const parsedPlaylist = this.parsePlaylist(array);
                 const playlistObject = this.createPlaylistObject(
                     args.title,
-                    parsedPlaylist
+                    parsedPlaylist,
+                    args.url
                 );
                 this.insertToDb(playlistObject);
                 event.sender.send('parse-url-response', {
@@ -42,7 +43,10 @@ export class Api {
         });
 
         ipcMain.on('playlists-all', async (event, args) => {
-            const playlists = await db.find({}, { count: 1, title: 1, _id: 1 });
+            const playlists = await db.find(
+                {},
+                { count: 1, title: 1, _id: 1, url: 1, importDate: 1 }
+            );
             event.sender.send('playlist-all-result', {
                 payload: playlists,
             });
@@ -99,8 +103,9 @@ export class Api {
      * Saves playlist to the localStorage
      * @param name name of the playlist
      * @param playlist playlist to save
+     * @param url url of the playlist
      */
-    createPlaylistObject(name: string, playlist: any): Playlist {
+    createPlaylistObject(name: string, playlist: any, url?: string): Playlist {
         return {
             id: guid(),
             _id: guid(),
@@ -108,9 +113,10 @@ export class Api {
             title: name,
             count: playlist.items.length,
             playlist,
-            importDate: new Date().getMilliseconds(),
-            lastUsage: new Date().getMilliseconds(),
+            importDate: new Date().toISOString(),
+            lastUsage: new Date().toISOString(),
             favorites: [],
+            ...(url ? { url } : {}),
         };
     }
 
