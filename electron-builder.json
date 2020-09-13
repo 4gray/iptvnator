@@ -22,7 +22,7 @@
   "win": {
     "icon": "dist/assets/icons",
     "target": [
-      "portable"
+      "nsis"
     ]
   },
   "mac": {
@@ -35,7 +35,9 @@
     "icon": "dist/assets/icons",
     "target": [
       "AppImage",
-      "Snap"
+      "Snap",
+      "deb",
+      "rpm"
     ]
   }
 }
