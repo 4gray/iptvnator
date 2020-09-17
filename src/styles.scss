@@ -69,3 +69,14 @@ html, body {
 .mat-toolbar-row, .mat-toolbar-single-row {
   height: 54px;
 }
+
+:not(input):not(textarea),
+:not(input):not(textarea)::after,
+:not(input):not(textarea)::before {
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: default;
+}
+input, button, textarea, :focus {
+    outline: none;
+}
