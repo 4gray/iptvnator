@@ -1,4 +1,9 @@
 <mat-nav-list>
+    <mat-list-item *ngIf="playlists.length === 0">
+        <mat-icon mat-list-icon>cloud</mat-icon>
+        <div mat-line>No playlists were added</div>
+        <div mat-line class="meta">Please add your first playlist from the other tab</div>
+    </mat-list-item>
     <a mat-list-item *ngFor="let item of playlists; last as last" (click)="playlistClicked.emit(item._id)">
         <mat-icon mat-list-icon *ngIf="item?.url">cloud</mat-icon>
         <mat-icon mat-list-icon *ngIf="!item?.url">folder</mat-icon>
