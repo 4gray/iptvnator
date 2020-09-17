@@ -1,48 +1,50 @@
-<div style="padding: 15px;">
-    <div class="logo-container">
-        <img src="./assets/icons/icon.png" class="logo" />
-    </div>
-    <mat-card>
-        <div fxLayout="row" fxFlexAlign="start start">
-            <div [fxFlex]="playlists?.length > 0 ? 50 : 100">
-                <mat-tab-group [dynamicHeight]="true">
-                    <mat-tab label="Add via file upload">
-                        <ng-template matTabContent>
-                            <div class="drop-container" ngFileDrop [options]="options"
-                                (uploadOutput)="onUploadOutput($event)" [uploadInput]="uploadInput">
-                                <mat-icon class="upload-icon">save_alt</mat-icon>
-                                <p class="upload-title">
-                                    Drag & drop files here
-                                </p>
-                                <p>or</p>
-                                <input type="file" ngFileSelect [options]="options"
-                                    (uploadOutput)="onUploadOutput($event)" class="input-file" name="file" id="file"
-                                    [uploadInput]="uploadInput" multiple>
-                                <label for="file">
-                                    Choose a playlist
-                                </label>
-                            </div>
-                        </ng-template>
-                    </mat-tab>
-                    <mat-tab label="Add via URL">
-                        <ng-template matTabContent>
-                            <div class="url-form">
-                                <mat-form-field class="full-width">
-                                    <input matInput placeholder="Playlist URL (m3u, m3u8)" [(ngModel)]="playlistUrl">
-                                </mat-form-field>
-                                <button mat-flat-button [disabled]="!playlistUrl" color="primary" (click)="sendPlaylistsUrl()">ADD PLAYLIST</button>
-                            </div>
-                        </ng-template>
-                    </mat-tab>
-                </mat-tab-group>
-            </div>
-            <div *ngIf="playlists?.length > 0" fxFlex="50" id="recent-playlists">
-                <mat-card-subtitle>Added playlists ({{playlists.length}})</mat-card-subtitle>
+<app-header fxLayout="row"></app-header>
+<div fxLayout="row" fxFlexAlign="start start">
+    <div fxFlex="100">
+        <mat-tab-group [dynamicHeight]="true" color="primary" backgroundColor="primary" mat-stretch-tabs>
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">list</mat-icon> Recently added playlists
+                </ng-template>
                 <app-recent-playlists [playlists]="playlists" (playlistClicked)="getPlaylist($event)"
                     (removeClicked)="removePlaylist($event)">
                 </app-recent-playlists>
-            </div>
-        </div>
-        <mat-progress-bar *ngIf="isLoading" mode="indeterminate"></mat-progress-bar>
-    </mat-card>
+            </mat-tab>
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">attach_file</mat-icon> Add via file upload
+                </ng-template>
+                <ng-template matTabContent>
+                    <div class="drop-container" ngFileDrop [options]="options" (uploadOutput)="onUploadOutput($event)"
+                        [uploadInput]="uploadInput">
+                        <mat-icon class="upload-icon">save_alt</mat-icon>
+                        <p class="upload-title">
+                            Drag & drop files here
+                        </p>
+                        <p>or</p>
+                        <input type="file" ngFileSelect [options]="options" (uploadOutput)="onUploadOutput($event)"
+                            class="input-file" name="file" id="file" [uploadInput]="uploadInput" multiple>
+                        <label for="file">
+                            Choose a playlist
+                        </label>
+                    </div>
+                </ng-template>
+            </mat-tab>
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">link</mat-icon> Add via URL
+                </ng-template>
+                <ng-template matTabContent>
+                    <div class="url-form">
+                        <mat-form-field class="full-width">
+                            <input matInput placeholder="Playlist URL (m3u, m3u8)" [(ngModel)]="playlistUrl">
+                        </mat-form-field>
+                        <button mat-flat-button [disabled]="!playlistUrl" color="primary"
+                            (click)="sendPlaylistsUrl()">ADD PLAYLIST</button>
+                    </div>
+                </ng-template>
+            </mat-tab>
+        </mat-tab-group>
+    </div>
 </div>
+<mat-progress-bar *ngIf="isLoading" mode="indeterminate"></mat-progress-bar>

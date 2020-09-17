@@ -1,45 +1,22 @@
-mat-card {
-    padding: 0 !important;
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-.logo-container {
-    text-align: center;
-
-    .logo {
-        width: 128px;
-        padding-bottom: 20px;
-    }
-}
-
 
 ::ng-deep {
     .mat-tab-label-content {
         text-transform: uppercase;
     }
-}
 
+    .mat-tab-group.mat-background-primary .mat-tab-header {
+        background: #000 !important;
+    }
 
-#recent-playlists {
-    border-radius: 0 4px 4px 0;
-    background: #eee;
-    padding: 16px 0;
-    border-left: 1px solid #ccc;
-
-    .mat-card-subtitle {
-        padding: 0px 16px;
-        text-transform: uppercase;
-        border-bottom: 1px solid #ccc;
-        height: 32px;
-        margin-bottom: 0 !important;
+    .mat-tab-group.mat-background-primary .mat-tab-header-pagination {
+        display:none;
     }
 }
 
 .drop-container {
     margin: 10px;
     padding: 10px;
-    height: 300px;
+    height: calc(100vh - 230px);
     border: 2px dashed #ccc;
     border-radius: 3px;
     text-align: center;
