@@ -3,19 +3,20 @@ import { CommonModule } from '@angular/common';
 
 import { TranslateModule } from '@ngx-translate/core';
 import { FlexLayoutModule } from '@angular/flex-layout';
-import { PageNotFoundComponent } from './components/';
+import { PageNotFoundComponent, HeaderComponent } from './components/';
 import { WebviewDirective } from './directives/';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MaterialModule } from 'app/material.module';
 
 @NgModule({
-    declarations: [PageNotFoundComponent, WebviewDirective],
+    declarations: [PageNotFoundComponent, HeaderComponent, WebviewDirective],
     imports: [
         CommonModule,
         TranslateModule,
         FormsModule,
         MaterialModule,
         FlexLayoutModule,
+        ReactiveFormsModule,
     ],
     exports: [
         TranslateModule,
@@ -23,6 +24,8 @@ import { MaterialModule } from 'app/material.module';
         FormsModule,
         MaterialModule,
         FlexLayoutModule,
+        HeaderComponent,
+        ReactiveFormsModule,
     ],
 })
 export class SharedModule {}

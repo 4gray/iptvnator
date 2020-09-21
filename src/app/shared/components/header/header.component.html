@@ -1,0 +1,14 @@
+<div fxFlex="100px">
+    <img src="./assets/icons/icon-tv-256.png" height="100" />
+</div>
+<div fxFlex="100" fxLayoutAlign="start center">
+    <div fxLayout="column">
+        <div fxFlex class="title">{{title}}</div>
+        <div class="subtitle">{{subtitle}}</div>
+    </div>
+</div>
+<div fxLayout="column" fxFlex="50px" fxLayoutAlign="center center">
+    <button mat-icon-button (click)="openSettings()">
+        <mat-icon>settings</mat-icon>
+    </button>
+</div>

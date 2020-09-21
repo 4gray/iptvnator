@@ -14,6 +14,11 @@ const routes: Routes = [
         component: VideoPlayerComponent,
     },
     {
+        path: 'settings',
+        loadChildren: () =>
+            import('./settings/settings.module').then((m) => m.SettingsModule),
+    },
+    {
         path: '**',
         component: PageNotFoundComponent,
     },

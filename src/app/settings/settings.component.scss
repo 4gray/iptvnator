@@ -1,0 +1,12 @@
+.card-header {
+    margin-bottom: 15px;
+}
+
+button {
+    cursor: pointer !important;
+    text-transform: uppercase;
+}
+
+::ng-deep .mat-card {
+    border-radius: 0 !important;
+}

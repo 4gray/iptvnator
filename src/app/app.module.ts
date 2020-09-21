@@ -3,7 +3,6 @@ import '../polyfills';
 
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { SharedModule } from './shared/shared.module';
 
@@ -22,7 +21,6 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
 import { ChannelListContainerComponent } from './channel-list-container/channel-list-container.component';
 import { FilterPipeModule } from 'ngx-filter-pipe';
-import { HeaderComponent } from './playlist-uploader/header/header.component';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -33,7 +31,6 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
     declarations: [
         AppComponent,
         ChannelListContainerComponent,
-        HeaderComponent,
         PlaylistUploaderComponent,
         VideoPlayerComponent,
         RecentPlaylistsComponent,
@@ -42,7 +39,6 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
         CommonModule,
         BrowserAnimationsModule,
         BrowserModule,
-        FormsModule,
         HttpClientModule,
         SharedModule,
         AppRoutingModule,

@@ -1,0 +1,35 @@
+<app-header title="Settings / IPTVnator" subtitle="Change the configuration of the application"></app-header>
+<form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" novalidate>
+    <mat-card>
+        <mat-card-header class="card-header">
+            <div mat-card-subtitle>Please adapt the options from the list below and confirm with a save button</div>
+        </mat-card-header>
+        <mat-card-content>
+            <mat-list>
+                <mat-list-item>
+                    <div matLine fxLayout="row">
+                        <p fxFlex>Video player</p>
+                        <p fxFlex fxLayoutAlign="start center">
+                            <mat-form-field appearance="fill">
+                                <mat-label>Select an option</mat-label>
+                                <mat-select formControlName="player">
+                                    <mat-option *ngFor="let player of players" [value]="player.id">{{player.label}}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </p>
+                    </div>
+                </mat-list-item>
+            </mat-list>
+        </mat-card-content>
+        <mat-card-actions>
+            <button mat-button color="primary" type="submit" [disabled]="settingsForm.pristine">
+                <mat-icon>save</mat-icon> Save changes
+            </button>
+            <div fxFlex></div>
+            <button mat-button color="primary" type="reset" (click)="backToHome()">
+                <mat-icon>chevron_left</mat-icon> Back to home
+            </button>
+        </mat-card-actions>
+    </mat-card>
+</form>

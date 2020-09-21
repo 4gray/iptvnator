@@ -6,11 +6,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { ScrollingModule } from '@angular/cdk/scrolling';
+import { MatGridListModule } from '@angular/material/grid-list';
 
 @NgModule({
     exports: [
@@ -21,11 +23,13 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
         MatInputModule,
         MatListModule,
         MatProgressBarModule,
+        MatSelectModule,
         MatSidenavModule,
         MatSnackBarModule,
         MatTabsModule,
         MatToolbarModule,
         ScrollingModule,
+        MatGridListModule,
     ],
 })
 export class MaterialModule {}
