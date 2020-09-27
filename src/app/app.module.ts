@@ -21,6 +21,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
 import { ChannelListContainerComponent } from './channel-list-container/channel-list-container.component';
 import { FilterPipeModule } from 'ngx-filter-pipe';
+import { VjsPlayerComponent } from './vjs-player/vjs-player.component';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -34,6 +35,7 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
         PlaylistUploaderComponent,
         VideoPlayerComponent,
         RecentPlaylistsComponent,
+        VjsPlayerComponent,
     ],
     imports: [
         CommonModule,
