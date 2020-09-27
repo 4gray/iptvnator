@@ -1,20 +1,20 @@
-import { Component, OnInit } from '@angular/core';
-import {
-    FormGroup,
-    FormControl,
-    FormBuilder,
-    Validators,
-} from '@angular/forms';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { FormGroup, FormBuilder } from '@angular/forms';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Subscription } from 'rxjs';
+import { Settings } from './settings.interface';
 
 @Component({
     selector: 'app-settings',
     templateUrl: './settings.component.html',
     styleUrls: ['./settings.component.scss'],
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, OnDestroy {
+    /** Subscription object */
+    private subscription: Subscription = new Subscription();
+
     /** Player options */
     players = [
         {
@@ -52,23 +52,33 @@ export class SettingsComponent implements OnInit {
      * Reads the config object from the browsers storage (indexed db)
      */
     ngOnInit(): void {
-        this.storage.get('settings').subscribe((settings) => {
-            if (settings) {
-                this.settingsForm.setValue(settings);
-            }
-        });
+        this.subscription.add(
+            this.storage.get('settings').subscribe((settings: Settings) => {
+                if (settings) {
+                    this.settingsForm.setValue(settings);
+                }
+            })
+        );
     }
 
     /**
      * Triggers on form submit and saves the config object to the indexed db store
      */
     onSubmit(): void {
-        this.storage.set('settings', this.settingsForm.value).subscribe(() => {
-            this.settingsForm.markAsPristine();
-            this.snackBar.open('Success! Configuration was saved.', null, {
-                duration: 2000,
-            });
-        });
+        this.subscription.add(
+            this.storage
+                .set('settings', this.settingsForm.value)
+                .subscribe(() => {
+                    this.settingsForm.markAsPristine();
+                    this.snackBar.open(
+                        'Success! Configuration was saved.',
+                        null,
+                        {
+                            duration: 2000,
+                        }
+                    );
+                })
+        );
     }
 
     /**
@@ -76,5 +86,12 @@ export class SettingsComponent implements OnInit {
      */
     backToHome(): void {
         this.router.navigateByUrl('/', { skipLocationChange: true });
+    }
+
+    /**
+     * Unsubscribe on destroy
+     */
+    ngOnDestroy(): void {
+        this.subscription.unsubscribe();
     }
 }

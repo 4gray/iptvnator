@@ -3,8 +3,12 @@ import * as Hls from 'hls.js';
 import { ChannelQuery, Channel } from '../state';
 import { Observable } from 'rxjs';
 import { MatSidenav } from '@angular/material/sidenav';
-import * as _ from 'lodash';
 import { ElectronService } from 'app/services/electron.service';
+import { StorageMap } from '@ngx-pwa/local-storage';
+import { Settings, VideoPlayerType } from 'app/settings/settings.interface';
+
+/** Settings key in storage */
+export const SETTINGS_STORE_KEY = 'settings';
 
 @Component({
     selector: 'app-video-player',
@@ -30,14 +34,19 @@ export class VideoPlayerComponent implements OnInit {
     /** Sidebar object */
     @ViewChild('sidenav') sideNav: MatSidenav;
 
+    /** Selected video player component */
+    player: VideoPlayerType = 'html5';
+
     /**
      * Creates an instance of VideoPlayerComponent
      * @param channelQuery akita's channel query
      * @param electronService electron service
+     * @param storage browser storage service
      */
     constructor(
         private channelQuery: ChannelQuery,
-        private electronService: ElectronService
+        private electronService: ElectronService,
+        private storage: StorageMap
     ) {}
 
     /**
@@ -45,14 +54,30 @@ export class VideoPlayerComponent implements OnInit {
      */
     ngOnInit(): void {
         this.channels$ = this.channelQuery.selectAll();
-        this.videoPlayer = document.getElementById(
-            'video-player'
-        ) as HTMLVideoElement;
+
         this.activeChannel$ = this.channelQuery.select((state) => state.active);
+
+        this.applySettings();
     }
 
     /**
-     * Closes sidebar
+     * Reads the app configuration from the browsers storage and applies the settings in the current component
+     */
+    applySettings(): void {
+        this.storage.get(SETTINGS_STORE_KEY).subscribe((settings: Settings) => {
+            if (settings && Object.keys(settings).length > 0) {
+                this.player = settings.player;
+                if (this.player === 'html5') {
+                    this.videoPlayer = document.getElementById(
+                        'video-player'
+                    ) as HTMLVideoElement;
+                }
+            }
+        });
+    }
+
+    /**
+     * Closes the channels sidebar
      */
     close(): void {
         this.sideNav.close();
