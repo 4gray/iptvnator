@@ -22,9 +22,11 @@ First version of the application which was developed as a PWA is available in an
 -   Save channels as favorites (DEV)
 
 
-|                       Select/upload a playlist                       |                   Main player interface                   |
-| :------------------------------------------------------------------: | :-------------------------------------------------------: |
-| ![List with added playlists and upload interface](./iptv-upload.png) | ![Sidebar with channel and video player](./iptv-main.png) |
+| Welcome screen: Playlists overview                           | Main player interface with channels sidebar and video player                |
+| :----------------------------------------------------------: | :-------------------------------------------------------: |
+| ![Welcome screen: Playlists overview](./playlists.png)       | ![Sidebar with channel and video player](./iptv-main.png) |
+| Welcome screen: Add playlist via file upload                | Welcome screen: Add playlist via URL                      |
+| ![Welcome screen: Add playlist via file upload](./iptv-upload.png) | ![Welcome screen: Add playlist via URL](./upload-via-url.png)             |
 
 # Download
 
