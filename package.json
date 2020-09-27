@@ -106,6 +106,8 @@
     "@datorama/akita": "5.2.2",
     "@ngx-pwa/local-storage": "10.1.0",
     "@types/hls.js": "0.13.0",
+    "@types/video.js": "7.3.11",
+    "@videojs/http-streaming": "1.13.4",
     "about-window": "1.13.4",
     "axios": "0.19.2",
     "custom-electron-titlebar": "3.2.3",
@@ -117,6 +119,7 @@
     "nedb-promises-ts": "0.0.1-4",
     "ngx-filter-pipe": "2.1.2",
     "ngx-uploader": "10.0.0",
-    "uuid": "8.3.0"
+    "uuid": "8.3.0",
+    "video-js": "0.7.0"
   }
 }
