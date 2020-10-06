@@ -1,0 +1,11 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../out-tsc/spec",
+        "baseUrl": "./",
+        "types": ["jest", "node"],
+        "experimentalDecorators": true
+    },
+    "files": ["src/polyfills.ts"],
+    "include": ["**/*.spec.ts", "**/*.d.ts"]
+}
