@@ -1,13 +1,13 @@
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
 import { PageNotFoundComponent } from './shared/components';
-import { PlaylistUploaderComponent } from './playlist-uploader/playlist-uploader.component';
+import { HomeComponent } from './home/home.component';
 import { VideoPlayerComponent } from './video-player/video-player.component';
 
 const routes: Routes = [
     {
         path: '',
-        component: PlaylistUploaderComponent,
+        component: HomeComponent,
     },
     {
         path: 'iptv',

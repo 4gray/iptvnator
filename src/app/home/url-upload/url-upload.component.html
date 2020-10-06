@@ -1,0 +1,18 @@
+<form (ngSubmit)="urlAdded.emit(playlistUrl.value)">
+    <mat-form-field class="full-width">
+        <input
+            type="url"
+            matInput
+            placeholder="Playlist URL (m3u, m3u8)"
+            #playlistUrl
+        />
+    </mat-form-field>
+    <button
+        mat-flat-button
+        [disabled]="!playlistUrl.value"
+        color="primary"
+        type="submit"
+    >
+        Add playlist
+    </button>
+</form>

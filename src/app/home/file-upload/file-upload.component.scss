@@ -1,18 +1,4 @@
 
-::ng-deep {
-    .mat-tab-label-content {
-        text-transform: uppercase;
-    }
-
-    .mat-tab-group.mat-background-primary .mat-tab-header {
-        background: #000 !important;
-    }
-
-    .mat-tab-group.mat-background-primary .mat-tab-header-pagination {
-        display:none;
-    }
-}
-
 .drop-container {
     margin: 10px;
     padding: 10px;
@@ -21,11 +7,6 @@
     border-radius: 3px;
     text-align: center;
     color: #666;
-}
-
-.url-form {
-    margin: 15px;
-    height: 304px;
 }
 
 #file input {

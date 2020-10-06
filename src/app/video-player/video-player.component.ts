@@ -3,9 +3,9 @@ import * as Hls from 'hls.js';
 import { ChannelQuery, Channel } from '../state';
 import { Observable } from 'rxjs';
 import { MatSidenav } from '@angular/material/sidenav';
-import { ElectronService } from 'app/services/electron.service';
+import { ElectronService } from '../services/electron.service';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { Settings, VideoPlayerType } from 'app/settings/settings.interface';
+import { Settings, VideoPlayerType } from '../settings/settings.interface';
 
 /** Settings key in storage */
 export const SETTINGS_STORE_KEY = 'settings';

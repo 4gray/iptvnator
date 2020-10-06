@@ -2,7 +2,7 @@ import { app, ipcMain } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import axios from 'axios';
 import { guid } from '@datorama/akita';
-import { Playlist } from './src/app/playlist-uploader/playlist.interface';
+import { Playlist } from './src/app/home/playlist.interface';
 import Nedb from 'nedb-promises-ts';
 
 const fs = require('fs');
@@ -26,7 +26,7 @@ export class Api {
                     args.url
                 );
                 this.insertToDb(playlistObject);
-                event.sender.send('parse-url-response', {
+                event.sender.send('parse-response', {
                     payload: playlistObject,
                 });
             });
@@ -54,7 +54,7 @@ export class Api {
 
         ipcMain.on('playlist-by-id', async (event, args) => {
             const playlist = await db.findOne({ _id: args.id });
-            event.sender.send('playlist-by-id-result', {
+            event.sender.send('parse-response', {
                 payload: playlist,
             });
         });

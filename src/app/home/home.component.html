@@ -1,4 +1,7 @@
+<!-- Applications header-->
 <app-header fxLayout="row" title="IPTVnator" subtitle="Please select a playlist from the list or add a new playlist via file upload or via url"></app-header>
+
+<!-- Tab-based layout -->
 <div fxLayout="row" fxFlexAlign="start start">
     <div fxFlex="100">
         <mat-tab-group [dynamicHeight]="true" color="primary" backgroundColor="primary" mat-stretch-tabs>
@@ -15,19 +18,7 @@
                     <mat-icon class="tab-icon">attach_file</mat-icon> Add via file upload
                 </ng-template>
                 <ng-template matTabContent>
-                    <div class="drop-container" ngFileDrop [options]="options" (uploadOutput)="onUploadOutput($event)"
-                        [uploadInput]="uploadInput">
-                        <mat-icon class="upload-icon">save_alt</mat-icon>
-                        <p class="upload-title">
-                            Drag & drop files here
-                        </p>
-                        <p>or</p>
-                        <input type="file" ngFileSelect [options]="options" (uploadOutput)="onUploadOutput($event)"
-                            class="input-file" name="file" id="file" [uploadInput]="uploadInput" multiple>
-                        <label for="file">
-                            Choose a playlist
-                        </label>
-                    </div>
+                    <app-file-upload (fileRejected)="rejectFile($event)" (fileSelected)="handlePlaylist($event)"></app-file-upload>
                 </ng-template>
             </mat-tab>
             <mat-tab>
@@ -35,13 +26,7 @@
                     <mat-icon class="tab-icon">link</mat-icon> Add via URL
                 </ng-template>
                 <ng-template matTabContent>
-                    <div class="url-form">
-                        <mat-form-field class="full-width">
-                            <input matInput placeholder="Playlist URL (m3u, m3u8)" [(ngModel)]="playlistUrl">
-                        </mat-form-field>
-                        <button mat-flat-button [disabled]="!playlistUrl" color="primary"
-                            (click)="sendPlaylistsUrl()">ADD PLAYLIST</button>
-                    </div>
+                    <app-url-upload (urlAdded)="sendPlaylistsUrl($event)"></app-url-upload>
                 </ng-template>
             </mat-tab>
         </mat-tab-group>

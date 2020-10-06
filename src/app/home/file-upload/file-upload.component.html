@@ -1,0 +1,23 @@
+<div
+    class="drop-container"
+    ngFileDrop
+    [options]="options"
+    (uploadOutput)="onUploadOutput($event)"
+    [uploadInput]="uploadInput"
+>
+    <mat-icon class="upload-icon">save_alt</mat-icon>
+    <p class="upload-title">Drag & drop files here</p>
+    <p>or</p>
+    <input
+        type="file"
+        ngFileSelect
+        [options]="options"
+        (uploadOutput)="onUploadOutput($event)"
+        class="input-file"
+        name="file"
+        id="file"
+        [uploadInput]="uploadInput"
+        multiple
+    />
+    <label for="file"> Choose a playlist </label>
+</div>

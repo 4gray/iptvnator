@@ -1,5 +1,5 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { Playlist } from 'app/playlist-uploader/playlist.interface';
+import { Playlist } from '../playlist.interface';
 
 @Component({
     selector: 'app-recent-playlists',

@@ -14,14 +14,16 @@ import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 
 import { AppComponent } from './app.component';
 import { CommonModule } from '@angular/common';
-import { PlaylistUploaderComponent } from './playlist-uploader/playlist-uploader.component';
+import { HomeComponent } from './home/home.component';
 import { NgxUploaderModule } from 'ngx-uploader';
 import { VideoPlayerComponent } from './video-player/video-player.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
+import { RecentPlaylistsComponent } from './home/recent-playlists/recent-playlists.component';
 import { ChannelListContainerComponent } from './channel-list-container/channel-list-container.component';
 import { FilterPipeModule } from 'ngx-filter-pipe';
 import { VjsPlayerComponent } from './vjs-player/vjs-player.component';
+import { UrlUploadComponent } from './home/url-upload/url-upload.component';
+import { FileUploadComponent } from './home/file-upload/file-upload.component';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -32,10 +34,12 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
     declarations: [
         AppComponent,
         ChannelListContainerComponent,
-        PlaylistUploaderComponent,
-        VideoPlayerComponent,
+        FileUploadComponent,
+        HomeComponent,
         RecentPlaylistsComponent,
+        VideoPlayerComponent,
         VjsPlayerComponent,
+        UrlUploadComponent,
     ],
     imports: [
         CommonModule,

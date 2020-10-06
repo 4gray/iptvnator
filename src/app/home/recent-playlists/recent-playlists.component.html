@@ -1,0 +1,33 @@
+<mat-nav-list>
+    <mat-list-item *ngIf="playlists.length === 0">
+        <mat-icon mat-list-icon>cloud</mat-icon>
+        <div mat-line>No playlists were added</div>
+        <div mat-line class="meta">
+            Please add your first playlist from the other tab
+        </div>
+    </mat-list-item>
+    <a
+        mat-list-item
+        *ngFor="let item of playlists; last as last"
+        (click)="playlistClicked.emit(item._id)"
+    >
+        <mat-icon mat-list-icon *ngIf="item?.url">cloud</mat-icon>
+        <mat-icon mat-list-icon *ngIf="!item?.url">folder</mat-icon>
+        <div mat-line>{{ item.title || item.filename }}</div>
+        <div mat-line class="meta">
+            Channels: {{ item.count }}
+            <ng-container *ngIf="item.importDate?.length > 3">
+                | Added: {{ item.importDate | date }}
+            </ng-container>
+        </div>
+        <button
+            mat-icon-button
+            color="primary"
+            (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
+            matTooltip="Remove playlist"
+        >
+            <mat-icon>delete</mat-icon>
+        </button>
+        <mat-divider *ngIf="!last"></mat-divider>
+    </a>
+</mat-nav-list>
