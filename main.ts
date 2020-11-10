@@ -16,6 +16,8 @@ function createWindow(): BrowserWindow {
         webPreferences: {
             nodeIntegration: true,
             allowRunningInsecureContent: serve ? true : false,
+            contextIsolation: false,
+            enableRemoteModule: true,
         },
         resizable: true,
         darkTheme: true,
