@@ -13,6 +13,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { MatGridListModule } from '@angular/material/grid-list';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @NgModule({
     exports: [
@@ -30,6 +31,7 @@ import { MatGridListModule } from '@angular/material/grid-list';
         MatToolbarModule,
         ScrollingModule,
         MatGridListModule,
+        MatTooltipModule,
     ],
 })
 export class MaterialModule {}
