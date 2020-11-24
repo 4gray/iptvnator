@@ -25,4 +25,10 @@
     .mat-expansion-panel {
         border-radius: 0 !important;
     }
+
+    .mat-tab-label, .mat-tab-label-active {
+        min-width: 0!important;
+        padding: 15px!important;
+        margin: 5px!important;
+    }
 }

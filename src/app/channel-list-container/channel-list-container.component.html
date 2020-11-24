@@ -3,24 +3,36 @@
         <mat-list id="top-panel">
             <mat-list-item>
                 <mat-form-field class="full-width">
-                    <input matInput placeholder="Search channel ({{_channelList?.length}})"
-                        [(ngModel)]="searchTerm.name">
+                    <input
+                        matInput
+                        placeholder="Search channel ({{
+                            _channelList?.length
+                        }})"
+                        [(ngModel)]="searchTerm.name"
+                    />
                 </mat-form-field>
-                <button mat-icon-button [routerLink]="'/'" matTooltip="Upload or select other playlist">
+                <button
+                    mat-icon-button
+                    [routerLink]="'/'"
+                    matTooltip="Upload or select other playlist"
+                >
                     <mat-icon>create_new_folder</mat-icon>
                 </button>
             </mat-list-item>
         </mat-list>
         <mat-nav-list id="channels-list">
             <cdk-virtual-scroll-viewport itemSize="50" class="scroll-viewport">
-                <mat-list-item *cdkVirtualFor="let channel of _channelList | filterBy: searchTerm; index as i"
-                    [class.active]="selected?.id === channel.id" (click)="selectChannel(channel)">
+                <mat-list-item
+                    *cdkVirtualFor="
+                        let channel of _channelList | filterBy: searchTerm;
+                        index as i
+                    "
+                    [class.active]="selected?.id === channel.id"
+                    (click)="selectChannel(channel)"
+                >
                     <p matLine>
-                        {{ i+1 + '. ' + channel?.name || 'Unnamed Channel' }}
+                        {{ i + 1 + '. ' + channel?.name || 'Unnamed Channel' }}
                     </p>
-                    <!-- <button mat-icon-button color="primary" (click)="favChannel(channel, $event)">
-                        <mat-icon>star{{ channel.fav ? '' : '_outline' }}</mat-icon>
-                    </button> -->
                     <mat-divider></mat-divider>
                 </mat-list-item>
             </cdk-virtual-scroll-viewport>
@@ -32,18 +44,25 @@
             <mat-accordion multi>
                 <ng-container *ngFor="let groups of groupedChannels | keyvalue">
                     <mat-expansion-panel>
-                        <mat-expansion-panel-header *ngIf="groups.value.length > 0">
-                            {{(groups.key || 'Ungrouped') | titlecase}} ({{groups.value.length}})
+                        <mat-expansion-panel-header
+                            *ngIf="groups.value.length > 0"
+                        >
+                            {{ groups.key || 'Ungrouped' | titlecase }} ({{
+                                groups.value.length
+                            }})
                         </mat-expansion-panel-header>
                         <ng-template matExpansionPanelContent>
-                            <mat-list-item *ngFor="let channel of groups.value; index as i"
-                                [class.active]="selected?.id === channel.id" (click)="selectChannel(channel)">
+                            <mat-list-item
+                                *ngFor="let channel of groups.value; index as i"
+                                [class.active]="selected?.id === channel.id"
+                                (click)="selectChannel(channel)"
+                            >
                                 <p matLine>
-                                    {{ i+1 + '. ' + channel?.name || 'Unnamed Channel' }}
+                                    {{
+                                        i + 1 + '. ' + channel?.name ||
+                                            'Unnamed Channel'
+                                    }}
                                 </p>
-                                <!-- <button mat-icon-button color="primary" (click)="favChannel(channel, $event)">
-                                        <mat-icon>star{{ channel.fav ? '' : '_outline' }}</mat-icon>
-                                    </button> -->
                                 <mat-divider></mat-divider>
                             </mat-list-item>
                         </ng-template>
@@ -53,18 +72,29 @@
         </mat-nav-list>
     </mat-tab>
 
-    <!-- <mat-tab label="Favorites">
-        <mat-nav-list>
-            <mat-list-item *ngFor="let channel of favs | filterBy: searchTerm; index as i"
-                [class.active]="selected?.id === channel.id" (click)="selectChannel(channel)">
+    <mat-tab label="Favorites">
+        <mat-nav-list *ngIf="favorites$ | async as favorites">
+            <mat-list-item
+                *ngFor="
+                    let channel of favorites | filterBy: searchTerm;
+                    index as i
+                "
+                [class.active]="selected?.id === channel.id"
+                (click)="selectChannel(channel)"
+            >
                 <p matLine>
-                    {{ i+1 + '. ' + channel?.name || 'Unnamed Channel' }}
+                    {{ i + 1 + '. ' + channel?.name || 'Unnamed Channel' }}
                 </p>
-                <button mat-icon-button color="primary" (click)="favChannel(channel, $event)">
-                    <mat-icon>star{{ channel.fav ? '' : '_outline' }}</mat-icon>
+                <button
+                    mat-icon-button
+                    color="primary"
+                    matTooltip="Remove from favorites"
+                    (click)="toggleFavoriteChannel(channel, $event)"
+                >
+                    <mat-icon>star</mat-icon>
                 </button>
                 <mat-divider></mat-divider>
             </mat-list-item>
         </mat-nav-list>
-    </mat-tab> -->
+    </mat-tab>
 </mat-tab-group>

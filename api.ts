@@ -97,6 +97,16 @@ export class Api {
                 });
             });
         });
+
+        ipcMain.on('update-favorites', async (event, args) => {
+            const updated = await db.update(
+                { id: args.id },
+                { $set: { favorites: args.favorites } }
+            );
+            if (!updated.numAffected || updated.numAffected === 0) {
+                console.error('Error: Favorites were not updated');
+            }
+        });
     }
 
     /**

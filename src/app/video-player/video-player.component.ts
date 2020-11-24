@@ -1,11 +1,12 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import * as Hls from 'hls.js';
-import { ChannelQuery, Channel } from '../state';
+import { ChannelQuery, Channel, ChannelStore } from '../state';
 import { Observable } from 'rxjs';
 import { MatSidenav } from '@angular/material/sidenav';
 import { ElectronService } from '../services/electron.service';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Settings, VideoPlayerType } from '../settings/settings.interface';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 /** Settings key in storage */
 export const SETTINGS_STORE_KEY = 'settings';
@@ -17,7 +18,12 @@ export const SETTINGS_STORE_KEY = 'settings';
 })
 export class VideoPlayerComponent implements OnInit {
     /** Channels list */
-    channels$: Observable<Channel[]>;
+    channels$: Observable<Channel[]> = this.channelQuery.selectAll();
+
+    /** Favorites list */
+    favorites$: Observable<string[]> = this.channelQuery.select(
+        (store) => store.favorites
+    );
 
     /** Video player DOM element */
     videoPlayer: HTMLVideoElement;
@@ -40,12 +46,16 @@ export class VideoPlayerComponent implements OnInit {
     /**
      * Creates an instance of VideoPlayerComponent
      * @param channelQuery akita's channel query
+     * @param channelStore akita's channel store
      * @param electronService electron service
      * @param storage browser storage service
+     * @param snackBar service to push snackbar notifications
      */
     constructor(
         private channelQuery: ChannelQuery,
+        private channelStore: ChannelStore,
         private electronService: ElectronService,
+        private snackBar: MatSnackBar,
         private storage: StorageMap
     ) {}
 
@@ -53,10 +63,7 @@ export class VideoPlayerComponent implements OnInit {
      * Sets video player and subscribes to channel list from the store
      */
     ngOnInit(): void {
-        this.channels$ = this.channelQuery.selectAll();
-
         this.activeChannel$ = this.channelQuery.select((state) => state.active);
-
         this.applySettings();
     }
 
@@ -108,5 +115,14 @@ export class VideoPlayerComponent implements OnInit {
      */
     openAbout(): void {
         this.electronService.ipcRenderer.send('show-about');
+    }
+
+    /**
+     * Adds/removes a given channel to the favorites list
+     * @param channel channel to add
+     */
+    addToFavorites(channel: Channel): void {
+        this.snackBar.open('Favorites were updated!', null, { duration: 2000 });
+        this.channelStore.updateFavorite(channel);
     }
 }

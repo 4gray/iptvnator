@@ -3,7 +3,7 @@ import { Channel, ChannelStore, ChannelQuery } from '../state';
 
 import * as _ from 'lodash';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Store } from '@datorama/akita';
+import { Observable } from 'rxjs';
 
 @Component({
     selector: 'app-channel-list-container',
@@ -22,8 +22,7 @@ export class ChannelListContainerComponent {
 
     @Input('channelList')
     set channelList(value: Channel[]) {
-        // deep copy
-        this._channelList = value; //JSON.parse(JSON.stringify(value));
+        this._channelList = value;
         this.groupedChannels = _.groupBy(value, 'group.title');
     }
 
@@ -37,7 +36,11 @@ export class ChannelListContainerComponent {
     @Output() changeChannel: EventEmitter<Channel> = new EventEmitter();
 
     /** List with favorited channels */
-    favs: Channel[] = [];
+    favorites$: Observable<Channel[]> = this.channelQuery.select((store) =>
+        this.channelQuery
+            .getAll()
+            .filter((channel) => store.favorites.includes(channel.id))
+    );
 
     /** Search term for channel filter */
     searchTerm: any = {
@@ -54,15 +57,7 @@ export class ChannelListContainerComponent {
         private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
         private snackBar: MatSnackBar
-    ) {
-        this.channelQuery
-            .selectAll({
-                filterBy: (entity) => entity.fav === true,
-            })
-            .subscribe(
-                (favs) => (this.favs = JSON.parse(JSON.stringify(favs)))
-            );
-    }
+    ) {}
 
     /**
      * Sets clicked channel as selected and emits them to the parent component
@@ -82,21 +77,9 @@ export class ChannelListContainerComponent {
      * @param channel channel to update
      * @param clickEvent mouse click event
      */
-    favChannel(channel: Channel, clickEvent: MouseEvent): void {
+    toggleFavoriteChannel(channel: Channel, clickEvent: MouseEvent): void {
         clickEvent.stopPropagation();
-        channel.fav = !channel.fav;
         this.snackBar.open('Favorites were updated!', null, { duration: 2000 });
-
-        this.channelStore.update(channel.id, { fav: channel.fav });
-        // update channels fav flag in the database
-        this.channelStore.update((store) => {
-            const favorites = channel.fav
-                ? [...store.favorites, channel.id]
-                : [...store.favorites.filter((favId) => channel.id !== favId)];
-
-            return {
-                favorites,
-            };
-        });
+        this.channelStore.updateFavorite(channel);
     }
 }

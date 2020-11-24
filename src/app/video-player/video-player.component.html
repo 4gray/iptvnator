@@ -17,49 +17,58 @@
     </mat-drawer>
 
     <mat-drawer-content>
-        <!-- toolbar with drawer icon -->
-        <mat-toolbar color="primary">
-            <button
-                mat-icon-button
-                mat-toolbar="Add to favorites"
-                (click)="drawer.toggle()"
-                matTooltip="Open channels list"
-            >
-                <mat-icon>menu</mat-icon>
-            </button>
-            {{ (activeChannel$ | async)?.name }}
-            <div class="spacer"></div>
-            <button mat-icon-button (click)="openAbout()">
-                <mat-icon>info</mat-icon>
-            </button>
-            <!-- <mat-icon>star_outline</mat-icon> -->
-        </mat-toolbar>
+        <ng-container *ngIf="activeChannel$ | async as activeChannel">
+            <!-- toolbar with drawer icon -->
+            <mat-toolbar color="primary">
+                <button
+                    mat-icon-button
+                    mat-toolbar="Add to favorites"
+                    (click)="drawer.toggle()"
+                    matTooltip="Open channels list"
+                >
+                    <mat-icon>menu</mat-icon>
+                </button>
+                <button
+                    mat-icon-button
+                    (click)="addToFavorites(activeChannel)"
+                    matTooltip="Toggle favorite flag"
+                >
+                    <mat-icon>
+                        {{
+                            (favorites$ | async).includes(activeChannel.id)
+                                ? 'star'
+                                : 'star_outline'
+                        }}</mat-icon
+                    >
+                </button>
+                {{ activeChannel.name }}
+                <div class="spacer"></div>
+                <button mat-icon-button (click)="openAbout()">
+                    <mat-icon>info</mat-icon>
+                </button>
+            </mat-toolbar>
 
-        <ng-container
-            *ngIf="
-                player === 'videojs' &&
-                (activeChannel$ | async) as activeChannel
-            "
-        >
-            <app-vjs-player
-                [options]="{
-                    sources: [
-                        {
-                            src: activeChannel.url,
-                            type: 'application/x-mpegURL'
-                        }
-                    ]
-                }"
-            ></app-vjs-player>
+            <ng-container *ngIf="player === 'videojs'">
+                <app-vjs-player
+                    [options]="{
+                        sources: [
+                            {
+                                src: activeChannel.url,
+                                type: 'application/x-mpegURL'
+                            }
+                        ]
+                    }"
+                ></app-vjs-player>
+            </ng-container>
+
+            <!-- player component -->
+            <video
+                *ngIf="player === 'html5'"
+                id="video-player"
+                autoplay="true"
+                controls="true"
+                muted="muted"
+            ></video>
         </ng-container>
-
-        <!-- player component -->
-        <video
-            *ngIf="player === 'html5'"
-            id="video-player"
-            autoplay="true"
-            controls="true"
-            muted="muted"
-        ></video>
     </mat-drawer-content>
 </mat-drawer-container>
