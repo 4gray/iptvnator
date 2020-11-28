@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import * as Hls from 'hls.js';
 import { ChannelQuery, Channel, ChannelStore } from '../state';
 import { Observable } from 'rxjs';
@@ -26,7 +26,8 @@ export class VideoPlayerComponent implements OnInit {
     );
 
     /** Video player DOM element */
-    videoPlayer: HTMLVideoElement;
+    @ViewChild('videoPlayer', { static: false })
+    videoPlayer: ElementRef<HTMLVideoElement>;
 
     /** HLS object */
     hls = new Hls();
@@ -74,11 +75,6 @@ export class VideoPlayerComponent implements OnInit {
         this.storage.get(SETTINGS_STORE_KEY).subscribe((settings: Settings) => {
             if (settings && Object.keys(settings).length > 0) {
                 this.player = settings.player;
-                if (this.player === 'html5') {
-                    this.videoPlayer = document.getElementById(
-                        'video-player'
-                    ) as HTMLVideoElement;
-                }
             }
         });
     }
@@ -98,15 +94,20 @@ export class VideoPlayerComponent implements OnInit {
         if (Hls.isSupported()) {
             console.log('... switching channel to ', channel.name, channel.url);
             this.hls.loadSource(channel.url);
-            this.hls.attachMedia(this.videoPlayer);
+            this.hls.attachMedia(this.videoPlayer.nativeElement);
             this.channelTitle = channel.name;
         } else if (
-            this.videoPlayer.canPlayType('application/vnd.apple.mpegurl')
+            this.videoPlayer.nativeElement.canPlayType(
+                'application/vnd.apple.mpegurl'
+            )
         ) {
-            this.videoPlayer.src = channel.url;
-            this.videoPlayer.addEventListener('loadedmetadata', () => {
-                this.videoPlayer.play();
-            });
+            this.videoPlayer.nativeElement.src = channel.url;
+            this.videoPlayer.nativeElement.addEventListener(
+                'loadedmetadata',
+                () => {
+                    this.videoPlayer.nativeElement.play();
+                }
+            );
         }
     }
 

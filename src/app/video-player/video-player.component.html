@@ -60,15 +60,15 @@
                     }"
                 ></app-vjs-player>
             </ng-container>
-
-            <!-- player component -->
-            <video
-                *ngIf="player === 'html5'"
-                id="video-player"
-                autoplay="true"
-                controls="true"
-                muted="muted"
-            ></video>
         </ng-container>
+        <!-- default html player component -->
+        <video
+            #videoPlayer
+            *ngIf="player === 'html5'"
+            id="video-player"
+            autoplay="true"
+            controls="true"
+            muted="muted"
+        ></video>
     </mat-drawer-content>
 </mat-drawer-container>
