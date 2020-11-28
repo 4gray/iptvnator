@@ -107,7 +107,7 @@
     "@angular/cdk": "10.1.2",
     "@angular/flex-layout": "10.0.0-beta.32",
     "@angular/material": "10.1.2",
-    "@datorama/akita": "5.2.2",
+    "@datorama/akita": "5.2.6",
     "@ngx-pwa/local-storage": "10.1.0",
     "@types/hls.js": "0.13.0",
     "@types/video.js": "7.3.11",
