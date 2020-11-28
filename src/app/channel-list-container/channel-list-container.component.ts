@@ -26,7 +26,7 @@ export class ChannelListContainerComponent {
         this.groupedChannels = _.groupBy(value, 'group.title');
     }
 
-    /** Object with channels sorted by grouped */
+    /** Object with channels sorted by groups */
     groupedChannels: { [key: string]: Channel[] };
 
     /** Selected channel */
