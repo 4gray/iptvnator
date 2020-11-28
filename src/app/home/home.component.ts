@@ -129,7 +129,7 @@ export class HomeComponent {
         this.channelStore.reset();
         const favorites = playlist.favorites || [];
         const channels = playlist.playlist.items.map((element) =>
-            createChannel(element, favorites)
+            createChannel(element)
         );
         this.channelStore.upsertMany(channels);
         this.channelStore.update(() => ({

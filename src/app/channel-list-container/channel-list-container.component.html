@@ -40,7 +40,7 @@
     </mat-tab>
 
     <mat-tab label="Groups">
-        <mat-nav-list id="channels-list">
+        <mat-nav-list id="groups-list">
             <mat-accordion multi>
                 <ng-container *ngFor="let groups of groupedChannels | keyvalue">
                     <mat-expansion-panel>
@@ -73,7 +73,10 @@
     </mat-tab>
 
     <mat-tab label="Favorites">
-        <mat-nav-list *ngIf="favorites$ | async as favorites">
+        <mat-nav-list
+            *ngIf="favorites$ | async as favorites"
+            id="favorites-list"
+        >
             <mat-list-item
                 *ngFor="
                     let channel of favorites | filterBy: searchTerm;
