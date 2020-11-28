@@ -14,7 +14,10 @@ import { ElectronService } from '../services/electron.service';
 })
 export class HomeComponent {
     /** Added playlists */
-    playlists: Pick<Playlist, 'count' | 'title' | '_id'>[] = [];
+    playlists: Pick<
+        Playlist,
+        'count' | 'title' | 'filename' | '_id' | 'url' | 'importDate'
+    >[] = [];
     /** Loading spinner state */
     isLoading = false;
     /** IPC Renderer commands list with callbacks */
@@ -25,7 +28,10 @@ export class HomeComponent {
         },
         {
             id: 'playlist-all-result',
-            execute: (response: any) => (this.playlists = response.payload),
+            execute: (response: { payload: Partial<Playlist[]> }) =>
+                (this.playlists = response.payload.sort((a, b) =>
+                    b.importDate.localeCompare(a.importDate)
+                )),
         },
         {
             id: 'playlist-remove-by-id-result',
