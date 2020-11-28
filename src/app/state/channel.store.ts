@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { EntityState, EntityStore, StoreConfig } from '@datorama/akita';
-import { ElectronService } from 'app/services/electron.service';
+import { ElectronService } from '../services/electron.service';
 import { Channel } from './channel.model';
 
 export interface ChannelState extends EntityState<Channel> {
