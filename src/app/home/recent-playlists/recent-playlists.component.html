@@ -11,8 +11,18 @@
         *ngFor="let item of playlists; last as last"
         (click)="playlistClicked.emit(item._id)"
     >
-        <mat-icon mat-list-icon *ngIf="item?.url">cloud</mat-icon>
-        <mat-icon mat-list-icon *ngIf="!item?.url">folder</mat-icon>
+        <mat-icon
+            mat-list-icon
+            *ngIf="item?.url"
+            matTooltip="Added via URL upload. URL: {{ item?.url }}"
+            >cloud</mat-icon
+        >
+        <mat-icon
+            mat-list-icon
+            *ngIf="!item?.url"
+            matTooltip="Added via file upload"
+            >folder</mat-icon
+        >
         <div mat-line>{{ item.title || item.filename }}</div>
         <div mat-line class="meta">
             Channels: {{ item.count }}
