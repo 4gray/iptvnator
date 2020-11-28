@@ -17,7 +17,7 @@ export interface Channel {
  */
 export function createChannel(params: Partial<Channel>): Channel {
     return {
-        id: params.url,
+        id: params?.id || params.url,
         name: params.name,
         group: params.group,
         url: params.url,
