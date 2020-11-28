@@ -122,7 +122,13 @@ export class Api {
             filename: name,
             title: name,
             count: playlist.items.length,
-            playlist,
+            playlist: {
+                ...playlist,
+                items: playlist.items.map((item) => ({
+                    id: guid(),
+                    ...item,
+                })),
+            },
             importDate: new Date().toISOString(),
             lastUsage: new Date().toISOString(),
             favorites: [],
