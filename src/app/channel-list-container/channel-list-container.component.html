@@ -77,27 +77,36 @@
             *ngIf="favorites$ | async as favorites"
             id="favorites-list"
         >
-            <mat-list-item
-                *ngFor="
-                    let channel of favorites | filterBy: searchTerm;
-                    index as i
-                "
-                [class.active]="selected?.id === channel.id"
-                (click)="selectChannel(channel)"
-            >
-                <p matLine>
-                    {{ i + 1 + '. ' + channel?.name || 'Unnamed Channel' }}
-                </p>
-                <button
-                    mat-icon-button
-                    color="primary"
-                    matTooltip="Remove from favorites"
-                    (click)="toggleFavoriteChannel(channel, $event)"
+            <ng-container *ngIf="favorites.length > 0; else noFavorites">
+                <mat-list-item
+                    *ngFor="
+                        let channel of favorites | filterBy: searchTerm;
+                        index as i
+                    "
+                    [class.active]="selected?.id === channel.id"
+                    (click)="selectChannel(channel)"
                 >
-                    <mat-icon>star</mat-icon>
-                </button>
-                <mat-divider></mat-divider>
-            </mat-list-item>
+                    <p matLine>
+                        {{ i + 1 + '. ' + channel?.name || 'Unnamed Channel' }}
+                    </p>
+                    <button
+                        mat-icon-button
+                        color="primary"
+                        matTooltip="Remove from favorites"
+                        (click)="toggleFavoriteChannel(channel, $event)"
+                    >
+                        <mat-icon>star</mat-icon>
+                    </button>
+                    <mat-divider></mat-divider>
+                </mat-list-item>
+            </ng-container>
+            <ng-template #noFavorites>
+                <mat-list-item><strong>No favorites yet</strong></mat-list-item>
+                <mat-list-item>
+                    Please use the "star" icon to add channels to this
+                    list.</mat-list-item
+                >
+            </ng-template>
         </mat-nav-list>
     </mat-tab>
 </mat-tab-group>
