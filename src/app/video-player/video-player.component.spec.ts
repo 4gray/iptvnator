@@ -11,7 +11,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ChannelStore } from '../state/channel.store';
 import * as MOCKED_PLAYLIST from '../../mocks/playlist.json';
 import { createChannel } from '../state';
-import { HtmlVideoPlayerComponent } from 'app/html-video-player/html-video-player.component';
+import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 
 class MatSnackBarStub {
     open(): void {}
