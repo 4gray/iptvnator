@@ -130,15 +130,10 @@ describe('ChannelListContainerComponent', () => {
         });
     });
 
-    it('should update store and emit event after channel was selected', () => {
+    it('should update store after channel was selected', () => {
         spyOn(store, 'update');
-        spyOn(component.changeChannel, 'emit');
         component.selectChannel(component._channelList[0]);
         fixture.detectChanges();
-        expect(component.changeChannel.emit).toHaveBeenCalledTimes(1);
-        expect(component.changeChannel.emit).toHaveBeenCalledWith(
-            component._channelList[0]
-        );
         expect(store.update).toHaveBeenCalledTimes(1);
     });
 

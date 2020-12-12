@@ -25,7 +25,8 @@
                 <mat-list-item
                     *cdkVirtualFor="
                         let channel of _channelList | filterBy: searchTerm;
-                        index as i
+                        index as i;
+                        trackBy: trackByFn
                     "
                     [class.active]="selected?.id === channel.id"
                     (click)="selectChannel(channel)"

@@ -18,6 +18,7 @@ import { AppComponent } from './app.component';
 import { VideoPlayerComponent } from './video-player/video-player.component';
 import { ChannelListContainerComponent } from './channel-list-container/channel-list-container.component';
 import { VjsPlayerComponent } from './vjs-player/vjs-player.component';
+import { HtmlVideoPlayerComponent } from './html-video-player/html-video-player.component';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -30,6 +31,7 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
         ChannelListContainerComponent,
         VideoPlayerComponent,
         VjsPlayerComponent,
+        HtmlVideoPlayerComponent,
     ],
     imports: [
         AppRoutingModule,

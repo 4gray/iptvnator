@@ -32,9 +32,6 @@ export class ChannelListContainerComponent {
     /** Selected channel */
     selected: Channel;
 
-    /** Emits on channel change */
-    @Output() changeChannel: EventEmitter<Channel> = new EventEmitter();
-
     /** List with favorited channels */
     favorites$: Observable<Channel[]> = this.channelQuery.select((store) =>
         this.channelQuery
@@ -65,7 +62,6 @@ export class ChannelListContainerComponent {
      */
     selectChannel(channel: Channel): void {
         this.selected = channel;
-        this.changeChannel.emit(channel);
         this.channelStore.update((store) => ({
             ...store,
             active: channel,
@@ -81,5 +77,14 @@ export class ChannelListContainerComponent {
         clickEvent.stopPropagation();
         this.snackBar.open('Favorites were updated!', null, { duration: 2000 });
         this.channelStore.updateFavorite(channel);
+    }
+
+    /**
+     * Required for change detection mechanism to nor re-init the whole component after changes
+     * @param index index of the channel item
+     * @param channel channel object
+     */
+    trackByFn(index: number, channel: Channel): string {
+        return channel.id;
     }
 }

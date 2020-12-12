@@ -1,4 +1,4 @@
-/* tslint:disable:no-unused-variable */
+/* eslint-disable @typescript-eslint/unbound-method */
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { VideoPlayerComponent } from './video-player.component';
 import { MockComponent, MockModule } from 'ng-mocks';
@@ -7,10 +7,11 @@ import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ChannelStore } from '../state/channel.store';
 import * as MOCKED_PLAYLIST from '../../mocks/playlist.json';
 import { createChannel } from '../state';
+import { HtmlVideoPlayerComponent } from 'app/html-video-player/html-video-player.component';
 
 class MatSnackBarStub {
     open(): void {}
@@ -25,14 +26,13 @@ describe('VideoPlayerComponent', () => {
     beforeEach(async(() => {
         TestBed.configureTestingModule({
             declarations: [
+                MockComponent(HtmlVideoPlayerComponent),
                 MockComponent(VjsPlayerComponent),
                 MockComponent(VideoPlayerComponent),
                 MockComponent(ChannelListContainerComponent),
                 VideoPlayerComponent,
             ],
-            providers: [
-                { provide: MatSnackBar, useClass: MatSnackBarStub },
-            ],
+            providers: [{ provide: MatSnackBar, useClass: MatSnackBarStub }],
             imports: [
                 MockModule(MatSidenavModule),
                 MockModule(MatIconModule),
@@ -61,16 +61,15 @@ describe('VideoPlayerComponent', () => {
 
     it('should check default component settings', () => {
         fixture.detectChanges();
-        expect(component.videoPlayer).toBeDefined();
         expect(component.player).toEqual('html5');
     });
 
     it('should update store after channel was faved', () => {
-       spyOn(store, 'updateFavorite');
-       const [firstChannel] = channels;
-       component.addToFavorites(firstChannel);
-       fixture.detectChanges();
-       expect(store.updateFavorite).toBeCalledTimes(1);
-       expect(store.updateFavorite).toBeCalledWith(firstChannel) 
+        spyOn(store, 'updateFavorite');
+        const [firstChannel] = channels;
+        component.addToFavorites(firstChannel);
+        fixture.detectChanges();
+        expect(store.updateFavorite).toBeCalledTimes(1);
+        expect(store.updateFavorite).toBeCalledWith(firstChannel);
     });
 });

@@ -1,7 +1,7 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import * as Hls from 'hls.js';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { ChannelQuery, Channel, ChannelStore } from '../state';
 import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { MatSidenav } from '@angular/material/sidenav';
 import { ElectronService } from '../services/electron.service';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -17,32 +17,27 @@ export const SETTINGS_STORE_KEY = 'settings';
     styleUrls: ['./video-player.component.css'],
 })
 export class VideoPlayerComponent implements OnInit {
+    /** Active selected channel */
+    activeChannel$: Observable<Channel> = this.channelQuery
+        .select((state) => state.active)
+        .pipe(tap((channel) => (this.channelTitle = channel?.name)));
+
     /** Channels list */
     channels$: Observable<Channel[]> = this.channelQuery.selectAll();
+
+    /** Name of the selected channel */
+    channelTitle: string;
 
     /** Favorites list */
     favorites$: Observable<string[]> = this.channelQuery.select(
         (store) => store.favorites
     );
 
-    /** Video player DOM element */
-    @ViewChild('videoPlayer', { static: false })
-    videoPlayer: ElementRef<HTMLVideoElement>;
-
-    /** HLS object */
-    hls = new Hls();
-
-    /** Name of the selected channel */
-    channelTitle: string;
-
-    /** Active selected channel */
-    activeChannel$: Observable<Channel>;
+    /** Selected video player component */
+    player: VideoPlayerType = 'html5';
 
     /** Sidebar object */
     @ViewChild('sidenav') sideNav: MatSidenav;
-
-    /** Selected video player component */
-    player: VideoPlayerType = 'html5';
 
     /**
      * Creates an instance of VideoPlayerComponent
@@ -64,7 +59,6 @@ export class VideoPlayerComponent implements OnInit {
      * Sets video player and subscribes to channel list from the store
      */
     ngOnInit(): void {
-        this.activeChannel$ = this.channelQuery.select((state) => state.active);
         this.applySettings();
     }
 
@@ -84,31 +78,6 @@ export class VideoPlayerComponent implements OnInit {
      */
     close(): void {
         this.sideNav.close();
-    }
-
-    /**
-     * Starts to play the given channel
-     * @param channel given channel object
-     */
-    playChannel(channel: Channel): void {
-        if (Hls.isSupported()) {
-            console.log('... switching channel to ', channel.name, channel.url);
-            this.hls.loadSource(channel.url);
-            this.hls.attachMedia(this.videoPlayer.nativeElement);
-            this.channelTitle = channel.name;
-        } else if (
-            this.videoPlayer.nativeElement.canPlayType(
-                'application/vnd.apple.mpegurl'
-            )
-        ) {
-            this.videoPlayer.nativeElement.src = channel.url;
-            this.videoPlayer.nativeElement.addEventListener(
-                'loadedmetadata',
-                () => {
-                    this.videoPlayer.nativeElement.play();
-                }
-            );
-        }
     }
 
     /**

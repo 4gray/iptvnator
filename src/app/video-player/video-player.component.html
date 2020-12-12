@@ -8,10 +8,7 @@
         disableClose
     >
         <ng-container *ngIf="channels$ | async as channels">
-            <app-channel-list-container
-                [channelList]="channels"
-                (changeChannel)="playChannel($event)"
-            >
+            <app-channel-list-container [channelList]="channels">
             </app-channel-list-container>
         </ng-container>
     </mat-drawer>
@@ -48,27 +45,24 @@
                 </button>
             </mat-toolbar>
 
-            <ng-container *ngIf="player === 'videojs'">
-                <app-vjs-player
-                    [options]="{
-                        sources: [
-                            {
-                                src: activeChannel.url,
-                                type: 'application/x-mpegURL'
-                            }
-                        ]
-                    }"
-                ></app-vjs-player>
-            </ng-container>
+            <!-- video.js player -->
+            <app-vjs-player
+                *ngIf="player === 'videojs'"
+                [options]="{
+                    sources: [
+                        {
+                            src: activeChannel.url,
+                            type: 'application/x-mpegURL'
+                        }
+                    ]
+                }"
+            ></app-vjs-player>
         </ng-container>
         <!-- default html player component -->
-        <video
-            #videoPlayer
+        <app-html-video-player
             *ngIf="player === 'html5'"
-            id="video-player"
-            autoplay="true"
-            controls="true"
-            muted="muted"
-        ></video>
+            [channel]="activeChannel$ | async"
+        >
+        </app-html-video-player>
     </mat-drawer-content>
 </mat-drawer-container>

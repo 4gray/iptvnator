@@ -1,8 +1,3 @@
-#video-player {
-    width: 100%;
-    height: calc(100vh - 100px);
-}
-
 .main-container {
     position: absolute;
     top: 0;
