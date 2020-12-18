@@ -1,4 +1,10 @@
-import { Component, Input } from '@angular/core';
+import {
+    Component,
+    ElementRef,
+    HostListener,
+    Input,
+    ViewChild,
+} from '@angular/core';
 import { Channel, ChannelStore, ChannelQuery } from '../../../state';
 
 import * as _ from 'lodash';
@@ -43,6 +49,17 @@ export class ChannelListContainerComponent {
     searchTerm: any = {
         name: '',
     };
+
+    /** Search field element */
+    @ViewChild('search') searchElement: ElementRef;
+
+    /** Register ctrl+f as keyboard hotkey to focus the search input field */
+    @HostListener('document:keypress', ['$event'])
+    handleKeyboardEvent(event: KeyboardEvent): void {
+        if (event.key === 'f' && event.ctrlKey) {
+            this.searchElement.nativeElement.focus();
+        }
+    }
 
     /**
      * Creates an instance of ChannelListContainerComponent
