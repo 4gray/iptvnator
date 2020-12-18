@@ -2,7 +2,7 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { VideoPlayerComponent } from './video-player.component';
 import { MockComponent, MockModule } from 'ng-mocks';
-import { ChannelListContainerComponent } from '../../../channel-list-container/channel-list-container.component';
+import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatIconModule } from '@angular/material/icon';
