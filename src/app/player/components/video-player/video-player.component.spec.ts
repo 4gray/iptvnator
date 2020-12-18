@@ -2,15 +2,15 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { VideoPlayerComponent } from './video-player.component';
 import { MockComponent, MockModule } from 'ng-mocks';
-import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
+import { ChannelListContainerComponent } from '../../../channel-list-container/channel-list-container.component';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ChannelStore } from '../state/channel.store';
-import * as MOCKED_PLAYLIST from '../../mocks/playlist.json';
-import { createChannel } from '../state';
+import { ChannelStore } from '../../../state/channel.store';
+import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
+import { createChannel } from '../../../state';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 
 class MatSnackBarStub {

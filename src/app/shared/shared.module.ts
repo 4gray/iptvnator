@@ -1,31 +1,31 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
 import { TranslateModule } from '@ngx-translate/core';
 import { FlexLayoutModule } from '@angular/flex-layout';
-import { PageNotFoundComponent, HeaderComponent } from './components/';
-import { WebviewDirective } from './directives/';
+import { HeaderComponent } from './components/';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MaterialModule } from 'app/material.module';
+import { FilterPipeModule } from 'ngx-filter-pipe';
 
 @NgModule({
-    declarations: [PageNotFoundComponent, HeaderComponent, WebviewDirective],
+    declarations: [HeaderComponent],
     imports: [
         CommonModule,
-        TranslateModule,
+        FilterPipeModule,
+        FlexLayoutModule,
         FormsModule,
         MaterialModule,
-        FlexLayoutModule,
         ReactiveFormsModule,
+        TranslateModule,
     ],
     exports: [
-        TranslateModule,
-        WebviewDirective,
-        FormsModule,
-        MaterialModule,
+        FilterPipeModule,
         FlexLayoutModule,
+        FormsModule,
         HeaderComponent,
+        MaterialModule,
         ReactiveFormsModule,
+        TranslateModule,
     ],
 })
 export class SharedModule {}

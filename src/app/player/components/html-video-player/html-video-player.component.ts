@@ -6,7 +6,7 @@ import {
     SimpleChanges,
     ViewChild,
 } from '@angular/core';
-import { Channel } from '../state';
+import { Channel } from '../../../state';
 import * as Hls from 'hls.js';
 
 @Component({

@@ -1,7 +1,5 @@
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
-import { PageNotFoundComponent } from './shared/components';
-import { VideoPlayerComponent } from './video-player/video-player.component';
 
 const routes: Routes = [
     {
@@ -11,7 +9,8 @@ const routes: Routes = [
     },
     {
         path: 'iptv',
-        component: VideoPlayerComponent,
+        loadChildren: () =>
+            import('./player/player.module').then((m) => m.PlayerModule),
     },
     {
         path: 'settings',
@@ -20,7 +19,7 @@ const routes: Routes = [
     },
     {
         path: '**',
-        component: PageNotFoundComponent,
+        redirectTo: '',
     },
 ];
 

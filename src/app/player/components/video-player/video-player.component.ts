@@ -1,11 +1,14 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
-import { ChannelQuery, Channel, ChannelStore } from '../state';
+import { ChannelQuery, Channel, ChannelStore } from '../../../state';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { MatSidenav } from '@angular/material/sidenav';
-import { ElectronService } from '../services/electron.service';
+import { ElectronService } from '../../../services/electron.service';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { Settings, VideoPlayerType } from '../settings/settings.interface';
+import {
+    Settings,
+    VideoPlayerType,
+} from '../../../settings/settings.interface';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 /** Settings key in storage */

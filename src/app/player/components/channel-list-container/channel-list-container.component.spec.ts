@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChannelListContainerComponent } from './channel-list-container.component';
-import { ChannelQuery } from '../state/channel.query';
-import { ChannelStore } from '../state/channel.store';
+import { ChannelQuery } from '../../../state/channel.query';
+import { ChannelStore } from '../../../state/channel.store';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
@@ -14,8 +14,8 @@ import { FormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
 import { FilterPipeModule } from 'ngx-filter-pipe';
 import { By } from '@angular/platform-browser';
-import { createChannel } from '../state';
-import * as MOCKED_PLAYLIST from '../../mocks/playlist.json';
+import { createChannel } from '../../../state';
+import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
 
 class MatSnackBarStub {
     open(): void {}

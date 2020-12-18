@@ -1,5 +1,5 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { Channel, ChannelStore, ChannelQuery } from '../state';
+import { Component, Input } from '@angular/core';
+import { Channel, ChannelStore, ChannelQuery } from '../../../state';
 
 import * as _ from 'lodash';
 import { MatSnackBar } from '@angular/material/snack-bar';
