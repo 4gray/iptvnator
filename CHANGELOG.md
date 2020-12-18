@@ -1,3 +1,17 @@
+# [0.3.0](https://github.com/4gray/iptvnator/compare/v0.2.0...v0.3.0) (2020-12-18)
+
+
+### Bug Fixes
+
+* default html5 player initialization fix ([4a6b976](https://github.com/4gray/iptvnator/commit/4a6b9761902fb694677980874ad3dc4a985e4c90))
+
+
+### Features
+
+* add `ctrl+f` as hotkey to focus search field ([cad162d](https://github.com/4gray/iptvnator/commit/cad162dc6700a9543571ef051b24d123d41fe9f9))
+* favorite channels list ([f02bbe3](https://github.com/4gray/iptvnator/commit/f02bbe39a66a12fd1d3b12863aa2b32048b7691f))
+* sort playlists by import date ([d967b12](https://github.com/4gray/iptvnator/commit/d967b121008075751f47bbd4898894571ef38152))
+
 # [0.2.0](https://github.com/4gray/iptvnator/compare/v0.1.0...v0.2.0) (2020-09-27)
 
 
@@ -65,6 +79,3 @@
 * initial commit ([2f1701a](https://github.com/4gray/iptvnator/commit/2f1701a3db04beb2fc6aca1e3a05f04c0a04b8af))
 * list with recent playlists ([1735026](https://github.com/4gray/iptvnator/commit/1735026c201591c4192317f3a5371c8548f8fa1c))
 * list with recent playlists ([8ee96ee](https://github.com/4gray/iptvnator/commit/8ee96eeebe0ca422d7bc183296f896c49e827b19))
-
-
-
