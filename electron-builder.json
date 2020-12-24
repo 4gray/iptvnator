@@ -22,7 +22,18 @@
   "win": {
     "icon": "dist/assets/icons",
     "target": [
-      "nsis"
+      {
+        "target": "nsis",
+        "arch": [
+          "ia32"
+        ]
+      },
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
     ]
   },
   "mac": {
