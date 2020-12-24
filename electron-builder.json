@@ -21,16 +21,12 @@
   ],
   "win": {
     "icon": "dist/assets/icons",
+    "compression": "maximum",
     "target": [
       {
         "target": "nsis",
         "arch": [
-          "ia32"
-        ]
-      },
-      {
-        "target": "nsis",
-        "arch": [
+          "ia32",
           "x64"
         ]
       }
@@ -44,6 +40,7 @@
   },
   "linux": {
     "icon": "dist/assets/icons",
+    "category": "Video",
     "target": [
       "AppImage",
       "Snap",
