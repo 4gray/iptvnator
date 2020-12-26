@@ -4,6 +4,7 @@ import { By } from '@angular/platform-browser';
 import { UrlUploadComponent } from './url-upload.component';
 import { MockModule } from 'ng-mocks';
 import { MatInputModule } from '@angular/material/input';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 describe('UrlUploadComponent', () => {
     let component: UrlUploadComponent;
@@ -12,7 +13,11 @@ describe('UrlUploadComponent', () => {
     beforeEach(async(() => {
         TestBed.configureTestingModule({
             declarations: [UrlUploadComponent],
-            imports: [MockModule(MatInputModule)],
+            imports: [
+                MockModule(MatInputModule),
+                FormsModule,
+                ReactiveFormsModule,
+            ],
         }).compileComponents();
     }));
 
@@ -29,14 +34,19 @@ describe('UrlUploadComponent', () => {
     it('submit form with playlist url', async(() => {
         spyOn(component.urlAdded, 'emit');
         const TEST_URL = 'http://example.org/playlist.m3u';
-        const input = fixture.debugElement.query(By.css('input'));
-        const el = input.nativeElement;
-
         const submitButton = fixture.debugElement.nativeElement.querySelector(
             'button'
         );
+
+        // test input field validation
         expect(submitButton.disabled).toBeTruthy();
-        el.value = TEST_URL;
+        component.form.setValue({ playlistUrl: 'wrong url here' });
+        fixture.detectChanges();
+        expect(submitButton.disabled).toBeTruthy();
+        component.form.setValue({ playlistUrl: TEST_URL + '8' });
+        fixture.detectChanges();
+        expect(submitButton.disabled).toBeFalsy();
+        component.form.setValue({ playlistUrl: TEST_URL });
         fixture.detectChanges();
         expect(submitButton.disabled).toBeFalsy();
 
