@@ -16,20 +16,27 @@ const db = new Nedb<Playlist>({
 
 export class Api {
     constructor() {
-        ipcMain.on('parse-playlist-by-url', (event, args) => {
-            axios.get(args.url).then((result) => {
-                const array = result.data.split('\n');
-                const parsedPlaylist = this.parsePlaylist(array);
-                const playlistObject = this.createPlaylistObject(
-                    args.title,
-                    parsedPlaylist,
-                    args.url
-                );
-                this.insertToDb(playlistObject);
-                event.sender.send('parse-response', {
-                    payload: playlistObject,
+        ipcMain.on('parse-playlist-by-url', async (event, args) => {
+            try {
+                await axios.get(args.url).then((result) => {
+                    const array = result.data.split('\n');
+                    const parsedPlaylist = this.parsePlaylist(array);
+                    const playlistObject = this.createPlaylistObject(
+                        args.title,
+                        parsedPlaylist,
+                        args.url
+                    );
+                    this.insertToDb(playlistObject);
+                    event.sender.send('parse-response', {
+                        payload: playlistObject,
+                    });
                 });
-            });
+            } catch (err) {
+                event.sender.send('error', {
+                    message: err.response.statusText,
+                    status: err.response.status,
+                });
+            }
         });
 
         ipcMain.on('parse-playlist', (event, args) => {

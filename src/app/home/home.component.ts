@@ -42,6 +42,13 @@ export class HomeComponent {
                 this.electronService.ipcRenderer.send('playlists-all');
             },
         },
+        {
+            id: 'error',
+            execute: (response: { message: string; status: number }) =>
+                this.showNotification(
+                    `Error: ${response.status} ${response.message}. Please check the entered playlist URL again.`
+                ),
+        },
     ];
 
     /**
@@ -84,12 +91,8 @@ export class HomeComponent {
      * @param fileName name of the uploaded file
      */
     rejectFile(fileName: string): void {
-        this.snackBar.open(
-            `File was rejected, unsupported file format (${fileName}).`,
-            null,
-            {
-                duration: 2000,
-            }
+        this.showNotification(
+            `File was rejected, unsupported file format (${fileName}).`
         );
         this.isLoading = false;
     }
@@ -175,5 +178,16 @@ export class HomeComponent {
         } else {
             return '';
         }
+    }
+
+    /**
+     * Shows snack bar notification with a given message
+     * @param message message to show
+     * @param duration visibility duration of the snackbar
+     */
+    showNotification(message: string, duration = 2000): void {
+        this.snackBar.open(message, null, {
+            duration,
+        });
     }
 }
