@@ -2,7 +2,7 @@
   "name": "iptvnator",
   "version": "0.3.0",
   "description": "IPTV player application.",
-  "homepage": "https://github.com/4gray/my-iptv-player-pwa",
+  "homepage": "https://github.com/4gray/iptvnator",
   "author": {
     "name": "4gray",
     "email": "dev@artslab.info"
@@ -126,6 +126,7 @@
     "nedb-promises-ts": "0.0.1-4",
     "ngx-filter-pipe": "2.1.2",
     "ngx-uploader": "10.0.0",
+    "semver": "7.3.4",
     "uuid": "8.3.0",
     "video-js": "0.7.0"
   },

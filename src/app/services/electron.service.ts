@@ -30,4 +30,11 @@ export class ElectronService {
             this.fs = window.require('fs');
         }
     }
+
+    /**
+     * Returns the current version of the application
+     */
+    getAppVersion(): string {
+        return this.remote.app.getVersion();
+    }
 }

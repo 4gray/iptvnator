@@ -5,6 +5,9 @@ import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subscription } from 'rxjs';
 import { Settings } from './settings.interface';
+import { HttpClient } from '@angular/common/http';
+import * as semver from 'semver';
+import { ElectronService } from 'app/services/electron.service';
 
 @Component({
     selector: 'app-settings',
@@ -14,6 +17,10 @@ import { Settings } from './settings.interface';
 export class SettingsComponent implements OnInit, OnDestroy {
     /** Subscription object */
     private subscription: Subscription = new Subscription();
+
+    /** Url of the package.json file in the app repository, required to get the version of the released app */
+    latestPackageJsonUrl =
+        'https://raw.githubusercontent.com/4gray/iptvnator/master/package.json';
 
     /** Player options */
     players = [
@@ -30,6 +37,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
     /** Settings form object */
     settingsForm: FormGroup;
 
+    /** Current version of the app */
+    version: string;
+
+    /** Update message to show */
+    updateMessage: string;
+
     /**
      * Creates an instance of SettingsComponent and injects some dependencies into the component
      * @param formBuilder
@@ -38,7 +51,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * @param storage
      */
     constructor(
+        private electronService: ElectronService,
         private formBuilder: FormBuilder,
+        private http: HttpClient,
         private router: Router,
         private snackBar: MatSnackBar,
         private storage: StorageMap
@@ -46,6 +61,24 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settingsForm = this.formBuilder.group({
             player: ['html5'], // default value
         });
+
+        this.subscription.add(
+            this.http
+                .get(this.latestPackageJsonUrl)
+                .subscribe((response: { version: string }) => {
+                    this.version = this.electronService.getAppVersion();
+                    const isOutdated = semver.lt(
+                        this.version,
+                        response.version
+                    );
+
+                    if (isOutdated) {
+                        this.updateMessage = `There is a new version available: ${response.version}`;
+                    } else {
+                        this.updateMessage = 'You are using the latest version';
+                    }
+                })
+        );
     }
 
     /**
