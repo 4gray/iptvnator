@@ -18,6 +18,10 @@
     min-height: calc(100vh - 142px);
 }
 
+.search-bar {
+    padding: 8px;
+}
+
 ::ng-deep {
     .mat-tab-label-content {
         text-transform: uppercase;
