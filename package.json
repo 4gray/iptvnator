@@ -35,7 +35,7 @@
     "electron:build": "npm run build:prod && electron-builder build",
     "test": "jest",
     "test:watch": "jest --watch",
-    "e2e": "npm run build:prod && cross-env TS_NODE_PROJECT='e2e/tsconfig.e2e.json' mocha e2e/**/*.ts --config ./.mocharc.json",
+    "e2e": "npm run build:prod && cross-env TS_NODE_PROJECT='e2e/tsconfig.e2e.json' mocha e2e/**/*.ts --config ./.mocharc.json --exit",
     "e2e:watch": "npm run e2e -- --watch",
     "version": "conventional-changelog -i CHANGELOG.md -p angular -s -r 0 && git add CHANGELOG.md",
     "lint": "ng lint"
