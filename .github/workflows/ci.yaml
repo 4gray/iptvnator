@@ -14,7 +14,6 @@ jobs:
           node-version: "12.x"
       - run: npm install
       - run: npm test
-      - run: sudo apt-get install xvfb
       - run: xvfb-run --auto-servernum npm run e2e
       - run: npm run build:prod
         env:
