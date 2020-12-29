@@ -4,24 +4,22 @@ import { SpectronClient } from 'spectron';
 import commonSetup from './common-setup';
 
 describe('angular-electron App', function () {
-  commonSetup.apply(this);
+    commonSetup.apply(this);
 
-  let browser: any;
-  let client: SpectronClient;
+    let client: SpectronClient;
 
-  beforeEach(function () {
-    client = this.app.client;
-    browser = client as any;
-  });
+    beforeEach(function () {
+        client = this.app.client;
+    });
 
-  it('should display message saying App works !', async function () {
-    const text = await browser.getText('app-home h1');
-    expect(text).to.equal('App works !');
-  });
+    it('creates initial windows', async function () {
+        const count = await client.getWindowCount();
+        expect(count).to.equal(1);
+    });
 
-  it('creates initial windows', async function () {
-    const count = await client.getWindowCount();
-    expect(count).to.equal(1);
-  });
-
+    it('should contain name of the app', async function () {
+        const elem = await client.$('.title');
+        const text = await elem.getText();
+        expect(text).to.equal('IPTVnator');
+    });
 });
