@@ -3,6 +3,19 @@ name: Build and release
 on: [push]
 
 jobs:
+  test:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Run headless test
+        uses: GabrielBB/xvfb-action@v1
+        with:
+          working-directory: ./ #optional
+          run: npm run e2e
   build:
     runs-on: ubuntu-latest
 
@@ -15,7 +28,7 @@ jobs:
       - run: npm install
       - run: npm test
       - run: sudo apt-get install xvfb
-      - run: xvfb-run --auto-servernum npm run e2e
+      #- run: xvfb-run --auto-servernum npm run e2e
       - run: npm run build:prod
         env:
           CI: true
