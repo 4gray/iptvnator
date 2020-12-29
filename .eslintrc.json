@@ -18,6 +18,7 @@
             "parserOptions": {
                 "ecmaVersion": 10,
                 "project": [
+                    "./tsconfig.serve.json",
                     "./src/tsconfig.app.json",
                     "./src/tsconfig.spec.json",
                     "./e2e/tsconfig.e2e.json"
