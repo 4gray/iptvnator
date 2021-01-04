@@ -20,6 +20,7 @@ export class ElectronServiceStub {
     ipcRenderer = {
         send: jest.fn(),
         on: jest.fn(),
+        removeAllListeners: jest.fn(),
     };
     remote = {
         process: {

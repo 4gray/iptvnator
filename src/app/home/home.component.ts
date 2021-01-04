@@ -135,13 +135,15 @@ export class HomeComponent {
      * @param playlist playlist object
      */
     setPlaylist(playlist: Playlist): void {
-        this.channelStore.reset();
+        this.channelStore.remove();
         const favorites = playlist.favorites || [];
         const channels = playlist.playlist.items.map((element) =>
             createChannel(element)
         );
         this.channelStore.upsertMany(channels);
-        this.channelStore.update(() => ({
+        this.channelStore.update((store) => ({
+            ...store,
+            active: undefined,
             favorites,
             playlistId: playlist.id,
         }));
@@ -189,5 +191,14 @@ export class HomeComponent {
         this.snackBar.open(message, null, {
             duration,
         });
+    }
+
+    /**
+     * Remove ipcRenderer listeners after component destroy
+     */
+    ngOnDestroy(): void {
+        this.commandsList.forEach((command) =>
+            this.electronService.ipcRenderer.removeAllListeners(command.id)
+        );
     }
 }
