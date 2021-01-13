@@ -18,6 +18,7 @@
   },
   "files": [
     "api.ts",
+    "epg-worker.ts",
     "main.ts"
   ],
   "exclude": [
