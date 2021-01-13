@@ -9,6 +9,7 @@
 api.js
 epg-worker.js
 main.js
+menu.js
 src/**/*.js
 !src/karma.conf.js
 *.js.map

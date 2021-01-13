@@ -1,12 +1,15 @@
-import { app, BrowserWindow, Menu, MenuItem, shell } from 'electron';
+/* eslint-disable no-useless-catch */
+import { app, BrowserWindow, Menu } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
 import { Api } from './api';
-const openAboutWindow = require('about-window').default;
+import { AppMenu } from './menu';
 
 let win: BrowserWindow = null;
 const args = process.argv.slice(1),
     serve = args.some((val) => val === '--serve');
+
+const api = new Api();
 
 function createWindow(): BrowserWindow {
     // Create the browser window.
@@ -28,14 +31,12 @@ function createWindow(): BrowserWindow {
         minHeight: 700,
         title: 'IPTVnator',
     });
-    const menu = createMenu(win);
-    Menu.setApplicationMenu(menu);
 
     if (serve) {
         win.webContents.openDevTools();
 
         require('electron-reload')(__dirname, {
-            electron: require(`${__dirname}/node_modules/electron`),
+            electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
         });
         win.loadURL('http://localhost:4200');
     } else {
@@ -60,80 +61,27 @@ function createWindow(): BrowserWindow {
 }
 
 /**
- * Creates context menu
- * @param win browser window object
+ * Creates hidden window for EPG worker
+ * Hidden window is used as an additional thread to avoid blocking of the UI by long operations
  */
-function createMenu(win: BrowserWindow) {
-    const menu = new Menu();
-    menu.append(
-        new MenuItem({
-            label: 'File',
-            submenu: [
-                {
-                    label: 'Add playlist',
-                    click: () => win.webContents.send('add-playlist-view'),
-                },
-                {
-                    type: 'separator',
-                },
-                {
-                    label: 'Exit',
-                    click: () => app.quit(),
-                },
-            ],
-        })
-    );
+function createEpgWorkerWindow() {
+    const window = new BrowserWindow({
+        show: false,
+        webPreferences: { nodeIntegration: true },
+    });
 
-    // copy-paste shortcuts workaround for mac os
-    if (process.platform === 'darwin') {
-        menu.append(
-            new MenuItem({
-                label: 'Edit',
-                submenu: [
-                    { role: 'cut' },
-                    { role: 'copy' },
-                    { role: 'paste' },
-                    { role: 'delete' },
-                ],
-            })
-        );
+    if (serve) {
+        window.loadFile('epg-worker.html');
+        window.webContents.openDevTools();
+    } else {
+        window.loadFile('dist/epg-worker.html');
     }
 
-    menu.append(
-        new MenuItem({
-            label: 'Help',
-            submenu: [
-                {
-                    label: 'Report a bug',
-                    click: () =>
-                        shell.openExternal(
-                            'https://github.com/4gray/my-iptv-player-pwa'
-                        ),
-                },
-                {
-                    label: 'Open DevTools',
-                    click: () => win.webContents.openDevTools(),
-                },
-                {
-                    type: 'separator',
-                },
-                {
-                    label: 'About',
-                    click: () =>
-                        openAboutWindow({
-                            icon_path: path.join(
-                                __dirname,
-                                'dist/assets/icons/icon.png'
-                            ),
-                            copyright: 'Copyright (c) 2020 4gray',
-                            package_json_dir: __dirname,
-                        }),
-                },
-            ],
-        })
-    );
+    window.once('ready-to-show', () => {
+        api.setEpgWorkerWindow(window);
+    });
 
-    return menu;
+    return window;
 }
 
 try {
@@ -143,7 +91,16 @@ try {
     // initialization and is ready to create browser windows.
     // Some APIs can only be used after this event occurs.
     // Added 400 ms to fix the black background issue while using transparent window. More details at https://github.com/electron/electron/issues/15947
-    app.on('ready', () => setTimeout(createWindow, 400));
+    app.on('ready', () => {
+        // create main window and set menu
+        const win = createWindow();
+        const menu = AppMenu.createMenu(win);
+        Menu.setApplicationMenu(menu);
+        api.setMainWindow(win);
+
+        // create hidden window for epg worker
+        createEpgWorkerWindow();
+    });
 
     // Quit when all windows are closed.
     app.on('window-all-closed', () => {
@@ -165,5 +122,3 @@ try {
     // Catch Error
     throw e;
 }
-
-new Api();

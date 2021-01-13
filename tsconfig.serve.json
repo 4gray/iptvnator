@@ -19,7 +19,8 @@
   "files": [
     "api.ts",
     "epg-worker.ts",
-    "main.ts"
+    "main.ts",
+    "menu.ts"
   ],
   "exclude": [
     "node_modules",

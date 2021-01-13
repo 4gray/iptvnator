@@ -1,9 +1,17 @@
-import { app, ipcMain } from 'electron';
+/* eslint-disable @typescript-eslint/no-misused-promises */
+import { app, BrowserWindow, ipcMain } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import axios from 'axios';
 import { guid } from '@datorama/akita';
 import { Playlist } from './src/app/home/playlist.interface';
 import Nedb from 'nedb-promises-ts';
+import {
+    EPG_ERROR,
+    EPG_FETCH,
+    EPG_FETCH_DONE,
+    EPG_GET_PROGRAM,
+    EPG_GET_PROGRAM_DONE,
+} from './src/app/shared/ipc-commands';
 
 const fs = require('fs');
 const join = require('path').join;
@@ -15,6 +23,12 @@ const db = new Nedb<Playlist>({
 });
 
 export class Api {
+    /** Instance of the main application window */
+    mainWindow: BrowserWindow;
+
+    /** Instance of the epg browser window */
+    workerWindow: BrowserWindow;
+
     constructor() {
         ipcMain.on('parse-playlist-by-url', async (event, args) => {
             try {
@@ -49,9 +63,9 @@ export class Api {
             event.sender.send('parse-response', { payload: playlistObject });
         });
 
-        ipcMain.on('playlists-all', async (event, args) => {
+        ipcMain.on('playlists-all', async (event) => {
             const playlists = await db.find(
-                {},
+                { type: { $exists: false } },
                 { count: 1, title: 1, _id: 1, url: 1, importDate: 1 }
             );
             event.sender.send('playlist-all-result', {
@@ -88,6 +102,7 @@ export class Api {
             fs.readFile(args.filePath, 'utf-8', (err, data) => {
                 if (err) {
                     console.log(
+                        // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
                         'An error ocurred reading the file :' + err.message
                     );
                     return;
@@ -114,6 +129,40 @@ export class Api {
                 console.error('Error: Favorites were not updated');
             }
         });
+
+        // listeners for EPG events
+        ipcMain
+            .on(EPG_GET_PROGRAM, (event, arg) =>
+                this.workerWindow.webContents.send(EPG_GET_PROGRAM, arg)
+            )
+            .on(EPG_GET_PROGRAM_DONE, (event, arg) => {
+                this.mainWindow.webContents.send(EPG_GET_PROGRAM_DONE, arg);
+            })
+            .on(EPG_FETCH, (event, arg) =>
+                this.workerWindow.webContents.send(EPG_FETCH, arg?.url)
+            )
+            .on(EPG_FETCH_DONE, (event, arg) =>
+                this.mainWindow.webContents.send(EPG_FETCH_DONE, arg)
+            )
+            .on(EPG_ERROR, (event, arg) =>
+                this.mainWindow.webContents.send(EPG_ERROR, arg)
+            );
+    }
+
+    /**
+     * Sets epg browser window
+     * @param workerWindow
+     */
+    setEpgWorkerWindow(workerWindow: BrowserWindow): void {
+        this.workerWindow = workerWindow;
+    }
+
+    /**
+     * Sets browser window of the main app window
+     * @param mainWindow
+     */
+    setMainWindow(mainWindow: BrowserWindow): void {
+        this.mainWindow = mainWindow;
     }
 
     /**
@@ -156,7 +205,7 @@ export class Api {
      * Inserts new playlist to the database
      * @param playlist playlist to add
      */
-    insertToDb(playlist) {
+    insertToDb(playlist: any): void {
         db.insert(playlist).then((response) => {
             console.log('playlist was saved...', response._id);
         });
