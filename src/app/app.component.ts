@@ -59,31 +59,26 @@ export class AppComponent {
             });
         });
 
-        this.electronService.ipcRenderer
-            .on(EPG_FETCH_DONE, () => {
-                this.ngZone.run(() => {
-                    this.channelStore.update((store) => ({
-                        ...store,
-                        epgAvailable: true,
-                    }));
-                    this.snackBar.open(
-                        'EPG was successfully downloaded!',
-                        null,
-                        {
-                            duration: 2000,
-                            verticalPosition: 'bottom',
-                            horizontalPosition: 'right',
-                        }
-                    );
-                });
-            })
-            .on(EPG_ERROR, () => {
-                this.snackBar.open('EPG Error: something went wrong...', null, {
+        this.electronService.ipcRenderer.on(EPG_FETCH_DONE, () => {
+            this.ngZone.run(() => {
+                this.channelStore.update((store) => ({
+                    ...store,
+                    epgAvailable: true,
+                }));
+                this.snackBar.open('EPG was successfully downloaded!', null, {
                     duration: 2000,
                     verticalPosition: 'bottom',
                     horizontalPosition: 'right',
                 });
             });
+        });
+        this.electronService.ipcRenderer.on(EPG_ERROR, () => {
+            this.snackBar.open('EPG Error: something went wrong...', null, {
+                duration: 2000,
+                verticalPosition: 'bottom',
+                horizontalPosition: 'right',
+            });
+        });
 
         if (
             (this.electronService.remote.process.platform === 'linux' ||
