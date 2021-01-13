@@ -31,6 +31,11 @@ export class VideoPlayerComponent implements OnInit {
     /** Name of the selected channel */
     channelTitle: string;
 
+    /** EPG availability flag */
+    epgAvailable$: Observable<boolean> = this.channelQuery.select(
+        (store) => store.epgAvailable
+    );
+
     /** Favorites list */
     favorites$: Observable<string[]> = this.channelQuery.select(
         (store) => store.favorites
@@ -41,6 +46,9 @@ export class VideoPlayerComponent implements OnInit {
 
     /** Sidebar object */
     @ViewChild('sidenav') sideNav: MatSidenav;
+
+    // DEV
+    epgPrograms = [];
 
     /**
      * Creates an instance of VideoPlayerComponent

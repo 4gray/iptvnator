@@ -16,6 +16,8 @@ import { FilterPipeModule } from 'ngx-filter-pipe';
 import { By } from '@angular/platform-browser';
 import { createChannel } from '../../../state';
 import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
+import { ElectronService } from '../../../services/electron.service';
+import { ElectronServiceStub } from '../../../home/home.component.spec';
 
 class MatSnackBarStub {
     open(): void {}
@@ -32,6 +34,7 @@ describe('ChannelListContainerComponent', () => {
             providers: [
                 ChannelQuery,
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
+                { provide: ElectronService, useClass: ElectronServiceStub },
             ],
             imports: [
                 MockModule(MatSnackBarModule),

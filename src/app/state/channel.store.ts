@@ -1,12 +1,14 @@
 import { Injectable } from '@angular/core';
 import { EntityState, EntityStore, StoreConfig } from '@datorama/akita';
+import { EPG_GET_PROGRAM } from '../shared/ipc-commands';
 import { ElectronService } from '../services/electron.service';
 import { Channel } from './channel.model';
 
 export interface ChannelState extends EntityState<Channel> {
+    active: Channel;
+    epgAvailable: boolean;
     favorites: string[];
     playlistId: string;
-    active: Channel;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -14,13 +16,14 @@ export interface ChannelState extends EntityState<Channel> {
 export class ChannelStore extends EntityStore<ChannelState> {
     /**
      * Creates an instance of ChannelStore
-     * @param channelStore channels store
+     * @param electronService electron service
      */
     constructor(private electronService: ElectronService) {
         super({
+            active: undefined,
+            epgAvailable: false,
             favorites: [],
             playlistId: '',
-            active: undefined,
         });
     }
 
@@ -43,6 +46,20 @@ export class ChannelStore extends EntityStore<ChannelState> {
                 favorites,
             });
             return { favorites };
+        });
+    }
+
+    /**
+     * Updates selected/active channel in store
+     * @param channel selected channel
+     */
+    setActiveChannel(channel: Channel): void {
+        this.update((store) => ({
+            ...store,
+            active: channel,
+        }));
+        this.electronService.ipcRenderer.send(EPG_GET_PROGRAM, {
+            channelName: channel.name,
         });
     }
 }

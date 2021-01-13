@@ -12,6 +12,7 @@ import { ChannelStore } from '../../../state/channel.store';
 import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
 import { createChannel } from '../../../state';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
+import { EpgListComponent } from '../epg-list/epg-list.component';
 
 class MatSnackBarStub {
     open(): void {}
@@ -26,6 +27,7 @@ describe('VideoPlayerComponent', () => {
     beforeEach(async(() => {
         TestBed.configureTestingModule({
             declarations: [
+                MockComponent(EpgListComponent),
                 MockComponent(HtmlVideoPlayerComponent),
                 MockComponent(VjsPlayerComponent),
                 MockComponent(VideoPlayerComponent),

@@ -1,0 +1,25 @@
+.active {
+    background-color: #ddd;
+}
+
+.time {
+    color: #666;
+    border-bottom: 1px solid #ccc;
+    font-size: 0.8em;
+    display: inline-block;
+    margin-bottom: 5px;
+}
+
+#channel-info {
+    padding:10px;
+    border-bottom: 1px solid #ccc;
+}
+
+.channel-name {
+    padding-left: 10px
+}
+
+mat-list {
+    height: calc(100vh - 110px);
+    overflow: auto;
+}

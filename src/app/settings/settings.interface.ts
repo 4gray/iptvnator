@@ -5,4 +5,5 @@ export type VideoPlayerType = 'html5' | 'videojs';
  */
 export interface Settings {
     player: VideoPlayerType;
+    epgUrl: string;
 }

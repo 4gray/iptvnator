@@ -14,6 +14,35 @@
             <mat-list>
                 <mat-list-item>
                     <div matLine fxLayout="row">
+                        <p fxFlex>EPG Url (*.xml or *.xml.gz)</p>
+                        <p fxFlex fxLayoutAlign="start center">
+                            <mat-form-field class="full-width">
+                                <input
+                                    placeholder="Enter a URL"
+                                    matInput
+                                    type="url"
+                                    formControlName="epgUrl"
+                                />
+                            </mat-form-field>
+                            <button
+                                *ngIf="
+                                    (epgAvailable$ | async) &&
+                                    settingsForm.value.epgUrl
+                                "
+                                mat-icon-button
+                                color="primary"
+                                matTooltip="Refresh EPG"
+                                type="button"
+                                (click)="fetchEpg()"
+                            >
+                                <mat-icon>refresh</mat-icon>
+                            </button>
+                        </p>
+                    </div>
+                    <p matLine></p>
+                </mat-list-item>
+                <mat-list-item>
+                    <div matLine fxLayout="row">
                         <p fxFlex>Video player</p>
                         <p fxFlex fxLayoutAlign="start center">
                             <mat-form-field appearance="fill">

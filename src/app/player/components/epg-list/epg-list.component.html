@@ -1,0 +1,33 @@
+<ng-container *ngIf="channel; else noEpg">
+    <div id="channel-info" fxLayoutAlign="row">
+        <img
+            fxFlex="48px"
+            *ngIf="channel?.icon"
+            [src]="channel.icon"
+            width="48"
+        />
+        <div fxFlex="100" fxLayoutAlign="start center" class="channel-name">
+            {{ channel?.name[0]?.value }}
+        </div>
+    </div>
+    <mat-list>
+        <mat-list-item
+            *ngFor="let item of items"
+            [class.active]="timeNow >= item.start && timeNow <= item.stop"
+        >
+            <div matLine>
+                <span class="time">{{ item.start }} - {{ item.stop }}</span>
+            </div>
+            <p matLine>{{ item?.title[0]?.value }}</p>
+            <mat-divider></mat-divider>
+        </mat-list-item>
+    </mat-list>
+</ng-container>
+<ng-template #noEpg>
+    <mat-list>
+        <mat-list-item>
+            Ooops, EPG is not available for this channel.<br />
+            Please add/change the url of EPG list the settings of the app.
+        </mat-list-item>
+    </mat-list>
+</ng-template>

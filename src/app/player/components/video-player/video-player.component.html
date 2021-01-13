@@ -19,7 +19,6 @@
             <mat-toolbar color="primary">
                 <button
                     mat-icon-button
-                    mat-toolbar="Add to favorites"
                     (click)="drawer.toggle()"
                     matTooltip="Open channels list"
                 >
@@ -40,8 +39,16 @@
                 </button>
                 {{ activeChannel.name }}
                 <div class="spacer"></div>
-                <button mat-icon-button (click)="openAbout()">
+                <!-- <button mat-icon-button (click)="openAbout()">
                     <mat-icon>info</mat-icon>
+                </button> -->
+                <button
+                    *ngIf="epgAvailable$ | async"
+                    mat-button
+                    (click)="drawerRight.toggle()"
+                    matTooltip="Open EPG list"
+                >
+                    EPG
                 </button>
             </mat-toolbar>
 
@@ -65,4 +72,14 @@
         >
         </app-html-video-player>
     </mat-drawer-content>
+    <!-- right sidebar content -->
+    <mat-drawer
+        position="end"
+        #drawerRight
+        mode="side"
+        (keydown.escape)="close()"
+        disableClose
+    >
+        <app-epg-list></app-epg-list>
+    </mat-drawer>
 </mat-drawer-container>

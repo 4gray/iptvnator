@@ -6,6 +6,7 @@ import { VideoPlayerComponent } from './components/video-player/video-player.com
 import { VjsPlayerComponent } from './components/vjs-player/vjs-player.component';
 import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from 'app/shared/shared.module';
+import { EpgListComponent } from './components/epg-list/epg-list.component';
 
 const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
 
@@ -13,6 +14,7 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
     imports: [CommonModule, RouterModule.forChild(routes), SharedModule],
     declarations: [
         ChannelListContainerComponent,
+        EpgListComponent,
         HtmlVideoPlayerComponent,
         VideoPlayerComponent,
         VjsPlayerComponent,

@@ -79,10 +79,7 @@ export class ChannelListContainerComponent {
      */
     selectChannel(channel: Channel): void {
         this.selected = channel;
-        this.channelStore.update((store) => ({
-            ...store,
-            active: channel,
-        }));
+        this.channelStore.setActiveChannel(channel);
     }
 
     /**

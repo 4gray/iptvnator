@@ -3,11 +3,13 @@ import { FormGroup, FormBuilder } from '@angular/forms';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Subscription } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 import { Settings } from './settings.interface';
 import { HttpClient } from '@angular/common/http';
 import * as semver from 'semver';
 import { ElectronService } from 'app/services/electron.service';
+import { ChannelQuery } from 'app/state';
+import { EPG_FETCH } from 'app/shared/ipc-commands';
 
 @Component({
     selector: 'app-settings',
@@ -43,14 +45,23 @@ export class SettingsComponent implements OnInit, OnDestroy {
     /** Update message to show */
     updateMessage: string;
 
+    /** EPG availability flag */
+    epgAvailable$: Observable<boolean> = this.channelQuery.select(
+        (store) => store.epgAvailable
+    );
+
     /**
      * Creates an instance of SettingsComponent and injects some dependencies into the component
+     * @param channelQuery
+     * @param electronService
      * @param formBuilder
+     * @param http
      * @param router
      * @param snackBar
      * @param storage
      */
     constructor(
+        private channelQuery: ChannelQuery,
         private electronService: ElectronService,
         private formBuilder: FormBuilder,
         private http: HttpClient,
@@ -60,6 +71,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     ) {
         this.settingsForm = this.formBuilder.group({
             player: ['html5'], // default value
+            epgUrl: '',
         });
 
         this.subscription.add(
@@ -88,7 +100,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.subscription.add(
             this.storage.get('settings').subscribe((settings: Settings) => {
                 if (settings) {
-                    this.settingsForm.setValue(settings);
+                    this.settingsForm.setValue({
+                        player: settings.player ? settings.player : 'html5',
+                        epgUrl: settings.epgUrl ? settings.epgUrl : '',
+                    });
                 }
             })
         );
@@ -110,6 +125,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
                             duration: 2000,
                         }
                     );
+                    // check whether the epg url was changed or not
+                    if (this.settingsForm.value.epgUrl) {
+                        this.fetchEpg();
+                    }
                 })
         );
     }
@@ -126,5 +145,18 @@ export class SettingsComponent implements OnInit, OnDestroy {
      */
     ngOnDestroy(): void {
         this.subscription.unsubscribe();
+    }
+
+    /**
+     * Fetches and updates EPG from the given URL
+     */
+    fetchEpg(): void {
+        this.electronService.ipcRenderer.send(EPG_FETCH, {
+            url: this.settingsForm.value.epgUrl,
+        });
+        this.snackBar.open('Fetch EPG data...', 'Close', {
+            verticalPosition: 'bottom',
+            horizontalPosition: 'right',
+        });
     }
 }

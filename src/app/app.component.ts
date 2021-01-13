@@ -5,6 +5,11 @@ import { akitaDevtools } from '@datorama/akita';
 import { Titlebar, Color } from 'custom-electron-titlebar';
 import { ElectronService } from './services/electron.service';
 import { Router } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { ChannelStore } from './state';
+import { StorageMap } from '@ngx-pwa/local-storage';
+import { Settings } from './settings/settings.interface';
+import { EPG_ERROR, EPG_FETCH, EPG_FETCH_DONE } from './shared/ipc-commands';
 
 // create custom title bar
 new Titlebar({
@@ -20,10 +25,13 @@ new Titlebar({
 })
 export class AppComponent {
     constructor(
+        private channelStore: ChannelStore,
         private electronService: ElectronService,
         private ngZone: NgZone,
         private router: Router,
-        private translate: TranslateService
+        private translate: TranslateService,
+        private snackBar: MatSnackBar,
+        private storage: StorageMap
     ) {
         if (!AppConfig.production) {
             akitaDevtools(ngZone);
@@ -51,6 +59,32 @@ export class AppComponent {
             });
         });
 
+        this.electronService.ipcRenderer
+            .on(EPG_FETCH_DONE, () => {
+                this.ngZone.run(() => {
+                    this.channelStore.update((store) => ({
+                        ...store,
+                        epgAvailable: true,
+                    }));
+                    this.snackBar.open(
+                        'EPG was successfully downloaded!',
+                        null,
+                        {
+                            duration: 2000,
+                            verticalPosition: 'bottom',
+                            horizontalPosition: 'right',
+                        }
+                    );
+                });
+            })
+            .on(EPG_ERROR, () => {
+                this.snackBar.open('EPG Error: something went wrong...', null, {
+                    duration: 2000,
+                    verticalPosition: 'bottom',
+                    horizontalPosition: 'right',
+                });
+            });
+
         if (
             (this.electronService.remote.process.platform === 'linux' ||
                 this.electronService.remote.process.platform === 'win32') &&
@@ -69,5 +103,37 @@ export class AppComponent {
                 });
             }
         }
+    }
+
+    /**
+     * Subscribes for app settings on component init
+     */
+    ngOnInit(): void {
+        this.storage.get('settings').subscribe((settings: Settings) => {
+            if (
+                settings &&
+                Object.keys(settings).length > 0 &&
+                settings.epgUrl
+            ) {
+                this.electronService.ipcRenderer.send(EPG_FETCH, {
+                    url: settings.epgUrl,
+                });
+                this.snackBar.open('Fetch EPG data...', 'Close', {
+                    verticalPosition: 'bottom',
+                    horizontalPosition: 'right',
+                });
+            }
+        });
+    }
+
+    /**
+     * Removes all ipc command listeners on component destroy
+     */
+    ngOnDestroy(): void {
+        this.electronService.ipcRenderer.removeAllListeners(EPG_FETCH_DONE);
+        this.electronService.ipcRenderer.removeAllListeners(EPG_ERROR);
+        this.electronService.ipcRenderer.removeAllListeners(
+            'add-playlist-view'
+        );
     }
 }

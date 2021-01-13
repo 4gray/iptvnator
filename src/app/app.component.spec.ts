@@ -4,6 +4,8 @@ import { AppComponent } from './app.component';
 import { TranslateModule } from '@ngx-translate/core';
 import { ElectronService } from './services/electron.service';
 import { ElectronServiceStub } from './home/home.component.spec';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MockModule } from 'ng-mocks';
 
 jest.mock('custom-electron-titlebar', () => {
     return {
@@ -16,14 +18,23 @@ jest.mock('custom-electron-titlebar', () => {
     };
 });
 
-describe('AppComponen t', () => {
+class MatSnackBarStub {
+    open(): void {}
+}
+
+describe('AppComponent', () => {
     beforeEach(async(() => {
         TestBed.configureTestingModule({
             declarations: [AppComponent],
             providers: [
                 { provide: ElectronService, useClass: ElectronServiceStub },
+                { provide: MatSnackBar, useClass: MatSnackBarStub },
             ],
-            imports: [RouterTestingModule, TranslateModule.forRoot()],
+            imports: [
+                MockModule(MatSnackBarModule),
+                RouterTestingModule,
+                TranslateModule.forRoot(),
+            ],
         }).compileComponents();
     }));
 
