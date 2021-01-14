@@ -17,9 +17,10 @@ describe('angular-electron App', function () {
         expect(count).to.equal(2);
     });
 
-    /* it('should contain name of the app', async function () {
+    it('should contain name of the app', async function () {
+        this.app.client.windowByIndex(1);
         const elem = await client.$('.title');
         const text = await elem.getText();
         expect(text).to.equal('IPTVnator');
-    }); */
+    });
 });
