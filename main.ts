@@ -67,7 +67,7 @@ function createWindow(): BrowserWindow {
 function createEpgWorkerWindow() {
     const window = new BrowserWindow({
         show: false,
-        webPreferences: { nodeIntegration: true },
+        webPreferences: { nodeIntegration: true, enableRemoteModule: true },
     });
 
     if (serve) {
