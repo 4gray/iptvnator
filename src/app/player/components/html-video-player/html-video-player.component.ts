@@ -3,6 +3,7 @@ import {
     ElementRef,
     Input,
     OnChanges,
+    OnDestroy,
     SimpleChanges,
     ViewChild,
 } from '@angular/core';
@@ -14,7 +15,7 @@ import * as Hls from 'hls.js';
     templateUrl: './html-video-player.component.html',
     styleUrls: ['./html-video-player.component.scss'],
 })
-export class HtmlVideoPlayerComponent implements OnChanges {
+export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
     /** Channel to play  */
     @Input() channel: Channel;
 
@@ -57,5 +58,12 @@ export class HtmlVideoPlayerComponent implements OnChanges {
                 }
             );
         }
+    }
+
+    /**
+     * Destroy hls instance on component destroy
+     */
+    ngOnDestroy(): void {
+        this.hls.destroy();
     }
 }
