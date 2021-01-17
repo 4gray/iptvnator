@@ -21,6 +21,7 @@ function createWindow(): BrowserWindow {
             allowRunningInsecureContent: serve ? true : false,
             contextIsolation: false,
             enableRemoteModule: true,
+            webSecurity: false,
         },
         resizable: true,
         darkTheme: true,
