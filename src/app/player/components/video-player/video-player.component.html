@@ -39,9 +39,6 @@
                 </button>
                 {{ activeChannel.name }}
                 <div class="spacer"></div>
-                <!-- <button mat-icon-button (click)="openAbout()">
-                    <mat-icon>info</mat-icon>
-                </button> -->
                 <button
                     *ngIf="epgAvailable$ | async"
                     mat-button

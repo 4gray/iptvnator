@@ -92,13 +92,6 @@ export class VideoPlayerComponent implements OnInit {
     }
 
     /**
-     * Opens about application dialog
-     */
-    openAbout(): void {
-        this.electronService.ipcRenderer.send('show-about');
-    }
-
-    /**
      * Adds/removes a given channel to the favorites list
      * @param channel channel to add
      */

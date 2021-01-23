@@ -14,8 +14,6 @@ import {
 } from './src/app/shared/ipc-commands';
 
 const fs = require('fs');
-const join = require('path').join;
-const openAboutWindow = require('about-window').default;
 const userData = app.getPath('userData');
 const db = new Nedb<Playlist>({
     filename: `${userData}/db/data.db`,
@@ -87,14 +85,6 @@ export class Api {
                     message: 'playlist was removed',
                 });
             }
-        });
-
-        ipcMain.on('show-about', () => {
-            openAboutWindow({
-                icon_path: join(__dirname, 'dist/assets/icons/icon.png'),
-                copyright: 'Copyright (c) 2020 4gray',
-                package_json_dir: __dirname,
-            });
         });
 
         // open playlist from file system
