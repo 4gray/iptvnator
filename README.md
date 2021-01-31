@@ -4,7 +4,7 @@
   <img src="https://raw.githubusercontent.com/4gray/iptvnator/electron/src/assets/icons/favicon.256x256.png" alt="IPTVnator icon" title="Free IPTV player application" />
 </p>
 <p align="center">
-  <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/release/4gray/iptvnator.svg?style=round-square" alt="Release"></a> <a href="https://github.com/4gray/iptvnator/actions"><img src="https://github.com/4gray/iptvnator/workflows/Build%20and%20release/badge.svg" alt="Build and release"></a> <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/downloads/4gray/iptvnator/total" alt="Releases"></a>
+  <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/release/4gray/iptvnator.svg?style=round-square" alt="Release"></a> <a href="https://github.com/4gray/iptvnator/actions"><img src="https://github.com/4gray/iptvnator/workflows/Build%20and%20release/badge.svg" alt="Build and release"></a> <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/downloads/4gray/iptvnator/total" alt="Releases"></a> <a href="https://codecov.io/gh/4gray/iptvnator"><img src="https://codecov.io/gh/4gray/iptvnator/branch/electron/graph/badge.svg?token=J53BMPYOFP"/></a>
 </p>
 
 **IPTVnator** is a video player application that provides support for IPTV playlists (m3u, m3u8). The application is an open source project based on Electron.
