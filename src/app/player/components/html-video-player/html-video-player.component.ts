@@ -41,16 +41,18 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
      * @param channel given channel object
      */
     playChannel(channel: Channel): void {
+        const url = channel.url + channel.epgParams;
         if (Hls.isSupported()) {
-            console.log('... switching channel to ', channel.name, channel.url);
-            this.hls.loadSource(channel.url);
+            console.log('... switching channel to ', channel.name, url);
+            this.hls.loadSource(url);
             this.hls.attachMedia(this.videoPlayer.nativeElement);
+            this.videoPlayer.nativeElement.play();
         } else if (
             this.videoPlayer.nativeElement.canPlayType(
                 'application/vnd.apple.mpegurl'
             )
         ) {
-            this.videoPlayer.nativeElement.src = channel.url;
+            this.videoPlayer.nativeElement.src = url;
             this.videoPlayer.nativeElement.addEventListener(
                 'loadedmetadata',
                 () => {

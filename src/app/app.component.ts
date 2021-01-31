@@ -1,7 +1,5 @@
 import { Component, NgZone } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { AppConfig } from '../environments/environment';
-import { akitaDevtools } from '@datorama/akita';
 import { Titlebar, Color } from 'custom-electron-titlebar';
 import { ElectronService } from './services/electron.service';
 import { Router } from '@angular/router';
@@ -33,11 +31,7 @@ export class AppComponent {
         private snackBar: MatSnackBar,
         private storage: StorageMap
     ) {
-        if (!AppConfig.production) {
-            akitaDevtools(ngZone);
-        }
         this.translate.setDefaultLang('en');
-        console.log('AppConfig', AppConfig);
 
         if (electronService.isElectron) {
             console.log(process.env);
@@ -61,10 +55,7 @@ export class AppComponent {
 
         this.electronService.ipcRenderer.on(EPG_FETCH_DONE, () => {
             this.ngZone.run(() => {
-                this.channelStore.update((store) => ({
-                    ...store,
-                    epgAvailable: true,
-                }));
+                this.channelStore.setEpgAvailableFlag(true);
                 this.snackBar.open('EPG was successfully downloaded!', null, {
                     duration: 2000,
                     verticalPosition: 'bottom',

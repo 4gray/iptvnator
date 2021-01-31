@@ -4,6 +4,7 @@ import { EpgProgram } from '../../models/epg-program.model';
 import * as moment from 'moment';
 import { ElectronService } from '../../../services/electron.service';
 import { EPG_GET_PROGRAM_DONE } from '../../../shared/ipc-commands';
+import { ChannelStore } from 'app/state';
 
 interface EpgData {
     channel: EpgChannel;
@@ -30,6 +31,9 @@ export class EpgListComponent {
         payload: EpgData;
     };
 
+    /** EPG selected program */
+    playingNow: EpgProgram;
+
     /** Current time as formatted string */
     timeNow: string;
 
@@ -39,6 +43,7 @@ export class EpgListComponent {
      * @param ngZone
      */
     constructor(
+        private channelStore: ChannelStore,
         private electronService: ElectronService,
         private ngZone: NgZone
     ) {
@@ -79,6 +84,17 @@ export class EpgListComponent {
             this.items = [];
             this.channel = null;
         }
+    }
+
+    /**
+     * Sets the provided epg program as active and starts to play
+     * @param program
+     */
+    setEpgProgram(program: EpgProgram, isLive?: boolean): void {
+        isLive
+            ? this.channelStore.resetActiveEpgProgram()
+            : this.channelStore.setActiveEpgProgram(program);
+        this.playingNow = program;
     }
 
     /**

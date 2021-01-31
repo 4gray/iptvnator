@@ -1,8 +1,21 @@
-.active {
-    background-color: #ddd;
+:host {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    height: 100%;
 }
 
-.time {
+.active {
+    border-bottom: 1px dashed #666;
+    background: linear-gradient(to top, #d2d2d2 0%, #d6d6d6 20%, rgba(255, 255, 255, 0) 100%)
+
+}
+
+.time, .playing-now {
     color: #666;
     border-bottom: 1px solid #ccc;
     font-size: 0.8em;
@@ -10,16 +23,41 @@
     margin-bottom: 5px;
 }
 
+.epg-program-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    font-size: 0.9em;
+}
+
 #channel-info {
     padding:10px;
     border-bottom: 1px solid #ccc;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    background-color: #ccc;
 }
 
 .channel-name {
-    padding-left: 10px
+    font-weight: 800;
 }
 
 mat-list {
     height: calc(100vh - 110px);
     overflow: auto;
+}
+
+mat-selection-list {
+    overflow: auto;
+}
+
+.live-badge {
+    background-color: red;
+    border-radius: 2px;
+    padding: 2px 6px;
+    color: #fff;
+    text-transform: uppercase;
+    margin-left: 6px;
+    font-size: 0.8em;
 }
