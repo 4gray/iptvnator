@@ -99,12 +99,14 @@ describe('ChannelListContainerComponent', () => {
             component.groupedChannels[
                 MOCKED_PLAYLIST.playlist.items[0].group.title
             ][0]
-        ).toEqual({
-            id: MOCKED_PLAYLIST.playlist.items[0].url,
-            name: MOCKED_PLAYLIST.playlist.items[0].name,
-            group: MOCKED_PLAYLIST.playlist.items[0].group,
-            url: MOCKED_PLAYLIST.playlist.items[0].url,
-        });
+        ).toEqual(
+            expect.objectContaining({
+                id: MOCKED_PLAYLIST.playlist.items[0].url,
+                name: MOCKED_PLAYLIST.playlist.items[0].name,
+                group: MOCKED_PLAYLIST.playlist.items[0].group,
+                url: MOCKED_PLAYLIST.playlist.items[0].url,
+            })
+        );
 
         // check second group
         expect(
@@ -116,12 +118,14 @@ describe('ChannelListContainerComponent', () => {
             component.groupedChannels[
                 MOCKED_PLAYLIST.playlist.items[2].group.title
             ][0]
-        ).toEqual({
-            id: MOCKED_PLAYLIST.playlist.items[2].url,
-            name: MOCKED_PLAYLIST.playlist.items[2].name,
-            group: MOCKED_PLAYLIST.playlist.items[2].group,
-            url: MOCKED_PLAYLIST.playlist.items[2].url,
-        });
+        ).toEqual(
+            expect.objectContaining({
+                id: MOCKED_PLAYLIST.playlist.items[2].url,
+                name: MOCKED_PLAYLIST.playlist.items[2].name,
+                group: MOCKED_PLAYLIST.playlist.items[2].group,
+                url: MOCKED_PLAYLIST.playlist.items[2].url,
+            })
+        );
     });
 
     it('should set favorites list', () => {

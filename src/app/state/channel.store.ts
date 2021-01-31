@@ -4,7 +4,7 @@ import { EPG_GET_PROGRAM } from '../shared/ipc-commands';
 import { ElectronService } from '../services/electron.service';
 import { Channel } from './channel.model';
 import * as moment from 'moment';
-import { EpgProgram } from 'app/player/models/epg-program.model';
+import { EpgProgram } from '../player/models/epg-program.model';
 
 export interface ChannelState extends EntityState<Channel> {
     active: Channel;

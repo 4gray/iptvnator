@@ -4,7 +4,7 @@ import { EpgProgram } from '../../models/epg-program.model';
 import * as moment from 'moment';
 import { ElectronService } from '../../../services/electron.service';
 import { EPG_GET_PROGRAM_DONE } from '../../../shared/ipc-commands';
-import { ChannelStore } from 'app/state';
+import { ChannelStore } from '../../../state';
 
 interface EpgData {
     channel: EpgChannel;
