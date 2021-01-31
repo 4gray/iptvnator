@@ -9,6 +9,16 @@ export interface Channel {
     group: {
         title: string;
     };
+    tvg: {
+        id: string;
+        name: string;
+        language: string;
+        country: string;
+        url: string;
+        logo: string;
+        rec: string;
+    };
+    epgParams?: string;
 }
 
 /**
@@ -21,5 +31,6 @@ export function createChannel(params: Partial<Channel>): Channel {
         name: params.name,
         group: params.group,
         url: params.url,
+        tvg: params.tvg,
     } as Channel;
 }

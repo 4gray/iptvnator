@@ -3,6 +3,8 @@ import { EntityState, EntityStore, StoreConfig } from '@datorama/akita';
 import { EPG_GET_PROGRAM } from '../shared/ipc-commands';
 import { ElectronService } from '../services/electron.service';
 import { Channel } from './channel.model';
+import * as moment from 'moment';
+import { EpgProgram } from 'app/player/models/epg-program.model';
 
 export interface ChannelState extends EntityState<Channel> {
     active: Channel;
@@ -54,12 +56,62 @@ export class ChannelStore extends EntityStore<ChannelState> {
      * @param channel selected channel
      */
     setActiveChannel(channel: Channel): void {
+        this.update((store) => {
+            if (store.epgAvailable) {
+                this.electronService.ipcRenderer.send(EPG_GET_PROGRAM, {
+                    channelName: channel.name,
+                });
+            }
+            return {
+                ...store,
+                active: { ...channel, epgParams: '' },
+            };
+        });
+    }
+
+    /**
+     * Sets the given timestamp for the epg program
+     * @param program epg program to set as active
+     */
+    setActiveEpgProgram(program: EpgProgram): void {
+        const from = moment(
+            program['_attributes'].start,
+            'YYYYMMDDHHmm ZZ'
+        ).unix();
+        const now = moment(Date.now()).unix();
+        const epgParams = `?utc=${from}&lutc=${now}`;
         this.update((store) => ({
             ...store,
-            active: channel,
+            active: { ...store.active, epgParams },
         }));
-        this.electronService.ipcRenderer.send(EPG_GET_PROGRAM, {
-            channelName: channel.name,
+    }
+
+    /**
+     * Sets the active channel from epg program back to the live translation
+     */
+    resetActiveEpgProgram(): void {
+        this.update((store) => ({
+            ...store,
+            active: { ...store.active, epgParams: '' },
+        }));
+    }
+
+    /**
+     * Updates the epg availability flag
+     * @param value
+     */
+    setEpgAvailableFlag(value: boolean): void {
+        this.update((store) => {
+            if (store.active && store.active.name) {
+                this.electronService.ipcRenderer.send(EPG_GET_PROGRAM, {
+                    channelName: store.active.name,
+                });
+            }
+
+            return {
+                ...store,
+                epgAvailable: value,
+            };
         });
     }
 }
