@@ -13,9 +13,9 @@ jobs:
         with:
           node-version: "12.x"
       - run: npm install
-      - run: npm test
-      - run: xvfb-run --auto-servernum npm run e2e
+      - run: npm test -- --coverage
       - run: bash <(curl -s https://codecov.io/bash)
+      - run: xvfb-run --auto-servernum npm run e2e
       - run: npm run build:prod
         env:
           CI: true
