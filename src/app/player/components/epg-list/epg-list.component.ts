@@ -6,7 +6,7 @@ import { ElectronService } from '../../../services/electron.service';
 import { EPG_GET_PROGRAM_DONE } from '../../../shared/ipc-commands';
 import { ChannelStore } from '../../../state';
 
-interface EpgData {
+export interface EpgData {
     channel: EpgChannel;
     items: EpgProgram[];
 }
