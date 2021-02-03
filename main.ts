@@ -35,10 +35,6 @@ function createWindow(): BrowserWindow {
 
     if (serve) {
         win.webContents.openDevTools();
-
-        require('electron-reload')(__dirname, {
-            electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
-        });
         win.loadURL('http://localhost:4200');
     } else {
         win.loadURL(
@@ -68,7 +64,10 @@ function createWindow(): BrowserWindow {
 function createEpgWorkerWindow() {
     const window = new BrowserWindow({
         show: false,
-        webPreferences: { nodeIntegration: true, enableRemoteModule: true },
+        webPreferences: {
+            nodeIntegration: true,
+            enableRemoteModule: true,
+        },
     });
 
     if (serve) {
