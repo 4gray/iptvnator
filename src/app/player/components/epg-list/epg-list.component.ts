@@ -80,10 +80,21 @@ export class EpgListComponent {
                 .sort((a, b) => {
                     return a.start.localeCompare(b.start);
                 });
+
+            this.setPlayingNow();
         } else {
             this.items = [];
             this.channel = null;
         }
+    }
+
+    /**
+     * Sets the playing now variable based on the current time
+     */
+    setPlayingNow(): void {
+        this.playingNow = this.items.find(
+            (item) => this.timeNow >= item.start && this.timeNow <= item.stop
+        );
     }
 
     /**

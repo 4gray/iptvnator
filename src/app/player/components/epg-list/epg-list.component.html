@@ -1,16 +1,22 @@
 <ng-container *ngIf="channel; else noEpg">
     <div fxFlex="80px" id="channel-info" fxLayoutAlign="row" fxLayoutGap="10px">
-        <img *ngIf="channel?.icon" [src]="channel.icon" width="48" />
-        <div>
-            <div class="channel-name">{{ channel?.name[0]?.value }}</div>
-            <ng-container>
-                <div class="playing-now">Playing now:</div>
-                <div class="epg-program-name">
-                    {{
-                        playingNow ? playingNow.title[0]?.value : 'Live stream'
-                    }}
-                </div>
-            </ng-container>
+        <div fxLayoutAlign="column" fxLayoutGap="10px">
+            <div fxFlex="48px" fxFlexAlign="center">
+                <img *ngIf="channel?.icon" [src]="channel.icon" width="48" />
+            </div>
+            <div fxFlex="100">
+                <div class="channel-name">{{ channel?.name[0]?.value }}</div>
+                <ng-container>
+                    <div class="playing-now">Playing now:</div>
+                    <div class="epg-program-name">
+                        {{
+                            playingNow
+                                ? playingNow.title[0]?.value
+                                : 'Live stream'
+                        }}
+                    </div>
+                </ng-container>
+            </div>
         </div>
     </div>
     <mat-selection-list fxFlex [multiple]="false">
