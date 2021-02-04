@@ -37,6 +37,8 @@ export class EpgListComponent {
     /** Current time as formatted string */
     timeNow: string;
 
+    selectedDate: string;
+
     /**
      * Creates an instance of EpgListComponent
      * @param electronService
@@ -61,31 +63,53 @@ export class EpgListComponent {
      */
     handleEpgData(programs: { payload: EpgData }): void {
         if (programs.payload?.items?.length > 0) {
+            this.programs = programs;
             this.timeNow = moment(Date.now()).format('HH:mm');
             this.dateToday = moment(Date.now()).format('YYYYMMDD');
             this.channel = programs.payload?.channel;
-            this.items = programs.payload?.items
-                .filter((item) =>
-                    item.start.includes(this.dateToday.toString())
-                )
-                .map((program) => ({
-                    ...program,
-                    start: moment(program.start, 'YYYYMMDDHHmm ZZ').format(
-                        'HH:mm'
-                    ),
-                    stop: moment(program.stop, 'YYYYMMDDHHmm ZZ').format(
-                        'HH:mm'
-                    ),
-                }))
-                .sort((a, b) => {
-                    return a.start.localeCompare(b.start);
-                });
+            this.items = this.selectPrograms(programs);
 
             this.setPlayingNow();
         } else {
             this.items = [];
             this.channel = null;
         }
+    }
+
+    /**
+     * Selects the program based on the active date
+     * @param programs object with all available epg programs for the active channel
+     */
+    selectPrograms(programs: { payload: EpgData }): EpgProgram[] {
+        return programs.payload?.items
+            .filter((item) => item.start.includes(this.dateToday.toString()))
+            .map((program) => ({
+                ...program,
+                start: moment(program.start, 'YYYYMMDDHHmm ZZ').format('HH:mm'),
+                stop: moment(program.stop, 'YYYYMMDDHHmm ZZ').format('HH:mm'),
+            }))
+            .sort((a, b) => {
+                return a.start.localeCompare(b.start);
+            });
+    }
+
+    /**
+     * Changes the date to update the epg list with programs
+     * @param direction direction to switch
+     */
+    changeDate(direction: 'next' | 'prev'): void {
+        let dateToSwitch;
+        if (direction === 'next') {
+            dateToSwitch = moment(this.dateToday, 'YYYYMMDD')
+                .add(1, 'days')
+                .format('YYYYMMDD');
+        } else if (direction === 'prev') {
+            dateToSwitch = moment(this.dateToday, 'YYYYMMDD')
+                .subtract(1, 'days')
+                .format('YYYYMMDD');
+        }
+        this.dateToday = dateToSwitch;
+        this.items = this.selectPrograms(this.programs);
     }
 
     /**
@@ -99,7 +123,8 @@ export class EpgListComponent {
 
     /**
      * Sets the provided epg program as active and starts to play
-     * @param program
+     * @param program epg program to set
+     * @param isLive live stream flag
      */
     setEpgProgram(program: EpgProgram, isLive?: boolean): void {
         isLive

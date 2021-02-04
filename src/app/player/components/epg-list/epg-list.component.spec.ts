@@ -2,12 +2,14 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { EpgListComponent, EpgData } from './epg-list.component';
 import { MatListModule } from '@angular/material/list';
-import { MockModule } from 'ng-mocks';
+import { MockModule, MockPipe } from 'ng-mocks';
 import { ElectronService } from '../../../services/electron.service';
 import { ElectronServiceStub } from '../../../home/home.component.spec';
 import * as moment from 'moment';
 import { EPG_GET_PROGRAM_DONE } from '../../../shared/ipc-commands';
 import { ChannelStore } from '../../../state';
+import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
+import { MatIconModule } from '@angular/material/icon';
 
 describe('EpgListComponent', () => {
     let component: EpgListComponent;
@@ -77,8 +79,8 @@ describe('EpgListComponent', () => {
 
     beforeEach(async(() => {
         TestBed.configureTestingModule({
-            declarations: [EpgListComponent],
-            imports: [MockModule(MatListModule)],
+            declarations: [EpgListComponent, MockPipe(MomentDatePipe)],
+            imports: [MockModule(MatIconModule), MockModule(MatListModule)],
             providers: [
                 { provide: ElectronService, useClass: ElectronServiceStub },
             ],

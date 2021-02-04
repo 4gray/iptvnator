@@ -1,49 +1,87 @@
 <ng-container *ngIf="channel; else noEpg">
-    <div fxFlex="80px" id="channel-info" fxLayoutAlign="row" fxLayoutGap="10px">
-        <div fxLayoutAlign="column" fxLayoutGap="10px">
-            <div fxFlex="48px" fxFlexAlign="center">
+    <!-- channel info panel -->
+    <div fxFlex="120px" id="channel-info" fxLayout="column">
+        <div fxFlex="79px" fxLayout="row" fxLayoutGap="10px">
+            <div
+                fxFlex="60px"
+                class="channel-icon"
+                fxLayoutAlign="center center"
+            >
                 <img *ngIf="channel?.icon" [src]="channel.icon" width="48" />
             </div>
-            <div fxFlex="100">
-                <div class="channel-name">{{ channel?.name[0]?.value }}</div>
-                <ng-container>
-                    <div class="playing-now">Playing now:</div>
-                    <div class="epg-program-name">
-                        {{
-                            playingNow
-                                ? playingNow.title[0]?.value
-                                : 'Live stream'
-                        }}
-                    </div>
-                </ng-container>
+            <div fxFlex="100" fxFlexAlign="center">
+                <div class="channel-name">
+                    {{ channel?.name[0]?.value }}
+                </div>
+                <div class="program-name">
+                    {{
+                        playingNow ? playingNow.title[0]?.value : 'Live stream'
+                    }}
+                </div>
             </div>
         </div>
+        <div fxFlex="40px" fxLayout="row" id="date-navigator">
+            <button
+                fxFlex="40px"
+                mat-icon-button
+                (click)="changeDate('prev')"
+                matTooltip="Previous day"
+            >
+                <mat-icon>chevron_left</mat-icon>
+            </button>
+            <span
+                class="selected-date"
+                fxFlex="100"
+                fxLayoutAlign="center center"
+            >
+                {{ dateToday | momentDate: 'YYYYMMDD':'MMMM Do dddd' }}</span
+            >
+            <button
+                fxFlex="40px"
+                mat-icon-button
+                (click)="changeDate('next')"
+                matTooltip="Next day"
+            >
+                <mat-icon>chevron_right</mat-icon>
+            </button>
+        </div>
     </div>
+
+    <!-- program list -->
     <mat-selection-list fxFlex [multiple]="false">
-        <mat-list-option
-            *ngFor="let item of items"
-            [value]="item"
-            [class.active]="timeNow >= item.start && timeNow <= item.stop"
-            (click)="
-                setEpgProgram(
-                    item,
-                    timeNow >= item.start && timeNow <= item.stop
-                )
-            "
-        >
-            <div matLine>
-                <span class="time">{{ item.start }} - {{ item.stop }}</span>
-                <span
-                    *ngIf="timeNow >= item.start && timeNow <= item.stop"
-                    class="live-badge"
-                    >live</span
-                >
-            </div>
-            <p matLine>{{ item?.title[0]?.value }}</p>
-            <mat-divider></mat-divider>
-        </mat-list-option>
+        <ng-container *ngIf="items?.length > 0; else epgNotAvailable">
+            <mat-list-option
+                *ngFor="let item of items"
+                [value]="item"
+                [class.active]="timeNow >= item.start && timeNow <= item.stop"
+                (click)="
+                    setEpgProgram(
+                        item,
+                        timeNow >= item.start && timeNow <= item.stop
+                    )
+                "
+            >
+                <div matLine>
+                    <span class="time">{{ item.start }} - {{ item.stop }}</span>
+                    <span
+                        *ngIf="timeNow >= item.start && timeNow <= item.stop"
+                        class="live-badge"
+                        >live</span
+                    >
+                </div>
+                <p matLine>{{ item?.title[0]?.value }}</p>
+                <mat-divider></mat-divider>
+            </mat-list-option>
+        </ng-container>
+        <ng-template #epgNotAvailable>
+            <mat-list-option
+                >Ooops, EPG is not available for the selected
+                date</mat-list-option
+            >
+        </ng-template>
     </mat-selection-list>
 </ng-container>
+
 <ng-template #noEpg>
     <mat-list>
         <mat-list-item>
