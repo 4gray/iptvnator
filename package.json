@@ -75,7 +75,7 @@
     "conventional-changelog-cli": "2.0.34",
     "core-js": "3.6.5",
     "cross-env": "7.0.2",
-    "electron": "10.1.5",
+    "electron": "10.2.0",
     "electron-builder": "22.9.1",
     "eslint": "7.13.0",
     "eslint-plugin-import": "2.22.1",
