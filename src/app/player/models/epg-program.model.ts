@@ -13,4 +13,8 @@ export interface EpgProgram {
     rating: { system: string; value: string }[];
     credits: any[];
     audio: any[];
+    _attributes: {
+        start: string;
+        stop: string;
+    };
 }
