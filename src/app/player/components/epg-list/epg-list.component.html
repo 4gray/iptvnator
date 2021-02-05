@@ -62,7 +62,15 @@
                 "
             >
                 <div matLine>
-                    <span class="time">{{ item.start }} - {{ item.stop }}</span>
+                    <span class="time"
+                        >{{
+                            item.start | momentDate: 'YYYYMMDDHHmm ZZ':'HH:mm'
+                        }}
+                        -
+                        {{
+                            item.stop | momentDate: 'YYYYMMDDHHmm ZZ':'HH:mm'
+                        }}</span
+                    >
                     <span
                         *ngIf="timeNow >= item.start && timeNow <= item.stop"
                         class="live-badge"

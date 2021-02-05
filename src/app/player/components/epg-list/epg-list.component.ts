@@ -11,6 +11,9 @@ export interface EpgData {
     items: EpgProgram[];
 }
 
+const DATE_FORMAT = 'YYYYMMDD';
+const DATE_TIME_FORMAT = 'YYYYMMDDHHmm ZZ';
+
 @Component({
     selector: 'app-epg-list',
     templateUrl: './epg-list.component.html',
@@ -37,10 +40,12 @@ export class EpgListComponent {
     /** Current time as formatted string */
     timeNow: string;
 
+    /** Selected date */
     selectedDate: string;
 
     /**
      * Creates an instance of EpgListComponent
+     * @param channelStore
      * @param electronService
      * @param ngZone
      */
@@ -64,8 +69,8 @@ export class EpgListComponent {
     handleEpgData(programs: { payload: EpgData }): void {
         if (programs.payload?.items?.length > 0) {
             this.programs = programs;
-            this.timeNow = moment(Date.now()).format('HH:mm');
-            this.dateToday = moment(Date.now()).format('YYYYMMDD');
+            this.timeNow = moment(Date.now()).format(DATE_TIME_FORMAT);
+            this.dateToday = moment(Date.now()).format(DATE_FORMAT);
             this.channel = programs.payload?.channel;
             this.items = this.selectPrograms(programs);
 
@@ -85,8 +90,12 @@ export class EpgListComponent {
             .filter((item) => item.start.includes(this.dateToday.toString()))
             .map((program) => ({
                 ...program,
-                start: moment(program.start, 'YYYYMMDDHHmm ZZ').format('HH:mm'),
-                stop: moment(program.stop, 'YYYYMMDDHHmm ZZ').format('HH:mm'),
+                start: moment(program.start, DATE_TIME_FORMAT).format(
+                    DATE_TIME_FORMAT
+                ),
+                stop: moment(program.stop, DATE_TIME_FORMAT).format(
+                    DATE_TIME_FORMAT
+                ),
             }))
             .sort((a, b) => {
                 return a.start.localeCompare(b.start);
@@ -100,13 +109,13 @@ export class EpgListComponent {
     changeDate(direction: 'next' | 'prev'): void {
         let dateToSwitch;
         if (direction === 'next') {
-            dateToSwitch = moment(this.dateToday, 'YYYYMMDD')
+            dateToSwitch = moment(this.dateToday, DATE_FORMAT)
                 .add(1, 'days')
-                .format('YYYYMMDD');
+                .format(DATE_FORMAT);
         } else if (direction === 'prev') {
-            dateToSwitch = moment(this.dateToday, 'YYYYMMDD')
+            dateToSwitch = moment(this.dateToday, DATE_FORMAT)
                 .subtract(1, 'days')
-                .format('YYYYMMDD');
+                .format(DATE_FORMAT);
         }
         this.dateToday = dateToSwitch;
         this.items = this.selectPrograms(this.programs);
