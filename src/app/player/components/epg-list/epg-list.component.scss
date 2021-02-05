@@ -49,14 +49,21 @@ mat-selection-list {
     overflow: auto;
 }
 
-.live-badge {
-    background-color: red;
+.badge {
     border-radius: 2px;
     padding: 2px 6px;
     color: #fff;
     text-transform: uppercase;
     margin-left: 6px;
     font-size: 0.8em;
+}
+
+.live {
+    background-color: red;
+}
+
+.rec {
+    background-color: grey;
 }
 
 #date-navigator {

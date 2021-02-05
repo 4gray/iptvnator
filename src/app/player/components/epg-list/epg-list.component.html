@@ -73,8 +73,15 @@
                     >
                     <span
                         *ngIf="timeNow >= item.start && timeNow <= item.stop"
-                        class="live-badge"
+                        class="live badge"
+                        matTooltip="Live now"
                         >live</span
+                    >
+                    <span
+                        *ngIf="item.start < timeNow && item.stop < timeNow"
+                        class="rec badge"
+                        matTooltip="Timeshift available, click to play"
+                        >r</span
                     >
                 </div>
                 <p matLine>{{ item?.title[0]?.value }}</p>
