@@ -4,7 +4,9 @@ import { EpgProgram } from '../../models/epg-program.model';
 import * as moment from 'moment';
 import { ElectronService } from '../../../services/electron.service';
 import { EPG_GET_PROGRAM_DONE } from '../../../shared/ipc-commands';
-import { ChannelStore } from '../../../state';
+import { ChannelQuery, ChannelStore } from '../../../state';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 export interface EpgData {
     channel: EpgChannel;
@@ -37,19 +39,24 @@ export class EpgListComponent {
     /** EPG selected program */
     playingNow: EpgProgram;
 
-    /** Current time as formatted string */
-    timeNow: string;
-
     /** Selected date */
     selectedDate: string;
 
+    /** Current time as formatted string */
+    timeNow: string;
+
+    /** Timeshift availability date, based on tvg-rec value from the channel */
+    timeshiftUntil$: Observable<string>;
+
     /**
      * Creates an instance of EpgListComponent
+     * @param channelQuery
      * @param channelStore
      * @param electronService
      * @param ngZone
      */
     constructor(
+        private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
         private electronService: ElectronService,
         private ngZone: NgZone
@@ -60,6 +67,21 @@ export class EpgListComponent {
                 this.ngZone.run(() => this.handleEpgData(response));
             }
         );
+    }
+
+    /**
+     * Subscribe for values from the store on component init
+     */
+    ngOnInit(): void {
+        this.timeshiftUntil$ = this.channelQuery
+            .select((store) => store.active.tvg.rec)
+            .pipe(
+                map((value) =>
+                    moment(Date.now())
+                        .subtract(value, 'days')
+                        .format(DATE_TIME_FORMAT)
+                )
+            );
     }
 
     /**
@@ -134,8 +156,15 @@ export class EpgListComponent {
      * Sets the provided epg program as active and starts to play
      * @param program epg program to set
      * @param isLive live stream flag
+     * @param timeshift timeshift flag
      */
-    setEpgProgram(program: EpgProgram, isLive?: boolean): void {
+    setEpgProgram(
+        program: EpgProgram,
+        isLive?: boolean,
+        timeshift?: boolean
+    ): void {
+        console.log(timeshift);
+        if (!timeshift) return;
         isLive
             ? this.channelStore.resetActiveEpgProgram()
             : this.channelStore.setActiveEpgProgram(program);

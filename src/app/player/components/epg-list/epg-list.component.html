@@ -34,7 +34,7 @@
                 fxFlex="100"
                 fxLayoutAlign="center center"
             >
-                {{ dateToday | momentDate: 'YYYYMMDD':'MMMM Do dddd' }}</span
+                {{ dateToday | momentDate: 'YYYYMMDD':'MMMM Do, dddd' }}</span
             >
             <button
                 fxFlex="40px"
@@ -48,7 +48,11 @@
     </div>
 
     <!-- program list -->
-    <mat-selection-list fxFlex [multiple]="false">
+    <mat-selection-list
+        fxFlex
+        [multiple]="false"
+        *ngIf="timeshiftUntil$ | async as timeshiftUntil"
+    >
         <ng-container *ngIf="items?.length > 0; else epgNotAvailable">
             <mat-list-option
                 *ngFor="let item of items"
@@ -57,7 +61,8 @@
                 (click)="
                     setEpgProgram(
                         item,
-                        timeNow >= item.start && timeNow <= item.stop
+                        timeNow >= item.start && timeNow <= item.stop,
+                        item.start > timeshiftUntil
                     )
                 "
             >
@@ -78,9 +83,13 @@
                         >live</span
                     >
                     <span
-                        *ngIf="item.start < timeNow && item.stop < timeNow"
+                        *ngIf="
+                            item.start < timeNow &&
+                            item.stop < timeNow &&
+                            item.start > timeshiftUntil
+                        "
                         class="rec badge"
-                        matTooltip="Timeshift available, click to play"
+                        matTooltip="Timeshift is available, click to play"
                         >r</span
                     >
                 </div>
