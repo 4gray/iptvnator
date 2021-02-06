@@ -163,11 +163,12 @@ export class EpgListComponent {
         isLive?: boolean,
         timeshift?: boolean
     ): void {
-        console.log(timeshift);
-        if (!timeshift) return;
-        isLive
-            ? this.channelStore.resetActiveEpgProgram()
-            : this.channelStore.setActiveEpgProgram(program);
+        if (isLive) {
+            this.channelStore.resetActiveEpgProgram();
+        } else {
+            if (!timeshift) return;
+            this.channelStore.setActiveEpgProgram(program);
+        }
         this.playingNow = program;
     }
 

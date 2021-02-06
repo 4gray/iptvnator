@@ -65,6 +65,9 @@
                         item.start > timeshiftUntil
                     )
                 "
+                [disabled]="
+                    item.start < timeshiftUntil || item.start >= timeNow
+                "
             >
                 <div matLine>
                     <span class="time"

@@ -7,7 +7,7 @@ import { ElectronService } from '../../../services/electron.service';
 import { ElectronServiceStub } from '../../../home/home.component.spec';
 import * as moment from 'moment';
 import { EPG_GET_PROGRAM_DONE } from '../../../shared/ipc-commands';
-import { ChannelStore } from '../../../state';
+import { Channel, ChannelStore } from '../../../state';
 import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
 import { MatIconModule } from '@angular/material/icon';
 
@@ -73,6 +73,10 @@ describe('EpgListComponent', () => {
                     'http://imageswoapi.whatsonindia.com/WhatsOnTV/images/ProgramImages/xlarge/38B4DE4E9A7132257749051B6C8B4F699DB264F4V.jpg',
                 ],
                 audio: [],
+                _attributes: {
+                    start: moment(Date.now()).format('YYYYMMDD'),
+                    stop: moment(Date.now()).format('YYYYMMDD'),
+                },
             },
         ],
     };
@@ -92,6 +96,15 @@ describe('EpgListComponent', () => {
         component = fixture.componentInstance;
         electronService = TestBed.inject(ElectronService);
         channelStore = TestBed.inject(ChannelStore);
+        channelStore.setActiveChannel(({
+            id: '',
+            url: '',
+            name: '',
+            group: { title: '' },
+            tvg: {
+                rec: '3',
+            },
+        } as unknown) as Channel);
         fixture.detectChanges();
     });
 
@@ -131,7 +144,7 @@ describe('EpgListComponent', () => {
 
     it('should set epg program as active', () => {
         spyOn(channelStore, 'setActiveEpgProgram');
-        component.setEpgProgram(MOCKED_PROGRAMS.items[0], false);
+        component.setEpgProgram(MOCKED_PROGRAMS.items[0], false, true);
         expect(channelStore.setActiveEpgProgram).toHaveBeenCalledTimes(1);
         expect(channelStore.setActiveEpgProgram).toHaveBeenCalledWith(
             MOCKED_PROGRAMS.items[0]
@@ -142,5 +155,7 @@ describe('EpgListComponent', () => {
         spyOn(channelStore, 'resetActiveEpgProgram');
         component.setEpgProgram(MOCKED_PROGRAMS.items[0], true);
         expect(channelStore.resetActiveEpgProgram).toHaveBeenCalledTimes(1);
+        component.setEpgProgram(MOCKED_PROGRAMS.items[0], true, true);
+        expect(channelStore.resetActiveEpgProgram).toHaveBeenCalledTimes(2);
     });
 });
