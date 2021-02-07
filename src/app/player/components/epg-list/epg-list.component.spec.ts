@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { EpgListComponent, EpgData } from './epg-list.component';
 import { MatListModule } from '@angular/material/list';
 import { MockModule, MockPipe } from 'ng-mocks';
@@ -81,7 +81,7 @@ describe('EpgListComponent', () => {
         ],
     };
 
-    beforeEach(async(() => {
+    beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
             declarations: [EpgListComponent, MockPipe(MomentDatePipe)],
             imports: [MockModule(MatIconModule), MockModule(MatListModule)],

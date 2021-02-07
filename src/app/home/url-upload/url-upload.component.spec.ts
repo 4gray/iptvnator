@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
 import { UrlUploadComponent } from './url-upload.component';
@@ -10,7 +10,7 @@ describe('UrlUploadComponent', () => {
     let component: UrlUploadComponent;
     let fixture: ComponentFixture<UrlUploadComponent>;
 
-    beforeEach(async(() => {
+    beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
             declarations: [UrlUploadComponent],
             imports: [
@@ -31,7 +31,7 @@ describe('UrlUploadComponent', () => {
         expect(component).toBeTruthy();
     });
 
-    it('submit form with playlist url', async(() => {
+    it('submit form with playlist url', waitForAsync(() => {
         spyOn(component.urlAdded, 'emit');
         const TEST_URL = 'http://example.org/playlist.m3u';
         const submitButton = fixture.debugElement.nativeElement.querySelector(

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { VideoPlayerComponent } from './video-player.component';
 import { MockComponent, MockModule } from 'ng-mocks';
 import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
@@ -24,7 +24,7 @@ describe('VideoPlayerComponent', () => {
     let store: ChannelStore;
     let channels;
 
-    beforeEach(async(() => {
+    beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
             declarations: [
                 MockComponent(EpgListComponent),

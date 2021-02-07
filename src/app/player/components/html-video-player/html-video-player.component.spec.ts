@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { SimpleChange } from '@angular/core';
 
 import { HtmlVideoPlayerComponent } from './html-video-player.component';
@@ -16,7 +16,7 @@ describe('HtmlVideoPlayerComponent', () => {
         },
     };
 
-    beforeEach(async(() => {
+    beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
             declarations: [HtmlVideoPlayerComponent],
         }).compileComponents();
