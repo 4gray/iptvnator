@@ -4,7 +4,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { FlexLayoutModule } from '@angular/flex-layout';
 import { HeaderComponent } from './components/';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MaterialModule } from 'app/material.module';
+import { MaterialModule } from '../material.module';
 import { FilterPipeModule } from 'ngx-filter-pipe';
 import { MomentDatePipe } from './pipes/moment-date.pipe';
 
