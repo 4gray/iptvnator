@@ -18,6 +18,7 @@ import { createChannel } from '../../../state';
 import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
 import { ElectronService } from '../../../services/electron.service';
 import { ElectronServiceStub } from '../../../home/home.component.spec';
+import { ScrollingModule } from '@angular/cdk/scrolling';
 
 class MatSnackBarStub {
     open(): void {}
@@ -41,6 +42,7 @@ describe('ChannelListContainerComponent', () => {
                 MockModule(MatInputModule),
                 MockModule(MatIconModule),
                 MockModule(MatListModule),
+                MockModule(ScrollingModule),
                 MockModule(MatTabsModule),
                 MockModule(MatExpansionModule),
                 FormsModule,

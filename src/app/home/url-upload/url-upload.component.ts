@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter } from '@angular/core';
+import { Component, Output, EventEmitter, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 
 @Component({
@@ -6,7 +6,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
     templateUrl: './url-upload.component.html',
     styleUrls: ['./url-upload.component.scss'],
 })
-export class UrlUploadComponent {
+export class UrlUploadComponent implements OnInit {
     /** Emits url string to the parent component on form submit */
     @Output() urlAdded: EventEmitter<string> = new EventEmitter();
 
@@ -17,7 +17,9 @@ export class UrlUploadComponent {
      * Creates an instance of component
      * @param fb angulars form builder
      */
-    constructor(private fb: FormBuilder) {
+    constructor(private fb: FormBuilder) {}
+
+    ngOnInit(): void {
         const urlRegex = '(https?://.*?.(m3u|m3u8))';
         this.form = this.fb.group({
             playlistUrl: [
