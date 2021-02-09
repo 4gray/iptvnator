@@ -7,9 +7,9 @@ import { Observable, Subscription } from 'rxjs';
 import { Settings } from './settings.interface';
 import { HttpClient } from '@angular/common/http';
 import * as semver from 'semver';
-import { ElectronService } from 'app/services/electron.service';
-import { ChannelQuery } from 'app/state';
-import { EPG_FETCH } from 'app/shared/ipc-commands';
+import { ElectronService } from '../services/electron.service';
+import { ChannelQuery } from '../state';
+import { EPG_FETCH } from '../../../ipc-commands';
 
 @Component({
     selector: 'app-settings',

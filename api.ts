@@ -11,7 +11,7 @@ import {
     EPG_FETCH_DONE,
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
-} from './src/app/shared/ipc-commands';
+} from './ipc-commands';
 
 const fs = require('fs');
 const userData = app.getPath('userData');

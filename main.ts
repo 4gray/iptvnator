@@ -74,7 +74,7 @@ function createEpgWorkerWindow() {
         window.loadFile('epg-worker.html');
         window.webContents.openDevTools();
     } else {
-        window.loadFile('dist/epg-worker.html');
+        window.loadFile('epg-worker.html');
     }
 
     window.once('ready-to-show', () => {

@@ -7,7 +7,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ChannelStore } from './state';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Settings } from './settings/settings.interface';
-import { EPG_ERROR, EPG_FETCH, EPG_FETCH_DONE } from './shared/ipc-commands';
+import { EPG_ERROR, EPG_FETCH, EPG_FETCH_DONE } from '../../ipc-commands';
 
 // create custom title bar
 new Titlebar({

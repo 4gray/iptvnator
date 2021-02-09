@@ -3,7 +3,7 @@ import { EpgChannel } from '../../models/epg-channel.model';
 import { EpgProgram } from '../../models/epg-program.model';
 import * as moment from 'moment';
 import { ElectronService } from '../../../services/electron.service';
-import { EPG_GET_PROGRAM_DONE } from '../../../shared/ipc-commands';
+import { EPG_GET_PROGRAM_DONE } from '../../../../../ipc-commands';
 import { ChannelQuery, ChannelStore } from '../../../state';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
