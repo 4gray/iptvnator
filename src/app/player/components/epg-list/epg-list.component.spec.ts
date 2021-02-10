@@ -6,7 +6,7 @@ import { MockModule, MockPipe } from 'ng-mocks';
 import { ElectronService } from '../../../services/electron.service';
 import { ElectronServiceStub } from '../../../home/home.component.spec';
 import * as moment from 'moment';
-import { EPG_GET_PROGRAM_DONE } from '../../../shared/ipc-commands';
+import { EPG_GET_PROGRAM_DONE } from '../../../../../ipc-commands';
 import { Channel, ChannelStore } from '../../../state';
 import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
 import { MatIconModule } from '@angular/material/icon';
@@ -81,15 +81,17 @@ describe('EpgListComponent', () => {
         ],
     };
 
-    beforeEach(waitForAsync(() => {
-        TestBed.configureTestingModule({
-            declarations: [EpgListComponent, MockPipe(MomentDatePipe)],
-            imports: [MockModule(MatIconModule), MockModule(MatListModule)],
-            providers: [
-                { provide: ElectronService, useClass: ElectronServiceStub },
-            ],
-        }).compileComponents();
-    }));
+    beforeEach(
+        waitForAsync(() => {
+            TestBed.configureTestingModule({
+                declarations: [EpgListComponent, MockPipe(MomentDatePipe)],
+                imports: [MockModule(MatIconModule), MockModule(MatListModule)],
+                providers: [
+                    { provide: ElectronService, useClass: ElectronServiceStub },
+                ],
+            }).compileComponents();
+        })
+    );
 
     beforeEach(() => {
         fixture = TestBed.createComponent(EpgListComponent);
