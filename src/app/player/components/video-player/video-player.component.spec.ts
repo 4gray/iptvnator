@@ -24,24 +24,28 @@ describe('VideoPlayerComponent', () => {
     let store: ChannelStore;
     let channels;
 
-    beforeEach(waitForAsync(() => {
-        TestBed.configureTestingModule({
-            declarations: [
-                MockComponent(EpgListComponent),
-                MockComponent(HtmlVideoPlayerComponent),
-                MockComponent(VjsPlayerComponent),
-                MockComponent(VideoPlayerComponent),
-                MockComponent(ChannelListContainerComponent),
-                VideoPlayerComponent,
-            ],
-            providers: [{ provide: MatSnackBar, useClass: MatSnackBarStub }],
-            imports: [
-                MockModule(MatSidenavModule),
-                MockModule(MatIconModule),
-                MockModule(MatToolbarModule),
-            ],
-        }).compileComponents();
-    }));
+    beforeEach(
+        waitForAsync(() => {
+            TestBed.configureTestingModule({
+                declarations: [
+                    MockComponent(EpgListComponent),
+                    MockComponent(HtmlVideoPlayerComponent),
+                    MockComponent(VjsPlayerComponent),
+                    MockComponent(VideoPlayerComponent),
+                    MockComponent(ChannelListContainerComponent),
+                    VideoPlayerComponent,
+                ],
+                providers: [
+                    { provide: MatSnackBar, useClass: MatSnackBarStub },
+                ],
+                imports: [
+                    MockModule(MatSidenavModule),
+                    MockModule(MatIconModule),
+                    MockModule(MatToolbarModule),
+                ],
+            }).compileComponents();
+        })
+    );
 
     beforeEach(() => {
         fixture = TestBed.createComponent(VideoPlayerComponent);
@@ -63,7 +67,7 @@ describe('VideoPlayerComponent', () => {
 
     it('should check default component settings', () => {
         fixture.detectChanges();
-        expect(component.player).toEqual('html5');
+        expect(component.player).toEqual('videojs');
     });
 
     it('should update store after channel was faved', () => {

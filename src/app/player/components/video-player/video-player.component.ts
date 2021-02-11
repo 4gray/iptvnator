@@ -42,7 +42,7 @@ export class VideoPlayerComponent implements OnInit {
     );
 
     /** Selected video player component */
-    player: VideoPlayerType = 'html5';
+    player: VideoPlayerType = 'videojs';
 
     /** Sidebar object */
     @ViewChild('sidenav') sideNav: MatSidenav;

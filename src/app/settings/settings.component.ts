@@ -70,7 +70,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         private storage: StorageMap
     ) {
         this.settingsForm = this.formBuilder.group({
-            player: ['html5'], // default value
+            player: ['videojs'], // default value
             epgUrl: '',
         });
 
@@ -101,7 +101,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
             this.storage.get('settings').subscribe((settings: Settings) => {
                 if (settings) {
                     this.settingsForm.setValue({
-                        player: settings.player ? settings.player : 'html5',
+                        player: settings.player ? settings.player : 'videojs',
                         epgUrl: settings.epgUrl ? settings.epgUrl : '',
                     });
                 }
