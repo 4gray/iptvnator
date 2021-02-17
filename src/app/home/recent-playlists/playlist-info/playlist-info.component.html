@@ -1,0 +1,24 @@
+<h2 mat-dialog-title>Playlist details</h2>
+<mat-dialog-content class="mat-typography">
+    <mat-form-field class="full-width">
+        <mat-label>Title</mat-label>
+        <input matInput [value]="playlist.title" disabled="true" />
+    </mat-form-field>
+    <mat-form-field class="full-width" *ngIf="playlist.url">
+        <mat-label>Added from the URL</mat-label>
+        <input matInput [value]="playlist.url" disabled="true" />
+    </mat-form-field>
+    <mat-form-field class="full-width">
+        <mat-label>Import date</mat-label>
+        <input matInput [value]="playlist.importDate | date" disabled="true" />
+    </mat-form-field>
+    <mat-form-field class="full-width">
+        <mat-label>Number of channels</mat-label>
+        <input matInput [value]="playlist.count" disabled="true" />
+    </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close cdkFocusInitial color="primary">
+        CLOSE
+    </button>
+</mat-dialog-actions>

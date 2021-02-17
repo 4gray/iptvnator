@@ -14,11 +14,13 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialogModule } from '@angular/material/dialog';
 
 @NgModule({
     exports: [
         MatButtonModule,
         MatCardModule,
+        MatDialogModule,
         MatExpansionModule,
         MatIconModule,
         MatInputModule,

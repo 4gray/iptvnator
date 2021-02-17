@@ -7,14 +7,16 @@ import { UrlUploadComponent } from './url-upload/url-upload.component';
 import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
 import { HomeRoutingModule } from './home.routing';
 import { NgxUploaderModule } from 'ngx-uploader';
+import { PlaylistInfoComponent } from './recent-playlists/playlist-info/playlist-info.component';
 
 @NgModule({
     imports: [CommonModule, HomeRoutingModule, NgxUploaderModule, SharedModule],
     declarations: [
         HomeComponent,
         FileUploadComponent,
-        UrlUploadComponent,
+        PlaylistInfoComponent,
         RecentPlaylistsComponent,
+        UrlUploadComponent,
     ],
 })
 export class HomeModule {}

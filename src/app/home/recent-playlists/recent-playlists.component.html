@@ -33,6 +33,14 @@
         <button
             mat-icon-button
             color="primary"
+            (click)="$event.stopPropagation(); openInfoDialog(item)"
+            matTooltip="Show playlist details"
+        >
+            <mat-icon>info</mat-icon>
+        </button>
+        <button
+            mat-icon-button
+            color="primary"
             (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
             matTooltip="Remove playlist"
         >
