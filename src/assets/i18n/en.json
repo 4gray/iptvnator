@@ -1,8 +1,38 @@
 {
-  "PAGES": {
     "HOME": {
-      "TITLE": "App works !",
-      "GO_TO_DETAIL": "Go to Detail"
+        "TITLE": "IPTVnator",
+        "SUBTITLE": "Please select a playlist from the list or add a new playlist via file upload or via url",
+        "TABS": {
+            "RECENTLY_ADDED": "Recently added playlists",
+            "FILE_UPLOAD": "Add via file upload",
+            "URL_UPLOAD": "Add via URL"
+        },
+        "PLAYLISTS": {
+            "NO_PLAYLISTS": "No playlists were added",
+            "ADD_FIRST": "Please add your first playlist from the other tab",
+            "ADDED_VIA_URL": "Added via URL upload. URL:",
+            "ADDED_VIA_FILE": "Added via file upload",
+            "CHANNELS": "Channels",
+            "ADDED": "Added",
+            "SHOW_DETAILS": "Show playlist details",
+            "REMOVE": "Remove playlist",
+            "INFO_DIALOG": {
+                "PLAYLIST_DETAILS": "Playlist details",
+                "TITLE": "Title",
+                "FROM_URL": "Added from the URL",
+                "IMPORT_DATE": "Import date",
+                "CHANNELS": "Number of channels",
+                "CLOSE": "Close"
+            }
+        },
+        "FILE_UPLOAD": {
+            "DRAG_DROP": "Drag & drop files here",
+            "OR": "or",
+            "CHOOSE_PLAYLIST": "Choose a playlist"
+        },
+        "URL_UPLOAD": {
+            "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",
+            "ADD_PLAYLIST": "Add playlist"
+        }
     }
-  }
 }

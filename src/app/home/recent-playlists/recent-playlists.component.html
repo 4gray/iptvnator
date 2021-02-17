@@ -1,9 +1,9 @@
 <mat-nav-list>
     <mat-list-item *ngIf="playlists.length === 0">
         <mat-icon mat-list-icon>cloud</mat-icon>
-        <div mat-line>No playlists were added</div>
+        <div mat-line>{{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}</div>
         <div mat-line class="meta">
-            Please add your first playlist from the other tab
+            {{ 'HOME.PLAYLISTS.ADD_FIRST' | translate }}
         </div>
     </mat-list-item>
     <a
@@ -14,27 +14,30 @@
         <mat-icon
             mat-list-icon
             *ngIf="item?.url"
-            matTooltip="Added via URL upload. URL: {{ item?.url }}"
+            [matTooltip]="
+                ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) + ' ' + item?.url
+            "
             >cloud</mat-icon
         >
         <mat-icon
             mat-list-icon
             *ngIf="!item?.url"
-            matTooltip="Added via file upload"
+            [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
             >folder</mat-icon
         >
         <div mat-line>{{ item.title || item.filename }}</div>
         <div mat-line class="meta">
-            Channels: {{ item.count }}
+            {{ 'HOME.PLAYLISTS.CHANNELS' | translate }}: {{ item.count }}
             <ng-container *ngIf="item.importDate?.length > 3">
-                | Added: {{ item.importDate | date }}
+                | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
+                {{ item.importDate | date }}
             </ng-container>
         </div>
         <button
             mat-icon-button
             color="primary"
             (click)="$event.stopPropagation(); openInfoDialog(item)"
-            matTooltip="Show playlist details"
+            [matTooltip]="'HOME.PLAYLISTS.SHOW_DETAILS' | translate"
         >
             <mat-icon>info</mat-icon>
         </button>
@@ -42,7 +45,7 @@
             mat-icon-button
             color="primary"
             (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
-            matTooltip="Remove playlist"
+            [matTooltip]="'HOME.PLAYLISTS.REMOVE' | translate"
         >
             <mat-icon>delete</mat-icon>
         </button>

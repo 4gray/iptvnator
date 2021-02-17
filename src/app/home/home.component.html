@@ -1,35 +1,57 @@
-<!-- Applications header-->
-<app-header fxLayout="row" title="IPTVnator" subtitle="Please select a playlist from the list or add a new playlist via file upload or via url"></app-header>
+<!-- Application header-->
+<app-header
+    fxLayout="row"
+    [title]="'HOME.TITLE' | translate"
+    [subtitle]="'HOME.SUBTITLE' | translate"
+></app-header>
 
 <!-- Tab-based layout -->
 <div fxLayout="row" fxFlexAlign="start start">
     <div fxFlex="100">
-        <mat-tab-group [dynamicHeight]="true" color="primary" backgroundColor="primary" mat-stretch-tabs>
+        <mat-tab-group
+            [dynamicHeight]="true"
+            color="primary"
+            backgroundColor="primary"
+            mat-stretch-tabs
+        >
             <mat-tab>
                 <ng-template mat-tab-label>
-                    <mat-icon class="tab-icon">list</mat-icon> Recently added playlists
+                    <mat-icon class="tab-icon">list</mat-icon>
+                    {{ 'HOME.TABS.RECENTLY_ADDED' | translate }}
                 </ng-template>
-                <app-recent-playlists [playlists]="playlists" (playlistClicked)="getPlaylist($event)"
-                    (removeClicked)="removePlaylist($event)">
+                <app-recent-playlists
+                    [playlists]="playlists"
+                    (playlistClicked)="getPlaylist($event)"
+                    (removeClicked)="removePlaylist($event)"
+                >
                 </app-recent-playlists>
             </mat-tab>
             <mat-tab>
                 <ng-template mat-tab-label>
-                    <mat-icon class="tab-icon">attach_file</mat-icon> Add via file upload
+                    <mat-icon class="tab-icon">attach_file</mat-icon>
+                    {{ 'HOME.TABS.FILE_UPLOAD' | translate }}
                 </ng-template>
                 <ng-template matTabContent>
-                    <app-file-upload (fileRejected)="rejectFile($event)" (fileSelected)="handlePlaylist($event)"></app-file-upload>
+                    <app-file-upload
+                        (fileRejected)="rejectFile($event)"
+                        (fileSelected)="handlePlaylist($event)"
+                    ></app-file-upload>
                 </ng-template>
             </mat-tab>
             <mat-tab>
                 <ng-template mat-tab-label>
-                    <mat-icon class="tab-icon">link</mat-icon> Add via URL
+                    <mat-icon class="tab-icon">link</mat-icon>
+                    {{ 'HOME.TABS.URL_UPLOAD' | translate }}
                 </ng-template>
                 <ng-template matTabContent>
-                    <app-url-upload (urlAdded)="sendPlaylistsUrl($event)"></app-url-upload>
+                    <app-url-upload
+                        (urlAdded)="sendPlaylistsUrl($event)"
+                    ></app-url-upload>
                 </ng-template>
             </mat-tab>
         </mat-tab-group>
     </div>
 </div>
+
+<!-- Loading spinner -->
 <mat-progress-bar *ngIf="isLoading" mode="indeterminate"></mat-progress-bar>

@@ -3,7 +3,7 @@
         <input
             type="url"
             matInput
-            placeholder="Playlist URL (m3u, m3u8)"
+            [placeholder]="'HOME.URL_UPLOAD.PLAYLIST_URL' | translate"
             formControlName="playlistUrl"
         />
     </mat-form-field>
@@ -13,6 +13,6 @@
         color="primary"
         type="submit"
     >
-        Add playlist
+        {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
     </button>
 </form>

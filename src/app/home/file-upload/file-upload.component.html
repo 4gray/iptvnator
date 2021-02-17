@@ -6,8 +6,8 @@
     [uploadInput]="uploadInput"
 >
     <mat-icon class="upload-icon">save_alt</mat-icon>
-    <p class="upload-title">Drag & drop files here</p>
-    <p>or</p>
+    <p class="upload-title">{{ 'HOME.FILE_UPLOAD.DRAG_DROP' | translate }}</p>
+    <p>{{ 'HOME.FILE_UPLOAD.OR' | translate }}</p>
     <input
         type="file"
         ngFileSelect
@@ -19,5 +19,7 @@
         [uploadInput]="uploadInput"
         multiple
     />
-    <label for="file"> Choose a playlist </label>
+    <label for="file">{{
+        'HOME.FILE_UPLOAD.CHOOSE_PLAYLIST' | translate
+    }}</label>
 </div>
