@@ -1,24 +1,26 @@
 <app-header
-    title="Settings / IPTVnator"
-    subtitle="Change the configuration of the application"
+    [title]="'SETTINGS.TITLE' | translate"
+    [subtitle]="'SETTINGS.SUBTITLE' | translate"
 ></app-header>
 <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" novalidate>
     <mat-card>
         <mat-card-header class="card-header">
             <div mat-card-subtitle>
-                Please adapt the options from the list below and confirm with a
-                save button
+                {{ 'SETTINGS.DESCRIPTION' | translate }}
             </div>
         </mat-card-header>
         <mat-card-content>
             <mat-list>
                 <mat-list-item>
                     <div matLine fxLayout="row">
-                        <p fxFlex>EPG Url (*.xml or *.xml.gz)</p>
+                        <p fxFlex>{{ 'SETTINGS.EPG_URL_LABEL' | translate }}</p>
                         <p fxFlex fxLayoutAlign="start center">
                             <mat-form-field class="full-width">
                                 <input
-                                    placeholder="Enter a URL"
+                                    [placeholder]="
+                                        'SETTINGS.EPG_URL_PLACEHOLDER'
+                                            | translate
+                                    "
                                     matInput
                                     type="url"
                                     formControlName="epgUrl"
@@ -31,7 +33,9 @@
                                 "
                                 mat-icon-button
                                 color="primary"
-                                matTooltip="Refresh EPG"
+                                [matTooltip]="
+                                    'SETTINGS.REFRESH_EPG' | translate
+                                "
                                 type="button"
                                 (click)="fetchEpg()"
                             >
@@ -43,10 +47,15 @@
                 </mat-list-item>
                 <mat-list-item>
                     <div matLine fxLayout="row">
-                        <p fxFlex>Video player</p>
+                        <p fxFlex>
+                            {{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}
+                        </p>
                         <p fxFlex fxLayoutAlign="start center">
                             <mat-form-field appearance="fill">
-                                <mat-label>Select an option</mat-label>
+                                <mat-label>{{
+                                    'SETTINGS.VIDEO_PLAYER_PLACEHOLDER'
+                                        | translate
+                                }}</mat-label>
                                 <mat-select formControlName="player">
                                     <mat-option
                                         *ngFor="let player of players"
@@ -60,7 +69,7 @@
                 </mat-list-item>
                 <mat-list-item>
                     <div matLine fxLayout="row">
-                        <p fxFlex>Version</p>
+                        <p fxFlex>{{ 'SETTINGS.VERSION' | translate }}</p>
                         <p fxFlex>
                             {{ version }} <br />
                             {{ updateMessage }}
@@ -76,7 +85,8 @@
                 type="submit"
                 [disabled]="settingsForm.pristine"
             >
-                <mat-icon>save</mat-icon> Save changes
+                <mat-icon>save</mat-icon>
+                {{ 'SETTINGS.SAVE_CHANGES' | translate }}
             </button>
             <div fxFlex></div>
             <button
@@ -85,7 +95,8 @@
                 type="reset"
                 (click)="backToHome()"
             >
-                <mat-icon>chevron_left</mat-icon> Back to home
+                <mat-icon>chevron_left</mat-icon>
+                {{ 'SETTINGS.BACK_TO_HOME' | translate }}
             </button>
         </mat-card-actions>
     </mat-card>

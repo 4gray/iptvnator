@@ -34,5 +34,18 @@
             "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",
             "ADD_PLAYLIST": "Add playlist"
         }
+    },
+    "SETTINGS": {
+        "TITLE": "Settings / IPTVnator",
+        "SUBTITLE": "Change the configuration of the application",
+        "DESCRIPTION": "Please adapt the options from the list below and confirm with a save button",
+        "EPG_URL_LABEL": "EPG Url (*.xml or *.xml.gz)",
+        "EPG_URL_PLACEHOLDER": "Enter a URL",
+        "REFRESH_EPG": "Refresh EPG",
+        "VIDEO_PLAYER_LABEL": "Video player",
+        "VIDEO_PLAYER_PLACEHOLDER": "Select an option",
+        "VERSION": "Version",
+        "SAVE_CHANGES": "Save changes",
+        "BACK_TO_HOME": "Back to home"
     }
 }
