@@ -1,3 +1,4 @@
+import { TranslatePipe } from '@ngx-translate/core';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChannelListContainerComponent } from './channel-list-container.component';
@@ -9,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatExpansionModule } from '@angular/material/expansion';
-import { MockModule } from 'ng-mocks';
+import { MockModule, MockPipe } from 'ng-mocks';
 import { FormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
 import { FilterPipeModule } from 'ngx-filter-pipe';
@@ -31,7 +32,10 @@ describe('ChannelListContainerComponent', () => {
 
     beforeEach(() => {
         TestBed.configureTestingModule({
-            declarations: [ChannelListContainerComponent],
+            declarations: [
+                ChannelListContainerComponent,
+                MockPipe(TranslatePipe),
+            ],
             providers: [
                 ChannelQuery,
                 { provide: MatSnackBar, useClass: MatSnackBarStub },

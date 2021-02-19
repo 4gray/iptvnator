@@ -1,4 +1,5 @@
-import { MockModule } from 'ng-mocks';
+import { TranslatePipe } from '@ngx-translate/core';
+import { MockModule, MockPipe } from 'ng-mocks';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
@@ -16,7 +17,7 @@ describe('PlaylistInfoComponent', () => {
                     MockModule(MatDialogModule),
                     MockModule(MatFormFieldModule),
                 ],
-                declarations: [PlaylistInfoComponent],
+                declarations: [PlaylistInfoComponent, MockPipe(TranslatePipe)],
                 providers: [{ provide: MAT_DIALOG_DATA, useValue: {} }],
             }).compileComponents();
         })

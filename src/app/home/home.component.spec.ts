@@ -1,5 +1,6 @@
+import { TranslatePipe } from '@ngx-translate/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MockComponent, MockModule } from 'ng-mocks';
+import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
 import { HomeComponent } from './home.component';
 import { HeaderComponent } from '../shared/components/header/header.component';
 import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
@@ -42,6 +43,7 @@ describe('HomeComponent', () => {
                 MockComponent(FileUploadComponent),
                 MockComponent(RecentPlaylistsComponent),
                 MockComponent(UrlUploadComponent),
+                MockPipe(TranslatePipe),
             ],
             imports: [
                 MockModule(MatTabsModule),

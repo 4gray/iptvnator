@@ -1,3 +1,5 @@
+import { TranslatePipe } from '@ngx-translate/core';
+import { MockPipe } from 'ng-mocks';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
@@ -13,7 +15,7 @@ describe('UrlUploadComponent', () => {
     beforeEach(
         waitForAsync(() => {
             TestBed.configureTestingModule({
-                declarations: [UrlUploadComponent],
+                declarations: [UrlUploadComponent, MockPipe(TranslatePipe)],
                 imports: [
                     MatInputModule,
                     FormsModule,
