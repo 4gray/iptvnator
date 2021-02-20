@@ -1,7 +1,9 @@
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslatePipe } from '@ngx-translate/core';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { VideoPlayerComponent } from './video-player.component';
-import { MockComponent, MockModule } from 'ng-mocks';
+import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
 import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -34,6 +36,7 @@ describe('VideoPlayerComponent', () => {
                     MockComponent(VideoPlayerComponent),
                     MockComponent(ChannelListContainerComponent),
                     VideoPlayerComponent,
+                    MockPipe(TranslatePipe),
                 ],
                 providers: [
                     { provide: MatSnackBar, useClass: MatSnackBarStub },
@@ -42,6 +45,7 @@ describe('VideoPlayerComponent', () => {
                     MockModule(MatSidenavModule),
                     MockModule(MatIconModule),
                     MockModule(MatToolbarModule),
+                    MockModule(MatTooltipModule),
                 ],
             }).compileComponents();
         })
