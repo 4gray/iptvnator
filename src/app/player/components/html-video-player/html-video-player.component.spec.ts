@@ -1,3 +1,5 @@
+import { MockPipe } from 'ng-mocks';
+import { TranslatePipe } from '@ngx-translate/core';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { SimpleChange } from '@angular/core';
@@ -16,11 +18,16 @@ describe('HtmlVideoPlayerComponent', () => {
         },
     };
 
-    beforeEach(waitForAsync(() => {
-        TestBed.configureTestingModule({
-            declarations: [HtmlVideoPlayerComponent],
-        }).compileComponents();
-    }));
+    beforeEach(
+        waitForAsync(() => {
+            TestBed.configureTestingModule({
+                declarations: [
+                    HtmlVideoPlayerComponent,
+                    MockPipe(TranslatePipe),
+                ],
+            }).compileComponents();
+        })
+    );
 
     beforeEach(() => {
         fixture = TestBed.createComponent(HtmlVideoPlayerComponent);

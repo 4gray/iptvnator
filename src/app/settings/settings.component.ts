@@ -1,3 +1,4 @@
+import { TranslateService } from '@ngx-translate/core';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormGroup, FormBuilder } from '@angular/forms';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -28,11 +29,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
     players = [
         {
             id: 'html5',
-            label: ' HTML5 Video Player',
+            label: 'HTML5 Video Player',
         },
         {
             id: 'videojs',
-            label: ' VideoJs Player',
+            label: 'VideoJs Player',
         },
     ];
 
@@ -67,7 +68,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
         private http: HttpClient,
         private router: Router,
         private snackBar: MatSnackBar,
-        private storage: StorageMap
+        private storage: StorageMap,
+        private translate: TranslateService
     ) {
         this.settingsForm = this.formBuilder.group({
             player: ['videojs'], // default value
@@ -85,9 +87,15 @@ export class SettingsComponent implements OnInit, OnDestroy {
                     );
 
                     if (isOutdated) {
-                        this.updateMessage = `There is a new version available: ${response.version}`;
+                        this.updateMessage = `${
+                            this.translate.instant(
+                                'SETTINGS.NEW_VERSION_AVAILABLE'
+                            ) as string
+                        }: ${response.version}`;
                     } else {
-                        this.updateMessage = 'You are using the latest version';
+                        this.updateMessage = this.translate.instant(
+                            'SETTINGS.LATEST_VERSION'
+                        );
                     }
                 })
         );

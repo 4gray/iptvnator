@@ -46,6 +46,35 @@
         "VIDEO_PLAYER_PLACEHOLDER": "Select an option",
         "VERSION": "Version",
         "SAVE_CHANGES": "Save changes",
-        "BACK_TO_HOME": "Back to home"
+        "BACK_TO_HOME": "Back to home",
+        "NEW_VERSION_AVAILABLE": "There is a new version available",
+        "LATEST_VERSION": "You are using the latest version"
+    },
+    "CHANNELS": {
+        "SEARCH_CHANNEL": "Search channel",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload or select other playlist",
+        "ALL_CHANNELS": "All channels",
+        "GROUPS": "Groups",
+        "UNGROUPED": "Ungrouped",
+        "UNNAMED_CHANNEL": "Unnamed Channel",
+        "FAVORITES": "Favorites",
+        "NO_FAVORITES": "No favorites yet",
+        "USE_STAR_TO_FAVORITE": "Please use the 'star' icon to add channels to this list.",
+        "REMOVE_FAVORITE": "Remove from favorites"
+    },
+    "TOP_MENU": {
+        "OPEN_CHANNELS_LIST": "Open channels list",
+        "TOGGLE_FAVORITE_FLAG": "Toggle favorite flag",
+        "OPEN_EPG_LIST": "Open EPG list"
+    },
+    "EPG": {
+        "NEXT_DAY": "Next day",
+        "PREVIOUS_DAY": "Previous day",
+        "LIVE_NOW": "Live now",
+        "LIVE_STREAM": "Live stream",
+        "TIMESHIFT_AVAILABLE": "Timeshift is available, click to play",
+        "EPG_NOT_AVAILABLE_DATE": "Ooops, EPG is not available for the selected date",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ooops, EPG is not available for this channel.",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the url of EPG list the settings of the app."
     }
 }

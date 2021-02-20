@@ -1,3 +1,4 @@
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -48,6 +49,7 @@ describe('ChannelListContainerComponent', () => {
                 MockModule(MatListModule),
                 MockModule(ScrollingModule),
                 MockModule(MatTabsModule),
+                MockModule(MatTooltipModule),
                 MockModule(MatExpansionModule),
                 FormsModule,
                 RouterTestingModule,

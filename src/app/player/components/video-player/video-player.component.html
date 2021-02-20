@@ -20,14 +20,14 @@
                 <button
                     mat-icon-button
                     (click)="drawer.toggle()"
-                    matTooltip="Open channels list"
+                    [matTooltip]="'TOP_MENU.OPEN_CHANNELS_LIST' | translate"
                 >
                     <mat-icon>menu</mat-icon>
                 </button>
                 <button
                     mat-icon-button
                     (click)="addToFavorites(activeChannel)"
-                    matTooltip="Toggle favorite flag"
+                    [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
                 >
                     <mat-icon>
                         {{
@@ -43,7 +43,7 @@
                     *ngIf="epgAvailable$ | async"
                     mat-button
                     (click)="drawerRight.toggle()"
-                    matTooltip="Open EPG list"
+                    [matTooltip]="'TOP_MENU.OPEN_EPG_LIST' | translate"
                 >
                     EPG
                 </button>

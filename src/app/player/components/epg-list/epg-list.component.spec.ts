@@ -1,3 +1,5 @@
+import { TranslatePipe } from '@ngx-translate/core';
+import { MatTooltipModule } from '@angular/material/tooltip';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { EpgListComponent, EpgData } from './epg-list.component';
@@ -84,8 +86,16 @@ describe('EpgListComponent', () => {
     beforeEach(
         waitForAsync(() => {
             TestBed.configureTestingModule({
-                declarations: [EpgListComponent, MockPipe(MomentDatePipe)],
-                imports: [MockModule(MatIconModule), MockModule(MatListModule)],
+                declarations: [
+                    EpgListComponent,
+                    MockPipe(MomentDatePipe),
+                    MockPipe(TranslatePipe),
+                ],
+                imports: [
+                    MockModule(MatIconModule),
+                    MockModule(MatTooltipModule),
+                    MockModule(MatListModule),
+                ],
                 providers: [
                     { provide: ElectronService, useClass: ElectronServiceStub },
                 ],

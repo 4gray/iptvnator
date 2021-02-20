@@ -15,7 +15,9 @@
                 </div>
                 <div class="program-name">
                     {{
-                        playingNow ? playingNow.title[0]?.value : 'Live stream'
+                        playingNow
+                            ? playingNow.title[0]?.value
+                            : ('EPG.LIVE_STREAM' | translate)
                     }}
                 </div>
             </div>
@@ -25,7 +27,7 @@
                 fxFlex="40px"
                 mat-icon-button
                 (click)="changeDate('prev')"
-                matTooltip="Previous day"
+                [matTooltip]="'EPG.PREVIOUS_DAY' | translate"
             >
                 <mat-icon>chevron_left</mat-icon>
             </button>
@@ -40,7 +42,7 @@
                 fxFlex="40px"
                 mat-icon-button
                 (click)="changeDate('next')"
-                matTooltip="Next day"
+                [matTooltip]="'EPG.NEXT_DAY' | translate"
             >
                 <mat-icon>chevron_right</mat-icon>
             </button>
@@ -82,7 +84,7 @@
                     <span
                         *ngIf="timeNow >= item.start && timeNow <= item.stop"
                         class="live badge"
-                        matTooltip="Live now"
+                        [matTooltip]="'EPG.LIVE_NOW' | translate"
                         >live</span
                     >
                     <span
@@ -92,7 +94,7 @@
                             item.start > timeshiftUntil
                         "
                         class="rec badge"
-                        matTooltip="Timeshift is available, click to play"
+                        [matTooltip]="'EPG.TIMESHIFT_AVAILABLE' | translate"
                         >r</span
                     >
                 </div>
@@ -101,10 +103,9 @@
             </mat-list-option>
         </ng-container>
         <ng-template #epgNotAvailable>
-            <mat-list-option
-                >Ooops, EPG is not available for the selected
-                date</mat-list-option
-            >
+            <mat-list-option>{{
+                'EPG.EPG_NOT_AVAILABLE_DATE' | translate
+            }}</mat-list-option>
         </ng-template>
     </mat-selection-list>
 </ng-container>
@@ -112,8 +113,8 @@
 <ng-template #noEpg>
     <mat-list>
         <mat-list-item>
-            Ooops, EPG is not available for this channel.<br />
-            Please add/change the url of EPG list the settings of the app.
+            {{ 'EPG.EPG_NOT_AVAILABLE_CHANNEL_TITLE' | translate }}<br />
+            {{ 'EPG.EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION' | translate }}
         </mat-list-item>
     </mat-list>
 </ng-template>
