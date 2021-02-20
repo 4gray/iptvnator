@@ -7,6 +7,12 @@ button {
     text-transform: uppercase;
 }
 
-::ng-deep .mat-card {
-    border-radius: 0 !important;
+::ng-deep{
+    .mat-card {
+        border-radius: 0 !important;
+    }
+
+    .mat-list-item {
+        height: 70px !important;
+    }
 }

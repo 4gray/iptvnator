@@ -11,6 +11,11 @@ import * as semver from 'semver';
 import { ElectronService } from '../services/electron.service';
 import { ChannelQuery } from '../state';
 import { EPG_FETCH } from '../../../ipc-commands';
+import { Language } from './language.enum';
+
+/** Url of the package.json file in the app repository, required to get the version of the released app */
+const PACKAGE_JSON_URL =
+    'https://raw.githubusercontent.com/4gray/iptvnator/master/package.json';
 
 @Component({
     selector: 'app-settings',
@@ -21,9 +26,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
     /** Subscription object */
     private subscription: Subscription = new Subscription();
 
-    /** Url of the package.json file in the app repository, required to get the version of the released app */
-    latestPackageJsonUrl =
-        'https://raw.githubusercontent.com/4gray/iptvnator/master/package.json';
+    /** List with available languages as enum */
+    languageEnum = Language;
 
     /** Player options */
     players = [
@@ -72,13 +76,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
         private translate: TranslateService
     ) {
         this.settingsForm = this.formBuilder.group({
-            player: ['videojs'], // default value
+            player: ['videojs'],
             epgUrl: '',
+            language: Language.ENGLISH,
         });
 
         this.subscription.add(
             this.http
-                .get(this.latestPackageJsonUrl)
+                .get(PACKAGE_JSON_URL)
                 .subscribe((response: { version: string }) => {
                     this.version = this.electronService.getAppVersion();
                     const isOutdated = semver.lt(
@@ -111,6 +116,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
                     this.settingsForm.setValue({
                         player: settings.player ? settings.player : 'videojs',
                         epgUrl: settings.epgUrl ? settings.epgUrl : '',
+                        language: settings.language
+                            ? settings.language
+                            : Language.ENGLISH,
                     });
                 }
             })
@@ -137,6 +145,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
                     if (this.settingsForm.value.epgUrl) {
                         this.fetchEpg();
                     }
+                    this.translate.setDefaultLang(
+                        this.settingsForm.value.language
+                    );
                 })
         );
     }

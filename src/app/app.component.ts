@@ -101,6 +101,7 @@ export class AppComponent {
                 Object.keys(settings).length > 0 &&
                 settings.epgUrl
             ) {
+                this.translate.setDefaultLang(settings.language ?? 'en');
                 this.electronService.ipcRenderer.send(EPG_FETCH, {
                     url: settings.epgUrl,
                 });

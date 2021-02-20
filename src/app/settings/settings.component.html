@@ -69,6 +69,34 @@
                 </mat-list-item>
                 <mat-list-item>
                     <div matLine fxLayout="row">
+                        <p fxFlex>
+                            {{ 'SETTINGS.LANGUAGE' | translate }}
+                        </p>
+                        <p fxFlex fxLayoutAlign="start center">
+                            <mat-form-field appearance="fill">
+                                <mat-label>{{
+                                    'SETTINGS.VIDEO_PLAYER_PLACEHOLDER'
+                                        | translate
+                                }}</mat-label>
+                                <mat-select formControlName="language">
+                                    <mat-option
+                                        *ngFor="
+                                            let language of languageEnum
+                                                | keyvalue
+                                        "
+                                        [value]="language.value"
+                                        >{{
+                                            'LANGUAGES.' + language.key
+                                                | translate
+                                        }}</mat-option
+                                    >
+                                </mat-select>
+                            </mat-form-field>
+                        </p>
+                    </div>
+                </mat-list-item>
+                <mat-list-item>
+                    <div matLine fxLayout="row">
                         <p fxFlex>{{ 'SETTINGS.VERSION' | translate }}</p>
                         <p fxFlex>
                             {{ version }} <br />

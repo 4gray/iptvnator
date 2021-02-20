@@ -1,3 +1,5 @@
+import { Language } from './language.enum';
+
 export type VideoPlayerType = 'html5' | 'videojs';
 
 /**
@@ -6,4 +8,5 @@ export type VideoPlayerType = 'html5' | 'videojs';
 export interface Settings {
     player: VideoPlayerType;
     epgUrl: string;
+    language: Language;
 }
