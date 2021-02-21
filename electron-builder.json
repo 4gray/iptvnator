@@ -33,7 +33,7 @@
     ]
   },
   "mac": {
-    "icon": "dist/assets/icons",
+    "icon": "dist/assets/icons/icon-1024.png",
     "target": [
       "dmg"
     ]
