@@ -1,0 +1,86 @@
+{
+    "HOME": {
+        "TITLE": "IPTVnator",
+        "SUBTITLE": "Выберите плейлист из списка, добавьте новый с компьютера или загрузите по ссылке",
+        "TABS": {
+            "RECENTLY_ADDED": "Недавно добавленные плейлисты",
+            "FILE_UPLOAD": "Загрузить с компьютера",
+            "URL_UPLOAD": "Загрузить по ссылке"
+        },
+        "PLAYLISTS": {
+            "NO_PLAYLISTS": "No playlists were added",
+            "ADD_FIRST": "Please add your first playlist from the other tab",
+            "ADDED_VIA_URL": "Был добавлен по ссылке:",
+            "ADDED_VIA_FILE": "Был загружен с компьютера",
+            "CHANNELS": "Каналов",
+            "ADDED": "Добавлен",
+            "SHOW_DETAILS": "Показать информацию о плейлисте",
+            "REMOVE": "Удалить плейлист",
+            "INFO_DIALOG": {
+                "PLAYLIST_DETAILS": "Подробная информация о плейлисте",
+                "TITLE": "Название",
+                "FROM_URL": "Добавлен по ссылке",
+                "IMPORT_DATE": "Дата импорта",
+                "CHANNELS": "Количество каналов",
+                "CLOSE": "Закрыть"
+            }
+        },
+        "FILE_UPLOAD": {
+            "DRAG_DROP": "Перетащите файл в эту область",
+            "OR": "или",
+            "CHOOSE_PLAYLIST": "Выберите плейлист"
+        },
+        "URL_UPLOAD": {
+            "PLAYLIST_URL": "Ссылка на плейлист (m3u, m3u8)",
+            "ADD_PLAYLIST": "Добавить плейлист"
+        }
+    },
+    "SETTINGS": {
+        "TITLE": "Настройки / IPTVnator",
+        "SUBTITLE": "Здесь можно изменить общие настройки приложения",
+        "DESCRIPTION": "Закончив настройку, не забудьте подтвердить новые настройки кнопкой 'Сохранить найстройки'",
+        "EPG_URL_LABEL": "Ссылка на программу каналов (EPG) (*.xml или *.xml.gz)",
+        "EPG_URL_PLACEHOLDER": "Введите ссылку",
+        "REFRESH_EPG": "Обновить программу каналов (EPG)",
+        "VIDEO_PLAYER_LABEL": "Видео плеер",
+        "VIDEO_PLAYER_PLACEHOLDER": "Выберите из списка",
+        "VERSION": "Версия приложения",
+        "SAVE_CHANGES": "Сохранить настройки",
+        "BACK_TO_HOME": "Назад",
+        "NEW_VERSION_AVAILABLE": "Доступна новая версия приложения",
+        "LATEST_VERSION": "Вы используете последнюю версию приложения",
+        "LANGUAGE": "Язык"
+    },
+    "CHANNELS": {
+        "SEARCH_CHANNEL": "Поиск каналов",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить илди выбрать другой плейлист",
+        "ALL_CHANNELS": "Все каналы",
+        "GROUPS": "Группы",
+        "UNGROUPED": "Без групп",
+        "UNNAMED_CHANNEL": "Канал без названия",
+        "FAVORITES": "Фавориты",
+        "NO_FAVORITES": "Пока еще нет фаворитов",
+        "USE_STAR_TO_FAVORITE": "Используйте иконку звезды чтобы добавлять каналы в список фаворитов",
+        "REMOVE_FAVORITE": "Удалить из списка фаворитов"
+    },
+    "TOP_MENU": {
+        "OPEN_CHANNELS_LIST": "Открыть список каналов",
+        "TOGGLE_FAVORITE_FLAG": "Добавить/убрать канал из фаворитов",
+        "OPEN_EPG_LIST": "Открыть панель с программой (EPG)"
+    },
+    "EPG": {
+        "NEXT_DAY": "Следующий день",
+        "PREVIOUS_DAY": "Предыдущий день",
+        "LIVE_NOW": "Идет сейчас",
+        "LIVE_STREAM": "Прямая тансляция",
+        "TIMESHIFT_AVAILABLE": "Доступна функция архива (timeshift). Нажмите на передачу для воспроизведения.",
+        "EPG_NOT_AVAILABLE_DATE": "Ой, к сожалению, программа отсутствует на этот день.",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ой, к сожалению, программа не доступна для этого канала.",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Попробуйте изменить или обновить ссылку на EPG в настройках приложения."
+    },
+    "LANGUAGES": {
+        "ENGLISH": "Английский",
+        "RUSSIAN": "Русский",
+        "GERMAN": "Немецкий"
+    }
+}
