@@ -3,7 +3,7 @@ name: Build and release
 on: [push]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -12,7 +12,7 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: "12.x"
-      - run: npm install
+      - run: npm ci
       - run: npm test -- --coverage
       - run: bash <(curl -s https://codecov.io/bash)
       - run: xvfb-run --auto-servernum npm run e2e
@@ -20,6 +20,7 @@ jobs:
         env:
           CI: true
   release:
+    needs: [build-and-test]
     runs-on: ${{ matrix.os }}
 
     strategy:
