@@ -49,7 +49,8 @@
         "BACK_TO_HOME": "Назад",
         "NEW_VERSION_AVAILABLE": "Доступна новая версия приложения",
         "LATEST_VERSION": "Вы используете последнюю версию приложения",
-        "LANGUAGE": "Язык"
+        "LANGUAGE": "Язык",
+        "SETTINGS_SAVED": "Новые настройки были успешно сохранены."
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Поиск каналов",
@@ -76,7 +77,8 @@
         "TIMESHIFT_AVAILABLE": "Доступна функция архива (timeshift). Нажмите на передачу для воспроизведения.",
         "EPG_NOT_AVAILABLE_DATE": "Ой, к сожалению, программа отсутствует на этот день.",
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ой, к сожалению, программа не доступна для этого канала.",
-        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Попробуйте изменить или обновить ссылку на EPG в настройках приложения."
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Попробуйте изменить или обновить ссылку на EPG в настройках приложения.",
+        "FETCH_EPG": "Загружаю программу тв-передач (EPG)..."
     },
     "LANGUAGES": {
         "ENGLISH": "Английский",

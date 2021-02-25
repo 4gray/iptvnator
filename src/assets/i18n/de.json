@@ -19,7 +19,8 @@
         "LIVE_STREAM": "Live stream",
         "NEXT_DAY": "Zum nächsten Tag",
         "PREVIOUS_DAY": "Zum vorherigen Tag",
-        "TIMESHIFT_AVAILABLE": "Die Timeshift-Funktion (Archiv) ist verfügbar, klicken Sie an um abzuspielen"
+        "TIMESHIFT_AVAILABLE": "Die Timeshift-Funktion (Archiv) ist verfügbar, klicken Sie an um abzuspielen",
+        "FETCH_EPG": "EPG-Daten werden geladen..."
     },
     "HOME": {
         "SUBTITLE": "Wählen Sie eine Playliste aus oder laden Sie eine neue Playliste hoch",
@@ -76,7 +77,8 @@
         "TITLE": "Einstellungen / IPTVnator",
         "VERSION": "Version",
         "VIDEO_PLAYER_LABEL": "Video player",
-        "VIDEO_PLAYER_PLACEHOLDER": "Option auswählen"
+        "VIDEO_PLAYER_PLACEHOLDER": "Option auswählen",
+        "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Senderliste öffnen",

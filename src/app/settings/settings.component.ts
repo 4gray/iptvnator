@@ -135,7 +135,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 .subscribe(() => {
                     this.settingsForm.markAsPristine();
                     this.snackBar.open(
-                        'Success! Configuration was saved.',
+                        this.translate.instant('SETTINGS.SETTINGS_SAVED'),
                         null,
                         {
                             duration: 2000,
@@ -173,7 +173,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.electronService.ipcRenderer.send(EPG_FETCH, {
             url: this.settingsForm.value.epgUrl,
         });
-        this.snackBar.open('Fetch EPG data...', 'Close', {
+        this.snackBar.open(this.translate.instant('EPG.FETCH_EPG'), 'Close', {
             verticalPosition: 'bottom',
             horizontalPosition: 'right',
         });

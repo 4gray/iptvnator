@@ -49,7 +49,8 @@
         "BACK_TO_HOME": "Back to home",
         "NEW_VERSION_AVAILABLE": "There is a new version available",
         "LATEST_VERSION": "You are using the latest version",
-        "LANGUAGE": "Language"
+        "LANGUAGE": "Language",
+        "SETTINGS_SAVED": "Success! Configuration was saved."
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Search channel",
@@ -76,7 +77,8 @@
         "TIMESHIFT_AVAILABLE": "Timeshift is available, click to play",
         "EPG_NOT_AVAILABLE_DATE": "Ooops, EPG is not available for the selected date",
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ooops, EPG is not available for this channel.",
-        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the url of EPG list the settings of the app."
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the url of EPG list the settings of the app.",
+        "FETCH_EPG": "Fetch EPG data..."
     },
     "LANGUAGES": {
         "ENGLISH": "English",
