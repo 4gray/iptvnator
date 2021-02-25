@@ -1,3 +1,4 @@
+import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatListModule } from '@angular/material/list';
 import { MatCardModule } from '@angular/material/card';
@@ -9,9 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MockModule, MockPipe, MockComponent } from 'ng-mocks';
-import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
@@ -42,9 +41,8 @@ describe('SettingsComponent', () => {
                 imports: [
                     HttpClientTestingModule,
                     MockModule(FormsModule),
-                    MockModule(MatSidenavModule),
+                    MockModule(MatSelectModule),
                     MockModule(MatIconModule),
-                    MockModule(MatToolbarModule),
                     MockModule(MatTooltipModule),
                     MockModule(ReactiveFormsModule),
                     MockModule(RouterTestingModule),
