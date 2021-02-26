@@ -134,19 +134,17 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 .set('settings', this.settingsForm.value)
                 .subscribe(() => {
                     this.settingsForm.markAsPristine();
+                    // check whether the epg url was changed or not
+                    if (this.settingsForm.value.epgUrl) {
+                        this.fetchEpg();
+                    }
+                    this.translate.use(this.settingsForm.value.language);
                     this.snackBar.open(
                         this.translate.instant('SETTINGS.SETTINGS_SAVED'),
                         null,
                         {
                             duration: 2000,
                         }
-                    );
-                    // check whether the epg url was changed or not
-                    if (this.settingsForm.value.epgUrl) {
-                        this.fetchEpg();
-                    }
-                    this.translate.setDefaultLang(
-                        this.settingsForm.value.language
                     );
                 })
         );

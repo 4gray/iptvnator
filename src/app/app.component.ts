@@ -96,19 +96,17 @@ export class AppComponent {
      */
     ngOnInit(): void {
         this.storage.get('settings').subscribe((settings: Settings) => {
-            if (
-                settings &&
-                Object.keys(settings).length > 0 &&
-                settings.epgUrl
-            ) {
-                this.translate.setDefaultLang(settings.language ?? 'en');
-                this.electronService.ipcRenderer.send(EPG_FETCH, {
-                    url: settings.epgUrl,
-                });
-                this.snackBar.open('Fetch EPG data...', 'Close', {
-                    verticalPosition: 'bottom',
-                    horizontalPosition: 'right',
-                });
+            if (settings && Object.keys(settings).length > 0) {
+                this.translate.use(settings.language ?? 'en');
+                if (settings.epgUrl) {
+                    this.electronService.ipcRenderer.send(EPG_FETCH, {
+                        url: settings.epgUrl,
+                    });
+                    this.snackBar.open('Fetch EPG data...', 'Close', {
+                        verticalPosition: 'bottom',
+                        horizontalPosition: 'right',
+                    });
+                }
             }
         });
     }
