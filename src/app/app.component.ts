@@ -117,6 +117,11 @@ export class AppComponent {
                 }
             }
         });
+
+        // store current app version (TODO: "what is new" dialog in v0.5)
+        this.storage
+            .set('version', this.electronService.getAppVersion())
+            .subscribe(() => {});
     }
 
     /**
