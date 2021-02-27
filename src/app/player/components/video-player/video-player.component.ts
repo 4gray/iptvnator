@@ -3,7 +3,6 @@ import { ChannelQuery, Channel, ChannelStore } from '../../../state';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { MatSidenav } from '@angular/material/sidenav';
-import { ElectronService } from '../../../services/electron.service';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import {
     Settings,
@@ -47,21 +46,16 @@ export class VideoPlayerComponent implements OnInit {
     /** Sidebar object */
     @ViewChild('sidenav') sideNav: MatSidenav;
 
-    // DEV
-    epgPrograms = [];
-
     /**
      * Creates an instance of VideoPlayerComponent
      * @param channelQuery akita's channel query
      * @param channelStore akita's channel store
-     * @param electronService electron service
      * @param storage browser storage service
      * @param snackBar service to push snackbar notifications
      */
     constructor(
         private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
-        private electronService: ElectronService,
         private snackBar: MatSnackBar,
         private storage: StorageMap
     ) {}

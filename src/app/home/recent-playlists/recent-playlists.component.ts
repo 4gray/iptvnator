@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { Playlist } from '../playlist.interface';
 import { MatDialog } from '@angular/material/dialog';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
+import { PlaylistMeta } from './../home.component';
 
 @Component({
     selector: 'app-recent-playlists',
@@ -10,7 +11,7 @@ import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 })
 export class RecentPlaylistsComponent {
     /** All available playlists */
-    @Input() playlists: Playlist[];
+    @Input() playlists: PlaylistMeta[];
 
     /** Emits on playlist selection */
     @Output() playlistClicked: EventEmitter<string> = new EventEmitter();
@@ -31,7 +32,7 @@ export class RecentPlaylistsComponent {
      * Opens the details dialog with the information about the provided playlist
      * @param data selected playlist
      */
-    openInfoDialog(data: Playlist): void {
+    openInfoDialog(data: PlaylistMeta): void {
         this.dialog.open(PlaylistInfoComponent, {
             data,
         });

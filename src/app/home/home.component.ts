@@ -7,6 +7,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Playlist } from './playlist.interface';
 import { ElectronService } from '../services/electron.service';
 
+/** Type to describe meta data of a playlist */
+export type PlaylistMeta = Pick<Playlist, 'count' | 'title' | 'filename' | '_id' | 'url' | 'importDate'>;
+
 @Component({
     selector: 'app-home',
     templateUrl: './home.component.html',
@@ -14,10 +17,7 @@ import { ElectronService } from '../services/electron.service';
 })
 export class HomeComponent {
     /** Added playlists */
-    playlists: Pick<
-        Playlist,
-        'count' | 'title' | 'filename' | '_id' | 'url' | 'importDate'
-    >[] = [];
+    playlists: PlaylistMeta[] = [];
     /** Loading spinner state */
     isLoading = false;
     /** IPC Renderer commands list with callbacks */
