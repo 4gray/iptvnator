@@ -20,7 +20,7 @@ export class UrlUploadComponent implements OnInit {
     constructor(private fb: FormBuilder) {}
 
     ngOnInit(): void {
-        const urlRegex = '(https?://.*?.(m3u|m3u8))';
+        const urlRegex = '(https?://.*?)';
         this.form = this.fb.group({
             playlistUrl: [
                 '',

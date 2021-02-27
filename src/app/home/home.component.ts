@@ -44,10 +44,12 @@ export class HomeComponent {
         },
         {
             id: 'error',
-            execute: (response: { message: string; status: number }) =>
+            execute: (response: { message: string; status: number }) => {
+                this.isLoading = false;
                 this.showNotification(
                     `Error: ${response.status} ${response.message}. Please check the entered playlist URL again.`
-                ),
+                );
+            },
         },
     ];
 
@@ -124,6 +126,7 @@ export class HomeComponent {
      * @param playlistUrl url of the added playlist
      */
     sendPlaylistsUrl(playlistUrl: string): void {
+        this.isLoading = true;
         this.electronService.ipcRenderer.send('parse-playlist-by-url', {
             title: this.getLastUrlSegment(playlistUrl),
             url: playlistUrl,
