@@ -1,6 +1,9 @@
 name: Build and release
 
-on: [push]
+on:
+  push:
+    branches:
+      - electron
 
 jobs:
   build-and-test:
