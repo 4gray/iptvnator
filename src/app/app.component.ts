@@ -53,6 +53,14 @@ export class AppComponent {
             });
         });
 
+        this.electronService.ipcRenderer.on('settings-view', () => {
+            this.ngZone.run(() => {
+                this.router.navigateByUrl('/settings', {
+                    skipLocationChange: true,
+                });
+            });
+        });
+
         this.electronService.ipcRenderer.on(EPG_FETCH_DONE, () => {
             this.ngZone.run(() => {
                 this.channelStore.setEpgAvailableFlag(true);
@@ -120,5 +128,6 @@ export class AppComponent {
         this.electronService.ipcRenderer.removeAllListeners(
             'add-playlist-view'
         );
+        this.electronService.ipcRenderer.removeAllListeners('settings-view');
     }
 }

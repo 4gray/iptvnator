@@ -3,80 +3,121 @@ import * as path from 'path';
 const openAboutWindow = require('about-window').default;
 
 export class AppMenu {
+    /** Application menu */
+    menu: Menu = new Menu();
+
+    /** Application window */
+    window: BrowserWindow;
+
+    constructor(appWindow: BrowserWindow) {
+        this.window = appWindow;
+        this.initMenu();
+    }
+
     /**
      * Creates context menu
      * @param win browser window object
      */
-    static createMenu(win: BrowserWindow): Menu {
-        const menu = new Menu();
-        menu.append(
-            new MenuItem({
-                label: 'File',
-                submenu: [
-                    {
-                        label: 'Add playlist',
-                        click: () => win.webContents.send('add-playlist-view'),
-                    },
-                    {
-                        type: 'separator',
-                    },
-                    {
-                        label: 'Exit',
-                        click: () => app.quit(),
-                    },
-                ],
-            })
-        );
+    initMenu(): void {
+        this.menu.append(this.getFileMenu());
 
         // copy-paste shortcuts workaround for mac os
         if (process.platform === 'darwin') {
-            menu.append(
-                new MenuItem({
-                    label: 'Edit',
-                    submenu: [
-                        { role: 'cut' },
-                        { role: 'copy' },
-                        { role: 'paste' },
-                        { role: 'delete' },
-                    ],
-                })
-            );
+            this.menu.append(this.getEditMenu());
         }
 
-        menu.append(
-            new MenuItem({
-                label: 'Help',
-                submenu: [
-                    {
-                        label: 'Report a bug',
-                        click: () =>
-                            shell.openExternal(
-                                'https://github.com/4gray/iptvnator'
-                            ),
-                    },
-                    {
-                        label: 'Open DevTools',
-                        click: () => win.webContents.openDevTools(),
-                    },
-                    {
-                        type: 'separator',
-                    },
-                    {
-                        label: 'About',
-                        click: () =>
-                            openAboutWindow({
-                                icon_path: path.join(
-                                    __dirname,
-                                    'dist/assets/icons/icon.png'
-                                ),
-                                copyright: 'Copyright (c) 2020 4gray',
-                                package_json_dir: __dirname,
-                            }),
-                    },
-                ],
-            })
-        );
+        this.menu.append(this.getHelpMenu());
+    }
 
-        return menu;
+    /**
+     * Return the application menu
+     */
+    getMenu(): Menu {
+        return this.menu;
+    }
+
+    /**
+     * Creates and returns the file menu
+     * @param win application window
+     */
+    private getFileMenu(): MenuItem {
+        return new MenuItem({
+            label: 'File',
+            submenu: [
+                {
+                    label: 'Add playlist',
+                    click: () =>
+                        this.window.webContents.send('add-playlist-view'),
+                },
+                {
+                    type: 'separator',
+                },
+                {
+                    label: 'Settings',
+                    click: () => this.window.webContents.send('settings-view'),
+                },
+                {
+                    type: 'separator',
+                },
+                {
+                    label: 'Exit',
+                    click: () => app.quit(),
+                },
+            ],
+        });
+    }
+
+    /**
+     * Creates and returns the edit menu
+     * @param win application window
+     */
+    private getHelpMenu(): MenuItem {
+        return new MenuItem({
+            label: 'Help',
+            submenu: [
+                {
+                    label: 'Report a bug',
+                    click: () =>
+                        shell.openExternal(
+                            'https://github.com/4gray/iptvnator'
+                        ),
+                },
+                {
+                    label: 'Open DevTools',
+                    click: () => this.window.webContents.openDevTools(),
+                },
+                {
+                    type: 'separator',
+                },
+                {
+                    label: 'About',
+                    click: () =>
+                        openAboutWindow({
+                            icon_path: path.join(
+                                __dirname,
+                                'dist/assets/icons/icon.png'
+                            ),
+                            copyright: 'Copyright (c) 2020-2021 4gray',
+                            package_json_dir: __dirname,
+                        }),
+                },
+            ],
+        });
+    }
+
+    /**
+     * Creates and returns the help menu
+     * @param win application window
+     */
+    private getEditMenu(): MenuItem {
+        return new MenuItem({
+            label: 'Edit',
+            submenu: [
+                { role: 'cut' },
+                { role: 'copy' },
+                { role: 'paste' },
+                { role: 'delete' },
+            ],
+        });
     }
 }

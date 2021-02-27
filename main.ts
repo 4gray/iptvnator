@@ -94,8 +94,8 @@ try {
     app.on('ready', () => {
         // create main window and set menu
         const win = createWindow();
-        const menu = AppMenu.createMenu(win);
-        Menu.setApplicationMenu(menu);
+        const menu = new AppMenu(win);
+        Menu.setApplicationMenu(menu.getMenu());
         api.setMainWindow(win);
 
         // create hidden window for epg worker
