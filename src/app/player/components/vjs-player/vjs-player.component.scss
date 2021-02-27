@@ -3,5 +3,5 @@
 .video-js {
     position: relative !important;
     width: 100% !important;
-    height: auto !important;
+    height: calc(100vh - 85px);
 }

@@ -20,8 +20,8 @@ import videoJs from 'video.js';
 export class VjsPlayerComponent implements OnInit, OnDestroy {
     /** DOM-element reference */
     @ViewChild('target', { static: true }) target: ElementRef;
-    /** Options of VideoJs player (see: https://github.com/videojs/video.js/blob/mastertutorial-options.html) */
-    @Input() options: videoJs.ComponentOptions;
+    /** Options of VideoJs player */
+    @Input() options: videoJs.PlayerOptions;
     /** VideoJs object */
     player: videoJs.Player;
 
@@ -33,9 +33,6 @@ export class VjsPlayerComponent implements OnInit, OnDestroy {
             this.target.nativeElement,
             {
                 ...this.options,
-                /* responsive: true,
-                limitRenditionByPlayerDimensions: false, */
-                fluid: true,
                 autoplay: true,
             },
             function onPlayerReady() {
