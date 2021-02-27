@@ -8,8 +8,8 @@
             "URL_UPLOAD": "Загрузить по ссылке"
         },
         "PLAYLISTS": {
-            "NO_PLAYLISTS": "No playlists were added",
-            "ADD_FIRST": "Please add your first playlist from the other tab",
+            "NO_PLAYLISTS": "Пока еще не было добавленно ни одного плейлиста",
+            "ADD_FIRST": "Вы можете добавить плейлисты из соседних вкладок",
             "ADDED_VIA_URL": "Был добавлен по ссылке:",
             "ADDED_VIA_FILE": "Был загружен с компьютера",
             "CHANNELS": "Каналов",
@@ -81,8 +81,8 @@
         "FETCH_EPG": "Загружаю программу тв-передач (EPG)..."
     },
     "LANGUAGES": {
-        "ENGLISH": "Английский",
+        "ENGLISH": "English",
         "RUSSIAN": "Русский",
-        "GERMAN": "Немецкий"
+        "GERMAN": "Deutsch"
     }
 }

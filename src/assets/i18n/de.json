@@ -59,9 +59,9 @@
         }
     },
     "LANGUAGES": {
-        "ENGLISH": "Englisch",
-        "GERMAN": "Deutsch",
-        "RUSSIAN": "Russisch"
+        "ENGLISH": "English",
+        "RUSSIAN": "Русский",
+        "GERMAN": "Deutsch"
     },
     "SETTINGS": {
         "BACK_TO_HOME": "Zurück",
