@@ -1,4 +1,3 @@
-// vjs-player.component.ts
 import {
     Component,
     ElementRef,
