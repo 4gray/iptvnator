@@ -1,5 +1,8 @@
 name: Release
 on:
+  create:
+    tags:
+      - v*
   push:
     branches:
       - master
