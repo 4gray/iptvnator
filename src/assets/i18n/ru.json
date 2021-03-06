@@ -78,7 +78,16 @@
         "EPG_NOT_AVAILABLE_DATE": "Ой, к сожалению, программа отсутствует на этот день.",
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ой, к сожалению, программа не доступна для этого канала.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Попробуйте изменить или обновить ссылку на EPG в настройках приложения.",
-        "FETCH_EPG": "Загружаю программу тв-передач (EPG)..."
+        "FETCH_EPG": "Загружаю программу тв-передач (EPG)...",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Подробности передачи",
+            "TITLE": "Название",
+            "CATEGORY": "Категория",
+            "PARENTAL_RATING_SYSTEM": "Возрастное ограничение",
+            "DESCRIPTION": "Описание",
+            "LANGUAGE": "Язык",
+            "SHOW_PROGRAM_DETAILS": "Показать подробности"
+        }
     },
     "LANGUAGES": {
         "ENGLISH": "English",

@@ -20,7 +20,16 @@
         "NEXT_DAY": "Zum nächsten Tag",
         "PREVIOUS_DAY": "Zum vorherigen Tag",
         "TIMESHIFT_AVAILABLE": "Die Timeshift-Funktion (Archiv) ist verfügbar, klicken Sie an um abzuspielen",
-        "FETCH_EPG": "EPG-Daten werden geladen..."
+        "FETCH_EPG": "EPG-Daten werden geladen...",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Details zum TV-Programm",
+            "TITLE": "Titel",
+            "CATEGORY": "Ketegorie",
+            "PARENTAL_RATING_SYSTEM": "Alterskennzeichnung (USK)",
+            "DESCRIPTION": "Beschreibung",
+            "LANGUAGE": "Sprache",
+            "SHOW_PROGRAM_DETAILS": "Show details about this program"
+        }
     },
     "HOME": {
         "SUBTITLE": "Wählen Sie eine Playliste aus oder laden Sie eine neue Playliste hoch",

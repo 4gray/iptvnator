@@ -78,7 +78,16 @@
         "EPG_NOT_AVAILABLE_DATE": "Ooops, EPG is not available for the selected date",
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ooops, EPG is not available for this channel.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the url of EPG list the settings of the app.",
-        "FETCH_EPG": "Fetch EPG data..."
+        "FETCH_EPG": "Fetch EPG data...",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Details about the TV Program",
+            "TITLE": "Title",
+            "CATEGORY": "Category",
+            "PARENTAL_RATING_SYSTEM": "Television content rating system",
+            "DESCRIPTION": "Description",
+            "LANGUAGE": "Language",
+            "SHOW_PROGRAM_DETAILS": "Show details about this program"
+        }
     },
     "LANGUAGES": {
         "ENGLISH": "English",
