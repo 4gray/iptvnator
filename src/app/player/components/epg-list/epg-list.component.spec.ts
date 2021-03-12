@@ -1,6 +1,8 @@
+import { MockComponent } from 'ng-mocks';
+/* eslint-disable @typescript-eslint/unbound-method */
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-/* eslint-disable @typescript-eslint/unbound-method */
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { EpgListComponent, EpgData } from './epg-list.component';
 import { MatListModule } from '@angular/material/list';
@@ -12,12 +14,14 @@ import { EPG_GET_PROGRAM_DONE } from '../../../../../ipc-commands';
 import { Channel, ChannelStore } from '../../../state';
 import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
 import { MatIconModule } from '@angular/material/icon';
+import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 
 describe('EpgListComponent', () => {
     let component: EpgListComponent;
     let fixture: ComponentFixture<EpgListComponent>;
     let electronService: ElectronService;
     let channelStore: ChannelStore;
+    let dialog: MatDialog;
 
     const MOCKED_PROGRAMS = {
         channel: {
@@ -90,11 +94,13 @@ describe('EpgListComponent', () => {
                     EpgListComponent,
                     MockPipe(MomentDatePipe),
                     MockPipe(TranslatePipe),
+                    MockComponent(EpgListItemComponent),
                 ],
                 imports: [
                     MockModule(MatIconModule),
                     MockModule(MatTooltipModule),
                     MockModule(MatListModule),
+                    MockModule(MatDialogModule),
                 ],
                 providers: [
                     { provide: ElectronService, useClass: ElectronServiceStub },
@@ -107,6 +113,7 @@ describe('EpgListComponent', () => {
         fixture = TestBed.createComponent(EpgListComponent);
         component = fixture.componentInstance;
         electronService = TestBed.inject(ElectronService);
+        dialog = TestBed.inject(MatDialog);
         channelStore = TestBed.inject(ChannelStore);
         channelStore.setActiveChannel(({
             id: '',
