@@ -3,8 +3,8 @@ export interface EpgProgram {
     stop: string;
     channel: string;
     title: { lang: string; value: string }[];
-    desc: any[];
-    category: any[];
+    desc: { lang: string; value: string }[];
+    category: { lang: string; value: string }[];
     date: any[];
     episodeNum: any[];
     previouslyShown: any[];
