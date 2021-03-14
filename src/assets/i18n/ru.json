@@ -54,7 +54,7 @@
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Поиск каналов",
-        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить илди выбрать другой плейлист",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",
         "ALL_CHANNELS": "Все каналы",
         "GROUPS": "Группы",
         "UNGROUPED": "Без групп",
