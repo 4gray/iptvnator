@@ -1,6 +1,6 @@
 <mat-tab-group>
     <mat-tab [label]="'CHANNELS.ALL_CHANNELS' | translate">
-        <mat-list id="top-panel">
+        <mat-list>
             <mat-list-item>
                 <input
                     class="full-width search-bar"
@@ -21,6 +21,7 @@
                 </button>
             </mat-list-item>
         </mat-list>
+        <mat-divider></mat-divider>
         <mat-nav-list>
             <cdk-virtual-scroll-viewport itemSize="50" class="scroll-viewport">
                 <mat-list-item
