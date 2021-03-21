@@ -22,7 +22,10 @@
                 "FROM_URL": "Добавлен по ссылке",
                 "IMPORT_DATE": "Дата импорта",
                 "CHANNELS": "Количество каналов",
-                "CLOSE": "Закрыть"
+                "CLOSE": "Закрыть",
+                "SAVE": "Сохранить",
+                "USER_AGENT": "User agent",
+                "ORIGINAL_FILENAME": "Имя файла при загрузке"
             }
         },
         "FILE_UPLOAD": {

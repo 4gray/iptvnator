@@ -22,7 +22,10 @@
                 "FROM_URL": "Added from the URL",
                 "IMPORT_DATE": "Import date",
                 "CHANNELS": "Number of channels",
-                "CLOSE": "Close"
+                "CLOSE": "Close",
+                "SAVE": "Save",
+                "USER_AGENT": "User agent",
+                "ORIGINAL_FILENAME": "Original filename"
             }
         },
         "FILE_UPLOAD": {
