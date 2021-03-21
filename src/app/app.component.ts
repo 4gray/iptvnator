@@ -8,6 +8,7 @@ import { ChannelStore } from './state';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Settings } from './settings/settings.interface';
 import { EPG_ERROR, EPG_FETCH, EPG_FETCH_DONE } from '../../ipc-commands';
+import { SettingsService } from './services/settings.service';
 
 // create custom title bar
 new Titlebar({
@@ -28,6 +29,7 @@ export class AppComponent {
         private ngZone: NgZone,
         private router: Router,
         private translate: TranslateService,
+        private settingsService: SettingsService,
         private snackBar: MatSnackBar,
         private storage: StorageMap
     ) {
@@ -114,6 +116,10 @@ export class AppComponent {
                         verticalPosition: 'bottom',
                         horizontalPosition: 'right',
                     });
+                }
+
+                if (settings.theme) {
+                    this.settingsService.changeTheme(settings.theme);
                 }
             }
         });

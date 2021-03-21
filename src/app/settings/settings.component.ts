@@ -12,6 +12,8 @@ import { ElectronService } from '../services/electron.service';
 import { ChannelQuery } from '../state';
 import { EPG_FETCH } from '../../../ipc-commands';
 import { Language } from './language.enum';
+import { Theme } from './theme.enum';
+import { SettingsService } from './../services/settings.service';
 
 /** Url of the package.json file in the app repository, required to get the version of the released app */
 const PACKAGE_JSON_URL =
@@ -55,6 +57,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
         (store) => store.epgAvailable
     );
 
+    /** All available visual themes */
+    themeEnum = Theme;
+
     /**
      * Creates an instance of SettingsComponent and injects some dependencies into the component
      * @param channelQuery
@@ -62,8 +67,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * @param formBuilder
      * @param http
      * @param router
+     * @param settingsService
      * @param snackBar
      * @param storage
+     * @param translate
      */
     constructor(
         private channelQuery: ChannelQuery,
@@ -71,6 +78,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         private formBuilder: FormBuilder,
         private http: HttpClient,
         private router: Router,
+        private settingsService: SettingsService,
         private snackBar: MatSnackBar,
         private storage: StorageMap,
         private translate: TranslateService
@@ -79,6 +87,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
             player: ['videojs'],
             epgUrl: '',
             language: Language.ENGLISH,
+            theme: Theme.LightTheme,
         });
 
         this.subscription.add(
@@ -119,6 +128,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
                         language: settings.language
                             ? settings.language
                             : Language.ENGLISH,
+                        theme: settings.theme
+                            ? settings.theme
+                            : Theme.LightTheme,
                     });
                 }
             })
@@ -139,6 +151,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
                         this.fetchEpg();
                     }
                     this.translate.use(this.settingsForm.value.language);
+                    this.settingsService.changeTheme(
+                        this.settingsForm.value.theme
+                    );
                     this.snackBar.open(
                         this.translate.instant('SETTINGS.SETTINGS_SAVED'),
                         null,

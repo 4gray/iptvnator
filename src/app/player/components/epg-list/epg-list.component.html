@@ -1,6 +1,6 @@
 <ng-container *ngIf="channel; else noEpg">
     <!-- channel info panel -->
-    <div fxFlex="120px" id="channel-info" fxLayout="column">
+    <div fxFlex="120px" id="channel-info" color="primary" fxLayout="column">
         <div fxFlex="79px" fxLayout="row" fxLayoutGap="10px">
             <div
                 fxFlex="60px"
@@ -22,6 +22,7 @@
                 </div>
             </div>
         </div>
+        <mat-divider></mat-divider>
         <div fxFlex="40px" fxLayout="row" id="date-navigator">
             <button
                 fxFlex="40px"
@@ -48,6 +49,7 @@
             </button>
         </div>
     </div>
+    <mat-divider></mat-divider>
 
     <!-- program list -->
     <mat-selection-list

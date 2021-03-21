@@ -14,10 +14,6 @@
 }
 
 #channel-info {
-    border-bottom: 1px solid #ccc;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
-    background-color: #ccc;
-
     .channel-icon {
         overflow: hidden;
     }
@@ -40,12 +36,8 @@ mat-selection-list {
     overflow: auto;
 }
 
-
 #date-navigator {
-    border-top: 1px solid #999;
-
     .selected-date {
         font-size: 0.9em;
-        color: #333;
     }
 }

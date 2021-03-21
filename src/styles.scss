@@ -1,14 +1,16 @@
+$material-icons-font-path: '~material-icons/iconfont/';
 /* You can add global styles to this file, and also import other style files */
 @import '~@angular/material/prebuilt-themes/indigo-pink.css';
-
-$material-icons-font-path: '~material-icons/iconfont/';
-
 @import '~material-icons/iconfont/material-icons.scss';
+@import "~@angular/material/theming";
+@include mat-core();
+@import 'themes/';
 
 body,
 html {
     background: #fff;
     font-family: caption;
+    user-select: none;
 }
 
 .mat-toolbar.mat-primary {
@@ -70,13 +72,13 @@ html, body {
   height: 54px;
 }
 
-:not(input):not(textarea),
+/* :not(input):not(textarea),
 :not(input):not(textarea)::after,
 :not(input):not(textarea)::before {
     -webkit-user-select: none;
     user-select: none;
     cursor: default;
-}
+} */
 input, button, textarea, :focus {
     outline: none;
 }

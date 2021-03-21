@@ -16,6 +16,20 @@
 
 .search-bar {
     padding: 8px;
+    background: #ddd;
+    border: none;
+    border-radius: 4px;
+}
+
+::ng-deep .dark-theme {
+    .search-bar {
+        background: #666;
+        color: #fff;
+    }
+
+    .search-bar::placeholder {
+        color: #ccc;
+    }
 }
 
 ::ng-deep {
@@ -26,9 +40,10 @@
         border-radius: 0 !important;
     }
 
-    .mat-tab-label, .mat-tab-label-active {
-        min-width: 0!important;
-        padding: 15px!important;
-        margin: 5px!important;
+    .mat-tab-label,
+    .mat-tab-label-active {
+        min-width: 0 !important;
+        padding: 15px !important;
+        margin: 5px !important;
     }
 }

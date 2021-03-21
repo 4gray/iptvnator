@@ -87,7 +87,12 @@
         "VERSION": "Version",
         "VIDEO_PLAYER_LABEL": "Video player",
         "VIDEO_PLAYER_PLACEHOLDER": "Option auswählen",
-        "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!"
+        "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!",
+        "THEME": "Farbdesign"
+    },
+    "THEMES": {
+        "DARK_THEME": "Dunkel",
+        "LIGHT_THEME": "Hell"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Senderliste öffnen",
