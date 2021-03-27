@@ -8,7 +8,10 @@ import { Playlist } from './playlist.interface';
 import { ElectronService } from '../services/electron.service';
 
 /** Type to describe meta data of a playlist */
-export type PlaylistMeta = Pick<Playlist, 'count' | 'title' | 'filename' | '_id' | 'url' | 'importDate'>;
+export type PlaylistMeta = Pick<
+    Playlist,
+    'count' | 'title' | 'filename' | '_id' | 'url' | 'importDate' | 'userAgent'
+>;
 
 @Component({
     selector: 'app-home',

@@ -11,6 +11,7 @@ import {
     EPG_FETCH_DONE,
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
+    PLAYLIST_SAVE_DETAILS,
 } from './ipc-commands';
 
 const fs = require('fs');
@@ -23,6 +24,9 @@ const db = new Nedb<Playlist>({
 export class Api {
     /** Instance of the main application window */
     mainWindow: BrowserWindow;
+
+    /** Default user agent stored as a fallback value */
+    defaultUserAgent: string;
 
     /** Instance of the epg browser window */
     workerWindow: BrowserWindow;
@@ -61,18 +65,11 @@ export class Api {
             event.sender.send('parse-response', { payload: playlistObject });
         });
 
-        ipcMain.on('playlists-all', async (event) => {
-            const playlists = await db.find(
-                { type: { $exists: false } },
-                { count: 1, title: 1, _id: 1, url: 1, importDate: 1 }
-            );
-            event.sender.send('playlist-all-result', {
-                payload: playlists,
-            });
-        });
+        ipcMain.on('playlists-all', (event) => this.sendAllPlaylists(event));
 
         ipcMain.on('playlist-by-id', async (event, args) => {
             const playlist = await db.findOne({ _id: args.id });
+            this.setUserAgent(playlist.userAgent);
             event.sender.send('parse-response', {
                 payload: playlist,
             });
@@ -137,6 +134,51 @@ export class Api {
             .on(EPG_ERROR, (event, arg) =>
                 this.mainWindow.webContents.send(EPG_ERROR, arg)
             );
+
+        ipcMain.on(PLAYLIST_SAVE_DETAILS, async (event, args) => {
+            const updated = await db.update(
+                { _id: args._id },
+                { $set: { title: args.title, userAgent: args.userAgent } }
+            );
+            if (!updated.numAffected || updated.numAffected === 0) {
+                console.error('Error: Playlist details were not updated');
+            }
+            this.sendAllPlaylists(event);
+        });
+    }
+
+    /**
+     * Sends list with all playlists which are stored in the database
+     * @param event main event
+     */
+    async sendAllPlaylists(event: Electron.IpcMainEvent): Promise<void> {
+        const playlists = await db.find(
+            { type: { $exists: false } },
+            {
+                count: 1,
+                title: 1,
+                _id: 1,
+                url: 1,
+                importDate: 1,
+                userAgent: 1,
+                filename: 1,
+            }
+        );
+        event.sender.send('playlist-all-result', {
+            payload: playlists,
+        });
+    }
+
+    /**
+     * Sets the user agent header for all http requests
+     * @param userAgent user agent to use
+     */
+    setUserAgent(userAgent: string): void {
+        if (userAgent === undefined || userAgent === null || userAgent === '') {
+            userAgent = this.defaultUserAgent;
+        }
+        this.mainWindow.webContents.setUserAgent(userAgent);
+        console.log(`Success: Set "${userAgent}" as user agent header`);
     }
 
     /**
@@ -145,6 +187,9 @@ export class Api {
      */
     setEpgWorkerWindow(workerWindow: BrowserWindow): void {
         this.workerWindow = workerWindow;
+
+        // store default user agent as fallback
+        this.defaultUserAgent = this.workerWindow.webContents.getUserAgent();
     }
 
     /**
