@@ -22,33 +22,46 @@ export class PlaylistInfoComponent {
     /** Playlist object */
     playlist: Playlist;
 
+    /** Form group with playlist details */
     playlistDetails: FormGroup;
 
     /**
      * Creates an instance of the component and injects the selected playlist from the parent component
+     * @param datePipe
+     * @param formBuilder
+     * @param electronService
      * @param playlist playlist object to show
      */
     constructor(
-        @Inject(MAT_DIALOG_DATA) playlist: Playlist,
-        datePipe: DatePipe,
-        formBuilder: FormBuilder,
-        private electronService: ElectronService
+        private datePipe: DatePipe,
+        private formBuilder: FormBuilder,
+        private electronService: ElectronService,
+        @Inject(MAT_DIALOG_DATA) playlist: Playlist
     ) {
         this.playlist = playlist;
-        this.playlistDetails = formBuilder.group({
-            _id: playlist._id,
-            title: new FormControl(playlist.title, Validators.required),
-            userAgent: playlist.userAgent || '',
+    }
+
+    /**
+     * Create the form and set initial data on component init
+     */
+    ngOnInit(): void {
+        this.playlistDetails = this.formBuilder.group({
+            _id: this.playlist._id,
+            title: new FormControl(this.playlist.title, Validators.required),
+            userAgent: this.playlist.userAgent || '',
             filename: new FormControl({
-                value: playlist.filename || '',
+                value: this.playlist.filename || '',
                 disabled: true,
             }),
-            count: new FormControl({ value: playlist.count, disabled: true }),
+            count: new FormControl({
+                value: this.playlist.count,
+                disabled: true,
+            }),
             importDate: new FormControl({
-                value: datePipe.transform(playlist.importDate),
+                value: this.datePipe.transform(this.playlist.importDate),
                 disabled: true,
             }),
-            url: new FormControl({ value: playlist.url, disabled: true }),
+            url: new FormControl({ value: this.playlist.url, disabled: true }),
         });
     }
 
