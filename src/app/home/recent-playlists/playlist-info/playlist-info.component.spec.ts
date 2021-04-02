@@ -9,7 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { DatePipe } from '@angular/common';
 import { PlaylistInfoComponent } from './playlist-info.component';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder } from '@angular/forms';
 
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
@@ -20,7 +20,7 @@ describe('PlaylistInfoComponent', () => {
         waitForAsync(() => {
             TestBed.configureTestingModule({
                 imports: [
-                    MockModule(FormsModule),
+                    FormsModule,
                     MockModule(MatDialogModule),
                     MockModule(MatFormFieldModule),
                     ReactiveFormsModule,
@@ -33,6 +33,7 @@ describe('PlaylistInfoComponent', () => {
                 providers: [
                     { provide: MAT_DIALOG_DATA, useValue: {} },
                     { provide: ElectronService, useClass: ElectronServiceStub },
+                    FormBuilder,
                 ],
             }).compileComponents();
         })
