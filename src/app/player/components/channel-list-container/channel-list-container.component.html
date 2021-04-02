@@ -33,7 +33,13 @@
                     [class.active]="selected?.id === channel.id"
                     (click)="selectChannel(channel)"
                 >
-                    <p matLine>
+                    <img
+                        [src]="channel.tvg.logo"
+                        *ngIf="channel.tvg.logo"
+                        width="48"
+                        onerror="this.style.display='none'"
+                    />
+                    <p matLine class="channel-name">
                         {{
                             i + 1 + '. ' + channel?.name ||
                                 ('CHANNELS.UNNAMED_CHANNEL' | translate)
@@ -65,7 +71,13 @@
                                 [class.active]="selected?.id === channel.id"
                                 (click)="selectChannel(channel)"
                             >
-                                <p matLine>
+                                <img
+                                    [src]="channel.tvg.logo"
+                                    *ngIf="channel.tvg.logo"
+                                    width="48"
+                                    onerror="this.style.display='none'"
+                                />
+                                <p matLine class="channel-name">
                                     {{
                                         i + 1 + '. ' + channel?.name ||
                                             ('CHANNELS.UNNAMED_CHANNEL'
@@ -95,7 +107,13 @@
                     [class.active]="selected?.id === channel.id"
                     (click)="selectChannel(channel)"
                 >
-                    <p matLine>
+                    <img
+                        [src]="channel.tvg.logo"
+                        *ngIf="channel.tvg.logo"
+                        width="48"
+                        onerror="this.style.display='none'"
+                    />
+                    <p matLine class="channel-name">
                         {{
                             i + 1 + '. ' + channel?.name ||
                                 ('CHANNELS.UNNAMED_CHANNEL' | translate)
@@ -107,7 +125,7 @@
                         [matTooltip]="'CHANNELS.REMOVE_FAVORITE' | translate"
                         (click)="toggleFavoriteChannel(channel, $event)"
                     >
-                        <mat-icon>star</mat-icon>
+                        <mat-icon color="accent">star</mat-icon>
                     </button>
                     <mat-divider></mat-divider>
                 </mat-list-item>
