@@ -1,4 +1,4 @@
-# IPTVnator - IPTV Player Application
+****# IPTVnator - IPTV Player Application
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/4gray/iptvnator/electron/src/assets/icons/favicon.256x256.png" alt="IPTVnator icon" title="Free IPTV player application" />
@@ -26,7 +26,8 @@ The application is an cross-platform and open source project based on Electron a
 - Save channels as favorites
 - HTML video player with hls.js support or Video.js based player
 - Internalization, currently 3 languages are supported (en, ru, de)
-
+- Set custom "User Agent" header for a playlist
+- Light and Dark theme
 
 ## Screenshots:
 
