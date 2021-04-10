@@ -1,3 +1,8 @@
+import { StorageMap } from '@ngx-pwa/local-storage';
+import { FormBuilder } from '@angular/forms';
+/* eslint-disable @typescript-eslint/unbound-method */
+import { ElectronService } from './../services/electron.service';
+import { ElectronServiceStub } from './../home/home.component.spec';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatListModule } from '@angular/material/list';
@@ -14,14 +19,25 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { EPG_FETCH } from '../../../ipc-commands';
+import { Router } from '@angular/router';
 
 class MatSnackBarStub {
     open(): void {}
 }
 
+class MockRouter {
+    navigateByUrl(url: string) {
+        return url;
+    }
+}
+
 describe('SettingsComponent', () => {
     let component: SettingsComponent;
     let fixture: ComponentFixture<SettingsComponent>;
+    let electronService: ElectronService;
+    let storage: StorageMap;
+    let router: Router;
 
     beforeEach(
         waitForAsync(() => {
@@ -32,11 +48,18 @@ describe('SettingsComponent', () => {
                     MockPipe(TranslatePipe),
                 ],
                 providers: [
+                    FormBuilder,
                     { provide: MatSnackBar, useClass: MatSnackBarStub },
                     {
                         provide: TranslateService,
                         useClass: TranslateServiceStub,
                     },
+                    { provide: ElectronService, useClass: ElectronServiceStub },
+                    {
+                        provide: Router,
+                        useClass: MockRouter,
+                    },
+                    StorageMap,
                 ],
                 imports: [
                     HttpClientTestingModule,
@@ -56,10 +79,29 @@ describe('SettingsComponent', () => {
 
     beforeEach(() => {
         fixture = TestBed.createComponent(SettingsComponent);
+        electronService = TestBed.inject(ElectronService);
+        storage = TestBed.inject(StorageMap);
+        router = TestBed.inject(Router);
         component = fixture.componentInstance;
+        fixture.detectChanges();
     });
 
     it('should create and init component', () => {
         expect(component).toBeTruthy();
+    });
+
+    it('should send epg fetch command', () => {
+        spyOn(electronService.ipcRenderer, 'send');
+        component.fetchEpg();
+        expect(electronService.ipcRenderer.send).toHaveBeenCalledWith(
+            EPG_FETCH,
+            { url: '' }
+        );
+    });
+
+    it('should navigate back to home page', () => {
+        spyOn(router, 'navigateByUrl');
+        component.backToHome();
+        expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
     });
 });

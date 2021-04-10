@@ -97,6 +97,30 @@
                 </mat-list-item>
                 <mat-list-item>
                     <div matLine fxLayout="row">
+                        <p fxFlex>{{ 'SETTINGS.THEME' | translate }}</p>
+                        <p fxFlex>
+                            <mat-form-field appearance="fill">
+                                <mat-label>{{
+                                    'SETTINGS.VIDEO_PLAYER_PLACEHOLDER'
+                                        | translate
+                                }}</mat-label>
+                                <mat-select formControlName="theme">
+                                    <mat-option
+                                        *ngFor="
+                                            let theme of themeEnum | keyvalue
+                                        "
+                                        [value]="theme.value"
+                                        >{{
+                                            'THEMES.' + theme.value | translate
+                                        }}</mat-option
+                                    >
+                                </mat-select>
+                            </mat-form-field>
+                        </p>
+                    </div>
+                </mat-list-item>
+                <mat-list-item>
+                    <div matLine fxLayout="row">
                         <p fxFlex>{{ 'SETTINGS.VERSION' | translate }}</p>
                         <p fxFlex>
                             {{ version }} <br />
@@ -109,7 +133,7 @@
         <mat-card-actions>
             <button
                 mat-button
-                color="primary"
+                color="accent"
                 type="submit"
                 [disabled]="settingsForm.pristine"
             >
@@ -119,7 +143,7 @@
             <div fxFlex></div>
             <button
                 mat-button
-                color="primary"
+                color="accent"
                 type="reset"
                 (click)="backToHome()"
             >

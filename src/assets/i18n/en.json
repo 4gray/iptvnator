@@ -22,7 +22,10 @@
                 "FROM_URL": "Added from the URL",
                 "IMPORT_DATE": "Import date",
                 "CHANNELS": "Number of channels",
-                "CLOSE": "Close"
+                "CLOSE": "Close",
+                "SAVE": "Save",
+                "USER_AGENT": "User agent",
+                "ORIGINAL_FILENAME": "Original filename"
             }
         },
         "FILE_UPLOAD": {
@@ -50,7 +53,12 @@
         "NEW_VERSION_AVAILABLE": "There is a new version available",
         "LATEST_VERSION": "You are using the latest version",
         "LANGUAGE": "Language",
-        "SETTINGS_SAVED": "Success! Configuration was saved."
+        "SETTINGS_SAVED": "Success! Configuration was saved.",
+        "THEME": "Visual theme"
+    },
+    "THEMES": {
+        "DARK_THEME": "Dark theme",
+        "LIGHT_THEME": "Light theme"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Search channel",
@@ -78,7 +86,16 @@
         "EPG_NOT_AVAILABLE_DATE": "Ooops, EPG is not available for the selected date",
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ooops, EPG is not available for this channel.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the url of EPG list the settings of the app.",
-        "FETCH_EPG": "Fetch EPG data..."
+        "FETCH_EPG": "Fetch EPG data...",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Details about the TV Program",
+            "TITLE": "Title",
+            "CATEGORY": "Category",
+            "PARENTAL_RATING_SYSTEM": "Television content rating system",
+            "DESCRIPTION": "Description",
+            "LANGUAGE": "Language",
+            "SHOW_PROGRAM_DETAILS": "Show details about this program"
+        }
     },
     "LANGUAGES": {
         "ENGLISH": "English",

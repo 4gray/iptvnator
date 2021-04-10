@@ -1,3 +1,4 @@
+import { EpgListItemComponent } from './components/epg-list/epg-list-item/epg-list-item.component';
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChannelListContainerComponent } from './components/channel-list-container/channel-list-container.component';
@@ -7,6 +8,7 @@ import { VjsPlayerComponent } from './components/vjs-player/vjs-player.component
 import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../shared/shared.module';
 import { EpgListComponent } from './components/epg-list/epg-list.component';
+import { EpgItemDescriptionComponent } from './components/epg-list/epg-item-description/epg-item-description.component';
 
 const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
 
@@ -14,7 +16,9 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
     imports: [CommonModule, RouterModule.forChild(routes), SharedModule],
     declarations: [
         ChannelListContainerComponent,
+        EpgItemDescriptionComponent,
         EpgListComponent,
+        EpgListItemComponent,
         HtmlVideoPlayerComponent,
         VideoPlayerComponent,
         VjsPlayerComponent,

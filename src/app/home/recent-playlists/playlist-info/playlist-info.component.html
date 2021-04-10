@@ -1,34 +1,60 @@
-<h2 mat-dialog-title>
-    {{ 'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_DETAILS' | translate }}
-</h2>
-<mat-dialog-content class="mat-typography">
-    <mat-form-field class="full-width">
-        <mat-label>{{
-            'HOME.PLAYLISTS.INFO_DIALOG.TITLE' | translate
-        }}</mat-label>
-        <input matInput [value]="playlist.title" disabled="true" />
-    </mat-form-field>
-    <mat-form-field class="full-width" *ngIf="playlist.url">
-        <mat-label>{{
-            'HOME.PLAYLISTS.INFO_DIALOG.FROM_URL' | translate
-        }}</mat-label>
-        <input matInput [value]="playlist.url" disabled="true" />
-    </mat-form-field>
-    <mat-form-field class="full-width">
-        <mat-label>{{
-            'HOME.PLAYLISTS.INFO_DIALOG.IMPORT_DATE' | translate
-        }}</mat-label>
-        <input matInput [value]="playlist.importDate | date" disabled="true" />
-    </mat-form-field>
-    <mat-form-field class="full-width">
-        <mat-label>{{
-            'HOME.PLAYLISTS.INFO_DIALOG.CHANNELS' | translate
-        }}</mat-label>
-        <input matInput [value]="playlist.count" disabled="true" />
-    </mat-form-field>
-</mat-dialog-content>
-<mat-dialog-actions align="end">
-    <button mat-button mat-dialog-close cdkFocusInitial color="primary">
-        {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
-    </button>
-</mat-dialog-actions>
+<form
+    [formGroup]="playlistDetails"
+    (ngSubmit)="saveChanges(playlistDetails.value)"
+>
+    <h2 mat-dialog-title>
+        {{ 'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_DETAILS' | translate }}
+    </h2>
+    <mat-dialog-content class="mat-typography">
+        <mat-form-field class="full-width">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.TITLE' | translate
+            }}</mat-label>
+            <input formControlName="title" matInput />
+        </mat-form-field>
+        <mat-form-field class="full-width" *ngIf="playlist.url">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.FROM_URL' | translate
+            }}</mat-label>
+            <input matInput formControlName="url" />
+        </mat-form-field>
+        <mat-form-field class="full-width">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.ORIGINAL_FILENAME' | translate
+            }}</mat-label>
+            <input matInput formControlName="filename" />
+        </mat-form-field>
+        <mat-form-field class="full-width">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.IMPORT_DATE' | translate
+            }}</mat-label>
+            <input matInput formControlName="importDate" />
+        </mat-form-field>
+        <mat-form-field class="full-width">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.CHANNELS' | translate
+            }}</mat-label>
+            <input matInput formControlName="count" />
+        </mat-form-field>
+        <mat-form-field class="full-width">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.USER_AGENT' | translate
+            }}</mat-label>
+            <input formControlName="userAgent" matInput />
+        </mat-form-field>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+        <button
+            mat-flat-button
+            mat-dialog-close
+            color="accent"
+            type="submit"
+            [disabled]="!playlistDetails.valid || playlistDetails.pristine"
+        >
+            {{ 'HOME.PLAYLISTS.INFO_DIALOG.SAVE' | translate }}
+        </button>
+        <button mat-button mat-dialog-close cdkFocusInitial color="accent">
+            {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
+        </button>
+    </mat-dialog-actions>
+</form>

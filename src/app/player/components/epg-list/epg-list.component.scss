@@ -13,19 +13,7 @@
     border-bottom: 1px dashed #666;
 }
 
-.time {
-    color: #666;
-    border-bottom: 1px solid #ccc;
-    font-size: 0.8em;
-    display: inline-block;
-    margin-bottom: 5px;
-}
-
 #channel-info {
-    border-bottom: 1px solid #ccc;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
-    background-color: #ccc;
-
     .channel-icon {
         overflow: hidden;
     }
@@ -48,28 +36,8 @@ mat-selection-list {
     overflow: auto;
 }
 
-.badge {
-    border-radius: 2px;
-    padding: 2px 6px;
-    color: #fff;
-    text-transform: uppercase;
-    margin-left: 6px;
-    font-size: 0.8em;
-}
-
-.live {
-    background-color: red;
-}
-
-.rec {
-    background-color: grey;
-}
-
 #date-navigator {
-    border-top: 1px solid #999;
-
     .selected-date {
         font-size: 0.9em;
-        color: #333;
     }
 }

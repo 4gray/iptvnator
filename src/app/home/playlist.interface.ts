@@ -14,4 +14,5 @@ export interface Playlist {
     favorites: string[];
     count: number;
     url?: string;
+    userAgent?: string;
 }

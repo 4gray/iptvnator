@@ -4,9 +4,9 @@ import '../polyfills';
 import { AppRoutingModule } from './app-routing.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { BrowserModule } from '@angular/platform-browser';
-import { CommonModule } from '@angular/common';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { NgModule } from '@angular/core';
+import { NgxWhatsNewModule } from 'ngx-whats-new';
 import { SharedModule } from './shared/shared.module';
 
 // NG Translate
@@ -26,8 +26,8 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
         AppRoutingModule,
         BrowserAnimationsModule,
         BrowserModule,
-        CommonModule,
         HttpClientModule,
+        NgxWhatsNewModule,
         SharedModule,
         TranslateModule.forRoot({
             loader: {

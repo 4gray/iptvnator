@@ -1,0 +1,13 @@
+.subheading-2 {
+    color: #666;
+    text-decoration: underline;
+    text-transform: uppercase;
+    font-weight: 900;
+    font-size: 0.9em;
+}
+
+::ng-deep {
+    .dark-theme .subheading-2 {
+        color: #bdbdbd;
+    }
+}

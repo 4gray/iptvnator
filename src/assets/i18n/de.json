@@ -8,7 +8,7 @@
         "SEARCH_CHANNEL": "Nach Sender suchen",
         "UNGROUPED": "Ohne Gruppe",
         "UNNAMED_CHANNEL": "Sender ohne Namen",
-        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Neue Playliste hochladen oder eine andere aussuchen",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Neue Playlist hochladen oder eine andere aussuchen",
         "USE_STAR_TO_FAVORITE": "Nutzen Sie das Star-Icon um Sender als Favoriten zu markieren"
     },
     "EPG": {
@@ -20,32 +20,44 @@
         "NEXT_DAY": "Zum nächsten Tag",
         "PREVIOUS_DAY": "Zum vorherigen Tag",
         "TIMESHIFT_AVAILABLE": "Die Timeshift-Funktion (Archiv) ist verfügbar, klicken Sie an um abzuspielen",
-        "FETCH_EPG": "EPG-Daten werden geladen..."
+        "FETCH_EPG": "EPG-Daten werden geladen...",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Details zum TV-Programm",
+            "TITLE": "Titel",
+            "CATEGORY": "Ketegorie",
+            "PARENTAL_RATING_SYSTEM": "Alterskennzeichnung (USK)",
+            "DESCRIPTION": "Beschreibung",
+            "LANGUAGE": "Sprache",
+            "SHOW_PROGRAM_DETAILS": "Details anzeigen"
+        }
     },
     "HOME": {
-        "SUBTITLE": "Wählen Sie eine Playliste aus oder laden Sie eine neue Playliste hoch",
+        "SUBTITLE": "Wählen Sie eine Playlist aus oder laden Sie eine neue Playlist hoch",
         "TITLE": "IPTVnator",
         "FILE_UPLOAD": {
-            "CHOOSE_PLAYLIST": "Playliste auswählen",
+            "CHOOSE_PLAYLIST": "Playlist auswählen",
             "DRAG_DROP": "Ziehen Sie Dateien per Drag & Drop",
             "OR": "oder"
         },
         "PLAYLISTS": {
             "ADDED": "Hinzugefügt am",
-            "ADDED_VIA_FILE": "Diese Playliste wurde aus dem Dateisystem hochgeladen",
-            "ADDED_VIA_URL": "Diese Playliste wurde von der URL hinzugefügt",
-            "ADD_FIRST": "Bitte fügen Sie eine neue Playliste hinzu",
+            "ADDED_VIA_FILE": "Diese Playlist wurde aus dem Dateisystem hochgeladen",
+            "ADDED_VIA_URL": "Diese Playlist wurde von der URL hinzugefügt",
+            "ADD_FIRST": "Bitte fügen Sie eine neue Playlist hinzu",
             "CHANNELS": "TV-Sender",
             "NO_PLAYLISTS": "Noch keine Playlisten hinzugefügt",
-            "REMOVE": "Playliste entfernen",
+            "REMOVE": "Playlist entfernen",
             "SHOW_DETAILS": "Details anzeigen",
             "INFO_DIALOG": {
                 "CHANNELS": "Anzahl von Sender",
                 "CLOSE": "Schließen",
                 "FROM_URL": "Von der URL hinzugefügt",
                 "IMPORT_DATE": "Hinzugefügt am",
-                "PLAYLIST_DETAILS": "Informationen über die Playliste",
-                "TITLE": "Titel"
+                "PLAYLIST_DETAILS": "Infos über die Playlist",
+                "TITLE": "Titel",
+                "USER_AGENT": "User agent",
+                "SAVE": "Speichern",
+                "ORIGINAL_FILENAME": "Original-Dateinamen"
             }
         },
         "TABS": {
@@ -54,8 +66,8 @@
             "URL_UPLOAD": "Via URL hinzufügen"
         },
         "URL_UPLOAD": {
-            "ADD_PLAYLIST": "Playliste hinzufügen",
-            "PLAYLIST_URL": "URL der Playliste"
+            "ADD_PLAYLIST": "Playlist hinzufügen",
+            "PLAYLIST_URL": "URL der Playlist"
         }
     },
     "LANGUAGES": {
@@ -78,7 +90,12 @@
         "VERSION": "Version",
         "VIDEO_PLAYER_LABEL": "Video player",
         "VIDEO_PLAYER_PLACEHOLDER": "Option auswählen",
-        "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!"
+        "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!",
+        "THEME": "Farbdesign"
+    },
+    "THEMES": {
+        "DARK_THEME": "Dunkel",
+        "LIGHT_THEME": "Hell"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Senderliste öffnen",

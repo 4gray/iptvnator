@@ -1,6 +1,6 @@
 <ng-container *ngIf="channel; else noEpg">
     <!-- channel info panel -->
-    <div fxFlex="120px" id="channel-info" fxLayout="column">
+    <div fxFlex="120px" id="channel-info" color="primary" fxLayout="column">
         <div fxFlex="79px" fxLayout="row" fxLayoutGap="10px">
             <div
                 fxFlex="60px"
@@ -22,6 +22,7 @@
                 </div>
             </div>
         </div>
+        <mat-divider></mat-divider>
         <div fxFlex="40px" fxLayout="row" id="date-navigator">
             <button
                 fxFlex="40px"
@@ -48,6 +49,7 @@
             </button>
         </div>
     </div>
+    <mat-divider></mat-divider>
 
     <!-- program list -->
     <mat-selection-list
@@ -56,51 +58,47 @@
         *ngIf="timeshiftUntil$ | async as timeshiftUntil"
     >
         <ng-container *ngIf="items?.length > 0; else epgNotAvailable">
-            <mat-list-option
-                *ngFor="let item of items"
-                [value]="item"
-                [class.active]="timeNow >= item.start && timeNow <= item.stop"
-                (click)="
-                    setEpgProgram(
-                        item,
-                        timeNow >= item.start && timeNow <= item.stop,
-                        item.start > timeshiftUntil
-                    )
-                "
-                [disabled]="
-                    item.start < timeshiftUntil || item.start >= timeNow
-                "
-            >
-                <div matLine>
-                    <span class="time"
-                        >{{
-                            item.start | momentDate: 'YYYYMMDDHHmm ZZ':'HH:mm'
-                        }}
-                        -
-                        {{
-                            item.stop | momentDate: 'YYYYMMDDHHmm ZZ':'HH:mm'
-                        }}</span
-                    >
-                    <span
-                        *ngIf="timeNow >= item.start && timeNow <= item.stop"
-                        class="live badge"
-                        [matTooltip]="'EPG.LIVE_NOW' | translate"
-                        >live</span
-                    >
-                    <span
-                        *ngIf="
-                            item.start < timeNow &&
-                            item.stop < timeNow &&
-                            item.start > timeshiftUntil
+            <ng-container *ngFor="let item of items">
+                <mat-list-item
+                    *ngIf="
+                        item.start < timeshiftUntil || item.start >= timeNow;
+                        else timeshiftItem
+                    "
+                >
+                    <div matLine>
+                        <app-epg-list-item
+                            [timeshiftUntil]="timeshiftUntil"
+                            [timeNow]="timeNow"
+                            [item]="item"
+                        ></app-epg-list-item>
+                    </div>
+                    <p matLine>{{ item?.title[0]?.value }}</p>
+                </mat-list-item>
+                <ng-template #timeshiftItem>
+                    <mat-list-option
+                        [value]="item"
+                        [class.active]="
+                            timeNow >= item.start && timeNow <= item.stop
                         "
-                        class="rec badge"
-                        [matTooltip]="'EPG.TIMESHIFT_AVAILABLE' | translate"
-                        >r</span
+                        (click)="
+                            setEpgProgram(
+                                item,
+                                timeNow >= item.start && timeNow <= item.stop,
+                                item.start > timeshiftUntil
+                            )
+                        "
                     >
-                </div>
-                <p matLine>{{ item?.title[0]?.value }}</p>
-                <mat-divider></mat-divider>
-            </mat-list-option>
+                        <div matLine>
+                            <app-epg-list-item
+                                [timeshiftUntil]="timeshiftUntil"
+                                [timeNow]="timeNow"
+                                [item]="item"
+                            ></app-epg-list-item>
+                        </div>
+                        <p matLine>{{ item?.title[0]?.value }}</p>
+                    </mat-list-option>
+                </ng-template>
+            </ng-container>
         </ng-container>
         <ng-template #epgNotAvailable>
             <mat-list-option>{{

@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu, MenuItem, shell } from 'electron';
 import * as path from 'path';
+import { SHOW_WHATS_NEW } from './ipc-commands';
 const openAboutWindow = require('about-window').default;
 
 export class AppMenu {
@@ -75,6 +76,10 @@ export class AppMenu {
         return new MenuItem({
             label: 'Help',
             submenu: [
+                {
+                    label: 'What is new',
+                    click: () => this.window.webContents.send(SHOW_WHATS_NEW),
+                },
                 {
                     label: 'Report a bug',
                     click: () =>

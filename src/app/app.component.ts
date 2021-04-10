@@ -7,7 +7,16 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ChannelStore } from './state';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Settings } from './settings/settings.interface';
-import { EPG_ERROR, EPG_FETCH, EPG_FETCH_DONE } from '../../ipc-commands';
+import {
+    EPG_ERROR,
+    EPG_FETCH,
+    EPG_FETCH_DONE,
+    SHOW_WHATS_NEW,
+} from '../../ipc-commands';
+import { SettingsService } from './services/settings.service';
+import { WhatsNewService } from './services/whats-new.service';
+import * as semver from 'semver';
+import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
 
 // create custom title bar
 new Titlebar({
@@ -22,31 +31,55 @@ new Titlebar({
     styleUrls: ['./app.component.scss'],
 })
 export class AppComponent {
+    /** Visibility flag of the "what is new" modal dialog */
+    isDialogVisible$ = this.whatsNewService.dialogState$;
+    /** Dialog options */
+    options = this.whatsNewService.options;
+    /** Modals to show for the updated version of the application */
+    modals: ModalWindow[];
+
+    /**
+     * Creates an instance of AppComponent
+     */
     constructor(
         private channelStore: ChannelStore,
         private electronService: ElectronService,
         private ngZone: NgZone,
         private router: Router,
         private translate: TranslateService,
+        private settingsService: SettingsService,
         private snackBar: MatSnackBar,
-        private storage: StorageMap
+        private storage: StorageMap,
+        private whatsNewService: WhatsNewService
     ) {
         this.translate.setDefaultLang('en');
 
-        if (electronService.isElectron) {
-            console.log(process.env);
-            console.log('Run in electron');
-            console.log(
-                'Electron ipcRenderer',
-                this.electronService.ipcRenderer
+        this.setRendererListeners();
+
+        if (
+            (this.electronService.remote.process.platform === 'linux' ||
+                this.electronService.remote.process.platform === 'win32') &&
+            this.electronService.remote.process.argv.length > 2
+        ) {
+            const filePath = this.electronService.remote.process.argv.find(
+                (filepath) =>
+                    filepath.endsWith('.m3u') || filepath.endsWith('.m3u8')
             );
-            console.log(
-                'NodeJS childProcess',
-                this.electronService.childProcess
-            );
-        } else {
-            console.log('Run in browser');
+            if (filePath) {
+                const filePathsArray = filePath.split('/');
+                const fileName = filePathsArray[filePathsArray.length - 1];
+                this.electronService.ipcRenderer.send('open-file', {
+                    filePath,
+                    fileName,
+                });
+            }
         }
+    }
+
+    /**
+     * Initializes all necessary listeners for the events from the renderer process
+     */
+    setRendererListeners(): void {
         this.electronService.ipcRenderer.on('add-playlist-view', () => {
             this.ngZone.run(() => {
                 this.router.navigateByUrl('/', { skipLocationChange: true });
@@ -71,6 +104,7 @@ export class AppComponent {
                 });
             });
         });
+
         this.electronService.ipcRenderer.on(EPG_ERROR, () => {
             this.snackBar.open('EPG Error: something went wrong...', null, {
                 duration: 2000,
@@ -79,24 +113,14 @@ export class AppComponent {
             });
         });
 
-        if (
-            (this.electronService.remote.process.platform === 'linux' ||
-                this.electronService.remote.process.platform === 'win32') &&
-            this.electronService.remote.process.argv.length > 2
-        ) {
-            const filePath = this.electronService.remote.process.argv.find(
-                (filepath) =>
-                    filepath.endsWith('.m3u') || filepath.endsWith('.m3u8')
-            );
-            if (filePath) {
-                const filePathsArray = filePath.split('/');
-                const fileName = filePathsArray[filePathsArray.length - 1];
-                this.electronService.ipcRenderer.send('open-file', {
-                    filePath,
-                    fileName,
-                });
-            }
-        }
+        this.electronService.ipcRenderer.on(SHOW_WHATS_NEW, () => {
+            this.ngZone.run(() => {
+                this.modals = this.whatsNewService.getModalsByVersion(
+                    this.electronService.getAppVersion()
+                );
+                this.setDialogVisibility(true);
+            });
+        });
     }
 
     /**
@@ -115,13 +139,49 @@ export class AppComponent {
                         horizontalPosition: 'right',
                     });
                 }
+
+                if (settings.theme) {
+                    this.settingsService.changeTheme(settings.theme);
+                }
             }
         });
 
-        // store current app version (TODO: "what is new" dialog in v0.5)
-        this.storage
-            .set('version', this.electronService.getAppVersion())
-            .subscribe(() => {});
+        this.handleWhatsNewDialog();
+    }
+
+    /**
+     * Checks the actual version of the application and shows the "what is new" dialog if the updated version was detected
+     */
+    handleWhatsNewDialog(): void {
+        const actualVersion = this.electronService.getAppVersion();
+        this.storage.get('version').subscribe((version) => {
+            const isNewVersion = semver.gt(actualVersion, version || '0.0.0');
+            if (!version || isNewVersion) {
+                this.modals = this.whatsNewService.getModalsByVersion(
+                    actualVersion
+                );
+                this.setDialogVisibility(true);
+            }
+            this.setVersion(actualVersion);
+        });
+    }
+
+    /**
+     * Updates the version of the application in localstorage
+     * @param version actual version of the application
+     */
+    setVersion(version: string): void {
+        this.storage.set('version', version).subscribe(() => {});
+    }
+
+    /**
+     * Sets the visibility flag of the modal window
+     * @param visible show/hide window flag
+     */
+    setDialogVisibility(visible: boolean): void {
+        if (this.modals.length > 0) {
+            this.whatsNewService.changeDialogVisibleState(visible);
+        }
     }
 
     /**

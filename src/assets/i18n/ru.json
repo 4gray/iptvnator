@@ -22,7 +22,10 @@
                 "FROM_URL": "Добавлен по ссылке",
                 "IMPORT_DATE": "Дата импорта",
                 "CHANNELS": "Количество каналов",
-                "CLOSE": "Закрыть"
+                "CLOSE": "Закрыть",
+                "SAVE": "Сохранить",
+                "USER_AGENT": "User agent",
+                "ORIGINAL_FILENAME": "Имя файла при загрузке"
             }
         },
         "FILE_UPLOAD": {
@@ -50,11 +53,16 @@
         "NEW_VERSION_AVAILABLE": "Доступна новая версия приложения",
         "LATEST_VERSION": "Вы используете последнюю версию приложения",
         "LANGUAGE": "Язык",
-        "SETTINGS_SAVED": "Новые настройки были успешно сохранены."
+        "SETTINGS_SAVED": "Новые настройки были успешно сохранены.",
+        "THEME": "Тема оформления"
+    },
+    "THEMES": {
+        "DARK_THEME": "Тёмная тема",
+        "LIGHT_THEME": "Светлая тема"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Поиск каналов",
-        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить илди выбрать другой плейлист",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",
         "ALL_CHANNELS": "Все каналы",
         "GROUPS": "Группы",
         "UNGROUPED": "Без групп",
@@ -78,7 +86,16 @@
         "EPG_NOT_AVAILABLE_DATE": "Ой, к сожалению, программа отсутствует на этот день.",
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ой, к сожалению, программа не доступна для этого канала.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Попробуйте изменить или обновить ссылку на EPG в настройках приложения.",
-        "FETCH_EPG": "Загружаю программу тв-передач (EPG)..."
+        "FETCH_EPG": "Загружаю программу тв-передач (EPG)...",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Подробности передачи",
+            "TITLE": "Название",
+            "CATEGORY": "Категория",
+            "PARENTAL_RATING_SYSTEM": "Возрастное ограничение",
+            "DESCRIPTION": "Описание",
+            "LANGUAGE": "Язык",
+            "SHOW_PROGRAM_DETAILS": "Показать подробности"
+        }
     },
     "LANGUAGES": {
         "ENGLISH": "English",
