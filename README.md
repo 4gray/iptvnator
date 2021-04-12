@@ -1,4 +1,4 @@
-****# IPTVnator - IPTV Player Application
+# IPTVnator - IPTV Player Application
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/4gray/iptvnator/electron/src/assets/icons/favicon.256x256.png" alt="IPTVnator icon" title="Free IPTV player application" />
@@ -20,7 +20,7 @@ The application is an cross-platform and open source project based on Electron a
 - Add remote playlists via URL 🔗
 - Open playlist from the file system
 - Search for channels 🔍
-- EPG support (TV Guide)
+- EPG support (TV Guide) with detailed info
 - TV archive/catchup/timeshift
 - Group-based channels list
 - Save channels as favorites
