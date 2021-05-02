@@ -51,6 +51,36 @@ $ sudo snap install iptvnator
 
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/iptvnator)
 
+<a href="https://www.buymeacoffee.com/4gray" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-green.png" alt="Buy Me A Coffee" width="185"></a>
+
+## How to build
+
+Requirements: node.js with npm.
+
+1. Clone this repository and install all project dependencies with:
+   ```
+   $ npm install
+   ```
+
+2. To build the application on your local machine use one of the following commands:
+   ```
+   # linux
+   $ npm run electron:build:linux
+   ```
+
+   ```
+   #mac
+   $ npm run electron:build:mac
+   ```
+
+   ```
+   # windows
+   $ npm run electron:build:windows
+   ```
+
+This command will produce the distributable assets in the `release` folder based on the configuration from electron-builder which is stored in `electron-builder.json` and `package.json`. Check the [API description of electron-builder](https://www.electron.build/) and adapt the configuration if you need some special configuration for you environment.
+
+*Note: Don’t expect that you can build app for all platforms on one platform. [Read details](https://www.electron.build/multi-platform-build)*
 
 ## Disclaimer
 
