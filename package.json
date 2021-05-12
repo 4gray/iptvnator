@@ -125,7 +125,7 @@
     "epg-parser": "0.1.1",
     "hls.js": "0.14.16",
     "iptv-playlist-parser": "0.6.0",
-    "lodash": "4.17.19",
+    "lodash": "4.17.21",
     "material-icons": "0.3.1",
     "moment": "2.29.1",
     "nedb": "1.8.0",
