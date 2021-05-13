@@ -12,6 +12,9 @@ import {
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
     PLAYLIST_SAVE_DETAILS,
+    PLAYLIST_PARSE,
+    PLAYLIST_PARSE_RESPONSE,
+    PLAYLIST_UPDATE,
 } from './ipc-commands';
 
 const fs = require('fs');
@@ -35,15 +38,17 @@ export class Api {
         ipcMain.on('parse-playlist-by-url', async (event, args) => {
             try {
                 await axios.get(args.url).then((result) => {
-                    const array = result.data.split('\n');
-                    const parsedPlaylist = this.parsePlaylist(array);
+                    const parsedPlaylist = this.convertFileStringToPlaylist(
+                        result.data
+                    );
                     const playlistObject = this.createPlaylistObject(
                         args.title,
                         parsedPlaylist,
-                        args.url
+                        args.url,
+                        'URL'
                     );
                     this.insertToDb(playlistObject);
-                    event.sender.send('parse-response', {
+                    event.sender.send(PLAYLIST_PARSE_RESPONSE, {
                         payload: playlistObject,
                     });
                 });
@@ -55,14 +60,18 @@ export class Api {
             }
         });
 
-        ipcMain.on('parse-playlist', (event, args) => {
+        ipcMain.on(PLAYLIST_PARSE, (event, args) => {
             const parsedPlaylist = this.parsePlaylist(args.playlist);
             const playlistObject = this.createPlaylistObject(
                 args.title,
-                parsedPlaylist
+                parsedPlaylist,
+                args.path,
+                'FILE'
             );
             this.insertToDb(playlistObject);
-            event.sender.send('parse-response', { payload: playlistObject });
+            event.sender.send(PLAYLIST_PARSE_RESPONSE, {
+                payload: playlistObject,
+            });
         });
 
         ipcMain.on('playlists-all', (event) => this.sendAllPlaylists(event));
@@ -70,7 +79,7 @@ export class Api {
         ipcMain.on('playlist-by-id', async (event, args) => {
             const playlist = await db.findOne({ _id: args.id });
             this.setUserAgent(playlist.userAgent);
-            event.sender.send('parse-response', {
+            event.sender.send(PLAYLIST_PARSE_RESPONSE, {
                 payload: playlist,
             });
         });
@@ -86,22 +95,23 @@ export class Api {
 
         // open playlist from file system
         ipcMain.on('open-file', (event, args) => {
-            fs.readFile(args.filePath, 'utf-8', (err, data) => {
+            fs.readFile(args.filePath, 'utf-8', (err, data: string) => {
                 if (err) {
                     console.log(
-                        // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
                         'An error ocurred reading the file :' + err.message
                     );
                     return;
                 }
-                const array = (data as string).split('\n');
-                const parsedPlaylist = this.parsePlaylist(array);
+
+                const parsedPlaylist = this.convertFileStringToPlaylist(data);
                 const playlistObject = this.createPlaylistObject(
                     args.fileName,
-                    parsedPlaylist
+                    parsedPlaylist,
+                    args.filePath,
+                    'FILE'
                 );
                 this.insertToDb(playlistObject);
-                event.sender.send('parse-response', {
+                event.sender.send(PLAYLIST_PARSE_RESPONSE, {
                     payload: playlistObject,
                 });
             });
@@ -138,13 +148,30 @@ export class Api {
         ipcMain.on(PLAYLIST_SAVE_DETAILS, async (event, args) => {
             const updated = await db.update(
                 { _id: args._id },
-                { $set: { title: args.title, userAgent: args.userAgent } }
+                {
+                    $set: {
+                        title: args.title,
+                        userAgent: args.userAgent,
+                        autoRefresh: args.autoRefresh,
+                    },
+                }
             );
             if (!updated.numAffected || updated.numAffected === 0) {
                 console.error('Error: Playlist details were not updated');
             }
             this.sendAllPlaylists(event);
         });
+
+        ipcMain.on(
+            PLAYLIST_UPDATE,
+            (event, args: { id: string; filePath?: string; url?: string }) => {
+                if (args.filePath && args.id) {
+                    this.fetchPlaylistByFilePath(args.id, args.filePath, event);
+                } else if (args.url && args.id) {
+                    this.fetchPlaylistByUrl(args.id, args.url, event);
+                }
+            }
+        );
     }
 
     /**
@@ -162,6 +189,9 @@ export class Api {
                 importDate: 1,
                 userAgent: 1,
                 filename: 1,
+                filePath: 1,
+                autoRefresh: 1,
+                updateDate: 1,
             }
         );
         event.sender.send('playlist-all-result', {
@@ -204,9 +234,15 @@ export class Api {
      * Saves playlist to the localStorage
      * @param name name of the playlist
      * @param playlist playlist to save
-     * @param url url of the playlist
+     * @param urlOrPath absolute fs path or url of the playlist
+     * @param uploadType upload type - by file or via an url
      */
-    createPlaylistObject(name: string, playlist: any, url?: string): Playlist {
+    createPlaylistObject(
+        name: string,
+        playlist: any,
+        urlOrPath?: string,
+        uploadType?: 'URL' | 'FILE'
+    ): Playlist {
         return {
             id: guid(),
             _id: guid(),
@@ -223,8 +259,109 @@ export class Api {
             importDate: new Date().toISOString(),
             lastUsage: new Date().toISOString(),
             favorites: [],
-            ...(url ? { url } : {}),
+            autoRefresh: false,
+            ...(uploadType === 'URL' ? { url: urlOrPath } : {}),
+            ...(uploadType === 'FILE' ? { filePath: urlOrPath } : {}),
         };
+    }
+
+    saveUpdatedPlaylist(
+        id: string,
+        playlist: any
+    ): Promise<{
+        numAffected: number;
+        upsert: boolean;
+    }> {
+        return db.update(
+            { _id: id },
+            {
+                $set: {
+                    playlist,
+                    count: playlist.items.length,
+                    updateDate: Date.now(),
+                },
+            }
+        );
+    }
+
+    /**
+     * Converts the fetched playlist string to the playlist object, updates it  in the database and sends the updated playlists array back to the renderer
+     * @param id id of the playlist to update
+     * @param playlistString updated playlist as string
+     * @param event ipc event to send the response back to the renderer
+     */
+    async handlePlaylistRefresh(
+        id: string,
+        playlistString: any,
+        event: Electron.IpcMainEvent
+    ): Promise<void> {
+        const playlist = this.convertFileStringToPlaylist(playlistString);
+        const updated = await this.saveUpdatedPlaylist(id, playlist);
+        if (!updated.numAffected || updated.numAffected === 0) {
+            console.error('Error: Playlist details were not updated');
+        }
+
+        // send all playlists back to the renderer process
+        this.sendAllPlaylists(event);
+    }
+
+    /**
+     * Fetches the playlist from the given url and triggers the update operation
+     * @param id id of the playlist to update
+     * @param playlistString updated playlist as string
+     * @param event ipc event to send the response back to the renderer
+     */
+    async fetchPlaylistByUrl(
+        id: string,
+        url: string,
+        event: Electron.IpcMainEvent
+    ): Promise<void> {
+        try {
+            await axios
+                .get(url)
+                .then((result) =>
+                    this.handlePlaylistRefresh(id, result.data, event)
+                );
+        } catch (err) {
+            event.sender.send('error', {
+                message: err.response.statusText,
+                status: err.response.status,
+            });
+        }
+    }
+
+    /**
+     * Fetches the playlist from the given path from the file system and triggers the update operation
+     * @param id id of the playlist to update
+     * @param playlistString updated playlist as string
+     * @param event ipc event to send the response back to the renderer
+     */
+    fetchPlaylistByFilePath(
+        id: string,
+        path: string,
+        event: Electron.IpcMainEvent
+    ): void {
+        const errorMessage = 'PLAYLIST UPDATE: something went wrong';
+        try {
+            fs.readFile(path, 'utf-8', async (err, data) => {
+                if (err) {
+                    console.error(errorMessage, err);
+                    return;
+                }
+
+                this.handlePlaylistRefresh(id, data, event);
+            });
+        } catch (err) {
+            console.error(errorMessage, err);
+            event.sender.send('error', {
+                message: 'Something went wrong',
+                status: 0,
+            });
+        }
+    }
+
+    convertFileStringToPlaylist(m3uString: string): any[] {
+        return this.parsePlaylist(m3uString.split('\n'));
     }
 
     /**
