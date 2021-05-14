@@ -49,6 +49,11 @@ Download the latest version of the application for macOS, Windows and Linux from
 $ sudo snap install iptvnator
 ```
 
+### Also available as an Arch PKG, [iptvnator-bin](https://aur.archlinux.org/packages/iptvnator-bin/), in the AUR (using your favourite AUR-helper, .e.g. `yay`)
+```
+$ yay -S iptvnator-bin
+```
+
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/iptvnator)
 
 <a href="https://www.buymeacoffee.com/4gray" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-green.png" alt="Buy Me A Coffee" width="185"></a>
