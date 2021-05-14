@@ -49,7 +49,7 @@ Download the latest version of the application for macOS, Windows and Linux from
 $ sudo snap install iptvnator
 ```
 
-### Also available as an Arch PKG, [iptvnator-bin](https://aur.archlinux.org/packages/iptvnator-bin/), in the AUR (using your favourite AUR-helper, .e.g. `yay`)
+Also available as an Arch PKG, [iptvnator-bin](https://aur.archlinux.org/packages/iptvnator-bin/), in the AUR (using your favourite AUR-helper, .e.g. `yay`)
 ```
 $ yay -S iptvnator-bin
 ```
