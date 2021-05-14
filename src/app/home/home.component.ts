@@ -6,9 +6,11 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Playlist } from './playlist.interface';
 import { ElectronService } from '../services/electron.service';
 import {
+    ERROR,
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
+    PLAYLIST_UPDATE_RESPONSE,
 } from './../../../ipc-commands';
 
 /** Type to describe meta data of a playlist */
@@ -58,13 +60,18 @@ export class HomeComponent {
             },
         },
         {
-            id: 'error',
+            id: ERROR,
             execute: (response: { message: string; status: number }) => {
                 this.isLoading = false;
                 this.showNotification(
-                    `Error: ${response.status} ${response.message}. Please check the entered playlist URL again.`
+                    `Error: ${response.status} ${response.message}.`
                 );
             },
+        },
+        {
+            id: PLAYLIST_UPDATE_RESPONSE,
+            execute: (response: { message: string }) =>
+                this.showNotification(response.message),
         },
     ];
 

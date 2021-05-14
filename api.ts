@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import axios from 'axios';
@@ -11,10 +10,12 @@ import {
     EPG_FETCH_DONE,
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
+    ERROR,
     PLAYLIST_SAVE_DETAILS,
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
+    PLAYLIST_UPDATE_RESPONSE,
 } from './ipc-commands';
 
 const fs = require('fs');
@@ -53,7 +54,7 @@ export class Api {
                     });
                 });
             } catch (err) {
-                event.sender.send('error', {
+                event.sender.send(ERROR, {
                     message: err.response.statusText,
                     status: err.response.status,
                 });
@@ -301,6 +302,10 @@ export class Api {
             console.error('Error: Playlist details were not updated');
         }
 
+        event.sender.send(PLAYLIST_UPDATE_RESPONSE, {
+            message: `Success! The playlist was successfully updated (${playlist.items.length} channels)`,
+        });
+
         // send all playlists back to the renderer process
         this.sendAllPlaylists(event);
     }
@@ -323,8 +328,8 @@ export class Api {
                     this.handlePlaylistRefresh(id, result.data, event)
                 );
         } catch (err) {
-            event.sender.send('error', {
-                message: err.response.statusText,
+            event.sender.send(ERROR, {
+                message: `${err.response.statusText}. Please check the entered playlist URL again.`,
                 status: err.response.status,
             });
         }
@@ -341,26 +346,42 @@ export class Api {
         path: string,
         event: Electron.IpcMainEvent
     ): void {
-        const errorMessage = 'PLAYLIST UPDATE: something went wrong';
         try {
             fs.readFile(path, 'utf-8', async (err, data) => {
                 if (err) {
-                    console.error(errorMessage, err);
+                    this.handleFileNotFoundError(err, event);
                     return;
                 }
 
                 this.handlePlaylistRefresh(id, data, event);
             });
         } catch (err) {
-            console.error(errorMessage, err);
-            event.sender.send('error', {
-                message: 'Something went wrong',
-                status: 0,
-            });
+            this.handleFileNotFoundError(err, event);
         }
     }
 
-    convertFileStringToPlaylist(m3uString: string): any[] {
+    /**
+     * Sends an error message to the renderer process
+     * @param error
+     * @param event
+     */
+    handleFileNotFoundError(
+        error: {
+            errno: string;
+            code: string;
+            syscall: string;
+            path: string;
+        },
+        event: Electron.IpcMainEvent
+    ) {
+        console.error(error);
+        event.sender.send(ERROR, {
+            message: `Sorry, playlist was not found (${error.path})`,
+            status: 'ENOENT',
+        });
+    }
+
+    convertFileStringToPlaylist(m3uString: string): any {
         return this.parsePlaylist(m3uString.split('\n'));
     }
 

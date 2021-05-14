@@ -14,3 +14,4 @@ export const PLAYLIST_UPDATE_RESPONSE = 'PLAYLIST:UPDATE_RESPONSE';
 
 // General
 export const SHOW_WHATS_NEW = 'SHOW_WHATS_NEW';
+export const ERROR = 'error';
