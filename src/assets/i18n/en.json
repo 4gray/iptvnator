@@ -27,7 +27,8 @@
                 "USER_AGENT": "User agent",
                 "ORIGINAL_FILENAME": "Original filename"
             },
-            "UPDATED": "Updated"
+            "UPDATED": "Updated",
+            "REFRESH": "Refresh playlist"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Drag & drop files here",

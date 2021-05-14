@@ -27,7 +27,8 @@
                 "USER_AGENT": "User agent",
                 "ORIGINAL_FILENAME": "Имя файла при загрузке"
             },
-            "UPDATED": "Обновлен"
+            "UPDATED": "Обновлен",
+            "REFRESH": "Обновить плейлист"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Перетащите файл в эту область",

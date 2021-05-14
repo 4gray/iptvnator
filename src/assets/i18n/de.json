@@ -59,7 +59,8 @@
                 "SAVE": "Speichern",
                 "ORIGINAL_FILENAME": "Original-Dateinamen"
             },
-            "UPDATED": "Aktualisiert am"
+            "UPDATED": "Aktualisiert am",
+            "REFRESH": "Aktualisieren"
         },
         "TABS": {
             "FILE_UPLOAD": "Aus Dateisystem hochladen",
