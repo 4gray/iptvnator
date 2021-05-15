@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { Component, NgZone } from '@angular/core';
 import { UploadFile } from 'ngx-uploader';
 import { ChannelStore, createChannel } from '../state';
@@ -6,11 +5,26 @@ import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Playlist } from './playlist.interface';
 import { ElectronService } from '../services/electron.service';
+import {
+    ERROR,
+    PLAYLIST_PARSE,
+    PLAYLIST_PARSE_RESPONSE,
+    PLAYLIST_UPDATE,
+    PLAYLIST_UPDATE_RESPONSE,
+} from './../../../ipc-commands';
 
 /** Type to describe meta data of a playlist */
 export type PlaylistMeta = Pick<
     Playlist,
-    'count' | 'title' | 'filename' | '_id' | 'url' | 'importDate' | 'userAgent'
+    | 'count'
+    | 'title'
+    | 'filename'
+    | '_id'
+    | 'url'
+    | 'importDate'
+    | 'userAgent'
+    | 'filePath'
+    | 'updateDate'
 >;
 
 @Component({
@@ -26,7 +40,7 @@ export class HomeComponent {
     /** IPC Renderer commands list with callbacks */
     commandsList = [
         {
-            id: 'parse-response',
+            id: PLAYLIST_PARSE_RESPONSE,
             execute: (response: any) => this.setPlaylist(response.payload),
         },
         {
@@ -46,13 +60,18 @@ export class HomeComponent {
             },
         },
         {
-            id: 'error',
+            id: ERROR,
             execute: (response: { message: string; status: number }) => {
                 this.isLoading = false;
                 this.showNotification(
-                    `Error: ${response.status} ${response.message}. Please check the entered playlist URL again.`
+                    `Error: ${response.status} ${response.message}.`
                 );
             },
+        },
+        {
+            id: PLAYLIST_UPDATE_RESPONSE,
+            execute: (response: { message: string }) =>
+                this.showNotification(response.message),
         },
     ];
 
@@ -110,9 +129,10 @@ export class HomeComponent {
         this.isLoading = true;
         const result = (payload.uploadEvent.target as FileReader).result;
         const array = (result as string).split('\n');
-        this.electronService.ipcRenderer.send('parse-playlist', {
+        this.electronService.ipcRenderer.send(PLAYLIST_PARSE, {
             title: payload.file.name,
             playlist: array,
+            path: payload.file.nativeFile.path,
         });
     }
 
@@ -163,6 +183,17 @@ export class HomeComponent {
     removePlaylist(playlistId: string): void {
         this.electronService.ipcRenderer.send('playlist-remove-by-id', {
             id: playlistId,
+        });
+    }
+
+    /**
+     * Sends an IPC event with the playlist details to the main process to trigger the refresh operation
+     * @param item playlist to update
+     */
+    refreshPlaylist(item: PlaylistMeta): void {
+        this.electronService.ipcRenderer.send(PLAYLIST_UPDATE, {
+            id: item._id,
+            ...(item.url ? { url: item.url } : { filePath: item.filePath }),
         });
     }
 

@@ -1,18 +1,18 @@
 $black: (
-    50: #000000,
-    100: #000000,
-    200: #000000,
-    300: #000000,
-    400: #000000,
-    500: #000000,
-    600: #000000,
-    700: #000000,
-    800: #000000,
-    900: #000000,
-    A100: #000000,
-    A200: #000000,
-    A400: #000000,
-    A700: #000000,
+    50: #000,
+    100: #000,
+    200: #000,
+    300: #000,
+    400: #000,
+    500: #000,
+    600: #000,
+    700: #000,
+    800: #000,
+    900: #000,
+    A100: #000,
+    A200: #000,
+    A400: #000,
+    A700: #000,
     contrast: (
         50: $light-primary-text,
         100: $light-primary-text,
@@ -43,6 +43,7 @@ $angular-default-theme: mat-light-theme(
         ),
     )
 );
-@include angular-material-theme($angular-default-theme);
 
 @import 'dark';
+
+@include angular-material-theme($angular-default-theme);

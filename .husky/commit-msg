@@ -3,5 +3,6 @@
 
 [ -n "$CI" ] && exit 0
 
+npx stylelint "**/*.scss"
 npx --no-install commitlint --edit
 npm test -- --coverage

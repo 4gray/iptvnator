@@ -32,7 +32,20 @@
                 | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
                 {{ item.importDate | date }}
             </ng-container>
+            <ng-container *ngIf="item.updateDate">
+                | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
+                {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
+            </ng-container>
         </div>
+        <button
+            *ngIf="item.url || item.filePath"
+            mat-icon-button
+            color="accent"
+            (click)="$event.stopPropagation(); refreshClicked.emit(item)"
+            [matTooltip]="'HOME.PLAYLISTS.REFRESH' | translate"
+        >
+            <mat-icon>sync</mat-icon>
+        </button>
         <button
             mat-icon-button
             color="accent"

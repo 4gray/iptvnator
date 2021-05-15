@@ -1,8 +1,7 @@
-
 .drop-container {
     margin: 10px;
     padding: 10px;
-    height: calc(100vh - 230px);
+    height: calc(100vh - 235px);
     border: 2px dashed #ccc;
     border-radius: 3px;
     text-align: center;
@@ -36,17 +35,14 @@
     display: inline-block;
     text-transform: uppercase;
     border-radius: 4px;
+    cursor: pointer;
+    line-height: 35px;
+    padding: 3px 10px;
 }
 
 .input-file:focus + label,
 .input-file + label:hover {
     background-color: #202b69;
-}
-
-.input-file + label {
-    cursor: pointer;
-    line-height: 35px;
-    padding: 3px 10px;
 }
 
 .upload-icon {

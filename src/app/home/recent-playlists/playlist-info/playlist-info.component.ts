@@ -15,7 +15,6 @@ import { Playlist } from '../../playlist.interface';
 @Component({
     selector: 'app-playlist-info',
     templateUrl: './playlist-info.component.html',
-    styleUrls: ['./playlist-info.component.scss'],
     providers: [DatePipe],
 })
 export class PlaylistInfoComponent {

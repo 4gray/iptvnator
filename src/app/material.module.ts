@@ -15,6 +15,7 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule } from '@angular/material/dialog';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @NgModule({
     exports: [
@@ -34,6 +35,7 @@ import { MatDialogModule } from '@angular/material/dialog';
         ScrollingModule,
         MatGridListModule,
         MatTooltipModule,
+        MatCheckboxModule,
     ],
 })
 export class MaterialModule {}

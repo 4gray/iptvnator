@@ -22,6 +22,7 @@
                 <app-recent-playlists
                     [playlists]="playlists"
                     (playlistClicked)="getPlaylist($event)"
+                    (refreshClicked)="refreshPlaylist($event)"
                     (removeClicked)="removePlaylist($event)"
                 >
                 </app-recent-playlists>
