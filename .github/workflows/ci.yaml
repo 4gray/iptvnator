@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - electron
+  pull_request:
+    branches:
+      - electron
 
 jobs:
   build-and-test:
