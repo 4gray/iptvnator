@@ -16,7 +16,7 @@ export const SETTINGS_STORE_KEY = 'settings';
 @Component({
     selector: 'app-video-player',
     templateUrl: './video-player.component.html',
-    styleUrls: ['./video-player.component.css'],
+    styleUrls: ['./video-player.component.scss'],
 })
 export class VideoPlayerComponent implements OnInit {
     /** Active selected channel */
