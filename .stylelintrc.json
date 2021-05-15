@@ -1,0 +1,21 @@
+{
+    "extends": "stylelint-config-standard",
+    "rules": {
+        "indentation": 4,
+        "selector-pseudo-element-no-unknown": [
+            true,
+            {
+                "ignorePseudoElements": ["ng-deep"]
+            }
+        ],
+        "at-rule-no-unknown": [
+            true,
+            {
+                "ignoreAtRules": ["function", "if", "each", "include", "mixin"]
+            }
+        ],
+        "value-keyword-case": null
+    },
+    "plugins": ["stylelint-scss"],
+    "syntax": "scss"
+}
