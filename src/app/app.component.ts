@@ -28,7 +28,6 @@ new Titlebar({
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss'],
 })
 export class AppComponent {
     /** Visibility flag of the "what is new" modal dialog */
@@ -157,9 +156,8 @@ export class AppComponent {
         this.storage.get('version').subscribe((version) => {
             const isNewVersion = semver.gt(actualVersion, version || '0.0.0');
             if (!version || isNewVersion) {
-                this.modals = this.whatsNewService.getModalsByVersion(
-                    actualVersion
-                );
+                this.modals =
+                    this.whatsNewService.getModalsByVersion(actualVersion);
                 this.setDialogVisibility(true);
             }
             this.setVersion(actualVersion);

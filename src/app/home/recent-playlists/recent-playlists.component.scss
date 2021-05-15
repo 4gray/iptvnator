@@ -1,9 +1,11 @@
 mat-list-item {
     cursor: pointer;
 }
+
 .mat-list-base {
     padding-top: 0 !important;
 }
+
 mat-nav-list {
     height: calc(100vh - 192px);
     overflow: auto;

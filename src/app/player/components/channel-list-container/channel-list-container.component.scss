@@ -2,12 +2,6 @@
     background: #ddd;
 }
 
-::ng-deep {
-    .dark-theme .active {
-        background: #000;
-    }
-}
-
 .mat-list-base {
     padding-top: 0;
 }
@@ -39,9 +33,14 @@
 }
 
 ::ng-deep {
+    .dark-theme .active {
+        background: #000;
+    }
+
     .mat-tab-label-content {
         text-transform: uppercase;
     }
+
     .mat-expansion-panel {
         border-radius: 0 !important;
     }
