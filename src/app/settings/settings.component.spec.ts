@@ -26,7 +26,7 @@ class MatSnackBarStub {
     open(): void {}
 }
 
-class MockRouter {
+export class MockRouter {
     navigateByUrl(url: string) {
         return url;
     }
