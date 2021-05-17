@@ -57,7 +57,11 @@
                 "TITLE": "Titel",
                 "USER_AGENT": "User agent",
                 "SAVE": "Speichern",
-                "ORIGINAL_FILENAME": "Original-Dateinamen"
+                "ORIGINAL_FILENAME": "Original-Dateinamen",
+                "FILE_PATH": "Dateipfad",
+                "UPDATE_FAILED": "Update fehlgeschlagen",
+                "AUTO_UPDATE": "Auto-update",
+                "AUTO_UPDATE_DESCRIPTION": "Wenn die Auto-Refresh-Funktion aktiviert ist, wird die Wiedergabeliste bei jedem Start der Anwendung automatisch aktualisiert."
             },
             "UPDATED": "Aktualisiert am",
             "REFRESH": "Aktualisieren"
