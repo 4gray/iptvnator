@@ -46,9 +46,7 @@ export class HomeComponent {
         {
             id: 'playlist-all-result',
             execute: (response: { payload: Partial<Playlist[]> }) =>
-                (this.playlists = response.payload.sort((a, b) =>
-                    b.importDate.localeCompare(a.importDate)
-                )),
+                (this.playlists = response.payload),
         },
         {
             id: 'playlist-remove-by-id-result',
