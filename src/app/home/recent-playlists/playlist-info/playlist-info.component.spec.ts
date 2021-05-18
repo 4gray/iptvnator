@@ -10,6 +10,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { DatePipe } from '@angular/common';
 import { PlaylistInfoComponent } from './playlist-info.component';
 import { FormsModule, ReactiveFormsModule, FormBuilder } from '@angular/forms';
+import { Playlist } from '../../playlist.interface';
 
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
@@ -51,7 +52,7 @@ describe('PlaylistInfoComponent', () => {
     });
 
     it('should send an event to the main process after save', () => {
-        const playlistToSave = { _id: 'a12345', title: 'Playlist' };
+        const playlistToSave = { _id: 'a12345', title: 'Playlist' } as Playlist;
         spyOn(electronService.ipcRenderer, 'send');
         component.saveChanges(playlistToSave);
         expect(electronService.ipcRenderer.send).toHaveBeenCalledTimes(1);

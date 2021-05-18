@@ -2,8 +2,11 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import axios from 'axios';
 import { guid } from '@datorama/akita';
-import { Playlist } from './src/app/home/playlist.interface';
-import Nedb from 'nedb-promises-ts';
+import {
+    Playlist,
+    PlaylistUpdateState,
+} from './src/app/home/playlist.interface';
+import Nedb, { Cursor } from 'nedb-promises-ts';
 import {
     EPG_ERROR,
     EPG_FETCH,
@@ -147,16 +150,11 @@ export class Api {
             );
 
         ipcMain.on(PLAYLIST_SAVE_DETAILS, async (event, args) => {
-            const updated = await db.update(
-                { _id: args._id },
-                {
-                    $set: {
-                        title: args.title,
-                        userAgent: args.userAgent,
-                        autoRefresh: args.autoRefresh,
-                    },
-                }
-            );
+            const updated = await this.updatePlaylistById(args.id, {
+                title: args.title,
+                userAgent: args.userAgent,
+                autoRefresh: args.autoRefresh,
+            });
             if (!updated.numAffected || updated.numAffected === 0) {
                 console.error('Error: Playlist details were not updated');
             }
@@ -173,6 +171,30 @@ export class Api {
                 }
             }
         );
+
+        this.refreshPlaylists();
+    }
+
+    /**
+     * Starts the update process for all the playlists with the enabled auto-refresh flag
+     */
+    refreshPlaylists() {
+        this.getAllPlaylistsMeta().then((playlists) => {
+            playlists.forEach((playlist) => {
+                if (playlist.autoRefresh && playlist.autoRefresh === true) {
+                    if (playlist.url) {
+                        this.fetchPlaylistByUrl(playlist._id, playlist.url);
+                    } else if (playlist.filePath) {
+                        this.fetchPlaylistByFilePath(
+                            playlist._id,
+                            playlist.filePath
+                        );
+                    } else {
+                        console.log('skip...');
+                    }
+                }
+            });
+        });
     }
 
     /**
@@ -180,9 +202,20 @@ export class Api {
      * @param event main event
      */
     async sendAllPlaylists(event: Electron.IpcMainEvent): Promise<void> {
-        const playlists = await db.find(
-            { type: { $exists: false } },
-            {
+        const playlists = await this.getAllPlaylistsMeta();
+        event.sender.send('playlist-all-result', {
+            payload: playlists,
+        });
+    }
+
+    /**
+     * Returns all existing playlists with meta information from the database
+     * @returns
+     */
+    getAllPlaylistsMeta(): Cursor<Playlist> {
+        return db
+            .find({ type: { $exists: false } })
+            .projection({
                 count: 1,
                 title: 1,
                 _id: 1,
@@ -193,11 +226,9 @@ export class Api {
                 filePath: 1,
                 autoRefresh: 1,
                 updateDate: 1,
-            }
-        );
-        event.sender.send('playlist-all-result', {
-            payload: playlists,
-        });
+                updateState: 1,
+            })
+            .sort({ importDate: -1 });
     }
 
     /**
@@ -280,7 +311,29 @@ export class Api {
                     playlist,
                     count: playlist.items.length,
                     updateDate: Date.now(),
+                    updateState: PlaylistUpdateState.UPDATED,
                 },
+            }
+        );
+    }
+
+    /**
+     * Updates the provided playlist in the database
+     * @param id id of the playlist
+     * @param data playlist data to update
+     * @returns
+     */
+    updatePlaylistById(
+        id: string,
+        data: Partial<Playlist>
+    ): Promise<{
+        numAffected: number;
+        upsert: boolean;
+    }> {
+        return db.update(
+            { _id: id },
+            {
+                $set: data,
             }
         );
     }
@@ -294,20 +347,27 @@ export class Api {
     async handlePlaylistRefresh(
         id: string,
         playlistString: any,
-        event: Electron.IpcMainEvent
+        event?: Electron.IpcMainEvent
     ): Promise<void> {
         const playlist = this.convertFileStringToPlaylist(playlistString);
-        const updated = await this.saveUpdatedPlaylist(id, playlist);
+        const updated = await this.updatePlaylistById(id, {
+            playlist,
+            count: playlist.items.length,
+            updateDate: Date.now(),
+            updateState: PlaylistUpdateState.UPDATED,
+        });
         if (!updated.numAffected || updated.numAffected === 0) {
             console.error('Error: Playlist details were not updated');
         }
 
-        event.sender.send(PLAYLIST_UPDATE_RESPONSE, {
-            message: `Success! The playlist was successfully updated (${playlist.items.length} channels)`,
-        });
+        if (event) {
+            event.sender.send(PLAYLIST_UPDATE_RESPONSE, {
+                message: `Success! The playlist was successfully updated (${playlist.items.length} channels)`,
+            });
 
-        // send all playlists back to the renderer process
-        this.sendAllPlaylists(event);
+            // send all playlists back to the renderer process
+            this.sendAllPlaylists(event);
+        }
     }
 
     /**
@@ -319,7 +379,7 @@ export class Api {
     async fetchPlaylistByUrl(
         id: string,
         url: string,
-        event: Electron.IpcMainEvent
+        event?: Electron.IpcMainEvent
     ): Promise<void> {
         try {
             await axios
@@ -328,6 +388,9 @@ export class Api {
                     this.handlePlaylistRefresh(id, result.data, event)
                 );
         } catch (err) {
+            this.updatePlaylistById(id, {
+                updateState: PlaylistUpdateState.NOT_UPDATED,
+            });
             event.sender.send(ERROR, {
                 message: `${err.response.statusText}. Please check the entered playlist URL again.`,
                 status: err.response.status,
@@ -344,19 +407,19 @@ export class Api {
     fetchPlaylistByFilePath(
         id: string,
         path: string,
-        event: Electron.IpcMainEvent
+        event?: Electron.IpcMainEvent
     ): void {
         try {
             fs.readFile(path, 'utf-8', async (err, data) => {
                 if (err) {
-                    this.handleFileNotFoundError(err, event);
+                    this.handleFileNotFoundError(err, id, event);
                     return;
                 }
 
                 this.handlePlaylistRefresh(id, data, event);
             });
         } catch (err) {
-            this.handleFileNotFoundError(err, event);
+            this.handleFileNotFoundError(err, id, event);
         }
     }
 
@@ -372,13 +435,21 @@ export class Api {
             syscall: string;
             path: string;
         },
-        event: Electron.IpcMainEvent
+        id: string,
+        event?: Electron.IpcMainEvent
     ) {
         console.error(error);
-        event.sender.send(ERROR, {
-            message: `Sorry, playlist was not found (${error.path})`,
-            status: 'ENOENT',
+        this.updatePlaylistById(id, {
+            updateState: PlaylistUpdateState.NOT_UPDATED,
         });
+        if (event) {
+            // send all playlists back to the renderer process
+            this.sendAllPlaylists(event);
+            event.sender.send(ERROR, {
+                message: `Sorry, playlist was not found (${error.path})`,
+                status: 'ENOENT',
+            });
+        }
     }
 
     convertFileStringToPlaylist(m3uString: string): any {
