@@ -46,7 +46,7 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
             console.log('... switching channel to ', channel.name, url);
             this.hls.loadSource(url);
             this.hls.attachMedia(this.videoPlayer.nativeElement);
-            this.videoPlayer.nativeElement.play();
+            this.handlePlayOperation();
         } else if (
             this.videoPlayer.nativeElement.canPlayType(
                 'application/vnd.apple.mpegurl'
@@ -56,9 +56,24 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
             this.videoPlayer.nativeElement.addEventListener(
                 'loadedmetadata',
                 () => {
-                    this.videoPlayer.nativeElement.play();
+                    this.handlePlayOperation();
                 }
             );
+        }
+    }
+
+    /**
+     * Handles promise based play operation
+     */
+    handlePlayOperation(): void {
+        const playPromise = this.videoPlayer.nativeElement.play();
+
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    // Automatic playback started!
+                })
+                .catch((error) => console.error(error));
         }
     }
 
