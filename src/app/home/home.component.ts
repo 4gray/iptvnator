@@ -25,6 +25,7 @@ export type PlaylistMeta = Pick<
     | 'userAgent'
     | 'filePath'
     | 'updateDate'
+    | 'updateState'
 >;
 
 @Component({
