@@ -36,6 +36,15 @@
                 | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
                 {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
             </ng-container>
+            <ng-container *ngIf="item.updateState === 2">
+                <mat-icon
+                    [matTooltip]="
+                        'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED' | translate
+                    "
+                    [inline]="true"
+                    >warning</mat-icon
+                >
+            </ng-container>
         </div>
         <button
             *ngIf="item.url || item.filePath"

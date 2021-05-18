@@ -26,6 +26,6 @@ export interface Playlist {
     userAgent?: string;
     filePath?: string;
     autoRefresh: boolean;
-    updateDate?: string;
+    updateDate?: number;
     updateState?: PlaylistUpdateState;
 }

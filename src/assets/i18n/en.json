@@ -25,7 +25,11 @@
                 "CLOSE": "Close",
                 "SAVE": "Save",
                 "USER_AGENT": "User agent",
-                "ORIGINAL_FILENAME": "Original filename"
+                "ORIGINAL_FILENAME": "Original filename",
+                "FILE_PATH": "File path",
+                "UPDATE_FAILED": "Last playlist update failed",
+                "AUTO_UPDATE": "Auto-update",
+                "AUTO_UPDATE_DESCRIPTION": "If the auto-refresh function is activated, the playlist will be updated automatically each time the app is started."
             },
             "UPDATED": "Updated",
             "REFRESH": "Refresh playlist"

@@ -41,18 +41,18 @@ export class HomeComponent {
     commandsList = [
         {
             id: PLAYLIST_PARSE_RESPONSE,
-            execute: (response: any) => this.setPlaylist(response.payload),
+            execute: (response: { payload: Playlist }) =>
+                this.setPlaylist(response.payload),
         },
         {
             id: 'playlist-all-result',
-            execute: (response: { payload: Partial<Playlist[]> }) =>
-                (this.playlists = response.payload.sort((a, b) =>
-                    b.importDate.localeCompare(a.importDate)
-                )),
+            execute: (response: { payload: Partial<PlaylistMeta[]> }): void => {
+                this.playlists = response.payload;
+            },
         },
         {
             id: 'playlist-remove-by-id-result',
-            execute: () => {
+            execute: (): void => {
                 this.snackBar.open('Done! Playlist was removed.', null, {
                     duration: 2000,
                 });
@@ -61,7 +61,7 @@ export class HomeComponent {
         },
         {
             id: ERROR,
-            execute: (response: { message: string; status: number }) => {
+            execute: (response: { message: string; status: number }): void => {
                 this.isLoading = false;
                 this.showNotification(
                     `Error: ${response.status} ${response.message}.`

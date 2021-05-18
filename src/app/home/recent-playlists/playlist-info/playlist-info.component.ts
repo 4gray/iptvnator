@@ -61,6 +61,11 @@ export class PlaylistInfoComponent {
                 disabled: true,
             }),
             url: new FormControl({ value: this.playlist.url, disabled: true }),
+            filePath: new FormControl({
+                value: this.playlist.filePath,
+                disabled: true,
+            }),
+            autoRefresh: new FormControl(this.playlist.autoRefresh),
         });
     }
 
@@ -68,7 +73,9 @@ export class PlaylistInfoComponent {
      * Saves updated playlist information
      * @param data updated form data
      */
-    saveChanges(data: Pick<Playlist, '_id' | 'title' | 'userAgent'>): void {
+    saveChanges(
+        data: Pick<Playlist, '_id' | 'title' | 'userAgent' | 'autoRefresh'>
+    ): void {
         this.electronService.ipcRenderer.send(PLAYLIST_SAVE_DETAILS, data);
     }
 }
