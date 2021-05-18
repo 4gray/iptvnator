@@ -1,3 +1,4 @@
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { PLAYLIST_SAVE_DETAILS } from './../../../../../ipc-commands';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ElectronServiceStub } from './../../home.component.spec';
@@ -23,6 +24,7 @@ describe('PlaylistInfoComponent', () => {
                 imports: [
                     FormsModule,
                     MockModule(MatDialogModule),
+                    MockModule(MatCheckboxModule),
                     MockModule(MatFormFieldModule),
                     ReactiveFormsModule,
                 ],
