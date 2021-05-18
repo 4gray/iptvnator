@@ -11,7 +11,7 @@
             "extends": [
                 "eslint:recommended",
                 "plugin:@typescript-eslint/eslint-recommended",
-                "prettier/@typescript-eslint",
+                "prettier",
                 "plugin:@typescript-eslint/recommended",
                 "plugin:@typescript-eslint/recommended-requiring-type-checking"
             ],
@@ -38,7 +38,8 @@
                         "SwitchCase": 1,
                         "CallExpression": { "arguments": "first" },
                         "FunctionExpression": { "parameters": "first" },
-                        "FunctionDeclaration": { "parameters": "first" }
+                        "FunctionDeclaration": { "parameters": "first" },
+                        "ignoredNodes": ["TSTypeParameterInstantiation"]
                     }
                 ],
                 "@typescript-eslint/no-empty-function": 0,
@@ -49,6 +50,7 @@
                 "@typescript-eslint/no-unsafe-assignment": 0,
                 "@typescript-eslint/no-unsafe-return": 0,
                 "@typescript-eslint/no-floating-promises": 0,
+                "@typescript-eslint/unbound-method": ["off"],
                 "@angular-eslint/use-injectable-provided-in": "error",
                 "@angular-eslint/no-attribute-decorator": "error"
             }
