@@ -1,3 +1,4 @@
+import { ParsedPlaylist } from './src/typings.d';
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import axios from 'axios';
@@ -39,9 +40,9 @@ export class Api {
     workerWindow: BrowserWindow;
 
     constructor() {
-        ipcMain.on('parse-playlist-by-url', async (event, args) => {
+        ipcMain.on('parse-playlist-by-url', (event, args) => {
             try {
-                await axios.get(args.url).then((result) => {
+                axios.get(args.url).then((result) => {
                     const parsedPlaylist = this.convertFileStringToPlaylist(
                         result.data
                     );
@@ -80,55 +81,63 @@ export class Api {
 
         ipcMain.on('playlists-all', (event) => this.sendAllPlaylists(event));
 
-        ipcMain.on('playlist-by-id', async (event, args) => {
-            const playlist = await db.findOne({ _id: args.id });
-            this.setUserAgent(playlist.userAgent);
-            event.sender.send(PLAYLIST_PARSE_RESPONSE, {
-                payload: playlist,
+        ipcMain.on('playlist-by-id', (event, args) => {
+            db.findOne({ _id: args.id }).then((playlist) => {
+                this.setUserAgent(playlist.userAgent);
+                event.sender.send(PLAYLIST_PARSE_RESPONSE, {
+                    payload: playlist,
+                });
             });
         });
 
-        ipcMain.on('playlist-remove-by-id', async (event, args) => {
-            const removed = await db.remove({ _id: args.id });
-            if (removed) {
-                event.sender.send('playlist-remove-by-id-result', {
-                    message: 'playlist was removed',
-                });
-            }
+        ipcMain.on('playlist-remove-by-id', (event, args) => {
+            db.remove({ _id: args.id }).then((removed) => {
+                if (removed) {
+                    event.sender.send('playlist-remove-by-id-result', {
+                        message: 'playlist was removed',
+                    });
+                }
+            });
         });
 
         // open playlist from file system
         ipcMain.on('open-file', (event, args) => {
-            fs.readFile(args.filePath, 'utf-8', (err, data: string) => {
-                if (err) {
-                    console.log(
-                        'An error ocurred reading the file :' + err.message
-                    );
-                    return;
-                }
+            fs.readFile(
+                args.filePath,
+                'utf-8',
+                (err: NodeJS.ErrnoException, data: string) => {
+                    if (err) {
+                        console.log(
+                            'An error ocurred reading the file :' + err.message
+                        );
+                        return;
+                    }
 
-                const parsedPlaylist = this.convertFileStringToPlaylist(data);
-                const playlistObject = this.createPlaylistObject(
-                    args.fileName,
-                    parsedPlaylist,
-                    args.filePath,
-                    'FILE'
-                );
-                this.insertToDb(playlistObject);
-                event.sender.send(PLAYLIST_PARSE_RESPONSE, {
-                    payload: playlistObject,
-                });
-            });
+                    const parsedPlaylist =
+                        this.convertFileStringToPlaylist(data);
+                    const playlistObject = this.createPlaylistObject(
+                        args.fileName,
+                        parsedPlaylist,
+                        args.filePath,
+                        'FILE'
+                    );
+                    this.insertToDb(playlistObject);
+                    event.sender.send(PLAYLIST_PARSE_RESPONSE, {
+                        payload: playlistObject,
+                    });
+                }
+            );
         });
 
-        ipcMain.on('update-favorites', async (event, args) => {
-            const updated = await db.update(
+        ipcMain.on('update-favorites', (event, args) => {
+            db.update(
                 { id: args.id },
                 { $set: { favorites: args.favorites } }
-            );
-            if (!updated.numAffected || updated.numAffected === 0) {
-                console.error('Error: Favorites were not updated');
-            }
+            ).then((updated) => {
+                if (!updated.numAffected || updated.numAffected === 0) {
+                    console.error('Error: Favorites were not updated');
+                }
+            });
         });
 
         // listeners for EPG events
@@ -149,17 +158,29 @@ export class Api {
                 this.mainWindow.webContents.send(EPG_ERROR, arg)
             );
 
-        ipcMain.on(PLAYLIST_SAVE_DETAILS, async (event, args) => {
-            const updated = await this.updatePlaylistById(args.id, {
-                title: args.title,
-                userAgent: args.userAgent,
-                autoRefresh: args.autoRefresh,
-            });
-            if (!updated.numAffected || updated.numAffected === 0) {
-                console.error('Error: Playlist details were not updated');
+        ipcMain.on(
+            PLAYLIST_SAVE_DETAILS,
+            (
+                event,
+                args: Pick<
+                    Playlist,
+                    '_id' | 'title' | 'userAgent' | 'autoRefresh'
+                >
+            ) => {
+                this.updatePlaylistById(args._id, {
+                    title: args.title,
+                    userAgent: args.userAgent,
+                    autoRefresh: args.autoRefresh,
+                }).then((updated) => {
+                    if (!updated.numAffected || updated.numAffected === 0) {
+                        console.error(
+                            'Error: Playlist details were not updated'
+                        );
+                    }
+                    this.sendAllPlaylists(event);
+                });
             }
-            this.sendAllPlaylists(event);
-        });
+        );
 
         ipcMain.on(
             PLAYLIST_UPDATE,
@@ -178,7 +199,7 @@ export class Api {
     /**
      * Starts the update process for all the playlists with the enabled auto-refresh flag
      */
-    refreshPlaylists() {
+    refreshPlaylists(): void {
         this.getAllPlaylistsMeta().then((playlists) => {
             playlists.forEach((playlist) => {
                 if (playlist.autoRefresh && playlist.autoRefresh === true) {
@@ -201,10 +222,11 @@ export class Api {
      * Sends list with all playlists which are stored in the database
      * @param event main event
      */
-    async sendAllPlaylists(event: Electron.IpcMainEvent): Promise<void> {
-        const playlists = await this.getAllPlaylistsMeta();
-        event.sender.send('playlist-all-result', {
-            payload: playlists,
+    sendAllPlaylists(event: Electron.IpcMainEvent): void {
+        this.getAllPlaylistsMeta().then((playlists) => {
+            event.sender.send('playlist-all-result', {
+                payload: playlists,
+            });
         });
     }
 
@@ -349,7 +371,8 @@ export class Api {
         playlistString: any,
         event?: Electron.IpcMainEvent
     ): Promise<void> {
-        const playlist = this.convertFileStringToPlaylist(playlistString);
+        const playlist: ParsedPlaylist =
+            this.convertFileStringToPlaylist(playlistString);
         const updated = await this.updatePlaylistById(id, {
             playlist,
             count: playlist.items.length,
@@ -392,7 +415,7 @@ export class Api {
                 updateState: PlaylistUpdateState.NOT_UPDATED,
             });
             event.sender.send(ERROR, {
-                message: `${err.response.statusText}. Please check the entered playlist URL again.`,
+                message: `File not found. Please check the entered playlist URL again.`,
                 status: err.response.status,
             });
         }
@@ -410,7 +433,7 @@ export class Api {
         event?: Electron.IpcMainEvent
     ): void {
         try {
-            fs.readFile(path, 'utf-8', async (err, data) => {
+            fs.readFile(path, 'utf-8', (err, data) => {
                 if (err) {
                     this.handleFileNotFoundError(err, id, event);
                     return;
@@ -469,7 +492,7 @@ export class Api {
      * Inserts new playlist to the database
      * @param playlist playlist to add
      */
-    insertToDb(playlist: any): void {
+    insertToDb(playlist: Playlist): void {
         db.insert(playlist).then((response) => {
             console.log('playlist was saved...', response._id);
         });
