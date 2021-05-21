@@ -42,7 +42,7 @@ export class HomeComponent {
     commandsList = [
         {
             id: PLAYLIST_PARSE_RESPONSE,
-            execute: (response: { payload: Playlist }) =>
+            execute: (response: { payload: Playlist }): void =>
                 this.setPlaylist(response.payload),
         },
         {
@@ -71,7 +71,7 @@ export class HomeComponent {
         },
         {
             id: PLAYLIST_UPDATE_RESPONSE,
-            execute: (response: { message: string }) =>
+            execute: (response: { message: string }): void =>
                 this.showNotification(response.message),
         },
     ];

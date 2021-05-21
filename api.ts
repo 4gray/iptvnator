@@ -293,7 +293,7 @@ export class Api {
      */
     createPlaylistObject(
         name: string,
-        playlist: any,
+        playlist: ParsedPlaylist,
         urlOrPath?: string,
         uploadType?: 'URL' | 'FILE'
     ): Playlist {
@@ -317,26 +317,6 @@ export class Api {
             ...(uploadType === 'URL' ? { url: urlOrPath } : {}),
             ...(uploadType === 'FILE' ? { filePath: urlOrPath } : {}),
         };
-    }
-
-    saveUpdatedPlaylist(
-        id: string,
-        playlist: any
-    ): Promise<{
-        numAffected: number;
-        upsert: boolean;
-    }> {
-        return db.update(
-            { _id: id },
-            {
-                $set: {
-                    playlist,
-                    count: playlist.items.length,
-                    updateDate: Date.now(),
-                    updateState: PlaylistUpdateState.UPDATED,
-                },
-            }
-        );
     }
 
     /**
@@ -368,7 +348,7 @@ export class Api {
      */
     async handlePlaylistRefresh(
         id: string,
-        playlistString: any,
+        playlistString: string,
         event?: Electron.IpcMainEvent
     ): Promise<void> {
         const playlist: ParsedPlaylist =
@@ -449,6 +429,7 @@ export class Api {
     /**
      * Sends an error message to the renderer process
      * @param error
+     * @param id
      * @param event
      */
     handleFileNotFoundError(
@@ -460,7 +441,7 @@ export class Api {
         },
         id: string,
         event?: Electron.IpcMainEvent
-    ) {
+    ): void {
         console.error(error);
         this.updatePlaylistById(id, {
             updateState: PlaylistUpdateState.NOT_UPDATED,
@@ -475,7 +456,7 @@ export class Api {
         }
     }
 
-    convertFileStringToPlaylist(m3uString: string): any {
+    convertFileStringToPlaylist(m3uString: string): ParsedPlaylist {
         return this.parsePlaylist(m3uString.split('\n'));
     }
 
@@ -483,7 +464,7 @@ export class Api {
      * Parses string based array to playlist object
      * @param m3uArray m3u playlist as array with strings
      */
-    parsePlaylist(m3uArray: any[]): any {
+    parsePlaylist(m3uArray: string[]): ParsedPlaylist {
         const playlistAsString = m3uArray.join('\n');
         return parse(playlistAsString);
     }
