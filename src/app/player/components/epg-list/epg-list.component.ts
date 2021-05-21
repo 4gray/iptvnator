@@ -74,7 +74,12 @@ export class EpgListComponent {
      */
     ngOnInit(): void {
         this.timeshiftUntil$ = this.channelQuery
-            .select((store) => store.active.tvg.rec)
+            .select(
+                (store) =>
+                    store.active.tvg.rec ||
+                    store.active.timeshift ||
+                    store.active.catchup?.days
+            )
             .pipe(
                 map((value) =>
                     moment(Date.now())

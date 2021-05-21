@@ -19,6 +19,12 @@ export interface Channel {
         rec: string;
     };
     epgParams?: string;
+    timeshift?: string;
+    catchup?: {
+        type?: string;
+        source?: string;
+        days?: string;
+    };
 }
 
 /**
@@ -32,5 +38,6 @@ export function createChannel(params: Partial<Channel>): Channel {
         group: params.group,
         url: params.url,
         tvg: params.tvg,
+        timeshift: params.timeshift,
     } as Channel;
 }
