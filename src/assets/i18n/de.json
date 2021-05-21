@@ -61,7 +61,8 @@
                 "FILE_PATH": "Dateipfad",
                 "UPDATE_FAILED": "Update fehlgeschlagen",
                 "AUTO_UPDATE": "Auto-update",
-                "AUTO_UPDATE_DESCRIPTION": "Wenn die Auto-Refresh-Funktion aktiviert ist, wird die Wiedergabeliste bei jedem Start der Anwendung automatisch aktualisiert."
+                "AUTO_UPDATE_DESCRIPTION": "Wenn die Auto-Refresh-Funktion aktiviert ist, wird die Wiedergabeliste bei jedem Start der Anwendung automatisch aktualisiert.",
+                "CUSTOM_USER_AGENT": "Einige IPTV-Anbieter benötigen einen bestimmten 'User-Agent', um ihre Playlist abspielen zu können."
             },
             "UPDATED": "Aktualisiert am",
             "REFRESH": "Aktualisieren"

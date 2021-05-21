@@ -29,7 +29,8 @@
                 "FILE_PATH": "File path",
                 "UPDATE_FAILED": "Last playlist update failed",
                 "AUTO_UPDATE": "Auto-update",
-                "AUTO_UPDATE_DESCRIPTION": "If the auto-refresh function is activated, the playlist will be updated automatically each time the app is started."
+                "AUTO_UPDATE_DESCRIPTION": "If the auto-refresh function is activated, the playlist will be updated automatically each time the app is started.",
+                "CUSTOM_USER_AGENT": "Some IPTV providers need a specific user-agent in order to play their playlist."
             },
             "UPDATED": "Updated",
             "REFRESH": "Refresh playlist"
