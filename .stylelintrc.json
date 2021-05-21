@@ -2,6 +2,16 @@
     "extends": "stylelint-config-standard",
     "rules": {
         "indentation": 4,
+        "selector-type-no-unknown": [
+            true,
+            {
+                "ignoreTypes": [
+                    "mat-selection-list",
+                    "mat-nav-list",
+                    "mat-list-item"
+                ]
+            }
+        ],
         "selector-pseudo-element-no-unknown": [
             true,
             {
