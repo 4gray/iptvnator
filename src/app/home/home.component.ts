@@ -1,3 +1,4 @@
+import { TranslateService } from '@ngx-translate/core';
 import { Component, NgZone } from '@angular/core';
 import { UploadFile } from 'ngx-uploader';
 import { ChannelStore, createChannel } from '../state';
@@ -12,6 +13,7 @@ import {
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
 } from './../../../ipc-commands';
+import { DialogService } from './../services/dialog.service';
 
 /** Type to describe meta data of a playlist */
 export type PlaylistMeta = Pick<
@@ -86,10 +88,12 @@ export class HomeComponent {
      */
     constructor(
         private channelStore: ChannelStore,
+        private dialogService: DialogService,
         private electronService: ElectronService,
         private ngZone: NgZone,
         private router: Router,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private translate: TranslateService
     ) {
         // get all playlists
         this.electronService.ipcRenderer.send('playlists-all');
@@ -175,6 +179,20 @@ export class HomeComponent {
             playlistId: playlist.id,
         }));
         this.navigateToPlayer();
+    }
+
+    /**
+     * Triggers on remove click
+     * @param playlistId playlist id to remove
+     */
+    removeClicked(playlistId: string): void {
+        this.dialogService.openConfirmDialog({
+            title: this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.TITLE'),
+            message: this.translate.instant(
+                'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
+            ),
+            onConfirm: (): void => this.removePlaylist(playlistId),
+        });
     }
 
     /**

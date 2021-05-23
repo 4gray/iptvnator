@@ -1,8 +1,8 @@
 import { UploadFile } from 'ngx-uploader';
 import { PLAYLIST_PARSE, PLAYLIST_UPDATE } from './../../../ipc-commands';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
+import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
 import { HomeComponent, PlaylistMeta } from './home.component';
 import { HeaderComponent } from '../shared/components/header/header.component';
 import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
@@ -15,6 +15,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ElectronService } from '../services/electron.service';
 import { Router } from '@angular/router';
+import { DialogService } from '../services/dialog.service';
 
 class MatSnackBarStub {
     open(): void {}
@@ -36,6 +37,7 @@ export class ElectronServiceStub {
 
 describe('HomeComponent', () => {
     let component: HomeComponent;
+    let dialogService: DialogService;
     let fixture: ComponentFixture<HomeComponent>;
     let electronService: ElectronService;
     let router: Router;
@@ -60,6 +62,8 @@ describe('HomeComponent', () => {
             providers: [
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
                 { provide: ElectronService, useClass: ElectronServiceStub },
+                MockProvider(DialogService),
+                MockProvider(TranslateService),
             ],
         }).compileComponents();
     });
@@ -68,6 +72,7 @@ describe('HomeComponent', () => {
         fixture = TestBed.createComponent(HomeComponent);
         component = fixture.componentInstance;
         electronService = TestBed.inject(ElectronService);
+        dialogService = TestBed.inject(DialogService);
         router = TestBed.inject(Router);
         TestBed.inject(ElectronService);
         fixture.detectChanges();
@@ -75,6 +80,13 @@ describe('HomeComponent', () => {
 
     it('should create', () => {
         expect(component).toBeTruthy();
+    });
+
+    it('should open the confirmation dialog on remove icon click', () => {
+        const playlistId = '12345';
+        spyOn(dialogService, 'openConfirmDialog');
+        component.removeClicked(playlistId);
+        expect(dialogService.openConfirmDialog).toHaveBeenCalledTimes(1);
     });
 
     it('should send an event to the main process to remove a playlist', () => {

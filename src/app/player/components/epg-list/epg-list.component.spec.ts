@@ -1,4 +1,4 @@
-import { MockComponent } from 'ng-mocks';
+import { MockComponent, MockProvider } from 'ng-mocks';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -21,7 +21,6 @@ describe('EpgListComponent', () => {
     let fixture: ComponentFixture<EpgListComponent>;
     let electronService: ElectronService;
     let channelStore: ChannelStore;
-    let dialog: MatDialog;
 
     const MOCKED_PROGRAMS = {
         channel: {
@@ -48,8 +47,7 @@ describe('EpgListComponent', () => {
                 desc: [
                     {
                         lang: 'en',
-                        value:
-                            "Jordan's Queen Rania has made job creation a priority to help curb the staggering unemployment rates among youths in the Middle East.",
+                        value: "Jordan's Queen Rania has made job creation a priority to help curb the staggering unemployment rates among youths in the Middle East.",
                     },
                 ],
                 date: ['20080711'],
@@ -104,6 +102,7 @@ describe('EpgListComponent', () => {
                 ],
                 providers: [
                     { provide: ElectronService, useClass: ElectronServiceStub },
+                    MockProvider(MatDialog),
                 ],
             }).compileComponents();
         })
@@ -113,9 +112,8 @@ describe('EpgListComponent', () => {
         fixture = TestBed.createComponent(EpgListComponent);
         component = fixture.componentInstance;
         electronService = TestBed.inject(ElectronService);
-        dialog = TestBed.inject(MatDialog);
         channelStore = TestBed.inject(ChannelStore);
-        channelStore.setActiveChannel(({
+        channelStore.setActiveChannel({
             id: '',
             url: '',
             name: '',
@@ -123,7 +121,7 @@ describe('EpgListComponent', () => {
             tvg: {
                 rec: '3',
             },
-        } as unknown) as Channel);
+        } as unknown as Channel);
         fixture.detectChanges();
     });
 
@@ -141,7 +139,7 @@ describe('EpgListComponent', () => {
     });
 
     it('should handle an empty epg programs object', () => {
-        const payload = ({} as unknown) as EpgData;
+        const payload = {} as unknown as EpgData;
         component.handleEpgData({ payload });
         fixture.detectChanges();
         expect(component.timeNow).toBeFalsy();
