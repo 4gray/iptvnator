@@ -17,8 +17,7 @@ export class WhatsNewService {
                 imageBgColor: '#333',
                 imageSrc: './assets/updates/060/dark-theme.png',
                 title: 'New in v0.6.0 - Dark theme 🎉',
-                text:
-                    'Finally, the dark theme is now available. Check the settings page of the application to change the theme.',
+                text: 'Finally, the dark theme is now available. Check the settings page of the application to change the theme.',
                 button: {
                     text: 'OKAY',
                     textColor: '#ccc',
@@ -30,8 +29,7 @@ export class WhatsNewService {
                 imageBgColor: '#333',
                 imageSrc: './assets/updates/060/channel-logos.png',
                 title: 'Channel logos 📺',
-                text:
-                    'The channel list was extended with the visualization of logotypes (only visible if they are defined in the playlist)',
+                text: 'The channel list was extended with the visualization of logotypes (only visible if they are defined in the playlist)',
                 button: {
                     text: 'OKAY',
                     textColor: '#ccc',
@@ -43,10 +41,35 @@ export class WhatsNewService {
                 imageBgColor: '#333',
                 imageSrc: './assets/updates/060/custom-user-agent.png',
                 title: 'Custom user agent 🕵️‍♂️',
-                text:
-                    'Some IPTV providers need a specific user-agent in order to play their playlist. Support of custom user agent is available now.',
+                text: 'Some IPTV providers need a specific user-agent in order to play their playlist. Support of custom user agent is available now.',
                 button: {
                     text: 'GOT IT',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+        ],
+        '0.7.0': [
+            {
+                imageHeight: 500,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/070/refresh-playlist.png',
+                title: 'New in v0.7.0 - Refresh playlists 🎉',
+                text: "Now you don't have to delete and re-add a playlist if it changes, you can simply update it directly from the user interface.",
+                button: {
+                    text: 'Nice!',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+            {
+                imageHeight: 500,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/070/auto-refresh.png',
+                title: 'Auto-refresh playlists 🎉',
+                text: 'In addition, an auto-refresh playlist function is available so that the playlists will be updated automatically every time the app is started.',
+                button: {
+                    text: 'Okay',
                     textColor: '#ccc',
                     bgColor: '#111',
                 },
