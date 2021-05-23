@@ -32,6 +32,10 @@
                 "AUTO_UPDATE_DESCRIPTION": "If the auto-refresh function is activated, the playlist will be updated automatically each time the app is started.",
                 "CUSTOM_USER_AGENT": "Some IPTV providers need a specific user-agent in order to play their playlist."
             },
+            "REMOVE_DIALOG": {
+                "TITLE": "Remove playlist",
+                "MESSAGE": "Are you sure you want to delete this playlist completely?"
+            },
             "UPDATED": "Updated",
             "REFRESH": "Refresh playlist"
         },
@@ -108,5 +112,7 @@
         "ENGLISH": "English",
         "RUSSIAN": "Русский",
         "GERMAN": "Deutsch"
-    }
+    },
+    "YES": "Yes",
+    "NO": "No"
 }

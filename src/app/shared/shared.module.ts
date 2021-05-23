@@ -7,9 +7,10 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MaterialModule } from '../material.module';
 import { FilterPipeModule } from 'ngx-filter-pipe';
 import { MomentDatePipe } from './pipes/moment-date.pipe';
+import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 
 @NgModule({
-    declarations: [HeaderComponent, MomentDatePipe],
+    declarations: [ConfirmDialogComponent, HeaderComponent, MomentDatePipe],
     imports: [
         CommonModule,
         FilterPipeModule,
@@ -20,6 +21,7 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
         TranslateModule,
     ],
     exports: [
+        ConfirmDialogComponent,
         FilterPipeModule,
         FlexLayoutModule,
         FormsModule,

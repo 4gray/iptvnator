@@ -65,7 +65,11 @@
                 "CUSTOM_USER_AGENT": "Einige IPTV-Anbieter benötigen einen bestimmten 'User-Agent', um ihre Playlist abspielen zu können."
             },
             "UPDATED": "Aktualisiert am",
-            "REFRESH": "Aktualisieren"
+            "REFRESH": "Aktualisieren",
+            "REMOVE_DIALOG": {
+                "MESSAGE": "Sind Sie sicher, dass Sie diese Wiedergabeliste vollständig löschen möchten",
+                "TITLE": ""
+            }
         },
         "TABS": {
             "FILE_UPLOAD": "Aus Dateisystem hochladen",
@@ -108,5 +112,7 @@
         "OPEN_CHANNELS_LIST": "Senderliste öffnen",
         "OPEN_EPG_LIST": "TV-Guide (EPG) öffnen",
         "TOGGLE_FAVORITE_FLAG": "Als Favoriten hinzufügen/entfernen"
-    }
+    },
+    "NO": "Nein",
+    "YES": "Ja"
 }
