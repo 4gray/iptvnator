@@ -11,6 +11,7 @@ epg-worker.js
 ipc-commands.js
 main.js
 menu.js
+playlist.interface.js
 src/**/*.js
 !src/karma.conf.js
 *.js.map
