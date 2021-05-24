@@ -11,13 +11,14 @@
 
 The application is an cross-platform and open source project based on Electron and Angular.
 
-![Welcome screen: Playlists overview](./iptv-epg.png)
+![IPTVnator: Channels list, player and epg list](./iptv-dark-theme.png)
 
 ## Features
 
 - M3u and M3u8 playlists support 📺
 - Upload playlists from a file system 📂
 - Add remote playlists via URL 🔗
+- Playlists auto-update feature
 - Open playlist from the file system
 - Search for channels 🔍
 - EPG support (TV Guide) with detailed info
@@ -36,6 +37,10 @@ The application is an cross-platform and open source project based on Electron a
 | ![Welcome screen: Playlists overview](./playlists.png)       | ![Sidebar with channel and video player](./iptv-main.png) |
 | Welcome screen: Add playlist via file upload                | Welcome screen: Add playlist via URL                      |
 | ![Welcome screen: Add playlist via file upload](./iptv-upload.png) | ![Welcome screen: Add playlist via URL](./upload-via-url.png)             |
+| EPG Sidebar: TV guide on the right side                | General application settings
+| ![EPG: TV guide on the right side](./iptv-epg.png) | ![General app settings](./iptv-settings.png) |
+| Playlist settings                |
+| ![Playlist settings](./iptv-playlist-settings.png) |  |
 
 *Note: First version of the application which was developed as a PWA is available in an extra git branch.*
 
