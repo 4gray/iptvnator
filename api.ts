@@ -3,10 +3,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import axios from 'axios';
 import { guid } from '@datorama/akita';
-import {
-    Playlist,
-    PlaylistUpdateState,
-} from './src/app/home/playlist.interface';
+import { Playlist, PlaylistUpdateState } from './playlist.interface';
 import Nedb, { Cursor } from 'nedb-promises-ts';
 import {
     EPG_ERROR,
