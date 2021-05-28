@@ -45,26 +45,26 @@
             "CHOOSE_PLAYLIST": "Выберите плейлист"
         },
         "URL_UPLOAD": {
-            "PLAYLIST_URL": "Ссылка на плейлист (m3u, m3u8)",
+            "PLAYLIST_URL": "Ссылка на плейлист (*.m3u или *.m3u8)",
             "ADD_PLAYLIST": "Добавить плейлист"
         }
     },
     "SETTINGS": {
         "TITLE": "Настройки / IPTVnator",
         "SUBTITLE": "Здесь можно изменить общие настройки приложения",
-        "DESCRIPTION": "Закончив настройку, не забудьте подтвердить новые настройки кнопкой 'Сохранить найстройки'",
+        "DESCRIPTION": "Закончив настройку, не забудьте подтвердить новые настройки кнопкой 'Сохранить'",
         "EPG_URL_LABEL": "Ссылка на программу каналов (EPG) (*.xml или *.xml.gz)",
         "EPG_URL_PLACEHOLDER": "Введите ссылку",
         "REFRESH_EPG": "Обновить программу каналов (EPG)",
-        "VIDEO_PLAYER_LABEL": "Видео плеер",
+        "VIDEO_PLAYER_LABEL": "Видеоплеер",
         "VIDEO_PLAYER_PLACEHOLDER": "Выберите из списка",
         "VERSION": "Версия приложения",
-        "SAVE_CHANGES": "Сохранить настройки",
+        "SAVE_CHANGES": "Сохранить",
         "BACK_TO_HOME": "Назад",
         "NEW_VERSION_AVAILABLE": "Доступна новая версия приложения",
         "LATEST_VERSION": "Вы используете последнюю версию приложения",
         "LANGUAGE": "Язык",
-        "SETTINGS_SAVED": "Новые настройки были успешно сохранены.",
+        "SETTINGS_SAVED": "Новые настройки были успешно сохранены!",
         "THEME": "Тема оформления"
     },
     "THEMES": {
@@ -76,28 +76,28 @@
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",
         "ALL_CHANNELS": "Все каналы",
         "GROUPS": "Группы",
-        "UNGROUPED": "Без групп",
+        "UNGROUPED": "Негруппированные",
         "UNNAMED_CHANNEL": "Канал без названия",
-        "FAVORITES": "Фавориты",
-        "NO_FAVORITES": "Пока еще нет фаворитов",
-        "USE_STAR_TO_FAVORITE": "Используйте иконку звезды чтобы добавлять каналы в список фаворитов",
+        "FAVORITES": "Избранные",
+        "NO_FAVORITES": "Избранных каналов пока нет",
+        "USE_STAR_TO_FAVORITE": "Используйте иконку звезды, чтобы добавлять каналы в избранное",
         "REMOVE_FAVORITE": "Удалить из списка фаворитов"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Открыть список каналов",
-        "TOGGLE_FAVORITE_FLAG": "Добавить/убрать канал из фаворитов",
-        "OPEN_EPG_LIST": "Открыть панель с программой (EPG)"
+        "TOGGLE_FAVORITE_FLAG": "Избранный",
+        "OPEN_EPG_LIST": "Открыть программу (EPG)"
     },
     "EPG": {
         "NEXT_DAY": "Следующий день",
         "PREVIOUS_DAY": "Предыдущий день",
-        "LIVE_NOW": "Идет сейчас",
-        "LIVE_STREAM": "Прямая тансляция",
+        "LIVE_NOW": "Сейчас",
+        "LIVE_STREAM": "Прямая трансляция",
         "TIMESHIFT_AVAILABLE": "Доступна функция архива (timeshift). Нажмите на передачу для воспроизведения.",
-        "EPG_NOT_AVAILABLE_DATE": "Ой, к сожалению, программа отсутствует на этот день.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ой, к сожалению, программа не доступна для этого канала.",
+        "EPG_NOT_AVAILABLE_DATE": "Ой, программа на этот день, к сожалению, отсутствует.",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Программа для этого канала недоступна.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Попробуйте изменить или обновить ссылку на EPG в настройках приложения.",
-        "FETCH_EPG": "Загружаю программу тв-передач (EPG)...",
+        "FETCH_EPG": "Загружаю программу ТВ-передач (EPG)...",
         "PROGRAM_DIALOG": {
             "PROGRAM_DETAILS": "Подробности передачи",
             "TITLE": "Название",
