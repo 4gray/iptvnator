@@ -1,0 +1,119 @@
+{
+    "HOME": {
+        "TITLE": "IPTVnator",
+        "SUBTITLE": "Selecciona una lista de reproducción del listado o añade una nueva lista al cargar archivos o por una url",
+        "TABS": {
+            "RECENTLY_ADDED": "Listas añadidas recientemente",
+            "FILE_UPLOAD": "Añadir y cargar archivo",
+            "URL_UPLOAD": "Añadir por url"
+        },
+        "PLAYLISTS": {
+            "NO_PLAYLISTS": "No se añadieron listas de reproducción",
+            "ADD_FIRST": "Por favor, añade tu primera lista de la otra pestaña",
+            "ADDED_VIA_URL": "Añadido por carga de URL. URL:",
+            "ADDED_VIA_FILE": "Añadido por carga de archivo",
+            "CHANNELS": "Canales",
+            "ADDED": "Añadido",
+            "SHOW_DETAILS": "Mostrar detalles de la lista",
+            "REMOVE": "Quitar lista",
+            "INFO_DIALOG": {
+                "PLAYLIST_DETAILS": "Detalles de la lista",
+                "TITLE": "Título",
+                "FROM_URL": "Añadida desde la URL",
+                "IMPORT_DATE": "Fecha de importación",
+                "CHANNELS": "Número de canales",
+                "CLOSE": "Cerrar",
+                "SAVE": "Guardar",
+                "USER_AGENT": "Agente de usuario",
+                "ORIGINAL_FILENAME": "Nombre de archivo original",
+                "FILE_PATH": "Ruta de archivo",
+                "UPDATE_FAILED": "Última actualización de la lista fallida",
+                "AUTO_UPDATE": "Auto-actualizar",
+                "AUTO_UPDATE_DESCRIPTION": "Si la función de auto-actualizar se activa, la lista de reproducción se refrescará automáticamente cada vez que se inicia la app.",
+                "CUSTOM_USER_AGENT": "Algunos proveedores de IPTV necesitan especificar el agente de usuario para reproducir su lista de reproducción."
+            },
+            "REMOVE_DIALOG": {
+                "TITLE": "Quitar lista de reproducción",
+                "MESSAGE": "¿Estás seguro de quitar esta lista de reproducción por completo?"
+            },
+            "UPDATED": "Actualizado",
+            "REFRESH": "Actualizar lista"
+        },
+        "FILE_UPLOAD": {
+            "DRAG_DROP": "Arrastra & suelta archivos aquí",
+            "OR": "o",
+            "CHOOSE_PLAYLIST": "Escoge una lista de reproducción"
+        },
+        "URL_UPLOAD": {
+            "PLAYLIST_URL": "Lista de reproducción (m3u, m3u8)",
+            "ADD_PLAYLIST": "Añadir lista"
+        }
+    },
+    "SETTINGS": {
+        "TITLE": "Ajustes / IPTVnator",
+        "SUBTITLE": "Cambiar la configuración de la aplicación",
+        "DESCRIPTION": "Por favor, adapta las opciones de la siguiente lista y confirma con un botón de guardar",
+        "EPG_URL_LABEL": "Url de la EPG (*.xml o *.xml.gz)",
+        "EPG_URL_PLACEHOLDER": "Ingresa una URL",
+        "REFRESH_EPG": "Actualizar EPG",
+        "VIDEO_PLAYER_LABEL": "Reproductor de vídeo",
+        "VIDEO_PLAYER_PLACEHOLDER": "Selecciona una opción",
+        "VERSION": "Versión",
+        "SAVE_CHANGES": "Guardar cambios",
+        "BACK_TO_HOME": "Volver al inicio",
+        "NEW_VERSION_AVAILABLE": "Hay una nueva versión disponible",
+        "LATEST_VERSION": "Estás usando la versión reciente",
+        "LANGUAGE": "Idioma",
+        "SETTINGS_SAVED": "¡Completado! La configuración se guardó.",
+        "THEME": "Tema visual"
+    },
+    "THEMES": {
+        "DARK_THEME": "Tema oscuro",
+        "LIGHT_THEME": "Tema claro"
+    },
+    "CHANNELS": {
+        "SEARCH_CHANNEL": "Buscar canal",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Carga o selecciona una lista de reproducción",
+        "ALL_CHANNELS": "Todos los canales",
+        "GROUPS": "Groupos",
+        "UNGROUPED": "Desagrupado",
+        "UNNAMED_CHANNEL": "Canal sin nombre",
+        "FAVORITES": "Favoritos",
+        "NO_FAVORITES": "Sin favoritos",
+        "USE_STAR_TO_FAVORITE": "Por favor, usa el ícono de la 'estrella' para añadir canales a la lista.",
+        "REMOVE_FAVORITE": "Quitar de favoritos"
+    },
+    "TOP_MENU": {
+        "OPEN_CHANNELS_LIST": "Open channels list",
+        "TOGGLE_FAVORITE_FLAG": "Toggle favorite flag",
+        "OPEN_EPG_LIST": "Open EPG list"
+    },
+    "EPG": {
+        "NEXT_DAY": "Día siguiente",
+        "PREVIOUS_DAY": "Día anterior",
+        "LIVE_NOW": "Ahora en vivo",
+        "LIVE_STREAM": "Transmisión en vivo",
+        "TIMESHIFT_AVAILABLE": "Timeshift está disponible, clic para reproducir",
+        "EPG_NOT_AVAILABLE_DATE": "Vaya, no está disponible la EPG de esa fecha",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Vaya, no está disponible la EPG del canal.",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Por favor añade/carga la url de la lista EPG en los ajustes de la app.",
+        "FETCH_EPG": "Obteniendo datos de EPG...",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Detalles sobre el programa de TV",
+            "TITLE": "Título",
+            "CATEGORY": "Género",
+            "PARENTAL_RATING_SYSTEM": "Sistema de calificación de contenidos televisivos",
+            "DESCRIPTION": "Descripción",
+            "LANGUAGE": "Idioma",
+            "SHOW_PROGRAM_DETAILS": "Mostrar detalles del programa"
+        }
+    },
+    "LANGUAGES": {
+        "ENGLISH": "English",
+        "RUSSIAN": "Русский",
+        "GERMAN": "Deutsch",
+        "SPANISH": "Español"
+    },
+    "YES": "Sí",
+    "NO": "No"
+}
