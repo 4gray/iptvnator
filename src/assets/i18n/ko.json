@@ -1,0 +1,120 @@
+{
+    "HOME": {
+        "TITLE": "IPTVnator",
+        "SUBTITLE": "목록에서 재생 목록을 선택하거나 파일 업로드 또는 URL을 통해 새 재생 목록을 추가하십시오.",
+        "TABS": {
+            "RECENTLY_ADDED": "최근 재생 목록이 추가되었습니다",
+            "FILE_UPLOAD": "파일 업로드를 통해 추가하십시오",
+            "URL_UPLOAD": "URL을 통해 추가하십시오"
+        },
+        "PLAYLISTS": {
+            "NO_PLAYLISTS": "재생 목록이 추가되지 않았습니다",
+            "ADD_FIRST": "다른 탭에서 첫 번째 재생 목록을 추가하십시오",
+            "ADDED_VIA_URL": "URL 업로드를 통해 추가되었습니다. URL:",
+            "ADDED_VIA_FILE": "파일 업로드를 통해 추가되었습니다",
+            "CHANNELS": "채널",
+            "ADDED": "추가되었습니다",
+            "SHOW_DETAILS": "재생 목록 세부 정보 표시",
+            "REMOVE": "재생 목록이 제거되었습니다",
+            "INFO_DIALOG": {
+                "PLAYLIST_DETAILS": "재생 목록 세부 사항",
+                "TITLE": "제목",
+                "FROM_URL": "URL에서 추가되었습니다",
+                "IMPORT_DATE": "데이터 가져 오기",
+                "CHANNELS": "채널 수",
+                "CLOSE": "닫기",
+                "SAVE": "저장",
+                "USER_AGENT": "User agent",
+                "ORIGINAL_FILENAME": "원래 파일 이름",
+                "FILE_PATH": "파일 경로",
+                "UPDATE_FAILED": "마지막 재생 목록 업데이트가 실패했습니다",
+                "AUTO_UPDATE": "자동 업데이트",
+                "AUTO_UPDATE_DESCRIPTION": "자동 새로 고침 기능이 활성화되면 앱이 시작될 때마다 재생 목록이 자동으로 업데이트됩니다.",
+                "CUSTOM_USER_AGENT": "일부 IPTV 공급자는 재생 목록을 재생하기 위해 특정 사용자 에이전트가 필요합니다."
+            },
+            "REMOVE_DIALOG": {
+                "TITLE": "재생 목록 제거",
+                "MESSAGE": "이 재생 목록을 완전히 삭제 하시겠습니까?"
+            },
+            "UPDATED": "업데이트 됨",
+            "REFRESH": "재생 목록 새로 고침"
+        },
+        "FILE_UPLOAD": {
+            "DRAG_DROP": "파일을 드래그 앤 드롭",
+            "OR": "또는",
+            "CHOOSE_PLAYLIST": "재생 목록을 선택"
+        },
+        "URL_UPLOAD": {
+            "PLAYLIST_URL": "재생 목록 URL (m3u, m3u8)",
+            "ADD_PLAYLIST": "재생 목록을 추가하십시오"
+        }
+    },
+    "SETTINGS": {
+        "TITLE": "설정 / IPTVnator",
+        "SUBTITLE": "응용 프로그램의 구성을 변경하십시오",
+        "DESCRIPTION": "아래 목록에서 옵션을 적용하고 저장 버튼으로 확인하십시오.",
+        "EPG_URL_LABEL": "EPG Url (*.xml or *.xml.gz)",
+        "EPG_URL_PLACEHOLDER": "URL을 입력하십시오",
+        "REFRESH_EPG": "EPG 새로 고침",
+        "VIDEO_PLAYER_LABEL": "비디오 플레이어",
+        "VIDEO_PLAYER_PLACEHOLDER": "옵션을 선택하세요",
+        "VERSION": "버전",
+        "SAVE_CHANGES": "변경 사항 저장",
+        "BACK_TO_HOME": "홈으로",
+        "NEW_VERSION_AVAILABLE": "새로운 버전이 있습니다",
+        "LATEST_VERSION": "최신 버전을 사용하고 있습니다",
+        "LANGUAGE": "언어",
+        "SETTINGS_SAVED": "설정이 저장되었습니다.",
+        "THEME": "테마"
+    },
+    "THEMES": {
+        "DARK_THEME": "어두운 테마",
+        "LIGHT_THEME": "밝은 테마"
+    },
+    "CHANNELS": {
+        "SEARCH_CHANNEL": "검색 채널",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "다른 재생 목록을 업로드하거나 선택하십시오",
+        "ALL_CHANNELS": "모든 채널",
+        "GROUPS": "그룹",
+        "UNGROUPED": "그룹 해제",
+        "UNNAMED_CHANNEL": "이름없는 채널",
+        "FAVORITES": "즐겨찾기",
+        "NO_FAVORITES": "즐겨찾기가 아직 없습니다",
+        "USE_STAR_TO_FAVORITE": "'Star'아이콘을 사용하여 이 목록에 채널을 추가하십시오.",
+        "REMOVE_FAVORITE": "즐겨찾기에서 삭제하기"
+    },
+    "TOP_MENU": {
+        "OPEN_CHANNELS_LIST": "채널 열기 목록",
+        "TOGGLE_FAVORITE_FLAG": "즐겨찾기 보이기/숨기기",
+        "OPEN_EPG_LIST": "EPG 목록 열기"
+    },
+    "EPG": {
+        "NEXT_DAY": "다음날",
+        "PREVIOUS_DAY": "전날",
+        "LIVE_NOW": "Live now",
+        "LIVE_STREAM": "Live stream",
+        "TIMESHIFT_AVAILABLE": "Timeshift를 사용할 수 있습니다, 클릭하여 재생합니다",
+        "EPG_NOT_AVAILABLE_DATE": "선택한 날짜에는 EPG를 사용할 수 없습니다.",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "이 채널에는 EPG를 사용할 수 없습니다.",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "설정에서 EPG의 URL을 추가/변경하십시오.",
+        "FETCH_EPG": "EPG 데이터 가져 오기...",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "TV 프로그램에 대한 세부 사항",
+            "TITLE": "제목",
+            "CATEGORY": "카테고리",
+            "PARENTAL_RATING_SYSTEM": "컨텐츠 등급 시스템",
+            "DESCRIPTION": "설명",
+            "LANGUAGE": "언어",
+            "SHOW_PROGRAM_DETAILS": "이 프로그램에 대한 세부 정보 표시"
+        }
+    },
+    "LANGUAGES": {
+        "ENGLISH": "English",
+        "KOREAN": "한국어",          
+        "RUSSIAN": "Русский",
+        "GERMAN": "Deutsch",
+        "SPANISH": "Español"
+    },
+    "YES": "Yes",
+    "NO": "No"
+}

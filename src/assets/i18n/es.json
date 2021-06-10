@@ -110,6 +110,7 @@
     },
     "LANGUAGES": {
         "ENGLISH": "English",
+        "KOREAN": "한국어",          
         "RUSSIAN": "Русский",
         "GERMAN": "Deutsch",
         "SPANISH": "Español"
