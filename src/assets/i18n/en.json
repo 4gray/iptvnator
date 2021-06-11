@@ -112,7 +112,8 @@
         "ENGLISH": "English",
         "KOREAN": "한국어",          
         "RUSSIAN": "Русский",
-        "GERMAN": "Deutsch"
+        "GERMAN": "Deutsch",
+        "SPANISH": "Español"
     },
     "YES": "Yes",
     "NO": "No"
