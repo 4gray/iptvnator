@@ -17,6 +17,7 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: "12.x"
+          persist-credentials: false
       - run: npm install
       - run: npm test -- --coverage
       - run: bash <(curl -s https://codecov.io/bash)
@@ -33,6 +34,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v1
         with:
