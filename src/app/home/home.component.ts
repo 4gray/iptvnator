@@ -4,7 +4,7 @@ import { UploadFile } from 'ngx-uploader';
 import { ChannelStore, createChannel } from '../state';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Playlist } from './playlist.interface';
+import { Playlist } from '../../../playlist.interface';
 import { ElectronService } from '../services/electron.service';
 import {
     ERROR,

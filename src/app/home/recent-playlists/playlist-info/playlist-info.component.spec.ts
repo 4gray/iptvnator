@@ -11,7 +11,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { DatePipe } from '@angular/common';
 import { PlaylistInfoComponent } from './playlist-info.component';
 import { FormsModule, ReactiveFormsModule, FormBuilder } from '@angular/forms';
-import { Playlist } from '../../playlist.interface';
+import { Playlist } from './../../../../../playlist.interface';
 
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;

@@ -10,7 +10,7 @@ import {
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { PLAYLIST_SAVE_DETAILS } from '../../../../../ipc-commands';
 import { ElectronService } from '../../../services/electron.service';
-import { Playlist } from '../../playlist.interface';
+import { Playlist } from '../../../../../playlist.interface';
 
 @Component({
     selector: 'app-playlist-info',
