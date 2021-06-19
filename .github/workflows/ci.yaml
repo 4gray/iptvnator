@@ -20,6 +20,7 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: "12.x"
+      - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
       - run: npm ci
       - run: npm test -- --coverage
       - run: bash <(curl -s https://codecov.io/bash)
@@ -38,8 +39,6 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v1
-        with:
-          persist-credentials: false
 
       - name: Install Node.js, NPM and Yarn
         uses: actions/setup-node@v1

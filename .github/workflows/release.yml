@@ -13,11 +13,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: Use Node.js
         uses: actions/setup-node@v1
         with:
           node-version: "12.x"
-          persist-credentials: false
+      - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
       - run: npm install
       - run: npm test -- --coverage
       - run: bash <(curl -s https://codecov.io/bash)
