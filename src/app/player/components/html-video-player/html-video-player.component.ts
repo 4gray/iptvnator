@@ -8,7 +8,7 @@ import {
     ViewChild,
 } from '@angular/core';
 import { Channel } from '../../../state';
-import * as Hls from 'hls.js';
+import Hls from 'hls.js';
 
 @Component({
     selector: 'app-html-video-player',
@@ -24,7 +24,7 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
     videoPlayer: ElementRef<HTMLVideoElement>;
 
     /** HLS object */
-    hls = new Hls();
+    hls: Hls;
 
     /**
      * Listen for component input changes
@@ -41,24 +41,16 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
      * @param channel given channel object
      */
     playChannel(channel: Channel): void {
+        if (this.hls) this.hls.destroy();
         const url = channel.url + channel.epgParams;
         if (Hls.isSupported()) {
             console.log('... switching channel to ', channel.name, url);
-            this.hls.loadSource(url);
+            this.hls = new Hls();
             this.hls.attachMedia(this.videoPlayer.nativeElement);
+            this.hls.loadSource(url);
             this.handlePlayOperation();
-        } else if (
-            this.videoPlayer.nativeElement.canPlayType(
-                'application/vnd.apple.mpegurl'
-            )
-        ) {
-            this.videoPlayer.nativeElement.src = url;
-            this.videoPlayer.nativeElement.addEventListener(
-                'loadedmetadata',
-                () => {
-                    this.handlePlayOperation();
-                }
-            );
+        } else {
+            console.error('something wrong with hls.js init...');
         }
     }
 
@@ -70,10 +62,10 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
 
         if (playPromise !== undefined) {
             playPromise
-                .then(() => {
+                .then((_) => {
                     // Automatic playback started!
                 })
-                .catch((error) => console.error(error));
+                .catch((error) => {});
         }
     }
 
