@@ -123,7 +123,7 @@
         "custom-electron-titlebar": "3.2.5",
         "epg-parser": "0.1.1",
         "hls.js": "0.14.16",
-        "iptv-playlist-parser": "git+https://git@github.com/4gray/iptv-playlist-parser.git",
+        "iptv-playlist-parser": "0.8.0",
         "lodash": "4.17.21",
         "material-icons": "0.3.1",
         "moment": "2.29.1",

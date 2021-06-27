@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { EntityState, EntityStore, StoreConfig } from '@datorama/akita';
-import { EPG_GET_PROGRAM } from '../../../ipc-commands';
+import { CHANNEL_SET_USER_AGENT, EPG_GET_PROGRAM } from '../../../ipc-commands';
 import { ElectronService } from '../services/electron.service';
 import { Channel } from './channel.model';
 import * as moment from 'moment';
@@ -61,6 +61,15 @@ export class ChannelStore extends EntityStore<ChannelState> {
                 this.electronService.ipcRenderer.send(EPG_GET_PROGRAM, {
                     channelName: channel.name,
                 });
+                if (channel.http['user-agent']) {
+                    this.electronService.ipcRenderer.send(
+                        CHANNEL_SET_USER_AGENT,
+                        {
+                            referer: channel.http.referrer,
+                            userAgent: channel.http['user-agent'],
+                        }
+                    );
+                }
             }
             return {
                 ...store,

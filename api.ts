@@ -1,11 +1,12 @@
 import { ParsedPlaylist } from './src/typings.d';
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import axios from 'axios';
 import { guid } from '@datorama/akita';
 import { Playlist, PlaylistUpdateState } from './playlist.interface';
 import Nedb, { Cursor } from 'nedb-promises-ts';
 import {
+    CHANNEL_SET_USER_AGENT,
     EPG_ERROR,
     EPG_FETCH,
     EPG_FETCH_DONE,
@@ -32,6 +33,9 @@ export class Api {
 
     /** Default user agent stored as a fallback value */
     defaultUserAgent: string;
+
+    /** Default referer url value */
+    defaultReferer: string;
 
     /** Instance of the epg browser window */
     workerWindow: BrowserWindow;
@@ -190,6 +194,17 @@ export class Api {
             }
         );
 
+        ipcMain.on(
+            CHANNEL_SET_USER_AGENT,
+            (event, args: { userAgent: string; referer?: string }) => {
+                if (args.userAgent && args.referer) {
+                    this.setUserAgent(args.userAgent, args.referer);
+                } else {
+                    this.setUserAgent(this.defaultUserAgent, 'localhost');
+                }
+            }
+        );
+
         this.refreshPlaylists();
     }
 
@@ -253,12 +268,20 @@ export class Api {
     /**
      * Sets the user agent header for all http requests
      * @param userAgent user agent to use
+     * @param referer referer to use
      */
-    setUserAgent(userAgent: string): void {
+    setUserAgent(userAgent: string, referer?: string): void {
         if (userAgent === undefined || userAgent === null || userAgent === '') {
             userAgent = this.defaultUserAgent;
         }
-        this.mainWindow.webContents.setUserAgent(userAgent);
+
+        session.defaultSession.webRequest.onBeforeSendHeaders(
+            (details, callback) => {
+                details.requestHeaders['User-Agent'] = userAgent;
+                details.requestHeaders['Referer'] = referer;
+                callback({ requestHeaders: details.requestHeaders });
+            }
+        );
         console.log(`Success: Set "${userAgent}" as user agent header`);
     }
 

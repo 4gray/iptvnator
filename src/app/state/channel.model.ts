@@ -25,6 +25,10 @@ export interface Channel {
         source?: string;
         days?: string;
     };
+    http: {
+        referrer: string;
+        'user-agent': string;
+    };
 }
 
 /**
@@ -39,5 +43,6 @@ export function createChannel(params: Partial<Channel>): Channel {
         url: params.url,
         tvg: params.tvg,
         timeshift: params.timeshift,
+        http: params.http,
     } as Channel;
 }
