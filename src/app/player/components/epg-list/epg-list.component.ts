@@ -105,6 +105,7 @@ export class EpgListComponent {
         } else {
             this.items = [];
             this.channel = null;
+            this.channelStore.setCurrentEpgProgram(undefined);
         }
     }
 
@@ -155,6 +156,7 @@ export class EpgListComponent {
         this.playingNow = this.items.find(
             (item) => this.timeNow >= item.start && this.timeNow <= item.stop
         );
+        this.channelStore.setCurrentEpgProgram(this.playingNow);
     }
 
     /**

@@ -9,6 +9,7 @@ import { EpgProgram } from '../player/models/epg-program.model';
 export interface ChannelState extends EntityState<Channel> {
     active: Channel;
     epgAvailable: boolean;
+    currentEpgProgram: EpgProgram;
     favorites: string[];
     playlistId: string;
 }
@@ -23,6 +24,7 @@ export class ChannelStore extends EntityStore<ChannelState> {
     constructor(private electronService: ElectronService) {
         super({
             active: undefined,
+            currentEpgProgram: undefined,
             epgAvailable: false,
             favorites: [],
             playlistId: '',
@@ -122,5 +124,16 @@ export class ChannelStore extends EntityStore<ChannelState> {
                 epgAvailable: value,
             };
         });
+    }
+
+    /**
+     * Updates the active epg program for the active channel
+     * @param currentEpgProgram program to set
+     */
+    setCurrentEpgProgram(currentEpgProgram: EpgProgram): void {
+        this.update((store) => ({
+            ...store,
+            currentEpgProgram,
+        }));
     }
 }
