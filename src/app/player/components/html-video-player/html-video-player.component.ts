@@ -73,6 +73,8 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
      * Destroy hls instance on component destroy
      */
     ngOnDestroy(): void {
-        this.hls.destroy();
+        if (this.hls) {
+            this.hls.destroy();
+        }
     }
 }

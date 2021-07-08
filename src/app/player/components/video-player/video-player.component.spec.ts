@@ -1,3 +1,4 @@
+import { InfoOverlayComponent } from './../info-overlay/info-overlay.component';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 /* eslint-disable @typescript-eslint/unbound-method */
@@ -35,6 +36,7 @@ describe('VideoPlayerComponent', () => {
                     MockComponent(VjsPlayerComponent),
                     MockComponent(VideoPlayerComponent),
                     MockComponent(ChannelListContainerComponent),
+                    MockComponent(InfoOverlayComponent),
                     VideoPlayerComponent,
                     MockPipe(TranslatePipe),
                 ],

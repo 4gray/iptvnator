@@ -9,6 +9,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../shared/shared.module';
 import { EpgListComponent } from './components/epg-list/epg-list.component';
 import { EpgItemDescriptionComponent } from './components/epg-list/epg-item-description/epg-item-description.component';
+import { InfoOverlayComponent } from './components/info-overlay/info-overlay.component';
 
 const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
 
@@ -19,6 +20,7 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
         EpgItemDescriptionComponent,
         EpgListComponent,
         EpgListItemComponent,
+        InfoOverlayComponent,
         HtmlVideoPlayerComponent,
         VideoPlayerComponent,
         VjsPlayerComponent,

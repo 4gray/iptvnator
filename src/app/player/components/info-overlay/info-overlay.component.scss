@@ -1,0 +1,73 @@
+.channel-overlay {
+    position: absolute;
+    bottom: 35px;
+    width: 100%;
+    background: #2c2b2fdc;
+    min-height: 130px;
+    max-height: 165px;
+    margin-left: auto;
+    margin-right: auto;
+    left: 0;
+    right: 0;
+    backdrop-filter: blur(10px);
+}
+
+.program-name,
+.program-description {
+    margin: 20px 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.channel-logo {
+    margin-top: 20px;
+}
+
+.program-progress {
+    width: 96%;
+    background: #ccc;
+    height: 20px;
+    margin-bottom: 8px;
+}
+
+.program-name {
+    width: 96%;
+    max-height: 20px;
+    -webkit-line-clamp: 1;
+}
+
+.program-description {
+    width: 96%;
+    max-height: 55px;
+    -webkit-line-clamp: 3;
+}
+
+.program-finished {
+    background: #717171;
+    height: 20px;
+    font-size: 0.8em;
+    padding-left: 10px;
+    color: #000;
+    line-height: 20px;
+}
+
+.duration {
+    position: relative;
+    top: -18px;
+    font-size: 0.8em;
+    color: #000;
+    left: 10px;
+}
+
+.visible {
+    visibility: visible;
+    opacity: 1;
+}
+
+.hidden {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0s 2s, opacity 2s linear;
+}

@@ -68,6 +68,12 @@
             [channel]="activeChannel$ | async"
         >
         </app-html-video-player>
+
+        <!-- channel overlay -->
+        <app-info-overlay
+            [channel]="activeChannel$ | async"
+            [epgProgram]="epgProgram$ | async"
+        ></app-info-overlay>
     </mat-drawer-content>
     <!-- right sidebar content -->
     <mat-drawer

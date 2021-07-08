@@ -1,3 +1,4 @@
+import { EpgProgram } from './../../models/epg-program.model';
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ChannelQuery, Channel, ChannelStore } from '../../../state';
 import { Observable } from 'rxjs';
@@ -33,6 +34,11 @@ export class VideoPlayerComponent implements OnInit {
     /** EPG availability flag */
     epgAvailable$: Observable<boolean> = this.channelQuery.select(
         (store) => store.epgAvailable
+    );
+
+    /** Current epg program */
+    epgProgram$: Observable<EpgProgram> = this.channelQuery.select(
+        (store) => store.currentEpgProgram
     );
 
     /** Favorites list */
