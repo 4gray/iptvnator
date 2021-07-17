@@ -88,6 +88,13 @@ export class AppMenu {
                         ),
                 },
                 {
+                    label: 'Buy me a coffee',
+                    click: () =>
+                        shell.openExternal(
+                            'https://www.buymeacoffee.com/4gray'
+                        ),
+                },
+                {
                     label: 'Open DevTools',
                     click: () => this.window.webContents.openDevTools(),
                 },

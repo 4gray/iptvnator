@@ -75,6 +75,50 @@ export class WhatsNewService {
                 },
             },
         ],
+        '0.8.0': [
+            {
+                imageHeight: 310,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/080/translations.png',
+                title: 'New in v0.8.0 - New translations 🎉',
+                html: 'The new release includes the localization of the application into two new languages: Korean and Spanish. Many thanks to the contributors for the translation! (<a target="_blank" href="https://github.com/chaeya">@chaeya</a>, <a target="_blank" href="https://github.com/sguinetti">@sguinetti</a>, <a target="_blank" href="https://github.com/anthonyaxenov">anthonyaxenov</a>)',
+                button: {
+                    text: 'Nice!',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+            {
+                title: 'User-Agent Support on Channel Level',
+                html: 'Now user-agent support can be specified not only on the playlist level but also on the level of individual channels. For this purpose, support for Kodi <a target="_blank" href="https://github.com/4gray/iptvnator/issues/57">playlist format</a> was added to the application.',
+                button: {
+                    text: 'Next!',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+            {
+                title: 'Information about current EPG program',
+                html: 'Similarly to digital receivers, after you switch channels at the bottom of the screen you will see a pop-up window with information about the current program <a target="_blank" href="https://github.com/4gray/iptvnator/issues/51">#51</a>',
+                imageHeight: 250,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/080/channel-info.png',
+                button: {
+                    text: 'Next!',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+            {
+                title: 'This and that',
+                html: 'In addition to the already mentioned new features, some bugs have been fixed and the internal dependencies of the application have been updated. Thanks for all the <a href="https://github.com/4gray/iptvnator/issues" target="_blank">ideas</a>, contributions and <a target="_blank" href="https://www.buymeacoffee.com/4gray">first donations.</a>',
+                button: {
+                    text: 'YAY!',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+        ],
     };
 
     /** Options for the "what is new" modal dialogs */
