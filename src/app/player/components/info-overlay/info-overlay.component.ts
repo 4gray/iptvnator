@@ -25,10 +25,10 @@ export class InfoOverlayComponent implements OnChanges {
     finishedDuration!: number;
 
     /** Program start time */
-    start: moment.Moment;
+    start;
 
     /** Program end time */
-    stop: moment.Moment;
+    stop;
 
     /** Timeout for the overlay visibility */
     currentTimeout;

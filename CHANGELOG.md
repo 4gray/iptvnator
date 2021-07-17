@@ -1,3 +1,13 @@
+# [0.8.0](https://github.com/4gray/iptvnator/compare/v0.7.0...v0.8.0) (2021-07-17)
+
+
+### Features
+
+* add info popup with epg info for active channel ([0eecfd1](https://github.com/4gray/iptvnator/commit/0eecfd1163a36019a7b600290fe5f01ee3bb9677)), closes [#51](https://github.com/4gray/iptvnator/issues/51)
+* add support of specific user-agent and referer on channel level ([a55f741](https://github.com/4gray/iptvnator/commit/a55f741a320db430987352289fd7847e050dcafd)), closes [#57](https://github.com/4gray/iptvnator/issues/57)
+
+
+
 # [0.7.0](https://github.com/4gray/iptvnator/compare/v0.6.0...v0.7.0) (2021-05-24)
 
 
