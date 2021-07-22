@@ -83,10 +83,11 @@
     },
     "LANGUAGES": {
         "ENGLISH": "English",
-        "KOREAN": "한국어",          
+        "KOREAN": "한국어",
         "RUSSIAN": "Русский",
         "GERMAN": "Deutsch",
-        "SPANISH": "Español"
+        "SPANISH": "Español",
+        "CHINESE": "简体中文"
     },
     "SETTINGS": {
         "BACK_TO_HOME": "Zurück",
