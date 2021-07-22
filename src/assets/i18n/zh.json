@@ -1,0 +1,121 @@
+{
+    "HOME": {
+        "TITLE": "IPTVnator",
+        "SUBTITLE": "选择一个播放列表或者从URL/文件中添加一个新的播放列表",
+        "TABS": {
+            "RECENTLY_ADDED": "最近添加的播放列表",
+            "FILE_UPLOAD": "从文件添加",
+            "URL_UPLOAD": "从URL链接添加"
+        },
+        "PLAYLISTS": {
+            "NO_PLAYLISTS": "未添加播放列表",
+            "ADD_FIRST": "从其他标签页添加你的第一个播放列表",
+            "ADDED_VIA_URL": "添加自URL链接:",
+            "ADDED_VIA_FILE": "添加自文件",
+            "CHANNELS": "频道",
+            "ADDED": "已添加的",
+            "SHOW_DETAILS": "显示播放列表详情",
+            "REMOVE": "移除播放列表",
+            "INFO_DIALOG": {
+                "PLAYLIST_DETAILS": "播放列表详情",
+                "TITLE": "标题",
+                "FROM_URL": "添加自URL链接",
+                "IMPORT_DATE": "导入日期",
+                "CHANNELS": "频道数",
+                "CLOSE": "关闭",
+                "SAVE": "保存",
+                "USER_AGENT": "User agent",
+                "ORIGINAL_FILENAME": "原始文件名",
+                "FILE_PATH": "文件路径",
+                "UPDATE_FAILED": "上次播放列表更新失败",
+                "AUTO_UPDATE": "自动更新",
+                "AUTO_UPDATE_DESCRIPTION": "如果启用了自动刷新功能，则每次启动应用程序时都会自动更新播放列表。",
+                "CUSTOM_USER_AGENT": "一些 IPTV 提供商需要特定的用户代理才能播放他们的播放列表。"
+            },
+            "REMOVE_DIALOG": {
+                "TITLE": "移除播放列表",
+                "MESSAGE": "您确定要完全删除此播放列表吗？"
+            },
+            "UPDATED": "更新",
+            "REFRESH": "刷新播放列表"
+        },
+        "FILE_UPLOAD": {
+            "DRAG_DROP": "将文件拖放到此处",
+            "OR": "或",
+            "CHOOSE_PLAYLIST": "选择一个播放列表"
+        },
+        "URL_UPLOAD": {
+            "PLAYLIST_URL": "播放一个播放列表(m3u, m3u8)",
+            "ADD_PLAYLIST": "添加播放列表"
+        }
+    },
+    "SETTINGS": {
+        "TITLE": "设置 / IPTVnator",
+        "SUBTITLE": "更改应用程序的配置 ",
+        "DESCRIPTION": "请调整以下列表中的选项并使用保存按钮确认",
+        "EPG_URL_LABEL": "电子节目单EPG Url (*.xml 或 *.xml.gz)",
+        "EPG_URL_PLACEHOLDER": "输入一个 URL",
+        "REFRESH_EPG": "刷新电子节目单EPG",
+        "VIDEO_PLAYER_LABEL": "视频播放器",
+        "VIDEO_PLAYER_PLACEHOLDER": "选择一个选项",
+        "VERSION": "版本",
+        "SAVE_CHANGES": "保存更改",
+        "BACK_TO_HOME": "回到主页",
+        "NEW_VERSION_AVAILABLE": "有新版本可用 ",
+        "LATEST_VERSION": "您使用的是最新版本",
+        "LANGUAGE": "语言",
+        "SETTINGS_SAVED": "配置已成功保存",
+        "THEME": "主题"
+    },
+    "THEMES": {
+        "DARK_THEME": "暗黑模式",
+        "LIGHT_THEME": "明亮模式"
+    },
+    "CHANNELS": {
+        "SEARCH_CHANNEL": "搜索频道",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上传或选择其他播放列表",
+        "ALL_CHANNELS": "所有频道",
+        "GROUPS": "分组",
+        "UNGROUPED": "未分组",
+        "UNNAMED_CHANNEL": "未命名频道",
+        "FAVORITES": "收藏",
+        "NO_FAVORITES": "还没有收藏夹",
+        "USE_STAR_TO_FAVORITE": "使用“☆”图标将频道添加到此列表中",
+        "REMOVE_FAVORITE": "从收藏夹中删除"
+    },
+    "TOP_MENU": {
+        "OPEN_CHANNELS_LIST": "打开频道列表",
+        "TOGGLE_FAVORITE_FLAG": "切换收藏夹标志",
+        "OPEN_EPG_LIST": "打开电子节目单EPG列表"
+    },
+    "EPG": {
+        "NEXT_DAY": "明天",
+        "PREVIOUS_DAY": "昨天",
+        "LIVE_NOW": "Live now",
+        "LIVE_STREAM": "Live stream",
+        "TIMESHIFT_AVAILABLE": "时移功能可用，点击播放",
+        "EPG_NOT_AVAILABLE_DATE": "错误：电子节目单EPG在所选日期不可用",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "错误：电子节目单EPG不适用于此频道",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "请添加/更改设置项中电子节目单的URL",
+        "FETCH_EPG": "获取 EPG 数据...",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "电视节目详情",
+            "TITLE": "标题",
+            "CATEGORY": "类别",
+            "PARENTAL_RATING_SYSTEM": "电视内容分级系统",
+            "DESCRIPTION": "描述",
+            "LANGUAGE": "语言",
+            "SHOW_PROGRAM_DETAILS": "显示有关此程序的详细信息"
+        }
+    },
+    "LANGUAGES": {
+        "CHINESE": "简体中文",
+        "ENGLISH": "English",
+        "KOREAN": "한국어",
+        "RUSSIAN": "Русский",
+        "GERMAN": "Deutsch",
+        "SPANISH": "Español"
+    },
+    "YES": "是",
+    "NO": "否"
+}
