@@ -100,10 +100,7 @@
         >
             <ng-container *ngIf="favorites.length > 0; else noFavorites">
                 <mat-list-item
-                    *ngFor="
-                        let channel of favorites | filterBy: searchTerm;
-                        index as i
-                    "
+                    *ngFor="let channel of favorites; index as i"
                     [class.active]="selected?.id === channel.id"
                     (click)="selectChannel(channel)"
                 >
