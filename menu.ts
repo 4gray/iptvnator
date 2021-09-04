@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Menu, MenuItem, shell } from 'electron';
 import * as path from 'path';
-import { SHOW_WHATS_NEW } from './ipc-commands';
+import { SHOW_WHATS_NEW } from './shared/ipc-commands';
 const openAboutWindow = require('about-window').default;
 
 export class AppMenu {

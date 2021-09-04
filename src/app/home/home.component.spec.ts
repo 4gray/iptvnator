@@ -1,5 +1,8 @@
 import { UploadFile } from 'ngx-uploader';
-import { PLAYLIST_PARSE, PLAYLIST_UPDATE } from './../../../ipc-commands';
+import {
+    PLAYLIST_PARSE,
+    PLAYLIST_UPDATE,
+} from './../../../shared/ipc-commands';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';

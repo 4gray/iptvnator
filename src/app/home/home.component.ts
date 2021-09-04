@@ -4,7 +4,7 @@ import { UploadFile } from 'ngx-uploader';
 import { ChannelStore, createChannel } from '../state';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Playlist } from '../../../playlist.interface';
+import { Playlist } from '../../../shared/playlist.interface';
 import { ElectronService } from '../services/electron.service';
 import {
     ERROR,
@@ -12,7 +12,7 @@ import {
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
-} from './../../../ipc-commands';
+} from '../../../shared/ipc-commands';
 import { DialogService } from './../services/dialog.service';
 
 /** Type to describe meta data of a playlist */

@@ -10,7 +10,7 @@ import { HttpClient } from '@angular/common/http';
 import * as semver from 'semver';
 import { ElectronService } from '../services/electron.service';
 import { ChannelQuery } from '../state';
-import { EPG_FETCH } from '../../../ipc-commands';
+import { EPG_FETCH } from '../../../shared/ipc-commands';
 import { Language } from './language.enum';
 import { Theme } from './theme.enum';
 import { SettingsService } from './../services/settings.service';

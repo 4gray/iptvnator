@@ -95,3 +95,7 @@ This command will produce the distributable assets in the `release` folder based
 ## Disclaimer
 
 IPTVnator doesn't provide any playlists or other digital content.
+
+<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+[![All Contributors](https://img.shields.io/badge/all_contributors-13-orange.svg?style=flat-square)](#contributors)
+<!-- ALL-CONTRIBUTORS-BADGE:END -->

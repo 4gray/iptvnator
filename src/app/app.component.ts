@@ -12,7 +12,7 @@ import {
     EPG_FETCH,
     EPG_FETCH_DONE,
     SHOW_WHATS_NEW,
-} from '../../ipc-commands';
+} from '../../shared/ipc-commands';
 import { SettingsService } from './services/settings.service';
 import { WhatsNewService } from './services/whats-new.service';
 import * as semver from 'semver';

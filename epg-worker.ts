@@ -11,7 +11,7 @@ import {
     EPG_FETCH_DONE,
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
-} from './ipc-commands';
+} from './shared/ipc-commands';
 
 // EPG data store
 let EPG_DATA: { channels: EpgChannel[]; programs: EpgProgram[] };

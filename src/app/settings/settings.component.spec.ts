@@ -19,7 +19,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { EPG_FETCH } from '../../../ipc-commands';
+import { EPG_FETCH } from '../../../shared/ipc-commands';
 import { Router } from '@angular/router';
 
 class MatSnackBarStub {

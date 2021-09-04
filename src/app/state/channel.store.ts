@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
 import { EntityState, EntityStore, StoreConfig } from '@datorama/akita';
-import { CHANNEL_SET_USER_AGENT, EPG_GET_PROGRAM } from '../../../ipc-commands';
+import {
+    CHANNEL_SET_USER_AGENT,
+    EPG_GET_PROGRAM,
+} from '../../../shared/ipc-commands';
 import { ElectronService } from '../services/electron.service';
 import { Channel } from './channel.model';
 import * as moment from 'moment';

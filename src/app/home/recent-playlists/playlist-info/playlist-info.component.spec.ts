@@ -1,5 +1,5 @@
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { PLAYLIST_SAVE_DETAILS } from './../../../../../ipc-commands';
+import { PLAYLIST_SAVE_DETAILS } from './../../../../../shared/ipc-commands';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ElectronServiceStub } from './../../home.component.spec';
 import { ElectronService } from './../../../services/electron.service';
@@ -11,7 +11,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { DatePipe } from '@angular/common';
 import { PlaylistInfoComponent } from './playlist-info.component';
 import { FormsModule, ReactiveFormsModule, FormBuilder } from '@angular/forms';
-import { Playlist } from './../../../../../playlist.interface';
+import { Playlist } from './../../../../../shared/playlist.interface';
 
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;

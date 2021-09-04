@@ -3,7 +3,7 @@ import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import axios from 'axios';
 import { guid } from '@datorama/akita';
-import { Playlist, PlaylistUpdateState } from './playlist.interface';
+import { Playlist, PlaylistUpdateState } from './shared/playlist.interface';
 import Nedb, { Cursor } from 'nedb-promises-ts';
 import {
     CHANNEL_SET_USER_AGENT,
@@ -18,7 +18,7 @@ import {
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
-} from './ipc-commands';
+} from './shared/ipc-commands';
 
 const fs = require('fs');
 const userData = app.getPath('userData');
