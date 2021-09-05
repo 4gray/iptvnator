@@ -121,6 +121,16 @@
                 </mat-list-item>
                 <mat-list-item>
                     <div matLine fxLayout="row">
+                        <p fxFlex>{{ 'SETTINGS.SHOW_CAPTIONS' | translate }}</p>
+                        <p fxFlex>
+                            <mat-checkbox
+                                formControlName="showCaptions"
+                            ></mat-checkbox>
+                        </p>
+                    </div>
+                </mat-list-item>
+                <mat-list-item>
+                    <div matLine fxLayout="row">
                         <p fxFlex>{{ 'SETTINGS.VERSION' | translate }}</p>
                         <p fxFlex>
                             {{ version }} <br />

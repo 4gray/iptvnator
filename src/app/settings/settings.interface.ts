@@ -1,14 +1,18 @@
 import { Language } from './language.enum';
 import { Theme } from './theme.enum';
 
-export type VideoPlayerType = 'html5' | 'videojs';
+export enum VideoPlayer {
+    VideoJs = 'videojs',
+    Html5Player = 'html5',
+}
 
 /**
  * Describes all available settings options of the application
  */
 export interface Settings {
-    player: VideoPlayerType;
+    player: VideoPlayer;
     epgUrl: string;
     language: Language;
+    showCaptions: boolean;
     theme: Theme;
 }

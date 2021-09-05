@@ -5,7 +5,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable, Subscription } from 'rxjs';
-import { Settings } from './settings.interface';
+import { Settings, VideoPlayer } from './settings.interface';
 import { HttpClient } from '@angular/common/http';
 import * as semver from 'semver';
 import { ElectronService } from '../services/electron.service';
@@ -34,11 +34,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
     /** Player options */
     players = [
         {
-            id: 'html5',
+            id: VideoPlayer.Html5Player,
             label: 'HTML5 Video Player',
         },
         {
-            id: 'videojs',
+            id: VideoPlayer.VideoJs,
             label: 'VideoJs Player',
         },
     ];
@@ -84,9 +84,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
         private translate: TranslateService
     ) {
         this.settingsForm = this.formBuilder.group({
-            player: ['videojs'],
+            player: [VideoPlayer.VideoJs],
             epgUrl: '',
             language: Language.ENGLISH,
+            showCaptions: false,
             theme: Theme.LightTheme,
         });
 
@@ -123,11 +124,16 @@ export class SettingsComponent implements OnInit, OnDestroy {
             this.storage.get('settings').subscribe((settings: Settings) => {
                 if (settings) {
                     this.settingsForm.setValue({
-                        player: settings.player ? settings.player : 'videojs',
+                        player: settings.player
+                            ? settings.player
+                            : VideoPlayer.VideoJs,
                         epgUrl: settings.epgUrl ? settings.epgUrl : '',
                         language: settings.language
                             ? settings.language
                             : Language.ENGLISH,
+                        showCaptions: settings.showCaptions
+                            ? settings.showCaptions
+                            : false,
                         theme: settings.theme
                             ? settings.theme
                             : Theme.LightTheme,

@@ -5,10 +5,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { MatSidenav } from '@angular/material/sidenav';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import {
-    Settings,
-    VideoPlayerType,
-} from '../../../settings/settings.interface';
+import { Settings, VideoPlayer } from '../../../settings/settings.interface';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 /** Settings key in storage */
@@ -46,8 +43,11 @@ export class VideoPlayerComponent implements OnInit {
         (store) => store.favorites
     );
 
-    /** Selected video player component */
-    player: VideoPlayerType = 'videojs';
+    /** Selected video player options */
+    playerSettings: Partial<Settings> = {
+        player: VideoPlayer.VideoJs,
+        showCaptions: false,
+    };
 
     /** Sidebar object */
     @ViewChild('sidenav') sideNav: MatSidenav;
@@ -79,7 +79,10 @@ export class VideoPlayerComponent implements OnInit {
     applySettings(): void {
         this.storage.get(SETTINGS_STORE_KEY).subscribe((settings: Settings) => {
             if (settings && Object.keys(settings).length > 0) {
-                this.player = settings.player;
+                this.playerSettings = {
+                    player: settings.player,
+                    showCaptions: settings.showCaptions,
+                };
             }
         });
     }

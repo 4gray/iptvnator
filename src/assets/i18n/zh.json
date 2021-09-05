@@ -65,7 +65,8 @@
         "LATEST_VERSION": "您使用的是最新版本",
         "LANGUAGE": "语言",
         "SETTINGS_SAVED": "配置已成功保存",
-        "THEME": "主题"
+        "THEME": "主题",
+        "SHOW_CAPTIONS": "Show subtitles"
     },
     "THEMES": {
         "DARK_THEME": "暗黑模式",

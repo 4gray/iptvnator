@@ -65,7 +65,8 @@
         "LATEST_VERSION": "Estás usando la versión reciente",
         "LANGUAGE": "Idioma",
         "SETTINGS_SAVED": "¡Completado! La configuración se guardó.",
-        "THEME": "Tema visual"
+        "THEME": "Tema visual",
+        "SHOW_CAPTIONS": "Mostrar subtítulos"
     },
     "THEMES": {
         "DARK_THEME": "Tema oscuro",

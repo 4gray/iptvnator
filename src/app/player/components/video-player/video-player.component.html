@@ -51,7 +51,7 @@
 
             <!-- video.js player -->
             <app-vjs-player
-                *ngIf="player === 'videojs'"
+                *ngIf="playerSettings.player === 'videojs'"
                 [options]="{
                     sources: [
                         {
@@ -60,12 +60,14 @@
                         }
                     ]
                 }"
+                [class.hide-captions]="!playerSettings.showCaptions"
             ></app-vjs-player>
         </ng-container>
         <!-- default html player component -->
         <app-html-video-player
-            *ngIf="player === 'html5'"
+            *ngIf="playerSettings.player === 'html5'"
             [channel]="activeChannel$ | async"
+            [showCaptions]="playerSettings.showCaptions"
         >
         </app-html-video-player>
 

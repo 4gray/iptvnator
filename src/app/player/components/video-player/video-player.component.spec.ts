@@ -16,6 +16,7 @@ import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
 import { createChannel } from '../../../state';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import { EpgListComponent } from '../epg-list/epg-list.component';
+import { VideoPlayer } from '../../../settings/settings.interface';
 
 class MatSnackBarStub {
     open(): void {}
@@ -73,7 +74,10 @@ describe('VideoPlayerComponent', () => {
 
     it('should check default component settings', () => {
         fixture.detectChanges();
-        expect(component.player).toEqual('videojs');
+        expect(component.playerSettings).toEqual({
+            player: VideoPlayer.VideoJs,
+            showCaptions: false,
+        });
     });
 
     it('should update store after channel was faved', () => {

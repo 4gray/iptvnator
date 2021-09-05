@@ -1,3 +1,4 @@
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { FormBuilder } from '@angular/forms';
 /* eslint-disable @typescript-eslint/unbound-method */
@@ -72,6 +73,7 @@ describe('SettingsComponent', () => {
                     MockModule(MatCardModule),
                     MockModule(MatListModule),
                     MockModule(MatFormFieldModule),
+                    MockModule(MatCheckboxModule),
                 ],
             }).compileComponents();
         })

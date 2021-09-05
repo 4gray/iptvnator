@@ -26,6 +26,9 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
     /** HLS object */
     hls: Hls;
 
+    /** Captions/subtitles indicator */
+    @Input() showCaptions!: boolean;
+
     /**
      * Listen for component input changes
      * @param changes component changes
@@ -55,6 +58,19 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
     }
 
     /**
+     * Disables text based captions based on the global settings
+     */
+    disableCaptions(): void {
+        for (
+            let i = 0;
+            i < this.videoPlayer.nativeElement.textTracks.length;
+            i++
+        ) {
+            this.videoPlayer.nativeElement.textTracks[i].mode = 'hidden';
+        }
+    }
+
+    /**
      * Handles promise based play operation
      */
     handlePlayOperation(): void {
@@ -64,6 +80,9 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
             playPromise
                 .then((_) => {
                     // Automatic playback started!
+                    if (!this.showCaptions) {
+                        this.disableCaptions();
+                    }
                 })
                 .catch((error) => {});
         }

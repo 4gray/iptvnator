@@ -5,3 +5,12 @@
     width: 100% !important;
     height: calc(100vh - 85px);
 }
+
+/* Hide the captions settings item from the captions menu. */
+.hide-captions {
+    .vjs-texttrack-settings,
+    .vjs-text-track-display,
+    .vjs-subs-caps-button {
+        display: none;
+    }
+}

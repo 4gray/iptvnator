@@ -65,7 +65,8 @@
         "LATEST_VERSION": "최신 버전을 사용하고 있습니다",
         "LANGUAGE": "언어",
         "SETTINGS_SAVED": "설정이 저장되었습니다.",
-        "THEME": "테마"
+        "THEME": "테마",
+        "SHOW_CAPTIONS": "Show subtitles"
     },
     "THEMES": {
         "DARK_THEME": "어두운 테마",

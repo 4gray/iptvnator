@@ -24,7 +24,7 @@
         "PROGRAM_DIALOG": {
             "PROGRAM_DETAILS": "Details zum TV-Programm",
             "TITLE": "Titel",
-            "CATEGORY": "Ketegorie",
+            "CATEGORY": "Kategorie",
             "PARENTAL_RATING_SYSTEM": "Alterskennzeichnung (USK)",
             "DESCRIPTION": "Beschreibung",
             "LANGUAGE": "Sprache",
@@ -105,7 +105,8 @@
         "VIDEO_PLAYER_LABEL": "Video player",
         "VIDEO_PLAYER_PLACEHOLDER": "Option auswählen",
         "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!",
-        "THEME": "Farbdesign"
+        "THEME": "Farbdesign",
+        "SHOW_CAPTIONS": "Untertitel anzeigen"
     },
     "THEMES": {
         "DARK_THEME": "Dunkel",
