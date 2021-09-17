@@ -28,4 +28,5 @@ export interface Playlist {
     autoRefresh: boolean;
     updateDate?: number;
     updateState?: PlaylistUpdateState;
+    position?: number;
 }

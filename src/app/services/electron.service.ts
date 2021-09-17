@@ -37,4 +37,13 @@ export class ElectronService {
     getAppVersion(): string {
         return this.remote.app.getVersion();
     }
+
+    /**
+     * Sends an IPC event from render to the main process
+     * @param type event type
+     * @param payload data payload
+     */
+    sendIpcEvent(type: string, payload: unknown): void {
+        this.ipcRenderer.send(type, payload);
+    }
 }

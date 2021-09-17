@@ -1,4 +1,4 @@
-<mat-nav-list>
+<mat-nav-list cdkDropList (cdkDropListDropped)="drop($event)">
     <mat-list-item *ngIf="playlists.length === 0">
         <mat-icon mat-list-icon>cloud</mat-icon>
         <div mat-line>{{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}</div>
@@ -6,11 +6,14 @@
             {{ 'HOME.PLAYLISTS.ADD_FIRST' | translate }}
         </div>
     </mat-list-item>
-    <a
-        mat-list-item
+    <mat-list-item
+        cdkDrag
         *ngFor="let item of playlists; last as last"
         (click)="playlistClicked.emit(item._id)"
     >
+        <mat-icon mat-list-icon cdkDragHandle class="drag-icon"
+            >drag_indicator</mat-icon
+        >
         <mat-icon
             mat-list-icon
             *ngIf="item?.url"
@@ -72,5 +75,5 @@
             <mat-icon>delete</mat-icon>
         </button>
         <mat-divider *ngIf="!last"></mat-divider>
-    </a>
+    </mat-list-item>
 </mat-nav-list>

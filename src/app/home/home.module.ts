@@ -8,9 +8,16 @@ import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.co
 import { HomeRoutingModule } from './home.routing';
 import { NgxUploaderModule } from 'ngx-uploader';
 import { PlaylistInfoComponent } from './recent-playlists/playlist-info/playlist-info.component';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 
 @NgModule({
-    imports: [CommonModule, HomeRoutingModule, NgxUploaderModule, SharedModule],
+    imports: [
+        CommonModule,
+        HomeRoutingModule,
+        NgxUploaderModule,
+        SharedModule,
+        DragDropModule,
+    ],
     declarations: [
         HomeComponent,
         FileUploadComponent,

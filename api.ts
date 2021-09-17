@@ -18,6 +18,7 @@ import {
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
+    PLAYLIST_UPDATE_POSITIONS,
 } from './shared/ipc-commands';
 
 const fs = require('fs');
@@ -205,6 +206,17 @@ export class Api {
             }
         );
 
+        ipcMain.on(
+            PLAYLIST_UPDATE_POSITIONS,
+            (event, playlists: Partial<Playlist[]>) =>
+                playlists.forEach((list, index) => {
+                    this.updatePlaylistById(list._id, {
+                        ...list,
+                        position: index,
+                    });
+                })
+        );
+
         this.refreshPlaylists();
     }
 
@@ -261,8 +273,9 @@ export class Api {
                 autoRefresh: 1,
                 updateDate: 1,
                 updateState: 1,
+                position: 1,
             })
-            .sort({ importDate: -1 });
+            .sort({ position: 1, importDate: -1 });
     }
 
     /**
