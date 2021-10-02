@@ -85,7 +85,7 @@
         "REMOVE_FAVORITE": "Remove from favorites"
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Open channels list",
+        "OPEN_CHANNELS_LIST": "Open channel list",
         "TOGGLE_FAVORITE_FLAG": "Toggle favorite flag",
         "OPEN_EPG_LIST": "Open EPG list"
     },
@@ -97,10 +97,10 @@
         "TIMESHIFT_AVAILABLE": "Timeshift is available, click to play",
         "EPG_NOT_AVAILABLE_DATE": "Ooops, EPG is not available for the selected date",
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ooops, EPG is not available for this channel.",
-        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the url of EPG list the settings of the app.",
-        "FETCH_EPG": "Fetch EPG data...",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the URL of the EPG list in the settings of the app.",
+        "FETCH_EPG": "Fetching EPG data...",
         "PROGRAM_DIALOG": {
-            "PROGRAM_DETAILS": "Details about the TV Program",
+            "PROGRAM_DETAILS": "Details about the TV program",
             "TITLE": "Title",
             "CATEGORY": "Category",
             "PARENTAL_RATING_SYSTEM": "Television content rating system",
