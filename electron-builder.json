@@ -1,49 +1,56 @@
 {
-  "productName": "iptvnator",
-  "directories": {
-    "output": "release/"
-  },
-  "files": [
-    "**/*",
-    "!**/*.ts",
-    "!*.code-workspace",
-    "!LICENSE.md",
-    "!package.json",
-    "!package-lock.json",
-    "!src/",
-    "!e2e/",
-    "!hooks/",
-    "!angular.json",
-    "!tsconfig.json",
-    "!tslint.json"
-  ],
-  "win": {
-    "icon": "dist/assets/icons",
-    "compression": "maximum",
-    "target": [
-      {
-        "target": "nsis",
-        "arch": [
-          "ia32",
-          "x64"
+    "productName": "iptvnator",
+    "directories": {
+        "output": "release/"
+    },
+    "files": [
+        "**/*",
+        "!**/*.ts",
+        "!*.code-workspace",
+        "!LICENSE.md",
+        "!package.json",
+        "!package-lock.json",
+        "!src/",
+        "!e2e/",
+        "!hooks/",
+        "!angular.json",
+        "!tsconfig.json",
+        "!tslint.json"
+    ],
+    "win": {
+        "icon": "dist/assets/icons",
+        "compression": "maximum",
+        "target": [
+            {
+                "target": "nsis",
+                "arch": ["ia32", "x64"]
+            }
         ]
-      }
-    ]
-  },
-  "mac": {
-    "icon": "dist/assets/icons/icon-1024.png",
-    "target": [
-      "dmg"
-    ]
-  },
-  "linux": {
-    "icon": "dist/assets/icons",
-    "category": "Video",
-    "target": [
-      "AppImage",
-      "Snap",
-      "deb",
-      "rpm"
-    ]
-  }
+    },
+    "mac": {
+        "icon": "dist/assets/icons/icon-1024.png",
+        "target": ["dmg"]
+    },
+    "linux": {
+        "icon": "dist/assets/icons",
+        "category": "Video",
+        "target": [
+            {
+                "target": "AppImage",
+                "arch": ["x64", "ia32", "armv7l", "arm64"]
+            },
+            {
+                "target": "deb",
+                "arch": ["x64", "ia32", "armv7l", "arm64"]
+            },
+            {
+                "target": "rpm",
+                "arch": ["x64", "ia32", "arm64", "armv7l"]
+            },
+            {
+                "target": "Snap",
+                "arch": ["x64", "ia32", "arm64", "armv7l"]
+            }
+        ]
+    }
 }
