@@ -119,6 +119,56 @@ export class WhatsNewService {
                 },
             },
         ],
+        '0.9.0': [
+            {
+                imageHeight: 310,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/090/reorder-playlists.gif',
+                title: '🎉 v0.9.0 - rearrange playlists',
+                html: 'The new version of the app has an option to <a href="https://github.com/4gray/iptvnator/issues/77" target="_blank">sort the playlists</a> using drag&drop.',
+                button: {
+                    text: 'YAY!',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+            {
+                imageHeight: 310,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/090/subtitle-option.png',
+                title: 'Global subtitle display setting',
+                html: 'The new version has the ability to enable/disable subtitles on a global level for all channels.',
+                button: {
+                    text: 'YAY!',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+            {
+                imageHeight: 310,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/090/languages.png',
+                title: 'Chinese translation',
+                html: 'Thanks to <a target="_blank" href="https://github.com/JoJenH">@JoJenH</a> for the translation.',
+                button: {
+                    text: 'YAY!',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+            {
+                title: 'This & That',
+                html: `
+                    * improved english translation (thanks to <a target="_blank" href="https://github.com/mbuett">@mbuett</a>)<br />
+                    * bugfixes and visual improvements, see <a href="https://github.com/4gray/iptvnator/blob/master/CHANGELOG.md">changelog</a> for more details
+                `,
+                button: {
+                    text: 'YAY!',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+        ],
     };
 
     /** Options for the "what is new" modal dialogs */
