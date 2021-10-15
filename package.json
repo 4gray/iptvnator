@@ -119,7 +119,7 @@
         "@types/video.js": "7.3.21",
         "@videojs/http-streaming": "2.3.1",
         "about-window": "1.13.4",
-        "axios": "0.21.1",
+        "axios": "0.21.2",
         "custom-electron-titlebar": "3.2.5",
         "epg-parser": "0.1.1",
         "hls.js": "1.0.7",
