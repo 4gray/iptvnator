@@ -9,6 +9,8 @@ import {
     SimpleChanges,
 } from '@angular/core';
 import videoJs from 'video.js';
+import 'videojs-hls-quality-selector';
+import 'videojs-contrib-quality-levels';
 import '@yangkghjh/videojs-aspect-ratio-panel';
 
 @Component({
@@ -39,6 +41,9 @@ export class VjsPlayerComponent implements OnInit, OnDestroy {
                 this.volume(100);
             }
         );
+        this.player.hlsQualitySelector({
+            displayCurrentQuality: true,
+        });
         this.player['aspectRatioPanel']();
     }
 

@@ -118,6 +118,7 @@
         "@ngx-pwa/local-storage": "11.1.0",
         "@types/hls.js": "1.0.0",
         "@types/video.js": "7.3.27",
+        "@types/videojs-hls-quality-selector": "1.1.0",
         "@videojs/http-streaming": "2.11.1",
         "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
         "about-window": "1.13.4",
@@ -135,7 +136,9 @@
         "ngx-uploader": "11.0.0",
         "ngx-whats-new": "0.1.0",
         "semver": "7.3.5",
-        "uuid": "8.3.2"
+        "uuid": "8.3.2",
+        "videojs-contrib-quality-levels": "2.1.0",
+        "videojs-hls-quality-selector": "1.1.4"
     },
     "jest": {
         "preset": "jest-preset-angular",
