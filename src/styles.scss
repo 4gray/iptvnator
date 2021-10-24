@@ -5,6 +5,7 @@ $material-icons-font-path: '~material-icons/iconfont/';
 @import '~material-icons/iconfont/material-icons.scss';
 @import '~@angular/material/theming';
 @import 'themes/';
+@import '~@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
 
 @include mat-core();
 
