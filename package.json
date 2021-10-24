@@ -101,6 +101,7 @@
         "ts-node": "8.10.2",
         "tslib": "2.3.0",
         "typescript": "4.3.4",
+        "video.js": "7.15.4",
         "wait-on": "5.2.1",
         "webdriver-manager": "12.1.7",
         "zone.js": "~0.11.4"
@@ -117,12 +118,13 @@
         "@ngx-pwa/local-storage": "11.1.0",
         "@types/hls.js": "1.0.0",
         "@types/video.js": "7.3.21",
-        "@videojs/http-streaming": "2.3.1",
+        "@videojs/http-streaming": "2.11.1",
+        "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
         "about-window": "1.13.4",
         "axios": "0.21.2",
         "custom-electron-titlebar": "3.2.5",
         "epg-parser": "0.1.1",
-        "hls.js": "1.0.7",
+        "hls.js": "1.0.11",
         "iptv-playlist-parser": "0.8.0",
         "lodash": "4.17.21",
         "material-icons": "0.3.1",
@@ -133,8 +135,7 @@
         "ngx-uploader": "11.0.0",
         "ngx-whats-new": "0.1.0",
         "semver": "7.3.4",
-        "uuid": "8.3.0",
-        "video-js": "0.7.0"
+        "uuid": "8.3.0"
     },
     "jest": {
         "preset": "jest-preset-angular",

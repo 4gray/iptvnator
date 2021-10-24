@@ -9,6 +9,7 @@ import {
     SimpleChanges,
 } from '@angular/core';
 import videoJs from 'video.js';
+import '@yangkghjh/videojs-aspect-ratio-panel';
 
 @Component({
     selector: 'app-vjs-player',
@@ -38,6 +39,7 @@ export class VjsPlayerComponent implements OnInit, OnDestroy {
                 this.volume(100);
             }
         );
+        this.player['aspectRatioPanel']();
     }
 
     /**
