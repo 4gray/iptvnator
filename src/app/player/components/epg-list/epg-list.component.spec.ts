@@ -1,4 +1,4 @@
-import { MockComponent, MockProvider } from 'ng-mocks';
+import { MockComponent, MockProvider, MockModule, MockPipe } from 'ng-mocks';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -6,7 +6,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { EpgListComponent, EpgData } from './epg-list.component';
 import { MatListModule } from '@angular/material/list';
-import { MockModule, MockPipe } from 'ng-mocks';
 import { ElectronService } from '../../../services/electron.service';
 import { ElectronServiceStub } from '../../../home/home.component.spec';
 import * as moment from 'moment';

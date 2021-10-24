@@ -41,7 +41,11 @@
                         "ignoredNodes": ["TSTypeParameterInstantiation"]
                     }
                 ],
+                "no-unused-vars": "off",
+                "@typescript-eslint/no-unused-vars": ["error"],
+                "@typescript-eslint/no-duplicate-imports": ["error"],
                 "@typescript-eslint/no-empty-function": 0,
+                "@typescript-eslint/no-unsafe-argument": 0,
                 "@typescript-eslint/no-var-requires": 0,
                 "@typescript-eslint/no-explicit-any": 0,
                 "@typescript-eslint/no-unsafe-call": 0,

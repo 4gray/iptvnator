@@ -13,6 +13,9 @@ import 'videojs-hls-quality-selector';
 import 'videojs-contrib-quality-levels';
 import '@yangkghjh/videojs-aspect-ratio-panel';
 
+/**
+ * This component contains the implementation of video player that is based on video.js library
+ */
 @Component({
     selector: 'app-vjs-player',
     templateUrl: './vjs-player.component.html',
@@ -21,7 +24,7 @@ import '@yangkghjh/videojs-aspect-ratio-panel';
 })
 export class VjsPlayerComponent implements OnInit, OnDestroy {
     /** DOM-element reference */
-    @ViewChild('target', { static: true }) target: ElementRef;
+    @ViewChild('target', { static: true }) target: ElementRef<Element>;
     /** Options of VideoJs player */
     @Input() options: videoJs.PlayerOptions;
     /** VideoJs object */

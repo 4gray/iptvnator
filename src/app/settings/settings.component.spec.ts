@@ -1,6 +1,5 @@
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { FormBuilder } from '@angular/forms';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ElectronService } from './../services/electron.service';
 import { ElectronServiceStub } from './../home/home.component.spec';
@@ -18,7 +17,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MockModule, MockPipe, MockComponent } from 'ng-mocks';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { EPG_FETCH } from '../../../shared/ipc-commands';
 import { Router } from '@angular/router';
@@ -37,7 +36,6 @@ describe('SettingsComponent', () => {
     let component: SettingsComponent;
     let fixture: ComponentFixture<SettingsComponent>;
     let electronService: ElectronService;
-    let storage: StorageMap;
     let router: Router;
 
     beforeEach(
@@ -82,7 +80,6 @@ describe('SettingsComponent', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(SettingsComponent);
         electronService = TestBed.inject(ElectronService);
-        storage = TestBed.inject(StorageMap);
         router = TestBed.inject(Router);
         component = fixture.componentInstance;
         fixture.detectChanges();

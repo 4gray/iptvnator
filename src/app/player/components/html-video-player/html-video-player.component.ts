@@ -10,6 +10,9 @@ import {
 import { Channel } from '../../../state';
 import Hls from 'hls.js';
 
+/**
+ * This component contains the implementation of HTML5 based video player
+ */
 @Component({
     selector: 'app-html-video-player',
     templateUrl: './html-video-player.component.html',
@@ -78,13 +81,13 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
 
         if (playPromise !== undefined) {
             playPromise
-                .then((_) => {
+                .then(() => {
                     // Automatic playback started!
                     if (!this.showCaptions) {
                         this.disableCaptions();
                     }
                 })
-                .catch((error) => {});
+                .catch(() => {});
         }
     }
 
