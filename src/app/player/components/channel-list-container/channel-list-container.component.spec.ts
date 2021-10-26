@@ -19,7 +19,7 @@ import { By } from '@angular/platform-browser';
 import { createChannel } from '../../../state';
 import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
 import { ElectronService } from '../../../services/electron.service';
-import { ElectronServiceStub } from '../../../home/home.component.spec';
+import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 
 class MatSnackBarStub {

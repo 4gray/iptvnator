@@ -5,11 +5,8 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { MatSidenav } from '@angular/material/sidenav';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { Settings, VideoPlayer } from '../../../settings/settings.interface';
+import { Settings, SETTINGS_STORE_KEY, VideoPlayer } from '../../../settings/settings.interface';
 import { MatSnackBar } from '@angular/material/snack-bar';
-
-/** Settings key in storage */
-export const SETTINGS_STORE_KEY = 'settings';
 
 @Component({
     selector: 'app-video-player',

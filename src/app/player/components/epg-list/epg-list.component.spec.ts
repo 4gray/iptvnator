@@ -7,7 +7,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { EpgListComponent, EpgData } from './epg-list.component';
 import { MatListModule } from '@angular/material/list';
 import { ElectronService } from '../../../services/electron.service';
-import { ElectronServiceStub } from '../../../home/home.component.spec';
+import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import * as moment from 'moment';
 import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
 import { Channel, ChannelStore } from '../../../state';

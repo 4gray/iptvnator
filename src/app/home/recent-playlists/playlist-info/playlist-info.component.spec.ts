@@ -1,7 +1,7 @@
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { PLAYLIST_SAVE_DETAILS } from './../../../../../shared/ipc-commands';
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ElectronServiceStub } from './../../home.component.spec';
+import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { ElectronService } from './../../../services/electron.service';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockModule, MockPipe } from 'ng-mocks';

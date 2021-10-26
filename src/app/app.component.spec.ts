@@ -4,7 +4,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { AppComponent } from './app.component';
 import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { ElectronService } from './services/electron.service';
-import { ElectronServiceStub } from './home/home.component.spec';
+import { ElectronServiceStub } from './services/electron.service.stub';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MockModule, MockPipe } from 'ng-mocks';
 

@@ -19,23 +19,10 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ElectronService } from '../services/electron.service';
 import { Router } from '@angular/router';
 import { DialogService } from '../services/dialog.service';
+import { ElectronServiceStub } from '../services/electron.service.stub';
 
 class MatSnackBarStub {
     open(): void {}
-}
-
-export class ElectronServiceStub {
-    ipcRenderer = {
-        send: jest.fn(),
-        on: jest.fn(),
-        removeAllListeners: jest.fn(),
-    };
-    remote = {
-        process: {
-            platform: 'linux',
-            argv: [0, 1],
-        },
-    };
 }
 
 describe('HomeComponent', () => {

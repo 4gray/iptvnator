@@ -8,10 +8,7 @@ import { PlaylistMeta } from '../home.component';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatIconModule } from '@angular/material/icon';
-
-export class ElectronServiceStub {
-    sendIpcEvent(): void {}
-}
+import { ElectronServiceStub } from '../../services/electron.service.stub';
 
 describe('RecentPlaylistsComponent', () => {
     let component: RecentPlaylistsComponent;
