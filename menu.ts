@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Menu, MenuItem, shell } from 'electron';
 import * as path from 'path';
-import { SHOW_WHATS_NEW } from './shared/ipc-commands';
+import { SHOW_WHATS_NEW, VIEW_ADD_PLAYLIST, VIEW_SETTINGS } from './shared/ipc-commands';
 const openAboutWindow = require('about-window').default;
 
 export class AppMenu {
@@ -48,14 +48,14 @@ export class AppMenu {
                 {
                     label: 'Add playlist',
                     click: () =>
-                        this.window.webContents.send('add-playlist-view'),
+                        this.window.webContents.send(VIEW_ADD_PLAYLIST),
                 },
                 {
                     type: 'separator',
                 },
                 {
                     label: 'Settings',
-                    click: () => this.window.webContents.send('settings-view'),
+                    click: () => this.window.webContents.send(VIEW_SETTINGS),
                 },
                 {
                     type: 'separator',

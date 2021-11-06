@@ -5,8 +5,9 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { MatSidenav } from '@angular/material/sidenav';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { Settings, SETTINGS_STORE_KEY, VideoPlayer } from '../../../settings/settings.interface';
+import { Settings, VideoPlayer } from '../../../settings/settings.interface';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { STORE_KEY } from '../../../shared/enums/store-keys.enum';
 
 @Component({
     selector: 'app-video-player',
@@ -74,7 +75,7 @@ export class VideoPlayerComponent implements OnInit {
      * Reads the app configuration from the browsers storage and applies the settings in the current component
      */
     applySettings(): void {
-        this.storage.get(SETTINGS_STORE_KEY).subscribe((settings: Settings) => {
+        this.storage.get(STORE_KEY.Settings).subscribe((settings: Settings) => {
             if (settings && Object.keys(settings).length > 0) {
                 this.playerSettings = {
                     player: settings.player,

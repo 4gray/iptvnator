@@ -10,12 +10,12 @@ export class ElectronServiceStub {
             argv: [0, 1],
         },
         app: {
-            getVersion: jest.fn(),
+            getVersion: jest.fn(() => '1.0.0'),
         }
     };
 
     getAppVersion() {
-        this.remote.app.getVersion();
+        return this.remote.app.getVersion();
     }
 
     sendIpcEvent() { 

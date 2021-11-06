@@ -5,7 +5,8 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable, Subscription } from 'rxjs';
-import { Settings, SETTINGS_STORE_KEY, VideoPlayer } from './settings.interface';
+import { STORE_KEY } from '../shared/enums/store-keys.enum';
+import { Settings, VideoPlayer } from './settings.interface';
 import { HttpClient } from '@angular/common/http';
 import * as semver from 'semver';
 import { ElectronService } from '../services/electron.service';
@@ -59,7 +60,7 @@ export class SettingsComponent implements OnInit {
     themeEnum = Theme;
 
     /**
-     * Creates an instance of SettingsComponent and injects 
+     * Creates an instance of SettingsComponent and injects
      * required dependencies into the component
      * @param channelQuery
      * @param electronService
@@ -94,50 +95,54 @@ export class SettingsComponent implements OnInit {
     }
 
     /**
-     * Reads the config object from the browsers 
+     * Reads the config object from the browsers
      * storage (indexed db)
      */
     ngOnInit(): void {
-        this.storage.get(SETTINGS_STORE_KEY).subscribe((settings: Settings) => {
-            if (settings) {
-                this.settingsForm.setValue({
-                    player: settings.player
-                        ? settings.player
-                        : VideoPlayer.VideoJs,
-                    epgUrl: settings.epgUrl ? settings.epgUrl : '',
-                    language: settings.language
-                        ? settings.language
-                        : Language.ENGLISH,
-                    showCaptions: settings.showCaptions
-                        ? settings.showCaptions
-                        : false,
-                    theme: settings.theme
-                        ? settings.theme
-                        : Theme.LightTheme,
-                });
-            }
-        });
+        this.settingsService
+            .getValueFromLocalStorage(STORE_KEY.Settings)
+            .subscribe((settings: Settings) => {
+                if (settings) {
+                    this.settingsForm.setValue({
+                        player: settings.player
+                            ? settings.player
+                            : VideoPlayer.VideoJs,
+                        epgUrl: settings.epgUrl ? settings.epgUrl : '',
+                        language: settings.language
+                            ? settings.language
+                            : Language.ENGLISH,
+                        showCaptions: settings.showCaptions
+                            ? settings.showCaptions
+                            : false,
+                        theme: settings.theme
+                            ? settings.theme
+                            : Theme.LightTheme,
+                    });
+                }
+            });
     }
 
     /**
-     * Checks whether the latest version of the application 
+     * Checks whether the latest version of the application
      * is used and updates the version message in the
      * settings UI
      */
     checkAppVersion(): void {
         this.http
-        .get(PACKAGE_JSON_URL)
-        .pipe(catchError(err => {
-            console.error(err);
-            throw new Error(err);
-        }))
-        .subscribe((response: { version: string }) => {
-            this.showVersionInformation(response.version);
-        });
+            .get(PACKAGE_JSON_URL)
+            .pipe(
+                catchError((err) => {
+                    console.error(err);
+                    throw new Error(err);
+                })
+            )
+            .subscribe((response: { version: string }) => {
+                this.showVersionInformation(response.version);
+            });
     }
 
     /**
-     * Updates the message in settings UI about the used 
+     * Updates the message in settings UI about the used
      * version of the app
      * @param currentVersion current version of the application
      */
@@ -158,17 +163,14 @@ export class SettingsComponent implements OnInit {
     }
 
     /**
-     * Compares actual with latest version of the 
-     * application  
+     * Compares actual with latest version of the
+     * application
      * @param latestVersion latest version
      * @returns returns true if an update is available
      */
     isCurrentVersionOutdated(latestVersion: string): boolean {
         this.version = this.electronService.getAppVersion();
-        return semver.lt(
-            this.version,
-            latestVersion
-        );
+        return semver.lt(this.version, latestVersion);
     }
 
     /**
@@ -177,7 +179,7 @@ export class SettingsComponent implements OnInit {
      */
     onSubmit(): void {
         this.storage
-            .set(SETTINGS_STORE_KEY, this.settingsForm.value)
+            .set(STORE_KEY.Settings, this.settingsForm.value)
             .subscribe(() => {
                 this.settingsForm.markAsPristine();
                 // check whether the epg url was changed or not
@@ -185,9 +187,7 @@ export class SettingsComponent implements OnInit {
                     this.fetchEpg();
                 }
                 this.translate.use(this.settingsForm.value.language);
-                this.settingsService.changeTheme(
-                    this.settingsForm.value.theme
-                );
+                this.settingsService.changeTheme(this.settingsForm.value.theme);
                 this.snackBar.open(
                     this.translate.instant('SETTINGS.SETTINGS_SAVED'),
                     null,
