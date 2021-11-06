@@ -19,3 +19,7 @@ export const ERROR = 'error';
 
 // Channels
 export const CHANNEL_SET_USER_AGENT = 'CHANNEL:SET_USER_AGENT';
+
+// Views
+export const VIEW_SETTINGS = 'settings-view';
+export const VIEW_ADD_PLAYLIST = 'add-playlist-view';
