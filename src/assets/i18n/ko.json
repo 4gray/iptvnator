@@ -1,4 +1,5 @@
 {
+    "CLOSE": "닫기",
     "HOME": {
         "TITLE": "IPTVnator",
         "SUBTITLE": "목록에서 재생 목록을 선택하거나 파일 업로드 또는 URL을 통해 새 재생 목록을 추가하십시오.",
@@ -99,6 +100,8 @@
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "이 채널에는 EPG를 사용할 수 없습니다.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "설정에서 EPG의 URL을 추가/변경하십시오.",
         "FETCH_EPG": "EPG 데이터 가져 오기...",
+        "ERROR": "Ooops, EPG could not be loaded.",
+        "DOWNLOAD_SUCCESS": "EPG was successfully downloaded.",
         "PROGRAM_DIALOG": {
             "PROGRAM_DETAILS": "TV 프로그램에 대한 세부 사항",
             "TITLE": "제목",

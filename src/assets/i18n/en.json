@@ -1,4 +1,5 @@
 {
+    "CLOSE": "Close",
     "HOME": {
         "TITLE": "IPTVnator",
         "SUBTITLE": "Please select a playlist from the list or add a new playlist via file upload or via url",
@@ -99,6 +100,8 @@
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ooops, EPG is not available for this channel.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the URL of the EPG list in the settings of the app.",
         "FETCH_EPG": "Fetching EPG data...",
+        "ERROR": "Ooops, EPG could not be loaded.",
+        "DOWNLOAD_SUCCESS": "EPG was successfully downloaded.",
         "PROGRAM_DIALOG": {
             "PROGRAM_DETAILS": "Details about the TV program",
             "TITLE": "Title",

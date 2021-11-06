@@ -1,4 +1,5 @@
 {
+    "CLOSE": "关闭",
     "HOME": {
         "TITLE": "IPTVnator",
         "SUBTITLE": "选择一个播放列表或者从URL/文件中添加一个新的播放列表",
@@ -99,6 +100,8 @@
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "错误：电子节目单EPG不适用于此频道",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "请添加/更改设置项中电子节目单的URL",
         "FETCH_EPG": "获取 EPG 数据...",
+        "ERROR": "Ooops, EPG could not be loaded.",
+        "DOWNLOAD_SUCCESS": "EPG was successfully downloaded.",
         "PROGRAM_DIALOG": {
             "PROGRAM_DETAILS": "电视节目详情",
             "TITLE": "标题",

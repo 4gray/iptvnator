@@ -1,4 +1,5 @@
 {
+    "CLOSE": "Schließen",
     "CHANNELS": {
         "ALL_CHANNELS": "Alle Sender",
         "FAVORITES": "Favoriten",
@@ -21,6 +22,8 @@
         "PREVIOUS_DAY": "Zum vorherigen Tag",
         "TIMESHIFT_AVAILABLE": "Die Timeshift-Funktion (Archiv) ist verfügbar, klicken Sie an um abzuspielen",
         "FETCH_EPG": "EPG-Daten werden geladen...",
+        "ERROR": "Ooops, EPG konnte nicht geladen werden",
+        "DOWNLOAD_SUCCESS": "EPG wurde erfolgreich geladen.",
         "PROGRAM_DIALOG": {
             "PROGRAM_DETAILS": "Details zum TV-Programm",
             "TITLE": "Titel",
