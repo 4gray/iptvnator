@@ -19,7 +19,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v1
         with:
-          node-version: "16.x"
+          node-version: "12.x"
       - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
       - run: npm ci
       - run: npm test -- --coverage
@@ -43,7 +43,7 @@ jobs:
       - name: Install Node.js, NPM and Yarn
         uses: actions/setup-node@v1
         with:
-          node-version: "16.x"
+          node-version: "12.x"
 
       - name: Build Electron app
         uses: samuelmeuli/action-electron-builder@v1
