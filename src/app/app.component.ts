@@ -135,7 +135,7 @@ export class AppComponent {
                             url: settings.epgUrl,
                         });
                         this.snackBar.open(
-                            this.translate.instant('FETCH_EPG'),
+                            this.translate.instant('EPG.FETCH_EPG'),
                             this.translate.instant('CLOSE'),
                             this.epgSnackBarOptions
                         );
