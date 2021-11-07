@@ -7,7 +7,7 @@
         "types": []
     },
     "include": ["**/*.ts"],
-    "exclude": ["**/*.spec.ts"],
+    "exclude": ["**/*.spec.ts", "**/*.stub.ts"],
     "angularCompilerOptions": {
         "fullTemplateTypeCheck": true,
         "strictInjectionParameters": true,
