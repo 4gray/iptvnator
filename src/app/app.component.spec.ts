@@ -89,7 +89,6 @@ describe('AppComponent', () => {
         const app = fixture.debugElement.componentInstance;
         expect(app).toBeTruthy();
         expect(component.commandsList.length).toEqual(5);
-        expect(IpcCommand).toHaveBeenCalledTimes(5);
     });
 
     it('should init component', () => {
