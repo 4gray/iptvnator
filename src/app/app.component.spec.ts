@@ -24,7 +24,6 @@ import { Router } from '@angular/router';
 import { ChannelStore } from './state';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
 import { WhatsNewServiceStub } from './services/whats-new.service.stub';
-import { IpcCommand } from '../../shared/ipc-command.class';
 
 jest.mock('custom-electron-titlebar', () => {
     return {

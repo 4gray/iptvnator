@@ -4,7 +4,7 @@ import { FormGroup, FormBuilder } from '@angular/forms';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Observable, Subscription } from 'rxjs';
+import { Observable } from 'rxjs';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { Settings, VideoPlayer } from './settings.interface';
 import { HttpClient } from '@angular/common/http';

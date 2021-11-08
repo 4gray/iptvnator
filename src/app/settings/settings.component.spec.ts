@@ -41,8 +41,8 @@ const DEFAULT_SETTINGS = {
     epgUrl: '',
     language: Language.ENGLISH,
     showCaptions: false,
-    theme: Theme.LightTheme
-}
+    theme: Theme.LightTheme,
+};
 
 describe('SettingsComponent', () => {
     let component: SettingsComponent;
@@ -106,13 +106,13 @@ describe('SettingsComponent', () => {
     });
 
     describe('Get and set settings on component init', () => {
-        const settings = {player: 'test', showCaptions: true};
+        const settings = { player: 'test', showCaptions: true };
         let spyOnStorageGet;
-        
+
         beforeEach(() => {
             spyOnStorageGet = spyOn(storage, 'get');
-        })
-         
+        });
+
         it('should init default settings if previous config was not saved', () => {
             spyOnStorageGet.and.returnValue(of(null));
             spyOn(component.settingsForm, 'setValue');
@@ -133,38 +133,43 @@ describe('SettingsComponent', () => {
             spyOnStorageGet.and.returnValue(of(settings));
             component.ngOnInit();
             expect(storage.get).toHaveBeenCalled();
-            expect(component.settingsForm.value).toEqual({...DEFAULT_SETTINGS, ...settings});            
+            expect(component.settingsForm.value).toEqual({
+                ...DEFAULT_SETTINGS,
+                ...settings,
+            });
         });
     });
 
-
-    describe.only('Version check', () => {
+    describe('Version check', () => {
         const latestVersion = '1.0.0';
         const currentVersion = '0.1.0';
-            
+
         it('should return true if version is outdated', () => {
-            spyOn(electronService, 'getAppVersion').and.returnValue(currentVersion);
-            const isOutdated = component.isCurrentVersionOutdated(latestVersion);
+            spyOn(electronService, 'getAppVersion').and.returnValue(
+                currentVersion
+            );
+            const isOutdated =
+                component.isCurrentVersionOutdated(latestVersion);
             expect(isOutdated).toBeTruthy();
         });
 
         it('should update notification message if version is outdated', () => {
             spyOn(translate, 'instant');
-            spyOn(electronService, 'getAppVersion').and.returnValue(currentVersion);
+            spyOn(electronService, 'getAppVersion').and.returnValue(
+                currentVersion
+            );
             component.showVersionInformation(currentVersion);
             fixture.detectChanges();
             expect(translate.instant).toHaveBeenCalled();
         });
-
     });
 
     it('should send epg fetch command', () => {
         spyOn(electronService, 'sendIpcEvent');
         component.fetchEpg();
-        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
-            EPG_FETCH,
-            { url: '' }
-        );
+        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(EPG_FETCH, {
+            url: '',
+        });
     });
 
     it('should navigate back to home page', () => {
