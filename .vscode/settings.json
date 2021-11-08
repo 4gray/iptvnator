@@ -1,4 +1,6 @@
 {
     "i18n-ally.localesPaths": "src/assets/i18n",
-    "i18n-ally.keystyle": "nested"
+    "i18n-ally.keystyle": "nested",
+    "cSpell.words": ["iptvnator", "lcov", "titlebar", "Whitespaces"],
+    "cSpell.ignorePaths": ["node_modules", "package.json", "package-lock.json"]
 }
