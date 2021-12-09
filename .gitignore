@@ -45,6 +45,7 @@ npm-debug.log
 testem.log
 /typings
 package-lock.json
+.angular/*
 
 # e2e
 /e2e/*.js
