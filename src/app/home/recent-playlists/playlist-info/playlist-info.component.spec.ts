@@ -57,8 +57,8 @@ describe('PlaylistInfoComponent', () => {
         const playlistToSave = { _id: 'a12345', title: 'Playlist' } as Playlist;
         spyOn(electronService.ipcRenderer, 'send');
         component.saveChanges(playlistToSave);
-        expect(electronService.ipcRenderer.send).toHaveBeenCalledTimes(1);
-        expect(electronService.ipcRenderer.send).toHaveBeenCalledWith(
+        expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
+        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             PLAYLIST_SAVE_DETAILS,
             playlistToSave
         );

@@ -48,7 +48,7 @@ export class ChannelStore extends EntityStore<ChannelState> {
             } else {
                 favorites = [...store.favorites, channel.id];
             }
-            this.electronService.ipcRenderer.send('update-favorites', {
+            this.electronService.sendIpcEvent('update-favorites', {
                 id: store.playlistId,
                 favorites,
             });
@@ -63,17 +63,14 @@ export class ChannelStore extends EntityStore<ChannelState> {
     setActiveChannel(channel: Channel): void {
         this.update((store) => {
             if (store.epgAvailable) {
-                this.electronService.ipcRenderer.send(EPG_GET_PROGRAM, {
+                this.electronService.sendIpcEvent(EPG_GET_PROGRAM, {
                     channelName: channel.name,
                 });
                 if (channel.http['user-agent']) {
-                    this.electronService.ipcRenderer.send(
-                        CHANNEL_SET_USER_AGENT,
-                        {
-                            referer: channel.http.referrer,
-                            userAgent: channel.http['user-agent'],
-                        }
-                    );
+                    this.electronService.sendIpcEvent(CHANNEL_SET_USER_AGENT, {
+                        referer: channel.http.referrer,
+                        userAgent: channel.http['user-agent'],
+                    });
                 }
             }
             return {
@@ -117,7 +114,7 @@ export class ChannelStore extends EntityStore<ChannelState> {
     setEpgAvailableFlag(value: boolean): void {
         this.update((store) => {
             if (store.active && store.active.name) {
-                this.electronService.ipcRenderer.send(EPG_GET_PROGRAM, {
+                this.electronService.sendIpcEvent(EPG_GET_PROGRAM, {
                     channelName: store.active.name,
                 });
             }

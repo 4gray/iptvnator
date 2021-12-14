@@ -14,6 +14,7 @@ import {
     PLAYLIST_UPDATE_RESPONSE,
 } from '../../../shared/ipc-commands';
 import { DialogService } from './../services/dialog.service';
+import { DataService } from '../services/data.service';
 
 /** Type to describe meta data of a playlist */
 export type PlaylistMeta = Pick<
@@ -60,7 +61,7 @@ export class HomeComponent {
                 this.snackBar.open('Done! Playlist was removed.', null, {
                     duration: 2000,
                 });
-                this.electronService.ipcRenderer.send('playlists-all');
+                // this.electronService.sendIpcEvent('playlists-all');
             },
         },
         {
@@ -90,14 +91,14 @@ export class HomeComponent {
     constructor(
         private channelStore: ChannelStore,
         private dialogService: DialogService,
-        private electronService: ElectronService,
+        private electronService: DataService,
         private ngZone: NgZone,
         private router: Router,
         private snackBar: MatSnackBar,
         private translate: TranslateService
     ) {
         // get all playlists
-        this.electronService.ipcRenderer.send('playlists-all');
+        this.electronService.sendIpcEvent('playlists-all');
         // set all renderer listeners
         this.setRendererListeners();
     }
@@ -107,12 +108,9 @@ export class HomeComponent {
      */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
-            this.electronService.ipcRenderer.on(
-                command.id,
-                (event, response) => {
-                    this.ngZone.run(() => command.execute(response));
-                }
-            );
+            this.electronService.listenOn(command.id, (event, response) => {
+                this.ngZone.run(() => command.execute(response));
+            });
         });
     }
 
@@ -135,7 +133,7 @@ export class HomeComponent {
         this.isLoading = true;
         const result = (payload.uploadEvent.target as FileReader).result;
         const array = (result as string).split('\n');
-        this.electronService.ipcRenderer.send(PLAYLIST_PARSE, {
+        this.electronService.sendIpcEvent(PLAYLIST_PARSE, {
             title: payload.file.name,
             playlist: array,
             path: payload.file.nativeFile.path,
@@ -156,7 +154,7 @@ export class HomeComponent {
      */
     sendPlaylistsUrl(playlistUrl: string): void {
         this.isLoading = true;
-        this.electronService.ipcRenderer.send('parse-playlist-by-url', {
+        this.electronService.sendIpcEvent('parse-playlist-by-url', {
             title: this.getLastUrlSegment(playlistUrl),
             url: playlistUrl,
         });
@@ -201,7 +199,7 @@ export class HomeComponent {
      * @param playlistId playlist id to remove
      */
     removePlaylist(playlistId: string): void {
-        this.electronService.ipcRenderer.send('playlist-remove-by-id', {
+        this.electronService.sendIpcEvent('playlist-remove-by-id', {
             id: playlistId,
         });
     }
@@ -211,7 +209,7 @@ export class HomeComponent {
      * @param item playlist to update
      */
     refreshPlaylist(item: PlaylistMeta): void {
-        this.electronService.ipcRenderer.send(PLAYLIST_UPDATE, {
+        this.electronService.sendIpcEvent(PLAYLIST_UPDATE, {
             id: item._id,
             ...(item.url ? { url: item.url } : { filePath: item.filePath }),
         });
@@ -222,7 +220,7 @@ export class HomeComponent {
      * @param playlistId playlist id
      */
     getPlaylist(playlistId: string): void {
-        this.electronService.ipcRenderer.send('playlist-by-id', {
+        this.electronService.sendIpcEvent('playlist-by-id', {
             id: playlistId,
         });
     }
@@ -255,7 +253,7 @@ export class HomeComponent {
      */
     ngOnDestroy(): void {
         this.commandsList.forEach((command) =>
-            this.electronService.ipcRenderer.removeAllListeners(command.id)
+            this.electronService.removeAllListeners(command.id)
         );
     }
 }

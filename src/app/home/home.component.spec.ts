@@ -83,7 +83,7 @@ describe('HomeComponent', () => {
         const playlistId = '12345';
         spyOn(electronService.ipcRenderer, 'send');
         component.removePlaylist(playlistId);
-        expect(electronService.ipcRenderer.send).toHaveBeenCalledWith(
+        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             'playlist-remove-by-id',
             { id: playlistId }
         );
@@ -96,7 +96,7 @@ describe('HomeComponent', () => {
         } as PlaylistMeta;
         spyOn(electronService.ipcRenderer, 'send');
         component.refreshPlaylist(playlistMeta);
-        expect(electronService.ipcRenderer.send).toHaveBeenCalledWith(
+        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             PLAYLIST_UPDATE,
             { id: playlistMeta._id, filePath: playlistMeta.filePath }
         );
@@ -106,7 +106,7 @@ describe('HomeComponent', () => {
         const playlistId = '6789';
         spyOn(electronService.ipcRenderer, 'send');
         component.getPlaylist(playlistId);
-        expect(electronService.ipcRenderer.send).toHaveBeenCalledWith(
+        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             'playlist-by-id',
             {
                 id: playlistId,
@@ -119,7 +119,7 @@ describe('HomeComponent', () => {
         const playlistUrl = 'http://test.com/' + playlistTitle;
         spyOn(electronService.ipcRenderer, 'send');
         component.sendPlaylistsUrl(playlistUrl);
-        expect(electronService.ipcRenderer.send).toHaveBeenCalledWith(
+        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             'parse-playlist-by-url',
             {
                 title: playlistTitle,
@@ -141,7 +141,7 @@ describe('HomeComponent', () => {
             target: { result: playlistContent },
         } as unknown as Event;
         component.handlePlaylist({ file, uploadEvent });
-        expect(electronService.ipcRenderer.send).toHaveBeenCalledWith(
+        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             PLAYLIST_PARSE,
             { title, playlist: [playlistContent], path }
         );
@@ -184,10 +184,10 @@ describe('HomeComponent', () => {
     });
 
     it('should remove all ipc listeners on destroy', () => {
-        spyOn(electronService.ipcRenderer, 'removeAllListeners');
+        spyOn(electronService, 'removeAllListeners');
         component.ngOnDestroy();
-        expect(
-            electronService.ipcRenderer.removeAllListeners
-        ).toHaveBeenCalledTimes(component.commandsList.length);
+        expect(electronService.removeAllListeners).toHaveBeenCalledTimes(
+            component.commandsList.length
+        );
     });
 });

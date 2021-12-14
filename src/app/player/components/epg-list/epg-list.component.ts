@@ -61,7 +61,7 @@ export class EpgListComponent {
         private electronService: ElectronService,
         private ngZone: NgZone
     ) {
-        this.electronService.ipcRenderer.on(
+        this.electronService.listenOn(
             EPG_GET_PROGRAM_DONE,
             (event, response) => {
                 this.ngZone.run(() => this.handleEpgData(response));
@@ -183,8 +183,6 @@ export class EpgListComponent {
      * Removes all ipc renderer listeners after destroy
      */
     ngOnDestroy(): void {
-        this.electronService.ipcRenderer.removeAllListeners(
-            EPG_GET_PROGRAM_DONE
-        );
+        this.electronService.removeAllListeners(EPG_GET_PROGRAM_DONE);
     }
 }

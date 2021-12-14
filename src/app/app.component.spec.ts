@@ -106,17 +106,15 @@ describe('AppComponent', () => {
 
     describe('Test ipc listeners and commands', () => {
         it('should set IPC listeners', () => {
-            spyOn(electronService.ipcRenderer, 'on');
+            spyOn(electronService, 'listenOn');
             component.setRendererListeners();
-            expect(electronService.ipcRenderer.on).toHaveBeenCalledTimes(5);
+            expect(electronService.listenOn).toHaveBeenCalledTimes(5);
         });
 
         it('should remove all ipc listeners on destroy', () => {
-            spyOn(electronService.ipcRenderer, 'removeAllListeners');
+            spyOn(electronService, 'removeAllListeners');
             component.ngOnDestroy();
-            expect(
-                electronService.ipcRenderer.removeAllListeners
-            ).toHaveBeenCalledTimes(4);
+            expect(electronService.removeAllListeners).toHaveBeenCalledTimes(4);
         });
 
         it('should navigate to the provided route', inject(
@@ -245,7 +243,7 @@ describe('AppComponent', () => {
 
             expect(spyOnSettingsGet).toHaveBeenCalledWith(STORE_KEY.Settings);
             expect(settingsService.changeTheme).toHaveBeenCalledWith(theme);
-            expect(electronService.ipcRenderer.send).toHaveBeenCalledTimes(1);
+            expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
             expect(translateService.use).toHaveBeenCalledWith(language);
         });
 
@@ -259,7 +257,7 @@ describe('AppComponent', () => {
 
             expect(spyOnSettingsGet).toHaveBeenCalledWith(STORE_KEY.Settings);
             expect(settingsService.changeTheme).toHaveBeenCalledTimes(0);
-            expect(electronService.ipcRenderer.send).toHaveBeenCalledTimes(0);
+            expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(0);
             expect(translateService.use).toHaveBeenCalledTimes(0);
         });
 
@@ -273,7 +271,7 @@ describe('AppComponent', () => {
 
             expect(spyOnSettingsGet).toHaveBeenCalledWith(STORE_KEY.Settings);
             expect(settingsService.changeTheme).toHaveBeenCalledWith(theme);
-            expect(electronService.ipcRenderer.send).toHaveBeenCalledTimes(0);
+            expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(0);
             expect(translateService.use).toHaveBeenCalledWith(defaultLanguage);
         });
     });

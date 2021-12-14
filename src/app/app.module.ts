@@ -14,10 +14,23 @@ import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 
 import { AppComponent } from './app.component';
-
+import { ElectronService } from './services/electron.service';
+import { PwaService } from './services/pwa.service';
+import { DataService } from './services/data.service';
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
     return new TranslateHttpLoader(http, './assets/i18n/', '.json');
+}
+
+function isElectron(): boolean {
+    return !!(window && window.process && window.process.type);
+}
+
+export function AuthenticationFactory() {
+    if (isElectron()) {
+        return new ElectronService();
+    }
+    return new PwaService();
 }
 
 @NgModule({
@@ -36,6 +49,12 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
                 deps: [HttpClient],
             },
         }),
+    ],
+    providers: [
+        {
+            provide: DataService,
+            useFactory: AuthenticationFactory,
+        },
     ],
     bootstrap: [AppComponent],
 })

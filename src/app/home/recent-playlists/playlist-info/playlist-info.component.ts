@@ -76,6 +76,6 @@ export class PlaylistInfoComponent {
     saveChanges(
         data: Pick<Playlist, '_id' | 'title' | 'userAgent' | 'autoRefresh'>
     ): void {
-        this.electronService.ipcRenderer.send(PLAYLIST_SAVE_DETAILS, data);
+        this.electronService.sendIpcEvent(PLAYLIST_SAVE_DETAILS, data);
     }
 }

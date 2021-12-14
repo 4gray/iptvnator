@@ -148,14 +148,12 @@ describe('EpgListComponent', () => {
     });
 
     it('should remove ipc listeners on destroy', () => {
-        spyOn(electronService.ipcRenderer, 'removeAllListeners');
+        spyOn(electronService, 'removeAllListeners');
         component.ngOnDestroy();
-        expect(
-            electronService.ipcRenderer.removeAllListeners
-        ).toHaveBeenCalledTimes(1);
-        expect(
-            electronService.ipcRenderer.removeAllListeners
-        ).toHaveBeenCalledWith(EPG_GET_PROGRAM_DONE);
+        expect(electronService.removeAllListeners).toHaveBeenCalledTimes(1);
+        expect(electronService.removeAllListeners).toHaveBeenCalledWith(
+            EPG_GET_PROGRAM_DONE
+        );
     });
 
     it('should set epg program as active', () => {
