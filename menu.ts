@@ -1,6 +1,11 @@
+import { Color, Titlebar } from 'custom-electron-titlebar';
 import { app, BrowserWindow, Menu, MenuItem, shell } from 'electron';
 import * as path from 'path';
-import { SHOW_WHATS_NEW, VIEW_ADD_PLAYLIST, VIEW_SETTINGS } from './shared/ipc-commands';
+import {
+    SHOW_WHATS_NEW,
+    VIEW_ADD_PLAYLIST,
+    VIEW_SETTINGS,
+} from './shared/ipc-commands';
 const openAboutWindow = require('about-window').default;
 
 export class AppMenu {
@@ -13,6 +18,7 @@ export class AppMenu {
     constructor(appWindow: BrowserWindow) {
         this.window = appWindow;
         this.initMenu();
+        this.initTitleBar();
     }
 
     /**
@@ -28,6 +34,16 @@ export class AppMenu {
         }
 
         this.menu.append(this.getHelpMenu());
+    }
+
+    initTitleBar() {
+        if (process.platform !== 'darwin') {
+            new Titlebar({
+                backgroundColor: Color.fromHex('#000'),
+                itemBackgroundColor: Color.fromHex('#222'),
+                enableMnemonics: true,
+            });
+        }
     }
 
     /**
