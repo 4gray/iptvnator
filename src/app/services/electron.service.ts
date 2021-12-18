@@ -31,13 +31,6 @@ export class ElectronService extends DataService {
             /* this.webFrame = window.require('electron').webFrame */ // need to test whether remote is available
             /* this.childProcess = window.require('child_process');
             this.fs = window.require('fs'); */
-
-            // create custom title bar
-            /* new Titlebar({
-                backgroundColor: Color.fromHex('#000'),
-                itemBackgroundColor: Color.fromHex('#222'),
-                enableMnemonics: true,
-            }); */
         }
     }
 
@@ -54,7 +47,7 @@ export class ElectronService extends DataService {
      * @param payload data payload
      */
     sendIpcEvent(type: string, payload?: unknown): void {
-        this.sendIpcEvent(type, payload);
+        this.ipcRenderer.send(type, payload);
     }
 
     /**

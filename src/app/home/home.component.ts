@@ -5,7 +5,6 @@ import { ChannelStore, createChannel } from '../state';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Playlist } from '../../../shared/playlist.interface';
-import { ElectronService } from '../services/electron.service';
 import {
     ERROR,
     PLAYLIST_PARSE,
@@ -61,7 +60,7 @@ export class HomeComponent {
                 this.snackBar.open('Done! Playlist was removed.', null, {
                     duration: 2000,
                 });
-                // this.electronService.sendIpcEvent('playlists-all');
+                this.electronService.sendIpcEvent('playlists-all');
             },
         },
         {
