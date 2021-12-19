@@ -3,7 +3,6 @@ import { TranslateService } from '@ngx-translate/core';
 import { Router } from '@angular/router';
 import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { ChannelStore } from './state';
-import { StorageMap } from '@ngx-pwa/local-storage';
 import { Settings } from './settings/settings.interface';
 import {
     EPG_ERROR,
@@ -67,7 +66,6 @@ export class AppComponent {
         private translate: TranslateService,
         private settingsService: SettingsService,
         private snackBar: MatSnackBar,
-        private storage: StorageMap,
         private whatsNewService: WhatsNewService
     ) {
         /* if (
