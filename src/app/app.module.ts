@@ -26,7 +26,7 @@ function isElectron(): boolean {
     return !!(window && window.process && window.process.type);
 }
 
-export function AuthenticationFactory() {
+export function DataFactory() {
     if (isElectron()) {
         return new ElectronService();
     }
@@ -53,7 +53,7 @@ export function AuthenticationFactory() {
     providers: [
         {
             provide: DataService,
-            useFactory: AuthenticationFactory,
+            useFactory: DataFactory,
         },
     ],
     bootstrap: [AppComponent],
