@@ -16,10 +16,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterTestingModule } from '@angular/router/testing';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { ElectronService } from '../services/electron.service';
 import { Router } from '@angular/router';
 import { DialogService } from '../services/dialog.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
+import { DataService } from '../services/data.service';
 
 class MatSnackBarStub {
     open(): void {}
@@ -29,7 +29,7 @@ describe('HomeComponent', () => {
     let component: HomeComponent;
     let dialogService: DialogService;
     let fixture: ComponentFixture<HomeComponent>;
-    let electronService: ElectronService;
+    let electronService: DataService;
     let router: Router;
 
     beforeEach(() => {
@@ -51,7 +51,7 @@ describe('HomeComponent', () => {
             ],
             providers: [
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
-                { provide: ElectronService, useClass: ElectronServiceStub },
+                { provide: DataService, useClass: ElectronServiceStub },
                 MockProvider(DialogService),
                 MockProvider(TranslateService),
             ],
@@ -61,10 +61,9 @@ describe('HomeComponent', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(HomeComponent);
         component = fixture.componentInstance;
-        electronService = TestBed.inject(ElectronService);
+        electronService = TestBed.inject(DataService);
         dialogService = TestBed.inject(DialogService);
         router = TestBed.inject(Router);
-        TestBed.inject(ElectronService);
         fixture.detectChanges();
     });
 
@@ -81,7 +80,7 @@ describe('HomeComponent', () => {
 
     it('should send an event to the main process to remove a playlist', () => {
         const playlistId = '12345';
-        spyOn(electronService.ipcRenderer, 'send');
+        spyOn(electronService, 'sendIpcEvent');
         component.removePlaylist(playlistId);
         expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             'playlist-remove-by-id',
@@ -94,7 +93,7 @@ describe('HomeComponent', () => {
             _id: 'iptv1',
             filePath: '/home/user/lists/iptv.m3u',
         } as PlaylistMeta;
-        spyOn(electronService.ipcRenderer, 'send');
+        spyOn(electronService, 'sendIpcEvent');
         component.refreshPlaylist(playlistMeta);
         expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             PLAYLIST_UPDATE,
@@ -104,7 +103,7 @@ describe('HomeComponent', () => {
 
     it('should send an event to the main process to get a playlist', () => {
         const playlistId = '6789';
-        spyOn(electronService.ipcRenderer, 'send');
+        spyOn(electronService, 'sendIpcEvent');
         component.getPlaylist(playlistId);
         expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             'playlist-by-id',
@@ -117,7 +116,7 @@ describe('HomeComponent', () => {
     it('should send an event to the main process to get a playlist by URL', () => {
         const playlistTitle = 'playlist.m3u';
         const playlistUrl = 'http://test.com/' + playlistTitle;
-        spyOn(electronService.ipcRenderer, 'send');
+        spyOn(electronService, 'sendIpcEvent');
         component.sendPlaylistsUrl(playlistUrl);
         expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             'parse-playlist-by-url',
@@ -129,7 +128,7 @@ describe('HomeComponent', () => {
     });
 
     it('should send an event to the main process to parse a playlist', () => {
-        spyOn(electronService.ipcRenderer, 'send');
+        spyOn(electronService, 'sendIpcEvent');
         const title = 'my-list.m3u';
         const path = '/home/user/iptv/' + title;
         const playlistContent = 'test';
@@ -160,9 +159,9 @@ describe('HomeComponent', () => {
     });
 
     it('should set IPC event listeners', () => {
-        spyOn(electronService.ipcRenderer, 'on');
+        spyOn(electronService, 'listenOn');
         component.setRendererListeners();
-        expect(electronService.ipcRenderer.on).toHaveBeenCalledTimes(
+        expect(electronService.listenOn).toHaveBeenCalledTimes(
             component.commandsList.length
         );
     });

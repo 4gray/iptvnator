@@ -14,11 +14,13 @@ export class ElectronServiceStub {
         },
     };
 
+    removeAllListeners(type: string) {}
+
     getAppVersion() {
         return this.remote.app.getVersion();
     }
 
-    sendIpcEvent() {
-        this.sendIpcEvent();
-    }
+    sendIpcEvent() {}
+
+    listenOn() {}
 }

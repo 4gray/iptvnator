@@ -12,7 +12,6 @@ import {
     TranslatePipe,
     TranslateService,
 } from '@ngx-translate/core';
-import { ElectronService } from './services/electron.service';
 import { ElectronServiceStub } from './services/electron.service.stub';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MockModule, MockPipe } from 'ng-mocks';
@@ -24,6 +23,7 @@ import { Router } from '@angular/router';
 import { ChannelStore } from './state';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
 import { WhatsNewServiceStub } from './services/whats-new.service.stub';
+import { DataService } from './services/data.service';
 
 jest.mock('custom-electron-titlebar', () => {
     return {
@@ -42,7 +42,7 @@ class MatSnackBarStub {
 
 describe('AppComponent', () => {
     let component: AppComponent;
-    let electronService: ElectronService;
+    let electronService: DataService;
     let fixture: ComponentFixture<AppComponent>;
     let settingsService: SettingsService;
     let translateService: TranslateService;
@@ -54,11 +54,14 @@ describe('AppComponent', () => {
             TestBed.configureTestingModule({
                 declarations: [AppComponent, MockPipe(TranslatePipe)],
                 providers: [
-                    { provide: ElectronService, useClass: ElectronServiceStub },
                     { provide: MatSnackBar, useClass: MatSnackBarStub },
                     { provide: WhatsNewService, useClass: WhatsNewServiceStub },
                     TranslateService,
                     SettingsService, // TODO: stub
+                    {
+                        provide: DataService,
+                        useClass: ElectronServiceStub,
+                    },
                 ],
                 imports: [
                     MockModule(MatSnackBarModule),
@@ -71,7 +74,7 @@ describe('AppComponent', () => {
     );
 
     beforeEach(() => {
-        electronService = TestBed.inject(ElectronService);
+        electronService = TestBed.inject(DataService);
         fixture = TestBed.createComponent(AppComponent);
         settingsService = TestBed.inject(SettingsService);
         translateService = TestBed.inject(TranslateService);
@@ -227,7 +230,7 @@ describe('AppComponent', () => {
         const epgUrl = 'http://localhost/epg.xml';
 
         beforeEach(() => {
-            spyOn(electronService.ipcRenderer, 'send');
+            spyOn(electronService, 'sendIpcEvent');
             spyOn(settingsService, 'changeTheme');
             spyOn(component, 'handleWhatsNewDialog');
             spyOn(translateService, 'use');

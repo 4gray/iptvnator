@@ -55,7 +55,7 @@ describe('PlaylistInfoComponent', () => {
 
     it('should send an event to the main process after save', () => {
         const playlistToSave = { _id: 'a12345', title: 'Playlist' } as Playlist;
-        spyOn(electronService.ipcRenderer, 'send');
+        spyOn(electronService, 'sendIpcEvent');
         component.saveChanges(playlistToSave);
         expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
         expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
