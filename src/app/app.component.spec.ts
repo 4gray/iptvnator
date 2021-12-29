@@ -21,17 +21,6 @@ import { STORE_KEY } from './shared/enums/store-keys.enum';
 import { WhatsNewServiceStub } from './services/whats-new.service.stub';
 import { DataService } from './services/data.service';
 
-jest.mock('custom-electron-titlebar', () => {
-    return {
-        Titlebar: jest.fn().mockImplementation(() => {
-            return {};
-        }),
-        Color: {
-            fromHex: jest.fn(),
-        },
-    };
-});
-
 class MatSnackBarStub {
     open(): void {}
 }
