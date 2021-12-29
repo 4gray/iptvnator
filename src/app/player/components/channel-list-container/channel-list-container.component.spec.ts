@@ -11,16 +11,16 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatExpansionModule } from '@angular/material/expansion';
-import { MockModule, MockPipe } from 'ng-mocks';
+import { MockModule, MockPipe, MockPipes } from 'ng-mocks';
 import { FormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
-import { FilterPipeModule } from 'ngx-filter-pipe';
+import { FilterPipe, FilterPipeModule } from 'ngx-filter-pipe';
 import { By } from '@angular/platform-browser';
 import { createChannel } from '../../../state';
 import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
-import { ElectronService } from '../../../services/electron.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { ScrollingModule } from '@angular/cdk/scrolling';
+import { DataService } from '../../../services/data.service';
 
 class MatSnackBarStub {
     open(): void {}
@@ -35,12 +35,12 @@ describe('ChannelListContainerComponent', () => {
         TestBed.configureTestingModule({
             declarations: [
                 ChannelListContainerComponent,
-                MockPipe(TranslatePipe),
+                MockPipes(TranslatePipe, FilterPipe),
             ],
             providers: [
                 ChannelQuery,
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
-                { provide: ElectronService, useClass: ElectronServiceStub },
+                { provide: DataService, useClass: ElectronServiceStub },
             ],
             imports: [
                 MockModule(MatSnackBarModule),
@@ -53,7 +53,6 @@ describe('ChannelListContainerComponent', () => {
                 MockModule(MatExpansionModule),
                 FormsModule,
                 RouterTestingModule,
-                FilterPipeModule,
             ],
         }).compileComponents();
     });
@@ -146,14 +145,14 @@ describe('ChannelListContainerComponent', () => {
     });
 
     it('should update store after channel was selected', () => {
-        spyOn(store, 'update');
+        jest.spyOn(store, 'update');
         component.selectChannel(component._channelList[0]);
         fixture.detectChanges();
         expect(store.update).toHaveBeenCalledTimes(1);
     });
 
     it('should update store after channel was favorited', () => {
-        spyOn(store, 'updateFavorite');
+        jest.spyOn(store, 'updateFavorite');
         component.toggleFavoriteChannel(
             component._channelList[0],
             new MouseEvent('click')

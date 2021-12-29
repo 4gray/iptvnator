@@ -14,7 +14,10 @@ describe('FileUploadComponent', () => {
         waitForAsync(() => {
             TestBed.configureTestingModule({
                 declarations: [FileUploadComponent, MockPipe(TranslatePipe)],
-                imports: [MockModule(MatIconModule), NgxUploaderModule],
+                imports: [
+                    MockModule(MatIconModule),
+                    MockModule(NgxUploaderModule),
+                ],
                 providers: [
                     {
                         provide: TranslateService,

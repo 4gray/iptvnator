@@ -6,7 +6,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { EpgListComponent, EpgData } from './epg-list.component';
 import { MatListModule } from '@angular/material/list';
-import { ElectronService } from '../../../services/electron.service';
+import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import * as moment from 'moment';
 import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
@@ -18,7 +18,7 @@ import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 describe('EpgListComponent', () => {
     let component: EpgListComponent;
     let fixture: ComponentFixture<EpgListComponent>;
-    let electronService: ElectronService;
+    let electronService: DataService;
     let channelStore: ChannelStore;
 
     const MOCKED_PROGRAMS = {
@@ -100,7 +100,7 @@ describe('EpgListComponent', () => {
                     MockModule(MatDialogModule),
                 ],
                 providers: [
-                    { provide: ElectronService, useClass: ElectronServiceStub },
+                    { provide: DataService, useClass: ElectronServiceStub },
                     MockProvider(MatDialog),
                 ],
             }).compileComponents();
@@ -110,7 +110,7 @@ describe('EpgListComponent', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(EpgListComponent);
         component = fixture.componentInstance;
-        electronService = TestBed.inject(ElectronService);
+        electronService = TestBed.inject(DataService);
         channelStore = TestBed.inject(ChannelStore);
         channelStore.setActiveChannel({
             id: '',
@@ -148,7 +148,7 @@ describe('EpgListComponent', () => {
     });
 
     it('should remove ipc listeners on destroy', () => {
-        spyOn(electronService, 'removeAllListeners');
+        jest.spyOn(electronService, 'removeAllListeners');
         component.ngOnDestroy();
         expect(electronService.removeAllListeners).toHaveBeenCalledTimes(1);
         expect(electronService.removeAllListeners).toHaveBeenCalledWith(
@@ -157,7 +157,7 @@ describe('EpgListComponent', () => {
     });
 
     it('should set epg program as active', () => {
-        spyOn(channelStore, 'setActiveEpgProgram');
+        jest.spyOn(channelStore, 'setActiveEpgProgram');
         component.setEpgProgram(MOCKED_PROGRAMS.items[0], false, true);
         expect(channelStore.setActiveEpgProgram).toHaveBeenCalledTimes(1);
         expect(channelStore.setActiveEpgProgram).toHaveBeenCalledWith(
@@ -166,7 +166,7 @@ describe('EpgListComponent', () => {
     });
 
     it('should reset active epg program', () => {
-        spyOn(channelStore, 'resetActiveEpgProgram');
+        jest.spyOn(channelStore, 'resetActiveEpgProgram');
         component.setEpgProgram(MOCKED_PROGRAMS.items[0], true);
         expect(channelStore.resetActiveEpgProgram).toHaveBeenCalledTimes(1);
         component.setEpgProgram(MOCKED_PROGRAMS.items[0], true, true);

@@ -39,11 +39,10 @@ describe('UrlUploadComponent', () => {
     it(
         'submit form with playlist url',
         waitForAsync(() => {
-            spyOn(component.urlAdded, 'emit');
+            jest.spyOn(component.urlAdded, 'emit');
             const TEST_URL = 'http://example.org/playlist.m3u';
-            const submitButton = fixture.debugElement.nativeElement.querySelector(
-                'button'
-            );
+            const submitButton =
+                fixture.debugElement.nativeElement.querySelector('button');
 
             // test input field validation
             expect(submitButton.disabled).toBeTruthy();

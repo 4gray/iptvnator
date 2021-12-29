@@ -2,7 +2,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { PLAYLIST_SAVE_DETAILS } from './../../../../../shared/ipc-commands';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
-import { ElectronService } from './../../../services/electron.service';
+import { DataService } from '../../../services/data.service';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockModule, MockPipe } from 'ng-mocks';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -16,7 +16,7 @@ import { Playlist } from './../../../../../shared/playlist.interface';
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
     let fixture: ComponentFixture<PlaylistInfoComponent>;
-    let electronService: ElectronService;
+    let electronService: DataService;
 
     beforeEach(
         waitForAsync(() => {
@@ -35,7 +35,7 @@ describe('PlaylistInfoComponent', () => {
                 ],
                 providers: [
                     { provide: MAT_DIALOG_DATA, useValue: {} },
-                    { provide: ElectronService, useClass: ElectronServiceStub },
+                    { provide: DataService, useClass: ElectronServiceStub },
                     FormBuilder,
                 ],
             }).compileComponents();
@@ -45,7 +45,7 @@ describe('PlaylistInfoComponent', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(PlaylistInfoComponent);
         component = fixture.componentInstance;
-        electronService = TestBed.inject(ElectronService);
+        electronService = TestBed.inject(DataService);
         fixture.detectChanges();
     });
 
@@ -55,7 +55,7 @@ describe('PlaylistInfoComponent', () => {
 
     it('should send an event to the main process after save', () => {
         const playlistToSave = { _id: 'a12345', title: 'Playlist' } as Playlist;
-        spyOn(electronService, 'sendIpcEvent');
+        jest.spyOn(electronService, 'sendIpcEvent');
         component.saveChanges(playlistToSave);
         expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
         expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
