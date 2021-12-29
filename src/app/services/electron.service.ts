@@ -18,10 +18,6 @@ export class ElectronService extends DataService {
     // childProcess: typeof childProcess;
     // fs: typeof fs;
 
-    get isElectron(): boolean {
-        return !!(window && window.process && window.process.type);
-    }
-
     constructor() {
         super();
         // Conditional imports

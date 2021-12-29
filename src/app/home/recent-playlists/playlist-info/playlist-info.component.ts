@@ -9,8 +9,8 @@ import {
 } from '@angular/forms';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { PLAYLIST_SAVE_DETAILS } from '../../../../../shared/ipc-commands';
-import { ElectronService } from '../../../services/electron.service';
 import { Playlist } from '../../../../../shared/playlist.interface';
+import { DataService } from '../../../services/data.service';
 
 @Component({
     selector: 'app-playlist-info',
@@ -34,7 +34,7 @@ export class PlaylistInfoComponent {
     constructor(
         private datePipe: DatePipe,
         private formBuilder: FormBuilder,
-        private electronService: ElectronService,
+        private electronService: DataService,
         @Inject(MAT_DIALOG_DATA) playlist: Playlist
     ) {
         this.playlist = playlist;

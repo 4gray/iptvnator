@@ -4,10 +4,10 @@ import {
     CHANNEL_SET_USER_AGENT,
     EPG_GET_PROGRAM,
 } from '../../../shared/ipc-commands';
-import { ElectronService } from '../services/electron.service';
 import { Channel } from './channel.model';
 import * as moment from 'moment';
 import { EpgProgram } from '../player/models/epg-program.model';
+import { DataService } from '../services/data.service';
 
 export interface ChannelState extends EntityState<Channel> {
     active: Channel;
@@ -24,7 +24,7 @@ export class ChannelStore extends EntityStore<ChannelState> {
      * Creates an instance of ChannelStore
      * @param electronService electron service
      */
-    constructor(private electronService: ElectronService) {
+    constructor(private electronService: DataService) {
         super({
             active: undefined,
             currentEpgProgram: undefined,

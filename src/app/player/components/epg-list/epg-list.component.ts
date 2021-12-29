@@ -2,11 +2,11 @@ import { Component, NgZone } from '@angular/core';
 import { EpgChannel } from '../../models/epg-channel.model';
 import { EpgProgram } from '../../models/epg-program.model';
 import * as moment from 'moment';
-import { ElectronService } from '../../../services/electron.service';
 import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
 import { ChannelQuery, ChannelStore } from '../../../state';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { DataService } from '../../../services/data.service';
 
 export interface EpgData {
     channel: EpgChannel;
@@ -58,7 +58,7 @@ export class EpgListComponent {
     constructor(
         private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
-        private electronService: ElectronService,
+        private electronService: DataService,
         private ngZone: NgZone
     ) {
         this.electronService.listenOn(

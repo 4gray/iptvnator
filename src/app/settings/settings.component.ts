@@ -9,13 +9,13 @@ import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { Settings, VideoPlayer } from './settings.interface';
 import { HttpClient } from '@angular/common/http';
 import * as semver from 'semver';
-import { ElectronService } from '../services/electron.service';
 import { ChannelQuery } from '../state';
 import { EPG_FETCH } from '../../../shared/ipc-commands';
 import { Language } from './language.enum';
 import { Theme } from './theme.enum';
 import { SettingsService } from './../services/settings.service';
 import { catchError } from 'rxjs/operators';
+import { DataService } from '../services/data.service';
 
 /** Url of the package.json file in the app repository, required to get the version of the released app */
 const PACKAGE_JSON_URL =
@@ -74,7 +74,7 @@ export class SettingsComponent implements OnInit {
      */
     constructor(
         private channelQuery: ChannelQuery,
-        private electronService: ElectronService,
+        private electronService: DataService,
         private formBuilder: FormBuilder,
         private http: HttpClient,
         private router: Router,
