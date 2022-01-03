@@ -94,7 +94,7 @@ export class EpgListComponent {
      * @param programs
      */
     handleEpgData(programs: { payload: EpgData }): void {
-        if (programs.payload?.items?.length > 0) {
+        if (programs?.payload?.items?.length > 0) {
             this.programs = programs;
             this.timeNow = moment(Date.now()).format(DATE_TIME_FORMAT);
             this.dateToday = moment(Date.now()).format(DATE_FORMAT);

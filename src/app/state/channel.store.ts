@@ -3,6 +3,7 @@ import { EntityState, EntityStore, StoreConfig } from '@datorama/akita';
 import {
     CHANNEL_SET_USER_AGENT,
     EPG_GET_PROGRAM,
+    PLAYLIST_UPDATE_FAVORITES,
 } from '../../../shared/ipc-commands';
 import { Channel } from './channel.model';
 import * as moment from 'moment';
@@ -48,7 +49,7 @@ export class ChannelStore extends EntityStore<ChannelState> {
             } else {
                 favorites = [...store.favorites, channel.id];
             }
-            this.electronService.sendIpcEvent('update-favorites', {
+            this.electronService.sendIpcEvent(PLAYLIST_UPDATE_FAVORITES, {
                 id: store.playlistId,
                 favorites,
             });
