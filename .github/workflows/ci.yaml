@@ -4,6 +4,7 @@ on:
     push:
         branches:
             - electron
+            - pwa
     pull_request:
         branches:
             - electron
