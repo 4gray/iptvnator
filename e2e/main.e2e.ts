@@ -3,7 +3,7 @@ import { SpectronClient } from 'spectron';
 
 import commonSetup from './common-setup';
 
-describe('angular-electron App', function () {
+describe('iptvnator App', function () {
     commonSetup.apply(this);
 
     let client: SpectronClient;

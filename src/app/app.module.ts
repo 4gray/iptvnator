@@ -20,6 +20,7 @@ import { DataService } from './services/data.service';
 import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
 import { AppConfig } from '../environments/environment';
 import { dbConfig } from './indexed-db.config';
+import { ServiceWorkerModule } from '@angular/service-worker';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -64,6 +65,12 @@ export function DataFactory(dbService: NgxIndexedDBService, http: HttpClient) {
                 useFactory: HttpLoaderFactory,
                 deps: [HttpClient],
             },
+        }),
+        ServiceWorkerModule.register('ngsw-worker.js', {
+            enabled: AppConfig.production,
+            // Register the ServiceWorker as soon as the app is stable
+            // or after 30 seconds (whichever comes first).
+            registrationStrategy: 'registerWhenStable:30000',
         }),
     ],
     providers: [
