@@ -11,7 +11,7 @@
         </mat-card-header>
         <mat-card-content>
             <mat-list>
-                <mat-list-item>
+                <mat-list-item *ngIf="isElectron">
                     <div matLine fxLayout="row">
                         <p fxFlex>{{ 'SETTINGS.EPG_URL_LABEL' | translate }}</p>
                         <p fxFlex fxLayoutAlign="start center">
@@ -138,6 +138,7 @@
                         </p>
                     </div>
                 </mat-list-item>
+                <mat-list-item *ngIf="!isElectron">EPG is available in electron-based version of IPTVnator. Check it&nbsp;<a href="https://github.com/4gray/iptvnator/releases">here</a></mat-list-item>
             </mat-list>
         </mat-card-content>
         <mat-card-actions>

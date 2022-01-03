@@ -56,6 +56,9 @@ export class SettingsComponent implements OnInit {
         (store) => store.epgAvailable
     );
 
+    /** Flag that indicates whether the app runs in electron environment */
+    isElectron = this.electronService.isElectron;
+
     /** All available visual themes */
     themeEnum = Theme;
 
