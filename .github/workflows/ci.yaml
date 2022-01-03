@@ -36,13 +36,16 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v2
 
+            - name: Install and Build 🔧
+              run: |
+                  npm ci
+                  npm run build-and-deploy-pwa
+
             - name: Build and Deploy 🚀
               uses: JamesIves/github-pages-deploy-action@4.1.7
-              env:
-                  ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-                  BRANCH: gh-pages
-                  FOLDER: dist
-                  BUILD_SCRIPT: npm install && npm run-script build-and-deploy-pwa
+              with:
+                  branch: gh-pages
+                  folder: dist
     release:
         needs: [build-and-test]
         runs-on: ${{ matrix.os }}
