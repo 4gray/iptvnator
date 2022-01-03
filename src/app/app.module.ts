@@ -17,20 +17,32 @@ import { AppComponent } from './app.component';
 import { ElectronService } from './services/electron.service';
 import { PwaService } from './services/pwa.service';
 import { DataService } from './services/data.service';
+import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
+import { AppConfig } from '../environments/environment';
+import { dbConfig } from './indexed-db.config';
+
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
     return new TranslateHttpLoader(http, './assets/i18n/', '.json');
 }
 
-function isElectron(): boolean {
-    return !!(window && window.process && window.process.type);
+/**
+ * Returns true if the application runs in the electron based environment.
+ */
+function isElectron() {
+    return !!(window && window.process && (window.process as any).type);
 }
 
-export function DataFactory() {
+/**
+ * Conditionally imports the necessary service based on the current environment
+ * @param dbService indexed db service
+ * @returns
+ */
+export function DataFactory(dbService: NgxIndexedDBService, http: HttpClient) {
     if (isElectron()) {
         return new ElectronService();
     }
-    return new PwaService();
+    return new PwaService(dbService, http);
 }
 
 @NgModule({
@@ -42,6 +54,10 @@ export function DataFactory() {
         HttpClientModule,
         NgxWhatsNewModule,
         SharedModule,
+        AppConfig.environment === 'WEB'
+            ? NgxIndexedDBModule.forRoot(dbConfig)
+            : [],
+        NgxIndexedDBModule.forRoot(dbConfig),
         TranslateModule.forRoot({
             loader: {
                 provide: TranslateLoader,
@@ -54,6 +70,7 @@ export function DataFactory() {
         {
             provide: DataService,
             useFactory: DataFactory,
+            deps: [NgxIndexedDBService, HttpClient],
         },
     ],
     bootstrap: [AppComponent],
