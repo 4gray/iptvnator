@@ -8,6 +8,7 @@ import {
     EPG_ERROR,
     EPG_FETCH,
     EPG_FETCH_DONE,
+    OPEN_FILE,
     SHOW_WHATS_NEW,
     VIEW_ADD_PLAYLIST,
     VIEW_SETTINGS,
@@ -68,9 +69,10 @@ export class AppComponent {
         private snackBar: MatSnackBar,
         private whatsNewService: WhatsNewService
     ) {
-        /* if (
-            (this.electronService.remote.process.platform === 'linux' ||
-                this.electronService.remote.process.platform === 'win32') &&
+        if (
+            ((this.electronService.isElectron &&
+                this.electronService?.remote?.process.platform === 'linux') ||
+                this.electronService?.remote?.process.platform === 'win32') &&
             this.electronService.remote.process.argv.length > 2
         ) {
             const filePath = this.electronService.remote.process.argv.find(
@@ -80,12 +82,12 @@ export class AppComponent {
             if (filePath) {
                 const filePathsArray = filePath.split('/');
                 const fileName = filePathsArray[filePathsArray.length - 1];
-                this.electronService.sendIpcEvent('open-file', {
+                this.electronService.sendIpcEvent(OPEN_FILE, {
                     filePath,
                     fileName,
                 });
             }
-        } */
+        }
     }
 
     /**
@@ -103,11 +105,13 @@ export class AppComponent {
      * Initializes all necessary listeners for the events from the renderer process
      */
     setRendererListeners(): void {
-        this.commandsList.forEach((command) =>
-            this.electronService.listenOn(command.id, () =>
-                this.ngZone.run(() => command.callback())
-            )
-        );
+        if (this.electronService.isElectron) {
+            this.commandsList.forEach((command) =>
+                this.electronService.listenOn(command.id, () =>
+                    this.ngZone.run(() => command.callback())
+                )
+            );
+        }
     }
 
     /**

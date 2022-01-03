@@ -7,8 +7,14 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Playlist } from '../../../shared/playlist.interface';
 import {
     ERROR,
+    PLAYLIST_GET_ALL,
+    PLAYLIST_GET_ALL_RESPONSE,
+    PLAYLIST_GET_BY_ID,
     PLAYLIST_PARSE,
+    PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
+    PLAYLIST_REMOVE_BY_ID,
+    PLAYLIST_REMOVE_BY_ID_RESPONSE,
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
 } from '../../../shared/ipc-commands';
@@ -49,18 +55,18 @@ export class HomeComponent {
                 this.setPlaylist(response.payload),
         },
         {
-            id: 'playlist-all-result',
+            id: PLAYLIST_GET_ALL_RESPONSE,
             execute: (response: { payload: Partial<PlaylistMeta[]> }): void => {
                 this.playlists = response.payload;
             },
         },
         {
-            id: 'playlist-remove-by-id-result',
+            id: PLAYLIST_REMOVE_BY_ID_RESPONSE,
             execute: (): void => {
                 this.snackBar.open('Done! Playlist was removed.', null, {
                     duration: 2000,
                 });
-                this.electronService.sendIpcEvent('playlists-all');
+                this.electronService.sendIpcEvent(PLAYLIST_GET_ALL);
             },
         },
         {
@@ -82,22 +88,24 @@ export class HomeComponent {
     /**
      * Creates an instanceof HomeComponent
      * @param channelStore channels store
+     * @param dialogService dialog service
      * @param electronService electron service
-     * @param ngZone angulars ngZone module
-     * @param router angulars router
-     * @param snackBar snackbars with notification messages
+     * @param ngZone angular ngZone module
+     * @param router angular router
+     * @param snackBar snackbar for notification messages
+     * @param translate translate service
      */
     constructor(
+        private electronService: DataService,
         private channelStore: ChannelStore,
         private dialogService: DialogService,
-        private electronService: DataService,
         private ngZone: NgZone,
         private router: Router,
         private snackBar: MatSnackBar,
         private translate: TranslateService
     ) {
         // get all playlists
-        this.electronService.sendIpcEvent('playlists-all');
+        this.electronService.sendIpcEvent(PLAYLIST_GET_ALL);
         // set all renderer listeners
         this.setRendererListeners();
     }
@@ -107,9 +115,17 @@ export class HomeComponent {
      */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
-            this.electronService.listenOn(command.id, (event, response) => {
-                this.ngZone.run(() => command.execute(response));
-            });
+            if (this.electronService.isElectron) {
+                this.electronService.listenOn(command.id, (event, response) =>
+                    this.ngZone.run(() => command.execute(response))
+                );
+            } else {
+                this.electronService.listenOn(command.id, (response) => {
+                    if (response.data.type === command.id) {
+                        command.execute(response.data);
+                    }
+                });
+            }
         });
     }
 
@@ -135,7 +151,7 @@ export class HomeComponent {
         this.electronService.sendIpcEvent(PLAYLIST_PARSE, {
             title: payload.file.name,
             playlist: array,
-            path: payload.file.nativeFile.path,
+            path: (payload.file.nativeFile as any).path,
         });
     }
 
@@ -153,7 +169,7 @@ export class HomeComponent {
      */
     sendPlaylistsUrl(playlistUrl: string): void {
         this.isLoading = true;
-        this.electronService.sendIpcEvent('parse-playlist-by-url', {
+        this.electronService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
             title: this.getLastUrlSegment(playlistUrl),
             url: playlistUrl,
         });
@@ -198,7 +214,7 @@ export class HomeComponent {
      * @param playlistId playlist id to remove
      */
     removePlaylist(playlistId: string): void {
-        this.electronService.sendIpcEvent('playlist-remove-by-id', {
+        this.electronService.sendIpcEvent(PLAYLIST_REMOVE_BY_ID, {
             id: playlistId,
         });
     }
@@ -219,7 +235,7 @@ export class HomeComponent {
      * @param playlistId playlist id
      */
     getPlaylist(playlistId: string): void {
-        this.electronService.sendIpcEvent('playlist-by-id', {
+        this.electronService.sendIpcEvent(PLAYLIST_GET_BY_ID, {
             id: playlistId,
         });
     }

@@ -18,6 +18,9 @@ import { DataService } from '../../../services/data.service';
     providers: [DatePipe],
 })
 export class PlaylistInfoComponent {
+    /** Flag that returns true if application runs in electron-based environment */
+    isElectron = this.electronService.isElectron;
+
     /** Playlist object */
     playlist: Playlist;
 
