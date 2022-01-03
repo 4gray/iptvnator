@@ -14,6 +14,8 @@ export class ElectronServiceStub {
         },
     };
 
+    isElectron = true;
+
     removeAllListeners(type: string) {}
 
     getAppVersion() {

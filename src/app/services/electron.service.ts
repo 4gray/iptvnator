@@ -1,22 +1,16 @@
 import { Injectable } from '@angular/core';
 import { DataService } from './data.service';
 
-import { ipcRenderer, remote } from 'electron';
-
 @Injectable({
     providedIn: 'root',
 })
 export class ElectronService extends DataService {
-    private ipcRenderer: typeof ipcRenderer;
-    private remote: typeof remote;
-
+    /**
+     * Creates an instance of ElectronService.
+     */
     constructor() {
         super();
-        // Conditional imports
-        if (this.isElectron) {
-            this.ipcRenderer = window.require('electron').ipcRenderer;
-            this.remote = window.require('electron').remote;
-        }
+        console.log('Electron service initialized...');
     }
 
     /**
@@ -43,6 +37,11 @@ export class ElectronService extends DataService {
         this.ipcRenderer.removeAllListeners(type);
     }
 
+    /**
+     * Listens on an IPC event from the main process
+     * @param command command name
+     * @param callback callback function
+     */
     listenOn(command: string, callback: (...args: any[]) => void): void {
         this.ipcRenderer.on(command, callback);
     }
