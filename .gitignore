@@ -16,6 +16,7 @@ src/**/*.js
 !src/karma.conf.js
 *.js.map
 data.db
+preload.js
 
 # dependencies
 /node_modules

@@ -1,4 +1,3 @@
-import { Color, Titlebar } from 'custom-electron-titlebar';
 import { app, BrowserWindow, Menu, MenuItem, shell } from 'electron';
 import * as path from 'path';
 import {
@@ -18,7 +17,6 @@ export class AppMenu {
     constructor(appWindow: BrowserWindow) {
         this.window = appWindow;
         this.initMenu();
-        this.initTitleBar();
     }
 
     /**
@@ -34,16 +32,6 @@ export class AppMenu {
         }
 
         this.menu.append(this.getHelpMenu());
-    }
-
-    initTitleBar() {
-        if (process.platform !== 'darwin') {
-            new Titlebar({
-                backgroundColor: Color.fromHex('#000'),
-                itemBackgroundColor: Color.fromHex('#222'),
-                enableMnemonics: true,
-            });
-        }
     }
 
     /**
