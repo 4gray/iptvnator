@@ -19,6 +19,14 @@ import {
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
     PLAYLIST_UPDATE_POSITIONS,
+    PLAYLIST_GET_ALL_RESPONSE,
+    PLAYLIST_REMOVE_BY_ID_RESPONSE,
+    PLAYLIST_PARSE_BY_URL,
+    PLAYLIST_GET_ALL,
+    PLAYLIST_REMOVE_BY_ID,
+    PLAYLIST_GET_BY_ID,
+    OPEN_FILE,
+    PLAYLIST_UPDATE_FAVORITES,
 } from './shared/ipc-commands';
 
 const fs = require('fs');
@@ -42,7 +50,7 @@ export class Api {
     workerWindow: BrowserWindow;
 
     constructor() {
-        ipcMain.on('parse-playlist-by-url', (event, args) => {
+        ipcMain.on(PLAYLIST_PARSE_BY_URL, (event, args) => {
             try {
                 axios.get(args.url).then((result) => {
                     const parsedPlaylist = this.convertFileStringToPlaylist(
@@ -81,9 +89,9 @@ export class Api {
             });
         });
 
-        ipcMain.on('playlists-all', (event) => this.sendAllPlaylists(event));
+        ipcMain.on(PLAYLIST_GET_ALL, (event) => this.sendAllPlaylists(event));
 
-        ipcMain.on('playlist-by-id', (event, args) => {
+        ipcMain.on(PLAYLIST_GET_BY_ID, (event, args) => {
             db.findOne({ _id: args.id }).then((playlist) => {
                 this.setUserAgent(playlist.userAgent);
                 event.sender.send(PLAYLIST_PARSE_RESPONSE, {
@@ -92,10 +100,10 @@ export class Api {
             });
         });
 
-        ipcMain.on('playlist-remove-by-id', (event, args) => {
+        ipcMain.on(PLAYLIST_REMOVE_BY_ID, (event, args) => {
             db.remove({ _id: args.id }).then((removed) => {
                 if (removed) {
-                    event.sender.send('playlist-remove-by-id-result', {
+                    event.sender.send(PLAYLIST_REMOVE_BY_ID_RESPONSE, {
                         message: 'playlist was removed',
                     });
                 }
@@ -103,7 +111,7 @@ export class Api {
         });
 
         // open playlist from file system
-        ipcMain.on('open-file', (event, args) => {
+        ipcMain.on(OPEN_FILE, (event, args) => {
             fs.readFile(
                 args.filePath,
                 'utf-8',
@@ -131,7 +139,7 @@ export class Api {
             );
         });
 
-        ipcMain.on('update-favorites', (event, args) => {
+        ipcMain.on(PLAYLIST_UPDATE_FAVORITES, (event, args) => {
             db.update(
                 { id: args.id },
                 { $set: { favorites: args.favorites } }
@@ -248,7 +256,7 @@ export class Api {
      */
     sendAllPlaylists(event: Electron.IpcMainEvent): void {
         this.getAllPlaylistsMeta().then((playlists) => {
-            event.sender.send('playlist-all-result', {
+            event.sender.send(PLAYLIST_GET_ALL_RESPONSE, {
                 payload: playlists,
             });
         });
@@ -318,7 +326,7 @@ export class Api {
     }
 
     /**
-     * Saves playlist to the localStorage
+     * Creates a playlist object
      * @param name name of the playlist
      * @param playlist playlist to save
      * @param urlOrPath absolute fs path or url of the playlist
