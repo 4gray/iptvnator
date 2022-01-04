@@ -43,7 +43,7 @@
         "e2e:watch": "npm run e2e -- --watch",
         "version": "conventional-changelog -i CHANGELOG.md -p angular -s -r 0 && git add CHANGELOG.md",
         "lint": "ng lint",
-        "build-and-deploy-pwa": "ng build -c production --base-href /iptvnator --deploy-url /iptvnator"
+        "build-pwa": "ng build -c production --base-href /iptvnator --deploy-url /iptvnator/"
     },
     "dependencies": {
         "@angular/animations": "13.0.2",

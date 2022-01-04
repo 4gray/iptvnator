@@ -39,7 +39,7 @@ jobs:
             - name: Install and Build 🔧
               run: |
                   npm ci
-                  npm run build-and-deploy-pwa
+                  npm run build-pwa
 
             - name: Build and Deploy 🚀
               uses: JamesIves/github-pages-deploy-action@4.1.7
