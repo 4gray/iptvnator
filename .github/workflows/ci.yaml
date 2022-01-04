@@ -4,7 +4,6 @@ on:
     push:
         branches:
             - electron
-            - pwa
     pull_request:
         branches:
             - electron
@@ -29,23 +28,6 @@ jobs:
             - run: npm run build:prod
               env:
                   CI: true
-    build-and-deploy:
-        needs: [build-and-test]
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v2
-
-            - name: Install and Build 🔧
-              run: |
-                  npm ci
-                  npm run build-pwa
-
-            - name: Build and Deploy 🚀
-              uses: JamesIves/github-pages-deploy-action@4.1.7
-              with:
-                  branch: gh-pages
-                  folder: dist
     release:
         needs: [build-and-test]
         runs-on: ${{ matrix.os }}
