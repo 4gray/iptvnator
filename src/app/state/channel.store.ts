@@ -64,7 +64,7 @@ export class ChannelStore extends EntityStore<ChannelState> {
         this.update((store) => {
             if (store.epgAvailable) {
                 this.electronService.ipcRenderer.send(EPG_GET_PROGRAM, {
-                    channelName: channel.name,
+                    channel,
                 });
                 if (channel.http['user-agent']) {
                     this.electronService.ipcRenderer.send(

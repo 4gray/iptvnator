@@ -56,9 +56,9 @@ export class AppComponent {
     commandsList = [
         new IpcCommand(VIEW_ADD_PLAYLIST, () => this.navigateToRoute('/')),
         new IpcCommand(VIEW_SETTINGS, () => this.navigateToRoute('/settings')),
-        new IpcCommand(EPG_FETCH_DONE, () => this.onEpgFetchDone),
-        new IpcCommand(EPG_ERROR, () => this.onEpgError),
-        new IpcCommand(SHOW_WHATS_NEW, () => this.showWhatsNewDialog),
+        new IpcCommand(EPG_FETCH_DONE, () => this.onEpgFetchDone()),
+        new IpcCommand(EPG_ERROR, () => this.onEpgError()),
+        new IpcCommand(SHOW_WHATS_NEW, () => this.showWhatsNewDialog()),
     ];
 
     /** Default language as fallback */
