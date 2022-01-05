@@ -36,7 +36,7 @@
             }}</mat-label>
             <input matInput formControlName="count" />
         </mat-form-field>
-        <mat-form-field class="full-width mb-10">
+        <mat-form-field class="full-width mb-10" *ngIf="isElectron">
             <mat-label>{{
                 'HOME.PLAYLISTS.INFO_DIALOG.USER_AGENT' | translate
             }}</mat-label>
@@ -54,18 +54,19 @@
                 {{ 'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED' | translate }}
             </mat-hint>
         </mat-form-field>
-        <mat-checkbox
-            *ngIf="playlist.url || playlist.filePath"
-            class="full-width"
-            formControlName="autoRefresh"
-        >
-            {{ 'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE' | translate }}
-        </mat-checkbox>
-        <p>
-            {{
-                'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE_DESCRIPTION' | translate
-            }}
-        </p>
+        <ng-container *ngIf="playlist.url || playlist.filePath">
+            <mat-checkbox
+                class="full-width"
+                formControlName="autoRefresh"
+            >
+                {{ 'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE' | translate }}
+            </mat-checkbox>
+            <p>
+                {{
+                    'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE_DESCRIPTION' | translate
+                }}
+            </p>
+        </ng-container>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
         <button

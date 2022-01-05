@@ -1,5 +1,5 @@
 export const AppConfig = {
-    production: true,
-    environment: 'PROD',
+    production: false,
+    environment: 'WEB',
     version: require('../../package.json').version,
 };

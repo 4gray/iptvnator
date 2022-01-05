@@ -1,16 +1,14 @@
 import { Component, NgZone } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { Titlebar, Color } from 'custom-electron-titlebar';
-import { ElectronService } from './services/electron.service';
 import { Router } from '@angular/router';
 import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { ChannelStore } from './state';
-import { StorageMap } from '@ngx-pwa/local-storage';
 import { Settings } from './settings/settings.interface';
 import {
     EPG_ERROR,
     EPG_FETCH,
     EPG_FETCH_DONE,
+    OPEN_FILE,
     SHOW_WHATS_NEW,
     VIEW_ADD_PLAYLIST,
     VIEW_SETTINGS,
@@ -21,13 +19,7 @@ import { WhatsNewService } from './services/whats-new.service';
 import * as semver from 'semver';
 import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
-
-// create custom title bar
-new Titlebar({
-    backgroundColor: Color.fromHex('#000'),
-    itemBackgroundColor: Color.fromHex('#222'),
-    enableMnemonics: true,
-});
+import { DataService } from './services/data.service';
 
 /**
  * AppComponent
@@ -69,18 +61,18 @@ export class AppComponent {
      */
     constructor(
         private channelStore: ChannelStore,
-        private electronService: ElectronService,
+        private electronService: DataService,
         private ngZone: NgZone,
         private router: Router,
         private translate: TranslateService,
         private settingsService: SettingsService,
         private snackBar: MatSnackBar,
-        private storage: StorageMap,
         private whatsNewService: WhatsNewService
     ) {
         if (
-            (this.electronService.remote.process.platform === 'linux' ||
-                this.electronService.remote.process.platform === 'win32') &&
+            ((this.electronService.isElectron &&
+                this.electronService?.remote?.process.platform === 'linux') ||
+                this.electronService?.remote?.process.platform === 'win32') &&
             this.electronService.remote.process.argv.length > 2
         ) {
             const filePath = this.electronService.remote.process.argv.find(
@@ -90,7 +82,7 @@ export class AppComponent {
             if (filePath) {
                 const filePathsArray = filePath.split('/');
                 const fileName = filePathsArray[filePathsArray.length - 1];
-                this.electronService.ipcRenderer.send('open-file', {
+                this.electronService.sendIpcEvent(OPEN_FILE, {
                     filePath,
                     fileName,
                 });
@@ -113,11 +105,13 @@ export class AppComponent {
      * Initializes all necessary listeners for the events from the renderer process
      */
     setRendererListeners(): void {
-        this.commandsList.forEach((command) =>
-            this.electronService.ipcRenderer.on(command.id, () =>
-                this.ngZone.run(() => command.callback())
-            )
-        );
+        if (this.electronService.isElectron) {
+            this.commandsList.forEach((command) =>
+                this.electronService.listenOn(command.id, () =>
+                    this.ngZone.run(() => command.callback())
+                )
+            );
+        }
     }
 
     /**
@@ -131,7 +125,7 @@ export class AppComponent {
                 if (settings && Object.keys(settings).length > 0) {
                     this.translate.use(settings.language ?? this.DEFAULT_LANG);
                     if (settings.epgUrl) {
-                        this.electronService.ipcRenderer.send(EPG_FETCH, {
+                        this.electronService.sendIpcEvent(EPG_FETCH, {
                             url: settings.epgUrl,
                         });
                         this.snackBar.open(
@@ -229,9 +223,9 @@ export class AppComponent {
      * Removes all ipc command listeners on component destroy
      */
     ngOnDestroy(): void {
-        this.electronService.ipcRenderer.removeAllListeners(EPG_FETCH_DONE);
-        this.electronService.ipcRenderer.removeAllListeners(EPG_ERROR);
-        this.electronService.ipcRenderer.removeAllListeners(VIEW_ADD_PLAYLIST);
-        this.electronService.ipcRenderer.removeAllListeners(VIEW_SETTINGS);
+        this.electronService.removeAllListeners(EPG_FETCH_DONE);
+        this.electronService.removeAllListeners(EPG_ERROR);
+        this.electronService.removeAllListeners(VIEW_ADD_PLAYLIST);
+        this.electronService.removeAllListeners(VIEW_SETTINGS);
     }
 }

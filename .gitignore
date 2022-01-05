@@ -16,6 +16,7 @@ src/**/*.js
 !src/karma.conf.js
 *.js.map
 data.db
+preload.js
 
 # dependencies
 /node_modules
@@ -45,6 +46,7 @@ npm-debug.log
 testem.log
 /typings
 package-lock.json
+.angular/*
 
 # e2e
 /e2e/*.js

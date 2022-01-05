@@ -4,7 +4,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 import { PlaylistMeta } from './../home.component';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ElectronService } from '../../services/electron.service';
+import { DataService } from '../../services/data.service';
 
 @Component({
     selector: 'app-recent-playlists',
@@ -31,7 +31,7 @@ export class RecentPlaylistsComponent {
      */
     constructor(
         public dialog: MatDialog,
-        private electronService: ElectronService
+        private electronService: DataService
     ) {}
 
     /**

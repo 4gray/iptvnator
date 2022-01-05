@@ -1,7 +1,7 @@
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { StorageMap } from '@ngx-pwa/local-storage';
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ElectronService } from './../services/electron.service';
+import { DataService } from '../services/data.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -47,7 +47,7 @@ const DEFAULT_SETTINGS = {
 describe('SettingsComponent', () => {
     let component: SettingsComponent;
     let fixture: ComponentFixture<SettingsComponent>;
-    let electronService: ElectronService;
+    let electronService: DataService;
     let router: Router;
     let storage: StorageMap;
     let translate: TranslateService;
@@ -67,7 +67,7 @@ describe('SettingsComponent', () => {
                         provide: TranslateService,
                         useClass: TranslateServiceStub,
                     },
-                    { provide: ElectronService, useClass: ElectronServiceStub },
+                    { provide: DataService, useClass: ElectronServiceStub },
                     {
                         provide: Router,
                         useClass: MockRouter,
@@ -93,7 +93,7 @@ describe('SettingsComponent', () => {
 
     beforeEach(() => {
         fixture = TestBed.createComponent(SettingsComponent);
-        electronService = TestBed.inject(ElectronService);
+        electronService = TestBed.inject(DataService);
         storage = TestBed.inject(StorageMap);
         router = TestBed.inject(Router);
         translate = TestBed.inject(TranslateService);
@@ -110,12 +110,12 @@ describe('SettingsComponent', () => {
         let spyOnStorageGet;
 
         beforeEach(() => {
-            spyOnStorageGet = spyOn(storage, 'get');
+            spyOnStorageGet = jest.spyOn(storage, 'get');
         });
 
         it('should init default settings if previous config was not saved', () => {
-            spyOnStorageGet.and.returnValue(of(null));
-            spyOn(component.settingsForm, 'setValue');
+            spyOnStorageGet.mockReturnValue(of(null));
+            jest.spyOn(component.settingsForm, 'setValue');
             component.ngOnInit();
             expect(storage.get).toHaveBeenCalled();
             expect(component.settingsForm.setValue).toHaveBeenCalledTimes(0);
@@ -123,14 +123,14 @@ describe('SettingsComponent', () => {
         });
 
         it('should call set value function if custom config exists', () => {
-            spyOnStorageGet.and.returnValue(of(settings));
-            spyOn(component.settingsForm, 'setValue');
+            spyOnStorageGet.mockReturnValue(of(settings));
+            jest.spyOn(component.settingsForm, 'setValue');
             component.ngOnInit();
             expect(component.settingsForm.setValue).toHaveBeenCalled();
         });
 
         it('should get and apply custom settings', () => {
-            spyOnStorageGet.and.returnValue(of(settings));
+            spyOnStorageGet.mockReturnValue(of(settings));
             component.ngOnInit();
             expect(storage.get).toHaveBeenCalled();
             expect(component.settingsForm.value).toEqual({
@@ -145,7 +145,7 @@ describe('SettingsComponent', () => {
         const currentVersion = '0.1.0';
 
         it('should return true if version is outdated', () => {
-            spyOn(electronService, 'getAppVersion').and.returnValue(
+            jest.spyOn(electronService, 'getAppVersion').mockReturnValue(
                 currentVersion
             );
             const isOutdated =
@@ -154,8 +154,8 @@ describe('SettingsComponent', () => {
         });
 
         it('should update notification message if version is outdated', () => {
-            spyOn(translate, 'instant');
-            spyOn(electronService, 'getAppVersion').and.returnValue(
+            jest.spyOn(translate, 'instant');
+            jest.spyOn(electronService, 'getAppVersion').mockReturnValue(
                 currentVersion
             );
             component.showVersionInformation(currentVersion);
@@ -165,7 +165,7 @@ describe('SettingsComponent', () => {
     });
 
     it('should send epg fetch command', () => {
-        spyOn(electronService, 'sendIpcEvent');
+        jest.spyOn(electronService, 'sendIpcEvent');
         component.fetchEpg();
         expect(electronService.sendIpcEvent).toHaveBeenCalledWith(EPG_FETCH, {
             url: '',
@@ -173,13 +173,13 @@ describe('SettingsComponent', () => {
     });
 
     it('should navigate back to home page', () => {
-        spyOn(router, 'navigateByUrl');
+        jest.spyOn(router, 'navigateByUrl');
         component.backToHome();
         expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
     });
 
     it('should save settings on submit', () => {
-        spyOn(storage, 'set').and.returnValue(of([]));
+        jest.spyOn(storage, 'set').mockReturnValue(of([] as any));
         component.onSubmit();
         expect(storage.set).toHaveBeenCalled();
     });

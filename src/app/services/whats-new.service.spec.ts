@@ -16,7 +16,7 @@ describe('Service: WhatsNew', () => {
     it('should change the state', inject(
         [WhatsNewService],
         (service: WhatsNewService) => {
-            spyOn(service.dialogState$, 'next');
+            jest.spyOn(service.dialogState$, 'next');
             service.changeDialogVisibleState(true);
             expect(service.dialogState$.next).toHaveBeenCalledTimes(1);
             expect(service.dialogState$.next).toHaveBeenCalledWith(true);

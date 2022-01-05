@@ -17,6 +17,8 @@ import { createChannel } from '../../../state';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import { EpgListComponent } from '../epg-list/epg-list.component';
 import { VideoPlayer } from '../../../settings/settings.interface';
+import { DataService } from '../../../services/data.service';
+import { ElectronServiceStub } from '../../../services/electron.service.stub';
 
 class MatSnackBarStub {
     open(): void {}
@@ -43,6 +45,7 @@ describe('VideoPlayerComponent', () => {
                 ],
                 providers: [
                     { provide: MatSnackBar, useClass: MatSnackBarStub },
+                    { provide: DataService, useClass: ElectronServiceStub },
                 ],
                 imports: [
                     MockModule(MatSidenavModule),
@@ -67,9 +70,9 @@ describe('VideoPlayerComponent', () => {
 
     it('should create and init component', () => {
         expect(component).toBeTruthy();
-        spyOn(component, 'applySettings');
+        jest.spyOn(component, 'applySettings');
         fixture.detectChanges();
-        expect(component.applySettings).toBeCalledTimes(1);
+        expect(component.applySettings).toHaveBeenCalledTimes(1);
     });
 
     it('should check default component settings', () => {
@@ -81,11 +84,11 @@ describe('VideoPlayerComponent', () => {
     });
 
     it('should update store after channel was faved', () => {
-        spyOn(store, 'updateFavorite');
+        jest.spyOn(store, 'updateFavorite');
         const [firstChannel] = channels;
         component.addToFavorites(firstChannel);
-        fixture.detectChanges();
-        expect(store.updateFavorite).toBeCalledTimes(1);
-        expect(store.updateFavorite).toBeCalledWith(firstChannel);
+        //fixture.detectChanges();
+        expect(store.updateFavorite).toHaveBeenCalledTimes(1);
+        expect(store.updateFavorite).toHaveBeenCalledWith(firstChannel);
     });
 });

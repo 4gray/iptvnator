@@ -1,7 +1,7 @@
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MockModule, MockPipe, MockProvider } from 'ng-mocks';
-import { ElectronService } from '../../services/electron.service';
+import { DataService } from '../../services/data.service';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { RecentPlaylistsComponent } from './recent-playlists.component';
 import { PlaylistMeta } from '../home.component';
@@ -13,7 +13,7 @@ import { ElectronServiceStub } from '../../services/electron.service.stub';
 describe('RecentPlaylistsComponent', () => {
     let component: RecentPlaylistsComponent;
     let fixture: ComponentFixture<RecentPlaylistsComponent>;
-    let electronService: ElectronService;
+    let electronService: DataService;
     let dialog: MatDialog;
 
     beforeEach(
@@ -30,7 +30,7 @@ describe('RecentPlaylistsComponent', () => {
                     MockModule(MatTooltipModule),
                 ],
                 providers: [
-                    { provide: ElectronService, useClass: ElectronServiceStub },
+                    { provide: DataService, useClass: ElectronServiceStub },
                     MockProvider(TranslateService),
                 ],
             }).compileComponents();
@@ -42,8 +42,7 @@ describe('RecentPlaylistsComponent', () => {
         component = fixture.componentInstance;
         component.playlists = [];
         dialog = TestBed.inject(MatDialog);
-        electronService = TestBed.inject(ElectronService);
-        TestBed.inject(ElectronService);
+        electronService = TestBed.inject(DataService);
         fixture.detectChanges();
     });
 
@@ -52,7 +51,7 @@ describe('RecentPlaylistsComponent', () => {
     });
 
     it('should open the info dialog', () => {
-        spyOn(dialog, 'open');
+        jest.spyOn(dialog, 'open');
         component.openInfoDialog({} as PlaylistMeta);
         expect(dialog.open).toHaveBeenCalledTimes(1);
     });
@@ -68,7 +67,7 @@ describe('RecentPlaylistsComponent', () => {
             distance: { x: 0, y: 0 },
             dropPoint: { x: 0, y: 0 },
         };
-        spyOn(electronService, 'sendIpcEvent');
+        jest.spyOn(electronService, 'sendIpcEvent');
         component.drop(event);
         expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
     });

@@ -11,14 +11,18 @@ export class ElectronServiceStub {
         },
         app: {
             getVersion: jest.fn(() => '1.0.0'),
-        }
+        },
     };
+
+    isElectron = true;
+
+    removeAllListeners(type: string) {}
 
     getAppVersion() {
         return this.remote.app.getVersion();
     }
 
-    sendIpcEvent() { 
-        this.ipcRenderer.send();
-    }
+    sendIpcEvent() {}
+
+    listenOn() {}
 }

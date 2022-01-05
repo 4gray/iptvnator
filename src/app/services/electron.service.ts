@@ -1,34 +1,16 @@
 import { Injectable } from '@angular/core';
-
-// If you import a module but never use any of the imported values other than as TypeScript types,
-// the resulting javascript file will look as if you never imported the module at all.
-import { ipcRenderer, webFrame, remote } from 'electron';
-import * as childProcess from 'child_process';
-import * as fs from 'fs';
+import { DataService } from './data.service';
 
 @Injectable({
     providedIn: 'root',
 })
-export class ElectronService {
-    ipcRenderer: typeof ipcRenderer;
-    webFrame: typeof webFrame;
-    remote: typeof remote;
-    childProcess: typeof childProcess;
-    fs: typeof fs;
-
-    get isElectron(): boolean {
-        return !!(window && window.process && window.process.type);
-    }
-
+export class ElectronService extends DataService {
+    /**
+     * Creates an instance of ElectronService.
+     */
     constructor() {
-        // Conditional imports
-        if (this.isElectron) {
-            this.ipcRenderer = window.require('electron').ipcRenderer;
-            this.webFrame = window.require('electron').webFrame;
-            this.remote = window.require('electron').remote;
-            this.childProcess = window.require('child_process');
-            this.fs = window.require('fs');
-        }
+        super();
+        console.log('Electron service initialized...');
     }
 
     /**
@@ -43,7 +25,24 @@ export class ElectronService {
      * @param type event type
      * @param payload data payload
      */
-    sendIpcEvent(type: string, payload: unknown): void {
+    sendIpcEvent(type: string, payload?: unknown): void {
         this.ipcRenderer.send(type, payload);
+    }
+
+    /**
+     * Removes all IPC listeners
+     * @param type command name
+     */
+    removeAllListeners(type: string): void {
+        this.ipcRenderer.removeAllListeners(type);
+    }
+
+    /**
+     * Listens on an IPC event from the main process
+     * @param command command name
+     * @param callback callback function
+     */
+    listenOn(command: string, callback: (...args: any[]) => void): void {
+        this.ipcRenderer.on(command, callback);
     }
 }

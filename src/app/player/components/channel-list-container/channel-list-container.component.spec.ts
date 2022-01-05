@@ -1,26 +1,26 @@
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslatePipe } from '@ngx-translate/core';
+import { ScrollingModule } from '@angular/cdk/scrolling';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ChannelListContainerComponent } from './channel-list-container.component';
+import { FormsModule } from '@angular/forms';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { By } from '@angular/platform-browser';
+import { RouterTestingModule } from '@angular/router/testing';
+import { TranslatePipe } from '@ngx-translate/core';
+import { MockModule, MockPipes } from 'ng-mocks';
+import { FilterPipe } from 'ngx-filter-pipe';
+import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
+import { DataService } from '../../../services/data.service';
+import { ElectronServiceStub } from '../../../services/electron.service.stub';
+import { createChannel } from '../../../state';
 import { ChannelQuery } from '../../../state/channel.query';
 import { ChannelStore } from '../../../state/channel.store';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatInputModule } from '@angular/material/input';
-import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MockModule, MockPipe } from 'ng-mocks';
-import { FormsModule } from '@angular/forms';
-import { RouterTestingModule } from '@angular/router/testing';
-import { FilterPipeModule } from 'ngx-filter-pipe';
-import { By } from '@angular/platform-browser';
-import { createChannel } from '../../../state';
-import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
-import { ElectronService } from '../../../services/electron.service';
-import { ElectronServiceStub } from '../../../services/electron.service.stub';
-import { ScrollingModule } from '@angular/cdk/scrolling';
+import { ChannelListContainerComponent } from './channel-list-container.component';
 
 class MatSnackBarStub {
     open(): void {}
@@ -35,12 +35,12 @@ describe('ChannelListContainerComponent', () => {
         TestBed.configureTestingModule({
             declarations: [
                 ChannelListContainerComponent,
-                MockPipe(TranslatePipe),
+                MockPipes(TranslatePipe, FilterPipe),
             ],
             providers: [
                 ChannelQuery,
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
-                { provide: ElectronService, useClass: ElectronServiceStub },
+                { provide: DataService, useClass: ElectronServiceStub },
             ],
             imports: [
                 MockModule(MatSnackBarModule),
@@ -53,7 +53,6 @@ describe('ChannelListContainerComponent', () => {
                 MockModule(MatExpansionModule),
                 FormsModule,
                 RouterTestingModule,
-                FilterPipeModule,
             ],
         }).compileComponents();
     });
@@ -146,14 +145,14 @@ describe('ChannelListContainerComponent', () => {
     });
 
     it('should update store after channel was selected', () => {
-        spyOn(store, 'update');
+        jest.spyOn(store, 'update');
         component.selectChannel(component._channelList[0]);
         fixture.detectChanges();
         expect(store.update).toHaveBeenCalledTimes(1);
     });
 
     it('should update store after channel was favorited', () => {
-        spyOn(store, 'updateFavorite');
+        jest.spyOn(store, 'updateFavorite');
         component.toggleFavoriteChannel(
             component._channelList[0],
             new MouseEvent('click')

@@ -20,8 +20,7 @@ const EPG_PROGRAM_ITEM = {
     desc: [
         {
             lang: 'en',
-            value:
-                "Jordan's Queen Rania has made job creation a priority to help curb the staggering unemployment rates among youths in the Middle East.",
+            value: "Jordan's Queen Rania has made job creation a priority to help curb the staggering unemployment rates among youths in the Middle East.",
         },
     ],
     date: ['20080711'],
@@ -93,7 +92,7 @@ describe('EpgListItemComponent', () => {
     });
 
     it('should trigger the function to open the details dialog', () => {
-        spyOn(dialog, 'open');
+        jest.spyOn(dialog, 'open');
         component.showDescription({} as EpgProgram);
         expect(dialog.open).toHaveBeenCalledTimes(1);
         expect(dialog.open).toHaveBeenCalledWith(EpgItemDescriptionComponent, {

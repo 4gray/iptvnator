@@ -25,7 +25,9 @@ describe('Service: Dialog', () => {
     it('should open a confirm dialog', inject(
         [MatDialog, DialogService],
         (dialog: MatDialog, service: DialogService) => {
-            spyOn(dialog, 'open').and.returnValue({ afterClosed: () => EMPTY });
+            jest.spyOn(dialog, 'open').mockReturnValue({
+                afterClosed: () => EMPTY,
+            } as any);
             service.openConfirmDialog({
                 title: 'Remove dialog',
                 message: 'Message',

@@ -9,8 +9,8 @@ import {
 } from '@angular/forms';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { PLAYLIST_SAVE_DETAILS } from '../../../../../shared/ipc-commands';
-import { ElectronService } from '../../../services/electron.service';
 import { Playlist } from '../../../../../shared/playlist.interface';
+import { DataService } from '../../../services/data.service';
 
 @Component({
     selector: 'app-playlist-info',
@@ -18,6 +18,9 @@ import { Playlist } from '../../../../../shared/playlist.interface';
     providers: [DatePipe],
 })
 export class PlaylistInfoComponent {
+    /** Flag that returns true if application runs in electron-based environment */
+    isElectron = this.electronService.isElectron;
+
     /** Playlist object */
     playlist: Playlist;
 
@@ -34,7 +37,7 @@ export class PlaylistInfoComponent {
     constructor(
         private datePipe: DatePipe,
         private formBuilder: FormBuilder,
-        private electronService: ElectronService,
+        private electronService: DataService,
         @Inject(MAT_DIALOG_DATA) playlist: Playlist
     ) {
         this.playlist = playlist;
@@ -76,6 +79,6 @@ export class PlaylistInfoComponent {
     saveChanges(
         data: Pick<Playlist, '_id' | 'title' | 'userAgent' | 'autoRefresh'>
     ): void {
-        this.electronService.ipcRenderer.send(PLAYLIST_SAVE_DETAILS, data);
+        this.electronService.sendIpcEvent(PLAYLIST_SAVE_DETAILS, data);
     }
 }

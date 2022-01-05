@@ -2,11 +2,11 @@ import { Component, NgZone } from '@angular/core';
 import { EpgChannel } from '../../models/epg-channel.model';
 import { EpgProgram } from '../../models/epg-program.model';
 import * as moment from 'moment';
-import { ElectronService } from '../../../services/electron.service';
 import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
 import { ChannelQuery, ChannelStore } from '../../../state';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { DataService } from '../../../services/data.service';
 
 export interface EpgData {
     channel: EpgChannel;
@@ -58,10 +58,10 @@ export class EpgListComponent {
     constructor(
         private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
-        private electronService: ElectronService,
+        private electronService: DataService,
         private ngZone: NgZone
     ) {
-        this.electronService.ipcRenderer.on(
+        this.electronService.listenOn(
             EPG_GET_PROGRAM_DONE,
             (event, response) => {
                 this.ngZone.run(() => this.handleEpgData(response));
@@ -94,7 +94,7 @@ export class EpgListComponent {
      * @param programs
      */
     handleEpgData(programs: { payload: EpgData }): void {
-        if (programs.payload?.items?.length > 0) {
+        if (programs?.payload?.items?.length > 0) {
             this.programs = programs;
             this.timeNow = moment(Date.now()).format(DATE_TIME_FORMAT);
             this.dateToday = moment(Date.now()).format(DATE_FORMAT);
@@ -183,8 +183,6 @@ export class EpgListComponent {
      * Removes all ipc renderer listeners after destroy
      */
     ngOnDestroy(): void {
-        this.electronService.ipcRenderer.removeAllListeners(
-            EPG_GET_PROGRAM_DONE
-        );
+        this.electronService.removeAllListeners(EPG_GET_PROGRAM_DONE);
     }
 }

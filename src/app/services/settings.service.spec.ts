@@ -23,7 +23,7 @@ describe('Service: Settings', () => {
         [SettingsService, StorageMap],
         (service: SettingsService, storage: StorageMap) => {
             const version = '2.1.0';
-            spyOn(storage, 'set').and.returnValue(of([]));
+            jest.spyOn(storage, 'set').mockReturnValue(of([] as any));
             service.setValueToLocalStorage(STORE_KEY.Version, version);
             expect(storage.set).toHaveBeenCalledWith(
                 STORE_KEY.Version,
@@ -48,9 +48,13 @@ describe('Service: Settings', () => {
     describe('Test theme switch', () => {
         let spyOnAdd, spyOnRemove;
         beforeEach(() => {
-            spyOnAdd = spyOn(document.body.classList, 'add');
-            spyOnRemove = spyOn(document.body.classList, 'remove');
+            spyOnAdd = jest.spyOn(document.body.classList, 'add');
+            spyOnRemove = jest.spyOn(document.body.classList, 'remove');
         });
+
+        /* afterEach(() => {
+            jest.clearAllMocks();
+        }); */
 
         it('should switch to the dark theme', inject(
             [SettingsService],
