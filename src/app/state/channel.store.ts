@@ -1,14 +1,14 @@
 import { Injectable } from '@angular/core';
 import { EntityState, EntityStore, StoreConfig } from '@datorama/akita';
+import * as moment from 'moment';
 import {
     CHANNEL_SET_USER_AGENT,
     EPG_GET_PROGRAM,
     PLAYLIST_UPDATE_FAVORITES,
 } from '../../../shared/ipc-commands';
-import { Channel } from './channel.model';
-import * as moment from 'moment';
 import { EpgProgram } from '../player/models/epg-program.model';
 import { DataService } from '../services/data.service';
+import { Channel } from './channel.model';
 
 export interface ChannelState extends EntityState<Channel> {
     active: Channel;
@@ -65,7 +65,7 @@ export class ChannelStore extends EntityStore<ChannelState> {
         this.update((store) => {
             if (store.epgAvailable) {
                 this.electronService.sendIpcEvent(EPG_GET_PROGRAM, {
-                    channelName: channel.name,
+                    channel,
                 });
                 if (channel.http['user-agent']) {
                     this.electronService.sendIpcEvent(CHANNEL_SET_USER_AGENT, {
