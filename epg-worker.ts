@@ -72,11 +72,17 @@ ipcRenderer.on(EPG_FETCH, (event, arg) => {
 
 // returns the epg data for the provided channel name and date
 ipcRenderer.on(EPG_GET_PROGRAM, (event, args) => {
+    const channelName = args.channel.name;
+    const tvgId = args.channel.tvg?.id;
     if (!EPG_DATA || !EPG_DATA.channels) return;
     const foundChannel = EPG_DATA?.channels?.find((epgChannel) => {
-        if (
+        if (tvgId) {
+            if (tvgId === epgChannel.id) {
+                return epgChannel;
+            }
+        } else if (
             epgChannel.name.find((nameObj) => {
-                if (nameObj.value.trim() === args.channelName.trim())
+                if (nameObj.value && nameObj.value.trim() === channelName.trim())
                     return nameObj;
             })
         ) {
