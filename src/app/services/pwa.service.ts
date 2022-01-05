@@ -1,4 +1,9 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { guid } from '@datorama/akita';
+import { parse } from 'iptv-playlist-parser';
+import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { switchMap } from 'rxjs';
 import {
     PLAYLIST_GET_ALL,
     PLAYLIST_GET_ALL_RESPONSE,
@@ -12,19 +17,14 @@ import {
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_FAVORITES,
 } from '../../../shared/ipc-commands';
-import { ParsedPlaylist } from '../../typings';
-import { DataService } from './data.service';
-import { parse } from 'iptv-playlist-parser';
-import { guid } from '@datorama/akita';
 import {
     Playlist,
     PlaylistUpdateState,
 } from '../../../shared/playlist.interface';
-import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { switchMap } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
-import { DbStores } from '../indexed-db.config';
 import { AppConfig } from '../../environments/environment';
+import { ParsedPlaylist } from '../../typings';
+import { DbStores } from '../indexed-db.config';
+import { DataService } from './data.service';
 
 @Injectable({
     providedIn: 'root',
@@ -68,7 +68,7 @@ export class PwaService extends DataService {
             // save to db
             this.dbService
                 .add(DbStores.Playlists, playlistObject)
-                .subscribe((key) => {
+                .subscribe(() => {
                     console.log('playlist was saved to db...');
                 });
 
@@ -253,7 +253,7 @@ export class PwaService extends DataService {
         return parse(playlistAsString);
     }
 
-    removeAllListeners(type: string) {
+    removeAllListeners(): void {
         // not implemented
     }
 
