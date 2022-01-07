@@ -58,6 +58,7 @@
         "about-window": "1.13.4",
         "axios": "0.21.2",
         "custom-electron-titlebar": "3.2.5",
+        "electron-context-menu": "3.1.1",
         "epg-parser": "0.1.1",
         "hls.js": "1.0.11",
         "iptv-playlist-parser": "0.8.0",
