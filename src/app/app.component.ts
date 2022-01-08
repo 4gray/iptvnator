@@ -1,9 +1,10 @@
 import { Component, NgZone } from '@angular/core';
-import { TranslateService } from '@ngx-translate/core';
-import { Router } from '@angular/router';
 import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
-import { ChannelStore } from './state';
-import { Settings } from './settings/settings.interface';
+import { Router } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
+import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
+import * as semver from 'semver';
+import { IpcCommand } from '../../shared/ipc-command.class';
 import {
     EPG_ERROR,
     EPG_FETCH,
@@ -13,13 +14,13 @@ import {
     VIEW_ADD_PLAYLIST,
     VIEW_SETTINGS,
 } from '../../shared/ipc-commands';
-import { IpcCommand } from '../../shared/ipc-command.class';
+import { DataService } from './services/data.service';
 import { SettingsService } from './services/settings.service';
 import { WhatsNewService } from './services/whats-new.service';
-import * as semver from 'semver';
-import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
+import { Settings } from './settings/settings.interface';
+import { Theme } from './settings/theme.enum';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
-import { DataService } from './services/data.service';
+import { ChannelStore } from './state';
 
 /**
  * AppComponent
@@ -137,9 +138,28 @@ export class AppComponent {
 
                     if (settings.theme) {
                         this.settingsService.changeTheme(settings.theme);
+                    } else {
+                        this.detectDarkMode();
                     }
+                } else {
+                    this.detectDarkMode();
                 }
             });
+    }
+
+    /**
+     * Detects if the operation system uses dark mode and changes the theme
+     */
+    detectDarkMode(): void {
+        if (
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches
+        ) {
+            this.settingsService.changeTheme(Theme.DarkTheme);
+            this.settingsService.setValueToLocalStorage(STORE_KEY.Settings, {
+                theme: Theme.DarkTheme,
+            });
+        }
     }
 
     /**

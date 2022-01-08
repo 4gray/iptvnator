@@ -1,7 +1,7 @@
-import { Theme } from './../settings/theme.enum';
 import { Injectable } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
+import { Theme } from './../settings/theme.enum';
 
 @Injectable({
     providedIn: 'root',
@@ -36,7 +36,7 @@ export class SettingsService {
      * @param key key to set
      * @param value value to set
      */
-    setValueToLocalStorage(key: STORE_KEY, value: string) {
+    setValueToLocalStorage(key: STORE_KEY, value: unknown) {
         this.storage.set(key, value).subscribe(() => {});
     }
 }
