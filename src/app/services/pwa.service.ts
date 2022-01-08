@@ -30,6 +30,9 @@ import { DataService } from './data.service';
     providedIn: 'root',
 })
 export class PwaService extends DataService {
+    /** Proxy URL to avoid CORS issues */
+    corsProxyUrl = 'https://api.codetabs.com/v1/proxy?quest=';
+
     /**
      * Creates an instance of PwaService.
      * @param dbService database service
@@ -136,7 +139,9 @@ export class PwaService extends DataService {
             this.fetchFromUrl(payload);
         } else if (type === PLAYLIST_UPDATE) {
             this.http
-                .get(payload.url, { responseType: 'text' })
+                .get(`${this.corsProxyUrl}${payload.url}`, {
+                    responseType: 'text',
+                })
                 .subscribe((response: any) => {
                     const refreshedPlaylist =
                         this.convertFileStringToPlaylist(response);
@@ -175,7 +180,9 @@ export class PwaService extends DataService {
      */
     fetchFromUrl(payload: Partial<Playlist>): void {
         this.http
-            .get(payload.url, { responseType: 'text' })
+            .get(`${this.corsProxyUrl}${payload.url}`, {
+                responseType: 'text',
+            })
             .subscribe((response: any) => {
                 const parsedPlaylist =
                     this.convertFileStringToPlaylist(response);
