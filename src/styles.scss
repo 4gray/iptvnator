@@ -32,6 +32,12 @@ html {
     height: 54px;
 }
 
+::ng-deep {
+    .mat-tab-label-active {
+        opacity: 1 !important;
+    }
+}
+
 input,
 button,
 textarea,
