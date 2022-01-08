@@ -1,9 +1,7 @@
-import { ParsedPlaylist } from './src/typings.d';
+import { guid } from '@datorama/akita';
+import axios from 'axios';
 import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { parse } from 'iptv-playlist-parser';
-import axios from 'axios';
-import { guid } from '@datorama/akita';
-import { Playlist, PlaylistUpdateState } from './shared/playlist.interface';
 import Nedb, { Cursor } from 'nedb-promises-ts';
 import {
     CHANNEL_SET_USER_AGENT,
@@ -13,27 +11,34 @@ import {
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
     ERROR,
-    PLAYLIST_SAVE_DETAILS,
-    PLAYLIST_PARSE,
-    PLAYLIST_PARSE_RESPONSE,
-    PLAYLIST_UPDATE,
-    PLAYLIST_UPDATE_RESPONSE,
-    PLAYLIST_UPDATE_POSITIONS,
-    PLAYLIST_GET_ALL_RESPONSE,
-    PLAYLIST_REMOVE_BY_ID_RESPONSE,
-    PLAYLIST_PARSE_BY_URL,
-    PLAYLIST_GET_ALL,
-    PLAYLIST_REMOVE_BY_ID,
-    PLAYLIST_GET_BY_ID,
     OPEN_FILE,
+    PLAYLIST_GET_ALL,
+    PLAYLIST_GET_ALL_RESPONSE,
+    PLAYLIST_GET_BY_ID,
+    PLAYLIST_PARSE,
+    PLAYLIST_PARSE_BY_URL,
+    PLAYLIST_PARSE_RESPONSE,
+    PLAYLIST_REMOVE_BY_ID,
+    PLAYLIST_REMOVE_BY_ID_RESPONSE,
+    PLAYLIST_SAVE_DETAILS,
+    PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_FAVORITES,
+    PLAYLIST_UPDATE_POSITIONS,
+    PLAYLIST_UPDATE_RESPONSE,
 } from './shared/ipc-commands';
+import { Playlist, PlaylistUpdateState } from './shared/playlist.interface';
+import { ParsedPlaylist } from './src/typings.d';
 
 const fs = require('fs');
+const https = require('https');
 const userData = app.getPath('userData');
 const db = new Nedb<Playlist>({
     filename: `${userData}/db/data.db`,
     autoload: true,
+});
+
+const agent = new https.Agent({
+    rejectUnauthorized: false,
 });
 
 export class Api {
@@ -52,7 +57,7 @@ export class Api {
     constructor() {
         ipcMain.on(PLAYLIST_PARSE_BY_URL, (event, args) => {
             try {
-                axios.get(args.url).then((result) => {
+                axios.get(args.url, { httpsAgent: agent }).then((result) => {
                     const parsedPlaylist = this.convertFileStringToPlaylist(
                         result.data
                     );
@@ -427,7 +432,7 @@ export class Api {
     ): Promise<void> {
         try {
             await axios
-                .get(url)
+                .get(url, { httpsAgent: agent })
                 .then((result) =>
                     this.handlePlaylistRefresh(id, result.data, event)
                 );
