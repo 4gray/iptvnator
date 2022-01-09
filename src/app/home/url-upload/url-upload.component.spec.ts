@@ -1,12 +1,14 @@
-import { TranslatePipe } from '@ngx-translate/core';
-import { MockPipe } from 'ng-mocks';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
-
-import { UrlUploadComponent } from './url-upload.component';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { MatInputModule } from '@angular/material/input';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatCardModule } from '@angular/material/card';
+import { MatInputModule } from '@angular/material/input';
+import { By } from '@angular/platform-browser';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { TranslatePipe } from '@ngx-translate/core';
+import { MockModule, MockPipe } from 'ng-mocks';
+import { DataService } from '../../services/data.service';
+import { ElectronServiceStub } from '../../services/electron.service.stub';
+import { UrlUploadComponent } from './url-upload.component';
 
 describe('UrlUploadComponent', () => {
     let component: UrlUploadComponent;
@@ -17,10 +19,17 @@ describe('UrlUploadComponent', () => {
             TestBed.configureTestingModule({
                 declarations: [UrlUploadComponent, MockPipe(TranslatePipe)],
                 imports: [
-                    MatInputModule,
+                    MockModule(MatInputModule),
+                    MockModule(MatCardModule),
                     FormsModule,
                     ReactiveFormsModule,
                     NoopAnimationsModule,
+                ],
+                providers: [
+                    {
+                        provide: DataService,
+                        useClass: ElectronServiceStub,
+                    },
                 ],
             }).compileComponents();
         })
