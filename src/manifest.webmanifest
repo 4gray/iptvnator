@@ -1,12 +1,13 @@
 {
-  "name": "iptvnator",
+  "name": "IPTVnator",
   "description": "IPTVnator is a tool to watch and manage your IPTV playlists.",
-  "short_name": "iptvnator",
+  "short_name": "IPTVnator",
   "theme_color": "#000",
-  "background_color": "#fafafa",
+  "background_color": "#010304",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",
+  "categories": ["video"],
   "icons": [
     {
       "src": "assets/icons/android-chrome-192x192.png",
