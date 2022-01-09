@@ -13,4 +13,8 @@ $dark-theme: mat-dark-theme(
 
 .dark-theme {
     @include angular-material-color($dark-theme);
+
+    a {
+        color: #a5a7fb;
+    }
 }
