@@ -21,6 +21,11 @@
     border-radius: 4px;
 }
 
+.channel-logo {
+    height: 48px;
+    overflow: hidden;
+}
+
 ::ng-deep .dark-theme {
     .search-bar {
         background: #666;

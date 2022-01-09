@@ -34,12 +34,13 @@
                     [class.active]="selected?.id === channel.id"
                     (click)="selectChannel(channel)"
                 >
-                    <img
-                        [src]="channel.tvg.logo"
-                        *ngIf="channel.tvg.logo"
-                        width="48"
-                        onerror="this.style.display='none'"
-                    />
+                    <div class="channel-logo" *ngIf="channel.tvg.logo">
+                        <img
+                            [src]="channel.tvg.logo"
+                            width="48"
+                            onerror="this.style.display='none'"
+                        />
+                    </div>
                     <p matLine class="channel-name">
                         {{
                             i + 1 + '. ' + channel?.name ||
