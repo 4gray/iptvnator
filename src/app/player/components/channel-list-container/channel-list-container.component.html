@@ -99,7 +99,7 @@
         </mat-nav-list>
     </mat-tab>
 
-    <mat-tab [label]="'CHANNELS.FAVORITES' | translate">
+    <mat-tab *ngIf="playlistId !== 'GLOBAL_FAVORITES'" [label]="'CHANNELS.FAVORITES' | translate">
         <mat-nav-list
             *ngIf="favorites$ | async as favorites"
             id="favorites-list"

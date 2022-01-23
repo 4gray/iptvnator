@@ -1,11 +1,20 @@
 <mat-nav-list cdkDropList (cdkDropListDropped)="drop($event)">
     <mat-list-item *ngIf="playlists.length === 0">
-        <mat-icon mat-list-icon>cloud</mat-icon>
+        <mat-icon class="favorites-icon" mat-list-icon>search</mat-icon>
         <div mat-line>{{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}</div>
         <div mat-line class="meta">
             {{ 'HOME.PLAYLISTS.ADD_FIRST' | translate }}
         </div>
     </mat-list-item>
+    <mat-list-item *ngIf="playlists.length > 0" (click)="playlistClicked.emit('GLOBAL_FAVORITES')">
+        <mat-icon class="favorites-icon" mat-list-icon>star</mat-icon>
+        <div mat-line>Global favorites</div>
+        <div mat-line class="meta">
+            Auto-generated playlist with aggregated favorites from all playlists
+        </div>
+        <mat-divider></mat-divider>
+    </mat-list-item>
+
     <mat-list-item
         cdkDrag
         *ngFor="let item of playlists; last as last"

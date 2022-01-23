@@ -5,11 +5,10 @@ import {
     Input,
     ViewChild,
 } from '@angular/core';
-import { Channel, ChannelStore, ChannelQuery } from '../../../state';
-
-import * as _ from 'lodash';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import * as _ from 'lodash';
 import { Observable } from 'rxjs';
+import { Channel, ChannelQuery, ChannelStore } from '../../../state';
 
 @Component({
     selector: 'app-channel-list-container',
@@ -61,6 +60,9 @@ export class ChannelListContainerComponent {
         }
     }
 
+    /** ID of the current playlist */
+    playlistId: string;
+
     /**
      * Creates an instance of ChannelListContainerComponent
      * @param channelQuery akita's channel query
@@ -71,7 +73,9 @@ export class ChannelListContainerComponent {
         private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
         private snackBar: MatSnackBar
-    ) {}
+    ) {
+        this.playlistId = this.channelQuery.getValue().playlistId;
+    }
 
     /**
      * Sets clicked channel as selected and emits them to the parent component
