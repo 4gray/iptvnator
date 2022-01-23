@@ -7,7 +7,7 @@
             formControlName="playlistUrl"
         />
     </mat-form-field>
-    <mat-card>
+    <mat-card *ngIf="!isElectron">
         Note: In order to avoid <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS" target="_blank">CORS</a> issues at this point the application uses a public CORS Proxy service. If you want to upload a playlist with sensitive data, it is better to import it as a file in the adjacent tab.
     </mat-card>
     <button
