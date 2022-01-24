@@ -3,8 +3,6 @@ const ipcRenderer = electron.ipcRenderer;
 const zlib = require('zlib');
 const parser = require('epg-parser');
 const axios = require('axios');
-import { EpgChannel } from './src/app/player/models/epg-channel.model';
-import { EpgProgram } from './src/app/player/models/epg-program.model';
 import {
     EPG_ERROR,
     EPG_FETCH,
@@ -12,6 +10,8 @@ import {
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
 } from './shared/ipc-commands';
+import { EpgChannel } from './src/app/player/models/epg-channel.model';
+import { EpgProgram } from './src/app/player/models/epg-program.model';
 
 // EPG data store
 let EPG_DATA: { channels: EpgChannel[]; programs: EpgProgram[] };
@@ -76,13 +76,14 @@ ipcRenderer.on(EPG_GET_PROGRAM, (event, args) => {
     const tvgId = args.channel.tvg?.id;
     if (!EPG_DATA || !EPG_DATA.channels) return;
     const foundChannel = EPG_DATA?.channels?.find((epgChannel) => {
-        if (tvgId) {
-            if (tvgId === epgChannel.id) {
-                return epgChannel;
-            }
+        if (tvgId && tvgId === epgChannel.id) {
+            return epgChannel;
         } else if (
             epgChannel.name.find((nameObj) => {
-                if (nameObj.value && nameObj.value.trim() === channelName.trim())
+                if (
+                    nameObj.value &&
+                    nameObj.value.trim() === channelName.trim()
+                )
                     return nameObj;
             })
         ) {
@@ -98,6 +99,7 @@ ipcRenderer.on(EPG_GET_PROGRAM, (event, args) => {
             payload: { channel: foundChannel, items: programs },
         });
     } else {
+        console.log('EPG program for the channel was not found...');
         ipcRenderer.send(EPG_GET_PROGRAM_DONE, {
             payload: { channel: {}, items: [] },
         });
