@@ -24,7 +24,6 @@ jobs:
             - run: npm ci
             - run: npm test -- --coverage
             - run: bash <(curl -s https://codecov.io/bash)
-            - run: xvfb-run --auto-servernum npm run e2e
             - run: npm run build:prod
               env:
                   CI: true
