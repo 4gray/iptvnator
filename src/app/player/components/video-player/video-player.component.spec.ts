@@ -1,24 +1,24 @@
-import { InfoOverlayComponent } from './../info-overlay/info-overlay.component';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslatePipe } from '@ngx-translate/core';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { VideoPlayerComponent } from './video-player.component';
-import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
-import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
-import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
-import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ChannelStore } from '../../../state/channel.store';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslatePipe } from '@ngx-translate/core';
+import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
 import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
-import { createChannel } from '../../../state';
-import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
-import { EpgListComponent } from '../epg-list/epg-list.component';
-import { VideoPlayer } from '../../../settings/settings.interface';
 import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
+import { VideoPlayer } from '../../../settings/settings.interface';
+import { createChannel } from '../../../state';
+import { ChannelStore } from '../../../state/channel.store';
+import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
+import { EpgListComponent } from '../epg-list/epg-list.component';
+import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
+import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
+import { InfoOverlayComponent } from './../info-overlay/info-overlay.component';
+import { VideoPlayerComponent } from './video-player.component';
 
 class MatSnackBarStub {
     open(): void {}

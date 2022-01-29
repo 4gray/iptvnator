@@ -1,19 +1,20 @@
-import { MockComponent, MockProvider, MockModule, MockPipe } from 'ng-mocks';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { TranslatePipe } from '@ngx-translate/core';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { EpgListComponent, EpgData } from './epg-list.component';
+import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslatePipe } from '@ngx-translate/core';
+import * as moment from 'moment';
+import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
+import { Channel } from '../../../../../shared/channel.interface';
+import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
 import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
-import * as moment from 'moment';
-import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
-import { Channel, ChannelStore } from '../../../state';
 import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
-import { MatIconModule } from '@angular/material/icon';
+import { ChannelStore } from '../../../state';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
+import { EpgData, EpgListComponent } from './epg-list.component';
 
 describe('EpgListComponent', () => {
     let component: EpgListComponent;

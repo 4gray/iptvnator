@@ -8,7 +8,8 @@ import {
 import { MatSnackBar } from '@angular/material/snack-bar';
 import * as _ from 'lodash';
 import { Observable } from 'rxjs';
-import { Channel, ChannelQuery, ChannelStore } from '../../../state';
+import { Channel } from '../../../../../shared/channel.interface';
+import { ChannelQuery, ChannelStore } from '../../../state';
 
 @Component({
     selector: 'app-channel-list-container',

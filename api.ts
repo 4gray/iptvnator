@@ -3,6 +3,7 @@ import axios from 'axios';
 import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import Nedb, { Cursor } from 'nedb-promises-ts';
+import { GLOBAL_FAVORITES_PLAYLIST_ID } from './shared/constants';
 import {
     CHANNEL_SET_USER_AGENT,
     EPG_ERROR,
@@ -27,6 +28,10 @@ import {
     PLAYLIST_UPDATE_RESPONSE,
 } from './shared/ipc-commands';
 import { Playlist, PlaylistUpdateState } from './shared/playlist.interface';
+import {
+    aggregateFavoriteChannels,
+    createFavoritesPlaylist,
+} from './shared/playlist.utils';
 import { ParsedPlaylist } from './src/typings.d';
 
 const fs = require('fs');
@@ -97,12 +102,16 @@ export class Api {
         ipcMain.on(PLAYLIST_GET_ALL, (event) => this.sendAllPlaylists(event));
 
         ipcMain.on(PLAYLIST_GET_BY_ID, (event, args) => {
-            db.findOne({ _id: args.id }).then((playlist) => {
-                this.setUserAgent(playlist.userAgent);
-                event.sender.send(PLAYLIST_PARSE_RESPONSE, {
-                    payload: playlist,
+            if (args.id === GLOBAL_FAVORITES_PLAYLIST_ID) {
+                this.sendPlaylistWithGlobalFavorites(event);
+            } else {
+                db.findOne({ _id: args.id }).then((playlist) => {
+                    this.setUserAgent(playlist?.userAgent);
+                    event.sender.send(PLAYLIST_PARSE_RESPONSE, {
+                        payload: playlist,
+                    });
                 });
-            });
+            }
         });
 
         ipcMain.on(PLAYLIST_REMOVE_BY_ID, (event, args) => {
@@ -232,6 +241,22 @@ export class Api {
 
         this.setTitleBarListeners();
         this.refreshPlaylists();
+    }
+
+    /**
+     * Sends a message with playlist that contains favorite channels from all available playlists
+     * @param event ipc main event
+     */
+    sendPlaylistWithGlobalFavorites(event: Electron.IpcMainEvent) {
+        db.find({ type: { $exists: false } }).then((playlists: Playlist[]) => {
+            const favoriteChannels = aggregateFavoriteChannels(playlists);
+            const favPlaylist = createFavoritesPlaylist(favoriteChannels);
+
+            event.sender.send(PLAYLIST_PARSE_RESPONSE, {
+                type: PLAYLIST_PARSE_RESPONSE,
+                payload: favPlaylist,
+            });
+        });
     }
 
     /**

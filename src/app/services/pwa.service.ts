@@ -1,10 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { guid } from '@datorama/akita';
-import { Channel } from 'diagnostics_channel';
 import { parse } from 'iptv-playlist-parser';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { catchError, combineLatest, map, switchMap, throwError } from 'rxjs';
+import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../shared/constants';
 import {
     ERROR,
     PLAYLIST_GET_ALL,
@@ -24,15 +24,14 @@ import {
     Playlist,
     PlaylistUpdateState,
 } from '../../../shared/playlist.interface';
+import {
+    aggregateFavoriteChannels,
+    createFavoritesPlaylist,
+} from '../../../shared/playlist.utils';
 import { AppConfig } from '../../environments/environment';
 import { ParsedPlaylist } from '../../typings';
 import { DbStores } from '../indexed-db.config';
 import { DataService } from './data.service';
-
-/**
- * Id of the channel with favorite channels aggregated from all added playlists
- */
-export const GLOBAL_FAVORITES_PLAYLIST_ID = 'GLOBAL_FAVORITES';
 
 @Injectable({
     providedIn: 'root',
@@ -64,41 +63,6 @@ export class PwaService extends DataService {
     }
 
     /**
-     * Aggregates favorite channels as objects from all available playlists
-     * @param playlists all available playlists
-     * @returns favorite channels
-     */
-    aggregateFavoriteChannels(playlists: Playlist[]): Channel[] {
-        const favorites = [];
-        playlists.forEach((playlist) => {
-            if (playlist.favorites?.length > 0) {
-                playlist.playlist.items.forEach((channel) => {
-                    if (playlist.favorites.includes(channel.id)) {
-                        favorites.push(channel);
-                    }
-                });
-            }
-        });
-        return favorites;
-    }
-
-    /**
-     * Creates a simplified playlist object which is used for global favorites
-     * @param channels channels list
-     * @returns simplified playlist object
-     */
-    createFavoritesPlaylist(channels: Channel[]): Partial<Playlist> {
-        return {
-            id: GLOBAL_FAVORITES_PLAYLIST_ID,
-            _id: GLOBAL_FAVORITES_PLAYLIST_ID,
-            count: channels.length,
-            playlist: {
-                items: channels,
-            },
-        };
-    }
-
-    /**
      * Returns the count of favorite channels from all playlists
      */
     getGlobalFavoritesCount() {
@@ -124,9 +88,9 @@ export class PwaService extends DataService {
             .pipe(
                 map((playlists: Playlist[]) => {
                     const favoriteChannels =
-                        this.aggregateFavoriteChannels(playlists);
+                        aggregateFavoriteChannels(playlists);
                     const favPlaylist =
-                        this.createFavoritesPlaylist(favoriteChannels);
+                        createFavoritesPlaylist(favoriteChannels);
                     return favPlaylist;
                 })
             )

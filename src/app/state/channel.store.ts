@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { EntityState, EntityStore, StoreConfig } from '@datorama/akita';
 import * as moment from 'moment';
+import { Channel } from '../../../shared/channel.interface';
 import {
     CHANNEL_SET_USER_AGENT,
     EPG_GET_PROGRAM,
@@ -8,7 +9,6 @@ import {
 } from '../../../shared/ipc-commands';
 import { EpgProgram } from '../player/models/epg-program.model';
 import { DataService } from '../services/data.service';
-import { Channel } from './channel.model';
 
 export interface ChannelState extends EntityState<Channel> {
     active: Channel;

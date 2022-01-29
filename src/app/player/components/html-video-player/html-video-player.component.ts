@@ -7,8 +7,8 @@ import {
     SimpleChanges,
     ViewChild,
 } from '@angular/core';
-import { Channel } from '../../../state';
 import Hls from 'hls.js';
+import { Channel } from '../../../../../shared/channel.interface';
 
 /**
  * This component contains the implementation of HTML5 based video player

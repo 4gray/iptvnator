@@ -8,15 +8,14 @@
 /release
 api.js
 epg-worker.js
-ipc-commands.js
 main.js
 menu.js
-playlist.interface.js
 src/**/*.js
 !src/karma.conf.js
 *.js.map
 data.db
 preload.js
+shared/*.js
 
 # dependencies
 /node_modules

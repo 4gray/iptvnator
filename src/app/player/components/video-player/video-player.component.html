@@ -25,6 +25,7 @@
                     <mat-icon>menu</mat-icon>
                 </button>
                 <button
+                    *ngIf="playlistId !== 'GLOBAL_FAVORITES'"
                     mat-icon-button
                     (click)="addToFavorites(activeChannel)"
                     [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
