@@ -4,7 +4,7 @@ export abstract class DataService {
         return !!(window && window.process && (window.process as any).type);
     }
     get remote() {
-        return this.isElectron ? window.require('electron').remote : null;
+        return this.isElectron ? window.require('@electron/remote') : null;
     }
     get ipcRenderer(): typeof ipcRenderer {
         return this.isElectron ? window.require('electron').ipcRenderer : null;

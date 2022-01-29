@@ -12,6 +12,7 @@ const args = process.argv.slice(1),
 
 const api = new Api();
 contextMenu();
+require('@electron/remote/main').initialize();
 
 function createWindow(): BrowserWindow {
     // Create the browser window.
@@ -23,7 +24,6 @@ function createWindow(): BrowserWindow {
             nodeIntegration: true,
             allowRunningInsecureContent: serve ? true : false,
             contextIsolation: false,
-            enableRemoteModule: true,
             webSecurity: false,
         },
         resizable: true,
@@ -35,6 +35,8 @@ function createWindow(): BrowserWindow {
         minHeight: 700,
         title: 'IPTVnator',
     });
+
+    require('@electron/remote/main').enable(win.webContents);
 
     if (serve) {
         win.webContents.openDevTools();
@@ -73,7 +75,7 @@ function createEpgWorkerWindow() {
         show: false,
         webPreferences: {
             nodeIntegration: true,
-            enableRemoteModule: true,
+            contextIsolation: false,
         },
     });
 
@@ -92,8 +94,6 @@ function createEpgWorkerWindow() {
 }
 
 try {
-    app.allowRendererProcessReuse = true;
-
     // This method will be called when Electron has finished
     // initialization and is ready to create browser windows.
     // Some APIs can only be used after this event occurs.
