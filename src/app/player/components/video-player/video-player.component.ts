@@ -1,13 +1,14 @@
-import { EpgProgram } from './../../models/epg-program.model';
 import { Component, OnInit, ViewChild } from '@angular/core';
-import { ChannelQuery, Channel, ChannelStore } from '../../../state';
+import { MatSidenav } from '@angular/material/sidenav';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { StorageMap } from '@ngx-pwa/local-storage';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { MatSidenav } from '@angular/material/sidenav';
-import { StorageMap } from '@ngx-pwa/local-storage';
+import { Channel } from '../../../../../shared/channel.interface';
 import { Settings, VideoPlayer } from '../../../settings/settings.interface';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { STORE_KEY } from '../../../shared/enums/store-keys.enum';
+import { ChannelQuery, ChannelStore } from '../../../state';
+import { EpgProgram } from './../../models/epg-program.model';
 
 @Component({
     selector: 'app-video-player',
@@ -49,6 +50,9 @@ export class VideoPlayerComponent implements OnInit {
 
     /** Sidebar object */
     @ViewChild('sidenav') sideNav: MatSidenav;
+
+    /** ID of the current playlist */
+    playlistId = this.channelQuery.getValue().playlistId;
 
     /**
      * Creates an instance of VideoPlayerComponent
