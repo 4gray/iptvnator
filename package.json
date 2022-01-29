@@ -57,7 +57,7 @@
         "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
         "about-window": "1.13.4",
         "axios": "0.21.2",
-        "custom-electron-titlebar": "4.0.0",
+        "custom-electron-titlebar": "https://github.com/4gray/custom-electron-titlebar.git#testing",
         "electron-context-menu": "3.1.1",
         "epg-parser": "0.1.1",
         "hls.js": "1.0.11",
