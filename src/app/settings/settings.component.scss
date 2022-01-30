@@ -1,4 +1,5 @@
 .card-header {
+    margin-top: 15px;
     margin-bottom: 15px;
 }
 
@@ -13,4 +14,24 @@ button {
 
 .mat-list-item {
     height: 70px !important;
+}
+
+.main-container {
+    display: grid;
+    grid-template-rows: 105px auto;
+    height: calc(100vh - 105px);
+}
+
+.settings-container {
+    overflow: auto;
+    height: calc(100vh - 140px);
+
+    .mat-card {
+        box-shadow: none;
+        background: none;
+    }
+}
+
+.mat-form-field {
+    width: 100%;
 }

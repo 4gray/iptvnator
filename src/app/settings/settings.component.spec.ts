@@ -1,29 +1,30 @@
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { Router } from '@angular/router';
+import { RouterTestingModule } from '@angular/router/testing';
 import { StorageMap } from '@ngx-pwa/local-storage';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
+import { of } from 'rxjs';
+import { EPG_FETCH } from '../../../shared/ipc-commands';
 /* eslint-disable @typescript-eslint/unbound-method */
 import { DataService } from '../services/data.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
-import { MatSelectModule } from '@angular/material/select';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatListModule } from '@angular/material/list';
-import { MatCardModule } from '@angular/material/card';
-import { HeaderComponent } from './../shared/components/header/header.component';
 import { TranslateServiceStub } from './../../testing/translate.stub';
-import { RouterTestingModule } from '@angular/router/testing';
-import { SettingsComponent } from './settings.component';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { MockModule, MockPipe, MockComponent } from 'ng-mocks';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { EPG_FETCH } from '../../../shared/ipc-commands';
-import { Router } from '@angular/router';
-import { of } from 'rxjs';
-import { VideoPlayer } from './settings.interface';
+import { HeaderComponent } from './../shared/components/header/header.component';
 import { Language } from './language.enum';
+import { SettingsComponent } from './settings.component';
+import { VideoPlayer } from './settings.interface';
 import { Theme } from './theme.enum';
 
 class MatSnackBarStub {
@@ -86,6 +87,7 @@ describe('SettingsComponent', () => {
                     MockModule(MatListModule),
                     MockModule(MatFormFieldModule),
                     MockModule(MatCheckboxModule),
+                    MockModule(MatDividerModule),
                 ],
             }).compileComponents();
         })
