@@ -29,7 +29,10 @@
     },
     "mac": {
         "icon": "dist/assets/icons/icon-1024.png",
-        "target": ["dmg"]
+        "target": {
+            "target": "dmg",
+            "arch": ["arm64", "x64"]
+        }
     },
     "linux": {
         "icon": "dist/assets/icons",
