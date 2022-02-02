@@ -1,21 +1,21 @@
-import { TranslateService } from '@ngx-translate/core';
-import { Component, OnInit } from '@angular/core';
-import { FormGroup, FormBuilder } from '@angular/forms';
-import { StorageMap } from '@ngx-pwa/local-storage';
-import { Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { Observable } from 'rxjs';
-import { STORE_KEY } from '../shared/enums/store-keys.enum';
-import { Settings, VideoPlayer } from './settings.interface';
 import { HttpClient } from '@angular/common/http';
-import * as semver from 'semver';
-import { ChannelQuery } from '../state';
-import { EPG_FETCH } from '../../../shared/ipc-commands';
-import { Language } from './language.enum';
-import { Theme } from './theme.enum';
-import { SettingsService } from './../services/settings.service';
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
+import { StorageMap } from '@ngx-pwa/local-storage';
+import { TranslateService } from '@ngx-translate/core';
+import { Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import * as semver from 'semver';
+import { EPG_FETCH } from '../../../shared/ipc-commands';
 import { DataService } from '../services/data.service';
+import { STORE_KEY } from '../shared/enums/store-keys.enum';
+import { ChannelQuery } from '../state';
+import { SettingsService } from './../services/settings.service';
+import { Language } from './language.enum';
+import { Settings, VideoPlayer } from './settings.interface';
+import { Theme } from './theme.enum';
 
 /** Url of the package.json file in the app repository, required to get the version of the released app */
 const PACKAGE_JSON_URL =
@@ -205,7 +205,7 @@ export class SettingsComponent implements OnInit {
      * Navigates back to the applications homepage
      */
     backToHome(): void {
-        this.router.navigateByUrl('/', { skipLocationChange: true });
+        this.router.navigateByUrl('/');
     }
 
     /**

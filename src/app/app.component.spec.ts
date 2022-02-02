@@ -1,25 +1,25 @@
-import { NgxWhatsNewModule } from 'ngx-whats-new';
 import {
     ComponentFixture,
     inject,
     TestBed,
     waitForAsync,
 } from '@angular/core/testing';
-import { RouterTestingModule } from '@angular/router/testing';
-import { AppComponent } from './app.component';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ElectronServiceStub } from './services/electron.service.stub';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MockModule, MockPipe, MockProviders } from 'ng-mocks';
-import { of } from 'rxjs';
-import { WhatsNewService } from './services/whats-new.service';
-import { Theme } from './settings/theme.enum';
-import { SettingsService } from './services/settings.service';
 import { Router } from '@angular/router';
-import { ChannelStore } from './state';
-import { STORE_KEY } from './shared/enums/store-keys.enum';
-import { WhatsNewServiceStub } from './services/whats-new.service.stub';
+import { RouterTestingModule } from '@angular/router/testing';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { MockModule, MockPipe, MockProviders } from 'ng-mocks';
+import { NgxWhatsNewModule } from 'ngx-whats-new';
+import { of } from 'rxjs';
+import { AppComponent } from './app.component';
 import { DataService } from './services/data.service';
+import { ElectronServiceStub } from './services/electron.service.stub';
+import { SettingsService } from './services/settings.service';
+import { WhatsNewService } from './services/whats-new.service';
+import { WhatsNewServiceStub } from './services/whats-new.service.stub';
+import { Theme } from './settings/theme.enum';
+import { STORE_KEY } from './shared/enums/store-keys.enum';
+import { ChannelStore } from './state';
 
 class MatSnackBarStub {
     open(): void {}
@@ -113,10 +113,7 @@ describe('AppComponent', () => {
                 jest.spyOn(router, 'navigateByUrl');
                 component.navigateToRoute(route);
                 expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
-                expect(router.navigateByUrl).toHaveBeenCalledWith(
-                    route,
-                    expect.anything()
-                );
+                expect(router.navigateByUrl).toHaveBeenCalledWith(route);
             }
         ));
 

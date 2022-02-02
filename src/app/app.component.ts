@@ -201,7 +201,7 @@ export class AppComponent {
      * @param route route to navigate to
      */
     navigateToRoute(route: string) {
-        this.router.navigateByUrl(route, { skipLocationChange: true });
+        this.router.navigateByUrl(route);
     }
 
     /**
