@@ -64,3 +64,11 @@ textarea,
 .mb-10 {
     margin-bottom: 10px;
 }
+
+.about-dialog-overlay {
+    .mat-dialog-container {
+        text-align: center;
+        background: black !important;
+        color: #fff !important;
+    }
+}

@@ -8,7 +8,64 @@
     </div>
 </div>
 <div fxLayout="column" fxFlex="50px" fxLayoutAlign="center center">
-    <button mat-icon-button (click)="openSettings()">
+    <button
+        *ngIf="isElectron; else pwaMenu"
+        mat-icon-button
+        (click)="openSettings()"
+    >
         <mat-icon>settings</mat-icon>
     </button>
 </div>
+
+<ng-template #pwaMenu>
+    <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Open menu">
+        <mat-icon>menu</mat-icon>
+    </button>
+    <mat-menu #menu="matMenu">
+        <button mat-menu-item (click)="openSettings()">
+            <mat-icon>settings</mat-icon>
+            <span>Settings</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button
+            mat-menu-item
+            aria-label="Support IPTVnator on GitHub"
+            (click)="openUrl('https:///github.com/4gray/iptvnator')"
+        >
+            <mat-icon>recommend</mat-icon>
+            <span>GitHub</span>
+        </button>
+        <button
+            mat-menu-item
+            aria-label="Report a bug"
+            (click)="openUrl('https://github.com/4gray/iptvnator/issues')"
+        >
+            <mat-icon>bug_report</mat-icon>
+            <span>Report a bug</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button
+            mat-menu-item
+            aria-label="What is new?"
+            (click)="setDialogVisibility(true)"
+        >
+            <mat-icon>new_releases</mat-icon>
+            <span>What is new</span>
+        </button>
+        <button
+            mat-menu-item
+            aria-label="About this application"
+            (click)="openAboutDialog()"
+        >
+            <mat-icon>info</mat-icon>
+            <span>About</span>
+        </button>
+    </mat-menu>
+</ng-template>
+<ngx-whats-new
+    *ngIf="isDialogVisible$ | async"
+    (closeModal)="setDialogVisibility(false)"
+    [items]="modals"
+    [options]="options"
+>
+</ngx-whats-new>

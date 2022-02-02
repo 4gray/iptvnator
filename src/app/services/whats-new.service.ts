@@ -1,5 +1,5 @@
-import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
 import { Injectable } from '@angular/core';
+import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
 import { BehaviorSubject } from 'rxjs';
 
 @Injectable({
@@ -195,5 +195,13 @@ export class WhatsNewService {
      */
     getModalsByVersion(version: string): ModalWindow[] {
         return this.modals[version] || [];
+    }
+
+    /**
+     * Returns modals with latest changes
+     */
+    getLatestChanges(): ModalWindow[] {
+        const lastVersion = Object.keys(this.modals).at(-1);
+        return this.modals[lastVersion];
     }
 }
