@@ -1,26 +1,22 @@
-import 'reflect-metadata';
-import '../polyfills';
-
-import { AppRoutingModule } from './app-routing.module';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { BrowserModule } from '@angular/platform-browser';
-import { HttpClientModule, HttpClient } from '@angular/common/http';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { NgModule } from '@angular/core';
-import { NgxWhatsNewModule } from 'ngx-whats-new';
-import { SharedModule } from './shared/shared.module';
-
+import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { ServiceWorkerModule } from '@angular/service-worker';
 // NG Translate
-import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
+import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
-
+import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
+import 'reflect-metadata';
+import { AppConfig } from '../environments/environment';
+import '../polyfills';
+import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
+import { dbConfig } from './indexed-db.config';
+import { DataService } from './services/data.service';
 import { ElectronService } from './services/electron.service';
 import { PwaService } from './services/pwa.service';
-import { DataService } from './services/data.service';
-import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
-import { AppConfig } from '../environments/environment';
-import { dbConfig } from './indexed-db.config';
-import { ServiceWorkerModule } from '@angular/service-worker';
+import { SharedModule } from './shared/shared.module';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -53,7 +49,6 @@ export function DataFactory(dbService: NgxIndexedDBService, http: HttpClient) {
         BrowserAnimationsModule,
         BrowserModule,
         HttpClientModule,
-        NgxWhatsNewModule,
         SharedModule,
         AppConfig.environment === 'WEB'
             ? NgxIndexedDBModule.forRoot(dbConfig)

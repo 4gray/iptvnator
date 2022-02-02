@@ -1,22 +1,30 @@
-import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { TranslateModule } from '@ngx-translate/core';
+import { NgModule } from '@angular/core';
 import { FlexLayoutModule } from '@angular/flex-layout';
-import { HeaderComponent } from './components/';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MaterialModule } from '../material.module';
+import { TranslateModule } from '@ngx-translate/core';
 import { FilterPipeModule } from 'ngx-filter-pipe';
-import { MomentDatePipe } from './pipes/moment-date.pipe';
+import { NgxWhatsNewModule } from 'ngx-whats-new';
+import { MaterialModule } from '../material.module';
+import { HeaderComponent } from './components/';
+import { AboutDialogComponent } from './components/about-dialog/about-dialog.component';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
+import { MomentDatePipe } from './pipes/moment-date.pipe';
 
 @NgModule({
-    declarations: [ConfirmDialogComponent, HeaderComponent, MomentDatePipe],
+    declarations: [
+        ConfirmDialogComponent,
+        HeaderComponent,
+        MomentDatePipe,
+        AboutDialogComponent,
+    ],
     imports: [
         CommonModule,
         FilterPipeModule,
         FlexLayoutModule,
         FormsModule,
         MaterialModule,
+        NgxWhatsNewModule,
         ReactiveFormsModule,
         TranslateModule,
     ],
@@ -27,6 +35,7 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
         FormsModule,
         HeaderComponent,
         MaterialModule,
+        NgxWhatsNewModule,
         MomentDatePipe,
         ReactiveFormsModule,
         TranslateModule,
