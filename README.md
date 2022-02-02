@@ -94,6 +94,29 @@ This command will produce the distributable assets in the `release` folder based
 
 *Note: Don’t expect that you can build app for all platforms on one platform. [Read details](https://www.electron.build/multi-platform-build)*
 
+## Development
+
+The first thing to do is to install all the necessary dependencies:
+
+  ```
+  $ npm install
+  ```
+
+To develop an application in PWA and Electron mode, you need to run the application with a command:
+
+  ```
+  $ npm run start
+  ```
+
+The Electron version of the application will open in a separate window, and the PWA version will be available in the browser at http://localhost:4200.
+
+If you want to run only the angular app without electron, in this case you can use the command:
+
+  ```
+  $ npm run ng:serve
+  ```
+
+
 ## Disclaimer
 
 IPTVnator doesn't provide any playlists or other digital content.
