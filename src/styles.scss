@@ -19,6 +19,12 @@ html {
     font-family: Arial, Helvetica, sans-serif;
 }
 
+@media (display-mode: standalone) {
+    body {
+        overscroll-behavior-y: contain;
+    }
+}
+
 .mat-toolbar.mat-primary {
     background: #000;
 }
