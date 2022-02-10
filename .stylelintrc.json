@@ -24,6 +24,12 @@
                 "ignoreAtRules": ["function", "if", "each", "include", "mixin"]
             }
         ],
+        "media-feature-name-no-unknown": [
+            true,
+            {
+              "ignoreMediaFeatureNames": ["display-mode"]
+            }
+        ],
         "value-keyword-case": null,
         "string-quotes": "single",
         "value-no-vendor-prefix": null,

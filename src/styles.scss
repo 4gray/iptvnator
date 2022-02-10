@@ -59,11 +59,12 @@ textarea,
 .dark-theme {
     ::-webkit-scrollbar {
         overflow-y: scroll;
-        background: rgb(100 100 100);
+        background: #1d1d1d;
     }
 
     ::-webkit-scrollbar-thumb {
         background-color: rgb(60 60 60);
+        border-radius: 10px;
     }
 }
 
@@ -76,5 +77,22 @@ textarea,
         text-align: center;
         background: black !important;
         color: #fff !important;
+    }
+}
+
+.cet-container {
+    height: calc(100vh);
+
+    .video-js {
+        height: calc(100vh - 82px) !important;
+    }
+
+    #video-player {
+        width: 100%;
+        height: calc(100vh - 80px) !important;
+    }
+
+    .recent-playlists {
+        height: calc(100vh - 152px - 28px) !important;
     }
 }

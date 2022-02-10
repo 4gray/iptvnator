@@ -7,3 +7,14 @@
         display: none;
     }
 }
+
+.playlists-container {
+    grid-area: playlists;
+}
+
+.recent-playlists {
+    height: calc(100vh - 152px);
+    overflow: auto;
+    width: 100%;
+    display: block;
+}
