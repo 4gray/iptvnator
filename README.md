@@ -27,9 +27,11 @@ The application is a cross-platform and open source project based on Electron an
 - TV archive/catchup/timeshift
 - Group-based channels list
 - Save channels as favorites
+- Global favorites aggregated from all playlists
 - HTML video player with hls.js support or Video.js based player
-- Internalization, currently 3 languages are supported (en, ru, de)
+- Internalization, currently 7 languages are supported (en, ru, de, ko, es, zh, fr)
 - Set custom "User Agent" header for a playlist
+- Re-fetch/auto-update playlists
 - Light and Dark theme
 
 ## Screenshots:
