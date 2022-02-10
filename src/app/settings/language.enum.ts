@@ -8,4 +8,5 @@ export enum Language {
     GERMAN = 'de',
     SPANISH = 'es',
     CHINESE = 'zh',
+    FRENCH = 'fr',
 }
