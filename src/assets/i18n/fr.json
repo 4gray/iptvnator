@@ -1,0 +1,125 @@
+{
+    "CLOSE": "Fermer",
+    "HOME": {
+        "TITLE": "IPTVnator",
+        "SUBTITLE": "Veuillez choisir une liste de lecture dans la list, ou ajouter une nouvelle liste de lecture par transfert de fichier ou par URL",
+        "TABS": {
+            "RECENTLY_ADDED": "Listes de lecture ajoutés récemment",
+            "FILE_UPLOAD": "Ajouter par transfert de fichier",
+            "URL_UPLOAD": "Ajouter par URL"
+        },
+        "PLAYLISTS": {
+            "NO_PLAYLISTS": "Aucune liste de lecteur n'a été ajouté",
+            "ADD_FIRST": "Veuillez ajouter votre première liste de lecteur par un autre onglet",
+            "ADDED_VIA_URL": "Ajouté par URL. URL:",
+            "ADDED_VIA_FILE": "Ajouté par transfert de fichier",
+            "CHANNELS": "Canaux",
+            "ADDED": "Ajouté",
+            "SHOW_DETAILS": "Afficher les détails de la liste de lecture",
+            "REMOVE": "Retirer la liste de lecture",
+            "INFO_DIALOG": {
+                "PLAYLIST_DETAILS": "Détails de la liste de lecture",
+                "TITLE": "Titre",
+                "FROM_URL": "Ajouté par URL",
+                "IMPORT_DATE": "Date d'importation",
+                "CHANNELS": "Nombre de canaux",
+                "CLOSE": "Fermer",
+                "SAVE": "Enregistrer",
+                "USER_AGENT": "Agent utilisateur",
+                "ORIGINAL_FILENAME": "Nom de fichier d'origine",
+                "FILE_PATH": "Chemin du fichier",
+                "UPDATE_FAILED": "Échec de la dernière mise à jour de liste de lecture",
+                "AUTO_UPDATE": "Mise à jour automatique",
+                "AUTO_UPDATE_DESCRIPTION": "Si la fonction de mise à jour automatique est activé, la liste de lecteur sera mis à jour automatiquement à chaque fois que l'app est lancé.",
+                "CUSTOM_USER_AGENT": "Certains fournisseurs d'IPTC requiert un agent utilisateur spécifique afin de lire leur liste de lecture."
+            },
+            "REMOVE_DIALOG": {
+                "TITLE": "Retirer la liste de lecture",
+                "MESSAGE": "Êtes-vous certain de vouloir complètement retirer cette liste de lecture?"
+            },
+            "UPDATED": "Mis à jour",
+            "REFRESH": "Mettre à jour la liste de lecture"
+        },
+        "FILE_UPLOAD": {
+            "DRAG_DROP": "Glissez un fichier ici",
+            "OR": "ou",
+            "CHOOSE_PLAYLIST": "Choisir une liste de lecture"
+        },
+        "URL_UPLOAD": {
+            "PLAYLIST_URL": " URL de la liste de lecture(m3u, m3u8)",
+            "ADD_PLAYLIST": "Ajouter une liste de lecture"
+        }
+    },
+    "SETTINGS": {
+        "TITLE": "Réglages / IPTVnator",
+        "SUBTITLE": "Changer la configuration de l'application",
+        "DESCRIPTION": "Veuillez ajuster les options dans la liste ci-dessous et confirmer avec le bouton Enregistrer.",
+        "EPG_URL_LABEL": "URL du EPG  (*.xml ou *.xml.gz)",
+        "EPG_URL_PLACEHOLDER": "Saisir une URL",
+        "REFRESH_EPG": "Mise à jour du EPG",
+        "VIDEO_PLAYER_LABEL": "Lecteur vidéo",
+        "VIDEO_PLAYER_PLACEHOLDER": "Choisir une option",
+        "VERSION": "Version",
+        "SAVE_CHANGES": "Enregistrer les modifications",
+        "BACK_TO_HOME": "Retour à l'accueil",
+        "NEW_VERSION_AVAILABLE": "Il y a une nouvelle version disponible",
+        "LATEST_VERSION": "Vous utilisez la dernière version",
+        "LANGUAGE": "Langue",
+        "SETTINGS_SAVED": "La configuration est enregistré avec succès.",
+        "THEME": "Thème visuel",
+        "SHOW_CAPTIONS": "Afficher les sous-titres"
+    },
+    "THEMES": {
+        "DARK_THEME": "Thème foncé",
+        "LIGHT_THEME": "Thème clair"
+    },
+    "CHANNELS": {
+        "SEARCH_CHANNEL": "Rechercher un canal",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Transférer ou choisir une autre liste de lecture",
+        "ALL_CHANNELS": "Tous les canaux",
+        "GROUPS": "Groupes",
+        "UNGROUPED": "Non-groupé",
+        "UNNAMED_CHANNEL": "Canal sans non",
+        "FAVORITES": "Favoris",
+        "NO_FAVORITES": "Aucun favoris",
+        "USE_STAR_TO_FAVORITE": "Veuillez utiliser l'icône d'étoile pour ajouter un canal à cette liste.",
+        "REMOVE_FAVORITE": "Retirer des favoris"
+    },
+    "TOP_MENU": {
+        "OPEN_CHANNELS_LIST": "Ouvrir la liste des canaux",
+        "TOGGLE_FAVORITE_FLAG": "Basculer le status de favoris",
+        "OPEN_EPG_LIST": "Ouvrir la liste du EPG"
+    },
+    "EPG": {
+        "NEXT_DAY": "Jour suivant",
+        "PREVIOUS_DAY": "Jour précédent",
+        "LIVE_NOW": "En direct",
+        "LIVE_STREAM": "Diffusion en direct",
+        "TIMESHIFT_AVAILABLE": "Contrôle du direct, appuyez pour lire",
+        "EPG_NOT_AVAILABLE_DATE": "Échec: Le EPG n'est pas disponible pour la date choisie",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Échec: Le EPG n'est pas disponible pour ce canal.",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Veuillez ajouter/modifier l'URL de la liste EPG dans les réglages de l'app.",
+        "FETCH_EPG": "Récupération des données EPG...",
+        "ERROR": "chec: Le EPG n'a pas pu être récupéré.",
+        "DOWNLOAD_SUCCESS": "EPG récupéré avec succès.",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Détails à propos du programme télé",
+            "TITLE": "Titre",
+            "CATEGORY": "Catégorie",
+            "PARENTAL_RATING_SYSTEM": "Système de contrôle parental",
+            "DESCRIPTION": "Description",
+            "LANGUAGE": "Langue",
+            "SHOW_PROGRAM_DETAILS": "Afficher les détails à propos du programme télé"
+        }
+    },
+    "LANGUAGES": {
+        "ENGLISH": "English",
+        "FRENCH": "Français"
+        "KOREAN": "한국어",
+        "RUSSIAN": "Русский",
+        "GERMAN": "Deutsch",
+        "SPANISH": "Español",
+        "CHINESE": "简体中文"
+    },
+    "YES": "Oui",
+    "NO": "Non"
