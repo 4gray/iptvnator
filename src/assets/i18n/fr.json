@@ -114,7 +114,7 @@
     },
     "LANGUAGES": {
         "ENGLISH": "English",
-        "FRENCH": "Français"
+        "FRENCH": "Français",
         "KOREAN": "한국어",
         "RUSSIAN": "Русский",
         "GERMAN": "Deutsch",
@@ -123,3 +123,4 @@
     },
     "YES": "Oui",
     "NO": "Non"
+}
