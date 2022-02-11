@@ -5,6 +5,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { FilterPipeModule } from 'ngx-filter-pipe';
 import { NgxWhatsNewModule } from 'ngx-whats-new';
+import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
 import { MaterialModule } from '../material.module';
 import { HeaderComponent } from './components/';
 import { AboutDialogComponent } from './components/about-dialog/about-dialog.component';
@@ -17,6 +18,7 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
         HeaderComponent,
         MomentDatePipe,
         AboutDialogComponent,
+        RecentPlaylistsComponent,
     ],
     imports: [
         CommonModule,
@@ -39,6 +41,7 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
         MomentDatePipe,
         ReactiveFormsModule,
         TranslateModule,
+        RecentPlaylistsComponent,
     ],
 })
 export class SharedModule {}
