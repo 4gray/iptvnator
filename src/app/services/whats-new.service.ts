@@ -201,7 +201,8 @@ export class WhatsNewService {
      * Returns modals with latest changes
      */
     getLatestChanges(): ModalWindow[] {
-        const lastVersion = Object.keys(this.modals).at(-1);
+        const modalsLength = Object.keys(this.modals).length;
+        const lastVersion = Object.keys(this.modals)[modalsLength - 1];
         return this.modals[lastVersion];
     }
 }
