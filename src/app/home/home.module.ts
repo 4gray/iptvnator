@@ -1,4 +1,3 @@
-import { DragDropModule } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { NgxUploaderModule } from 'ngx-uploader';
@@ -10,13 +9,7 @@ import { PlaylistInfoComponent } from './recent-playlists/playlist-info/playlist
 import { UrlUploadComponent } from './url-upload/url-upload.component';
 
 @NgModule({
-    imports: [
-        CommonModule,
-        HomeRoutingModule,
-        NgxUploaderModule,
-        SharedModule,
-        DragDropModule,
-    ],
+    imports: [CommonModule, HomeRoutingModule, NgxUploaderModule, SharedModule],
     declarations: [
         HomeComponent,
         FileUploadComponent,

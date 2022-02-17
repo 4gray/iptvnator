@@ -1,3 +1,4 @@
+import { DragDropModule } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { FlexLayoutModule } from '@angular/flex-layout';
@@ -29,6 +30,7 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
         NgxWhatsNewModule,
         ReactiveFormsModule,
         TranslateModule,
+        DragDropModule,
     ],
     exports: [
         ConfirmDialogComponent,
