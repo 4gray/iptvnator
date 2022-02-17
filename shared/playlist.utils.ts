@@ -36,5 +36,6 @@ export function createFavoritesPlaylist(
         playlist: {
             items: channels,
         },
+        filename: 'Global favorites',
     };
 }
