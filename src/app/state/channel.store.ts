@@ -1,12 +1,14 @@
 import { Injectable } from '@angular/core';
 import { EntityState, EntityStore, StoreConfig } from '@datorama/akita';
 import * as moment from 'moment';
+import { createChannel } from '.';
 import { Channel } from '../../../shared/channel.interface';
 import {
     CHANNEL_SET_USER_AGENT,
     EPG_GET_PROGRAM,
     PLAYLIST_UPDATE_FAVORITES,
 } from '../../../shared/ipc-commands';
+import { Playlist } from '../../../shared/playlist.interface';
 import { EpgProgram } from '../player/models/epg-program.model';
 import { DataService } from '../services/data.service';
 
@@ -135,6 +137,27 @@ export class ChannelStore extends EntityStore<ChannelState> {
         this.update((store) => ({
             ...store,
             currentEpgProgram,
+        }));
+    }
+
+    /**
+     * Sets the given playlist as active for the current session
+     * @param playlist playlist object
+     */
+    setPlaylist(playlist: Playlist): void {
+        this.remove();
+        const favorites = playlist.favorites || [];
+        const channels = playlist.playlist.items.map((element) =>
+            createChannel(element)
+        );
+        this.upsertMany(channels);
+        this.update((store) => ({
+            ...store,
+            active: undefined,
+            favorites,
+            playlistId: playlist._id,
+            playlistFilename: playlist.title || playlist.filename,
+            playlistCount: playlist.count,
         }));
     }
 }
