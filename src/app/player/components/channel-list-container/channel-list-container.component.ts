@@ -1,14 +1,17 @@
 import {
     Component,
     ElementRef,
+    EventEmitter,
     HostListener,
     Input,
+    Output,
     ViewChild,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import * as _ from 'lodash';
 import { Observable } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
+import { Playlist } from '../../../../../shared/playlist.interface';
 import { ChannelQuery, ChannelStore } from '../../../state';
 
 @Component({
@@ -31,6 +34,15 @@ export class ChannelListContainerComponent {
         this._channelList = value;
         this.groupedChannels = _.groupBy(value, 'group.title');
     }
+
+    /** Meta information about current playlist */
+    playlistMeta: Pick<Playlist, 'count' | 'filename'> = {
+        count: this.channelQuery.getValue().playlistCount,
+        filename: this.channelQuery.getValue().playlistFilename,
+    };
+
+    /** Toggles the sidebar view from channels to playlists */
+    @Output() changeView = new EventEmitter<any>();
 
     /** Object with channels sorted by groups */
     groupedChannels: { [key: string]: Channel[] };
@@ -105,5 +117,12 @@ export class ChannelListContainerComponent {
      */
     trackByFn(index: number, channel: Channel): string {
         return channel.id;
+    }
+
+    /**
+     * Emits event to the parent to toggle to the playlists overview
+     */
+    showPlaylists() {
+        this.changeView.emit('PLAYLISTS');
     }
 }

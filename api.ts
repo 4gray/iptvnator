@@ -328,6 +328,7 @@ export class Api {
                 count: 1,
                 title: 1,
                 _id: 1,
+                id: 1,
                 url: 1,
                 importDate: 1,
                 userAgent: 1,

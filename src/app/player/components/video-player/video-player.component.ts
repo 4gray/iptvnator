@@ -1,14 +1,24 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, NgZone, OnInit, ViewChild } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { filter, Observable } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
+import {
+    PLAYLIST_GET_ALL,
+    PLAYLIST_GET_ALL_RESPONSE,
+    PLAYLIST_GET_BY_ID,
+    PLAYLIST_PARSE_RESPONSE,
+} from '../../../../../shared/ipc-commands';
+import { Playlist } from '../../../../../shared/playlist.interface';
+import { DataService } from '../../../services/data.service';
 import { Settings, VideoPlayer } from '../../../settings/settings.interface';
 import { STORE_KEY } from '../../../shared/enums/store-keys.enum';
 import { ChannelQuery, ChannelStore } from '../../../state';
 import { EpgProgram } from './../../models/epg-program.model';
+
+/** Possible sidebar view options */
+type SidebarView = 'CHANNELS' | 'PLAYLISTS';
 
 @Component({
     selector: 'app-video-player',
@@ -19,13 +29,10 @@ export class VideoPlayerComponent implements OnInit {
     /** Active selected channel */
     activeChannel$: Observable<Channel> = this.channelQuery
         .select((state) => state.active)
-        .pipe(tap((channel) => (this.channelTitle = channel?.name)));
+        .pipe(filter((channel) => Boolean(channel)));
 
     /** Channels list */
     channels$: Observable<Channel[]> = this.channelQuery.selectAll();
-
-    /** Name of the selected channel */
-    channelTitle: string;
 
     /** EPG availability flag */
     epgAvailable$: Observable<boolean> = this.channelQuery.select(
@@ -48,11 +55,34 @@ export class VideoPlayerComponent implements OnInit {
         showCaptions: false,
     };
 
+    /** Playlists array */
+    playlists = [];
+
     /** Sidebar object */
     @ViewChild('sidenav') sideNav: MatSidenav;
 
     /** ID of the current playlist */
     playlistId = this.channelQuery.getValue().playlistId;
+
+    /** IPC Renderer commands list with callbacks */
+    commandsList = [
+        {
+            id: PLAYLIST_GET_ALL_RESPONSE,
+            execute: (response: { payload: Playlist[] }): void => {
+                this.playlists = response.payload;
+            },
+        },
+        {
+            id: PLAYLIST_PARSE_RESPONSE,
+            execute: (response: { payload: Playlist }): void => {
+                this.channelStore.setPlaylist(response.payload);
+                this.setSidebarView('CHANNELS');
+            },
+        },
+    ];
+
+    /** Current sidebar view */
+    sidebarView: SidebarView = 'CHANNELS';
 
     /**
      * Creates an instance of VideoPlayerComponent
@@ -64,15 +94,39 @@ export class VideoPlayerComponent implements OnInit {
     constructor(
         private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
+        private dataService: DataService,
+        private ngZone: NgZone,
         private snackBar: MatSnackBar,
         private storage: StorageMap
-    ) {}
+    ) {
+        this.dataService.sendIpcEvent(PLAYLIST_GET_ALL);
+    }
 
     /**
      * Sets video player and subscribes to channel list from the store
      */
     ngOnInit(): void {
         this.applySettings();
+        this.setRendererListeners();
+    }
+
+    /**
+     * Set electrons main process listeners
+     */
+    setRendererListeners(): void {
+        this.commandsList.forEach((command) => {
+            if (this.dataService.isElectron) {
+                this.dataService.listenOn(command.id, (event, response) =>
+                    this.ngZone.run(() => command.execute(response))
+                );
+            } else {
+                this.dataService.listenOn(command.id, (response) => {
+                    if (response.data.type === command.id) {
+                        command.execute(response.data);
+                    }
+                });
+            }
+        });
     }
 
     /**
@@ -103,5 +157,23 @@ export class VideoPlayerComponent implements OnInit {
     addToFavorites(channel: Channel): void {
         this.snackBar.open('Favorites were updated!', null, { duration: 2000 });
         this.channelStore.updateFavorite(channel);
+    }
+
+    /**
+     * Switches the sidebar view to the specified value
+     * @param view view to change
+     */
+    setSidebarView(view: SidebarView) {
+        this.sidebarView = view;
+    }
+
+    /**
+     * Requests playlist by id
+     * @param playlistId playlist id
+     */
+    getPlaylist(playlistId: string): void {
+        this.dataService.sendIpcEvent(PLAYLIST_GET_BY_ID, {
+            id: playlistId,
+        });
     }
 }

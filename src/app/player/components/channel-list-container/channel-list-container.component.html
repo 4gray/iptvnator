@@ -1,3 +1,29 @@
+<div id="playlists-navigation">
+    <div class="current-playlist">
+        <button
+            mat-icon-button
+            (click)="showPlaylists()"
+            matTooltip="Back to playlists overview"
+        >
+            <mat-icon>arrow_back_ios</mat-icon>
+        </button>
+        <div class="playlist-info">
+            <div class="name">{{ playlistMeta?.filename }}</div>
+            <div class="channels-count">{{ playlistMeta?.count }} channels</div>
+        </div>
+
+        <button
+            mat-icon-button
+            routerLink="/"
+            [matTooltip]="
+                'CHANNELS.UPLOAD_OR_SELECT_OTHER_PLAYLIST' | translate
+            "
+        >
+            <mat-icon>playlist_add</mat-icon>
+        </button>
+    </div>
+</div>
+<mat-divider></mat-divider>
 <mat-tab-group color="primary" backgroundColor="primary">
     <mat-tab [label]="'CHANNELS.ALL_CHANNELS' | translate">
         <mat-list>
@@ -6,20 +32,9 @@
                     class="full-width search-bar"
                     type="search"
                     #search
-                    placeholder="{{ 'CHANNELS.SEARCH_CHANNEL' | translate }} ({{
-                        _channelList?.length
-                    }})"
+                    [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
                     [(ngModel)]="searchTerm.name"
                 />
-                <button
-                    mat-icon-button
-                    routerLink="/"
-                    [matTooltip]="
-                        'CHANNELS.UPLOAD_OR_SELECT_OTHER_PLAYLIST' | translate
-                    "
-                >
-                    <mat-icon>create_new_folder</mat-icon>
-                </button>
             </mat-list-item>
         </mat-list>
         <mat-divider></mat-divider>
@@ -99,7 +114,10 @@
         </mat-nav-list>
     </mat-tab>
 
-    <mat-tab *ngIf="playlistId !== 'GLOBAL_FAVORITES'" [label]="'CHANNELS.FAVORITES' | translate">
+    <mat-tab
+        *ngIf="playlistId !== 'GLOBAL_FAVORITES'"
+        [label]="'CHANNELS.FAVORITES' | translate"
+    >
         <mat-nav-list
             *ngIf="favorites$ | async as favorites"
             id="favorites-list"

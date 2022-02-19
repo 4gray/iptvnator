@@ -8,8 +8,19 @@
         disableClose
     >
         <ng-container *ngIf="channels$ | async as channels">
-            <app-channel-list-container [channelList]="channels">
+            <app-channel-list-container
+                *ngIf="sidebarView === 'CHANNELS'; else playlistsTemplate"
+                [channelList]="channels"
+                (changeView)="setSidebarView($event)"
+            >
             </app-channel-list-container>
+            <ng-template #playlistsTemplate>
+                <app-recent-playlists
+                    [playlists]="playlists"
+                    (playlistClicked)="getPlaylist($event)"
+                >
+                </app-recent-playlists>
+            </ng-template>
         </ng-container>
     </mat-drawer>
 
@@ -32,13 +43,13 @@
                 >
                     <mat-icon>
                         {{
-                            (favorites$ | async).includes(activeChannel.id)
+                            (favorites$ | async).includes(activeChannel?.id)
                                 ? 'star'
                                 : 'star_outline'
                         }}</mat-icon
                     >
                 </button>
-                {{ activeChannel.name }}
+                {{ activeChannel?.name }}
                 <div class="spacer"></div>
                 <button
                     *ngIf="epgAvailable$ | async"
@@ -56,7 +67,7 @@
                 [options]="{
                     sources: [
                         {
-                            src: activeChannel.url + activeChannel.epgParams,
+                            src: activeChannel?.url + activeChannel?.epgParams,
                             type: 'application/x-mpegURL'
                         }
                     ]

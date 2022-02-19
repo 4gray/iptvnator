@@ -1,10 +1,8 @@
-import { TranslateService } from '@ngx-translate/core';
 import { Component, NgZone } from '@angular/core';
-import { UploadFile } from 'ngx-uploader';
-import { ChannelStore, createChannel } from '../state';
-import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Playlist } from '../../../shared/playlist.interface';
+import { Router } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
+import { UploadFile } from 'ngx-uploader';
 import {
     ERROR,
     PLAYLIST_GET_ALL,
@@ -18,8 +16,10 @@ import {
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
 } from '../../../shared/ipc-commands';
-import { DialogService } from './../services/dialog.service';
+import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
+import { ChannelStore } from '../state';
+import { DialogService } from './../services/dialog.service';
 
 /** Type to describe meta data of a playlist */
 export type PlaylistMeta = Pick<
@@ -51,8 +51,10 @@ export class HomeComponent {
     commandsList = [
         {
             id: PLAYLIST_PARSE_RESPONSE,
-            execute: (response: { payload: Playlist }): void =>
-                this.setPlaylist(response.payload),
+            execute: (response: { payload: Playlist }): void => {
+                this.channelStore.setPlaylist(response.payload);
+                this.navigateToPlayer();
+            },
         },
         {
             id: PLAYLIST_GET_ALL_RESPONSE,
@@ -97,9 +99,9 @@ export class HomeComponent {
      */
     constructor(
         private electronService: DataService,
-        private channelStore: ChannelStore,
         private dialogService: DialogService,
         private ngZone: NgZone,
+        private channelStore: ChannelStore,
         private router: Router,
         private snackBar: MatSnackBar,
         private translate: TranslateService
@@ -173,26 +175,6 @@ export class HomeComponent {
             title: this.getLastUrlSegment(playlistUrl),
             url: playlistUrl,
         });
-    }
-
-    /**
-     * Sets the given playlist as active for the current session
-     * @param playlist playlist object
-     */
-    setPlaylist(playlist: Playlist): void {
-        this.channelStore.remove();
-        const favorites = playlist.favorites || [];
-        const channels = playlist.playlist.items.map((element) =>
-            createChannel(element)
-        );
-        this.channelStore.upsertMany(channels);
-        this.channelStore.update((store) => ({
-            ...store,
-            active: undefined,
-            favorites,
-            playlistId: playlist.id,
-        }));
-        this.navigateToPlayer();
     }
 
     /**
