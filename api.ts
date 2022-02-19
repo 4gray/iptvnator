@@ -1,4 +1,3 @@
-import { guid } from '@datorama/akita';
 import axios from 'axios';
 import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { parse } from 'iptv-playlist-parser';
@@ -45,6 +44,10 @@ const db = new Nedb<Playlist>({
 const agent = new https.Agent({
     rejectUnauthorized: false,
 });
+
+export function guid() {
+    return Math.random().toString(36).slice(2);
+}
 
 export class Api {
     /** Instance of the main application window */
