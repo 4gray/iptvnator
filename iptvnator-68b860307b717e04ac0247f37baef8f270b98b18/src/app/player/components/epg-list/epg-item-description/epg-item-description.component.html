@@ -1,0 +1,40 @@
+<h2 mat-dialog-title>
+    {{ 'EPG.PROGRAM_DIALOG.PROGRAM_DETAILS' | translate }}
+</h2>
+<mat-dialog-content class="mat-typography">
+    <ng-container *ngIf="epgProgram?.title?.length > 0">
+        <div class="subheading-2">
+            {{ 'EPG.PROGRAM_DIALOG.TITLE' | translate }}
+        </div>
+        <p data-test="title">{{ epgProgram.title[0].value }}</p>
+        <div class="subheading-2">
+            {{ 'EPG.PROGRAM_DIALOG.LANGUAGE' | translate }}
+        </div>
+        <p data-test="lang">{{ epgProgram.title[0].lang }}</p>
+    </ng-container>
+    <ng-container *ngIf="epgProgram?.category?.length > 0">
+        <div class="subheading-2">
+            {{ 'EPG.PROGRAM_DIALOG.CATEGORY' | translate }}
+        </div>
+        <p data-test="category">{{ epgProgram.category[0].value }}</p>
+    </ng-container>
+    <ng-container *ngIf="epgProgram?.desc?.length > 0">
+        <div class="subheading-2">
+            {{ 'EPG.PROGRAM_DIALOG.DESCRIPTION' | translate }}
+        </div>
+        <p data-test="desc">{{ epgProgram.desc[0].value }}</p>
+    </ng-container>
+    <ng-container *ngIf="epgProgram?.rating?.length > 0">
+        <div class="subheading-2">
+            {{ 'EPG.PROGRAM_DIALOG.PARENTAL_RATING_SYSTEM' | translate }}
+        </div>
+        <p data-test="rating">
+            {{ epgProgram.rating[0].value }} [{{ epgProgram.rating[0].system }}]
+        </p>
+    </ng-container>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close cdkFocusInitial color="accent">
+        {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
+    </button>
+</mat-dialog-actions>

@@ -1,0 +1,43 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+}
+
+.active {
+    border-bottom: 1px dashed #666;
+}
+
+#channel-info {
+    .channel-icon {
+        overflow: hidden;
+    }
+
+    .channel-name {
+        font-weight: 800;
+    }
+
+    .program-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        font-size: 0.9em;
+    }
+}
+
+mat-selection-list {
+    overflow: auto;
+}
+
+#date-navigator {
+    .selected-date {
+        font-size: 0.9em;
+    }
+}

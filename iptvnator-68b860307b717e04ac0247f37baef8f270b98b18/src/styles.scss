@@ -1,0 +1,98 @@
+$material-icons-font-path: '~material-icons/iconfont/';
+
+/* You can add global styles to this file, and also import other style files */
+@import '~@angular/material/prebuilt-themes/indigo-pink.css';
+@import '~material-icons/iconfont/material-icons.scss';
+@import '~@angular/material/theming';
+@import 'themes/';
+@import '~@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
+
+@include mat-core();
+
+body,
+html {
+    background: #fff;
+    user-select: none;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+@media (display-mode: standalone) {
+    body {
+        overscroll-behavior-y: contain;
+    }
+}
+
+.mat-toolbar.mat-primary {
+    background: #000;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.mat-toolbar-row,
+.mat-toolbar-single-row {
+    height: 54px;
+}
+
+.mat-tab-label-active {
+    opacity: 1 !important;
+}
+
+input,
+button,
+textarea,
+:focus {
+    outline: none;
+}
+
+.dark-theme .mat-expansion-panel,
+.dark-theme .mat-drawer,
+.dark-theme .mat-app-background,
+.dark-theme.mat-app-background {
+    background-color: #1d1d1d;
+}
+
+.dark-theme {
+    ::-webkit-scrollbar {
+        overflow-y: scroll;
+        background: #1d1d1d;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background-color: rgb(60 60 60);
+        border-radius: 10px;
+    }
+}
+
+.mb-10 {
+    margin-bottom: 10px;
+}
+
+.about-dialog-overlay {
+    .mat-dialog-container {
+        text-align: center;
+        background: black !important;
+        color: #fff !important;
+    }
+}
+
+.cet-container {
+    height: calc(100vh);
+
+    .video-js {
+        height: calc(100vh - 82px) !important;
+    }
+
+    #video-player {
+        width: 100%;
+        height: calc(100vh - 80px) !important;
+    }
+
+    .recent-playlists {
+        height: calc(100vh - 152px - 28px) !important;
+    }
+}

@@ -1,0 +1,4 @@
+*.yml
+dist
+coverage
+release

@@ -1,0 +1,102 @@
+{
+    "id": "n8qbqhmshrk",
+    "_id": "1268xq358s7m",
+    "filename": "playlist.m3u8",
+    "title": "playlist.m3u8",
+    "count": 4,
+    "playlist": {
+        "header": {
+            "attrs": {},
+            "raw": "#EXTM3U"
+        },
+        "items": [
+            {
+                "name": "rpk-news\r",
+                "tvg": {
+                    "id": "",
+                    "name": "",
+                    "language": "",
+                    "country": "",
+                    "logo": "",
+                    "url": "",
+                    "rec": ""
+                },
+                "group": {
+                    "title": "news\r"
+                },
+                "http": {
+                    "referrer": "",
+                    "user-agent": ""
+                },
+                "url": "http://test/1/index.m3u8",
+                "raw": "#EXTINF:0 tvg-rec=\"3\",rpk-news\r\n#EXTGRP:news\r\nhttp://test/1/index.m3u8"
+            },
+            {
+                "name": "5th channel\r",
+                "tvg": {
+                    "id": "",
+                    "name": "",
+                    "language": "",
+                    "country": "",
+                    "logo": "",
+                    "url": "",
+                    "rec": ""
+                },
+                "group": {
+                    "title": "news\r"
+                },
+                "http": {
+                    "referrer": "",
+                    "user-agent": ""
+                },
+                "url": "http://test/2/index.m3u8",
+                "raw": "#EXTINF:0 tvg-rec=\"3\",5th channel\r\n#EXTGRP:news\r\nhttp://test/2/index.m3u8"
+            },
+            {
+                "name": "Multiland Channel\r",
+                "tvg": {
+                    "id": "",
+                    "name": "",
+                    "language": "",
+                    "country": "",
+                    "logo": "",
+                    "url": "",
+                    "rec": ""
+                },
+                "group": {
+                    "title": "category 2\r"
+                },
+                "http": {
+                    "referrer": "",
+                    "user-agent": ""
+                },
+                "url": "http://test/3/index.m3u8",
+                "raw": "#EXTINF:0 tvg-rec=\"3\",Multiland Channel\r\n#EXTGRP:category 2\r\nhttp://test/3/index.m3u8"
+            },
+            {
+                "name": "Unicuuuum\r",
+                "tvg": {
+                    "id": "",
+                    "name": "",
+                    "language": "",
+                    "country": "",
+                    "logo": "",
+                    "url": "",
+                    "rec": ""
+                },
+                "group": {
+                    "title": "category 2\r"
+                },
+                "http": {
+                    "referrer": "",
+                    "user-agent": ""
+                },
+                "url": "http://test/4/index.m3u8",
+                "raw": "#EXTINF:0 tvg-rec=\"3\",Unicuuuum\r\n#EXTGRP:category 2\r\nhttp://test/4/index.m3u8"
+            }
+        ]
+    },
+    "importDate": "2020-10-02T17:28:03.300Z",
+    "lastUsage": "2020-10-02T17:28:03.300Z",
+    "favorites": []
+}

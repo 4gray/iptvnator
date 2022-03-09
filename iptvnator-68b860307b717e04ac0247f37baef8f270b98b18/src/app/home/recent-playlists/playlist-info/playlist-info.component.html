@@ -1,0 +1,85 @@
+<form
+    [formGroup]="playlistDetails"
+    (ngSubmit)="saveChanges(playlistDetails.value)"
+>
+    <h2 mat-dialog-title>
+        {{ 'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_DETAILS' | translate }}
+    </h2>
+    <mat-dialog-content class="mat-typography">
+        <mat-form-field class="full-width">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.TITLE' | translate
+            }}</mat-label>
+            <input formControlName="title" matInput />
+        </mat-form-field>
+        <mat-form-field class="full-width" *ngIf="playlist.url">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.FROM_URL' | translate
+            }}</mat-label>
+            <input matInput formControlName="url" />
+        </mat-form-field>
+        <mat-form-field class="full-width">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.ORIGINAL_FILENAME' | translate
+            }}</mat-label>
+            <input matInput formControlName="filename" />
+        </mat-form-field>
+        <mat-form-field class="full-width">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.IMPORT_DATE' | translate
+            }}</mat-label>
+            <input matInput formControlName="importDate" />
+        </mat-form-field>
+        <mat-form-field class="full-width">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.CHANNELS' | translate
+            }}</mat-label>
+            <input matInput formControlName="count" />
+        </mat-form-field>
+        <mat-form-field class="full-width mb-10" *ngIf="isElectron">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.USER_AGENT' | translate
+            }}</mat-label>
+            <input formControlName="userAgent" matInput />
+            <mat-hint>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.CUSTOM_USER_AGENT' | translate
+            }}</mat-hint>
+        </mat-form-field>
+        <mat-form-field class="full-width" *ngIf="playlist.filePath">
+            <mat-label>
+                {{ 'HOME.PLAYLISTS.INFO_DIALOG.FILE_PATH' | translate }}
+            </mat-label>
+            <input formControlName="filePath" matInput />
+            <mat-hint *ngIf="playlist.updateState === 2">
+                {{ 'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED' | translate }}
+            </mat-hint>
+        </mat-form-field>
+        <ng-container *ngIf="playlist.url || playlist.filePath">
+            <mat-checkbox
+                class="full-width"
+                formControlName="autoRefresh"
+            >
+                {{ 'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE' | translate }}
+            </mat-checkbox>
+            <p>
+                {{
+                    'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE_DESCRIPTION' | translate
+                }}
+            </p>
+        </ng-container>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+        <button
+            mat-flat-button
+            mat-dialog-close
+            color="accent"
+            type="submit"
+            [disabled]="!playlistDetails.valid || playlistDetails.pristine"
+        >
+            {{ 'HOME.PLAYLISTS.INFO_DIALOG.SAVE' | translate }}
+        </button>
+        <button mat-button mat-dialog-close cdkFocusInitial color="accent">
+            {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
+        </button>
+    </mat-dialog-actions>
+</form>

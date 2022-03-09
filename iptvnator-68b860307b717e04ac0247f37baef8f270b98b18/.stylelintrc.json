@@ -1,0 +1,40 @@
+{
+    "extends": "stylelint-config-standard",
+    "rules": {
+        "indentation": 4,
+        "selector-type-no-unknown": [
+            true,
+            {
+                "ignoreTypes": [
+                    "mat-selection-list",
+                    "mat-nav-list",
+                    "mat-list-item"
+                ]
+            }
+        ],
+        "selector-pseudo-element-no-unknown": [
+            true,
+            {
+                "ignorePseudoElements": ["ng-deep"]
+            }
+        ],
+        "at-rule-no-unknown": [
+            true,
+            {
+                "ignoreAtRules": ["function", "if", "each", "include", "mixin"]
+            }
+        ],
+        "media-feature-name-no-unknown": [
+            true,
+            {
+              "ignoreMediaFeatureNames": ["display-mode"]
+            }
+        ],
+        "value-keyword-case": null,
+        "string-quotes": "single",
+        "value-no-vendor-prefix": null,
+        "property-no-vendor-prefix": null
+    },
+    "plugins": ["stylelint-scss"],
+    "syntax": "scss"
+}

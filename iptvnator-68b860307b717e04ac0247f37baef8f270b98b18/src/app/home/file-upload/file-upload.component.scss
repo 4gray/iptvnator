@@ -1,0 +1,53 @@
+.drop-container {
+    margin: 10px;
+    padding: 10px;
+    height: calc(100vh - 235px);
+    border: 2px dashed #ccc;
+    border-radius: 3px;
+    text-align: center;
+    color: #666;
+}
+
+#file input {
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    padding: 5px;
+}
+
+.upload-title {
+    font-size: 1.25em;
+}
+
+.input-file {
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+}
+
+.input-file + label {
+    font-size: 1em;
+    font-weight: 700;
+    color: white;
+    background-color: #3f51b5;
+    display: inline-block;
+    text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 35px;
+    padding: 3px 10px;
+}
+
+.input-file:focus + label,
+.input-file + label:hover {
+    background-color: #202b69;
+}
+
+.upload-icon {
+    font-size: 80px;
+    width: 80px;
+    height: 80px;
+    padding-top: 20px;
+}

@@ -1,0 +1,29 @@
+.time {
+    color: #666;
+    border-bottom: 1px solid #ccc;
+    font-size: 0.8em;
+    display: inline-block;
+    margin-bottom: 5px;
+}
+
+.badge {
+    border-radius: 2px;
+    padding: 2px 6px;
+    color: #fff;
+    text-transform: uppercase;
+    margin-left: 6px;
+    font-size: 0.8em;
+}
+
+.live {
+    background-color: red;
+}
+
+.rec {
+    background-color: grey;
+}
+
+.description-icon {
+    float: right;
+    cursor: pointer;
+}

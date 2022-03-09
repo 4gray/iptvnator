@@ -1,0 +1,22 @@
+<form (ngSubmit)="urlAdded.emit(form.value.playlistUrl)" [formGroup]="form">
+    <mat-form-field class="full-width">
+        <input
+            type="url"
+            matInput
+            [placeholder]="'HOME.URL_UPLOAD.PLAYLIST_URL' | translate"
+            formControlName="playlistUrl"
+        />
+    </mat-form-field>
+    <mat-card *ngIf="!isElectron">
+        Note: In order to avoid <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS" target="_blank">CORS</a> issues at this point the application uses a public CORS Proxy service. If you want to upload a playlist with sensitive data, it is better to import it as a file in the adjacent tab.
+    </mat-card>
+    <button
+        class="add-button"
+        mat-flat-button
+        [disabled]="!form.valid"
+        color="primary"
+        type="submit"
+    >
+        {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
+    </button>
+</form>

@@ -1,0 +1,102 @@
+<mat-drawer-container class="main-container" (backdropClick)="close()">
+    <!-- sidebar content -->
+    <mat-drawer
+        #drawer
+        mode="side"
+        opened
+        (keydown.escape)="close()"
+        disableClose
+    >
+        <ng-container *ngIf="channels$ | async as channels">
+            <app-channel-list-container
+                *ngIf="sidebarView === 'CHANNELS'; else playlistsTemplate"
+                [channelList]="channels"
+                (changeView)="setSidebarView($event)"
+            >
+            </app-channel-list-container>
+            <ng-template #playlistsTemplate>
+                <app-recent-playlists
+                    [playlists]="playlists"
+                    (playlistClicked)="getPlaylist($event)"
+                >
+                </app-recent-playlists>
+            </ng-template>
+        </ng-container>
+    </mat-drawer>
+
+    <mat-drawer-content>
+        <ng-container *ngIf="activeChannel$ | async as activeChannel">
+            <!-- toolbar with drawer icon -->
+            <mat-toolbar color="primary">
+                <button
+                    mat-icon-button
+                    (click)="drawer.toggle()"
+                    [matTooltip]="'TOP_MENU.OPEN_CHANNELS_LIST' | translate"
+                >
+                    <mat-icon>menu</mat-icon>
+                </button>
+                <button
+                    *ngIf="playlistId !== 'GLOBAL_FAVORITES'"
+                    mat-icon-button
+                    (click)="addToFavorites(activeChannel)"
+                    [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
+                >
+                    <mat-icon>
+                        {{
+                            (favorites$ | async).includes(activeChannel?.id)
+                                ? 'star'
+                                : 'star_outline'
+                        }}</mat-icon
+                    >
+                </button>
+                {{ activeChannel?.name }}
+                <div class="spacer"></div>
+                <button
+                    *ngIf="epgAvailable$ | async"
+                    mat-button
+                    (click)="drawerRight.toggle()"
+                    [matTooltip]="'TOP_MENU.OPEN_EPG_LIST' | translate"
+                >
+                    EPG
+                </button>
+            </mat-toolbar>
+
+            <!-- video.js player -->
+            <app-vjs-player
+                *ngIf="playerSettings.player === 'videojs'"
+                [options]="{
+                    sources: [
+                        {
+                            src: activeChannel?.url + activeChannel?.epgParams,
+                            type: 'application/x-mpegURL'
+                        }
+                    ]
+                }"
+                [class.hide-captions]="!playerSettings.showCaptions"
+            ></app-vjs-player>
+        </ng-container>
+        <!-- default html player component -->
+        <app-html-video-player
+            *ngIf="playerSettings.player === 'html5'"
+            [channel]="activeChannel$ | async"
+            [showCaptions]="playerSettings.showCaptions"
+        >
+        </app-html-video-player>
+
+        <!-- channel overlay -->
+        <app-info-overlay
+            [channel]="activeChannel$ | async"
+            [epgProgram]="epgProgram$ | async"
+        ></app-info-overlay>
+    </mat-drawer-content>
+    <!-- right sidebar content -->
+    <mat-drawer
+        position="end"
+        #drawerRight
+        mode="side"
+        (keydown.escape)="close()"
+        disableClose
+    >
+        <app-epg-list></app-epg-list>
+    </mat-drawer>
+</mat-drawer-container>

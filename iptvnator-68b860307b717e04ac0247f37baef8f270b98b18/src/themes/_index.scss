@@ -1,0 +1,49 @@
+$black: (
+    50: #000,
+    100: #000,
+    200: #000,
+    300: #000,
+    400: #000,
+    500: #000,
+    600: #000,
+    700: #000,
+    800: #000,
+    900: #000,
+    A100: #000,
+    A200: #000,
+    A400: #000,
+    A700: #000,
+    contrast: (
+        50: $light-primary-text,
+        100: $light-primary-text,
+        200: $light-primary-text,
+        300: $light-primary-text,
+        400: $light-primary-text,
+        500: $light-primary-text,
+        600: $light-primary-text,
+        700: $light-primary-text,
+        800: $light-primary-text,
+        900: $light-primary-text,
+        A100: $light-primary-text,
+        A200: $light-primary-text,
+        A400: $light-primary-text,
+        A700: $light-primary-text,
+    ),
+);
+
+$angular-primary: mat-palette($black);
+$angular-accent: mat-palette($mat-indigo, 500, 600, 700);
+$angular-warn: mat-palette($mat-red);
+$angular-default-theme: mat-light-theme(
+    (
+        color: (
+            primary: $angular-primary,
+            accent: $angular-accent,
+            warn: $angular-warn,
+        ),
+    )
+);
+
+@import 'dark';
+
+@include angular-material-theme($angular-default-theme);

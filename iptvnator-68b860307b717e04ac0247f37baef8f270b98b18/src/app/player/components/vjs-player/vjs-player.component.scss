@@ -1,0 +1,16 @@
+@import '~video.js/dist/video-js.css';
+
+.video-js {
+    position: relative !important;
+    width: 100% !important;
+    height: calc(100vh - 54px);
+}
+
+/* Hide the captions settings item from the captions menu. */
+.hide-captions {
+    .vjs-texttrack-settings,
+    .vjs-text-track-display,
+    .vjs-subs-caps-button {
+        display: none;
+    }
+}
