@@ -1,13 +1,14 @@
 import axios from 'axios';
 import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { parse } from 'iptv-playlist-parser';
-import Nedb, { Cursor } from 'nedb-promises-ts';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from './shared/constants';
 import {
     CHANNEL_SET_USER_AGENT,
     EPG_ERROR,
     EPG_FETCH,
     EPG_FETCH_DONE,
+    EPG_GET_CHANNELS,
+    EPG_GET_CHANNELS_DONE,
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
     ERROR,
@@ -33,10 +34,12 @@ import {
 } from './shared/playlist.utils';
 import { ParsedPlaylist } from './src/typings.d';
 
+const Nedb = require('nedb-promises');
+
 const fs = require('fs');
 const https = require('https');
 const userData = app.getPath('userData');
-const db = new Nedb<Playlist>({
+const db = new Nedb({
     filename: `${userData}/db/data.db`,
     autoload: true,
 });
@@ -158,7 +161,7 @@ export class Api {
 
         ipcMain.on(PLAYLIST_UPDATE_FAVORITES, (event, args) => {
             db.update(
-                { id: args.id },
+                { _id: args.id },
                 { $set: { favorites: args.favorites } }
             ).then((updated) => {
                 if (!updated.numAffected || updated.numAffected === 0) {
@@ -171,6 +174,12 @@ export class Api {
         ipcMain
             .on(EPG_GET_PROGRAM, (event, arg) =>
                 this.workerWindow.webContents.send(EPG_GET_PROGRAM, arg)
+            )
+            .on(EPG_GET_CHANNELS, (event, arg) =>
+                this.workerWindow.webContents.send(EPG_GET_CHANNELS, arg)
+            )
+            .on(EPG_GET_CHANNELS_DONE, (event, arg) =>
+                this.mainWindow.webContents.send(EPG_GET_CHANNELS_DONE, arg)
             )
             .on(EPG_GET_PROGRAM_DONE, (event, arg) => {
                 this.mainWindow.webContents.send(EPG_GET_PROGRAM_DONE, arg);
@@ -324,24 +333,26 @@ export class Api {
      * Returns all existing playlists with meta information from the database
      * @returns
      */
-    getAllPlaylistsMeta(): Cursor<Playlist> {
+    getAllPlaylistsMeta() {
         return db
-            .find({ type: { $exists: false } })
-            .projection({
-                count: 1,
-                title: 1,
-                _id: 1,
-                id: 1,
-                url: 1,
-                importDate: 1,
-                userAgent: 1,
-                filename: 1,
-                filePath: 1,
-                autoRefresh: 1,
-                updateDate: 1,
-                updateState: 1,
-                position: 1,
-            })
+            .find(
+                { type: { $exists: false } },
+                {
+                    count: 1,
+                    title: 1,
+                    _id: 1,
+                    id: 1,
+                    url: 1,
+                    importDate: 1,
+                    userAgent: 1,
+                    filename: 1,
+                    filePath: 1,
+                    autoRefresh: 1,
+                    updateDate: 1,
+                    updateState: 1,
+                    position: 1,
+                }
+            )
             .sort({ position: 1, importDate: -1 });
     }
 
@@ -406,8 +417,8 @@ export class Api {
             playlist: {
                 ...playlist,
                 items: playlist.items.map((item) => ({
-                    id: guid(),
                     ...item,
+                    id: guid(),
                 })),
             },
             importDate: new Date().toISOString(),
