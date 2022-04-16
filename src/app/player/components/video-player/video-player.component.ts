@@ -6,7 +6,6 @@ import { filter, Observable } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import {
     PLAYLIST_GET_ALL,
-    PLAYLIST_GET_ALL_RESPONSE,
     PLAYLIST_GET_BY_ID,
     PLAYLIST_PARSE_RESPONSE,
 } from '../../../../../shared/ipc-commands';
@@ -66,12 +65,6 @@ export class VideoPlayerComponent implements OnInit {
 
     /** IPC Renderer commands list with callbacks */
     commandsList = [
-        {
-            id: PLAYLIST_GET_ALL_RESPONSE,
-            execute: (response: { payload: Playlist[] }): void => {
-                this.playlists = response.payload;
-            },
-        },
         {
             id: PLAYLIST_PARSE_RESPONSE,
             execute: (response: { payload: Playlist }): void => {

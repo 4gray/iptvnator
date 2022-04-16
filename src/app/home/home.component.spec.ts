@@ -1,30 +1,26 @@
-import { UploadFile } from 'ngx-uploader';
-import {
-    PLAYLIST_GET_BY_ID,
-    PLAYLIST_PARSE,
-    PLAYLIST_PARSE_BY_URL,
-    PLAYLIST_REMOVE_BY_ID,
-    PLAYLIST_UPDATE,
-} from './../../../shared/ipc-commands';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
-import { HomeComponent, PlaylistMeta } from './home.component';
-import { HeaderComponent } from '../shared/components/header/header.component';
-import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
-import { FileUploadComponent } from '../home/file-upload/file-upload.component';
-import { UrlUploadComponent } from '../home/url-upload/url-upload.component';
-import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { RouterTestingModule } from '@angular/router/testing';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTabsModule } from '@angular/material/tabs';
 import { Router } from '@angular/router';
-import { DialogService } from '../services/dialog.service';
-import { ElectronServiceStub } from '../services/electron.service.stub';
-import { DataService } from '../services/data.service';
+import { RouterTestingModule } from '@angular/router/testing';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
 import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
+import { UploadFile } from 'ngx-uploader';
 import { of } from 'rxjs';
+import { FileUploadComponent } from '../home/file-upload/file-upload.component';
+import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
+import { UrlUploadComponent } from '../home/url-upload/url-upload.component';
+import { DataService } from '../services/data.service';
+import { ElectronServiceStub } from '../services/electron.service.stub';
+import { HeaderComponent } from '../shared/components/header/header.component';
+import {
+    PLAYLIST_PARSE,
+    PLAYLIST_PARSE_BY_URL,
+} from './../../../shared/ipc-commands';
+import { HomeComponent } from './home.component';
 
 class MatSnackBarStub {
     open(): void {}
@@ -38,7 +34,6 @@ class NgxIndexedDBServiceStub {
 
 describe('HomeComponent', () => {
     let component: HomeComponent;
-    let dialogService: DialogService;
     let fixture: ComponentFixture<HomeComponent>;
     let electronService: DataService;
     let router: Router;
@@ -64,7 +59,6 @@ describe('HomeComponent', () => {
             providers: [
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
                 { provide: DataService, useClass: ElectronServiceStub },
-                MockProvider(DialogService),
                 MockProvider(TranslateService),
                 {
                     provide: NgxIndexedDBService,
@@ -78,7 +72,7 @@ describe('HomeComponent', () => {
         fixture = TestBed.createComponent(HomeComponent);
         component = fixture.componentInstance;
         electronService = TestBed.inject(DataService);
-        dialogService = TestBed.inject(DialogService);
+
         router = TestBed.inject(Router);
         TestBed.inject(NgxIndexedDBService);
         fixture.detectChanges();
@@ -86,48 +80,6 @@ describe('HomeComponent', () => {
 
     it('should create', () => {
         expect(component).toBeTruthy();
-    });
-
-    it('should open the confirmation dialog on remove icon click', () => {
-        const playlistId = '12345';
-        jest.spyOn(dialogService, 'openConfirmDialog');
-        component.removeClicked(playlistId);
-        expect(dialogService.openConfirmDialog).toHaveBeenCalledTimes(1);
-    });
-
-    it('should send an event to the main process to remove a playlist', () => {
-        const playlistId = '12345';
-        jest.spyOn(electronService, 'sendIpcEvent');
-        component.removePlaylist(playlistId);
-        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
-            PLAYLIST_REMOVE_BY_ID,
-            { id: playlistId }
-        );
-    });
-
-    it('should send an event to the main process to refresh a playlist', () => {
-        const playlistMeta: PlaylistMeta = {
-            _id: 'iptv1',
-            filePath: '/home/user/lists/iptv.m3u',
-        } as PlaylistMeta;
-        jest.spyOn(electronService, 'sendIpcEvent');
-        component.refreshPlaylist(playlistMeta);
-        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
-            PLAYLIST_UPDATE,
-            { id: playlistMeta._id, filePath: playlistMeta.filePath }
-        );
-    });
-
-    it('should send an event to the main process to get a playlist', () => {
-        const playlistId = '6789';
-        jest.spyOn(electronService, 'sendIpcEvent');
-        component.getPlaylist(playlistId);
-        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
-            PLAYLIST_GET_BY_ID,
-            {
-                id: playlistId,
-            }
-        );
     });
 
     it('should send an event to the main process to get a playlist by URL', () => {

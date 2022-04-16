@@ -1,25 +1,17 @@
 import { Component, NgZone } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { TranslateService } from '@ngx-translate/core';
 import { UploadFile } from 'ngx-uploader';
 import {
     ERROR,
-    PLAYLIST_GET_ALL,
-    PLAYLIST_GET_ALL_RESPONSE,
-    PLAYLIST_GET_BY_ID,
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
-    PLAYLIST_REMOVE_BY_ID,
-    PLAYLIST_REMOVE_BY_ID_RESPONSE,
-    PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
 import { ChannelStore } from '../state';
-import { DialogService } from './../services/dialog.service';
 
 /** Type to describe meta data of a playlist */
 export type PlaylistMeta = Pick<
@@ -45,8 +37,10 @@ export type PlaylistMeta = Pick<
 export class HomeComponent {
     /** Added playlists */
     playlists: PlaylistMeta[] = [];
+
     /** Loading spinner state */
     isLoading = false;
+
     /** IPC Renderer commands list with callbacks */
     commandsList = [
         {
@@ -54,21 +48,6 @@ export class HomeComponent {
             execute: (response: { payload: Playlist }): void => {
                 this.channelStore.setPlaylist(response.payload);
                 this.navigateToPlayer();
-            },
-        },
-        {
-            id: PLAYLIST_GET_ALL_RESPONSE,
-            execute: (response: { payload: Partial<PlaylistMeta[]> }): void => {
-                this.playlists = response.payload;
-            },
-        },
-        {
-            id: PLAYLIST_REMOVE_BY_ID_RESPONSE,
-            execute: (): void => {
-                this.snackBar.open('Done! Playlist was removed.', null, {
-                    duration: 2000,
-                });
-                this.electronService.sendIpcEvent(PLAYLIST_GET_ALL);
             },
         },
         {
@@ -90,24 +69,18 @@ export class HomeComponent {
     /**
      * Creates an instanceof HomeComponent
      * @param channelStore channels store
-     * @param dialogService dialog service
      * @param electronService electron service
      * @param ngZone angular ngZone module
      * @param router angular router
      * @param snackBar snackbar for notification messages
-     * @param translate translate service
      */
     constructor(
         private electronService: DataService,
-        private dialogService: DialogService,
         private ngZone: NgZone,
         private channelStore: ChannelStore,
         private router: Router,
-        private snackBar: MatSnackBar,
-        private translate: TranslateService
+        private snackBar: MatSnackBar
     ) {
-        // get all playlists
-        this.electronService.sendIpcEvent(PLAYLIST_GET_ALL);
         // set all renderer listeners
         this.setRendererListeners();
     }
@@ -174,51 +147,6 @@ export class HomeComponent {
         this.electronService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
             title: this.getLastUrlSegment(playlistUrl),
             url: playlistUrl,
-        });
-    }
-
-    /**
-     * Triggers on remove click
-     * @param playlistId playlist id to remove
-     */
-    removeClicked(playlistId: string): void {
-        this.dialogService.openConfirmDialog({
-            title: this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.TITLE'),
-            message: this.translate.instant(
-                'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
-            ),
-            onConfirm: (): void => this.removePlaylist(playlistId),
-        });
-    }
-
-    /**
-     * Removes the provided playlist from the database
-     * @param playlistId playlist id to remove
-     */
-    removePlaylist(playlistId: string): void {
-        this.electronService.sendIpcEvent(PLAYLIST_REMOVE_BY_ID, {
-            id: playlistId,
-        });
-    }
-
-    /**
-     * Sends an IPC event with the playlist details to the main process to trigger the refresh operation
-     * @param item playlist to update
-     */
-    refreshPlaylist(item: PlaylistMeta): void {
-        this.electronService.sendIpcEvent(PLAYLIST_UPDATE, {
-            id: item._id,
-            ...(item.url ? { url: item.url } : { filePath: item.filePath }),
-        });
-    }
-
-    /**
-     * Requests playlist by id
-     * @param playlistId playlist id
-     */
-    getPlaylist(playlistId: string): void {
-        this.electronService.sendIpcEvent(PLAYLIST_GET_BY_ID, {
-            id: playlistId,
         });
     }
 

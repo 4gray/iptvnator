@@ -6,7 +6,10 @@
             {{ 'HOME.PLAYLISTS.ADD_FIRST' | translate }}
         </div>
     </mat-list-item>
-    <mat-list-item *ngIf="playlists.length > 0" (click)="playlistClicked.emit('GLOBAL_FAVORITES')">
+    <mat-list-item
+        *ngIf="playlists.length > 0"
+        (click)="getPlaylist('GLOBAL_FAVORITES')"
+    >
         <mat-icon class="favorites-icon" mat-list-icon>star</mat-icon>
         <div mat-line>Global favorites</div>
         <div mat-line class="meta">
@@ -15,74 +18,12 @@
         <mat-divider></mat-divider>
     </mat-list-item>
 
-    <mat-list-item
-        cdkDrag
+    <app-playlist-item
         *ngFor="let item of playlists; last as last"
-        (click)="playlistClicked.emit(item._id)"
-    >
-        <mat-icon mat-list-icon cdkDragHandle class="drag-icon"
-            >drag_indicator</mat-icon
-        >
-        <mat-icon
-            mat-list-icon
-            *ngIf="item?.url"
-            [matTooltip]="
-                ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) + ' ' + item?.url
-            "
-            >cloud</mat-icon
-        >
-        <mat-icon
-            mat-list-icon
-            *ngIf="!item?.url"
-            [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
-            >folder</mat-icon
-        >
-        <div mat-line>{{ item.title || item.filename }}</div>
-        <div mat-line class="meta">
-            {{ 'HOME.PLAYLISTS.CHANNELS' | translate }}: {{ item.count }}
-            <ng-container *ngIf="item.importDate?.length > 3">
-                | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
-                {{ item.importDate | date }}
-            </ng-container>
-            <ng-container *ngIf="item.updateDate">
-                | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
-                {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
-            </ng-container>
-            <ng-container *ngIf="item.updateState === 2">
-                <mat-icon
-                    [matTooltip]="
-                        'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED' | translate
-                    "
-                    [inline]="true"
-                    >warning</mat-icon
-                >
-            </ng-container>
-        </div>
-        <button
-            *ngIf="item.url || item.filePath"
-            mat-icon-button
-            color="accent"
-            (click)="$event.stopPropagation(); refreshClicked.emit(item)"
-            [matTooltip]="'HOME.PLAYLISTS.REFRESH' | translate"
-        >
-            <mat-icon>sync</mat-icon>
-        </button>
-        <button
-            mat-icon-button
-            color="accent"
-            (click)="$event.stopPropagation(); openInfoDialog(item)"
-            [matTooltip]="'HOME.PLAYLISTS.SHOW_DETAILS' | translate"
-        >
-            <mat-icon>edit</mat-icon>
-        </button>
-        <button
-            mat-icon-button
-            color="accent"
-            (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
-            [matTooltip]="'HOME.PLAYLISTS.REMOVE' | translate"
-        >
-            <mat-icon>delete</mat-icon>
-        </button>
-        <mat-divider *ngIf="!last"></mat-divider>
-    </mat-list-item>
+        [item]="item"
+        (editPlaylistClicked)="openInfoDialog($event)"
+        (playlistClicked)="getPlaylist($event)"
+        (refreshClicked)="refreshPlaylist($event)"
+        (removeClicked)="removeClicked($event)"
+    ></app-playlist-item>
 </mat-nav-list>

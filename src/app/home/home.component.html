@@ -17,13 +17,7 @@
                 <mat-icon class="tab-icon">list</mat-icon>
                 {{ 'HOME.TABS.RECENTLY_ADDED' | translate }}
             </ng-template>
-            <app-recent-playlists
-                class="recent-playlists"
-                [playlists]="playlists"
-                (playlistClicked)="getPlaylist($event)"
-                (refreshClicked)="refreshPlaylist($event)"
-                (removeClicked)="removeClicked($event)"
-            >
+            <app-recent-playlists class="recent-playlists">
             </app-recent-playlists>
         </mat-tab>
         <mat-tab>

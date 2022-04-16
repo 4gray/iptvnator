@@ -6,13 +6,13 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { FilterPipeModule } from 'ngx-filter-pipe';
 import { NgxWhatsNewModule } from 'ngx-whats-new';
+import { PlaylistItemComponent } from '../home/recent-playlists/playlist-item/playlist-item.component';
 import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
 import { MaterialModule } from '../material.module';
 import { HeaderComponent } from './components/';
 import { AboutDialogComponent } from './components/about-dialog/about-dialog.component';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { MomentDatePipe } from './pipes/moment-date.pipe';
-
 @NgModule({
     declarations: [
         ConfirmDialogComponent,
@@ -20,6 +20,7 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
         MomentDatePipe,
         AboutDialogComponent,
         RecentPlaylistsComponent,
+        PlaylistItemComponent,
     ],
     imports: [
         CommonModule,
@@ -44,6 +45,7 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
         ReactiveFormsModule,
         TranslateModule,
         RecentPlaylistsComponent,
+        PlaylistItemComponent,
     ],
 })
 export class SharedModule {}

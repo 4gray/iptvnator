@@ -15,10 +15,7 @@
             >
             </app-channel-list-container>
             <ng-template #playlistsTemplate>
-                <app-recent-playlists
-                    [playlists]="playlists"
-                    (playlistClicked)="getPlaylist($event)"
-                >
+                <app-recent-playlists (playlistClicked)="getPlaylist($event)">
                 </app-recent-playlists>
             </ng-template>
         </ng-container>

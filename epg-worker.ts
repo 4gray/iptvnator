@@ -7,6 +7,8 @@ import {
     EPG_ERROR,
     EPG_FETCH,
     EPG_FETCH_DONE,
+    EPG_GET_CHANNELS,
+    EPG_GET_CHANNELS_DONE,
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
 } from './shared/ipc-commands';
@@ -104,4 +106,10 @@ ipcRenderer.on(EPG_GET_PROGRAM, (event, args) => {
             payload: { channel: {}, items: [] },
         });
     }
+});
+
+ipcRenderer.on(EPG_GET_CHANNELS, (event, args) => {
+    ipcRenderer.send(EPG_GET_CHANNELS_DONE, {
+        payload: EPG_DATA,
+    });
 });

@@ -12,7 +12,10 @@ export function aggregateFavoriteChannels(playlists: Playlist[]): Channel[] {
     playlists.forEach((playlist) => {
         if (playlist.favorites?.length > 0) {
             playlist.playlist.items.forEach((channel) => {
-                if (playlist.favorites.includes(channel.id)) {
+                if (
+                    playlist.favorites.includes(channel.id) ||
+                    playlist.favorites.includes(channel.url)
+                ) {
                     favorites.push(channel);
                 }
             });

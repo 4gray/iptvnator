@@ -1,20 +1,27 @@
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { MockModule, MockPipe, MockProvider } from 'ng-mocks';
-import { DataService } from '../../services/data.service';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { RecentPlaylistsComponent } from './recent-playlists.component';
-import { PlaylistMeta } from '../home.component';
+import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatIconModule } from '@angular/material/icon';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { MockModule, MockPipe, MockProvider } from 'ng-mocks';
+import {
+    PLAYLIST_GET_BY_ID,
+    PLAYLIST_REMOVE_BY_ID,
+    PLAYLIST_UPDATE,
+} from '../../../../shared/ipc-commands';
+import { DataService } from '../../services/data.service';
+import { DialogService } from '../../services/dialog.service';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
+import { PlaylistMeta } from '../home.component';
+import { RecentPlaylistsComponent } from './recent-playlists.component';
 
 describe('RecentPlaylistsComponent', () => {
     let component: RecentPlaylistsComponent;
     let fixture: ComponentFixture<RecentPlaylistsComponent>;
     let electronService: DataService;
     let dialog: MatDialog;
+    let dialogService: DialogService;
 
     beforeEach(
         waitForAsync(() => {
@@ -32,6 +39,7 @@ describe('RecentPlaylistsComponent', () => {
                 providers: [
                     { provide: DataService, useClass: ElectronServiceStub },
                     MockProvider(TranslateService),
+                    MockProvider(DialogService),
                 ],
             }).compileComponents();
         })
@@ -43,6 +51,7 @@ describe('RecentPlaylistsComponent', () => {
         component.playlists = [];
         dialog = TestBed.inject(MatDialog);
         electronService = TestBed.inject(DataService);
+        dialogService = TestBed.inject(DialogService);
         fixture.detectChanges();
     });
 
@@ -70,5 +79,47 @@ describe('RecentPlaylistsComponent', () => {
         jest.spyOn(electronService, 'sendIpcEvent');
         component.drop(event);
         expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('should open the confirmation dialog on remove icon click', () => {
+        const playlistId = '12345';
+        jest.spyOn(dialogService, 'openConfirmDialog');
+        component.removeClicked(playlistId);
+        expect(dialogService.openConfirmDialog).toHaveBeenCalledTimes(1);
+    });
+
+    it('should send an event to the main process to remove a playlist', () => {
+        const playlistId = '12345';
+        jest.spyOn(electronService, 'sendIpcEvent');
+        component.removePlaylist(playlistId);
+        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
+            PLAYLIST_REMOVE_BY_ID,
+            { id: playlistId }
+        );
+    });
+
+    it('should send an event to the main process to refresh a playlist', () => {
+        const playlistMeta: PlaylistMeta = {
+            _id: 'iptv1',
+            filePath: '/home/user/lists/iptv.m3u',
+        } as PlaylistMeta;
+        jest.spyOn(electronService, 'sendIpcEvent');
+        component.refreshPlaylist(playlistMeta);
+        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
+            PLAYLIST_UPDATE,
+            { id: playlistMeta._id, filePath: playlistMeta.filePath }
+        );
+    });
+
+    it('should send an event to the main process to get a playlist', () => {
+        const playlistId = '6789';
+        jest.spyOn(electronService, 'sendIpcEvent');
+        component.getPlaylist(playlistId);
+        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
+            PLAYLIST_GET_BY_ID,
+            {
+                id: playlistId,
+            }
+        );
     });
 });
