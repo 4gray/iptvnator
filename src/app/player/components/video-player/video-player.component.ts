@@ -1,6 +1,7 @@
 import { Component, NgZone, OnInit, ViewChild } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { filter, Observable } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
@@ -63,6 +64,9 @@ export class VideoPlayerComponent implements OnInit {
     /** ID of the current playlist */
     playlistId = this.channelQuery.getValue().playlistId;
 
+    /** Title of the current playlist */
+    playlistTitle = this.channelQuery.getValue().playlistFilename;
+
     /** IPC Renderer commands list with callbacks */
     commandsList = [
         {
@@ -87,8 +91,9 @@ export class VideoPlayerComponent implements OnInit {
     constructor(
         private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
-        private dataService: DataService,
+        public dataService: DataService,
         private ngZone: NgZone,
+        private router: Router,
         private snackBar: MatSnackBar,
         private storage: StorageMap
     ) {
@@ -168,5 +173,14 @@ export class VideoPlayerComponent implements OnInit {
         this.dataService.sendIpcEvent(PLAYLIST_GET_BY_ID, {
             id: playlistId,
         });
+    }
+
+    /** Navigates back */
+    goBack(): void {
+        if (this.sidebarView === 'PLAYLISTS') {
+            this.router.navigate(['/']);
+        } else {
+            this.sidebarView = 'PLAYLISTS';
+        }
     }
 }

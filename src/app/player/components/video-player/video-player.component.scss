@@ -19,3 +19,42 @@
 .spacer {
     flex: 1 1 auto;
 }
+
+#playlists-navigation {
+    background-color: #000;
+    color: #fff;
+
+    .current-playlist {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+    }
+
+    .playlist-info {
+        flex: 1;
+        max-width: 300px;
+
+        .name {
+            font-size: 1.1em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .channels-count {
+            font-size: 0.8em;
+            color: #ccc;
+        }
+    }
+}
+
+.recent-playlists {
+    height: calc(100vh - 60px);
+    overflow: auto;
+    width: 100%;
+    display: block;
+}
+
+.electron {
+    height: calc(100vh - 85px) !important;
+}

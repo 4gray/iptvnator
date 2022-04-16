@@ -78,31 +78,3 @@
     background-size: 10px 10px;
     color: #fff;
 }
-
-#playlists-navigation {
-    background-color: #000;
-    color: #fff;
-
-    .playlist-info {
-        flex: 1;
-        max-width: 300px;
-
-        .name {
-            font-size: 1.1em;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .channels-count {
-            font-size: 0.8em;
-            color: #ccc;
-        }
-    }
-}
-
-.current-playlist {
-    display: flex;
-    align-items: center;
-    padding: 8px;
-}

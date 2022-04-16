@@ -1,29 +1,3 @@
-<div id="playlists-navigation">
-    <div class="current-playlist">
-        <button
-            mat-icon-button
-            (click)="showPlaylists()"
-            matTooltip="Back to playlists overview"
-        >
-            <mat-icon>arrow_back_ios</mat-icon>
-        </button>
-        <div class="playlist-info">
-            <div class="name">{{ playlistMeta?.filename }}</div>
-            <div class="channels-count">{{ playlistMeta?.count }} channels</div>
-        </div>
-
-        <button
-            mat-icon-button
-            routerLink="/"
-            [matTooltip]="
-                'CHANNELS.UPLOAD_OR_SELECT_OTHER_PLAYLIST' | translate
-            "
-        >
-            <mat-icon>playlist_add</mat-icon>
-        </button>
-    </div>
-</div>
-<mat-divider></mat-divider>
 <mat-tab-group color="primary" backgroundColor="primary">
     <mat-tab [label]="'CHANNELS.ALL_CHANNELS' | translate">
         <mat-list>

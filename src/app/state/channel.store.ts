@@ -18,6 +18,7 @@ export interface ChannelState extends EntityState<Channel> {
     currentEpgProgram: EpgProgram;
     favorites: string[];
     playlistId: string;
+    playlistFilename: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -34,6 +35,7 @@ export class ChannelStore extends EntityStore<ChannelState> {
             epgAvailable: false,
             favorites: [],
             playlistId: '',
+            playlistFilename: '',
         });
     }
 
@@ -157,7 +159,6 @@ export class ChannelStore extends EntityStore<ChannelState> {
             favorites,
             playlistId: playlist._id,
             playlistFilename: playlist.title || playlist.filename,
-            playlistCount: playlist.count,
         }));
     }
 }
