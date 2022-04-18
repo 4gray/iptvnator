@@ -1,10 +1,11 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterTestingModule } from '@angular/router/testing';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
 import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
@@ -52,6 +53,8 @@ describe('VideoPlayerComponent', () => {
                     MockModule(MatIconModule),
                     MockModule(MatToolbarModule),
                     MockModule(MatTooltipModule),
+                    MockModule(RouterTestingModule),
+                    MockModule(MatDividerModule),
                 ],
             }).compileComponents();
         })

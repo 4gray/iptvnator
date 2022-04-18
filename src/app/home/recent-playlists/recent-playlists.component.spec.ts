@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockModule, MockPipe, MockProvider } from 'ng-mocks';
@@ -40,6 +41,7 @@ describe('RecentPlaylistsComponent', () => {
                     { provide: DataService, useClass: ElectronServiceStub },
                     MockProvider(TranslateService),
                     MockProvider(DialogService),
+                    MatSnackBar,
                 ],
             }).compileComponents();
         })
