@@ -169,6 +169,29 @@ export class WhatsNewService {
                 },
             },
         ],
+        '0.10.0': [
+            {
+                title: "🎉 v0.10.0 - What's new",
+                html: `
+                    <h3>Playlist navigation from the sidebar</h3>
+                    Switching between playlists is now possible directly from the sidebar and without interrupting channel viewing.
+                    
+                    <h3>Global favorites</h3>
+                    Additional playlist has been added, which is generated on the fly and contains favorite channels from all existing playlists.
+
+                    <h3>PWA</h3>
+                    IPTVnator is now available as a <a href="https://iptvnator.vercel.app/" target="_blank">web-application</a>, which means that you can use it directly from the browser. This means that application can be run on smartphones, tablets, set-top boxes or smart tv browsers.
+
+                    <h3>French localization</h3>
+                    The app has been translated into another language and is now available in French. Many thanks to <a href="https://github.com/m-p-3" target="_blank">@m-p-3</a> for the translation!
+                `,
+                button: {
+                    text: 'Close',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+        ],
     };
 
     /** Options for the "what is new" modal dialogs */
