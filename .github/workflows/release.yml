@@ -3,51 +3,9 @@ on:
   create:
     tags:
       - v*
-  push:
-    branches:
-      - master
   workflow_dispatch:
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-      - name: Use Node.js
-        uses: actions/setup-node@v1
-        with:
-          node-version: "16.x"
-      - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
-      - run: npm install
-      - run: npm test -- --coverage
-      - run: bash <(curl -s https://codecov.io/bash)
-      - run: npm run build:prod
-        env:
-          CI: true
-  release:
-    needs: [build-and-test]
-    name: Release
-    runs-on: ubuntu-18.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Setup Node.js
-        uses: actions/setup-node@v1
-        with:
-          node-version: "16.x"
-      - name: Install dependencies
-        run: npm ci
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.github_token }}
-        run: npx semantic-release
   package:
-    needs: [build-and-test, release]
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -56,12 +14,12 @@ jobs:
 
     steps:
       - name: Check out Git repository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
 
       - name: Install Node.js, NPM and Yarn
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
-          node-version: "16.x"
+          node-version: 16
 
       - name: Install Snapcraft
         uses: samuelmeuli/action-snapcraft@v1
@@ -70,9 +28,40 @@ jobs:
         with:
           # Log in to Snap Store
           snapcraft_token: ${{ secrets.snapcraft_token }}
+      
+      - name: Package Linux
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          npm ci
+          npm run build
+          npx electron-builder --linux snap --armv7l --publish always
+          npx electron-builder --linux snap --x64 --publish always
+          npx electron-builder --linux deb rpm --x64 --publish always
+          npx electron-builder --linux deb --ia32 --publish always
+          npx electron-builder --linux deb --arm64 --publish always
+          npx electron-builder --linux deb --armv7l --publish always
+          npx electron-builder --linux AppImage --x64 --publish always
+          npx electron-builder --linux AppImage --ia32 --publish always
+          npx electron-builder --linux AppImage --arm64 --publish always
+          npx electron-builder --linux AppImage --armv7l --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build/release Electron app
+      - name: Release Electron app - MacOS
         uses: samuelmeuli/action-electron-builder@v1
+        if: startsWith(matrix.os, 'macos')
+        with:
+          # GitHub token, automatically provided to the action
+          # (No need to define this secret in the repo settings)
+          github_token: ${{ secrets.github_token }}
+
+          # If the commit is tagged with a version (e.g. "v1.0.0"),
+          # release the app after building
+          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Release Electron app - Windows
+        uses: samuelmeuli/action-electron-builder@v1
+        if: startsWith(matrix.os, 'windows')
         with:
           # GitHub token, automatically provided to the action
           # (No need to define this secret in the repo settings)
