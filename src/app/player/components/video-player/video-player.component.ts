@@ -134,8 +134,8 @@ export class VideoPlayerComponent implements OnInit {
         this.storage.get(STORE_KEY.Settings).subscribe((settings: Settings) => {
             if (settings && Object.keys(settings).length > 0) {
                 this.playerSettings = {
-                    player: settings.player,
-                    showCaptions: settings.showCaptions,
+                    player: settings.player || VideoPlayer.VideoJs,
+                    showCaptions: settings.showCaptions || false,
                 };
             }
         });
