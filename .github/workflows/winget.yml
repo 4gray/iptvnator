@@ -9,4 +9,4 @@ jobs:
       - uses: vedantmgoyal2009/winget-releaser@latest
         with:
           identifier: 4gray.iptvnator
-          token: ${{ secrets.WINGET_TOKEN }}
+          token: ${{ secrets.GITHUB_PAT }}
