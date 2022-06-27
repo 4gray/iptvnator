@@ -45,15 +45,13 @@ jobs:
           npx electron-builder --linux AppImage --arm64 --publish always
           npx electron-builder --linux AppImage --armv7l --publish always
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_PAT }}
 
       - name: Release Electron app - MacOS
         uses: samuelmeuli/action-electron-builder@v1
         if: startsWith(matrix.os, 'macos')
         with:
-          # GitHub token, automatically provided to the action
-          # (No need to define this secret in the repo settings)
-          github_token: ${{ secrets.github_token }}
+          github_token: ${{ secrets.GITHUB_PAT }}
 
           # If the commit is tagged with a version (e.g. "v1.0.0"),
           # release the app after building
@@ -63,9 +61,7 @@ jobs:
         uses: samuelmeuli/action-electron-builder@v1
         if: startsWith(matrix.os, 'windows')
         with:
-          # GitHub token, automatically provided to the action
-          # (No need to define this secret in the repo settings)
-          github_token: ${{ secrets.github_token }}
+          github_token: ${{ secrets.GITHUB_PAT }}
 
           # If the commit is tagged with a version (e.g. "v1.0.0"),
           # release the app after building
