@@ -2,8 +2,8 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
-import { Api } from './api';
-import { AppMenu } from './menu';
+import { Api } from '../api';
+import { AppMenu } from '../menu';
 const contextMenu = require('electron-context-menu');
 
 let win: BrowserWindow = null;
@@ -28,7 +28,7 @@ function createWindow(): BrowserWindow {
         },
         resizable: true,
         darkTheme: true,
-        icon: path.join(__dirname, 'dist/assets/icons/icon.png'),
+        icon: path.join(__dirname, '../build/assets/icons/icon.png'),
         titleBarStyle: 'hidden',
         frame: false,
         minWidth: 900,
@@ -44,7 +44,7 @@ function createWindow(): BrowserWindow {
     } else {
         win.loadURL(
             url.format({
-                pathname: path.join(__dirname, 'dist/index.html'),
+                pathname: path.join(__dirname, '../build/index.html'),
                 protocol: 'file:',
                 slashes: true,
             })
@@ -80,10 +80,10 @@ function createEpgWorkerWindow() {
     });
 
     if (serve) {
-        window.loadFile('epg-worker.html');
+        window.loadFile(path.join(__dirname, '../electron/index.html'));
         window.webContents.openDevTools();
     } else {
-        window.loadFile('epg-worker.html');
+        window.loadFile('./epg-worker.html');
     }
 
     window.once('ready-to-show', () => {

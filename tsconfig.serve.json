@@ -1,31 +1,20 @@
 {
-  "compilerOptions": {
-    "sourceMap": true,
-    "declaration": false,
-    "moduleResolution": "node",
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "target": "es5",
-    "types": [
-      "node"
+    "compilerOptions": {
+        "sourceMap": true,
+        "declaration": false,
+        "moduleResolution": "node",
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "target": "es5",
+        "types": ["node"],
+        "lib": ["es2017", "es2016", "es2015", "dom"]
+    },
+    "files": [
+        "electron/api.ts",
+        "electron/epg-worker.ts",
+        "electron/main.ts",
+        "electron/menu.ts",
+        "electron/preload.ts"
     ],
-    "lib": [
-      "es2017",
-      "es2016",
-      "es2015",
-      "dom"
-    ]
-  },
-  "files": [
-    "api.ts",
-    "epg-worker.ts",
-    "main.ts",
-    "menu.ts",
-    "preload.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "**/*.spec.ts",
-    "**/*.stub.ts"
-  ]
+    "exclude": ["node_modules", "**/*.spec.ts", "**/*.stub.ts"]
 }

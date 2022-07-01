@@ -11,9 +11,9 @@ import {
     EPG_GET_CHANNELS_DONE,
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
-} from './shared/ipc-commands';
-import { EpgChannel } from './src/app/player/models/epg-channel.model';
-import { EpgProgram } from './src/app/player/models/epg-program.model';
+} from '../shared/ipc-commands';
+import { EpgChannel } from '../src/app/player/models/epg-channel.model';
+import { EpgProgram } from '../src/app/player/models/epg-program.model';
 
 // EPG data store
 let EPG_DATA: { channels: EpgChannel[]; programs: EpgProgram[] };
