@@ -2,10 +2,14 @@
 
 # compiled output
 /dist
+/build
 /tmp
 /out-tsc
 /app-builds
 /release
+/e2e/tracing
+/e2e/screenshots
+/test-results
 api.js
 epg-worker.js
 main.js

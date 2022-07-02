@@ -18,13 +18,14 @@
         "video",
         "tv"
     ],
-    "main": "main.js",
+    "main": "electron/main.js",
     "private": true,
     "scripts": {
         "postinstall": "electron-builder install-app-deps && husky install",
         "ng": "ng",
         "start": "npm-run-all -p electron:serve ng:serve",
         "build": "npm run electron:serve-tsc && ng build --base-href ./",
+        "build:electron": "npm run electron:serve-tsc",
         "build:dev": "npm run build -- -c dev",
         "build:prod": "npm run build -- -c production",
         "ng:build": "ng build -c production",
@@ -39,8 +40,8 @@
         "electron:build:windows": "npm run build:prod && electron-builder build -w",
         "test": "jest",
         "test:watch": "jest --watch",
-        "e2e": "npm run build:prod && cross-env TS_NODE_PROJECT='e2e/tsconfig.e2e.json' mocha e2e/**/*.ts --config ./.mocharc.json --exit",
-        "e2e:watch": "npm run e2e -- --watch",
+        "e2e": "npm run build:electron && npx playwright test -c e2e/playwright.config.ts e2e/",
+        "e2e:debug": "npm run build:electron && PWDEBUG=1 npx playwright test -c e2e/playwright.config.ts e2e/",
         "version": "conventional-changelog -i CHANGELOG.md -p angular -s -r 0 && git add CHANGELOG.md",
         "lint": "ng lint",
         "build-pwa": "ng build -c production --base-href /iptvnator --deploy-url /iptvnator/"
@@ -102,6 +103,7 @@
         "@commitlint/config-conventional": "16.0.0",
         "@ngx-translate/core": "13.0.0",
         "@ngx-translate/http-loader": "6.0.0",
+        "@playwright/test": "1.21.1",
         "@semantic-release/changelog": "6.0.1",
         "@semantic-release/git": "10.0.1",
         "@semantic-release/npm": "9.0.0",
@@ -128,6 +130,8 @@
         "ng-mocks": "12.5.1",
         "node-polyfill-webpack-plugin": "1.1.4",
         "npm-run-all": "4.1.5",
+        "playwright": "1.21.1",
+        "playwright-core": "1.21.1",
         "prettier": "2.5.1",
         "semantic-release": "19.0.2",
         "stylelint": "14.2.0",
@@ -136,7 +140,8 @@
         "ts-node": "8.10.2",
         "tslib": "2.3.0",
         "typescript": "4.4.4",
-        "wait-on": "6.0.0"
+        "wait-on": "6.0.0",
+        "xvfb-maybe": "0.2.1"
     },
     "engines": {
         "node": ">=14.0.0"
