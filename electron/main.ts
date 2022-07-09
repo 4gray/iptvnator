@@ -6,7 +6,7 @@ import { Api } from '../api';
 import { AppMenu } from '../menu';
 const contextMenu = require('electron-context-menu');
 
-let win: BrowserWindow = null;
+let win: BrowserWindow | null = null;
 const args = process.argv.slice(1),
     serve = args.some((val) => val === '--serve');
 
@@ -79,11 +79,9 @@ function createEpgWorkerWindow() {
         },
     });
 
+    window.loadFile('./electron/epg-worker.html');
     if (serve) {
-        window.loadFile(path.join(__dirname, '../electron/index.html'));
         window.webContents.openDevTools();
-    } else {
-        window.loadFile('./epg-worker.html');
     }
 
     window.once('ready-to-show', () => {

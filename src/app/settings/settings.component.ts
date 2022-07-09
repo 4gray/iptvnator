@@ -1,6 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
+import {
+    FormArray,
+    FormBuilder,
+    FormControl,
+    Validators,
+} from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -8,8 +13,8 @@ import { TranslateService } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import * as semver from 'semver';
-import { EPG_FETCH } from '../../../shared/ipc-commands';
 import { DataService } from '../services/data.service';
+import { EpgService } from '../services/epg.service';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { ChannelQuery } from '../state';
 import { SettingsService } from './../services/settings.service';
@@ -43,7 +48,13 @@ export class SettingsComponent implements OnInit {
     ];
 
     /** Settings form object */
-    settingsForm: FormGroup;
+    settingsForm = this.formBuilder.group({
+        player: [VideoPlayer.VideoJs],
+        epgUrl: new FormArray([]),
+        language: Language.ENGLISH,
+        showCaptions: false,
+        theme: Theme.LightTheme,
+    });
 
     /** Current version of the app */
     version: string;
@@ -62,22 +73,17 @@ export class SettingsComponent implements OnInit {
     /** All available visual themes */
     themeEnum = Theme;
 
+    /** Form array with epg sources */
+    epgUrl = this.settingsForm.get('epgUrl') as FormArray;
+
     /**
      * Creates an instance of SettingsComponent and injects
      * required dependencies into the component
-     * @param channelQuery
-     * @param electronService
-     * @param formBuilder
-     * @param http
-     * @param router
-     * @param settingsService
-     * @param snackBar
-     * @param storage
-     * @param translate
      */
     constructor(
         private channelQuery: ChannelQuery,
         private electronService: DataService,
+        private epgService: EpgService,
         private formBuilder: FormBuilder,
         private http: HttpClient,
         private router: Router,
@@ -85,17 +91,7 @@ export class SettingsComponent implements OnInit {
         private snackBar: MatSnackBar,
         private storage: StorageMap,
         private translate: TranslateService
-    ) {
-        this.settingsForm = this.formBuilder.group({
-            player: [VideoPlayer.VideoJs],
-            epgUrl: '',
-            language: Language.ENGLISH,
-            showCaptions: false,
-            theme: Theme.LightTheme,
-        });
-
-        this.checkAppVersion();
-    }
+    ) {}
 
     /**
      * Reads the config object from the browsers
@@ -110,7 +106,7 @@ export class SettingsComponent implements OnInit {
                         player: settings.player
                             ? settings.player
                             : VideoPlayer.VideoJs,
-                        epgUrl: settings.epgUrl ? settings.epgUrl : '',
+                        epgUrl: [],
                         language: settings.language
                             ? settings.language
                             : Language.ENGLISH,
@@ -121,8 +117,33 @@ export class SettingsComponent implements OnInit {
                             ? settings.theme
                             : Theme.LightTheme,
                     });
+
+                    this.setEpgUrls(settings.epgUrl);
                 }
             });
+
+        this.checkAppVersion();
+    }
+
+    /**
+     * Sets the epg urls to the form array
+     * @param epgUrls urls of the EPG sources
+     */
+    setEpgUrls(epgUrls: string[] | string): void {
+        const URL_REGEX = /^(http|https):\/\/[^ "]+$/;
+
+        if (!Array.isArray(epgUrls)) {
+            epgUrls = [epgUrls];
+        }
+
+        for (const url of epgUrls) {
+            this.epgUrl.push(
+                new FormControl(url, [
+                    Validators.required,
+                    Validators.pattern(URL_REGEX),
+                ])
+            );
+        }
     }
 
     /**
@@ -187,7 +208,7 @@ export class SettingsComponent implements OnInit {
                 this.settingsForm.markAsPristine();
                 // check whether the epg url was changed or not
                 if (this.settingsForm.value.epgUrl) {
-                    this.fetchEpg();
+                    this.fetchEpg(this.settingsForm.value.epgUrl);
                 }
                 this.translate.use(this.settingsForm.value.language);
                 this.settingsService.changeTheme(this.settingsForm.value.theme);
@@ -210,14 +231,25 @@ export class SettingsComponent implements OnInit {
 
     /**
      * Fetches and updates EPG from the given URL
+     * @param urls epg source urls
      */
-    fetchEpg(): void {
-        this.electronService.sendIpcEvent(EPG_FETCH, {
-            url: this.settingsForm.value.epgUrl,
-        });
-        this.snackBar.open(this.translate.instant('EPG.FETCH_EPG'), 'Close', {
-            verticalPosition: 'bottom',
-            horizontalPosition: 'right',
-        });
+    fetchEpg(urls: string | string[]): void {
+        this.epgService.fetchEpg(urls);
+    }
+
+    /**
+     * Initializes new entry in form array for EPG URL
+     */
+    addEpgSource(): void {
+        this.epgUrl.insert(this.epgUrl.length, new FormControl(''));
+    }
+
+    /**
+     * Removes entry from form array for EPG URL
+     * @param index index of the item to remove
+     */
+    removeEpgSource(index: number): void {
+        this.epgUrl.removeAt(index);
+        this.settingsForm.markAsDirty();
     }
 }

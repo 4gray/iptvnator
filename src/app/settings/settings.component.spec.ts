@@ -39,7 +39,7 @@ export class MockRouter {
 
 const DEFAULT_SETTINGS = {
     player: VideoPlayer.VideoJs,
-    epgUrl: '',
+    epgUrl: [],
     language: Language.ENGLISH,
     showCaptions: false,
     theme: Theme.LightTheme,
@@ -108,7 +108,7 @@ describe('SettingsComponent', () => {
     });
 
     describe('Get and set settings on component init', () => {
-        const settings = { player: 'test', showCaptions: true };
+        const settings = { player: 'test', showCaptions: true, epgUrl: [] };
         let spyOnStorageGet;
 
         beforeEach(() => {
@@ -168,7 +168,7 @@ describe('SettingsComponent', () => {
 
     it('should send epg fetch command', () => {
         jest.spyOn(electronService, 'sendIpcEvent');
-        component.fetchEpg();
+        component.fetchEpg(['']);
         expect(electronService.sendIpcEvent).toHaveBeenCalledWith(EPG_FETCH, {
             url: '',
         });

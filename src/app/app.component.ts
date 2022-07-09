@@ -1,5 +1,4 @@
 import { Component, NgZone } from '@angular/core';
-import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
@@ -7,7 +6,6 @@ import * as semver from 'semver';
 import { IpcCommand } from '../../shared/ipc-command.class';
 import {
     EPG_ERROR,
-    EPG_FETCH,
     EPG_FETCH_DONE,
     OPEN_FILE,
     SHOW_WHATS_NEW,
@@ -15,13 +13,13 @@ import {
     VIEW_SETTINGS,
 } from '../../shared/ipc-commands';
 import { DataService } from './services/data.service';
+import { EpgService } from './services/epg.service';
 import { SettingsService } from './services/settings.service';
 import { WhatsNewService } from './services/whats-new.service';
 import { Language } from './settings/language.enum';
 import { Settings } from './settings/settings.interface';
 import { Theme } from './settings/theme.enum';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
-import { ChannelStore } from './state';
 
 /**
  * AppComponent
@@ -40,18 +38,12 @@ export class AppComponent {
     /** Modals to show for the updated version of the application */
     modals: ModalWindow[] = [];
 
-    /** Default options for epg snackbar notifications */
-    epgSnackBarOptions: MatSnackBarConfig = {
-        verticalPosition: 'bottom',
-        horizontalPosition: 'right',
-    };
-
     /** List of ipc commands with function mapping */
     commandsList = [
         new IpcCommand(VIEW_ADD_PLAYLIST, () => this.navigateToRoute('/')),
         new IpcCommand(VIEW_SETTINGS, () => this.navigateToRoute('/settings')),
-        new IpcCommand(EPG_FETCH_DONE, () => this.onEpgFetchDone()),
-        new IpcCommand(EPG_ERROR, () => this.onEpgError()),
+        new IpcCommand(EPG_FETCH_DONE, () => this.epgService.onEpgFetchDone()),
+        new IpcCommand(EPG_ERROR, () => this.epgService.onEpgError()),
         new IpcCommand(SHOW_WHATS_NEW, () => this.showWhatsNewDialog()),
     ];
 
@@ -62,13 +54,12 @@ export class AppComponent {
      * Creates an instance of AppComponent
      */
     constructor(
-        private channelStore: ChannelStore,
         private electronService: DataService,
+        private epgService: EpgService,
         private ngZone: NgZone,
         private router: Router,
         private translate: TranslateService,
         private settingsService: SettingsService,
-        private snackBar: MatSnackBar,
         private whatsNewService: WhatsNewService
     ) {
         if (
@@ -127,14 +118,7 @@ export class AppComponent {
                 if (settings && Object.keys(settings).length > 0) {
                     this.translate.use(settings.language ?? this.DEFAULT_LANG);
                     if (settings.epgUrl) {
-                        this.electronService.sendIpcEvent(EPG_FETCH, {
-                            url: settings.epgUrl,
-                        });
-                        this.snackBar.open(
-                            this.translate.instant('EPG.FETCH_EPG'),
-                            this.translate.instant('CLOSE'),
-                            this.epgSnackBarOptions
-                        );
+                        this.epgService.fetchEpg(settings.epgUrl);
                     }
 
                     if (settings.theme) {
@@ -203,31 +187,6 @@ export class AppComponent {
      */
     navigateToRoute(route: string) {
         this.router.navigateByUrl(route);
-    }
-
-    /**
-     * Handles the event when the EPG fetching is done
-     */
-    onEpgFetchDone(): void {
-        this.channelStore.setEpgAvailableFlag(true);
-        this.snackBar.open(
-            this.translate.instant('EPG.DOWNLOAD_SUCCESS'),
-            null,
-            {
-                ...this.epgSnackBarOptions,
-                duration: 2000,
-            }
-        );
-    }
-
-    /**
-     * Handles epg error
-     */
-    onEpgError(): void {
-        this.snackBar.open(this.translate.instant('EPG.ERROR'), null, {
-            ...this.epgSnackBarOptions,
-            duration: 2000,
-        });
     }
 
     /**
