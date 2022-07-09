@@ -16,7 +16,10 @@ import { EpgChannel } from '../src/app/player/models/epg-channel.model';
 import { EpgProgram } from '../src/app/player/models/epg-program.model';
 
 // EPG data store
-let EPG_DATA: { channels: EpgChannel[]; programs: EpgProgram[] };
+let EPG_DATA: { channels: EpgChannel[]; programs: EpgProgram[] } = {
+    channels: [],
+    programs: [],
+};
 const loggerLabel = '[EPG Worker]';
 
 /**
@@ -61,7 +64,11 @@ const fetchEpgDataFromUrl = (epgUrl: string) => {
  */
 const parseAndSetEpg = (xmlString) => {
     console.log(loggerLabel, 'start parsing...');
-    EPG_DATA = parser.parse(xmlString.toString());
+    const parsedEpg = parser.parse(xmlString.toString());
+    EPG_DATA = {
+        channels: [...EPG_DATA.channels, ...parsedEpg.channels],
+        programs: [...EPG_DATA.programs, ...parsedEpg.programs],
+    };
     ipcRenderer.send(EPG_FETCH_DONE);
     console.log(loggerLabel, 'done, parsing was finished...');
 };
