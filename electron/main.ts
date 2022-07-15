@@ -2,8 +2,8 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
-import { Api } from '../api';
-import { AppMenu } from '../menu';
+import { Api } from './api';
+import { AppMenu } from './menu';
 const contextMenu = require('electron-context-menu');
 
 let win: BrowserWindow | null = null;
