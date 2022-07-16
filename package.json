@@ -133,7 +133,7 @@
         "playwright": "1.21.1",
         "playwright-core": "1.21.1",
         "prettier": "2.5.1",
-        "semantic-release": "19.0.2",
+        "semantic-release": "19.0.3",
         "stylelint": "14.2.0",
         "stylelint-config-standard": "24.0.0",
         "stylelint-scss": "4.1.0",
