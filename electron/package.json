@@ -1,0 +1,7 @@
+{
+    "name": "iptvnator-electron",
+    "version": "0.10.0",
+    "main": "main.js",
+    "private": true,
+    "dependencies": {}
+  }

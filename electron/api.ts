@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { parse } from 'iptv-playlist-parser';
-import { GLOBAL_FAVORITES_PLAYLIST_ID } from './shared/constants';
+import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../shared/constants';
 import {
     CHANNEL_SET_USER_AGENT,
     EPG_ERROR,
@@ -26,13 +26,13 @@ import {
     PLAYLIST_UPDATE_FAVORITES,
     PLAYLIST_UPDATE_POSITIONS,
     PLAYLIST_UPDATE_RESPONSE,
-} from './shared/ipc-commands';
-import { Playlist, PlaylistUpdateState } from './shared/playlist.interface';
+} from '../shared/ipc-commands';
+import { Playlist, PlaylistUpdateState } from '../shared/playlist.interface';
 import {
     aggregateFavoriteChannels,
     createFavoritesPlaylist,
-} from './shared/playlist.utils';
-import { ParsedPlaylist } from './src/typings.d';
+} from '../shared/playlist.utils';
+import { ParsedPlaylist } from '../src/typings.d';
 
 const Nedb = require('nedb-promises');
 

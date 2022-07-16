@@ -19,7 +19,6 @@ import { WhatsNewService } from './services/whats-new.service';
 import { WhatsNewServiceStub } from './services/whats-new.service.stub';
 import { Theme } from './settings/theme.enum';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
-import { ChannelStore } from './state';
 
 class MatSnackBarStub {
     open(): void {}
@@ -114,28 +113,6 @@ describe('AppComponent', () => {
                 component.navigateToRoute(route);
                 expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
                 expect(router.navigateByUrl).toHaveBeenCalledWith(route);
-            }
-        ));
-
-        it('should show a notification on epg error', inject(
-            [MatSnackBar],
-            (snackbar: MatSnackBar) => {
-                jest.spyOn(snackbar, 'open');
-                component.onEpgError();
-                expect(snackbar.open).toHaveBeenCalledTimes(1);
-            }
-        ));
-
-        it('should handle epg download success', inject(
-            [MatSnackBar, ChannelStore],
-            (snackbar: MatSnackBar, channelStore: ChannelStore) => {
-                jest.spyOn(snackbar, 'open');
-                jest.spyOn(channelStore, 'setEpgAvailableFlag');
-                component.onEpgFetchDone();
-                expect(snackbar.open).toHaveBeenCalledTimes(1);
-                expect(channelStore.setEpgAvailableFlag).toHaveBeenCalledWith(
-                    true
-                );
             }
         ));
 

@@ -4,10 +4,10 @@
         "outDir": "../out-tsc/app",
         "module": "es2020",
         "baseUrl": "",
-        "types": []
+        "types": ["node"]
     },
     "include": ["**/*.ts"],
-    "exclude": ["**/*.spec.ts", "**/*.stub.ts"],
+    "exclude": ["**/*.spec.ts", "**/*.stub.ts", "**/*.worker.ts"],
     "angularCompilerOptions": {
         "fullTemplateTypeCheck": true,
         "strictInjectionParameters": true,

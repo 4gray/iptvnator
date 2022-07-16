@@ -15,7 +15,7 @@ export enum VideoPlayer {
  */
 export interface Settings {
     player: VideoPlayer;
-    epgUrl: string;
+    epgUrl: string[];
     language: Language;
     showCaptions: boolean;
     theme: Theme;

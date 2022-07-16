@@ -4,7 +4,7 @@ import {
     SHOW_WHATS_NEW,
     VIEW_ADD_PLAYLIST,
     VIEW_SETTINGS,
-} from './shared/ipc-commands';
+} from '../shared/ipc-commands';
 const openAboutWindow = require('about-window').default;
 
 export class AppMenu {
