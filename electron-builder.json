@@ -18,7 +18,7 @@
         "!tslint.json"
     ],
     "win": {
-        "icon": "dist/assets/icons",
+        "icon": "build/assets/icons",
         "compression": "maximum",
         "target": [
             {
@@ -28,14 +28,14 @@
         ]
     },
     "mac": {
-        "icon": "dist/assets/icons/icon-1024.png",
+        "icon": "build/assets/icons/icon-1024.png",
         "target": {
             "target": "dmg",
             "arch": ["universal"]
         }
     },
     "linux": {
-        "icon": "dist/assets/icons",
+        "icon": "build/assets/icons",
         "category": "Video",
         "target": [
             {
