@@ -2,18 +2,18 @@
     "CLOSE": "Fermer",
     "HOME": {
         "TITLE": "IPTVnator",
-        "SUBTITLE": "Veuillez choisir une liste de lecture dans la list, ou ajouter une nouvelle liste de lecture par transfert de fichier ou par URL",
+        "SUBTITLE": "Choisissez une liste de lecture, ou ajoutez en une nouvelle via transfert de fichier ou via une URL",
         "TABS": {
             "RECENTLY_ADDED": "Listes de lecture ajoutés récemment",
-            "FILE_UPLOAD": "Ajouter par transfert de fichier",
-            "URL_UPLOAD": "Ajouter par URL"
+            "FILE_UPLOAD": "Ajouter un fichier",
+            "URL_UPLOAD": "Ajouter une URL"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "Aucune liste de lecteur n'a été ajouté",
             "ADD_FIRST": "Veuillez ajouter votre première liste de lecteur par un autre onglet",
             "ADDED_VIA_URL": "Ajouté par URL. URL:",
             "ADDED_VIA_FILE": "Ajouté par transfert de fichier",
-            "CHANNELS": "Canaux",
+            "CHANNELS": "Chaines",
             "ADDED": "Ajouté",
             "SHOW_DETAILS": "Afficher les détails de la liste de lecture",
             "REMOVE": "Retirer la liste de lecture",
@@ -35,7 +35,7 @@
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Retirer la liste de lecture",
-                "MESSAGE": "Êtes-vous certain de vouloir complètement retirer cette liste de lecture?"
+                "MESSAGE": "Êtes-vous certain de vouloir complètement retirer cette liste de lecture ?"
             },
             "UPDATED": "Mis à jour",
             "REFRESH": "Mettre à jour la liste de lecture"
@@ -46,27 +46,27 @@
             "CHOOSE_PLAYLIST": "Choisir une liste de lecture"
         },
         "URL_UPLOAD": {
-            "PLAYLIST_URL": " URL de la liste de lecture(m3u, m3u8)",
-            "ADD_PLAYLIST": "Ajouter une liste de lecture"
+            "PLAYLIST_URL": "URL de la liste de lecture (m3u, m3u8)",
+            "ADD_PLAYLIST": "Ajouter la liste de lecture"
         }
     },
     "SETTINGS": {
         "TITLE": "Réglages / IPTVnator",
-        "SUBTITLE": "Changer la configuration de l'application",
-        "DESCRIPTION": "Veuillez ajuster les options dans la liste ci-dessous et confirmer avec le bouton Enregistrer.",
+        "SUBTITLE": "Modifiez la configuration de l'application",
+        "DESCRIPTION": "Changez les options de la liste ci-dessous et enregistrez vos modifications.",
         "EPG_URL_LABEL": "URL du EPG  (*.xml ou *.xml.gz)",
         "EPG_URL_PLACEHOLDER": "Saisir une URL",
-        "REFRESH_EPG": "Mise à jour du EPG",
+        "REFRESH_EPG": "Mise à jour de l'EPG",
         "VIDEO_PLAYER_LABEL": "Lecteur vidéo",
         "VIDEO_PLAYER_PLACEHOLDER": "Choisir une option",
         "VERSION": "Version",
         "SAVE_CHANGES": "Enregistrer les modifications",
-        "BACK_TO_HOME": "Retour à l'accueil",
-        "NEW_VERSION_AVAILABLE": "Il y a une nouvelle version disponible",
+        "BACK_TO_HOME": "Retourner à l'accueil",
+        "NEW_VERSION_AVAILABLE": "Une nouvelle version est disponible",
         "LATEST_VERSION": "Vous utilisez la dernière version",
         "LANGUAGE": "Langue",
-        "SETTINGS_SAVED": "La configuration est enregistré avec succès.",
-        "THEME": "Thème visuel",
+        "SETTINGS_SAVED": "La configuration a été enregistré avec succès.",
+        "THEME": "Thème",
         "SHOW_CAPTIONS": "Afficher les sous-titres"
     },
     "THEMES": {
@@ -74,21 +74,21 @@
         "LIGHT_THEME": "Thème clair"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "Rechercher un canal",
+        "SEARCH_CHANNEL": "Rechercher une chaine",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Transférer ou choisir une autre liste de lecture",
-        "ALL_CHANNELS": "Tous les canaux",
+        "ALL_CHANNELS": "Chaines",
         "GROUPS": "Groupes",
         "UNGROUPED": "Non-groupé",
-        "UNNAMED_CHANNEL": "Canal sans non",
+        "UNNAMED_CHANNEL": "Chaine sans non",
         "FAVORITES": "Favoris",
         "NO_FAVORITES": "Aucun favoris",
-        "USE_STAR_TO_FAVORITE": "Veuillez utiliser l'icône d'étoile pour ajouter un canal à cette liste.",
+        "USE_STAR_TO_FAVORITE": "Veuillez utiliser l'icône 'étoile' pour ajouter une chaine aux favoris.",
         "REMOVE_FAVORITE": "Retirer des favoris"
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Ouvrir la liste des canaux",
+        "OPEN_CHANNELS_LIST": "Ouvrir la liste des chaines",
         "TOGGLE_FAVORITE_FLAG": "Basculer le status de favoris",
-        "OPEN_EPG_LIST": "Ouvrir la liste du EPG"
+        "OPEN_EPG_LIST": "Ouvrir la liste de l'EPG"
     },
     "EPG": {
         "NEXT_DAY": "Jour suivant",
@@ -96,20 +96,20 @@
         "LIVE_NOW": "En direct",
         "LIVE_STREAM": "Diffusion en direct",
         "TIMESHIFT_AVAILABLE": "Contrôle du direct, appuyez pour lire",
-        "EPG_NOT_AVAILABLE_DATE": "Échec: Le EPG n'est pas disponible pour la date choisie",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Échec: Le EPG n'est pas disponible pour ce canal.",
+        "EPG_NOT_AVAILABLE_DATE": "Échec: L'EPG n'est pas disponible pour la date choisie",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Échec: L'EPG n'est pas disponible pour cette chaine",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Veuillez ajouter/modifier l'URL de la liste EPG dans les réglages de l'app.",
         "FETCH_EPG": "Récupération des données EPG...",
-        "ERROR": "chec: Le EPG n'a pas pu être récupéré.",
-        "DOWNLOAD_SUCCESS": "EPG récupéré avec succès.",
+        "ERROR": "Échec: L'EPG n'a pas pu être récupéré",
+        "DOWNLOAD_SUCCESS": "L'EPG a été récupéré avec succès",
         "PROGRAM_DIALOG": {
-            "PROGRAM_DETAILS": "Détails à propos du programme télé",
+            "PROGRAM_DETAILS": "Détails du programme TV",
             "TITLE": "Titre",
             "CATEGORY": "Catégorie",
-            "PARENTAL_RATING_SYSTEM": "Système de contrôle parental",
+            "PARENTAL_RATING_SYSTEM": "Paramètres du contrôle parental",
             "DESCRIPTION": "Description",
             "LANGUAGE": "Langue",
-            "SHOW_PROGRAM_DETAILS": "Afficher les détails à propos du programme télé"
+            "SHOW_PROGRAM_DETAILS": "Afficher les détails du programme TV"
         }
     },
     "LANGUAGES": {
