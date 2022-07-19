@@ -1,4 +1,3 @@
-import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import {
     FormArray,
@@ -8,10 +7,8 @@ import {
 } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
-import { catchError } from 'rxjs/operators';
 import * as semver from 'semver';
 import { DataService } from '../services/data.service';
 import { EpgService } from '../services/epg.service';
@@ -21,10 +18,6 @@ import { SettingsService } from './../services/settings.service';
 import { Language } from './language.enum';
 import { Settings, VideoPlayer } from './settings.interface';
 import { Theme } from './theme.enum';
-
-/** Url of the package.json file in the app repository, required to get the version of the released app */
-const PACKAGE_JSON_URL =
-    'https://raw.githubusercontent.com/4gray/iptvnator/master/package.json';
 
 @Component({
     selector: 'app-settings',
@@ -47,15 +40,6 @@ export class SettingsComponent implements OnInit {
         },
     ];
 
-    /** Settings form object */
-    settingsForm = this.formBuilder.group({
-        player: [VideoPlayer.VideoJs],
-        epgUrl: new FormArray([]),
-        language: Language.ENGLISH,
-        showCaptions: false,
-        theme: Theme.LightTheme,
-    });
-
     /** Current version of the app */
     version: string;
 
@@ -73,6 +57,15 @@ export class SettingsComponent implements OnInit {
     /** All available visual themes */
     themeEnum = Theme;
 
+    /** Settings form object */
+    settingsForm = this.formBuilder.group({
+        player: [VideoPlayer.VideoJs],
+        ...(this.isElectron ? { epgUrl: new FormArray([]) } : {}),
+        language: Language.ENGLISH,
+        showCaptions: false,
+        theme: Theme.LightTheme,
+    });
+
     /** Form array with epg sources */
     epgUrl = this.settingsForm.get('epgUrl') as FormArray;
 
@@ -85,11 +78,9 @@ export class SettingsComponent implements OnInit {
         private electronService: DataService,
         private epgService: EpgService,
         private formBuilder: FormBuilder,
-        private http: HttpClient,
         private router: Router,
         private settingsService: SettingsService,
         private snackBar: MatSnackBar,
-        private storage: StorageMap,
         private translate: TranslateService
     ) {}
 
@@ -98,6 +89,14 @@ export class SettingsComponent implements OnInit {
      * storage (indexed db)
      */
     ngOnInit(): void {
+        this.setSettings();
+        this.checkAppVersion();
+    }
+
+    /**
+     * Sets saved settings from the indexed db store
+     */
+    setSettings(): void {
         this.settingsService
             .getValueFromLocalStorage(STORE_KEY.Settings)
             .subscribe((settings: Settings) => {
@@ -106,7 +105,7 @@ export class SettingsComponent implements OnInit {
                         player: settings.player
                             ? settings.player
                             : VideoPlayer.VideoJs,
-                        epgUrl: [],
+                        ...(this.isElectron ? { epgUrl: new Array() } : {}),
                         language: settings.language
                             ? settings.language
                             : Language.ENGLISH,
@@ -118,11 +117,11 @@ export class SettingsComponent implements OnInit {
                             : Theme.LightTheme,
                     });
 
-                    this.setEpgUrls(settings.epgUrl);
+                    if (this.isElectron) {
+                        this.setEpgUrls(settings.epgUrl);
+                    }
                 }
             });
-
-        this.checkAppVersion();
     }
 
     /**
@@ -152,17 +151,9 @@ export class SettingsComponent implements OnInit {
      * settings UI
      */
     checkAppVersion(): void {
-        this.http
-            .get(PACKAGE_JSON_URL)
-            .pipe(
-                catchError((err) => {
-                    console.error(err);
-                    throw new Error(err);
-                })
-            )
-            .subscribe((response: { version: string }) => {
-                this.showVersionInformation(response.version);
-            });
+        this.settingsService.getAppVersion().subscribe((version) => {
+            this.showVersionInformation(version);
+        });
     }
 
     /**
@@ -202,24 +193,37 @@ export class SettingsComponent implements OnInit {
      * the indexed db store
      */
     onSubmit(): void {
-        this.storage
-            .set(STORE_KEY.Settings, this.settingsForm.value)
+        this.settingsService
+            .setValueToLocalStorage(
+                STORE_KEY.Settings,
+                this.settingsForm.value,
+                true
+            )
             .subscribe(() => {
-                this.settingsForm.markAsPristine();
-                // check whether the epg url was changed or not
-                if (this.settingsForm.value.epgUrl) {
-                    this.fetchEpg(this.settingsForm.value.epgUrl);
-                }
-                this.translate.use(this.settingsForm.value.language);
-                this.settingsService.changeTheme(this.settingsForm.value.theme);
-                this.snackBar.open(
-                    this.translate.instant('SETTINGS.SETTINGS_SAVED'),
-                    null,
-                    {
-                        duration: 2000,
-                    }
-                );
+                this.applyChangedSettings();
             });
+    }
+
+    /**
+     * Applies the changed settings to the app
+     */
+    applyChangedSettings(): void {
+        this.settingsForm.markAsPristine();
+        // check whether the epg url was changed or not
+        if (this.isElectron) {
+            if (this.settingsForm.value.epgUrl) {
+                this.fetchEpg(this.settingsForm.value.epgUrl);
+            }
+        }
+        this.translate.use(this.settingsForm.value.language);
+        this.settingsService.changeTheme(this.settingsForm.value.theme);
+        this.snackBar.open(
+            this.translate.instant('SETTINGS.SETTINGS_SAVED'),
+            null,
+            {
+                duration: 2000,
+            }
+        );
     }
 
     /**

@@ -1,3 +1,4 @@
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import {
     ComponentFixture,
     inject,
@@ -53,6 +54,7 @@ describe('AppComponent', () => {
                     MockModule(MatSnackBarModule),
                     MockModule(NgxWhatsNewModule),
                     RouterTestingModule,
+                    HttpClientTestingModule,
                 ],
             }).compileComponents();
         })

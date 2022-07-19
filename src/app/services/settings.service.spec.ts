@@ -1,4 +1,5 @@
-import { TestBed, inject } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { inject, TestBed } from '@angular/core/testing';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { of } from 'rxjs';
 import { Theme } from '../settings/theme.enum';
@@ -9,6 +10,7 @@ describe('Service: Settings', () => {
     beforeEach(() => {
         TestBed.configureTestingModule({
             providers: [SettingsService],
+            imports: [HttpClientTestingModule],
         });
     });
 
@@ -33,8 +35,8 @@ describe('Service: Settings', () => {
     ));
 
     it('should get value from the local storage', inject(
-        [SettingsService, StorageMap],
-        (service: SettingsService, storage: StorageMap) => {
+        [SettingsService],
+        (service: SettingsService) => {
             const version = '2.1.0';
             service.setValueToLocalStorage(STORE_KEY.Version, version);
             service
