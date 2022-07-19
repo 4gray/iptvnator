@@ -2,9 +2,9 @@
 import { DatePipe } from '@angular/common';
 import { Component, Inject } from '@angular/core';
 import {
-    FormBuilder,
-    FormControl,
-    FormGroup,
+    UntypedFormBuilder,
+    UntypedFormControl,
+    UntypedFormGroup,
     Validators,
 } from '@angular/forms';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
@@ -25,7 +25,7 @@ export class PlaylistInfoComponent {
     playlist: Playlist;
 
     /** Form group with playlist details */
-    playlistDetails: FormGroup;
+    playlistDetails: UntypedFormGroup;
 
     /**
      * Creates an instance of the component and injects the selected playlist from the parent component
@@ -36,7 +36,7 @@ export class PlaylistInfoComponent {
      */
     constructor(
         private datePipe: DatePipe,
-        private formBuilder: FormBuilder,
+        private formBuilder: UntypedFormBuilder,
         private electronService: DataService,
         @Inject(MAT_DIALOG_DATA) playlist: Playlist
     ) {
@@ -49,26 +49,26 @@ export class PlaylistInfoComponent {
     ngOnInit(): void {
         this.playlistDetails = this.formBuilder.group({
             _id: this.playlist._id,
-            title: new FormControl(this.playlist.title, Validators.required),
+            title: new UntypedFormControl(this.playlist.title, Validators.required),
             userAgent: this.playlist.userAgent || '',
-            filename: new FormControl({
+            filename: new UntypedFormControl({
                 value: this.playlist.filename || '',
                 disabled: true,
             }),
-            count: new FormControl({
+            count: new UntypedFormControl({
                 value: this.playlist.count,
                 disabled: true,
             }),
-            importDate: new FormControl({
+            importDate: new UntypedFormControl({
                 value: this.datePipe.transform(this.playlist.importDate),
                 disabled: true,
             }),
-            url: new FormControl({ value: this.playlist.url, disabled: true }),
-            filePath: new FormControl({
+            url: new UntypedFormControl({ value: this.playlist.url, disabled: true }),
+            filePath: new UntypedFormControl({
                 value: this.playlist.filePath,
                 disabled: true,
             }),
-            autoRefresh: new FormControl(this.playlist.autoRefresh),
+            autoRefresh: new UntypedFormControl(this.playlist.autoRefresh),
         });
     }
 

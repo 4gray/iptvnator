@@ -10,7 +10,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { DatePipe } from '@angular/common';
 import { PlaylistInfoComponent } from './playlist-info.component';
-import { FormsModule, ReactiveFormsModule, FormBuilder } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, UntypedFormBuilder } from '@angular/forms';
 import { Playlist } from './../../../../../shared/playlist.interface';
 
 describe('PlaylistInfoComponent', () => {
@@ -36,7 +36,7 @@ describe('PlaylistInfoComponent', () => {
                 providers: [
                     { provide: MAT_DIALOG_DATA, useValue: {} },
                     { provide: DataService, useClass: ElectronServiceStub },
-                    FormBuilder,
+                    UntypedFormBuilder,
                 ],
             }).compileComponents();
         })

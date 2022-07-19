@@ -1,6 +1,6 @@
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { UntypedFormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDividerModule } from '@angular/material/divider';
@@ -62,7 +62,7 @@ describe('SettingsComponent', () => {
                     MockPipe(TranslatePipe),
                 ],
                 providers: [
-                    FormBuilder,
+                    UntypedFormBuilder,
                     { provide: MatSnackBar, useClass: MatSnackBarStub },
                     {
                         provide: TranslateService,

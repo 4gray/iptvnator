@@ -1,7 +1,9 @@
 {
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "cli": {
-    "defaultCollection": "@angular-eslint/schematics"
+    "schematicCollections": [
+      "@angular-eslint/schematics"
+    ]
   },
   "version": 1,
   "newProjectRoot": "projects",
@@ -162,7 +164,6 @@
       }
     }
   },
-  "defaultProject": "iptvnator",
   "schematics": {
     "@schematics/angular:component": {
       "prefix": "app",

@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import {
-    FormArray,
-    FormBuilder,
-    FormControl,
+    UntypedFormArray,
+    UntypedFormBuilder,
+    UntypedFormControl,
     Validators,
 } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -60,14 +60,14 @@ export class SettingsComponent implements OnInit {
     /** Settings form object */
     settingsForm = this.formBuilder.group({
         player: [VideoPlayer.VideoJs],
-        ...(this.isElectron ? { epgUrl: new FormArray([]) } : {}),
+        ...(this.isElectron ? { epgUrl: new UntypedFormArray([]) } : {}),
         language: Language.ENGLISH,
         showCaptions: false,
         theme: Theme.LightTheme,
     });
 
     /** Form array with epg sources */
-    epgUrl = this.settingsForm.get('epgUrl') as FormArray;
+    epgUrl = this.settingsForm.get('epgUrl') as UntypedFormArray;
 
     /**
      * Creates an instance of SettingsComponent and injects
@@ -77,7 +77,7 @@ export class SettingsComponent implements OnInit {
         private channelQuery: ChannelQuery,
         private electronService: DataService,
         private epgService: EpgService,
-        private formBuilder: FormBuilder,
+        private formBuilder: UntypedFormBuilder,
         private router: Router,
         private settingsService: SettingsService,
         private snackBar: MatSnackBar,
@@ -137,7 +137,7 @@ export class SettingsComponent implements OnInit {
 
         for (const url of epgUrls) {
             this.epgUrl.push(
-                new FormControl(url, [
+                new UntypedFormControl(url, [
                     Validators.required,
                     Validators.pattern(URL_REGEX),
                 ])
@@ -245,7 +245,7 @@ export class SettingsComponent implements OnInit {
      * Initializes new entry in form array for EPG URL
      */
     addEpgSource(): void {
-        this.epgUrl.insert(this.epgUrl.length, new FormControl(''));
+        this.epgUrl.insert(this.epgUrl.length, new UntypedFormControl(''));
     }
 
     /**

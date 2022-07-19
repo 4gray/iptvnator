@@ -1,5 +1,5 @@
 import { Component, EventEmitter, OnInit, Output } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 
 @Component({
@@ -12,7 +12,7 @@ export class UrlUploadComponent implements OnInit {
     @Output() urlAdded: EventEmitter<string> = new EventEmitter();
 
     /** Form group with playlist url */
-    form: FormGroup;
+    form: UntypedFormGroup;
 
     /** Is true if app runs in electron-based environment */
     isElectron = this.dataService.isElectron;
@@ -21,7 +21,7 @@ export class UrlUploadComponent implements OnInit {
      * Creates an instance of component
      * @param fb angular form builder
      */
-    constructor(private fb: FormBuilder, private dataService: DataService) {}
+    constructor(private fb: UntypedFormBuilder, private dataService: DataService) {}
 
     ngOnInit(): void {
         const urlRegex = '(https?://.*?)';
