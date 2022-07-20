@@ -77,7 +77,7 @@ describe('RecentPlaylistsComponent', () => {
             isPointerOverContainer: true,
             distance: { x: 0, y: 0 },
             dropPoint: { x: 0, y: 0 },
-        };
+        } as any;
         jest.spyOn(electronService, 'sendIpcEvent');
         component.drop(event);
         expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
