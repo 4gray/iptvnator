@@ -4,8 +4,13 @@ import * as path from 'path';
 import * as url from 'url';
 import { Api } from './api';
 import { AppMenu } from './menu';
+const {
+    setupTitlebar,
+    attachTitlebarToWindow,
+} = require('custom-electron-titlebar/main');
 const contextMenu = require('electron-context-menu');
 
+setupTitlebar();
 let win: BrowserWindow | null = null;
 const args = process.argv.slice(1),
     serve = args.some((val) => val === '--serve');
@@ -35,6 +40,7 @@ function createWindow(): BrowserWindow {
         minHeight: 700,
         title: 'IPTVnator',
     });
+    attachTitlebarToWindow(win);
 
     require('@electron/remote/main').enable(win.webContents);
 
