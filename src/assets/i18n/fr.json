@@ -2,16 +2,16 @@
     "CLOSE": "Fermer",
     "HOME": {
         "TITLE": "IPTVnator",
-        "SUBTITLE": "Choisissez une liste de lecture, ou ajoutez en une nouvelle via transfert de fichier ou via une URL",
+        "SUBTITLE": "Choisissez une liste de lecture, ou ajoutez en une nouvelle via un transfert de fichier ou via une URL",
         "TABS": {
-            "RECENTLY_ADDED": "Listes de lecture ajoutés récemment",
+            "RECENTLY_ADDED": "Listes de lecture ajoutées récemment",
             "FILE_UPLOAD": "Ajouter un fichier",
             "URL_UPLOAD": "Ajouter une URL"
         },
         "PLAYLISTS": {
-            "NO_PLAYLISTS": "Aucune liste de lecteur n'a été ajouté",
-            "ADD_FIRST": "Veuillez ajouter votre première liste de lecteur par un autre onglet",
-            "ADDED_VIA_URL": "Ajouté par URL. URL:",
+            "NO_PLAYLISTS": "Aucune liste de lecture n'a été ajouté",
+            "ADD_FIRST": "Veuillez ajouter votre première liste de lecture depuis un autre onglet",
+            "ADDED_VIA_URL": "Ajouté par URL. URL :",
             "ADDED_VIA_FILE": "Ajouté par transfert de fichier",
             "CHANNELS": "Chaines",
             "ADDED": "Ajouté",
@@ -22,15 +22,15 @@
                 "TITLE": "Titre",
                 "FROM_URL": "Ajouté par URL",
                 "IMPORT_DATE": "Date d'importation",
-                "CHANNELS": "Nombre de canaux",
+                "CHANNELS": "Nombre de chaines",
                 "CLOSE": "Fermer",
                 "SAVE": "Enregistrer",
                 "USER_AGENT": "Agent utilisateur",
-                "ORIGINAL_FILENAME": "Nom de fichier d'origine",
+                "ORIGINAL_FILENAME": "Nom du fichier d'origine",
                 "FILE_PATH": "Chemin du fichier",
                 "UPDATE_FAILED": "Échec de la dernière mise à jour de liste de lecture",
                 "AUTO_UPDATE": "Mise à jour automatique",
-                "AUTO_UPDATE_DESCRIPTION": "Si la fonction de mise à jour automatique est activé, la liste de lecteur sera mis à jour automatiquement à chaque fois que l'app est lancé.",
+                "AUTO_UPDATE_DESCRIPTION": "Si la fonction de mise à jour automatique est activée, la liste de lecture sera mise à jour automatiquement à chaque fois que l'app est lancée.",
                 "CUSTOM_USER_AGENT": "Certains fournisseurs d'IPTC requiert un agent utilisateur spécifique afin de lire leur liste de lecture."
             },
             "REMOVE_DIALOG": {
@@ -51,7 +51,7 @@
         }
     },
     "SETTINGS": {
-        "TITLE": "Réglages / IPTVnator",
+        "TITLE": "Paramètres / IPTVnator",
         "SUBTITLE": "Modifiez la configuration de l'application",
         "DESCRIPTION": "Changez les options de la liste ci-dessous et enregistrez vos modifications.",
         "EPG_URL_LABEL": "URL du EPG  (*.xml ou *.xml.gz)",
@@ -65,7 +65,7 @@
         "NEW_VERSION_AVAILABLE": "Une nouvelle version est disponible",
         "LATEST_VERSION": "Vous utilisez la dernière version",
         "LANGUAGE": "Langue",
-        "SETTINGS_SAVED": "La configuration a été enregistré avec succès.",
+        "SETTINGS_SAVED": "La configuration a été enregistrée avec succès.",
         "THEME": "Thème",
         "SHOW_CAPTIONS": "Afficher les sous-titres"
     },
