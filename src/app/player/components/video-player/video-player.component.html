@@ -135,13 +135,12 @@
     </mat-drawer-content>
     <!-- right sidebar content -->
     <mat-drawer
-        *ngIf="isElectron"
         position="end"
         #drawerRight
         mode="side"
         (keydown.escape)="close()"
         disableClose
     >
-        <app-epg-list></app-epg-list>
+        <app-epg-list *ngIf="isElectron"></app-epg-list>
     </mat-drawer>
 </mat-drawer-container>
