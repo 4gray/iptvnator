@@ -19,11 +19,17 @@
                     </button>
                     <div class="playlist-info">
                         <div class="name">
-                            {{
-                                sidebarView === 'CHANNELS'
-                                    ? playlistTitle
-                                    : 'My Playlists'
-                            }}
+                            <ng-container
+                                *ngIf="
+                                    sidebarView === 'CHANNELS';
+                                    else allPlaylists
+                                "
+                            >
+                                {{ playlistTitle$ | async }}
+                            </ng-container>
+                            <ng-template #allPlaylists>
+                                My Playlists
+                            </ng-template>
                         </div>
                         <div class="channels-count">
                             {{
@@ -74,7 +80,7 @@
                     <mat-icon>menu</mat-icon>
                 </button>
                 <button
-                    *ngIf="playlistId !== 'GLOBAL_FAVORITES'"
+                    *ngIf="(playlistId$ | async) !== 'GLOBAL_FAVORITES'"
                     mat-icon-button
                     (click)="addToFavorites(activeChannel)"
                     [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
@@ -129,6 +135,7 @@
     </mat-drawer-content>
     <!-- right sidebar content -->
     <mat-drawer
+        *ngIf="isElectron"
         position="end"
         #drawerRight
         mode="side"

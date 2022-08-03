@@ -1,15 +1,11 @@
-import { Component, NgZone, OnInit, ViewChild } from '@angular/core';
+import { Component, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { filter, Observable } from 'rxjs';
+import { filter, map, Observable, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
-import {
-    PLAYLIST_GET_ALL,
-    PLAYLIST_GET_BY_ID,
-    PLAYLIST_PARSE_RESPONSE,
-} from '../../../../../shared/ipc-commands';
+import { PLAYLIST_PARSE_RESPONSE } from '../../../../../shared/ipc-commands';
 import { Playlist } from '../../../../../shared/playlist.interface';
 import { DataService } from '../../../services/data.service';
 import { Settings, VideoPlayer } from '../../../settings/settings.interface';
@@ -25,7 +21,7 @@ type SidebarView = 'CHANNELS' | 'PLAYLISTS';
     templateUrl: './video-player.component.html',
     styleUrls: ['./video-player.component.scss'],
 })
-export class VideoPlayerComponent implements OnInit {
+export class VideoPlayerComponent implements OnInit, OnDestroy {
     /** Active selected channel */
     activeChannel$: Observable<Channel> = this.channelQuery
         .select((state) => state.active)
@@ -62,10 +58,20 @@ export class VideoPlayerComponent implements OnInit {
     @ViewChild('sidenav') sideNav: MatSidenav;
 
     /** ID of the current playlist */
-    playlistId = this.channelQuery.getValue().playlistId;
+    playlistId$ = this.channelQuery.select().pipe(
+        skipWhile(
+            (store) => store.playlistId === '' || store.playlistId === undefined
+        ),
+        map((data) => data.playlistId)
+    );
 
     /** Title of the current playlist */
-    playlistTitle = this.channelQuery.getValue().playlistFilename;
+    playlistTitle$ = this.channelQuery.select().pipe(
+        skipWhile((store) => store.playlistFilename === ''),
+        map((store) => store.playlistFilename)
+    );
+
+    isElectron = this.dataService.isElectron;
 
     /** IPC Renderer commands list with callbacks */
     commandsList = [
@@ -81,12 +87,10 @@ export class VideoPlayerComponent implements OnInit {
     /** Current sidebar view */
     sidebarView: SidebarView = 'CHANNELS';
 
+    listeners = [];
+
     /**
      * Creates an instance of VideoPlayerComponent
-     * @param channelQuery akita's channel query
-     * @param channelStore akita's channel store
-     * @param storage browser storage service
-     * @param snackBar service to push snackbar notifications
      */
     constructor(
         private channelQuery: ChannelQuery,
@@ -96,9 +100,7 @@ export class VideoPlayerComponent implements OnInit {
         private router: Router,
         private snackBar: MatSnackBar,
         private storage: StorageMap
-    ) {
-        this.dataService.sendIpcEvent(PLAYLIST_GET_ALL);
-    }
+    ) {}
 
     /**
      * Sets video player and subscribes to channel list from the store
@@ -118,11 +120,13 @@ export class VideoPlayerComponent implements OnInit {
                     this.ngZone.run(() => command.execute(response))
                 );
             } else {
-                this.dataService.listenOn(command.id, (response) => {
+                const cb = (response) => {
                     if (response.data.type === command.id) {
                         command.execute(response.data);
                     }
-                });
+                };
+                this.dataService.listenOn(command.id, cb);
+                this.listeners.push(cb);
             }
         });
     }
@@ -165,22 +169,22 @@ export class VideoPlayerComponent implements OnInit {
         this.sidebarView = view;
     }
 
-    /**
-     * Requests playlist by id
-     * @param playlistId playlist id
-     */
-    getPlaylist(playlistId: string): void {
-        this.dataService.sendIpcEvent(PLAYLIST_GET_BY_ID, {
-            id: playlistId,
-        });
-    }
-
     /** Navigates back */
     goBack(): void {
         if (this.sidebarView === 'PLAYLISTS') {
             this.router.navigate(['/']);
         } else {
             this.sidebarView = 'PLAYLISTS';
+        }
+    }
+
+    ngOnDestroy() {
+        if (this.dataService.isElectron) {
+            this.dataService.removeAllListeners(PLAYLIST_PARSE_RESPONSE);
+        } else {
+            this.listeners.forEach((listener) =>
+                window.removeEventListener('message', listener)
+            );
         }
     }
 }

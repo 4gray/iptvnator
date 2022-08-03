@@ -66,6 +66,8 @@ export class HomeComponent {
         },
     ];
 
+    listeners = [];
+
     /**
      * Creates an instanceof HomeComponent
      * @param channelStore channels store
@@ -95,11 +97,13 @@ export class HomeComponent {
                     this.ngZone.run(() => command.execute(response))
                 );
             } else {
-                this.electronService.listenOn(command.id, (response) => {
+                const cb = (response) => {
                     if (response.data.type === command.id) {
                         command.execute(response.data);
                     }
-                });
+                };
+                this.electronService.listenOn(command.id, cb);
+                this.listeners.push(cb);
             }
         });
     }
@@ -177,8 +181,14 @@ export class HomeComponent {
      * Remove ipcRenderer listeners after component destroy
      */
     ngOnDestroy(): void {
-        this.commandsList.forEach((command) =>
-            this.electronService.removeAllListeners(command.id)
-        );
+        if (this.electronService.isElectron) {
+            this.commandsList.forEach((command) =>
+                this.electronService.removeAllListeners(command.id)
+            );
+        } else {
+            this.listeners.forEach((listener) => {
+                window.removeEventListener('message', listener);
+            });
+        }
     }
 }

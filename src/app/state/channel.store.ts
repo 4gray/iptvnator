@@ -148,8 +148,8 @@ export class ChannelStore extends EntityStore<ChannelState> {
      */
     setPlaylist(playlist: Playlist): void {
         this.remove();
-        const favorites = playlist.favorites || [];
-        const channels = playlist.playlist.items.map((element) =>
+        const favorites = playlist?.favorites || [];
+        const channels = playlist?.playlist.items.map((element) =>
             createChannel(element)
         );
         this.upsertMany(channels);

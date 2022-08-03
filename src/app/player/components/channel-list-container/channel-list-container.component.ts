@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import * as _ from 'lodash';
-import { Observable } from 'rxjs';
+import { map, Observable, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import { ChannelQuery, ChannelStore } from '../../../state';
 
@@ -33,10 +33,10 @@ export class ChannelListContainerComponent {
     }
 
     /** Object with channels sorted by groups */
-    groupedChannels: { [key: string]: Channel[] };
+    groupedChannels!: { [key: string]: Channel[] };
 
     /** Selected channel */
-    selected: Channel;
+    selected!: Channel;
 
     /** List with favorited channels */
     favorites$: Observable<Channel[]> = this.channelQuery.select((store) =>
@@ -62,21 +62,21 @@ export class ChannelListContainerComponent {
     }
 
     /** ID of the current playlist */
-    playlistId: string;
+    playlistId$ = this.channelQuery.select().pipe(
+        skipWhile(
+            (store) => store.playlistId === '' || store.playlistId === undefined
+        ),
+        map((data) => data.playlistId)
+    );
 
     /**
      * Creates an instance of ChannelListContainerComponent
-     * @param channelQuery akita's channel query
-     * @param channelStore akita's channel store
-     * @param snackBar service to push snackbar notifications
      */
     constructor(
         private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
         private snackBar: MatSnackBar
-    ) {
-        this.playlistId = this.channelQuery.getValue().playlistId;
-    }
+    ) {}
 
     /**
      * Sets clicked channel as selected and emits them to the parent component
