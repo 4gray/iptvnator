@@ -13,6 +13,7 @@ import {
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
+    PLAYLIST_PARSE_TEXT,
     PLAYLIST_REMOVE_BY_ID,
     PLAYLIST_REMOVE_BY_ID_RESPONSE,
     PLAYLIST_SAVE_DETAILS,
@@ -150,6 +151,34 @@ export class PwaService extends DataService {
                         payload: playlist,
                     });
                 });
+        } else if (type === PLAYLIST_PARSE_TEXT) {
+            try {
+                const parsedPlaylist = this.parsePlaylist(
+                    payload.text.split('\n')
+                );
+                const playlistObject = this.createPlaylistObject(
+                    'Imported as text',
+                    parsedPlaylist
+                );
+
+                // save to db
+                this.dbService
+                    .add(DbStores.Playlists, playlistObject)
+                    .subscribe(() => {
+                        console.log('playlist was saved to db...');
+                    });
+
+                window.postMessage({
+                    type: PLAYLIST_PARSE_RESPONSE,
+                    payload: playlistObject,
+                });
+            } catch (error) {
+                window.postMessage({
+                    type: ERROR,
+                    status: '',
+                    message: 'Validation error - invalid playlist',
+                });
+            }
         } else if (type === PLAYLIST_GET_ALL) {
             this.dbService
                 .getAll(DbStores.Playlists)

@@ -7,6 +7,7 @@ import {
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
+    PLAYLIST_PARSE_TEXT,
     PLAYLIST_UPDATE_RESPONSE,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
@@ -151,6 +152,17 @@ export class HomeComponent {
         this.electronService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
             title: this.getLastUrlSegment(playlistUrl),
             url: playlistUrl,
+        });
+    }
+
+    /**
+     * Sends IPC event to the renderer process to parse playlist
+     * @param text playlist as string
+     */
+    uploadAsText(text: string): void {
+        this.isLoading = true;
+        this.electronService.sendIpcEvent(PLAYLIST_PARSE_TEXT, {
+            text,
         });
     }
 

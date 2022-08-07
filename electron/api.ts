@@ -19,6 +19,7 @@ import {
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
+    PLAYLIST_PARSE_TEXT,
     PLAYLIST_REMOVE_BY_ID,
     PLAYLIST_REMOVE_BY_ID_RESPONSE,
     PLAYLIST_SAVE_DETAILS,
@@ -82,6 +83,27 @@ export class Api {
                     event.sender.send(PLAYLIST_PARSE_RESPONSE, {
                         payload: playlistObject,
                     });
+                });
+            } catch (err) {
+                event.sender.send(ERROR, {
+                    message: err.response.statusText,
+                    status: err.response.status,
+                });
+            }
+        });
+
+        ipcMain.on(PLAYLIST_PARSE_TEXT, (event, args) => {
+            try {
+                const parsedPlaylist = this.parsePlaylist(
+                    args.text.split('\n')
+                );
+                const playlistObject = this.createPlaylistObject(
+                    'Imported as text',
+                    parsedPlaylist
+                );
+                this.insertToDb(playlistObject);
+                event.sender.send(PLAYLIST_PARSE_RESPONSE, {
+                    payload: playlistObject,
                 });
             } catch (err) {
                 event.sender.send(ERROR, {

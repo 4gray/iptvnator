@@ -43,6 +43,17 @@
                 ></app-url-upload>
             </ng-template>
         </mat-tab>
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <mat-icon class="tab-icon">text_format</mat-icon>
+                {{ 'HOME.TABS.TEXT_IMPORT' | translate }}
+            </ng-template>
+            <ng-template matTabContent>
+                <app-text-import
+                    (textAdded)="uploadAsText($event)"
+                ></app-text-import>
+            </ng-template>
+        </mat-tab>
     </mat-tab-group>
 
     <!-- Loading spinner -->

@@ -1,0 +1,18 @@
+<form (ngSubmit)="textAdded.emit(textForm.value.text)" [formGroup]="textForm">
+    <mat-form-field class="full-width" appearance="fill">
+        <mat-label>{{ 'HOME.TEXT_IMPORT.LABEL' | translate }}</mat-label>
+        <textarea
+            formControlName="text"
+            matInput
+            placeholder="#EXTM3U url-tvg=..."
+        ></textarea>
+    </mat-form-field>
+    <button
+        mat-flat-button
+        color="primary"
+        type="submit"
+        [disabled]="!textForm.valid"
+    >
+        {{ 'HOME.TEXT_IMPORT.BUTTON_LABEL' | translate }}
+    </button>
+</form>

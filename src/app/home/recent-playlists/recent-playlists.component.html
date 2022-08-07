@@ -11,9 +11,11 @@
         (click)="getPlaylist('GLOBAL_FAVORITES')"
     >
         <mat-icon class="favorites-icon" mat-list-icon>star</mat-icon>
-        <div mat-line>Global favorites</div>
+        <div mat-line>
+            {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES_DESCRIPTION' | translate }}
+        </div>
         <div mat-line class="meta">
-            Auto-generated playlist with aggregated favorites from all playlists
+            {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}
         </div>
         <mat-divider></mat-divider>
     </mat-list-item>
