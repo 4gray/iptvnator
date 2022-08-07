@@ -72,16 +72,24 @@
             "REMOVE_DIALOG": {
                 "MESSAGE": "Sind Sie sicher, dass Sie diese Wiedergabeliste vollständig löschen möchten",
                 "TITLE": ""
-            }
+            },
+            "GLOBAL_FAVORITES": "Globale Favoriten",
+            "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
+            "MY_PLAYLISTS": "Meine Playlisten"
         },
         "TABS": {
             "FILE_UPLOAD": "Aus Dateisystem hochladen",
             "RECENTLY_ADDED": "Zuletzt hinzugefügt",
-            "URL_UPLOAD": "Via URL hinzufügen"
+            "URL_UPLOAD": "Via URL hinzufügen",
+            "TEXT_IMPORT": "Als Text importieren"
         },
         "URL_UPLOAD": {
             "ADD_PLAYLIST": "Playlist hinzufügen",
             "PLAYLIST_URL": "URL der Playlist"
+        },
+        "TEXT_IMPORT": {
+            "LABEL": "Füge m3u(8)-Wiedergabeliste hier als Text ein",
+            "BUTTON_LABEL": "Importieren"
         }
     },
     "LANGUAGES": {

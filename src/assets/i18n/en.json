@@ -6,7 +6,8 @@
         "TABS": {
             "RECENTLY_ADDED": "Recently added playlists",
             "FILE_UPLOAD": "Add via file upload",
-            "URL_UPLOAD": "Add via URL"
+            "URL_UPLOAD": "Add via URL",
+            "TEXT_IMPORT": "Import as text"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "No playlists were added",
@@ -38,7 +39,10 @@
                 "MESSAGE": "Are you sure you want to delete this playlist completely?"
             },
             "UPDATED": "Updated",
-            "REFRESH": "Refresh playlist"
+            "REFRESH": "Refresh playlist",
+            "GLOBAL_FAVORITES": "Global favorites",
+            "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
+            "MY_PLAYLISTS": "My playlists"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Drag & drop files here",
@@ -48,6 +52,10 @@
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",
             "ADD_PLAYLIST": "Add playlist"
+        },
+        "TEXT_IMPORT": {
+            "LABEL": "Insert m3u(8) playlist as text",
+            "BUTTON_LABEL": "Import"
         }
     },
     "SETTINGS": {

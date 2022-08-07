@@ -6,7 +6,8 @@
         "TABS": {
             "RECENTLY_ADDED": "最近添加的播放列表",
             "FILE_UPLOAD": "从文件添加",
-            "URL_UPLOAD": "从URL链接添加"
+            "URL_UPLOAD": "从URL链接添加",
+            "TEXT_IMPORT": "Import as text"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "未添加播放列表",
@@ -38,7 +39,10 @@
                 "MESSAGE": "您确定要完全删除此播放列表吗？"
             },
             "UPDATED": "更新",
-            "REFRESH": "刷新播放列表"
+            "REFRESH": "刷新播放列表",
+            "GLOBAL_FAVORITES": "Global favorites",
+            "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
+            "MY_PLAYLISTS": "My playlists"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "将文件拖放到此处",
@@ -48,6 +52,10 @@
         "URL_UPLOAD": {
             "PLAYLIST_URL": "播放一个播放列表(m3u, m3u8)",
             "ADD_PLAYLIST": "添加播放列表"
+        },
+        "TEXT_IMPORT": {
+            "LABEL": "Insert m3u(8) playlist as text",
+            "BUTTON_LABEL": "Import"
         }
     },
     "SETTINGS": {

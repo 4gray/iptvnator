@@ -6,7 +6,8 @@
         "TABS": {
             "RECENTLY_ADDED": "Listas añadidas recientemente",
             "FILE_UPLOAD": "Añadir y cargar archivo",
-            "URL_UPLOAD": "Añadir por url"
+            "URL_UPLOAD": "Añadir por url",
+            "TEXT_IMPORT": "Import as text"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "No se añadieron listas de reproducción",
@@ -38,7 +39,10 @@
                 "MESSAGE": "¿Estás seguro de quitar esta lista de reproducción por completo?"
             },
             "UPDATED": "Actualizado",
-            "REFRESH": "Actualizar lista"
+            "REFRESH": "Actualizar lista",
+            "GLOBAL_FAVORITES": "Global favorites",
+            "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
+            "MY_PLAYLISTS": "My playlists"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Arrastra & suelta archivos aquí",
@@ -48,6 +52,10 @@
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Lista de reproducción (m3u, m3u8)",
             "ADD_PLAYLIST": "Añadir lista"
+        },
+        "TEXT_IMPORT": {
+            "LABEL": "Insert m3u(8) playlist as text",
+            "BUTTON_LABEL": "Import"
         }
     },
     "SETTINGS": {

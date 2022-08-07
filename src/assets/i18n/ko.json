@@ -6,7 +6,8 @@
         "TABS": {
             "RECENTLY_ADDED": "최근 재생 목록이 추가되었습니다",
             "FILE_UPLOAD": "파일 업로드를 통해 추가하십시오",
-            "URL_UPLOAD": "URL을 통해 추가하십시오"
+            "URL_UPLOAD": "URL을 통해 추가하십시오",
+            "TEXT_IMPORT": "Import as text"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "재생 목록이 추가되지 않았습니다",
@@ -38,7 +39,10 @@
                 "MESSAGE": "이 재생 목록을 완전히 삭제 하시겠습니까?"
             },
             "UPDATED": "업데이트 됨",
-            "REFRESH": "재생 목록 새로 고침"
+            "REFRESH": "재생 목록 새로 고침",
+            "GLOBAL_FAVORITES": "Global favorites",
+            "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
+            "MY_PLAYLISTS": "My playlists"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "파일을 드래그 앤 드롭",
@@ -48,6 +52,10 @@
         "URL_UPLOAD": {
             "PLAYLIST_URL": "재생 목록 URL (m3u, m3u8)",
             "ADD_PLAYLIST": "재생 목록을 추가하십시오"
+        },
+        "TEXT_IMPORT": {
+            "LABEL": "Insert m3u(8) playlist as text",
+            "BUTTON_LABEL": "Import"
         }
     },
     "SETTINGS": {
