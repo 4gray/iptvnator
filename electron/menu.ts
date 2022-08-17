@@ -113,7 +113,7 @@ export class AppMenu {
                                 __dirname,
                                 'build/assets/icons/icon.png'
                             ),
-                            copyright: 'Copyright (c) 2020-2021 4gray',
+                            copyright: 'Copyright (c) 2020-2022 4gray',
                             package_json_dir: __dirname,
                         }),
                 },

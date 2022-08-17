@@ -56,13 +56,13 @@
         "@ngx-pwa/local-storage": "13.0.5",
         "@videojs/http-streaming": "2.13.1",
         "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
-        "about-window": "1.13.4",
+        "about-window": "1.15.2",
         "axios": "0.21.2",
         "custom-electron-titlebar": "4.1.0",
         "date-fns": "2.28.0",
         "electron-context-menu": "3.1.1",
         "epg-parser": "0.1.1",
-        "hls.js": "1.0.11",
+        "hls.js": "1.2.1",
         "iptv-playlist-parser": "0.8.0",
         "lodash": "4.17.21",
         "material-icons": "0.3.1",
@@ -75,7 +75,7 @@
         "rxjs": "7.5.6",
         "semver": "7.3.5",
         "uuid": "8.3.2",
-        "video.js": "7.17.0",
+        "video.js": "7.20.2",
         "videojs-contrib-quality-levels": "2.1.0",
         "videojs-hls-quality-selector": "1.1.4",
         "zone.js": "~0.11.4"
@@ -120,8 +120,8 @@
         "conventional-changelog-cli": "2.2.2",
         "core-js": "3.6.5",
         "cross-env": "7.0.3",
-        "electron": "16.2.6",
-        "electron-builder": "22.14.5",
+        "electron": "20.0.2",
+        "electron-builder": "23.3.3",
         "eslint": "7.32.0",
         "eslint-plugin-import": "2.25.2",
         "husky": "5.0.9",
@@ -141,8 +141,7 @@
         "ts-node": "8.10.2",
         "tslib": "2.3.0",
         "typescript": "4.7.4",
-        "wait-on": "6.0.0",
-        "xvfb-maybe": "0.2.1"
+        "wait-on": "6.0.0"
     },
     "engines": {
         "node": ">=14.0.0"
