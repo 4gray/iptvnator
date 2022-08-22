@@ -130,5 +130,15 @@
         "CHINESE": "简体中文"
     },
     "YES": "Oui",
-    "NO": "Non"
+    "NO": "Non",
+    "MENU": {
+        "OPEN": "Open menu",
+        "SUPPORT_ARIA": "Support IPTVnator on GitHub",
+        "SETTINGS": "Settings",
+        "SETTINGS_ARIA": "Open settings",
+        "BUG_REPORT": "Report a bug",
+        "WHAT_IS_NEW": "What is new",
+        "ABOUT": "About",
+        "ABOUT_ARIA": "About the application"
+    }
 }

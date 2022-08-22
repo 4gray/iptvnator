@@ -130,5 +130,15 @@
         "FRENCH": "Français"
     },
     "NO": "Нет",
-    "YES": "Да"
+    "YES": "Да",
+    "MENU": {
+        "OPEN": "Открыть меню",
+        "SUPPORT_ARIA": "Поддержать IPTVnator на GitHub",
+        "SETTINGS": "Настройки",
+        "SETTINGS_ARIA": "Открыть настройки",
+        "BUG_REPORT": "Сообщить об ошибке",
+        "WHAT_IS_NEW": "Что нового?",
+        "ABOUT": "О приложении",
+        "ABOUT_ARIA": "О приложении"
+    }
 }

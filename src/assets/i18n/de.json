@@ -130,5 +130,15 @@
         "TOGGLE_FAVORITE_FLAG": "Als Favoriten hinzufügen/entfernen"
     },
     "NO": "Nein",
-    "YES": "Ja"
+    "YES": "Ja",
+    "MENU": {
+        "OPEN": "Menü öffnen",
+        "SUPPORT_ARIA": "IPTVnator auf GitHub unterstützen",
+        "SETTINGS": "Einstellungen",
+        "SETTINGS_ARIA": "Einstellungen öffnen",
+        "BUG_REPORT": "Fehler melden",
+        "WHAT_IS_NEW": "Was ist neu",
+        "ABOUT": "Über",
+        "ABOUT_ARIA": "Über die Anwendung"
+    }
 }
