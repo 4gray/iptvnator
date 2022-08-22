@@ -15,7 +15,7 @@ import {
     PLAYLIST_UPDATE_POSITIONS,
 } from './../../../../shared/ipc-commands';
 import { DialogService } from './../../services/dialog.service';
-import { PlaylistMeta } from './../home.component';
+import { PlaylistMeta } from './../../shared/playlist-meta.type';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 
 @Component({

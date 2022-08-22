@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { PlaylistMeta } from '../../home.component';
+import { PlaylistMeta } from '../../../shared/playlist-meta.type';
 
 @Component({
     selector: 'app-playlist-item',

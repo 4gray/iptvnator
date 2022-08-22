@@ -15,15 +15,21 @@
         <mat-tab>
             <ng-template mat-tab-label>
                 <mat-icon class="tab-icon">list</mat-icon>
-                {{ 'HOME.TABS.RECENTLY_ADDED' | translate }}
+                <div class="tab-title">
+                    {{ 'HOME.TABS.RECENTLY_ADDED' | translate }}
+                </div>
             </ng-template>
-            <app-recent-playlists class="recent-playlists">
-            </app-recent-playlists>
+            <ng-template matTabContent>
+                <app-recent-playlists class="recent-playlists">
+                </app-recent-playlists>
+            </ng-template>
         </mat-tab>
         <mat-tab>
             <ng-template mat-tab-label>
                 <mat-icon class="tab-icon">attach_file</mat-icon>
-                {{ 'HOME.TABS.FILE_UPLOAD' | translate }}
+                <div class="tab-title">
+                    {{ 'HOME.TABS.FILE_UPLOAD' | translate }}
+                </div>
             </ng-template>
             <ng-template matTabContent>
                 <app-file-upload
@@ -35,7 +41,9 @@
         <mat-tab>
             <ng-template mat-tab-label>
                 <mat-icon class="tab-icon">link</mat-icon>
-                {{ 'HOME.TABS.URL_UPLOAD' | translate }}
+                <div class="tab-title">
+                    {{ 'HOME.TABS.URL_UPLOAD' | translate }}
+                </div>
             </ng-template>
             <ng-template matTabContent>
                 <app-url-upload
@@ -46,7 +54,9 @@
         <mat-tab>
             <ng-template mat-tab-label>
                 <mat-icon class="tab-icon">text_format</mat-icon>
-                {{ 'HOME.TABS.TEXT_IMPORT' | translate }}
+                <div class="tab-title">
+                    {{ 'HOME.TABS.TEXT_IMPORT' | translate }}
+                </div>
             </ng-template>
             <ng-template matTabContent>
                 <app-text-import

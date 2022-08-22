@@ -14,7 +14,7 @@ import {
 import { DataService } from '../../services/data.service';
 import { DialogService } from '../../services/dialog.service';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
-import { PlaylistMeta } from '../home.component';
+import { PlaylistMeta } from '../../shared/playlist-meta.type';
 import { RecentPlaylistsComponent } from './recent-playlists.component';
 
 describe('RecentPlaylistsComponent', () => {

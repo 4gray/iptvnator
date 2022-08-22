@@ -1,14 +1,38 @@
 :host {
     background: #000;
     color: #fff;
+    display: flex;
+    width: 100%;
 }
 
-.title {
-    font-size: 1.1em;
+.logo {
+    flex: 1 1 100px;
 }
 
-.subtitle {
-    color: #999;
-    font-size: 0.9em;
-    margin-top: 10px;
+.main {
+    place-content: center flex-start;
+    align-self: center;
+    flex-direction: column;
+    box-sizing: border-box;
+    display: flex;
+    flex: 1 1 100%;
+    max-width: 100%;
+
+    .title {
+        font-size: 1.1em;
+    }
+
+    .subtitle {
+        color: #999;
+        font-size: 0.9em;
+        margin-top: 10px;
+    }
+}
+
+.menu {
+    place-content: center;
+    align-self: center;
+    min-width: 50px;
+    max-width: 50px;
+    display: flex;
 }

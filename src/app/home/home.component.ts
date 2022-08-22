@@ -12,23 +12,8 @@ import {
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
+import { PlaylistMeta } from '../shared/playlist-meta.type';
 import { ChannelStore } from '../state';
-
-/** Type to describe meta data of a playlist */
-export type PlaylistMeta = Pick<
-    Playlist,
-    | 'count'
-    | 'title'
-    | 'filename'
-    | '_id'
-    | 'url'
-    | 'importDate'
-    | 'userAgent'
-    | 'filePath'
-    | 'updateDate'
-    | 'updateState'
-    | 'position'
->;
 
 @Component({
     selector: 'app-home',
