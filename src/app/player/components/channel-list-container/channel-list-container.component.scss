@@ -65,7 +65,7 @@
     -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     font-size: 0.9em;
-    width: 290px;
+    max-width: 290px;
 }
 
 [type='search']::-webkit-search-cancel-button {
@@ -77,4 +77,9 @@
     background-image: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCA5NiA5NiIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgOTYgOTYiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPHBvbHlnb24gZmlsbD0iI2VlZSIgcG9pbnRzPSI5NiwxNCA4MiwwIDQ4LDM0IDE0LDAgMCwxNCAzNCw0OCAwLDgyIDE0LDk2IDQ4LDYyIDgyLDk2IDk2LDgyIDYyLDQ4ICIvPg0KPC9zdmc+DQo=');
     background-size: 10px 10px;
     color: #fff;
+}
+
+#groups-list,
+#favorites-list {
+    height: calc(100vh - 120px);
 }

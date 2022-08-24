@@ -10,6 +10,9 @@
     left: 0;
     right: 0;
     backdrop-filter: blur(10px);
+    flex-direction: row;
+    box-sizing: border-box;
+    display: flex;
 }
 
 .program-name,
@@ -23,6 +26,18 @@
 
 .channel-logo {
     margin-top: 20px;
+    place-content: flex-start center;
+    align-items: flex-start;
+    flex-direction: row;
+    box-sizing: border-box;
+    display: flex;
+    flex: 1 1 100px;
+    max-width: 100px;
+    min-width: 100px;
+}
+
+.content {
+    width: 100%;
 }
 
 .program-progress {

@@ -1,18 +1,17 @@
 <div
     class="channel-overlay"
-    fxLayout="row"
     *ngIf="channel && epgProgram"
     [class.visible]="isVisible"
     [class.hidden]="!isVisible"
 >
-    <div fxFlex="100px" fxLayoutAlign="center start" class="channel-logo">
+    <div class="channel-logo">
         <img
             [src]="epgProgram?.icon[0] || channel?.tvg?.logo"
             width="68"
             onerror="this.style.display='none'"
         />
     </div>
-    <div fxFlex>
+    <div class="content">
         <div class="program-name">
             {{ epgProgram?.title[0]?.value }} | {{ channel.name }}
         </div>
