@@ -31,6 +31,7 @@ import {
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_FAVORITES,
     PLAYLIST_UPDATE_POSITIONS,
+    PLAYLIST_UPDATE_RESPONSE,
 } from '../../../shared/ipc-commands';
 import {
     Playlist,
@@ -279,36 +280,38 @@ export class PwaService extends DataService {
                             type: ERROR,
                         });
                         return throwError(() => error);
-                    })
-                )
-                .subscribe((response: any) => {
-                    const refreshedPlaylist =
-                        this.convertFileStringToPlaylist(response);
-
-                    this.dbService
-                        .getByID(DbStores.Playlists, payload.id)
-                        .pipe(
-                            switchMap((currentPlaylist: Playlist) => {
-                                return this.dbService.update(
-                                    DbStores.Playlists,
-                                    {
+                    }),
+                    map((response) =>
+                        this.convertFileStringToPlaylist(response)
+                    ),
+                    switchMap((refreshedPlaylist) =>
+                        this.dbService
+                            .getByID(DbStores.Playlists, payload.id)
+                            .pipe(
+                                switchMap((currentPlaylist: Playlist) =>
+                                    this.dbService.update(DbStores.Playlists, {
                                         ...currentPlaylist,
                                         ...refreshedPlaylist,
                                         count: refreshedPlaylist.items.length,
                                         updateDate: Date.now(),
                                         updateState:
                                             PlaylistUpdateState.UPDATED,
-                                    }
-                                );
-                            })
-                        )
-                        .subscribe((playlists) => {
-                            console.log('playlist was updated...');
-                            window.postMessage({
-                                type: PLAYLIST_GET_ALL_RESPONSE,
-                                payload: playlists,
-                            });
-                        });
+                                    })
+                                )
+                            )
+                    )
+                )
+                .subscribe((playlists) => {
+                    console.log('playlist was updated...');
+                    window.postMessage({
+                        type: PLAYLIST_GET_ALL_RESPONSE,
+                        payload: playlists,
+                    });
+
+                    window.postMessage({
+                        type: PLAYLIST_UPDATE_RESPONSE,
+                        message: `Success! The playlist was successfully updated.`,
+                    });
                 });
         } else if (type === PLAYLIST_UPDATE_POSITIONS) {
             const requests = payload.map((playlist, index) => {
