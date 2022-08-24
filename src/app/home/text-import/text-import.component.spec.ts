@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
 
@@ -13,7 +14,11 @@ describe('TextImportComponent', () => {
         waitForAsync(() => {
             TestBed.configureTestingModule({
                 declarations: [TextImportComponent, MockPipe(TranslatePipe)],
-                imports: [MockModule(MatInputModule)],
+                imports: [
+                    MockModule(MatInputModule),
+                    MockModule(FormsModule),
+                    MockModule(ReactiveFormsModule),
+                ],
             }).compileComponents();
         })
     );
