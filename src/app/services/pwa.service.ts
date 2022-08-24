@@ -1,9 +1,20 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { ApplicationRef, inject, Injectable } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { SwUpdate } from '@angular/service-worker';
 import { guid } from '@datorama/akita';
 import { parse } from 'iptv-playlist-parser';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { catchError, combineLatest, map, switchMap, throwError } from 'rxjs';
+import {
+    catchError,
+    combineLatest,
+    concat,
+    first,
+    interval,
+    map,
+    switchMap,
+    throwError,
+} from 'rxjs';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../shared/constants';
 import {
     ERROR,
@@ -43,6 +54,10 @@ export class PwaService extends DataService {
         ? 'https://iptvnator-playlist-parser-api.vercel.app/parse?url='
         : 'http://localhost:3000/parse?url=';
 
+    appRef = inject(ApplicationRef);
+    snackBar = inject(MatSnackBar);
+    swUpdate = inject(SwUpdate);
+
     /**
      * Creates an instance of PwaService.
      * @param dbService database service
@@ -54,6 +69,36 @@ export class PwaService extends DataService {
     ) {
         super();
         console.log('PWA service initialized...');
+    }
+
+    /**
+     * Uses service worker mechanism to check for available application updates
+     */
+    checkUpdates() {
+        if (this.swUpdate.isEnabled) {
+            const appIsStable$ = this.appRef.isStable.pipe(
+                first((isStable) => isStable === true)
+            );
+            const everySixHours$ = interval(6 * 60 * 60 * 1000);
+            const everySixHoursOnceAppIsStable$ = concat(
+                appIsStable$,
+                everySixHours$
+            );
+
+            everySixHoursOnceAppIsStable$.subscribe(() =>
+                this.swUpdate.checkForUpdate()
+            );
+
+            this.swUpdate.versionUpdates.subscribe(() => {
+                let snackBarRef = this.snackBar.open(
+                    'Update available',
+                    'Refresh'
+                );
+                snackBarRef.onAction().subscribe(() => {
+                    document.location.reload();
+                });
+            });
+        }
     }
 
     /**
