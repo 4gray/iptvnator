@@ -24,15 +24,17 @@
         <mat-icon>menu</mat-icon>
     </button>
     <mat-menu #menu="matMenu">
-        <button
-            mat-menu-item
-            [attr.aria-label]="'MENU.SETTINGS_ARIA' | translate"
-            (click)="openSettings()"
-        >
-            <mat-icon>settings</mat-icon>
-            <span>{{ 'MENU.SETTINGS' | translate }}</span>
-        </button>
-        <mat-divider></mat-divider>
+        <ng-container *ngIf="isHome">
+            <button
+                mat-menu-item
+                [attr.aria-label]="'MENU.SETTINGS_ARIA' | translate"
+                (click)="openSettings()"
+            >
+                <mat-icon>settings</mat-icon>
+                <span>{{ 'MENU.SETTINGS' | translate }}</span>
+            </button>
+            <mat-divider></mat-divider>
+        </ng-container>
         <button
             mat-menu-item
             [attr.aria-label]="'MENU.SUPPORT_ARIA' | translate"

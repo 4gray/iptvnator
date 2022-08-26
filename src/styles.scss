@@ -21,6 +21,7 @@ html {
 @media (display-mode: standalone) {
     body {
         overscroll-behavior-y: contain;
+        overflow: hidden;
     }
 }
 
@@ -96,5 +97,9 @@ textarea,
     #groups-list,
     #favorites-list {
         height: calc(100vh - 148px) !important;
+    }
+
+    .scroll-viewport {
+        min-height: calc(100vh - 200px) !important;
     }
 }

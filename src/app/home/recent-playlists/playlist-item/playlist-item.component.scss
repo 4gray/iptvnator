@@ -30,3 +30,17 @@ mat-list-item {
     cursor: move;
     margin-left: -20px;
 }
+
+::ng-deep {
+    @media only screen and (max-width: 480px) {
+        .main-container {
+            .favorites-icon,
+            .upload-type-icon,
+            .refresh-btn,
+            .edit-btn,
+            .delete-btn {
+                display: none;
+            }
+        }
+    }
+}

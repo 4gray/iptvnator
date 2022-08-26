@@ -58,3 +58,16 @@
 .electron {
     height: calc(100vh - 85px) !important;
 }
+
+@media only screen and (max-width: 480px) {
+    .mat-drawer {
+        width: 200px;
+        min-width: 200px;
+    }
+
+    .playlist-info {
+        .name {
+            max-width: 105px;
+        }
+    }
+}

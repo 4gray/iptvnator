@@ -1,5 +1,11 @@
 <mat-tab-group color="primary" backgroundColor="primary">
-    <mat-tab [label]="'CHANNELS.ALL_CHANNELS' | translate">
+    <mat-tab>
+        <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">list</mat-icon>
+            <div class="tab-title">
+                {{ 'CHANNELS.ALL_CHANNELS' | translate }}
+            </div>
+        </ng-template>
         <mat-list>
             <mat-list-item>
                 <input
@@ -42,7 +48,13 @@
         </mat-nav-list>
     </mat-tab>
 
-    <mat-tab [label]="'CHANNELS.GROUPS' | translate">
+    <mat-tab>
+        <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">category</mat-icon>
+            <div class="tab-title">
+                {{ 'CHANNELS.GROUPS' | translate }}
+            </div>
+        </ng-template>
         <mat-nav-list id="groups-list">
             <mat-accordion multi>
                 <ng-container *ngFor="let groups of groupedChannels | keyvalue">
@@ -88,10 +100,13 @@
         </mat-nav-list>
     </mat-tab>
 
-    <mat-tab
-        *ngIf="(playlistId$ | async) !== 'GLOBAL_FAVORITES'"
-        [label]="'CHANNELS.FAVORITES' | translate"
-    >
+    <mat-tab *ngIf="(playlistId$ | async) !== 'GLOBAL_FAVORITES'">
+        <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">star</mat-icon>
+            <div class="tab-title">
+                {{ 'CHANNELS.FAVORITES' | translate }}
+            </div>
+        </ng-template>
         <mat-nav-list
             *ngIf="favorites$ | async as favorites"
             id="favorites-list"

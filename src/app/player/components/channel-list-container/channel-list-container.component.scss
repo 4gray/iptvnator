@@ -6,10 +6,6 @@
     padding-top: 0;
 }
 
-::ng-deep .mat-expansion-panel-body {
-    padding: 0 !important;
-}
-
 .scroll-viewport {
     min-height: calc(100vh - 165px);
 }
@@ -26,20 +22,24 @@
     overflow: hidden;
 }
 
-::ng-deep .dark-theme {
-    .search-bar {
-        background: #666;
-        color: #fff;
-    }
-
-    .search-bar::placeholder {
-        color: #ccc;
-    }
-}
-
 ::ng-deep {
-    .dark-theme .active {
-        background: #000;
+    .mat-expansion-panel-body {
+        padding: 0 !important;
+    }
+
+    .dark-theme {
+        .search-bar {
+            background: #666;
+            color: #fff;
+        }
+
+        .search-bar::placeholder {
+            color: #ccc;
+        }
+
+        .active {
+            background: #000;
+        }
     }
 
     .mat-tab-label-content {
@@ -82,4 +82,18 @@
 #groups-list,
 #favorites-list {
     height: calc(100vh - 120px);
+}
+
+@media only screen and (max-width: 480px) {
+    .channel-name {
+        max-width: 100px;
+    }
+
+    .tab-title {
+        display: none;
+    }
+
+    .tab-icon {
+        display: block;
+    }
 }

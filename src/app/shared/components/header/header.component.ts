@@ -1,6 +1,7 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { HomeComponent } from '../../../home/home.component';
 import { DataService } from '../../../services/data.service';
 import { WhatsNewService } from '../../../services/whats-new.service';
 import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
@@ -10,12 +11,12 @@ import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
     templateUrl: './header.component.html',
     styleUrls: ['./header.component.scss'],
 })
-export class HeaderComponent {
+export class HeaderComponent implements OnInit {
     /** Title of the header */
-    @Input() title: string;
+    @Input() title!: string;
 
     /** Subtitle of the header */
-    @Input() subtitle: string;
+    @Input() subtitle!: string;
 
     /** Environment flag */
     isElectron = this.dataService.isElectron;
@@ -29,17 +30,21 @@ export class HeaderComponent {
     /** Modals to show for the updated version of the application */
     modals = this.whatsNewService.getLatestChanges();
 
-    /** Creates an instance of SettingsComponent and injects angulars router module
-     * @param router angulars router
-     * @param dataService
-     * @param whatsNewService
-     */
+    isHome = true;
+
+    /** Creates an instance of SettingsComponent */
     constructor(
-        private router: Router,
+        private activatedRoute: ActivatedRoute,
+        private dialog: MatDialog,
         private dataService: DataService,
-        private whatsNewService: WhatsNewService,
-        private dialog: MatDialog
+        private router: Router,
+        private whatsNewService: WhatsNewService
     ) {}
+
+    ngOnInit() {
+        this.isHome =
+            this.activatedRoute.snapshot.component.name === HomeComponent.name;
+    }
 
     /**
      * Navigates to the settings page
