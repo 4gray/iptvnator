@@ -8,6 +8,8 @@ import {
     EPG_FETCH,
     EPG_FETCH_DONE,
     EPG_GET_CHANNELS,
+    EPG_GET_CHANNELS_BY_RANGE,
+    EPG_GET_CHANNELS_BY_RANGE_RESPONSE,
     EPG_GET_CHANNELS_DONE,
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
@@ -192,6 +194,19 @@ export class Api {
             )
             .on(EPG_ERROR, (event, arg) =>
                 this.mainWindow.webContents.send(EPG_ERROR, arg)
+            )
+            .on(EPG_GET_CHANNELS_BY_RANGE, (event, arg) => {
+                console.log(JSON.stringify(arg));
+                this.workerWindow.webContents.send(
+                    EPG_GET_CHANNELS_BY_RANGE,
+                    arg
+                );
+            })
+            .on(EPG_GET_CHANNELS_BY_RANGE_RESPONSE, (event, arg) =>
+                this.mainWindow.webContents.send(
+                    EPG_GET_CHANNELS_BY_RANGE_RESPONSE,
+                    arg
+                )
             );
 
         ipcMain.on(
@@ -244,7 +259,7 @@ export class Api {
             PLAYLIST_UPDATE_POSITIONS,
             (event, playlists: Partial<Playlist[]>) =>
                 playlists.forEach((list, index) => {
-                    this.updatePlaylistById(list._id, {
+                    this.updatePlaylistById((list as Playlist)._id, {
                         ...list,
                         position: index,
                     });
@@ -369,7 +384,7 @@ export class Api {
         session.defaultSession.webRequest.onBeforeSendHeaders(
             (details, callback) => {
                 details.requestHeaders['User-Agent'] = userAgent;
-                details.requestHeaders['Referer'] = referer;
+                details.requestHeaders['Referer'] = referer as string;
                 callback({ requestHeaders: details.requestHeaders });
             }
         );
@@ -505,10 +520,11 @@ export class Api {
             this.updatePlaylistById(id, {
                 updateState: PlaylistUpdateState.NOT_UPDATED,
             });
-            event.sender.send(ERROR, {
-                message: `File not found. Please check the entered playlist URL again.`,
-                status: err.response.status,
-            });
+            if (event)
+                event.sender.send(ERROR, {
+                    message: `File not found. Please check the entered playlist URL again.`,
+                    status: err.response.status,
+                });
         }
     }
 

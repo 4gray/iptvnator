@@ -1,4 +1,13 @@
-import { Component, NgZone, OnInit, ViewChild } from '@angular/core';
+import { Overlay, OverlayRef } from '@angular/cdk/overlay';
+import { ComponentPortal } from '@angular/cdk/portal';
+import {
+    Component,
+    InjectionToken,
+    Injector,
+    NgZone,
+    OnInit,
+    ViewChild,
+} from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -14,10 +23,15 @@ import { DataService } from '../../../services/data.service';
 import { Settings, VideoPlayer } from '../../../settings/settings.interface';
 import { STORE_KEY } from '../../../shared/enums/store-keys.enum';
 import { ChannelQuery, ChannelStore } from '../../../state';
+import { MultiEpgContainerComponent } from '../multi-epg/multi-epg-container.component';
 import { EpgProgram } from './../../models/epg-program.model';
 
 /** Possible sidebar view options */
 type SidebarView = 'CHANNELS' | 'PLAYLISTS';
+
+export const COMPONENT_OVERLAY_REF = new InjectionToken(
+    'COMPONENT_OVERLAY_REF'
+);
 
 @Component({
     selector: 'app-video-player',
@@ -77,6 +91,9 @@ export class VideoPlayerComponent implements OnInit {
     /** Current sidebar view */
     sidebarView: SidebarView = 'CHANNELS';
 
+    /** EPG overlay reference */
+    overlayRef: OverlayRef;
+
     /**
      * Creates an instance of VideoPlayerComponent
      * @param channelQuery akita's channel query
@@ -89,6 +106,7 @@ export class VideoPlayerComponent implements OnInit {
         private channelStore: ChannelStore,
         private dataService: DataService,
         private ngZone: NgZone,
+        private overlay: Overlay,
         private snackBar: MatSnackBar,
         private storage: StorageMap
     ) {
@@ -168,5 +186,24 @@ export class VideoPlayerComponent implements OnInit {
         this.dataService.sendIpcEvent(PLAYLIST_GET_BY_ID, {
             id: playlistId,
         });
+    }
+
+    /**
+     * Opens the overlay with multi EPG view
+     */
+    openMultiEpgView() {
+        this.overlayRef = this.overlay.create();
+        const injector = Injector.create({
+            providers: [
+                { provide: COMPONENT_OVERLAY_REF, useValue: this.overlayRef },
+            ],
+        });
+        const componentPortal = new ComponentPortal(
+            MultiEpgContainerComponent,
+            undefined,
+            injector
+        );
+        this.overlayRef.addPanelClass('epg-overlay');
+        this.overlayRef.attach(componentPortal);
     }
 }

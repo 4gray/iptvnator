@@ -8,6 +8,8 @@ import {
     EPG_FETCH,
     EPG_FETCH_DONE,
     EPG_GET_CHANNELS,
+    EPG_GET_CHANNELS_BY_RANGE,
+    EPG_GET_CHANNELS_BY_RANGE_RESPONSE,
     EPG_GET_CHANNELS_DONE,
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
@@ -17,6 +19,9 @@ import { EpgProgram } from './src/app/player/models/epg-program.model';
 
 // EPG data store
 let EPG_DATA: { channels: EpgChannel[]; programs: EpgProgram[] };
+let EPG_DATA_MERGED: {
+    [id: string]: EpgChannel & { programs: EpgProgram[] };
+} = {};
 const loggerLabel = '[EPG Worker]';
 
 /**
@@ -62,8 +67,34 @@ const fetchEpgDataFromUrl = (epgUrl: string) => {
 const parseAndSetEpg = (xmlString) => {
     console.log(loggerLabel, 'start parsing...');
     EPG_DATA = parser.parse(xmlString.toString());
+    // map programs to channels
+    EPG_DATA_MERGED = convertEpgData();
     ipcRenderer.send(EPG_FETCH_DONE);
     console.log(loggerLabel, 'done, parsing was finished...');
+};
+
+const convertEpgData = () => {
+    let result: {
+        [id: string]: EpgChannel & { programs: EpgProgram[] };
+    } = {};
+
+    EPG_DATA?.programs?.forEach((program) => {
+        if (!result[program.channel]) {
+            const channel = EPG_DATA?.channels?.find(
+                (channel) => channel.id === program.channel
+            ) as EpgChannel;
+            result[program.channel] = {
+                ...channel,
+                programs: [program],
+            };
+        } else {
+            result[program.channel] = {
+                ...result[program.channel],
+                programs: [...result[program.channel].programs, program],
+            };
+        }
+    });
+    return result;
 };
 
 // fetches epg data from the provided URL
@@ -111,5 +142,13 @@ ipcRenderer.on(EPG_GET_PROGRAM, (event, args) => {
 ipcRenderer.on(EPG_GET_CHANNELS, (event, args) => {
     ipcRenderer.send(EPG_GET_CHANNELS_DONE, {
         payload: EPG_DATA,
+    });
+});
+
+ipcRenderer.on(EPG_GET_CHANNELS_BY_RANGE, (event, args) => {
+    ipcRenderer.send(EPG_GET_CHANNELS_BY_RANGE_RESPONSE, {
+        payload: Object.entries(EPG_DATA_MERGED)
+            .slice(args.skip, args.limit)
+            .map((entry) => entry[1]),
     });
 });
