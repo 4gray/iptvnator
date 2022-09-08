@@ -88,7 +88,8 @@
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "打开频道列表",
         "TOGGLE_FAVORITE_FLAG": "切换收藏夹标志",
-        "OPEN_EPG_LIST": "打开电子节目单EPG列表"
+        "OPEN_EPG_LIST": "打开电子节目单EPG列表",
+        "OPEN_MULTI_EPG": "Open Multi-EPG view"
     },
     "EPG": {
         "NEXT_DAY": "明天",
