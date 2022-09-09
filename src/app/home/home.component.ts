@@ -3,12 +3,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { UploadFile } from 'ngx-uploader';
 import {
-    ERROR,
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_PARSE_TEXT,
-    PLAYLIST_UPDATE_RESPONSE,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
@@ -36,20 +34,6 @@ export class HomeComponent {
                 this.navigateToPlayer();
             },
         },
-        {
-            id: ERROR,
-            execute: (response: { message: string; status: number }): void => {
-                this.isLoading = false;
-                this.showNotification(
-                    `Error: ${response.status} ${response.message}.`
-                );
-            },
-        },
-        {
-            id: PLAYLIST_UPDATE_RESPONSE,
-            execute: (response: { message: string }): void =>
-                this.showNotification(response.message),
-        },
     ];
 
     listeners = [];
@@ -69,7 +53,6 @@ export class HomeComponent {
         private router: Router,
         private snackBar: MatSnackBar
     ) {
-        // set all renderer listeners
         this.setRendererListeners();
     }
 

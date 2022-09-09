@@ -1,5 +1,5 @@
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { Component, NgZone } from '@angular/core';
+import { Component, NgZone, OnDestroy } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -13,6 +13,7 @@ import {
     PLAYLIST_REMOVE_BY_ID_RESPONSE,
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_POSITIONS,
+    PLAYLIST_UPDATE_RESPONSE,
 } from './../../../../shared/ipc-commands';
 import { DialogService } from './../../services/dialog.service';
 import { PlaylistMeta } from './../../shared/playlist-meta.type';
@@ -23,7 +24,7 @@ import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
     templateUrl: './recent-playlists.component.html',
     styleUrls: ['./recent-playlists.component.scss'],
 })
-export class RecentPlaylistsComponent {
+export class RecentPlaylistsComponent implements OnDestroy {
     /** All available playlists */
     playlists: PlaylistMeta[] = [];
 
@@ -41,7 +42,15 @@ export class RecentPlaylistsComponent {
             });
             this.electronService.sendIpcEvent(PLAYLIST_GET_ALL);
         }),
+        new IpcCommand(
+            PLAYLIST_UPDATE_RESPONSE,
+            (response: { message: string }) => {
+                this.snackBar.open(response.message, null, { duration: 2000 });
+            }
+        ),
     ];
+
+    listeners = [];
 
     /**
      * Creates an instance of the component
@@ -76,11 +85,13 @@ export class RecentPlaylistsComponent {
                     this.ngZone.run(() => command.callback(response))
                 );
             } else {
-                this.electronService.listenOn(command.id, (response) => {
+                const cb = (response) => {
                     if (response.data.type === command.id) {
                         command.callback(response.data);
                     }
-                });
+                };
+                this.electronService.listenOn(command.id, cb);
+                this.listeners.push(cb);
             }
         });
     }
@@ -154,5 +165,20 @@ export class RecentPlaylistsComponent {
             id: item._id,
             ...(item.url ? { url: item.url } : { filePath: item.filePath }),
         });
+    }
+
+    /**
+     * Removes command listeners on component destroy
+     */
+    ngOnDestroy(): void {
+        if (this.electronService.isElectron) {
+            this.commandsList.forEach((command) =>
+                this.electronService.removeAllListeners(command.id)
+            );
+        } else {
+            this.listeners.forEach((listener) => {
+                window.removeEventListener('message', listener);
+            });
+        }
     }
 }

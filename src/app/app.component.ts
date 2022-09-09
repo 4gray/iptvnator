@@ -1,4 +1,5 @@
 import { Component, NgZone } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
@@ -7,6 +8,7 @@ import { IpcCommand } from '../../shared/ipc-command.class';
 import {
     EPG_ERROR,
     EPG_FETCH_DONE,
+    ERROR,
     OPEN_FILE,
     SHOW_WHATS_NEW,
     VIEW_ADD_PLAYLIST,
@@ -45,6 +47,16 @@ export class AppComponent {
         new IpcCommand(EPG_FETCH_DONE, () => this.epgService.onEpgFetchDone()),
         new IpcCommand(EPG_ERROR, () => this.epgService.onEpgError()),
         new IpcCommand(SHOW_WHATS_NEW, () => this.showWhatsNewDialog()),
+        new IpcCommand(
+            ERROR,
+            (response: { message: string; status: number }) => {
+                this.snackBar.open(
+                    `Error: ${response.status} ${response.message}.`,
+                    null,
+                    { duration: 2000 }
+                );
+            }
+        ),
     ];
 
     /** Default language as fallback */
@@ -58,6 +70,7 @@ export class AppComponent {
         private epgService: EpgService,
         private ngZone: NgZone,
         private router: Router,
+        private snackBar: MatSnackBar,
         private translate: TranslateService,
         private settingsService: SettingsService,
         private whatsNewService: WhatsNewService

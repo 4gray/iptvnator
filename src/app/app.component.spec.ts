@@ -18,6 +18,7 @@ import { ElectronServiceStub } from './services/electron.service.stub';
 import { SettingsService } from './services/settings.service';
 import { WhatsNewService } from './services/whats-new.service';
 import { WhatsNewServiceStub } from './services/whats-new.service.stub';
+import { Language } from './settings/language.enum';
 import { Theme } from './settings/theme.enum';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
 
@@ -77,7 +78,7 @@ describe('AppComponent', () => {
         const fixture = TestBed.createComponent(AppComponent);
         const app = fixture.debugElement.componentInstance;
         expect(app).toBeTruthy();
-        expect(component.commandsList.length).toEqual(5);
+        expect(component.DEFAULT_LANG).toEqual(Language.ENGLISH);
     });
 
     it('should init component', () => {
@@ -98,7 +99,9 @@ describe('AppComponent', () => {
         it('should set IPC listeners', () => {
             jest.spyOn(electronService, 'listenOn');
             component.setRendererListeners();
-            expect(electronService.listenOn).toHaveBeenCalledTimes(5);
+            expect(electronService.listenOn).toHaveBeenCalledTimes(
+                component.commandsList.length
+            );
         });
 
         it('should remove all ipc listeners on destroy', () => {
