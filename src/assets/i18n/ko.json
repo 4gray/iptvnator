@@ -96,7 +96,8 @@
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "채널 열기 목록",
         "TOGGLE_FAVORITE_FLAG": "즐겨찾기 보이기/숨기기",
-        "OPEN_EPG_LIST": "EPG 목록 열기"
+        "OPEN_EPG_LIST": "EPG 목록 열기",
+        "OPEN_MULTI_EPG": "Open Multi-EPG view"
     },
     "EPG": {
         "NEXT_DAY": "다음날",

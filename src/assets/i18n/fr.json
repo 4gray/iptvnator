@@ -96,7 +96,8 @@
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Ouvrir la liste des chaines",
         "TOGGLE_FAVORITE_FLAG": "Basculer le status de favoris",
-        "OPEN_EPG_LIST": "Ouvrir la liste de l'EPG"
+        "OPEN_EPG_LIST": "Ouvrir la liste du EPG",
+        "OPEN_MULTI_EPG": "Open Multi-EPG view"
     },
     "EPG": {
         "NEXT_DAY": "Jour suivant",

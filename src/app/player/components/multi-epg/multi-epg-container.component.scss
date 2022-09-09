@@ -1,0 +1,70 @@
+.program-item {
+    cursor: pointer;
+}
+
+rect {
+    stroke: #676767;
+    cursor: pointer;
+}
+
+.channel > rect {
+    stroke: #676767;
+}
+
+.program-item:hover > rect {
+    fill: #333;
+}
+
+.program-name,
+.channel-name {
+    -webkit-line-clamp: 2;
+    height: 32px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    padding: 6px 2px;
+}
+
+#epg-container {
+    width: calc(100vw - 100px);
+    height: calc(100vh - 73px);
+    overflow-x: scroll;
+    overflow-y: hidden;
+}
+
+.parent {
+    display: flex;
+    background-color: black;
+}
+
+#channels-column {
+    width: 100px;
+    flex: none;
+    border-right: 2px solid #ccc;
+}
+
+.channel-name {
+    margin: 0 5px;
+    text-align: center;
+}
+
+#epg-navigation {
+    display: flex;
+    background-color: black;
+    margin-top: 30px;
+    border-bottom: 2px solid #fff;
+}
+
+.today-date {
+    flex: 1;
+    align-items: center;
+    line-height: 40px;
+    height: 40px;
+    padding: 0 20px;
+}
+
+#current-time-line {
+    stroke-width: 2px;
+    stroke: white;
+}

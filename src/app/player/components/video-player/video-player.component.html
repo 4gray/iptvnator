@@ -97,6 +97,14 @@
                 <div class="spacer"></div>
                 <button
                     *ngIf="epgAvailable$ | async"
+                    mat-icon-button
+                    (click)="openMultiEpgView()"
+                    [matTooltip]="'TOP_MENU.OPEN_MULTI_EPG' | translate"
+                >
+                    <mat-icon>view_list</mat-icon>
+                </button>
+                <button
+                    *ngIf="epgAvailable$ | async"
                     mat-button
                     (click)="drawerRight.toggle()"
                     [matTooltip]="'TOP_MENU.OPEN_EPG_LIST' | translate"

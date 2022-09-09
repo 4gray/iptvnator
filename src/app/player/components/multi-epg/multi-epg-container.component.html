@@ -1,0 +1,142 @@
+<div id="epg-navigation">
+    <button
+        [matTooltip]="'CLOSE' | translate"
+        mat-button
+        (click)="close()"
+        color="accent"
+    >
+        <mat-icon>close</mat-icon> {{ 'CLOSE' | translate }}
+    </button>
+    <button
+        [matTooltip]="'EPG.NEXT_DAY' | translate"
+        mat-icon-button
+        (click)="switchDay('prev')"
+    >
+        <mat-icon>navigate_before</mat-icon>
+    </button>
+    <button
+        [matTooltip]="'EPG.PREVIOUS_DAY' | translate"
+        mat-icon-button
+        (click)="switchDay('next')"
+    >
+        <mat-icon>navigate_next</mat-icon>
+    </button>
+    <div class="today-date">
+        {{ today | momentDate: 'YYYYMMDD':'MMMM Do, dddd' }}
+    </div>
+    <button mat-icon-button (click)="zoomIn()" [disabled]="hourWidth >= 800">
+        <mat-icon>zoom_in</mat-icon>
+    </button>
+    <button mat-icon-button [disabled]="hourWidth <= 50" (click)="zoomOut()">
+        <mat-icon>zoom_out</mat-icon>
+    </button>
+    <button
+        mat-button
+        [disabled]="channelsLowerRange === 0"
+        (click)="previousChannels()"
+    >
+        Previous channels
+    </button>
+    <button mat-button (click)="nextChannels()">Next channels</button>
+</div>
+<div class="parent" #epgContainer>
+    <svg id="channels-column">
+        <g *ngFor="let item of channels; let i = index">
+            <!-- channel name -->
+            <g class="channel">
+                <rect
+                    width="100"
+                    [attr.height]="barHeight"
+                    [attr.y]="barHeight * i + barHeight"
+                    stroke="black"
+                ></rect>
+                <image
+                    *ngIf="item.icon[0]"
+                    [attr.y]="barHeight * i + barHeight + 1"
+                    [attr.href]="item.icon[0]"
+                    [attr.height]="barHeight - 2"
+                    width="100"
+                    [matTooltip]="item.name[0].value"
+                ></image>
+                <foreignObject
+                    *ngIf="!item.icon[0]"
+                    [attr.y]="barHeight * i + barHeight"
+                    width="100"
+                    [attr.height]="barHeight"
+                >
+                    <div class="channel-name">
+                        {{ item.name[0].value }}
+                    </div>
+                </foreignObject>
+            </g>
+        </g>
+    </svg>
+    <div id="epg-container">
+        <svg [attr.width]="24 * hourWidth" height="100%" id="epg-svg">
+            <!-- time headline -->
+            <g *ngFor="let a of timeHeader; let i = index">
+                <rect
+                    [matTooltip]="i + ':00'"
+                    [attr.width]="hourWidth"
+                    [attr.height]="barHeight"
+                    [attr.x]="i * hourWidth"
+                    fill="#000"
+                ></rect>
+                <text
+                    [attr.x]="i * hourWidth"
+                    y="10"
+                    font-size="14"
+                    fill="white"
+                    transform="translate(20,20)"
+                >
+                    {{ i }}:00
+                </text>
+            </g>
+
+            <!-- epg channels with programs -->
+            <g *ngFor="let item of channels; let i = index">
+                <g
+                    *ngFor="let program of item.programs; let a = index"
+                    [matTooltip]="program.title[0].value"
+                    class="program-item"
+                >
+                    <!-- program item -->
+                    <rect
+                        [attr.width]="program.width"
+                        [attr.height]="barHeight"
+                        [attr.x]="program.startPosition"
+                        [attr.y]="barHeight * i + barHeight"
+                        fill="#000"
+                    ></rect>
+                    <foreignObject
+                        (click)="showDescription(program)"
+                        [attr.width]="program.width"
+                        [attr.height]="barHeight"
+                        [attr.y]="barHeight * i + barHeight"
+                        [attr.x]="program.startPosition"
+                    >
+                        <div
+                            [innerHtml]="program.title[0]?.value"
+                            class="program-name"
+                        ></div>
+                    </foreignObject>
+                </g>
+                <line
+                    [attr.x1]="0"
+                    [attr.y1]="barHeight * i + barHeight"
+                    [attr.x2]="24 * hourWidth"
+                    [attr.y2]="barHeight * i + barHeight"
+                    stroke="#676767"
+                />
+            </g>
+            <line
+                [attr.x1]="currentTimeLine"
+                [attr.y1]="barHeight"
+                [attr.x2]="currentTimeLine"
+                id="current-time-line"
+                y2="1000"
+                stroke="black"
+            />
+        </svg>
+    </div>
+</div>

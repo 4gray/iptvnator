@@ -127,7 +127,8 @@
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Senderliste öffnen",
         "OPEN_EPG_LIST": "TV-Guide (EPG) öffnen",
-        "TOGGLE_FAVORITE_FLAG": "Als Favoriten hinzufügen/entfernen"
+        "TOGGLE_FAVORITE_FLAG": "Als Favoriten hinzufügen/entfernen",
+        "OPEN_MULTI_EPG": "Open Multi-EPG view"
     },
     "NO": "Nein",
     "YES": "Ja",

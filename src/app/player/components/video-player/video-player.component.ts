@@ -1,20 +1,38 @@
-import { Component, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Overlay, OverlayRef } from '@angular/cdk/overlay';
+import { ComponentPortal } from '@angular/cdk/portal';
+import {
+    Component,
+    InjectionToken,
+    Injector,
+    NgZone,
+    OnDestroy,
+    OnInit,
+    ViewChild,
+} from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { filter, map, Observable, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
-import { PLAYLIST_PARSE_RESPONSE } from '../../../../../shared/ipc-commands';
+import {
+    PLAYLIST_GET_ALL,
+    PLAYLIST_PARSE_RESPONSE,
+} from '../../../../../shared/ipc-commands';
 import { Playlist } from '../../../../../shared/playlist.interface';
 import { DataService } from '../../../services/data.service';
 import { Settings, VideoPlayer } from '../../../settings/settings.interface';
 import { STORE_KEY } from '../../../shared/enums/store-keys.enum';
 import { ChannelQuery, ChannelStore } from '../../../state';
+import { MultiEpgContainerComponent } from '../multi-epg/multi-epg-container.component';
 import { EpgProgram } from './../../models/epg-program.model';
 
 /** Possible sidebar view options */
 type SidebarView = 'CHANNELS' | 'PLAYLISTS';
+
+export const COMPONENT_OVERLAY_REF = new InjectionToken(
+    'COMPONENT_OVERLAY_REF'
+);
 
 @Component({
     selector: 'app-video-player',
@@ -89,6 +107,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     listeners = [];
 
+    /** EPG overlay reference */
+    overlayRef: OverlayRef;
+
     /**
      * Creates an instance of VideoPlayerComponent
      */
@@ -97,10 +118,13 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         private channelStore: ChannelStore,
         public dataService: DataService,
         private ngZone: NgZone,
+        private overlay: Overlay,
         private router: Router,
         private snackBar: MatSnackBar,
         private storage: StorageMap
-    ) {}
+    ) {
+        this.dataService.sendIpcEvent(PLAYLIST_GET_ALL);
+    }
 
     /**
      * Sets video player and subscribes to channel list from the store
@@ -186,5 +210,24 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 window.removeEventListener('message', listener)
             );
         }
+    }
+
+    /**
+     * Opens the overlay with multi EPG view
+     */
+    openMultiEpgView() {
+        this.overlayRef = this.overlay.create();
+        const injector = Injector.create({
+            providers: [
+                { provide: COMPONENT_OVERLAY_REF, useValue: this.overlayRef },
+            ],
+        });
+        const componentPortal = new ComponentPortal(
+            MultiEpgContainerComponent,
+            undefined,
+            injector
+        );
+        this.overlayRef.addPanelClass('epg-overlay');
+        this.overlayRef.attach(componentPortal);
     }
 }

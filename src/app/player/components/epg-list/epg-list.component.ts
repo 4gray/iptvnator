@@ -76,9 +76,9 @@ export class EpgListComponent {
         this.timeshiftUntil$ = this.channelQuery
             .select(
                 (store) =>
-                    store.active.tvg?.rec ||
-                    store.active.timeshift ||
-                    store.active.catchup?.days
+                    store.active?.tvg?.rec ||
+                    store.active?.timeshift ||
+                    store.active?.catchup?.days
             )
             .pipe(
                 map((value) =>
