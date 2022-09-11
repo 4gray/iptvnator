@@ -192,6 +192,59 @@ export class WhatsNewService {
                 },
             },
         ],
+        '0.11.0': [
+            {
+                imageHeight: 400,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/0110/multiple-epg-sources.png',
+                title: 'Multiple EPG sources',
+                html: 'In the new version of the application, you can add more than one URL as a source of the EPG program.',
+                button: {
+                    text: 'NEXT',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+            {
+                imageHeight: 400,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/0110/multi-epg-view.png',
+                title: '🎉 Multi-EPG view',
+                html: 'The first version of multi-EPG view was developed, which is familiar to many users from set-top boxes. At this stage the view works in purely informative mode.',
+                button: {
+                    text: 'NEXT',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+            {
+                imageHeight: 400,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/0110/import-playlist-as-text.png',
+                title: 'Import playlist from plain text',
+                html: 'Another playlist import option became available - import m3u(8) as text. Just copy the playlist to the clipboard and paste it into the application without having to save it to disk.',
+                button: {
+                    text: 'NEXT',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+            {
+                title: 'This&that',
+                html: `<h2>Improvements in PWA</h2> 
+                A number of visual changes have been made to improve the experience of using the app on mobile devices.
+                <br />
+                <h2>Internalization</h2> The localization of the project has been improved, but help is still needed with the translation into different languages.
+                <br />
+                <h2>Dependencies updates</h2> 
+                The basic libraries used in the application have been updated (angular, electron etc)`,
+                button: {
+                    text: 'CLOSE',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+        ],
     };
 
     /** Options for the "what is new" modal dialogs */
