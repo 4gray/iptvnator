@@ -40,19 +40,19 @@
         "target": [
             {
                 "target": "AppImage",
-                "arch": ["x64", "ia32", "armv7l", "arm64"]
+                "arch": ["x64", "armv7l", "arm64"]
             },
             {
                 "target": "deb",
-                "arch": ["x64", "ia32", "armv7l", "arm64"]
+                "arch": ["x64", "armv7l", "arm64"]
             },
             {
                 "target": "rpm",
-                "arch": ["x64", "ia32", "arm64", "armv7l"]
+                "arch": ["x64", "arm64", "armv7l"]
             },
             {
                 "target": "Snap",
-                "arch": ["x64", "ia32", "arm64", "armv7l"]
+                "arch": ["x64", "arm64", "armv7l"]
             }
         ]
     }
