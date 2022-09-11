@@ -218,7 +218,6 @@ export class Api {
                 this.mainWindow.webContents.send(EPG_ERROR, arg)
             )
             .on(EPG_GET_CHANNELS_BY_RANGE, (event, arg) => {
-                console.log(JSON.stringify(arg));
                 this.workerWindow.webContents.send(
                     EPG_GET_CHANNELS_BY_RANGE,
                     arg
