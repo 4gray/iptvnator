@@ -37,11 +37,9 @@ jobs:
           npx electron-builder --linux snap --armv7l --publish always
           npx electron-builder --linux snap --x64 --publish always
           npx electron-builder --linux deb rpm --x64 --publish always
-          npx electron-builder --linux deb --ia32 --publish always
           npx electron-builder --linux deb --arm64 --publish always
           npx electron-builder --linux deb --armv7l --publish always
           npx electron-builder --linux AppImage --x64 --publish always
-          npx electron-builder --linux AppImage --ia32 --publish always
           npx electron-builder --linux AppImage --arm64 --publish always
           npx electron-builder --linux AppImage --armv7l --publish always
         env:
