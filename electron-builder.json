@@ -5,9 +5,12 @@
     },
     "files": [
         "**/*",
+        "dist",
         "!**/*.ts",
         "!*.code-workspace",
         "!LICENSE.md",
+        "!README.md",
+        "!CHANGELOG.md",
         "!package.json",
         "!package-lock.json",
         "!src/",
@@ -15,10 +18,13 @@
         "!hooks/",
         "!angular.json",
         "!tsconfig.json",
-        "!tslint.json"
+        "!tsconfig.*.json",
+        "!tslint.json",
+        "!*.png",
+        "!coverage"
     ],
     "win": {
-        "icon": "build/assets/icons",
+        "icon": "dist/assets/icons",
         "compression": "maximum",
         "target": [
             {
@@ -28,14 +34,14 @@
         ]
     },
     "mac": {
-        "icon": "build/assets/icons/icon-1024.png",
+        "icon": "dist/assets/icons/icon-1024.png",
         "target": {
             "target": "dmg",
             "arch": ["universal"]
         }
     },
     "linux": {
-        "icon": "build/assets/icons",
+        "icon": "dist/assets/icons",
         "category": "Video",
         "target": [
             {
