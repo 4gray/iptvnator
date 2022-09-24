@@ -61,14 +61,10 @@ export function DataFactory(dbService: NgxIndexedDBService, http: HttpClient) {
                 deps: [HttpClient],
             },
         }),
-        !isElectron
-            ? ServiceWorkerModule.register('ngsw-worker.js', {
-                  enabled: AppConfig.production,
-                  // Register the ServiceWorker as soon as the app is stable
-                  // or after 30 seconds (whichever comes first).
-                  registrationStrategy: 'registerWhenStable:30000',
-              })
-            : [],
+        ServiceWorkerModule.register('ngsw-worker.js', {
+            enabled: AppConfig.production && !isElectron,
+            registrationStrategy: 'registerWhenStable:30000',
+        }),
     ],
     providers: [
         {
