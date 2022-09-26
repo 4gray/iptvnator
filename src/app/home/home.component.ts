@@ -1,7 +1,6 @@
 import { Component, NgZone } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { UploadFile } from 'ngx-uploader';
 import {
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
@@ -92,14 +91,14 @@ export class HomeComponent {
      * Parse and store uploaded playlist
      * @param payload
      */
-    handlePlaylist(payload: { uploadEvent: Event; file: UploadFile }): void {
+    handlePlaylist(payload: { uploadEvent: Event; file: File }): void {
         this.isLoading = true;
         const result = (payload.uploadEvent.target as FileReader).result;
         const array = (result as string).split('\n');
         this.electronService.sendIpcEvent(PLAYLIST_PARSE, {
             title: payload.file.name,
             playlist: array,
-            path: (payload.file.nativeFile as any).path,
+            path: payload.file.path,
         });
     }
 

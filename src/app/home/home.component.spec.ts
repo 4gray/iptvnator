@@ -8,7 +8,6 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
 import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
-import { UploadFile } from 'ngx-uploader';
 import { of } from 'rxjs';
 import { FileUploadComponent } from '../home/file-upload/file-upload.component';
 import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
@@ -101,10 +100,10 @@ describe('HomeComponent', () => {
         const title = 'my-list.m3u';
         const path = '/home/user/iptv/' + title;
         const playlistContent = 'test';
-        const file: UploadFile = {
-            nativeFile: { path },
+        const file: File = {
+            path,
             name: title,
-        } as unknown as UploadFile;
+        } as unknown as File;
         const uploadEvent: Event = {
             target: { result: playlistContent },
         } as unknown as Event;

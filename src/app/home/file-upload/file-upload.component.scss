@@ -1,48 +1,27 @@
-.drop-container {
-    text-align: center;
-    color: #666;
-}
+$electron-title-width: 28px;
 
-#file input {
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    padding: 5px;
-}
-
-.upload-title {
-    font-size: 1.25em;
-}
-
-.input-file {
-    width: 0.1px;
-    height: 0.1px;
-    opacity: 0;
-    overflow: hidden;
-    position: absolute;
-    z-index: -1;
-}
-
-.input-file + label {
-    font-size: 1em;
-    font-weight: 700;
-    color: white;
-    background-color: #3f51b5;
-    display: inline-block;
-    text-transform: uppercase;
-    border-radius: 4px;
+.file-upload {
+    height: calc(100vh - 230px);
     cursor: pointer;
-    line-height: 35px;
-    padding: 3px 10px;
-}
+    border: 1px dashed #999;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px;
+    gap: 20px;
 
-.input-file:focus + label,
-.input-file + label:hover {
-    background-color: #202b69;
-}
+    .upload-icon {
+        color: #999;
+        font-size: 60px;
+        width: 60px;
+        height: 60px;
+    }
 
-.upload-icon {
-    font-size: 80px;
-    width: 80px;
-    height: 80px;
-    padding-top: 20px;
+    .label {
+        display: block;
+        text-align: center;
+        color: #999;
+    }
 }

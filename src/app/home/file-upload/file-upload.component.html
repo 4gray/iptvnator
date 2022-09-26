@@ -1,25 +1,26 @@
 <div
-    class="drop-container"
-    ngFileDrop
-    [options]="options"
-    (uploadOutput)="onUploadOutput($event)"
-    [uploadInput]="uploadInput"
+    class="file-upload"
+    appDragDropFileUpload
+    (click)="fileField.click()"
+    (fileDropped)="upload($event)"
 >
-    <mat-icon class="upload-icon">save_alt</mat-icon>
-    <p class="upload-title">{{ 'HOME.FILE_UPLOAD.DRAG_DROP' | translate }}</p>
-    <p>{{ 'HOME.FILE_UPLOAD.OR' | translate }}</p>
+    <mat-icon class="upload-icon">upload_file</mat-icon>
+    <span class="label"
+        >{{
+            ('HOME.FILE_UPLOAD.DRAG_DROP' | translate) +
+                ' ' +
+                ('HOME.FILE_UPLOAD.OR' | translate)
+        }}
+        <br />
+        {{ 'HOME.FILE_UPLOAD.CHOOSE_PLAYLIST' | translate }}</span
+    >
     <input
         type="file"
-        ngFileSelect
-        [options]="options"
-        (uploadOutput)="onUploadOutput($event)"
-        class="input-file"
-        name="file"
-        id="file"
-        [uploadInput]="uploadInput"
+        name="playlist"
+        #fileField
+        (change)="upload($any($event).target.files)"
+        accept=".m3u,.m3u8"
+        hidden
         multiple
     />
-    <label for="file">{{
-        'HOME.FILE_UPLOAD.CHOOSE_PLAYLIST' | translate
-    }}</label>
 </div>
