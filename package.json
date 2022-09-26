@@ -70,7 +70,6 @@
         "nedb-promises": "6.0.3",
         "ngx-filter-pipe": "2.1.2",
         "ngx-indexed-db": "9.4.2",
-        "ngx-uploader": "11.0.0",
         "ngx-whats-new": "0.3.0",
         "rxjs": "7.5.6",
         "semver": "7.3.5",
