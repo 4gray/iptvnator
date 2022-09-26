@@ -47,7 +47,7 @@
         "FILE_UPLOAD": {
             "DRAG_DROP": "Drag & drop files here",
             "OR": "or",
-            "CHOOSE_PLAYLIST": "Choose a playlist"
+            "CHOOSE_PLAYLIST": "choose a playlist"
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",

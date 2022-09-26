@@ -47,7 +47,7 @@
         "FILE_UPLOAD": {
             "DRAG_DROP": "Перетащите файл в эту область",
             "OR": "или",
-            "CHOOSE_PLAYLIST": "Выберите плейлист"
+            "CHOOSE_PLAYLIST": "выберите плейлист"
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Ссылка на плейлист (*.m3u или *.m3u8)",
