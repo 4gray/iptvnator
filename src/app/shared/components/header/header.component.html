@@ -71,7 +71,7 @@
     </mat-menu>
 </ng-template>
 <ngx-whats-new
-    *ngIf="isDialogVisible$ | async"
+    *ngIf="!isElectron && isDialogVisible$ | async"
     (closeModal)="setDialogVisibility(false)"
     [items]="modals"
     [options]="options"

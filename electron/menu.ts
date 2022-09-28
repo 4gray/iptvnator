@@ -111,7 +111,7 @@ export class AppMenu {
                         openAboutWindow({
                             icon_path: path.join(
                                 __dirname,
-                                'build/assets/icons/icon.png'
+                                '../dist/assets/icons/icon.png'
                             ),
                             copyright: 'Copyright (c) 2020-2022 4gray',
                             package_json_dir: __dirname,

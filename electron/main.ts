@@ -33,7 +33,7 @@ function createWindow(): BrowserWindow {
         },
         resizable: true,
         darkTheme: true,
-        icon: path.join(__dirname, '../build/assets/icons/icon.png'),
+        icon: path.join(__dirname, '../dist/assets/icons/icon.png'),
         titleBarStyle: 'hidden',
         frame: false,
         minWidth: 900,
@@ -50,7 +50,7 @@ function createWindow(): BrowserWindow {
     } else {
         win.loadURL(
             url.format({
-                pathname: path.join(__dirname, '../build/index.html'),
+                pathname: path.join(__dirname, '../dist/index.html'),
                 protocol: 'file:',
                 slashes: true,
             })
