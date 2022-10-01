@@ -129,7 +129,7 @@ export class SettingsComponent implements OnInit {
      * @param epgUrls urls of the EPG sources
      */
     setEpgUrls(epgUrls: string[] | string): void {
-        const URL_REGEX = /^(http|https):\/\/[^ "]+$/;
+        const URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
 
         if (!Array.isArray(epgUrls)) {
             epgUrls = [epgUrls];
