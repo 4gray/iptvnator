@@ -22,7 +22,8 @@
             <cdk-virtual-scroll-viewport itemSize="50" class="scroll-viewport">
                 <mat-list-item
                     *cdkVirtualFor="
-                        let channel of _channelList | filterBy: searchTerm;
+                        let channel of _channelList
+                            | filterBy: searchTerm.name:'name';
                         index as i;
                         trackBy: trackByFn
                     "
