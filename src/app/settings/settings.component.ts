@@ -105,7 +105,7 @@ export class SettingsComponent implements OnInit {
                         player: settings.player
                             ? settings.player
                             : VideoPlayer.VideoJs,
-                        ...(this.isElectron ? { epgUrl: new Array() } : {}),
+                        ...(this.isElectron ? { epgUrl: [] } : {}),
                         language: settings.language
                             ? settings.language
                             : Language.ENGLISH,
@@ -137,10 +137,7 @@ export class SettingsComponent implements OnInit {
 
         for (const url of epgUrls) {
             this.epgUrl.push(
-                new UntypedFormControl(url, [
-                    Validators.required,
-                    Validators.pattern(URL_REGEX),
-                ])
+                new UntypedFormControl(url, [Validators.pattern(URL_REGEX)])
             );
         }
     }
