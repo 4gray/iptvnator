@@ -61,7 +61,7 @@
         "custom-electron-titlebar": "4.1.0",
         "date-fns": "2.28.0",
         "electron-context-menu": "3.1.1",
-        "epg-parser": "0.1.1",
+        "epg-parser": "0.1.6",
         "hls.js": "1.2.1",
         "iptv-playlist-parser": "0.8.0",
         "lodash": "4.17.21",
