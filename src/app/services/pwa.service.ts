@@ -12,6 +12,7 @@ import {
     first,
     interval,
     map,
+    of,
     switchMap,
     throwError,
 } from 'rxjs';
@@ -86,12 +87,12 @@ export class PwaService extends DataService {
                 everySixHours$
             );
 
-            everySixHoursOnceAppIsStable$.subscribe(() =>
-                this.swUpdate.checkForUpdate()
-            );
+            everySixHoursOnceAppIsStable$.subscribe(() => {
+                this.swUpdate.checkForUpdate();
+            });
 
             this.swUpdate.versionUpdates.subscribe(() => {
-                let snackBarRef = this.snackBar.open(
+                const snackBarRef = this.snackBar.open(
                     'Update available',
                     'Refresh'
                 );
@@ -341,6 +342,11 @@ export class PwaService extends DataService {
         this.http
             .get(`${this.corsProxyUrl}${payload.url}`)
             .pipe(
+                switchMap((response) =>
+                    payload.isTemporary
+                        ? of(response)
+                        : this.dbService.add(DbStores.Playlists, response)
+                ),
                 catchError((error) => {
                     window.postMessage({
                         type: ERROR,
@@ -351,12 +357,6 @@ export class PwaService extends DataService {
                 })
             )
             .subscribe((response: any) => {
-                this.dbService
-                    .add(DbStores.Playlists, response)
-                    .subscribe(() => {
-                        console.log('playlist was added...');
-                    });
-
                 window.postMessage({
                     type: PLAYLIST_PARSE_RESPONSE,
                     payload: response,

@@ -11,12 +11,13 @@ import {
 } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { filter, map, Observable, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import {
     PLAYLIST_GET_ALL,
+    PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
 } from '../../../../../shared/ipc-commands';
 import { Playlist } from '../../../../../shared/playlist.interface';
@@ -114,9 +115,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
      * Creates an instance of VideoPlayerComponent
      */
     constructor(
+        private activatedRoute: ActivatedRoute,
         private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
-        public dataService: DataService,
+        private dataService: DataService,
         private ngZone: NgZone,
         private overlay: Overlay,
         private router: Router,
@@ -132,6 +134,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     ngOnInit(): void {
         this.applySettings();
         this.setRendererListeners();
+        this.getPlaylistUrlAsParam();
+    }
+
+    /**
+     * Opens a playlist provided as a url param
+     */
+    getPlaylistUrlAsParam() {
+        const URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
+        const playlistUrl = this.activatedRoute.snapshot.queryParams.url;
+
+        if (playlistUrl && playlistUrl.match(URL_REGEX)) {
+            this.dataService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
+                url: playlistUrl,
+                isTemporary: true,
+            });
+        }
     }
 
     /**

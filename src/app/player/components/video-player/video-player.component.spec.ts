@@ -5,6 +5,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { ActivatedRoute } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
@@ -47,6 +48,16 @@ describe('VideoPlayerComponent', () => {
                 providers: [
                     { provide: MatSnackBar, useClass: MatSnackBarStub },
                     { provide: DataService, useClass: ElectronServiceStub },
+                    {
+                        provide: ActivatedRoute,
+                        useValue: {
+                            snapshot: {
+                                queryParams: {
+                                    url: 'https://iptvnator/list.m3u',
+                                },
+                            },
+                        },
+                    },
                 ],
                 imports: [
                     MockModule(MatSidenavModule),

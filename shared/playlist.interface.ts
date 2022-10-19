@@ -29,4 +29,5 @@ export interface Playlist {
     updateDate?: number;
     updateState?: PlaylistUpdateState;
     position?: number;
+    isTemporary?: boolean;
 }
