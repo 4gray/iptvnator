@@ -118,7 +118,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         private activatedRoute: ActivatedRoute,
         private channelQuery: ChannelQuery,
         private channelStore: ChannelStore,
-        private dataService: DataService,
+        public dataService: DataService,
         private ngZone: NgZone,
         private overlay: Overlay,
         private router: Router,
