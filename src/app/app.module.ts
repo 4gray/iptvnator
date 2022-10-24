@@ -62,7 +62,7 @@ export function DataFactory(dbService: NgxIndexedDBService, http: HttpClient) {
             },
         }),
         ServiceWorkerModule.register('ngsw-worker.js', {
-            enabled: AppConfig.production && !isElectron,
+            enabled: AppConfig.production && !isElectron(),
             registrationStrategy: 'registerWhenStable:30000',
         }),
     ],
