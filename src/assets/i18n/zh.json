@@ -7,7 +7,7 @@
             "RECENTLY_ADDED": "最近添加的播放列表",
             "FILE_UPLOAD": "从文件添加",
             "URL_UPLOAD": "从URL链接添加",
-            "TEXT_IMPORT": "Import as text"
+            "TEXT_IMPORT": "从文本添加"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "未添加播放列表",
@@ -40,9 +40,9 @@
             },
             "UPDATED": "更新",
             "REFRESH": "刷新播放列表",
-            "GLOBAL_FAVORITES": "Global favorites",
-            "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
-            "MY_PLAYLISTS": "My playlists"
+            "GLOBAL_FAVORITES": "我的收藏",
+            "GLOBAL_FAVORITES_DESCRIPTION": "由所有播放列表自动生成的聚合收藏列表",
+            "MY_PLAYLISTS": "我的播放列表"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "将文件拖放到此处",
@@ -54,12 +54,12 @@
             "ADD_PLAYLIST": "添加播放列表"
         },
         "TEXT_IMPORT": {
-            "LABEL": "Insert m3u(8) playlist as text",
-            "BUTTON_LABEL": "Import"
+            "LABEL": "从文本导入播放列表(m3u, m3u8)",
+            "BUTTON_LABEL": "导入"
         }
     },
     "SETTINGS": {
-        "TITLE": "设置 / IPTVnator",
+        "TITLE": "设置",
         "SUBTITLE": "更改应用程序的配置 ",
         "DESCRIPTION": "请调整以下列表中的选项并使用保存按钮确认",
         "EPG_URL_LABEL": "电子节目单EPG Url (*.xml 或 *.xml.gz)",
@@ -75,7 +75,7 @@
         "LANGUAGE": "语言",
         "SETTINGS_SAVED": "配置已成功保存",
         "THEME": "主题",
-        "SHOW_CAPTIONS": "Show subtitles"
+        "SHOW_CAPTIONS": "显示字幕"
     },
     "THEMES": {
         "DARK_THEME": "暗黑模式",
@@ -97,20 +97,20 @@
         "OPEN_CHANNELS_LIST": "打开频道列表",
         "TOGGLE_FAVORITE_FLAG": "切换收藏夹标志",
         "OPEN_EPG_LIST": "打开电子节目单EPG列表",
-        "OPEN_MULTI_EPG": "Open Multi-EPG view"
+        "OPEN_MULTI_EPG": "打开多EPG显示"
     },
     "EPG": {
         "NEXT_DAY": "明天",
         "PREVIOUS_DAY": "昨天",
-        "LIVE_NOW": "Live now",
-        "LIVE_STREAM": "Live stream",
+        "LIVE_NOW": "正在播放",
+        "LIVE_STREAM": "正在直播",
         "TIMESHIFT_AVAILABLE": "时移功能可用，点击播放",
         "EPG_NOT_AVAILABLE_DATE": "错误：电子节目单EPG在所选日期不可用",
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "错误：电子节目单EPG不适用于此频道",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "请添加/更改设置项中电子节目单的URL",
         "FETCH_EPG": "获取 EPG 数据...",
-        "ERROR": "Ooops, EPG could not be loaded.",
-        "DOWNLOAD_SUCCESS": "EPG was successfully downloaded.",
+        "ERROR": "错误: 获取 EPG 数据失败",
+        "DOWNLOAD_SUCCESS": "EPG 数据下载成功",
         "PROGRAM_DIALOG": {
             "PROGRAM_DETAILS": "电视节目详情",
             "TITLE": "标题",
@@ -133,13 +133,13 @@
     "YES": "是",
     "NO": "否",
     "MENU": {
-        "OPEN": "Open menu",
-        "SUPPORT_ARIA": "Support IPTVnator on GitHub",
-        "SETTINGS": "Settings",
-        "SETTINGS_ARIA": "Open settings",
-        "BUG_REPORT": "Report a bug",
-        "WHAT_IS_NEW": "What is new",
-        "ABOUT": "About",
-        "ABOUT_ARIA": "About the application"
+        "OPEN": "打开菜单",
+        "SUPPORT_ARIA": "在 GitHub 上支持 IPTVnator",
+        "SETTINGS": "设置",
+        "SETTINGS_ARIA": "打开设置",
+        "BUG_REPORT": "问题反馈",
+        "WHAT_IS_NEW": "更新日志",
+        "ABOUT": "关于",
+        "ABOUT_ARIA": "关于应用"
     }
 }
