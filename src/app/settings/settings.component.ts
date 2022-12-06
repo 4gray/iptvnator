@@ -7,13 +7,13 @@ import {
 } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { Observable } from 'rxjs';
 import * as semver from 'semver';
 import { DataService } from '../services/data.service';
 import { EpgService } from '../services/epg.service';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
-import { ChannelQuery } from '../state';
+import { selectIsEpgAvailable } from '../state/selectors';
 import { SettingsService } from './../services/settings.service';
 import { Language } from './language.enum';
 import { Settings, VideoPlayer } from './settings.interface';
@@ -47,9 +47,7 @@ export class SettingsComponent implements OnInit {
     updateMessage: string;
 
     /** EPG availability flag */
-    epgAvailable$: Observable<boolean> = this.channelQuery.select(
-        (store) => store.epgAvailable
-    );
+    epgAvailable$ = this.store.select(selectIsEpgAvailable);
 
     /** Flag that indicates whether the app runs in electron environment */
     isElectron = this.electronService.isElectron;
@@ -74,7 +72,7 @@ export class SettingsComponent implements OnInit {
      * required dependencies into the component
      */
     constructor(
-        private channelQuery: ChannelQuery,
+        private store: Store,
         private electronService: DataService,
         private epgService: EpgService,
         private formBuilder: UntypedFormBuilder,

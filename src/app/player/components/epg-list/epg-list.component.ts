@@ -1,10 +1,16 @@
 import { Component, NgZone } from '@angular/core';
+import { Store } from '@ngrx/store';
 import * as moment from 'moment';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
 import { DataService } from '../../../services/data.service';
-import { ChannelQuery, ChannelStore } from '../../../state';
+import {
+    resetActiveEpgProgram,
+    setActiveEpgProgram,
+    setCurrentEpgProgram,
+} from '../../../state/actions';
+import { selectActive } from '../../../state/selectors';
 import { EpgChannel } from '../../models/epg-channel.model';
 import { EpgProgram } from '../../models/epg-program.model';
 
@@ -50,14 +56,12 @@ export class EpgListComponent {
 
     /**
      * Creates an instance of EpgListComponent
-     * @param channelQuery
-     * @param channelStore
+     * @param store
      * @param electronService
      * @param ngZone
      */
     constructor(
-        private channelQuery: ChannelQuery,
-        private channelStore: ChannelStore,
+        private readonly store: Store,
         private electronService: DataService,
         private ngZone: NgZone
     ) {
@@ -73,20 +77,21 @@ export class EpgListComponent {
      * Subscribe for values from the store on component init
      */
     ngOnInit(): void {
-        this.timeshiftUntil$ = this.channelQuery
-            .select(
-                (store) =>
-                    store.active?.tvg?.rec ||
-                    store.active?.timeshift ||
-                    store.active?.catchup?.days
+        this.timeshiftUntil$ = this.store.select(selectActive).pipe(
+            // eslint-disable-next-line @ngrx/avoid-mapping-selectors
+            map((active) => {
+                return (
+                    active?.tvg?.rec ||
+                    active?.timeshift ||
+                    active?.catchup?.days
+                );
+            }),
+            map((value) =>
+                moment(Date.now())
+                    .subtract(value, 'days')
+                    .format(DATE_TIME_FORMAT)
             )
-            .pipe(
-                map((value) =>
-                    moment(Date.now())
-                        .subtract(value, 'days')
-                        .format(DATE_TIME_FORMAT)
-                )
-            );
+        );
     }
 
     /**
@@ -105,7 +110,7 @@ export class EpgListComponent {
         } else {
             this.items = [];
             this.channel = null;
-            this.channelStore.setCurrentEpgProgram(undefined);
+            this.store.dispatch(setCurrentEpgProgram(undefined));
         }
     }
 
@@ -156,7 +161,7 @@ export class EpgListComponent {
         this.playingNow = this.items.find(
             (item) => this.timeNow >= item.start && this.timeNow <= item.stop
         );
-        this.channelStore.setCurrentEpgProgram(this.playingNow);
+        this.store.dispatch(setCurrentEpgProgram({ program: this.playingNow }));
     }
 
     /**
@@ -171,10 +176,10 @@ export class EpgListComponent {
         timeshift?: boolean
     ): void {
         if (isLive) {
-            this.channelStore.resetActiveEpgProgram();
+            this.store.dispatch(resetActiveEpgProgram());
         } else {
             if (!timeshift) return;
-            this.channelStore.setActiveEpgProgram(program);
+            this.store.dispatch(setActiveEpgProgram({ program }));
         }
         this.playingNow = program;
     }

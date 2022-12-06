@@ -95,7 +95,7 @@
                                 [item]="item"
                             ></app-epg-list-item>
                         </div>
-                        <p matLine>{{ item?.title[0]?.value }}</p>
+                        <p matLine [innerHTML]="item?.title[0]?.value"></p>
                     </mat-list-option>
                 </ng-template>
             </ng-container>

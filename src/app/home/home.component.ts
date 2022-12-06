@@ -1,6 +1,7 @@
 import { Component, NgZone } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
 import {
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
@@ -10,7 +11,8 @@ import {
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
 import { PlaylistMeta } from '../shared/playlist-meta.type';
-import { ChannelStore } from '../state';
+import { setPlaylist } from '../state/actions';
+import { selectChannels } from '../state/selectors';
 
 @Component({
     selector: 'app-home',
@@ -21,6 +23,8 @@ export class HomeComponent {
     /** Added playlists */
     playlists: PlaylistMeta[] = [];
 
+    channels$ = this.store.select(selectChannels);
+
     /** Loading spinner state */
     isLoading = false;
 
@@ -29,7 +33,9 @@ export class HomeComponent {
         {
             id: PLAYLIST_PARSE_RESPONSE,
             execute: (response: { payload: Playlist }): void => {
-                this.channelStore.setPlaylist(response.payload);
+                this.store.dispatch(
+                    setPlaylist({ playlist: response.payload })
+                );
                 this.navigateToPlayer();
             },
         },
@@ -39,7 +45,7 @@ export class HomeComponent {
 
     /**
      * Creates an instanceof HomeComponent
-     * @param channelStore channels store
+     * @param store channels store
      * @param electronService electron service
      * @param ngZone angular ngZone module
      * @param router angular router
@@ -48,7 +54,7 @@ export class HomeComponent {
     constructor(
         private electronService: DataService,
         private ngZone: NgZone,
-        private channelStore: ChannelStore,
+        private readonly store: Store,
         private router: Router,
         private snackBar: MatSnackBar
     ) {

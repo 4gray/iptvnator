@@ -2,7 +2,6 @@ import { HttpClient } from '@angular/common/http';
 import { ApplicationRef, inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SwUpdate } from '@angular/service-worker';
-import { guid } from '@datorama/akita';
 import { parse } from 'iptv-playlist-parser';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import {
@@ -41,6 +40,7 @@ import {
 import {
     aggregateFavoriteChannels,
     createFavoritesPlaylist,
+    getUUID,
 } from '../../../shared/playlist.utils';
 import { AppConfig } from '../../environments/environment';
 import { ParsedPlaylist } from '../../typings';
@@ -272,6 +272,7 @@ export class PwaService extends DataService {
             this.fetchFromUrl(payload);
         } else if (type === PLAYLIST_UPDATE) {
             this.http
+                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                 .get(`${this.corsProxyUrl}${payload.url}`, {
                     responseType: 'text',
                 })
@@ -385,7 +386,7 @@ export class PwaService extends DataService {
         urlOrPath?: string,
         uploadType?: 'URL' | 'FILE'
     ): Playlist {
-        const id = guid();
+        const id = getUUID();
         return {
             id,
             _id: id,
@@ -395,7 +396,7 @@ export class PwaService extends DataService {
             playlist: {
                 ...playlist,
                 items: playlist.items.map((item) => ({
-                    id: guid(),
+                    id: getUUID(),
                     ...item,
                 })),
             },

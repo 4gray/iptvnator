@@ -1,5 +1,3 @@
-import { ID } from '@datorama/akita';
-
 /**
  * An interface that describe the possible states of the playlist update/refresh process
  */
@@ -13,7 +11,7 @@ export enum PlaylistUpdateState {
  * Describes playlist interface
  */
 export interface Playlist {
-    id: ID;
+    id: string;
     _id: string;
     title: string;
     filename: string;
