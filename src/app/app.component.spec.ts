@@ -3,11 +3,12 @@ import {
     ComponentFixture,
     inject,
     TestBed,
-    waitForAsync,
+    waitForAsync
 } from '@angular/core/testing';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockModule, MockPipe, MockProviders } from 'ng-mocks';
 import { NgxWhatsNewModule } from 'ngx-whats-new';
@@ -50,6 +51,7 @@ describe('AppComponent', () => {
                         provide: DataService,
                         useClass: ElectronServiceStub,
                     },
+                    provideMockStore(),
                 ],
                 imports: [
                     MockModule(MatSnackBarModule),

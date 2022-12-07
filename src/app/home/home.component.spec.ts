@@ -5,10 +5,13 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { Actions } from '@ngrx/effects';
+import { provideMockActions } from '@ngrx/effects/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
 import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
-import { of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { FileUploadComponent } from '../home/file-upload/file-upload.component';
 import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
 import { UrlUploadComponent } from '../home/url-upload/url-upload.component';
@@ -17,7 +20,7 @@ import { ElectronServiceStub } from '../services/electron.service.stub';
 import { HeaderComponent } from '../shared/components/header/header.component';
 import {
     PLAYLIST_PARSE,
-    PLAYLIST_PARSE_BY_URL,
+    PLAYLIST_PARSE_BY_URL
 } from './../../../shared/ipc-commands';
 import { HomeComponent } from './home.component';
 
@@ -36,6 +39,8 @@ describe('HomeComponent', () => {
     let fixture: ComponentFixture<HomeComponent>;
     let electronService: DataService;
     let router: Router;
+    let mockStore: MockStore;
+    const actions$ = new Observable<Actions>();
 
     beforeEach(() => {
         TestBed.configureTestingModule({
@@ -63,6 +68,8 @@ describe('HomeComponent', () => {
                     provide: NgxIndexedDBService,
                     useClass: NgxIndexedDBServiceStub,
                 },
+                provideMockStore(),
+                provideMockActions(actions$),
             ],
         }).compileComponents();
     });
@@ -71,6 +78,9 @@ describe('HomeComponent', () => {
         fixture = TestBed.createComponent(HomeComponent);
         component = fixture.componentInstance;
         electronService = TestBed.inject(DataService);
+
+        mockStore = TestBed.inject(MockStore);
+        mockStore.setState({});
 
         router = TestBed.inject(Router);
         TestBed.inject(NgxIndexedDBService);

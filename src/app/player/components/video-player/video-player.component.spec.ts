@@ -7,20 +7,24 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
 import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
 import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { VideoPlayer } from '../../../settings/settings.interface';
-import { createChannel } from '../../../state';
-import { ChannelStore } from '../../../state/channel.store';
+import { createChannel } from '../../../shared/channel.model';
 import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
 import { EpgListComponent } from '../epg-list/epg-list.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import { InfoOverlayComponent } from './../info-overlay/info-overlay.component';
 import { VideoPlayerComponent } from './video-player.component';
+
+import { Actions } from '@ngrx/effects';
+import { provideMockActions } from '@ngrx/effects/testing';
+import { Observable } from 'rxjs';
 
 class MatSnackBarStub {
     open(): void {}
@@ -29,8 +33,9 @@ class MatSnackBarStub {
 describe('VideoPlayerComponent', () => {
     let component: VideoPlayerComponent;
     let fixture: ComponentFixture<VideoPlayerComponent>;
-    let store: ChannelStore;
     let channels;
+    let mockStore: MockStore;
+    const actions$ = new Observable<Actions>();
 
     beforeEach(
         waitForAsync(() => {
@@ -58,6 +63,8 @@ describe('VideoPlayerComponent', () => {
                             },
                         },
                     },
+                    provideMockStore(),
+                    provideMockActions(actions$),
                 ],
                 imports: [
                     MockModule(MatSidenavModule),
@@ -74,12 +81,14 @@ describe('VideoPlayerComponent', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(VideoPlayerComponent);
         component = fixture.componentInstance;
-        store = TestBed.inject(ChannelStore);
+        mockStore = TestBed.inject(MockStore);
+
         // set channels
         channels = MOCKED_PLAYLIST.playlist.items.map((element) =>
             createChannel(element)
         );
-        store.upsertMany(channels);
+
+        mockStore.setState({ playlistState: {channels} });
     });
 
     it('should create and init component', () => {
@@ -98,11 +107,10 @@ describe('VideoPlayerComponent', () => {
     });
 
     it('should update store after channel was faved', () => {
-        jest.spyOn(store, 'updateFavorite');
+        jest.spyOn(mockStore, 'dispatch');
         const [firstChannel] = channels;
         component.addToFavorites(firstChannel);
-        //fixture.detectChanges();
-        expect(store.updateFavorite).toHaveBeenCalledTimes(1);
-        expect(store.updateFavorite).toHaveBeenCalledWith(firstChannel);
+        expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
+        expect(mockStore.dispatch).toHaveBeenCalledWith({channel: firstChannel, type: expect.stringContaining('favorite')});
     });
 });

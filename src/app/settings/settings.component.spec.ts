@@ -1,6 +1,6 @@
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { UntypedFormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, UntypedFormBuilder } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDividerModule } from '@angular/material/divider';
@@ -12,12 +12,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
 import { of } from 'rxjs';
 import { EPG_FETCH } from '../../../shared/ipc-commands';
-/* eslint-disable @typescript-eslint/unbound-method */
 import { DataService } from '../services/data.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { TranslateServiceStub } from './../../testing/translate.stub';
@@ -52,6 +52,7 @@ describe('SettingsComponent', () => {
     let router: Router;
     let storage: StorageMap;
     let translate: TranslateService;
+    let mockStore: MockStore;
 
     beforeEach(
         waitForAsync(() => {
@@ -74,6 +75,7 @@ describe('SettingsComponent', () => {
                         useClass: MockRouter,
                     },
                     StorageMap,
+                    provideMockStore(),
                 ],
                 imports: [
                     HttpClientTestingModule,
@@ -99,6 +101,8 @@ describe('SettingsComponent', () => {
         storage = TestBed.inject(StorageMap);
         router = TestBed.inject(Router);
         translate = TestBed.inject(TranslateService);
+        mockStore = TestBed.inject(MockStore);
+
         component = fixture.componentInstance;
         fixture.detectChanges();
     });

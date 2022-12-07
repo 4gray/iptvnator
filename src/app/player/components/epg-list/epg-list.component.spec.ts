@@ -4,15 +4,18 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Actions } from '@ngrx/effects';
+import { provideMockActions } from '@ngrx/effects/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe } from '@ngx-translate/core';
 import * as moment from 'moment';
 import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
+import { Observable } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
 import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
-import { ChannelStore } from '../../../state';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 import { EpgData, EpgListComponent } from './epg-list.component';
 
@@ -20,7 +23,8 @@ describe('EpgListComponent', () => {
     let component: EpgListComponent;
     let fixture: ComponentFixture<EpgListComponent>;
     let electronService: DataService;
-    let channelStore: ChannelStore;
+    let mockStore: MockStore;
+    const actions$ = new Observable<Actions>();
 
     const MOCKED_PROGRAMS = {
         channel: {
@@ -103,6 +107,8 @@ describe('EpgListComponent', () => {
                 providers: [
                     { provide: DataService, useClass: ElectronServiceStub },
                     MockProvider(MatDialog),
+                    provideMockStore(),
+                    provideMockActions(actions$),
                 ],
             }).compileComponents();
         })
@@ -112,16 +118,21 @@ describe('EpgListComponent', () => {
         fixture = TestBed.createComponent(EpgListComponent);
         component = fixture.componentInstance;
         electronService = TestBed.inject(DataService);
-        channelStore = TestBed.inject(ChannelStore);
-        channelStore.setActiveChannel({
-            id: '',
-            url: '',
-            name: '',
-            group: { title: '' },
-            tvg: {
-                rec: '3',
+
+        mockStore = TestBed.inject(MockStore);
+        mockStore.setState({
+            playlistState: {
+                active: {
+                    id: '',
+                    url: '',
+                    name: '',
+                    group: { title: '' },
+                    tvg: {
+                        rec: '3',
+                    },
+                } as unknown as Channel,
             },
-        } as unknown as Channel);
+        });
         fixture.detectChanges();
     });
 
@@ -158,19 +169,19 @@ describe('EpgListComponent', () => {
     });
 
     it('should set epg program as active', () => {
-        jest.spyOn(channelStore, 'setActiveEpgProgram');
+        jest.spyOn(mockStore, 'dispatch');
         component.setEpgProgram(MOCKED_PROGRAMS.items[0], false, true);
-        expect(channelStore.setActiveEpgProgram).toHaveBeenCalledTimes(1);
-        expect(channelStore.setActiveEpgProgram).toHaveBeenCalledWith(
-            MOCKED_PROGRAMS.items[0]
+        expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
+        expect(mockStore.dispatch).toHaveBeenCalledWith(
+            {program: MOCKED_PROGRAMS.items[0], type: expect.stringContaining('epg program')}
         );
     });
 
     it('should reset active epg program', () => {
-        jest.spyOn(channelStore, 'resetActiveEpgProgram');
+        jest.spyOn(mockStore, 'dispatch');
         component.setEpgProgram(MOCKED_PROGRAMS.items[0], true);
-        expect(channelStore.resetActiveEpgProgram).toHaveBeenCalledTimes(1);
+        expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
         component.setEpgProgram(MOCKED_PROGRAMS.items[0], true, true);
-        expect(channelStore.resetActiveEpgProgram).toHaveBeenCalledTimes(2);
+        expect(mockStore.dispatch).toHaveBeenCalledTimes(2);
     });
 });
