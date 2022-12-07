@@ -12,8 +12,9 @@ import {
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { filter, map, Observable, skipWhile } from 'rxjs';
+import { filter, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import {
     PLAYLIST_GET_ALL,
@@ -24,9 +25,17 @@ import { Playlist } from '../../../../../shared/playlist.interface';
 import { DataService } from '../../../services/data.service';
 import { Settings, VideoPlayer } from '../../../settings/settings.interface';
 import { STORE_KEY } from '../../../shared/enums/store-keys.enum';
-import { ChannelQuery, ChannelStore } from '../../../state';
+import { setPlaylist, updateFavorites } from '../../../state/actions';
+import {
+    selectActive,
+    selectChannels,
+    selectCurrentEpgProgram,
+    selectFavorites,
+    selectIsEpgAvailable,
+    selectPlaylistFilename,
+    selectPlaylistId,
+} from '../../../state/selectors';
 import { MultiEpgContainerComponent } from '../multi-epg/multi-epg-container.component';
-import { EpgProgram } from './../../models/epg-program.model';
 
 /** Possible sidebar view options */
 type SidebarView = 'CHANNELS' | 'PLAYLISTS';
@@ -42,27 +51,21 @@ export const COMPONENT_OVERLAY_REF = new InjectionToken(
 })
 export class VideoPlayerComponent implements OnInit, OnDestroy {
     /** Active selected channel */
-    activeChannel$: Observable<Channel> = this.channelQuery
-        .select((state) => state.active)
+    activeChannel$ = this.store
+        .select(selectActive)
         .pipe(filter((channel) => Boolean(channel)));
 
     /** Channels list */
-    channels$: Observable<Channel[]> = this.channelQuery.selectAll();
+    channels$ = this.store.select(selectChannels);
 
     /** EPG availability flag */
-    epgAvailable$: Observable<boolean> = this.channelQuery.select(
-        (store) => store.epgAvailable
-    );
+    epgAvailable$ = this.store.select(selectIsEpgAvailable);
 
     /** Current epg program */
-    epgProgram$: Observable<EpgProgram> = this.channelQuery.select(
-        (store) => store.currentEpgProgram
-    );
+    epgProgram$ = this.store.select(selectCurrentEpgProgram);
 
     /** Favorites list */
-    favorites$: Observable<string[]> = this.channelQuery.select(
-        (store) => store.favorites
-    );
+    favorites$ = this.store.select(selectFavorites);
 
     /** Selected video player options */
     playerSettings: Partial<Settings> = {
@@ -77,18 +80,18 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     @ViewChild('sidenav') sideNav: MatSidenav;
 
     /** ID of the current playlist */
-    playlistId$ = this.channelQuery.select().pipe(
-        skipWhile(
-            (store) => store.playlistId === '' || store.playlistId === undefined
-        ),
-        map((data) => data.playlistId)
-    );
+    playlistId$ = this.store
+        .select(selectPlaylistId)
+        .pipe(
+            skipWhile(
+                (playlistId) => playlistId === '' || playlistId === undefined
+            )
+        );
 
     /** Title of the current playlist */
-    playlistTitle$ = this.channelQuery.select().pipe(
-        skipWhile((store) => store.playlistFilename === ''),
-        map((store) => store.playlistFilename)
-    );
+    playlistTitle$ = this.store
+        .select(selectPlaylistFilename)
+        .pipe(skipWhile((playlistFilename) => playlistFilename === ''));
 
     isElectron = this.dataService.isElectron;
 
@@ -97,7 +100,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         {
             id: PLAYLIST_PARSE_RESPONSE,
             execute: (response: { payload: Playlist }): void => {
-                this.channelStore.setPlaylist(response.payload);
+                this.store.dispatch(
+                    setPlaylist({ playlist: response.payload })
+                );
                 this.setSidebarView('CHANNELS');
             },
         },
@@ -116,8 +121,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
      */
     constructor(
         private activatedRoute: ActivatedRoute,
-        private channelQuery: ChannelQuery,
-        private channelStore: ChannelStore,
+        private store: Store,
         public dataService: DataService,
         private ngZone: NgZone,
         private overlay: Overlay,
@@ -200,7 +204,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
      */
     addToFavorites(channel: Channel): void {
         this.snackBar.open('Favorites were updated!', null, { duration: 2000 });
-        this.channelStore.updateFavorite(channel);
+        this.store.dispatch(updateFavorites({ channel }));
     }
 
     /**

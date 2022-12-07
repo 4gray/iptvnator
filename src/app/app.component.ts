@@ -167,7 +167,7 @@ export class AppComponent {
         const actualVersion = this.electronService.getAppVersion();
         this.settingsService
             .getValueFromLocalStorage(STORE_KEY.Version)
-            .subscribe((version) => {
+            .subscribe((version: string) => {
                 const isNewVersion = semver.gt(
                     actualVersion,
                     version || '0.0.0'

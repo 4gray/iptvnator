@@ -35,9 +35,15 @@
                     4,
                     {
                         "SwitchCase": 1,
-                        "CallExpression": { "arguments": "first" },
-                        "FunctionExpression": { "parameters": "first" },
-                        "FunctionDeclaration": { "parameters": "first" },
+                        "CallExpression": {
+                            "arguments": "first"
+                        },
+                        "FunctionExpression": {
+                            "parameters": "first"
+                        },
+                        "FunctionDeclaration": {
+                            "parameters": "first"
+                        },
                         "ignoredNodes": ["TSTypeParameterInstantiation"]
                     }
                 ],
@@ -66,6 +72,10 @@
                 "@angular-eslint/template/banana-in-box": "error",
                 "@angular-eslint/template/no-negated-async": "error"
             }
+        },
+        {
+            "files": ["*.ts"],
+            "extends": ["plugin:@ngrx/recommended"]
         }
     ]
 }

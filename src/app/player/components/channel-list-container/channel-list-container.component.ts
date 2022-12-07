@@ -6,11 +6,16 @@ import {
     ViewChild,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Store } from '@ngrx/store';
 import * as _ from 'lodash';
-import { map, Observable, skipWhile } from 'rxjs';
+import { combineLatestWith, map, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
-import { ChannelQuery, ChannelStore } from '../../../state';
-
+import * as PlaylistActions from '../../../state/actions';
+import {
+    selectChannels,
+    selectFavorites,
+    selectPlaylistId,
+} from '../../../state/selectors';
 @Component({
     selector: 'app-channel-list-container',
     templateUrl: './channel-list-container.component.html',
@@ -38,11 +43,12 @@ export class ChannelListContainerComponent {
     /** Selected channel */
     selected!: Channel;
 
-    /** List with favorited channels */
-    favorites$: Observable<Channel[]> = this.channelQuery.select((store) =>
-        this.channelQuery
-            .getAll()
-            .filter((channel) => store.favorites.includes(channel.id))
+    /** List with favorites */
+    favorites$ = this.store.select(selectChannels).pipe(
+        combineLatestWith(this.store.select(selectFavorites)),
+        map(([channels, favorites]) =>
+            channels.filter((channel) => favorites.includes(channel.id))
+        )
     );
 
     /** Search term for channel filter */
@@ -62,21 +68,18 @@ export class ChannelListContainerComponent {
     }
 
     /** ID of the current playlist */
-    playlistId$ = this.channelQuery.select().pipe(
-        skipWhile(
-            (store) => store.playlistId === '' || store.playlistId === undefined
-        ),
-        map((data) => data.playlistId)
-    );
+    playlistId$ = this.store
+        .select(selectPlaylistId)
+        .pipe(
+            skipWhile(
+                (playlistId) => playlistId === '' || playlistId === undefined
+            )
+        );
 
     /**
      * Creates an instance of ChannelListContainerComponent
      */
-    constructor(
-        private channelQuery: ChannelQuery,
-        private channelStore: ChannelStore,
-        private snackBar: MatSnackBar
-    ) {}
+    constructor(private readonly store: Store, private snackBar: MatSnackBar) {}
 
     /**
      * Sets clicked channel as selected and emits them to the parent component
@@ -84,7 +87,7 @@ export class ChannelListContainerComponent {
      */
     selectChannel(channel: Channel): void {
         this.selected = channel;
-        this.channelStore.setActiveChannel(channel);
+        this.store.dispatch(PlaylistActions.setActiveChannel({ channel }));
     }
 
     /**
@@ -95,7 +98,7 @@ export class ChannelListContainerComponent {
     toggleFavoriteChannel(channel: Channel, clickEvent: MouseEvent): void {
         clickEvent.stopPropagation();
         this.snackBar.open('Favorites were updated!', null, { duration: 2000 });
-        this.channelStore.updateFavorite(channel);
+        this.store.dispatch(PlaylistActions.updateFavorites({ channel }));
     }
 
     /**

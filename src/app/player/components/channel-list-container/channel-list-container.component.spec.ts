@@ -10,15 +10,17 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { By } from '@angular/platform-browser';
 import { RouterTestingModule } from '@angular/router/testing';
+import { Actions } from '@ngrx/effects';
+import { provideMockActions } from '@ngrx/effects/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockModule, MockPipes } from 'ng-mocks';
+import { Observable } from 'rxjs';
 import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
 import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
+import { createChannel } from '../../../shared/channel.model';
 import { FilterPipe } from '../../../shared/pipes/filter.pipe';
-import { createChannel } from '../../../state';
-import { ChannelQuery } from '../../../state/channel.query';
-import { ChannelStore } from '../../../state/channel.store';
 import { ChannelListContainerComponent } from './channel-list-container.component';
 
 class MatSnackBarStub {
@@ -28,7 +30,8 @@ class MatSnackBarStub {
 describe('ChannelListContainerComponent', () => {
     let component: ChannelListContainerComponent;
     let fixture: ComponentFixture<ChannelListContainerComponent>;
-    let store: ChannelStore;
+    let mockStore: MockStore;
+    const actions$ = new Observable<Actions>();
 
     beforeEach(() => {
         TestBed.configureTestingModule({
@@ -37,9 +40,10 @@ describe('ChannelListContainerComponent', () => {
                 MockPipes(TranslatePipe, FilterPipe),
             ],
             providers: [
-                ChannelQuery,
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
                 { provide: DataService, useClass: ElectronServiceStub },
+                provideMockStore(),
+                provideMockActions(actions$),
             ],
             imports: [
                 MockModule(MatSnackBarModule),
@@ -59,25 +63,22 @@ describe('ChannelListContainerComponent', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(ChannelListContainerComponent);
         component = fixture.componentInstance;
-        TestBed.inject(ChannelQuery);
-        store = TestBed.inject(ChannelStore);
-        store.update({
-            favorites: [],
-            playlistId: '',
-            active: undefined,
-        });
+        mockStore = TestBed.inject(MockStore);
 
         // set channels
         const channels = MOCKED_PLAYLIST.playlist.items.map((element) =>
             createChannel(element)
         );
-        store.upsertMany(channels);
-        component.channelList = channels;
 
-        // set favorites
-        store.update({
-            favorites: [MOCKED_PLAYLIST.playlist.items[0].url],
+        mockStore.setState({
+            playlistState: {
+                channels,
+                favorites: [MOCKED_PLAYLIST.playlist.items[0].url],
+                playlistId: '',
+                active: undefined,
+            },
         });
+        component.channelList = channels;
         fixture.detectChanges();
     });
 
@@ -144,22 +145,22 @@ describe('ChannelListContainerComponent', () => {
     });
 
     it('should update store after channel was selected', () => {
-        jest.spyOn(store, 'update');
+        jest.spyOn(mockStore, 'dispatch');
         component.selectChannel(component._channelList[0]);
         fixture.detectChanges();
-        expect(store.update).toHaveBeenCalledTimes(1);
+        expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
     });
 
     it('should update store after channel was favorited', () => {
-        jest.spyOn(store, 'updateFavorite');
+        jest.spyOn(mockStore, 'dispatch');
         component.toggleFavoriteChannel(
             component._channelList[0],
             new MouseEvent('click')
         );
         fixture.detectChanges();
-        expect(store.updateFavorite).toHaveBeenCalledWith(
-            component._channelList[0]
+        expect(mockStore.dispatch).toHaveBeenCalledWith(
+            {channel: component._channelList[0], type: expect.stringContaining('favorites')}, 
         );
-        expect(store.updateFavorite).toHaveBeenCalledTimes(1);
+        expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
     });
 });
