@@ -1,5 +1,5 @@
 /* eslint-disable no-useless-catch */
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, globalShortcut, Menu } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
 import { Api } from './api';
@@ -69,7 +69,19 @@ function createWindow(): BrowserWindow {
         }
     });
 
+    registerGlobalShortcuts();
     return win;
+}
+
+/**
+ * Registers common keyboard shortcuts
+ */
+function registerGlobalShortcuts() {
+    if (process.platform === 'darwin') {
+        globalShortcut.register('Command+Q', () => {
+            app.quit();
+        });
+    }
 }
 
 /**
