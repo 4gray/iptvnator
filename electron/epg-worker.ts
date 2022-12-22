@@ -27,6 +27,9 @@ let EPG_DATA_MERGED: {
 } = {};
 const loggerLabel = '[EPG Worker]';
 
+/** List with fetched EPG URLs */
+const fetchedUrls: string[] = [];
+
 /**
  * Fetches the epg data from the given url
  * @param epgUrl url of the epg file
@@ -81,12 +84,13 @@ const parseAndSetEpg = (xmlString) => {
 };
 
 const convertEpgData = () => {
-    let result: {
+    const result: {
         [id: string]: EpgChannel & { programs: EpgProgram[] };
     } = {};
 
     EPG_DATA?.programs?.forEach((program) => {
         if (!result[program.channel]) {
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
             const channel = EPG_DATA?.channels?.find(
                 (channel) => channel.id === program.channel
             ) as EpgChannel;
@@ -105,9 +109,11 @@ const convertEpgData = () => {
 };
 
 // fetches epg data from the provided URL
-ipcRenderer.on(EPG_FETCH, (event, arg) => {
+ipcRenderer.on(EPG_FETCH, (event, epgUrl: string) => {
     console.log(loggerLabel, 'epg fetch command was triggered');
-    fetchEpgDataFromUrl(arg);
+    if (fetchedUrls.indexOf(epgUrl) > -1) return;
+    fetchedUrls.push(epgUrl);
+    fetchEpgDataFromUrl(epgUrl);
 });
 
 // returns the epg data for the provided channel name and date
@@ -146,7 +152,7 @@ ipcRenderer.on(EPG_GET_PROGRAM, (event, args) => {
     }
 });
 
-ipcRenderer.on(EPG_GET_CHANNELS, (event, args) => {
+ipcRenderer.on(EPG_GET_CHANNELS, () => {
     ipcRenderer.send(EPG_GET_CHANNELS_DONE, {
         payload: EPG_DATA,
     });
