@@ -9,7 +9,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { take } from 'rxjs';
 import * as semver from 'semver';
+import { EPG_FORCE_FETCH } from '../../../shared/ipc-commands';
 import { DataService } from '../services/data.service';
 import { EpgService } from '../services/epg.service';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
@@ -194,6 +196,7 @@ export class SettingsComponent implements OnInit {
                 this.settingsForm.value,
                 true
             )
+            .pipe(take(1))
             .subscribe(() => {
                 this.applyChangedSettings();
             });
@@ -207,7 +210,7 @@ export class SettingsComponent implements OnInit {
         // check whether the epg url was changed or not
         if (this.isElectron) {
             if (this.settingsForm.value.epgUrl) {
-                this.fetchEpg(this.settingsForm.value.epgUrl);
+                this.epgService.fetchEpg(this.settingsForm.value.epgUrl);
             }
         }
         this.translate.use(this.settingsForm.value.language);
@@ -230,10 +233,11 @@ export class SettingsComponent implements OnInit {
 
     /**
      * Fetches and updates EPG from the given URL
-     * @param urls epg source urls
+     * @param url epg source url
      */
-    fetchEpg(urls: string | string[]): void {
-        this.epgService.fetchEpg(urls);
+    refreshEpg(url: string): void {
+        this.electronService.sendIpcEvent(EPG_FORCE_FETCH, url);
+        this.epgService.showFetchSnackbar();
     }
 
     /**

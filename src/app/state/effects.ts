@@ -11,7 +11,6 @@ import {
 import { DataService } from '../services/data.service';
 import * as PlaylistActions from './actions';
 import {
-    selectActive,
     selectFavorites,
     selectIsEpgAvailable,
     selectPlaylistId,
@@ -61,23 +60,6 @@ export class PlaylistEffects {
             })
         );
     });
-
-    setEpgAvailableFlag$ = createEffect(
-        () => {
-            return this.actions$.pipe(
-                ofType(PlaylistActions.setEpgAvailableFlag),
-                combineLatestWith(this.store.select(selectActive)),
-                map(([action, activeChannel]) => {
-                    if (activeChannel && activeChannel.name) {
-                        this.dataService.sendIpcEvent(EPG_GET_PROGRAM, {
-                            channelName: activeChannel.name,
-                        });
-                    }
-                })
-            );
-        },
-        { dispatch: false }
-    );
 
     constructor(
         private actions$: Actions,

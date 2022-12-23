@@ -7,6 +7,7 @@ import {
     EPG_ERROR,
     EPG_FETCH,
     EPG_FETCH_DONE,
+    EPG_FORCE_FETCH,
     EPG_GET_CHANNELS,
     EPG_GET_CHANNELS_BY_RANGE,
     EPG_GET_CHANNELS_BY_RANGE_RESPONSE,
@@ -118,8 +119,8 @@ ipcRenderer.on(EPG_FETCH, (event, epgUrl: string) => {
 
 // returns the epg data for the provided channel name and date
 ipcRenderer.on(EPG_GET_PROGRAM, (event, args) => {
-    const channelName = args.channel.name;
-    const tvgId = args.channel.tvg?.id;
+    const channelName = args.channel?.name;
+    const tvgId = args.channel?.tvg?.id;
     if (!EPG_DATA || !EPG_DATA.channels) return;
     const foundChannel = EPG_DATA?.channels?.find((epgChannel) => {
         if (tvgId && tvgId === epgChannel.id) {
@@ -164,4 +165,8 @@ ipcRenderer.on(EPG_GET_CHANNELS_BY_RANGE, (event, args) => {
             .slice(args.skip, args.limit)
             .map((entry) => entry[1]),
     });
+});
+
+ipcRenderer.on(EPG_FORCE_FETCH, (event, url: string) => {
+    fetchEpgDataFromUrl(url);
 });

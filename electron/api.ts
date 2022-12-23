@@ -7,6 +7,7 @@ import {
     EPG_ERROR,
     EPG_FETCH,
     EPG_FETCH_DONE,
+    EPG_FORCE_FETCH,
     EPG_GET_CHANNELS,
     EPG_GET_CHANNELS_BY_RANGE,
     EPG_GET_CHANNELS_BY_RANGE_RESPONSE,
@@ -228,6 +229,9 @@ export class Api {
                     EPG_GET_CHANNELS_BY_RANGE_RESPONSE,
                     arg
                 )
+            )
+            .on(EPG_FORCE_FETCH, (event, arg) =>
+                this.workerWindow.webContents.send(EPG_FORCE_FETCH, arg)
             );
 
         ipcMain.on(

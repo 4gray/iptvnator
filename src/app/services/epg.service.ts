@@ -36,6 +36,10 @@ export class EpgService {
                 url,
             })
         );
+        this.showFetchSnackbar();
+    }
+
+    showFetchSnackbar() {
         this.snackBar.open(
             this.translate.instant('EPG.FETCH_EPG'),
             this.translate.instant('CLOSE'),
