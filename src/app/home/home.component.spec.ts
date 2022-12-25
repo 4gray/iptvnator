@@ -20,7 +20,7 @@ import { ElectronServiceStub } from '../services/electron.service.stub';
 import { HeaderComponent } from '../shared/components/header/header.component';
 import {
     PLAYLIST_PARSE,
-    PLAYLIST_PARSE_BY_URL
+    PLAYLIST_PARSE_BY_URL,
 } from './../../../shared/ipc-commands';
 import { HomeComponent } from './home.component';
 
@@ -122,18 +122,6 @@ describe('HomeComponent', () => {
             PLAYLIST_PARSE,
             { title, playlist: [playlistContent], path }
         );
-    });
-
-    it('should return the last last segment from an url', () => {
-        expect(component.getLastUrlSegment('http://example.com')).toEqual(
-            'example.com'
-        );
-        expect(
-            component.getLastUrlSegment('http://example.com/playlist.m3u')
-        ).toEqual('playlist.m3u');
-        expect(
-            component.getLastUrlSegment('http://example.com/playlist.m3u/')
-        ).toEqual('');
     });
 
     it('should set IPC event listeners', () => {

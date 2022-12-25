@@ -52,3 +52,14 @@ export const getUUID = () =>
                 (15 >> (Number(c) / 4)))
         ).toString(16)
     );
+
+/**
+ * Returns last segment (part after last slash "/") of the given URL
+ * @param value URL as string
+ */
+export const getFilenameFromUrl = (value: string): string => {
+    if (value && value.length > 1) {
+        return value.substring(value.lastIndexOf('/') + 1);
+    }
+    return 'Untitled playlist';
+};

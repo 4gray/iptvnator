@@ -47,7 +47,8 @@
         "FILE_UPLOAD": {
             "DRAG_DROP": "Drag & drop files here",
             "OR": "or",
-            "CHOOSE_PLAYLIST": "choose a playlist"
+            "CHOOSE_PLAYLIST": "choose a playlist",
+            "REJECTED": "File was rejected, unsupported file format {{filename}}."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",

@@ -2,6 +2,7 @@ import { Component, NgZone } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { TranslateService } from '@ngx-translate/core';
 import {
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
@@ -9,10 +10,9 @@ import {
     PLAYLIST_PARSE_TEXT,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
+import { getFilenameFromUrl } from '../../../shared/playlist.utils';
 import { DataService } from '../services/data.service';
-import { PlaylistMeta } from '../shared/playlist-meta.type';
 import { setPlaylist } from '../state/actions';
-import { selectChannels } from '../state/selectors';
 
 @Component({
     selector: 'app-home',
@@ -20,11 +20,6 @@ import { selectChannels } from '../state/selectors';
     styleUrls: ['./home.component.scss'],
 })
 export class HomeComponent {
-    /** Added playlists */
-    playlists: PlaylistMeta[] = [];
-
-    channels$ = this.store.select(selectChannels);
-
     /** Loading spinner state */
     isLoading = false;
 
@@ -44,19 +39,21 @@ export class HomeComponent {
     listeners = [];
 
     /**
-     * Creates an instanceof HomeComponent
-     * @param store channels store
-     * @param electronService electron service
+     * Creates an instance of HomeComponent
+     * @param dataService data service
      * @param ngZone angular ngZone module
      * @param router angular router
      * @param snackBar snackbar for notification messages
+     * @param store channels store
+     * @param translateService ngx-translate service
      */
     constructor(
-        private electronService: DataService,
+        private dataService: DataService,
         private ngZone: NgZone,
-        private readonly store: Store,
         private router: Router,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private readonly store: Store,
+        private translateService: TranslateService
     ) {
         this.setRendererListeners();
     }
@@ -66,8 +63,8 @@ export class HomeComponent {
      */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
-            if (this.electronService.isElectron) {
-                this.electronService.listenOn(command.id, (event, response) =>
+            if (this.dataService.isElectron) {
+                this.dataService.listenOn(command.id, (event, response) =>
                     this.ngZone.run(() => command.execute(response))
                 );
             } else {
@@ -76,7 +73,7 @@ export class HomeComponent {
                         command.execute(response.data);
                     }
                 };
-                this.electronService.listenOn(command.id, cb);
+                this.dataService.listenOn(command.id, cb);
                 this.listeners.push(cb);
             }
         });
@@ -84,11 +81,13 @@ export class HomeComponent {
 
     /**
      * Shows the filename of rejected file
-     * @param fileName name of the uploaded file
+     * @param filename name of the uploaded file
      */
-    rejectFile(fileName: string): void {
+    rejectFile(filename: string): void {
         this.showNotification(
-            `File was rejected, unsupported file format (${fileName}).`
+            this.translateService.instant('HOME.FILE_UPLOAD.REJECTED', {
+                filename,
+            })
         );
         this.isLoading = false;
     }
@@ -99,9 +98,10 @@ export class HomeComponent {
      */
     handlePlaylist(payload: { uploadEvent: Event; file: File }): void {
         this.isLoading = true;
-        const result = (payload.uploadEvent.target as FileReader).result;
-        const array = (result as string).split('\n');
-        this.electronService.sendIpcEvent(PLAYLIST_PARSE, {
+        const result = (payload.uploadEvent.target as FileReader)
+            .result as string;
+        const array = result.split('\n');
+        this.dataService.sendIpcEvent(PLAYLIST_PARSE, {
             title: payload.file.name,
             playlist: array,
             path: payload.file.path,
@@ -122,8 +122,8 @@ export class HomeComponent {
      */
     sendPlaylistsUrl(playlistUrl: string): void {
         this.isLoading = true;
-        this.electronService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
-            title: this.getLastUrlSegment(playlistUrl),
+        this.dataService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
+            title: getFilenameFromUrl(playlistUrl),
             url: playlistUrl,
         });
     }
@@ -134,21 +134,9 @@ export class HomeComponent {
      */
     uploadAsText(text: string): void {
         this.isLoading = true;
-        this.electronService.sendIpcEvent(PLAYLIST_PARSE_TEXT, {
+        this.dataService.sendIpcEvent(PLAYLIST_PARSE_TEXT, {
             text,
         });
-    }
-
-    /**
-     * Returns last segment (part after last slash "/") of the given URL
-     * @param value URL as string
-     */
-    getLastUrlSegment(value: string): string {
-        if (value && value.length > 1) {
-            return value.substr(value.lastIndexOf('/') + 1);
-        } else {
-            return '';
-        }
     }
 
     /**
@@ -166,9 +154,9 @@ export class HomeComponent {
      * Remove ipcRenderer listeners after component destroy
      */
     ngOnDestroy(): void {
-        if (this.electronService.isElectron) {
+        if (this.dataService.isElectron) {
             this.commandsList.forEach((command) =>
-                this.electronService.removeAllListeners(command.id)
+                this.dataService.removeAllListeners(command.id)
             );
         } else {
             this.listeners.forEach((listener) => {
