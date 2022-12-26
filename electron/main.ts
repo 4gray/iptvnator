@@ -9,6 +9,10 @@ const {
     attachTitlebarToWindow,
 } = require('custom-electron-titlebar/main');
 const contextMenu = require('electron-context-menu');
+const Store = require('electron-store');
+const store = new Store();
+
+const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
 
 setupTitlebar();
 let win: BrowserWindow | null = null;
@@ -36,9 +40,10 @@ function createWindow(): BrowserWindow {
         icon: path.join(__dirname, '../dist/assets/icons/icon.png'),
         titleBarStyle: 'hidden',
         frame: false,
-        minWidth: 900,
-        minHeight: 700,
+        minWidth: 400,
+        minHeight: 500,
         title: 'IPTVnator',
+        ...store.get(WINDOW_BOUNDS),
     });
     attachTitlebarToWindow(win);
 
@@ -56,6 +61,10 @@ function createWindow(): BrowserWindow {
             })
         );
     }
+
+    win.on('close', () => {
+        store.set(WINDOW_BOUNDS, win?.getNormalBounds());
+    });
 
     // Emitted when the window is closed.
     win.on('closed', () => {
@@ -138,8 +147,13 @@ try {
         // On OS X it's common to re-create a window in the app when the
         // dock icon is clicked and there are no other windows open.
         if (win === null) {
-            createWindow();
+            win = createWindow();
+            api.setMainWindow(win);
         }
+    });
+
+    app.on('before-quit', () => {
+        store.set(WINDOW_BOUNDS, win?.getNormalBounds());
     });
 } catch (e) {
     // Catch Error
