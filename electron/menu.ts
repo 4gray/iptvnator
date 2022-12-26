@@ -51,15 +51,20 @@ export class AppMenu {
             submenu: [
                 {
                     label: 'Add playlist',
-                    click: () =>
-                        this.window.webContents.send(VIEW_ADD_PLAYLIST),
+                    click: () => {
+                        if (!this.window.isDestroyed())
+                            this.window.webContents.send(VIEW_ADD_PLAYLIST);
+                    },
                 },
                 {
                     type: 'separator',
                 },
                 {
                     label: 'Settings',
-                    click: () => this.window.webContents.send(VIEW_SETTINGS),
+                    click: () => {
+                        if (!this.window.isDestroyed())
+                            this.window.webContents.send(VIEW_SETTINGS);
+                    },
                 },
                 {
                     type: 'separator',
@@ -82,25 +87,33 @@ export class AppMenu {
             submenu: [
                 {
                     label: 'What is new',
-                    click: () => this.window.webContents.send(SHOW_WHATS_NEW),
+                    click: () => {
+                        if (!this.window.isDestroyed())
+                            this.window.webContents.send(SHOW_WHATS_NEW);
+                    },
                 },
                 {
                     label: 'Report a bug',
-                    click: () =>
+                    click: () => {
                         shell.openExternal(
                             'https://github.com/4gray/iptvnator'
-                        ),
+                        );
+                    },
                 },
                 {
                     label: 'Buy me a coffee',
-                    click: () =>
+                    click: () => {
                         shell.openExternal(
                             'https://www.buymeacoffee.com/4gray'
-                        ),
+                        );
+                    },
                 },
                 {
                     label: 'Open DevTools',
-                    click: () => this.window.webContents.openDevTools(),
+                    click: () => {
+                        if (!this.window.isDestroyed())
+                            this.window.webContents.openDevTools();
+                    },
                 },
                 {
                     type: 'separator',
@@ -114,7 +127,7 @@ export class AppMenu {
                                 '../dist/assets/icons/icon.png'
                             ),
                             copyright: 'Copyright (c) 2020-2022 4gray',
-                            package_json_dir: __dirname,
+                            package_json_dir: path.join(__dirname, '../'),
                         }),
                 },
             ],
