@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { Browser, chromium, expect, test } from '@playwright/test';
 import {
     BrowserContext,
     ElectronApplication,
@@ -7,31 +7,31 @@ import {
 } from 'playwright';
 const PATH = require('path');
 
-test.describe('Check Home Page', async () => {
+test.describe('Check Home Page', () => {
     let app: ElectronApplication;
-    let firstWindow: Page;
+    let page: Page;
     let context: BrowserContext;
+    let browser: Browser;
 
     test.beforeAll(async () => {
         app = await electron.launch({
-            args: [
-                PATH.join(__dirname, '../electron/main.js'),
-                PATH.join(__dirname, '../electron/package.json'),
-            ],
+            args: [PATH.join(__dirname, '../electron/main.js')],
         });
-        context = app.context();
-        //await context.tracing.start({ screenshots: true, snapshots: true });
 
-        firstWindow = await app.windows()[0];
-        const isMainWindow = (await firstWindow.title()) === 'IPTVnator';
+        browser = await chromium.launch();
+        context = await browser.newContext();
+        await context.tracing.start({ screenshots: true });
+
+        page = app.windows()[0];
+        const isMainWindow = (await page.title()) === 'IPTVnator';
         if (!isMainWindow) {
-            firstWindow = await app.windows()[1];
+            page = app.windows()[1];
         }
-        await firstWindow.waitForLoadState('domcontentloaded');
+        await page.waitForLoadState('domcontentloaded');
     });
 
     test('Launch electron app', async () => {
-        const windowState = await app.evaluate(async (process) => {
+        const windowState = await app.evaluate((process) => {
             let mainWindow = process.BrowserWindow.getAllWindows()[0];
             const isMainWindow = mainWindow.title === 'IPTVnator';
             if (!isMainWindow) {
@@ -50,9 +50,16 @@ test.describe('Check Home Page', async () => {
         expect(app.windows()).toHaveLength(2);
     });
 
-    test('Check title', async ({ page }) => {
-        const title = await firstWindow.title();
-        await firstWindow.screenshot({ path: 'e2e/screenshots/intro.png' });
+    // eslint-disable-next-line no-empty-pattern
+    test('Check title of the application', async ({}, testInfo) => {
+        const title = await page.title();
+        const screenshot = await page.screenshot({
+            path: './e2e/screenshots/home/no-playlists.png',
+        });
+        await testInfo.attach('screenshot', {
+            body: screenshot,
+            contentType: 'image/png',
+        });
         expect(title).toBe('IPTVnator');
     });
 });
