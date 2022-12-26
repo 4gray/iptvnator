@@ -125,7 +125,7 @@
         "core-js": "3.6.5",
         "cross-env": "7.0.3",
         "electron": "20.2.0",
-        "electron-builder": "23.3.3",
+        "electron-builder": "23.6.0",
         "eslint": "8.26.0",
         "eslint-plugin-import": "2.26.0",
         "husky": "5.0.9",
