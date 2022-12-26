@@ -148,6 +148,8 @@ try {
         // dock icon is clicked and there are no other windows open.
         if (win === null) {
             win = createWindow();
+            const menu = new AppMenu(win);
+            Menu.setApplicationMenu(menu.getMenu());
             api.setMainWindow(win);
         }
     });
