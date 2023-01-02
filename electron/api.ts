@@ -42,7 +42,10 @@ const Nedb = require('nedb-promises');
 
 const fs = require('fs');
 const https = require('https');
-const userData = app.getPath('userData');
+const userData = process.env['e2e']
+    ? process.cwd() + '/e2e'
+    : app.getPath('userData');
+
 const db = new Nedb({
     filename: `${userData}/db/data.db`,
     autoload: true,
