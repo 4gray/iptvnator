@@ -6,37 +6,42 @@ import {
     _electron as electron,
 } from 'playwright';
 const PATH = require('path');
+const fs = require('fs');
 
-test.describe('Check Home Page', () => {
-    let app: ElectronApplication;
-    let page: Page;
-    let context: BrowserContext;
-    let browser: Browser;
+let app: ElectronApplication;
+let page: Page;
+let context: BrowserContext;
+let browser: Browser;
 
-    test.beforeAll(async () => {
-        app = await electron.launch({
-            args: [PATH.join(__dirname, '../electron/main.js')],
-        });
-
-        browser = await chromium.launch();
-        context = await browser.newContext();
-        await context.tracing.start({ screenshots: true });
-
-        page = app.windows()[0];
-        const isMainWindow = (await page.title()) === 'IPTVnator';
-        if (!isMainWindow) {
-            page = app.windows()[1];
-        }
-        await page.waitForLoadState('domcontentloaded');
+test.beforeAll(async () => {
+    app = await electron.launch({
+        args: [PATH.join(__dirname, '../electron/main.js')],
+        env: {
+            e2e: 'true',
+        },
     });
 
+    browser = await chromium.launch();
+    context = await browser.newContext();
+    await context.tracing.start({ screenshots: true });
+
+    page = await app.firstWindow();
+    const isMainWindow = (await page.title()) === 'IPTVnator';
+    if (!isMainWindow) {
+        page = app.windows()[1];
+    }
+    await page.waitForLoadState('domcontentloaded');
+});
+
+test.describe('Check Home Page', () => {
     test('Launch electron app', async () => {
-        const windowState = await app.evaluate((process) => {
-            let mainWindow = process.BrowserWindow.getAllWindows()[0];
+        const windowState = await app.evaluate((electronProcess) => {
+            let mainWindow = electronProcess.BrowserWindow.getAllWindows()[0];
             const isMainWindow = mainWindow.title === 'IPTVnator';
             if (!isMainWindow) {
-                mainWindow = process.BrowserWindow.getAllWindows()[1];
+                mainWindow = electronProcess.BrowserWindow.getAllWindows()[1];
             }
+
             return {
                 isVisible: mainWindow.isVisible(),
                 isDevToolsOpened: mainWindow.webContents.isDevToolsOpened(),
@@ -54,7 +59,7 @@ test.describe('Check Home Page', () => {
     test('Check title of the application', async ({}, testInfo) => {
         const title = await page.title();
         const screenshot = await page.screenshot({
-            path: './e2e/screenshots/home/no-playlists.png',
+            path: `./e2e/screenshots/home/${testInfo.title}.png`,
         });
         await testInfo.attach('screenshot', {
             body: screenshot,
@@ -63,3 +68,30 @@ test.describe('Check Home Page', () => {
         expect(title).toBe('IPTVnator');
     });
 });
+
+test.describe('Upload playlists', () => {
+    test('should upload m3u playlist via file upload', async () => {
+        await page.click('"Add via file upload"');
+        await page.setInputFiles(
+            'input[type="file"]',
+            './e2e/fixtures/test.m3u'
+        );
+        await expect(page.getByTestId('channel-item')).toHaveCount(4);
+    });
+
+    test.afterEach(() => {
+        deleteDbFile();
+    });
+});
+
+function deleteDbFile() {
+    const pathToFile = './e2e/db/data.db';
+
+    fs.unlink(pathToFile, function (err) {
+        if (err) {
+            throw err;
+        } else {
+            console.log('Successfully deleted the file.');
+        }
+    });
+}
