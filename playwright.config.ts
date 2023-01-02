@@ -1,7 +1,7 @@
 import { devices, PlaywrightTestConfig } from '@playwright/test';
 
 const config: PlaywrightTestConfig = {
-    testDir: '.',
+    testDir: './e2e',
     maxFailures: 2,
     projects: [
         {
@@ -15,7 +15,6 @@ const config: PlaywrightTestConfig = {
             name: 'firefox',
             use: {
                 ...devices['Desktop Firefox'],
-                ignoreHTTPSErrors: true,
                 serviceWorkers: 'block',
             },
         },

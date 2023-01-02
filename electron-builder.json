@@ -21,7 +21,10 @@
         "!tsconfig.*.json",
         "!tslint.json",
         "!*.png",
-        "!coverage"
+        "!coverage",
+        "!e2e",
+        "!playwright-report",
+        "!test-report"
     ],
     "win": {
         "icon": "dist/assets/icons",

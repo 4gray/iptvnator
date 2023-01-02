@@ -40,7 +40,7 @@
         "electron:build:windows": "npm run build:prod && electron-builder build -w",
         "test": "jest",
         "test:watch": "jest --watch",
-        "e2e": "npm run build:electron && npx playwright test -c e2e/playwright.config.ts e2e/",
+        "e2e": "npm run build:electron && npx playwright test -c playwright.config.ts",
         "e2e:debug": "npm run build:electron && PWDEBUG=1 npx playwright test -c e2e/playwright.config.ts e2e/ /",
         "e2e:html-report": "npm run build:electron && npm run e2e -- --reporter=html",
         "e2e:show-report": "npx playwright show-report",
