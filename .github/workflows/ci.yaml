@@ -27,6 +27,27 @@ jobs:
             - run: npm run build:prod
               env:
                   CI: true
+    e2e-tests:
+        runs-on: ${{ matrix.os }}
+
+        strategy:
+            matrix:
+                os: [macos-latest, ubuntu-latest, windows-latest]
+
+        steps:
+            - uses: actions/checkout@v2
+              with:
+                  persist-credentials: false
+            - name: Use Node.js
+              uses: actions/setup-node@v1
+              with:
+                  node-version: '16.x'
+            - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
+            - run: npm ci
+            - run: npm run build:prod
+            - run: npx playwright test -c playwright.config.ts
+              env:
+                  e2e: true
     release:
         needs: [build-and-test]
         runs-on: ${{ matrix.os }}
