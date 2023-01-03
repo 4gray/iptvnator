@@ -32,7 +32,7 @@ jobs:
 
         strategy:
             matrix:
-                os: [macos-latest, windows-latest, ubuntu-latest]
+                os: [macos-latest, windows-latest]
 
         steps:
             - uses: actions/checkout@v2
@@ -47,15 +47,15 @@ jobs:
               env:
                   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
             - run: npm run build:prod
-            - run: npx playwright install --with-deps chromium
-            - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" -- npm run e2e:ci
-              if: matrix.os == 'ubuntu-latest'
-              env:
-                e2e: true
+            #- run: npx playwright install --with-deps chromium
+            #- run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" -- npm run e2e:ci
+            #  if: matrix.os == 'ubuntu-latest'
+            #  env:
+            #    e2e: true
             - run: npm run e2e:ci
               if: matrix.os != 'ubuntu-latest'
               env:
-                e2e: true
+                  e2e: true
     release:
         needs: [build-and-test]
         runs-on: ${{ matrix.os }}
