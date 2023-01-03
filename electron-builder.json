@@ -1,4 +1,5 @@
 {
+    "asar": true,
     "productName": "IPTVnator",
     "directories": {
         "output": "release/"
@@ -47,22 +48,10 @@
         "icon": "dist/assets/icons",
         "category": "Video",
         "target": [
-            {
-                "target": "AppImage",
-                "arch": ["x64", "armv7l", "arm64"]
-            },
-            {
-                "target": "deb",
-                "arch": ["x64", "armv7l", "arm64"]
-            },
-            {
-                "target": "rpm",
-                "arch": ["x64", "arm64", "armv7l"]
-            },
-            {
-                "target": "Snap",
-                "arch": ["x64", "arm64", "armv7l"]
-            }
+            "AppImage",
+            "Snap",
+            "deb",
+            "rpm"
         ]
     }
 }
