@@ -46,10 +46,10 @@ jobs:
             - run: npm ci
             - run: npm run build:prod
               env:
-                PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-            - run: npx playwright test 
+                  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+            - run: npx playwright test --retries 3
               env:
-               e2e: true
+                  e2e: true
     release:
         needs: [build-and-test]
         runs-on: ${{ matrix.os }}
@@ -81,4 +81,4 @@ jobs:
               uses: actions/upload-artifact@v3
               with:
                   name: dev-release
-                  path: ./release/iptvnator/**
+                  path: ./release/**
