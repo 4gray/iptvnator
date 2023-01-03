@@ -29,6 +29,7 @@
                     "
                     [class.active]="selected?.id === channel.id"
                     (click)="selectChannel(channel)"
+                    data-test-id="channel-item"
                 >
                     <div class="channel-logo" *ngIf="channel.tvg.logo">
                         <img
