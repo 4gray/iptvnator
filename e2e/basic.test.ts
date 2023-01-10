@@ -1,4 +1,4 @@
-import { Browser, chromium, expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
     BrowserContext,
     ElectronApplication,
@@ -11,7 +11,6 @@ const fs = require('fs');
 let app: ElectronApplication;
 let page: Page;
 let context: BrowserContext;
-let browser: Browser;
 
 test.beforeAll(async () => {
     app = await electron.launch({
@@ -21,9 +20,8 @@ test.beforeAll(async () => {
         },
     });
 
-    browser = await chromium.launch();
-    context = await browser.newContext();
-    await context.tracing.start({ screenshots: true });
+    context = app.context();
+    await context.tracing.start({ screenshots: true, snapshots: true });
 
     page = await app.firstWindow();
     const isMainWindow = (await page.title()) === 'IPTVnator';
