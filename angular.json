@@ -61,14 +61,14 @@
               ]
             },
             "web": {
-              "optimization": false,
-              "outputHashing": "none",
-              "sourceMap": true,
+              "optimization": true,
+              "outputHashing": "all",
+              "sourceMap": false,
               "namedChunks": false,
-              "aot": false,
+              "aot": true,
               "extractLicenses": true,
               "vendorChunk": false,
-              "buildOptimizer": false,
+              "buildOptimizer": true,
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
