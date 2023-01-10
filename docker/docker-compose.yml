@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  backend:
+    image: 4gray/iptvnator-backend:latest
+    ports:
+      - "7333:3000"
+    environment:
+      - CLIENT_URL=http://localhost:4333
+      
+  frontend: 
+    image: 4gray/iptvnator:latest
+    ports:
+      - "4333:80" #this one should match with the port in CLIENT_URL env
+    environment:
+      - BACKEND_PORT=7333 # this one should match with the exposed port of the backend service
+      
