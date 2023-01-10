@@ -7,4 +7,5 @@ export const AppConfig = {
     production: false,
     environment: 'DEV',
     version: require('../../package.json').version,
+    BACKEND_URL: 'http://localhost:3000',
 };
