@@ -52,9 +52,7 @@ import { DataService } from './data.service';
 })
 export class PwaService extends DataService {
     /** Proxy URL to avoid CORS issues */
-    corsProxyUrl = AppConfig.production
-        ? 'https://iptvnator-playlist-parser-api.vercel.app/parse?url='
-        : 'http://localhost:3000/parse?url=';
+    corsProxyUrl = AppConfig.BACKEND_URL;
 
     appRef = inject(ApplicationRef);
     snackBar = inject(MatSnackBar);
@@ -273,7 +271,7 @@ export class PwaService extends DataService {
         } else if (type === PLAYLIST_UPDATE) {
             this.http
                 // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                .get(`${this.corsProxyUrl}${payload.url}`, {
+                .get(`${this.corsProxyUrl}/parse?url=${payload.url}`, {
                     responseType: 'text',
                 })
                 .pipe(
@@ -341,7 +339,7 @@ export class PwaService extends DataService {
      */
     fetchFromUrl(payload: Partial<Playlist>): void {
         this.http
-            .get(`${this.corsProxyUrl}${payload.url}`)
+            .get(`${this.corsProxyUrl}/parse?url=${payload.url}`)
             .pipe(
                 switchMap((response) =>
                     payload.isTemporary
