@@ -64,7 +64,7 @@
         "SUBTITLE": "Change the configuration of the application",
         "DESCRIPTION": "Please adapt the options from the list below and confirm with a save button",
         "EPG_URL_LABEL": "EPG Url (*.xml or *.xml.gz)",
-        "EPG_URL_PLACEHOLDER": "Enter a URL",
+        "EPG_URL_PLACEHOLDER": "Enter an URL",
         "REFRESH_EPG": "Refresh EPG",
         "VIDEO_PLAYER_LABEL": "Video player",
         "VIDEO_PLAYER_PLACEHOLDER": "Select an option",
@@ -76,7 +76,9 @@
         "LANGUAGE": "Language",
         "SETTINGS_SAVED": "Success! Configuration was saved.",
         "THEME": "Visual theme",
-        "SHOW_CAPTIONS": "Show subtitles"
+        "SHOW_CAPTIONS": "Show subtitles",
+        "ADD_EPG_SOURCE": "Add EPG source",
+        "EPG_URL_ERROR": "The value is not a valid URL"
     },
     "THEMES": {
         "DARK_THEME": "Dark theme",
