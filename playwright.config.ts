@@ -3,6 +3,7 @@ import { devices, PlaywrightTestConfig } from '@playwright/test';
 const config: PlaywrightTestConfig = {
     testDir: './e2e',
     maxFailures: 2,
+    testMatch: /.*\.e2e\.ts/,
     projects: [
         {
             name: 'chromium',
