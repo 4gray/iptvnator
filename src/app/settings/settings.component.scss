@@ -1,31 +1,41 @@
-.card-header {
-    margin-top: 15px;
-    margin-bottom: 15px;
-}
-
 button {
     cursor: pointer !important;
     text-transform: uppercase;
 }
 
-.mat-card {
-    border-radius: 0 !important;
-}
-
-.mat-list-item {
-    height: 70px !important;
-}
-
 .settings-container {
     overflow: auto;
     height: calc(100vh - 140px);
+}
 
-    .mat-card {
-        box-shadow: none;
-        background: none;
+.row {
+    display: flex;
+    padding: 10px;
+
+    :nth-child(2) {
+        text-align: right;
+        
+        mat-form-field {
+            font-size: 14px;
+        }
     }
 }
 
-.mat-form-field {
-    width: 100%;
+.column {
+    flex: 1;
+
+    p {
+        font-size: 0.9em;
+        opacity: .6;
+        padding: 2px 0;
+        margin: 0;
+    }
+}
+
+.action-buttons {
+    margin-top: 10px;
+
+    button {
+        margin: 0 10px;
+    }
 }

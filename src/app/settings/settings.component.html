@@ -7,211 +7,197 @@
     "
 ></app-header>
 
-<div class="settings-container">
+<div class="settings-container" data-test-id="settings-container">
     <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" novalidate>
-        <mat-card>
-            <mat-card-content>
-                <mat-list>
-                    <ng-container formArrayName="epgUrl" *ngIf="isElectron">
-                        <mat-list-item
-                            *ngFor="let _ of epgUrl.controls; index as i"
+        <ng-container formArrayName="epgUrl" *ngIf="isElectron">
+            <div class="row">
+                <div class="column">
+                    {{ 'SETTINGS.EPG_URL_LABEL' | translate }}
+                    <p>Add single or multiple URLs as EPG sources</p>
+                </div>
+                <div class="column">
+                    <div *ngFor="let _ of epgUrl.controls; index as i">
+                        <mat-form-field appearance="outline">
+                            <mat-label>{{
+                                'SETTINGS.EPG_URL_PLACEHOLDER' | translate
+                            }}</mat-label>
+                            <input
+                                matInput
+                                type="url"
+                                [formControlName]="i"
+                                #epgField
+                            />
+                            <mat-error>{{
+                                'SETTINGS.EPG_URL_ERROR' | translate
+                            }}</mat-error>
+                        </mat-form-field>
+                        <button
+                            matLine
+                            mat-icon-button
+                            color="accent"
+                            [matTooltip]="'SETTINGS.REFRESH_EPG' | translate"
+                            type="button"
+                            [disabled]="epgField.value === ''"
+                            (click)="refreshEpg(epgUrl.value[i])"
                         >
-                            <div matLine fxLayout="row">
-                                <p fxFlex>
-                                    {{ 'SETTINGS.EPG_URL_LABEL' | translate }}
-                                </p>
-                                <p
-                                    fxFlex
-                                    fxLayoutAlign="start center"
-                                    fxLayout="row"
-                                >
-                                    <mat-form-field class="full-width">
-                                        <input
-                                            matInput
-                                            [placeholder]="
-                                                'SETTINGS.EPG_URL_PLACEHOLDER'
-                                                    | translate
-                                            "
-                                            type="url"
-                                            [formControlName]="i"
-                                        />
-                                        <mat-error
-                                            >The value is not a valid
-                                            URL</mat-error
-                                        >
-                                    </mat-form-field>
-                                    <button
-                                        matLine
-                                        mat-icon-button
-                                        color="accent"
-                                        [matTooltip]="
-                                            'SETTINGS.REFRESH_EPG' | translate
-                                        "
-                                        type="button"
-                                        (click)="refreshEpg(epgUrl.value[i])"
-                                    >
-                                        <mat-icon>refresh</mat-icon>
-                                    </button>
-                                    <button
-                                        mat-icon-button
-                                        matLine
-                                        color="accent"
-                                        [matTooltip]="
-                                            'SETTINGS.REFRESH_EPG' | translate
-                                        "
-                                        type="button"
-                                        (click)="removeEpgSource(i)"
-                                    >
-                                        <mat-icon>remove</mat-icon>
-                                    </button>
-                                </p>
-                            </div>
-                        </mat-list-item>
-                    </ng-container>
-                    <mat-list-item *ngIf="isElectron">
-                        <div matLine fxLayout="row">
-                            <p fxFlex></p>
-                            <p fxFlex fxLayoutAlign="start center">
-                                <button
-                                    mat-button
-                                    color="accent"
-                                    type="button"
-                                    (click)="addEpgSource()"
-                                >
-                                    Add another epg source
-                                </button>
-                            </p>
-                        </div>
-                    </mat-list-item>
-                    <mat-list-item>
-                        <div matLine fxLayout="row">
-                            <p fxFlex>
-                                {{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}
-                            </p>
-                            <p fxFlex fxLayoutAlign="start center">
-                                <mat-form-field appearance="fill">
-                                    <mat-label>{{
-                                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER'
-                                            | translate
-                                    }}</mat-label>
-                                    <mat-select formControlName="player">
-                                        <mat-option
-                                            *ngFor="let player of players"
-                                            [value]="player.id"
-                                            >{{ player.label }}
-                                        </mat-option>
-                                    </mat-select>
-                                </mat-form-field>
-                            </p>
-                        </div>
-                    </mat-list-item>
-                    <mat-list-item>
-                        <div matLine fxLayout="row">
-                            <p fxFlex>
-                                {{ 'SETTINGS.LANGUAGE' | translate }}
-                            </p>
-                            <p fxFlex fxLayoutAlign="start center">
-                                <mat-form-field appearance="fill">
-                                    <mat-label>{{
-                                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER'
-                                            | translate
-                                    }}</mat-label>
-                                    <mat-select formControlName="language">
-                                        <mat-option
-                                            *ngFor="
-                                                let language of languageEnum
-                                                    | keyvalue
-                                            "
-                                            [value]="language.value"
-                                            >{{
-                                                'LANGUAGES.' + language.key
-                                                    | translate
-                                            }}</mat-option
-                                        >
-                                    </mat-select>
-                                </mat-form-field>
-                            </p>
-                        </div>
-                    </mat-list-item>
-                    <mat-list-item>
-                        <div matLine fxLayout="row">
-                            <p fxFlex>{{ 'SETTINGS.THEME' | translate }}</p>
-                            <p fxFlex>
-                                <mat-form-field appearance="fill">
-                                    <mat-label>{{
-                                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER'
-                                            | translate
-                                    }}</mat-label>
-                                    <mat-select formControlName="theme">
-                                        <mat-option
-                                            *ngFor="
-                                                let theme of themeEnum
-                                                    | keyvalue
-                                            "
-                                            [value]="theme.value"
-                                            >{{
-                                                'THEMES.' + theme.value
-                                                    | translate
-                                            }}</mat-option
-                                        >
-                                    </mat-select>
-                                </mat-form-field>
-                            </p>
-                        </div>
-                    </mat-list-item>
-                    <mat-list-item>
-                        <div matLine fxLayout="row">
-                            <p fxFlex>
-                                {{ 'SETTINGS.SHOW_CAPTIONS' | translate }}
-                            </p>
-                            <p fxFlex>
-                                <mat-checkbox
-                                    formControlName="showCaptions"
-                                ></mat-checkbox>
-                            </p>
-                        </div>
-                    </mat-list-item>
-                    <mat-list-item>
-                        <div matLine fxLayout="row">
-                            <p fxFlex>
-                                {{ 'SETTINGS.VERSION' | translate }}
-                            </p>
-                            <p fxFlex>
-                                {{ version }} <br />
-                                {{ updateMessage }}
-                            </p>
-                        </div>
-                    </mat-list-item>
-                    <mat-list-item *ngIf="!isElectron"
-                        >EPG is available in electron-based version of
-                        IPTVnator. Check it&nbsp;<a
-                            href="https://github.com/4gray/iptvnator/releases"
-                            >here</a
-                        ></mat-list-item
+                            <mat-icon>refresh</mat-icon>
+                        </button>
+                        <button
+                            mat-icon-button
+                            matLine
+                            color="accent"
+                            [matTooltip]="'SETTINGS.REFRESH_EPG' | translate"
+                            type="button"
+                            (click)="removeEpgSource(i)"
+                        >
+                            <mat-icon>remove</mat-icon>
+                        </button>
+                    </div>
+                    <button
+                        mat-button
+                        color="accent"
+                        type="button"
+                        (click)="addEpgSource()"
                     >
-                </mat-list>
-            </mat-card-content>
-            <mat-divider></mat-divider>
-            <mat-card-actions align="end">
-                <button
-                    mat-button
-                    color="accent"
-                    type="reset"
-                    (click)="backToHome()"
-                >
-                    <mat-icon>chevron_left</mat-icon>
-                    {{ 'SETTINGS.BACK_TO_HOME' | translate }}
-                </button>
-                <button
-                    mat-button
-                    color="accent"
-                    type="submit"
-                    [disabled]="settingsForm.pristine || !settingsForm.valid"
-                >
-                    <mat-icon>save</mat-icon>
-                    {{ 'SETTINGS.SAVE_CHANGES' | translate }}
-                </button>
-            </mat-card-actions>
-        </mat-card>
+                        {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
+                    </button>
+                </div>
+            </div>
+        </ng-container>
+        <mat-divider></mat-divider>
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}
+                <p>Select default video player</p>
+            </div>
+            <div class="column">
+                <mat-form-field appearance="outline">
+                    <mat-label>{{
+                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="player"
+                        data-test-id="select-video-player"
+                    >
+                        <mat-option
+                            *ngFor="let player of players"
+                            [value]="player.id"
+                            [attr.data-test-id]="player.id"
+                            >{{ player.label }}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        </div>
+        <mat-divider></mat-divider>
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.LANGUAGE' | translate }}
+                <p>Select language of the application</p>
+            </div>
+            <div class="column">
+                <mat-form-field appearance="outline">
+                    <mat-label>{{
+                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="language"
+                        data-test-id="select-language"
+                    >
+                        <mat-option
+                            *ngFor="let language of languageEnum | keyvalue"
+                            [value]="language.value"
+                            [attr.data-test-id]="language.value"
+                            >{{
+                                'LANGUAGES.' + language.key | translate
+                            }}</mat-option
+                        >
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        </div>
+        <mat-divider></mat-divider>
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.THEME' | translate }}
+                <p>Select visual theme of the application</p>
+            </div>
+            <div class="column">
+                <mat-form-field appearance="outline">
+                    <mat-label>{{
+                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="theme"
+                        data-test-id="select-theme"
+                    >
+                        <mat-option
+                            *ngFor="let theme of themeEnum | keyvalue"
+                            [value]="theme.value"
+                            [attr.data-test-id]="theme.value"
+                            >{{
+                                'THEMES.' + theme.value | translate
+                            }}</mat-option
+                        >
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        </div>
+        <mat-divider></mat-divider>
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.SHOW_CAPTIONS' | translate }}
+                <p>Show or hide subtitles by default</p>
+            </div>
+            <div class="column" style="margin-right: 10px">
+                <mat-checkbox
+                    class="column"
+                    formControlName="showCaptions"
+                ></mat-checkbox>
+            </div>
+        </div>
+        <mat-divider></mat-divider>
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.VERSION' | translate }}
+                <p>Current version of the application</p>
+            </div>
+            <div class="column">
+                {{ version }} <br />
+                {{ updateMessage }}
+            </div>
+        </div>
+
+        <div class="row" *ngIf="!isElectron">
+            Currently EPG is available only in the electron-based version of
+            IPTVnator. Check it&nbsp;<a
+                href="https://github.com/4gray/iptvnator/releases"
+                >here</a
+            >
+        </div>
+
+        <mat-divider></mat-divider>
+        <div class="action-buttons" align="end">
+            <button
+                mat-button
+                color="accent"
+                type="reset"
+                (click)="backToHome()"
+                data-test-id="back-to-home"
+            >
+                <mat-icon>chevron_left</mat-icon>
+                {{ 'SETTINGS.BACK_TO_HOME' | translate }}
+            </button>
+            <button
+                mat-button
+                color="accent"
+                type="submit"
+                [disabled]="settingsForm.pristine || !settingsForm.valid"
+                data-test-id="save-settings"
+            >
+                <mat-icon>save</mat-icon>
+                {{ 'SETTINGS.SAVE_CHANGES' | translate }}
+            </button>
+        </div>
     </form>
 </div>
