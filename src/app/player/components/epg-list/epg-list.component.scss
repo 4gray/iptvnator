@@ -13,9 +13,44 @@
     border-bottom: 1px dashed #666;
 }
 
-#channel-info {
+
+#channel-header {
+    flex-direction: column;
+    box-sizing: border-box;
+    display: flex;
+    flex: 1 1 120px;
+    max-height: 120px;
+    min-height: 120px;
+
+    .channel-info {
+        flex-direction: row;
+        box-sizing: border-box;
+        display: flex;
+        flex: 1 1 79px;
+        max-height: 79px;
+        min-height: 79px;
+    }
+
     .channel-icon {
         overflow: hidden;
+        margin-right: 10px;
+        place-content: center;
+        align-items: center;
+        flex-direction: row;
+        box-sizing: border-box;
+        display: flex;
+        flex: 1 1 60px;
+        max-width: 60px;
+        min-width: 60px;
+    }
+
+    .channel-details {
+        flex: 1 1 100%;
+        box-sizing: border-box;
+        max-width: 100%;
+        align-self: center;
+        display: flex;
+        flex-direction: column;
     }
 
     .channel-name {
@@ -32,12 +67,45 @@
     }
 }
 
+#program-list {
+    flex: 1 1 1e-9px;
+    box-sizing: border-box;
+}
+
 mat-selection-list {
     overflow: auto;
 }
 
 #date-navigator {
+    flex-direction: row;
+    box-sizing: border-box;
+    display: flex;
+    flex: 1 1 40px;
+    max-height: 40px;
+    min-height: 40px;
+
     .selected-date {
         font-size: 0.9em;
+        place-content: center;
+        align-items: center;
+        flex-direction: row;
+        box-sizing: border-box;
+        display: flex;
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
+
+    .previous-day {
+        flex: 1 1 40px;
+        box-sizing: border-box;
+        max-width: 40px;
+        min-width: 40px;
+    }
+
+    .next-day {
+        flex: 1 1 40px;
+        box-sizing: border-box;
+        max-width: 40px;
+        min-width: 40px;
     }
 }

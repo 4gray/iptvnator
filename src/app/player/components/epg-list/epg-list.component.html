@@ -1,15 +1,11 @@
 <ng-container *ngIf="channel; else noEpg">
     <!-- channel info panel -->
-    <div fxFlex="120px" id="channel-info" color="primary" fxLayout="column">
-        <div fxFlex="79px" fxLayout="row" fxLayoutGap="10px">
-            <div
-                fxFlex="60px"
-                class="channel-icon"
-                fxLayoutAlign="center center"
-            >
+    <div id="channel-header" color="primary">
+        <div class="channel-info">
+            <div class="channel-icon">
                 <img *ngIf="channel?.icon" [src]="channel.icon" width="48" />
             </div>
-            <div fxFlex="100" fxFlexAlign="center">
+            <div class="channel-details">
                 <div class="channel-name">
                     {{ channel?.name[0]?.value }}
                 </div>
@@ -23,24 +19,20 @@
             </div>
         </div>
         <mat-divider></mat-divider>
-        <div fxFlex="40px" fxLayout="row" id="date-navigator">
+        <div id="date-navigator">
             <button
-                fxFlex="40px"
+                class="previous-day"
                 mat-icon-button
                 (click)="changeDate('prev')"
                 [matTooltip]="'EPG.PREVIOUS_DAY' | translate"
             >
                 <mat-icon>chevron_left</mat-icon>
             </button>
-            <span
-                class="selected-date"
-                fxFlex="100"
-                fxLayoutAlign="center center"
-            >
+            <span class="selected-date">
                 {{ dateToday | momentDate: 'YYYYMMDD':'MMMM Do, dddd' }}</span
             >
             <button
-                fxFlex="40px"
+                class="next-day"
                 mat-icon-button
                 (click)="changeDate('next')"
                 [matTooltip]="'EPG.NEXT_DAY' | translate"
@@ -53,7 +45,7 @@
 
     <!-- program list -->
     <mat-selection-list
-        fxFlex
+        id="program-list"
         [multiple]="false"
         *ngIf="timeshiftUntil$ | async as timeshiftUntil"
     >

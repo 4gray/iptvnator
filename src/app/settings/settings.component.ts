@@ -134,6 +134,7 @@ export class SettingsComponent implements OnInit {
         if (!Array.isArray(epgUrls)) {
             epgUrls = [epgUrls];
         }
+        epgUrls = epgUrls.filter((url) => url !== '');
 
         for (const url of epgUrls) {
             this.epgUrl.push(
@@ -209,8 +210,13 @@ export class SettingsComponent implements OnInit {
         this.settingsForm.markAsPristine();
         // check whether the epg url was changed or not
         if (this.isElectron) {
-            if (this.settingsForm.value.epgUrl) {
-                this.epgService.fetchEpg(this.settingsForm.value.epgUrl);
+            let epgUrls = this.settingsForm.value.epgUrl;
+            if (epgUrls) {
+                if (!Array.isArray(epgUrls)) {
+                    epgUrls = [epgUrls];
+                }
+                epgUrls = epgUrls.filter((url) => url !== '');
+                this.epgService.fetchEpg(epgUrls);
             }
         }
         this.translate.use(this.settingsForm.value.language);
