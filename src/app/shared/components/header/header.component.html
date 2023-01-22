@@ -10,6 +10,7 @@
         *ngIf="isElectron; else pwaMenu"
         mat-icon-button
         (click)="openSettings()"
+        data-test-id="open-settings"
     >
         <mat-icon>settings</mat-icon>
     </button>

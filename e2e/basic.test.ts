@@ -76,20 +76,22 @@ test.describe('Upload playlists', () => {
         );
         await expect(page.getByTestId('channel-item')).toHaveCount(4);
     });
+});
 
-    test.afterEach(() => {
-        deleteDbFile();
-    });
+test.afterAll(async () => {
+    deleteDbFile();
+    await page.close();
+    await app.close();
 });
 
 function deleteDbFile() {
     const pathToFile = './e2e/db/data.db';
 
-    fs.unlink(pathToFile, function (err) {
-        if (err) {
-            throw err;
-        } else {
-            console.log('Successfully deleted the file.');
-        }
-    });
+    try {
+        fs.unlink(pathToFile, () => {
+            console.log('db file was deleted');
+        });
+    } catch (error) {
+        console.log('db file not found');
+    }
 }
