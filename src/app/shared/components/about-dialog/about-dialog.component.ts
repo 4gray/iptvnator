@@ -8,7 +8,7 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
             <img src="./assets/icons/icon-tv-256.png" width="128" /><br />
             <h2 mat-dialog-title>{{ 'ABOUT.TITLE' | translate }}</h2>
             <p>{{ 'ABOUT.DESCRIPTION' | translate }}</p>
-            <p>Version: {{ appVersion }}</p>
+            <p>{{ 'ABOUT.VERSION' | translate }}: {{ appVersion }}</p>
             <p>
                 <a
                     href="https://github.com/4gray/iptvnator"
@@ -56,5 +56,5 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
     ],
 })
 export class AboutDialogComponent {
-    constructor(@Inject(MAT_DIALOG_DATA) private appVersion: string) {}
+    constructor(@Inject(MAT_DIALOG_DATA) public appVersion: string) {}
 }
