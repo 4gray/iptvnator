@@ -1,7 +1,7 @@
-import { ConfirmDialogComponent } from './../shared/components/confirm-dialog/confirm-dialog.component';
-import { MatDialog } from '@angular/material/dialog';
 import { Injectable } from '@angular/core';
-import { ConfirmDialogData } from '../shared/components/confirm-dialog/confirm-dialog.component';
+import { MatDialog } from '@angular/material/dialog';
+import { ConfirmDialogData } from '../shared/components/confirm-dialog/confirm-dialog-data.interface';
+import { ConfirmDialogComponent } from './../shared/components/confirm-dialog/confirm-dialog.component';
 
 @Injectable({
     providedIn: 'root',
@@ -14,7 +14,10 @@ export class DialogService {
      * @param data dialog meta info
      */
     openConfirmDialog(data: ConfirmDialogData): void {
-        const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+        const dialogRef = this.dialog.open<
+            ConfirmDialogComponent,
+            ConfirmDialogData
+        >(ConfirmDialogComponent, {
             data,
             width: '300px',
         });

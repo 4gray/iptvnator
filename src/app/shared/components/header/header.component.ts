@@ -79,6 +79,7 @@ export class HeaderComponent implements OnInit {
         this.dialog.open(AboutDialogComponent, {
             panelClass: 'about-dialog-overlay',
             width: '600px',
+            data: this.dataService.getAppVersion(),
         });
     }
 }
