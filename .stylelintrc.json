@@ -6,9 +6,7 @@
             true,
             {
                 "ignoreTypes": [
-                    "mat-selection-list",
-                    "mat-nav-list",
-                    "mat-list-item"
+                    "/^mat-/"
                 ]
             }
         ],

@@ -1,11 +1,11 @@
 $material-icons-font-path: '~material-icons/iconfont/';
 
 /* You can add global styles to this file, and also import other style files */
-@import '~@angular/material/prebuilt-themes/indigo-pink.css';
-@import '~material-icons/iconfont/material-icons.scss';
-@import '~@angular/material/theming';
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+@import 'material-icons/iconfont/material-icons.scss';
+@import '@angular/material/theming';
 @import 'themes/';
-@import '~@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
+@import '@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
 
 @include mat-core();
 
