@@ -59,8 +59,8 @@ export class SettingsService {
      * Returns the version of the released app
      */
     getAppVersion() {
-        return this.http.get<string>(PACKAGE_JSON_URL).pipe(
-            map((response) => response['version']),
+        return this.http.get<{ version: string }>(PACKAGE_JSON_URL).pipe(
+            map((response) => response.version),
             catchError((err) => {
                 console.error(err);
                 throw new Error(err);

@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import {
     UntypedFormArray,
@@ -15,6 +16,7 @@ import { EPG_FORCE_FETCH } from '../../../shared/ipc-commands';
 import { DataService } from '../services/data.service';
 import { EpgService } from '../services/epg.service';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
+import { SharedModule } from '../shared/shared.module';
 import { selectIsEpgAvailable } from '../state/selectors';
 import { SettingsService } from './../services/settings.service';
 import { Language } from './language.enum';
@@ -22,9 +24,10 @@ import { Settings, VideoPlayer } from './settings.interface';
 import { Theme } from './theme.enum';
 
 @Component({
-    selector: 'app-settings',
     templateUrl: './settings.component.html',
     styleUrls: ['./settings.component.scss'],
+    standalone: true,
+    imports: [CommonModule, SharedModule],
 })
 export class SettingsComponent implements OnInit {
     /** List with available languages as enum */
@@ -149,9 +152,10 @@ export class SettingsComponent implements OnInit {
      * settings UI
      */
     checkAppVersion(): void {
-        this.settingsService.getAppVersion().subscribe((version) => {
-            this.showVersionInformation(version);
-        });
+        this.settingsService
+            .getAppVersion()
+            .pipe(take(1))
+            .subscribe((version) => this.showVersionInformation(version));
     }
 
     /**
