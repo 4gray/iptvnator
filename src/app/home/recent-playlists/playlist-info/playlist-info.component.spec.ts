@@ -1,17 +1,21 @@
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { PLAYLIST_SAVE_DETAILS } from './../../../../../shared/ipc-commands';
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ElectronServiceStub } from '../../../services/electron.service.stub';
-import { DataService } from '../../../services/data.service';
-import { TranslatePipe } from '@ngx-translate/core';
-import { MockModule, MockPipe } from 'ng-mocks';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { DatePipe } from '@angular/common';
-import { PlaylistInfoComponent } from './playlist-info.component';
-import { FormsModule, ReactiveFormsModule, UntypedFormBuilder } from '@angular/forms';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import {
+    FormsModule,
+    ReactiveFormsModule,
+    UntypedFormBuilder,
+} from '@angular/forms';
+import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { TranslateModule } from '@ngx-translate/core';
+import { MockModule, MockPipe } from 'ng-mocks';
+import { DataService } from '../../../services/data.service';
+import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { Playlist } from './../../../../../shared/playlist.interface';
+import { PlaylistInfoComponent } from './playlist-info.component';
 
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
@@ -26,13 +30,10 @@ describe('PlaylistInfoComponent', () => {
                     MockModule(MatDialogModule),
                     MockModule(MatCheckboxModule),
                     MockModule(MatFormFieldModule),
+                    MockModule(TranslateModule),
                     ReactiveFormsModule,
                 ],
-                declarations: [
-                    PlaylistInfoComponent,
-                    MockPipe(TranslatePipe),
-                    MockPipe(DatePipe),
-                ],
+                declarations: [PlaylistInfoComponent, MockPipe(DatePipe)],
                 providers: [
                     { provide: MAT_DIALOG_DATA, useValue: {} },
                     { provide: DataService, useClass: ElectronServiceStub },

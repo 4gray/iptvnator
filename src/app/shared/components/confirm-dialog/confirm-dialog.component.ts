@@ -1,8 +1,11 @@
 import { Component, Inject } from '@angular/core';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { TranslateModule } from '@ngx-translate/core';
 import { ConfirmDialogData } from './confirm-dialog-data.interface';
 @Component({
-    selector: 'app-confirm-dialog',
+    imports: [MatButtonModule, MatDialogModule, TranslateModule],
+    standalone: true,
     template: `
         <h2 mat-dialog-title>
             {{ dialogData.title }}

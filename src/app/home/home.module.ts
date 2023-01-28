@@ -5,7 +5,6 @@ import { DragDropFileUploadDirective } from './file-upload/drag-drop-file-upload
 import { FileUploadComponent } from './file-upload/file-upload.component';
 import { HomeComponent } from './home.component';
 import { HomeRoutingModule } from './home.routing';
-import { PlaylistInfoComponent } from './recent-playlists/playlist-info/playlist-info.component';
 import { TextImportComponent } from './text-import/text-import.component';
 import { UrlUploadComponent } from './url-upload/url-upload.component';
 @NgModule({
@@ -14,7 +13,6 @@ import { UrlUploadComponent } from './url-upload/url-upload.component';
         DragDropFileUploadDirective,
         HomeComponent,
         FileUploadComponent,
-        PlaylistInfoComponent,
         TextImportComponent,
         UrlUploadComponent,
     ],

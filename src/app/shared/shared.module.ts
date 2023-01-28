@@ -8,17 +8,13 @@ import { PlaylistItemComponent } from '../home/recent-playlists/playlist-item/pl
 import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
 import { MaterialModule } from '../material.module';
 import { HeaderComponent } from './components/';
-import { AboutDialogComponent } from './components/about-dialog/about-dialog.component';
-import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { FilterPipe } from './pipes/filter.pipe';
 import { MomentDatePipe } from './pipes/moment-date.pipe';
 @NgModule({
     declarations: [
-        ConfirmDialogComponent,
         FilterPipe,
         HeaderComponent,
         MomentDatePipe,
-        AboutDialogComponent,
         RecentPlaylistsComponent,
         PlaylistItemComponent,
     ],
@@ -32,7 +28,6 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
         DragDropModule,
     ],
     exports: [
-        ConfirmDialogComponent,
         FilterPipe,
         FormsModule,
         HeaderComponent,

@@ -1,13 +1,18 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { DatePipe } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { Component, Inject } from '@angular/core';
 import {
+    ReactiveFormsModule,
     UntypedFormBuilder,
     UntypedFormControl,
     UntypedFormGroup,
     Validators,
 } from '@angular/forms';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatInputModule } from '@angular/material/input';
+import { TranslateModule } from '@ngx-translate/core';
 import { PLAYLIST_SAVE_DETAILS } from '../../../../../shared/ipc-commands';
 import { Playlist } from '../../../../../shared/playlist.interface';
 import { DataService } from '../../../services/data.service';
@@ -16,6 +21,16 @@ import { DataService } from '../../../services/data.service';
     selector: 'app-playlist-info',
     templateUrl: './playlist-info.component.html',
     providers: [DatePipe],
+    imports: [
+        TranslateModule,
+        MatButtonModule,
+        MatInputModule,
+        MatCheckboxModule,
+        CommonModule,
+        ReactiveFormsModule,
+        MatDialogModule,
+    ],
+    standalone: true,
 })
 export class PlaylistInfoComponent {
     /** Flag that returns true if application runs in electron-based environment */
@@ -49,7 +64,10 @@ export class PlaylistInfoComponent {
     ngOnInit(): void {
         this.playlistDetails = this.formBuilder.group({
             _id: this.playlist._id,
-            title: new UntypedFormControl(this.playlist.title, Validators.required),
+            title: new UntypedFormControl(
+                this.playlist.title,
+                Validators.required
+            ),
             userAgent: this.playlist.userAgent || '',
             filename: new UntypedFormControl({
                 value: this.playlist.filename || '',
@@ -63,7 +81,10 @@ export class PlaylistInfoComponent {
                 value: this.datePipe.transform(this.playlist.importDate),
                 disabled: true,
             }),
-            url: new UntypedFormControl({ value: this.playlist.url, disabled: true }),
+            url: new UntypedFormControl({
+                value: this.playlist.url,
+                disabled: true,
+            }),
             filePath: new UntypedFormControl({
                 value: this.playlist.filePath,
                 disabled: true,

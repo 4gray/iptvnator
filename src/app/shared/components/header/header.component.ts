@@ -32,7 +32,7 @@ export class HeaderComponent implements OnInit {
 
     isHome = true;
 
-    /** Creates an instance of SettingsComponent */
+    /** Creates an instance of HeaderComponent */
     constructor(
         private activatedRoute: ActivatedRoute,
         private dialog: MatDialog,

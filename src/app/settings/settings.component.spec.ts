@@ -18,14 +18,18 @@ import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { provideMockStore } from '@ngrx/store/testing';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
+import {
+    TranslateModule,
+    TranslatePipe,
+    TranslateService,
+} from '@ngx-translate/core';
+import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
 import { of } from 'rxjs';
 import { EPG_FORCE_FETCH } from '../../../shared/ipc-commands';
 import { DataService } from '../services/data.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
-import { TranslateServiceStub } from './../../testing/translate.stub';
-import { HeaderComponent } from './../shared/components/header/header.component';
+import { HeaderComponent } from '../shared/components';
+import { SharedModule } from '../shared/shared.module';
 import { Language } from './language.enum';
 import { SettingsComponent } from './settings.component';
 import { VideoPlayer } from './settings.interface';
@@ -67,11 +71,8 @@ describe('SettingsComponent', () => {
                 ],
                 providers: [
                     UntypedFormBuilder,
+                    MockProvider(TranslateService),
                     { provide: MatSnackBar, useClass: MatSnackBarStub },
-                    {
-                        provide: TranslateService,
-                        useClass: TranslateServiceStub,
-                    },
                     { provide: DataService, useClass: ElectronServiceStub },
                     {
                         provide: Router,
@@ -93,6 +94,8 @@ describe('SettingsComponent', () => {
                     MockModule(MatFormFieldModule),
                     MockModule(MatCheckboxModule),
                     MockModule(MatDividerModule),
+                    MockModule(TranslateModule),
+                    MockModule(SharedModule),
                 ],
             }).compileComponents();
         })

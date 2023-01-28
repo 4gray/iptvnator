@@ -1,8 +1,11 @@
 import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule } from '@ngx-translate/core';
 
 @Component({
-    selector: 'app-about-dialog',
+    standalone: true,
+    imports: [MatIconModule, TranslateModule],
     template: `
         <div mat-dialog-content>
             <img src="./assets/icons/icon-tv-256.png" width="128" /><br />
