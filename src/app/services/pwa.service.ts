@@ -2,14 +2,12 @@ import { HttpClient } from '@angular/common/http';
 import { ApplicationRef, inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SwUpdate } from '@angular/service-worker';
+import { TranslateService } from '@ngx-translate/core';
 import { parse } from 'iptv-playlist-parser';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import {
     catchError,
     combineLatest,
-    concat,
-    first,
-    interval,
     map,
     of,
     switchMap,
@@ -57,6 +55,7 @@ export class PwaService extends DataService {
     appRef = inject(ApplicationRef);
     snackBar = inject(MatSnackBar);
     swUpdate = inject(SwUpdate);
+    translateService = inject(TranslateService);
 
     /**
      * Creates an instance of PwaService.
@@ -75,30 +74,17 @@ export class PwaService extends DataService {
      * Uses service worker mechanism to check for available application updates
      */
     checkUpdates() {
-        if (this.swUpdate.isEnabled) {
-            const appIsStable$ = this.appRef.isStable.pipe(
-                first((isStable) => isStable === true)
-            );
-            const everySixHours$ = interval(6 * 60 * 60 * 1000);
-            const everySixHoursOnceAppIsStable$ = concat(
-                appIsStable$,
-                everySixHours$
-            );
-
-            everySixHoursOnceAppIsStable$.subscribe(() => {
-                this.swUpdate.checkForUpdate();
-            });
-
-            this.swUpdate.versionUpdates.subscribe(() => {
-                const snackBarRef = this.snackBar.open(
-                    'Update available',
-                    'Refresh'
-                );
-                snackBarRef.onAction().subscribe(() => {
-                    document.location.reload();
+        this.swUpdate.versionUpdates.subscribe(() => {
+            this.snackBar
+                .open(
+                    this.translateService.instant('UPDATE_AVAILABLE'),
+                    this.translateService.instant('REFRESH')
+                )
+                .onAction()
+                .subscribe(() => {
+                    window.location.reload();
                 });
-            });
-        }
+        });
     }
 
     /**

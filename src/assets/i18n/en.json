@@ -149,5 +149,7 @@
         "TITLE": "About IPTVnator",
         "DESCRIPTION": "Cross-platform IPTV player application with multiple features, such as support of m3u and m3u8 playlists, favorites, TV guide, TV archive/catchup and more.",
         "VERSION": "Version"
-    }
+    },
+    "UPDATE_AVAILABLE": "Update available",
+    "REFRESH": "Refresh"
 }
