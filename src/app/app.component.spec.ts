@@ -3,7 +3,7 @@ import {
     ComponentFixture,
     inject,
     TestBed,
-    waitForAsync
+    waitForAsync,
 } from '@angular/core/testing';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
@@ -109,7 +109,9 @@ describe('AppComponent', () => {
         it('should remove all ipc listeners on destroy', () => {
             jest.spyOn(electronService, 'removeAllListeners');
             component.ngOnDestroy();
-            expect(electronService.removeAllListeners).toHaveBeenCalledTimes(4);
+            expect(electronService.removeAllListeners).toHaveBeenCalledTimes(
+                component.commandsList.length
+            );
         });
 
         it('should navigate to the provided route', inject(

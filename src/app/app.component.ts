@@ -47,20 +47,15 @@ export class AppComponent {
         new IpcCommand(EPG_FETCH_DONE, () => this.epgService.onEpgFetchDone()),
         new IpcCommand(EPG_ERROR, () => this.epgService.onEpgError()),
         new IpcCommand(SHOW_WHATS_NEW, () => this.showWhatsNewDialog()),
-        new IpcCommand(
-            ERROR,
-            (response: { message: string; status: number }) => {
-                this.snackBar.open(
-                    `Error: ${response.status} ${response.message}.`,
-                    null,
-                    { duration: 2000 }
-                );
-            }
+        new IpcCommand(ERROR, (response: { message: string; status: number }) =>
+            this.showErrorAsNotification(response)
         ),
     ];
 
     /** Default language as fallback */
     DEFAULT_LANG = Language.ENGLISH;
+
+    listeners = [];
 
     /**
      * Creates an instance of AppComponent
@@ -111,13 +106,21 @@ export class AppComponent {
      * Initializes all necessary listeners for the events from the renderer process
      */
     setRendererListeners(): void {
-        if (this.electronService.isElectron) {
-            this.commandsList.forEach((command) =>
+        this.commandsList.forEach((command) => {
+            if (this.electronService.isElectron) {
                 this.electronService.listenOn(command.id, () =>
                     this.ngZone.run((data) => command.callback(data))
-                )
-            );
-        }
+                );
+            } else {
+                const cb = (response) => {
+                    if (response.data.type === command.id) {
+                        command.callback(response.data);
+                    }
+                };
+                this.electronService.listenOn(command.id, cb);
+                this.listeners.push(cb);
+            }
+        });
     }
 
     /**
@@ -212,13 +215,25 @@ export class AppComponent {
         this.setDialogVisibility(true);
     }
 
+    showErrorAsNotification(response: { message: string; status: number }) {
+        this.snackBar.open(
+            `Error: ${response.message} (Status: ${response.status})`,
+            null,
+            { duration: 4000 }
+        );
+    }
     /**
      * Removes all ipc command listeners on component destroy
      */
     ngOnDestroy(): void {
-        this.electronService.removeAllListeners(EPG_FETCH_DONE);
-        this.electronService.removeAllListeners(EPG_ERROR);
-        this.electronService.removeAllListeners(VIEW_ADD_PLAYLIST);
-        this.electronService.removeAllListeners(VIEW_SETTINGS);
+        if (this.electronService.isElectron) {
+            this.commandsList.forEach((command) =>
+                this.electronService.removeAllListeners(command.id)
+            );
+        } else {
+            this.listeners.forEach((listener) =>
+                window.removeEventListener('message', listener)
+            );
+        }
     }
 }

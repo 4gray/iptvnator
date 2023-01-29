@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
+    ERROR,
     PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
@@ -33,6 +34,10 @@ export class HomeComponent {
                 );
                 this.navigateToPlayer();
             },
+        },
+        {
+            id: ERROR,
+            execute: () => (this.isLoading = false),
         },
     ];
 

@@ -335,7 +335,7 @@ export class PwaService extends DataService {
                 catchError((error) => {
                     window.postMessage({
                         type: ERROR,
-                        message: 'something went wrong',
+                        message: this.getErrorMessageByStatusCode(error.status),
                         status: error.status,
                     });
                     return throwError(() => error);
@@ -347,6 +347,22 @@ export class PwaService extends DataService {
                     payload: response,
                 });
             });
+    }
+
+    getErrorMessageByStatusCode(status: number) {
+        let message = 'Something went wrong';
+        switch (status) {
+            case 0:
+                message = 'The backend is not reachable';
+                break;
+            case 413:
+                message =
+                    'This file is too big. Use standalone or self-hosted version of the app.';
+                break;
+            default:
+                break;
+        }
+        return message;
     }
 
     /**
