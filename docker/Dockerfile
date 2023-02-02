@@ -1,5 +1,5 @@
 # Stage 1 - build environment
-FROM node:16-alpine AS build
+FROM node:18-alpine AS build
 
 RUN apk add --no-cache python3 make g++
 
