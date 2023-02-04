@@ -1,0 +1,26 @@
+.channel-logo {
+    max-height: 48px;
+    overflow: hidden;
+}
+
+.channel-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    font-size: 0.9em;
+    max-width: 290px;
+}
+
+.active {
+    background: #ddd;
+}
+
+::ng-deep {
+    .dark-theme {
+        .active {
+            background: #000;
+        }
+    }
+}

@@ -4,6 +4,7 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../shared/shared.module';
 import { ChannelListContainerComponent } from './components/channel-list-container/channel-list-container.component';
+import { ChannelListItemComponent } from './components/channel-list-container/channel-list-item/channel-list-item.component';
 import { EpgItemDescriptionComponent } from './components/epg-list/epg-item-description/epg-item-description.component';
 import { EpgListItemComponent } from './components/epg-list/epg-list-item/epg-list-item.component';
 import { EpgListComponent } from './components/epg-list/epg-list.component';
@@ -24,6 +25,7 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
     ],
     declarations: [
         ChannelListContainerComponent,
+        ChannelListItemComponent,
         EpgItemDescriptionComponent,
         EpgListComponent,
         EpgListItemComponent,
