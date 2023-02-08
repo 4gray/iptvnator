@@ -1,0 +1,156 @@
+{
+    "CLOSE": "Chiudi",
+    "HOME": {
+        "TITLE": "IPTVnator",
+        "SUBTITLE": "Seleziona una playlist dall'elenco o aggiungi una nuova playlist tramite caricamento del file o tramite URL",
+        "TABS": {
+            "RECENTLY_ADDED": "Playlist aggiunte di recente",
+            "FILE_UPLOAD": "Aggiungi tramite caricamento file",
+            "URL_UPLOAD": "Aggiungi tramite URL",
+            "TEXT_IMPORT": "Importa come testo"
+        },
+        "PLAYLISTS": {
+            "NO_PLAYLISTS": "Nessuna playlist è stata aggiunta",
+            "ADD_FIRST": "Aggiungi la tua prima playlist dall'altra scheda",
+            "ADDED_VIA_URL": "Aggiunto tramite caricamento URL. URL:",
+            "ADDED_VIA_FILE": "Aggiunto tramite caricamento file",
+            "CHANNELS": "Canali",
+            "ADDED": "Aggiunto",
+            "SHOW_DETAILS": "Visualizza i dettagli della playlist",
+            "REMOVE": "Rimuovi playlist",
+            "INFO_DIALOG": {
+                "PLAYLIST_DETAILS": "Dettagli playlist",
+                "TITLE": "Titolo",
+                "FROM_URL": "Aggiunto dall'URL",
+                "IMPORT_DATE": "Data importazione",
+                "CHANNELS": "Numero di canali",
+                "CLOSE": "Chiudi",
+                "SAVE": "Salva",
+                "USER_AGENT": "User agent",
+                "ORIGINAL_FILENAME": "Nome file originale",
+                "FILE_PATH": "Percorso file",
+                "UPDATE_FAILED": "L'ultimo aggiornamento della playlist non è riuscito",
+                "AUTO_UPDATE": "Aggiornamento automatico",
+                "AUTO_UPDATE_DESCRIPTION": "Se la funzione di aggiornamento automatico è attivata, la playlist verrà aggiornata automaticamente ad ogni avvio dell'app.",
+                "CUSTOM_USER_AGENT": "Alcuni fornitori IPTV per riprodurre la loro playlist necessitano di uno user agent specifico."
+            },
+            "REMOVE_DIALOG": {
+                "TITLE": "Rimuovi playlist",
+                "MESSAGE": "Sei sicuro di voler eliminare completamente questa playlist?"
+            },
+            "UPDATED": "Aggiornata",
+            "REFRESH": "Aggiorna playlist",
+            "GLOBAL_FAVORITES": "Preferiti globali",
+            "GLOBAL_FAVORITES_DESCRIPTION": "Playlist generata automaticamente con preferiti aggregati da tutte le playlist",
+            "MY_PLAYLISTS": "Le mie playlist"
+        },
+        "FILE_UPLOAD": {
+            "DRAG_DROP": "Trascina e rilascia qui i file",
+            "OR": "o",
+            "CHOOSE_PLAYLIST": "scegli una playlist",
+            "REJECTED": "Il file è stato rifiutato, formato di file non supportato {{filename}}."
+        },
+        "URL_UPLOAD": {
+            "PLAYLIST_URL": "URL playlist (m3u, m3u8)",
+            "ADD_PLAYLIST": "Aggiungi playlist"
+        },
+        "TEXT_IMPORT": {
+            "LABEL": "Inserisci playlist m3u(8) come testo",
+            "BUTTON_LABEL": "Importa"
+        }
+    },
+    "SETTINGS": {
+        "TITLE": "Impostazioni IPTVnator",
+        "SUBTITLE": "Modifica la configurazione dell'applicazione",
+        "DESCRIPTION": "Configura le opzioni nell'elenco sottostante e conferma con il pulsante 'Salva'",
+        "EPG_URL_LABEL": "URL EPG (*.xml o *.xml.gz)",
+        "EPG_URL_PLACEHOLDER": "Inserisci una URL",
+        "REFRESH_EPG": "Aggiorna EPG",
+        "VIDEO_PLAYER_LABEL": "Riproduttore video",
+        "VIDEO_PLAYER_PLACEHOLDER": "Seleziona una opzione",
+        "VERSION": "Versione",
+        "SAVE_CHANGES": "Salva modifiche",
+        "BACK_TO_HOME": "Torna a Home",
+        "NEW_VERSION_AVAILABLE": "È disponibile una nuova versione",
+        "LATEST_VERSION": "Questa versione è aggiornata",
+        "LANGUAGE": "Lingua",
+        "SETTINGS_SAVED": "La configurazione è stata salvata.",
+        "THEME": "Tema visuale",
+        "SHOW_CAPTIONS": "Visualizza sottotitoli",
+        "ADD_EPG_SOURCE": "Aggiungi sorgente EPG",
+        "EPG_URL_ERROR": "Il valore non è una URL valida"
+    },
+    "THEMES": {
+        "DARK_THEME": "Tema scuro",
+        "LIGHT_THEME": "Tema chiaro"
+    },
+    "CHANNELS": {
+        "SEARCH_CHANNEL": "Cerca canale",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Carica o seleziona un'altra playlist",
+        "ALL_CHANNELS": "Tutti i canali",
+        "GROUPS": "Gruppi",
+        "UNGROUPED": "Non raggruppati",
+        "UNNAMED_CHANNEL": "Canale senza nome",
+        "FAVORITES": "Preferiti",
+        "NO_FAVORITES": "Ancora nessun preferito",
+        "USE_STAR_TO_FAVORITE": "Usa l'icona 'stella' per aggiungere canali a questo elenco.",
+        "REMOVE_FAVORITE": "Rimuovi dai preferiti"
+    },
+    "TOP_MENU": {
+        "OPEN_CHANNELS_LIST": "Apri elenco canali",
+        "TOGGLE_FAVORITE_FLAG": "Attiva/disattiva flag preferiti",
+        "OPEN_EPG_LIST": "Apri elenco EPG",
+        "OPEN_MULTI_EPG": "Apri vista Multi-EPG"
+    },
+    "EPG": {
+        "NEXT_DAY": "Giorno successivo",
+        "PREVIOUS_DAY": "Giorno precedente",
+        "LIVE_NOW": "Live attuale",
+        "LIVE_STREAM": "Live stream",
+        "TIMESHIFT_AVAILABLE": "Disponibile il timeshift, fai clic per riprodurre",
+        "EPG_NOT_AVAILABLE_DATE": "Non è disponibile l'EPG per la data selezionata",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Non è disponibile l'EPG per questo canale.",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Aggiungi/modifica l'URL dell'elenco EPG nelle impostazioni dell'app.",
+        "FETCH_EPG": "Recupero dati EPG...",
+        "ERROR": "Non è stato possibile caricare l'EPG.",
+        "DOWNLOAD_SUCCESS": "L'EPG è stato correttamente scaricato.",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Dettagli sul programma TV",
+            "TITLE": "Titolo",
+            "CATEGORY": "Categoria",
+            "PARENTAL_RATING_SYSTEM": "Sistema classificazione contenuti TV",
+            "DESCRIPTION": "Descrizione",
+            "LANGUAGE": "Lingua",
+            "SHOW_PROGRAM_DETAILS": "Visualizza dettagli su questo programma"
+        }
+    },
+    "LANGUAGES": {
+        "ENGLISH": "English",
+        "KOREAN": "한국어",
+        "RUSSIAN": "Русский",
+        "GERMAN": "Deutsch",
+        "SPANISH": "Español",
+        "CHINESE": "简体中文",
+        "FRENCH": "Français",
+        "ITALIAN": "Italiano"
+    },
+    "YES": "Sì",
+    "NO": "No",
+    "MENU": {
+        "OPEN": "Apri menu",
+        "SUPPORT_ARIA": "Supporta IPTVnator su GitHub",
+        "SETTINGS": "Impostazioni",
+        "SETTINGS_ARIA": "Apri impostazioni",
+        "BUG_REPORT": "Segnala un bug",
+        "WHAT_IS_NEW": "Novità del programma",
+        "ABOUT": "Info sul programma",
+        "ABOUT_ARIA": "Info sull'applicazione"
+    },
+    "ABOUT": {
+        "TITLE": "Info su IPTVnator",
+        "DESCRIPTION": "Applicazione per la riproduzione IPTV multi piattaforma con molteplici funzionalità, come il supporto di playlist m3u e m3u8, preferiti, guida TV, archivio TV/catchup e altro ancora.",
+        "VERSION": "Versione"
+    },
+    "UPDATE_AVAILABLE": "Disponibile aggiornamento",
+    "REFRESH": "Aggiorna"
+}
