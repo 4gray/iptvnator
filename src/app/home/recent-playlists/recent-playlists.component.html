@@ -1,31 +1,58 @@
-<mat-nav-list cdkDropList (cdkDropListDropped)="drop($event)">
-    <mat-list-item *ngIf="playlists.length === 0">
-        <mat-icon class="favorites-icon" mat-list-icon>search</mat-icon>
-        <div mat-line>{{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}</div>
-        <div mat-line class="meta">
-            {{ 'HOME.PLAYLISTS.ADD_FIRST' | translate }}
+<div id="skeleton-container" *ngIf="loading; else playlistsView">
+    <div class="skeleton-item" *ngFor="let a of [].constructor(10)">
+        <ngx-skeleton-loader
+            count="1"
+            appearance="circle"
+        ></ngx-skeleton-loader>
+        <div class="text">
+            <ngx-skeleton-loader
+                count="1"
+                [theme]="{ width: '30%', height: '20px' }"
+            ></ngx-skeleton-loader>
+            <ngx-skeleton-loader
+                count="1"
+                [theme]="{ width: '50%', height: '10px' }"
+            ></ngx-skeleton-loader>
         </div>
-    </mat-list-item>
-    <mat-list-item
-        *ngIf="playlists.length > 0"
-        (click)="getPlaylist('GLOBAL_FAVORITES')"
-    >
-        <mat-icon class="favorites-icon" mat-list-icon>star</mat-icon>
-        <div mat-line>
-            {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}
+        <div class="actions">
+            <ngx-skeleton-loader
+                count="2"
+                appearance="circle"
+            ></ngx-skeleton-loader>
         </div>
-        <div mat-line class="meta">
-            {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES_DESCRIPTION' | translate }}
-        </div>
-        <mat-divider></mat-divider>
-    </mat-list-item>
+    </div>
+</div>
 
-    <app-playlist-item
-        *ngFor="let item of playlists; last as last"
-        [item]="item"
-        (editPlaylistClicked)="openInfoDialog($event)"
-        (playlistClicked)="getPlaylist($event)"
-        (refreshClicked)="refreshPlaylist($event)"
-        (removeClicked)="removeClicked($event)"
-    ></app-playlist-item>
-</mat-nav-list>
+<ng-template #playlistsView>
+    <mat-nav-list cdkDropList (cdkDropListDropped)="drop($event)">
+        <mat-list-item *ngIf="playlists.length === 0">
+            <mat-icon class="favorites-icon" mat-list-icon>search</mat-icon>
+            <div mat-line>{{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}</div>
+            <div mat-line class="meta">
+                {{ 'HOME.PLAYLISTS.ADD_FIRST' | translate }}
+            </div>
+        </mat-list-item>
+        <mat-list-item
+            *ngIf="playlists.length > 0"
+            (click)="getPlaylist('GLOBAL_FAVORITES')"
+        >
+            <mat-icon class="favorites-icon" mat-list-icon>star</mat-icon>
+            <div mat-line>
+                {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}
+            </div>
+            <div mat-line class="meta">
+                {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES_DESCRIPTION' | translate }}
+            </div>
+            <mat-divider></mat-divider>
+        </mat-list-item>
+
+        <app-playlist-item
+            *ngFor="let item of playlists; last as last"
+            [item]="item"
+            (editPlaylistClicked)="openInfoDialog($event)"
+            (playlistClicked)="getPlaylist($event)"
+            (refreshClicked)="refreshPlaylist($event)"
+            (removeClicked)="removeClicked($event)"
+        ></app-playlist-item>
+    </mat-nav-list>
+</ng-template>

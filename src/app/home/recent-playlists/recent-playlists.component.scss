@@ -32,3 +32,21 @@
 .favorites-icon {
     margin-left: 16px;
 }
+
+#skeleton-container {
+    padding-top: 10px;
+
+    .skeleton-item {
+        display: flex;
+        padding-left: 25px;
+        height: 72px;
+
+        .text {
+            flex: 1;
+            align-self: center;
+            padding-left: 6px;
+            flex-direction: column;
+            display: flex;
+        }
+    }
+}

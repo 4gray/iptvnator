@@ -28,12 +28,15 @@ export class RecentPlaylistsComponent implements OnDestroy {
     /** All available playlists */
     playlists: PlaylistMeta[] = [];
 
+    loading = true;
+
     /** IPC Renderer commands list with callbacks */
     commandsList = [
         new IpcCommand(
             PLAYLIST_GET_ALL_RESPONSE,
             (response: { payload: Partial<PlaylistMeta[]> }) => {
                 this.playlists = response.payload;
+                this.loading = false;
             }
         ),
         new IpcCommand(PLAYLIST_REMOVE_BY_ID_RESPONSE, (): void => {
