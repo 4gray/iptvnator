@@ -62,7 +62,7 @@
     "SETTINGS": {
         "TITLE": "Impostazioni IPTVnator",
         "SUBTITLE": "Modifica la configurazione dell'applicazione",
-        "DESCRIPTION": "Configura le opzioni nell'elenco sottostante e conferma con il pulsante 'Salva'",
+        "DESCRIPTION": "Configura le opzioni nell'elenco sottostante e conferma con 'Salva modifiche'",
         "EPG_URL_LABEL": "URL EPG (*.xml o *.xml.gz)",
         "EPG_URL_PLACEHOLDER": "Inserisci una URL",
         "REFRESH_EPG": "Aggiorna EPG",
@@ -78,7 +78,15 @@
         "THEME": "Tema visuale",
         "SHOW_CAPTIONS": "Visualizza sottotitoli",
         "ADD_EPG_SOURCE": "Aggiungi sorgente EPG",
-        "EPG_URL_ERROR": "Il valore non è una URL valida"
+        "EPG_URL_ERROR": "Il valore non è una URL valida",
+        "VIDEO_PLAYER_DESCRIPTION": "Seleziona lettore video predefinito",
+        "LANGUAGE_DESCRIPTION": "Seleziona la lingua dell'applicazione",
+        "THEME_DESCRIPTION": "Seleziona il tema visivo dell'applicazione",
+        "SHOW_CAPTIONS_DESCRIPTION": "Visualizza/nascondi i sottotitoli per impostazione predefinita",
+        "VERSION_DESCRIPTION": "Versione attuale dell'applicazione",
+        "EPG_NOTE": "Attualmente EPG è disponibile solo nella versione dell'applicazione electron.",
+        "EPG_NOTE_URL_TEXT": "Maggiori info qui"
+
     },
     "THEMES": {
         "DARK_THEME": "Tema scuro",
