@@ -62,7 +62,7 @@
     "SETTINGS": {
         "TITLE": "Settings / IPTVnator",
         "SUBTITLE": "Change the configuration of the application",
-        "DESCRIPTION": "Please adapt the options from the list below and confirm with a save button",
+        "DESCRIPTION": "Please adapt the options from the list below and confirm with the save changes button",
         "EPG_URL_LABEL": "EPG Url (*.xml or *.xml.gz)",
         "EPG_URL_PLACEHOLDER": "Enter an URL",
         "REFRESH_EPG": "Refresh EPG",
@@ -78,7 +78,14 @@
         "THEME": "Visual theme",
         "SHOW_CAPTIONS": "Show subtitles",
         "ADD_EPG_SOURCE": "Add EPG source",
-        "EPG_URL_ERROR": "The value is not a valid URL"
+        "EPG_URL_ERROR": "The value is not a valid URL",
+        "VIDEO_PLAYER_DESCRIPTION": "Select default video player",
+        "LANGUAGE_DESCRIPTION": "Select language of the application",
+        "THEME_DESCRIPTION": "Select visual theme of the application",
+        "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
+        "VERSION_DESCRIPTION": "Current version of the application",
+        "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
+        "EPG_NOTE_URL_TEXT": "Check it here"
     },
     "THEMES": {
         "DARK_THEME": "Dark theme",

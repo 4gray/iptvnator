@@ -68,7 +68,7 @@
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}
-                <p>Select default video player</p>
+                <p>{{ 'SETTINGS.VIDEO_PLAYER_DESCRIPTION' | translate }}</p>
             </div>
             <div class="column">
                 <mat-form-field appearance="outline">
@@ -93,7 +93,7 @@
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.LANGUAGE' | translate }}
-                <p>Select language of the application</p>
+                <p>{{ 'SETTINGS.LANGUAGE_DESCRIPTION' | translate }}</p>
             </div>
             <div class="column">
                 <mat-form-field appearance="outline">
@@ -120,7 +120,7 @@
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.THEME' | translate }}
-                <p>Select visual theme of the application</p>
+                <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
             </div>
             <div class="column">
                 <mat-form-field appearance="outline">
@@ -147,7 +147,7 @@
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.SHOW_CAPTIONS' | translate }}
-                <p>Show or hide subtitles by default</p>
+                <p>{{ 'SETTINGS.SHOW_CAPTIONS_DESCRIPTION' | translate }}</p>
             </div>
             <div class="column" style="margin-right: 10px">
                 <mat-checkbox
@@ -160,7 +160,7 @@
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.VERSION' | translate }}
-                <p>Current version of the application</p>
+                <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
             </div>
             <div class="column">
                 {{ version }} <br />
@@ -169,11 +169,10 @@
         </div>
 
         <div class="row" *ngIf="!isElectron">
-            Currently EPG is available only in the electron-based version of
-            IPTVnator. Check it&nbsp;<a
-                href="https://github.com/4gray/iptvnator/releases"
-                >here</a
-            >
+            {{ 'SETTINGS.EPG_NOTE' | translate }}
+            &nbsp;<a href="https://github.com/4gray/iptvnator/releases">{{
+                'SETTINGS.EPG_NOTE_URL_TEXT' | translate
+            }}</a>
         </div>
 
         <mat-divider></mat-divider>
