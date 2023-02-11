@@ -19,6 +19,8 @@ export interface Playlist {
     importDate: string;
     lastUsage: string;
     favorites: string[];
+    items?: unknown[];
+    header?: unknown;
     count: number;
     url?: string;
     userAgent?: string;
