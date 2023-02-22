@@ -101,7 +101,8 @@
         "FAVORITES": "Favorites",
         "NO_FAVORITES": "No favorites yet",
         "USE_STAR_TO_FAVORITE": "Please use the 'star' icon to add channels to this list.",
-        "REMOVE_FAVORITE": "Remove from favorites"
+        "REMOVE_FAVORITE": "Remove from favorites",
+        "FAVORITES_UPDATED": "Favorites were updated!"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Open channel list",
