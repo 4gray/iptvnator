@@ -13,4 +13,6 @@ export type PlaylistMeta = Pick<
     | 'updateDate'
     | 'updateState'
     | 'position'
+    | 'autoRefresh'
+    | 'favorites'
 >;
