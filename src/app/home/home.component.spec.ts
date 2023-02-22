@@ -18,10 +18,7 @@ import { UrlUploadComponent } from '../home/url-upload/url-upload.component';
 import { DataService } from '../services/data.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { HeaderComponent } from '../shared/components/header/header.component';
-import {
-    PLAYLIST_PARSE,
-    PLAYLIST_PARSE_BY_URL,
-} from './../../../shared/ipc-commands';
+import { PLAYLIST_PARSE_BY_URL } from './../../../shared/ipc-commands';
 import { HomeComponent } from './home.component';
 
 class MatSnackBarStub {
@@ -106,7 +103,7 @@ describe('HomeComponent', () => {
     });
 
     it('should send an event to the main process to parse a playlist', () => {
-        jest.spyOn(electronService, 'sendIpcEvent');
+        jest.spyOn(mockStore, 'dispatch');
         const title = 'my-list.m3u';
         const path = '/home/user/iptv/' + title;
         const playlistContent = 'test';
@@ -118,10 +115,7 @@ describe('HomeComponent', () => {
             target: { result: playlistContent },
         } as unknown as Event;
         component.handlePlaylist({ file, uploadEvent });
-        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
-            PLAYLIST_PARSE,
-            { title, playlist: [playlistContent], path }
-        );
+        expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
     });
 
     it('should set IPC event listeners', () => {
@@ -140,11 +134,11 @@ describe('HomeComponent', () => {
 
     it('should navigate to the player view', () => {
         jest.spyOn(router, 'navigateByUrl');
-        component.navigateToPlayer();
+        const playlistId = 'some-id';
+        component.navigateToPlayer(playlistId);
         expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
         expect(router.navigateByUrl).toHaveBeenCalledWith(
-            '/iptv',
-            expect.anything()
+            `/playlists/${playlistId}`
         );
     });
 

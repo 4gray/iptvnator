@@ -36,7 +36,7 @@ import * as PlaylistActions from '../../../state/actions';
 })
 export class PlaylistInfoComponent {
     /** Flag that returns true if application runs in electron-based environment */
-    isElectron = this.electronService.isElectron;
+    isElectron = this.dataService.isElectron;
 
     /** Playlist object */
     playlist: Playlist;
@@ -44,17 +44,10 @@ export class PlaylistInfoComponent {
     /** Form group with playlist details */
     playlistDetails: UntypedFormGroup;
 
-    /**
-     * Creates an instance of the component and injects the selected playlist from the parent component
-     * @param datePipe
-     * @param formBuilder
-     * @param electronService
-     * @param playlist playlist object to show
-     */
     constructor(
         private datePipe: DatePipe,
         private formBuilder: UntypedFormBuilder,
-        private electronService: DataService,
+        private dataService: DataService,
         @Inject(MAT_DIALOG_DATA) playlist: Playlist,
         private store: Store
     ) {
@@ -93,10 +86,6 @@ export class PlaylistInfoComponent {
         });
     }
 
-    /**
-     * Saves updated playlist information
-     * @param data updated form data
-     */
     saveChanges(playlist: PlaylistMeta): void {
         this.store.dispatch(PlaylistActions.updatePlaylistMeta({ playlist }));
     }

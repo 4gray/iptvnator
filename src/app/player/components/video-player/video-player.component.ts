@@ -11,7 +11,13 @@ import {
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { filter, Observable, skipWhile, switchMap } from 'rxjs';
+import {
+    combineLatestWith,
+    filter,
+    Observable,
+    skipWhile,
+    switchMap,
+} from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import {
     PLAYLIST_PARSE_BY_URL,
@@ -25,6 +31,7 @@ import { STORE_KEY } from '../../../shared/enums/store-keys.enum';
 import * as PlaylistActions from '../../../state/actions';
 import {
     selectActive,
+    selectChannels,
     selectCurrentEpgProgram,
     selectPlaylistTitle,
 } from '../../../state/selectors';
@@ -69,11 +76,19 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         {
             id: PLAYLIST_PARSE_RESPONSE,
             execute: (response: { payload: Playlist }): void => {
-                this.store.dispatch(
-                    PlaylistActions.addPlaylist({
-                        playlist: response.payload,
-                    })
-                );
+                if (response.payload.isTemporary) {
+                    this.store.dispatch(
+                        PlaylistActions.setChannels({
+                            channels: response.payload.playlist.items,
+                        })
+                    );
+                } else {
+                    this.store.dispatch(
+                        PlaylistActions.addPlaylist({
+                            playlist: response.payload,
+                        })
+                    );
+                }
                 this.sidebarView = 'CHANNELS';
             },
         },
@@ -107,11 +122,18 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.getPlaylistUrlAsParam();
 
         this.channels$ = this.activatedRoute.params.pipe(
-            switchMap((params) => {
-                this.store.dispatch(
-                    PlaylistActions.setActivePlaylist({ playlistId: params.id })
-                );
-                return this.playlistsService.getPlaylistChannels(params.id);
+            combineLatestWith(this.activatedRoute.queryParams),
+            switchMap(([params, queryParams]) => {
+                if (params.id) {
+                    this.store.dispatch(
+                        PlaylistActions.setActivePlaylist({
+                            playlistId: params.id,
+                        })
+                    );
+                    return this.playlistsService.getPlaylistChannels(params.id);
+                } else if (queryParams.url) {
+                    return this.store.select(selectChannels);
+                }
             })
         );
     }

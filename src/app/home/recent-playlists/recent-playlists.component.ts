@@ -46,11 +46,11 @@ export class RecentPlaylistsComponent implements OnDestroy {
         new IpcCommand(
             PLAYLIST_UPDATE_RESPONSE,
             (response: { message: string; playlist: Playlist }) => {
-                console.log(response.playlist);
                 this.snackBar.open(response.message, null, { duration: 2000 });
                 this.store.dispatch(
                     PlaylistActions.updatePlaylist({
-                        playlistId: '',
+                        // TODO: check if this is correct
+                        playlistId: response.playlist._id,
                         playlist: response.playlist,
                     })
                 );
@@ -142,10 +142,6 @@ export class RecentPlaylistsComponent implements OnDestroy {
         );
     }
 
-    /**
-     * Requests playlist by id
-     * @param playlistId playlist id
-     */
     getPlaylist(playlistId: string): void {
         this.router.navigate(['playlists', playlistId]);
         this.playlistClicked.emit(playlistId);

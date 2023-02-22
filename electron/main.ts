@@ -99,7 +99,7 @@ function registerGlobalShortcuts() {
  */
 function createEpgWorkerWindow() {
     const window = new BrowserWindow({
-        show: true,
+        show: false,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,

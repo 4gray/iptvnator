@@ -6,7 +6,7 @@ import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { catchError, of, switchMap, throwError } from 'rxjs';
+import { catchError, throwError } from 'rxjs';
 import {
     ERROR,
     PLAYLIST_PARSE_BY_URL,
@@ -15,7 +15,6 @@ import {
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { AppConfig } from '../../environments/environment';
-import { DbStores } from '../indexed-db.config';
 import * as PlaylistActions from '../state/actions';
 import { DataService } from './data.service';
 import { PlaylistsService } from './playlists.service';
@@ -96,13 +95,12 @@ export class PwaService extends DataService {
                             playlistId: payload.id,
                         })
                     );
-                    console.log('playlist was updated...');
 
-                    // TODO: show notification
-                    /* window.postMessage({
-                        type: PLAYLIST_UPDATE_RESPONSE,
-                        message: `Success! The playlist was successfully updated.`,
-                    }); */
+                    this.snackBar.open(
+                        `Success! The playlist was successfully updated.`,
+                        null,
+                        { duration: 2000 }
+                    );
                 });
         }
     }
@@ -114,11 +112,6 @@ export class PwaService extends DataService {
     fetchFromUrl(payload: Partial<Playlist>): void {
         this.getPlaylistFromUrl(payload.url)
             .pipe(
-                switchMap((response) =>
-                    payload.isTemporary
-                        ? of(response)
-                        : this.dbService.add(DbStores.Playlists, response)
-                ),
                 catchError((error) => {
                     window.postMessage({
                         type: ERROR,
@@ -131,7 +124,7 @@ export class PwaService extends DataService {
             .subscribe((response: any) => {
                 window.postMessage({
                     type: PLAYLIST_PARSE_RESPONSE,
-                    payload: response,
+                    payload: { ...response, isTemporary: payload.isTemporary },
                 });
             });
     }

@@ -90,9 +90,9 @@ export const setEpgAvailableFlag = createAction(
     props<{ value: boolean }>()
 );
 
-export const setPlaylist = createAction(
-    `${STORE_KEY} Set playlist as active`,
-    props<{ playlist: Playlist }>()
+export const setChannels = createAction(
+    `${STORE_KEY} Set channels`,
+    props<{ channels: Channel[] }>()
 );
 
 export const updatePlaylistPositions = createAction(

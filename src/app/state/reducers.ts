@@ -47,17 +47,6 @@ export const playlistReducer = createReducer(
             epgAvailable: action.value,
         })
     ),
-
-    /* on(PlaylistActions.setPlaylist, (state, action): PlaylistState => {
-        const { playlist } = action;
-        return {
-            ...state,
-            channels: playlist?.playlist.items.map((element) =>
-                createChannel(element)
-            ),
-            active: undefined,
-        };
-    }), */
     on(PlaylistActions.updateFavorites, (state, action): PlaylistState => {
         let favorites;
         const { channel } = action;
@@ -166,6 +155,12 @@ export const playlistReducer = createReducer(
                 },
                 state.playlists
             ),
+        };
+    }),
+    on(PlaylistActions.setChannels, (state, action): PlaylistState => {
+        return {
+            ...state,
+            channels: action.channels,
         };
     })
 );
