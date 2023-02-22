@@ -1,6 +1,7 @@
 import { Component, NgZone } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
 import * as semver from 'semver';
@@ -22,7 +23,7 @@ import { Language } from './settings/language.enum';
 import { Settings } from './settings/settings.interface';
 import { Theme } from './settings/theme.enum';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
-
+import * as PlaylistActions from './state/actions';
 /**
  * AppComponent
  */
@@ -65,6 +66,7 @@ export class AppComponent {
         private epgService: EpgService,
         private ngZone: NgZone,
         private router: Router,
+        private store: Store,
         private snackBar: MatSnackBar,
         private translate: TranslateService,
         private settingsService: SettingsService,
@@ -95,6 +97,7 @@ export class AppComponent {
      * Starts all the functions to initialize the component
      */
     ngOnInit(): void {
+        this.store.dispatch(PlaylistActions.loadPlaylists());
         this.translate.setDefaultLang(this.DEFAULT_LANG);
 
         this.setRendererListeners();

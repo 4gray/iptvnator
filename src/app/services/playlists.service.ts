@@ -1,0 +1,170 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Injectable } from '@angular/core';
+import { parse } from 'iptv-playlist-parser';
+import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { combineLatest, map, Observable, switchMap } from 'rxjs';
+import { Channel } from '../../../shared/channel.interface';
+import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../shared/constants';
+import {
+    Playlist,
+    PlaylistUpdateState,
+} from '../../../shared/playlist.interface';
+import {
+    aggregateFavoriteChannels,
+    createFavoritesPlaylist,
+    createPlaylistObject,
+} from '../../../shared/playlist.utils';
+import { DbStores } from '../indexed-db.config';
+import { PlaylistMeta } from '../shared/playlist-meta.type';
+
+@Injectable({
+    providedIn: 'root',
+})
+export class PlaylistsService {
+    constructor(private dbService: NgxIndexedDBService) {}
+
+    getAllPlaylists() {
+        return this.dbService.getAll<Playlist>(DbStores.Playlists).pipe(
+            map((data) =>
+                data.map(({ playlist, items, header, ...rest }) => ({
+                    ...rest,
+                }))
+            ),
+            map((playlists) =>
+                playlists.sort((a, b) => a.position - b.position)
+            )
+        );
+    }
+
+    addPlaylist(playlist) {
+        return this.dbService.add(DbStores.Playlists, playlist);
+    }
+
+    getPlaylistChannels(id: string) {
+        let playlist$: Observable<Partial<Playlist>>;
+        if (id === GLOBAL_FAVORITES_PLAYLIST_ID) {
+            playlist$ = this.getPlaylistWithGlobalFavorites();
+        } else {
+            playlist$ = this.dbService.getByID<Playlist>(
+                DbStores.Playlists,
+                id
+            );
+        }
+        return playlist$.pipe(
+            map((data: Playlist) => data.playlist.items as Channel[])
+        );
+    }
+
+    deletePlaylist(playlistId: string) {
+        return this.dbService.delete(DbStores.Playlists, playlistId);
+    }
+
+    updatePlaylist(playlistId: string, updatedPlaylist: Playlist) {
+        return this.getPlaylistById(playlistId).pipe(
+            switchMap((currentPlaylist: Playlist) =>
+                this.dbService.update(DbStores.Playlists, {
+                    ...currentPlaylist,
+                    ...updatedPlaylist,
+                    count: updatedPlaylist.playlist.items.length,
+                    updateDate: Date.now(),
+                    updateState: PlaylistUpdateState.UPDATED,
+                })
+            )
+        );
+    }
+
+    getPlaylistById(id: string) {
+        return this.dbService.getByID<Playlist>(DbStores.Playlists, id);
+    }
+
+    updatePlaylistMeta(updatedPlaylist: PlaylistMeta) {
+        return this.getPlaylistById(updatedPlaylist._id).pipe(
+            switchMap((playlist) =>
+                this.dbService.update(DbStores.Playlists, {
+                    ...playlist,
+                    title: updatedPlaylist.title,
+                    autoRefresh: updatedPlaylist.autoRefresh,
+                })
+            )
+        );
+    }
+
+    updateFavorites(id: string, favorites: string[]) {
+        return this.getPlaylistById(id).pipe(
+            switchMap((playlist) =>
+                this.dbService.update(DbStores.Playlists, {
+                    ...playlist,
+                    favorites,
+                })
+            )
+        );
+    }
+
+    // TODO: for-loop
+    updatePlaylistPosition(id: string, position: number) {
+        return this.getPlaylistById(id).pipe(
+            switchMap((playlist) =>
+                this.dbService.update(DbStores.Playlists, {
+                    ...playlist,
+                    position,
+                })
+            )
+        );
+    }
+
+    getFavoriteChannels(playlistId: string) {
+        return this.dbService
+            .getByID<Playlist>(DbStores.Playlists, playlistId)
+            .pipe(
+                map((data) =>
+                    data.playlist.items.filter((channel) =>
+                        data.favorites.includes((channel as Channel).id)
+                    )
+                )
+            );
+    }
+
+    updatePlaylistPositions(
+        positionUpdates: {
+            id: string;
+            changes: { position: number };
+        }[]
+    ) {
+        return combineLatest(
+            positionUpdates.map((item, index) => {
+                return this.dbService.getByID(DbStores.Playlists, item.id).pipe(
+                    switchMap((playlist: Playlist) =>
+                        this.dbService.update(DbStores.Playlists, {
+                            ...playlist,
+                            position: item.changes.position,
+                        })
+                    )
+                );
+            })
+        );
+    }
+
+    handlePlaylistParsing(
+        uploadType: 'FILE' | 'URL' | 'TEXT',
+        playlist: string,
+        title: string,
+        path?: string
+    ) {
+        const parsedPlaylist = parse(playlist);
+        return createPlaylistObject(title, parsedPlaylist, path, uploadType);
+    }
+
+    getPlaylistWithGlobalFavorites() {
+        return this.dbService.getAll(DbStores.Playlists).pipe(
+            map((playlists: Playlist[]) => {
+                const favoriteChannels = aggregateFavoriteChannels(playlists);
+                const favPlaylist = createFavoritesPlaylist(favoriteChannels);
+                return favPlaylist;
+            })
+        );
+    }
+
+    addManyPlaylists(playlists: Playlist[]) {
+        return this.dbService.bulkAdd(DbStores.Playlists, playlists as any); // TODO: update ngx-indexed-db
+    }
+}

@@ -5,15 +5,13 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
     ERROR,
-    PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
-    PLAYLIST_PARSE_TEXT,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { getFilenameFromUrl } from '../../../shared/playlist.utils';
 import { DataService } from '../services/data.service';
-import { setPlaylist } from '../state/actions';
+import { addPlaylist, parsePlaylist } from '../state/actions';
 
 @Component({
     selector: 'app-home',
@@ -30,9 +28,11 @@ export class HomeComponent {
             id: PLAYLIST_PARSE_RESPONSE,
             execute: (response: { payload: Playlist }): void => {
                 this.store.dispatch(
-                    setPlaylist({ playlist: response.payload })
+                    addPlaylist({
+                        playlist: response.payload,
+                    })
                 );
-                this.navigateToPlayer();
+                this.navigateToPlayer(response.payload._id);
             },
         },
         {
@@ -43,15 +43,6 @@ export class HomeComponent {
 
     listeners = [];
 
-    /**
-     * Creates an instance of HomeComponent
-     * @param dataService data service
-     * @param ngZone angular ngZone module
-     * @param router angular router
-     * @param snackBar snackbar for notification messages
-     * @param store channels store
-     * @param translateService ngx-translate service
-     */
     constructor(
         private dataService: DataService,
         private ngZone: NgZone,
@@ -103,22 +94,25 @@ export class HomeComponent {
      */
     handlePlaylist(payload: { uploadEvent: Event; file: File }): void {
         this.isLoading = true;
-        const result = (payload.uploadEvent.target as FileReader)
+        const playlist = (payload.uploadEvent.target as FileReader)
             .result as string;
-        const array = result.split('\n');
-        this.dataService.sendIpcEvent(PLAYLIST_PARSE, {
-            title: payload.file.name,
-            playlist: array,
-            path: payload.file.path,
-        });
+
+        this.store.dispatch(
+            parsePlaylist({
+                uploadType: 'FILE',
+                playlist,
+                title: payload.file.name,
+                path: payload.file.path,
+            })
+        );
     }
 
     /**
      * Navigates to the video player route
      */
-    navigateToPlayer(): void {
+    navigateToPlayer(playlistId: string): void {
         this.isLoading = false;
-        this.router.navigateByUrl('/iptv', { skipLocationChange: true });
+        this.router.navigateByUrl(`/playlists/${playlistId}`);
     }
 
     /**
@@ -137,11 +131,15 @@ export class HomeComponent {
      * Sends IPC event to the renderer process to parse playlist
      * @param text playlist as string
      */
-    uploadAsText(text: string): void {
+    uploadAsText(playlist: string): void {
         this.isLoading = true;
-        this.dataService.sendIpcEvent(PLAYLIST_PARSE_TEXT, {
-            text,
-        });
+        this.store.dispatch(
+            parsePlaylist({
+                uploadType: 'TEXT',
+                playlist,
+                title: 'Imported as text',
+            })
+        );
     }
 
     /**

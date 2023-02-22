@@ -1,18 +1,29 @@
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { Component, NgZone, OnDestroy } from '@angular/core';
+import {
+    Component,
+    EventEmitter,
+    NgZone,
+    OnDestroy,
+    Output,
+} from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { map } from 'rxjs';
 import { IpcCommand } from '../../../../shared/ipc-command.class';
+import { Playlist } from '../../../../shared/playlist.interface';
 import { DataService } from '../../services/data.service';
+import * as PlaylistActions from '../../state/actions';
+import { selectAllPlaylistsMeta } from '../../state/selectors';
 import {
-    PLAYLIST_GET_ALL,
-    PLAYLIST_GET_ALL_RESPONSE,
-    PLAYLIST_GET_BY_ID,
-    PLAYLIST_REMOVE_BY_ID,
-    PLAYLIST_REMOVE_BY_ID_RESPONSE,
+    DELETE_ALL_PLAYLISTS,
+    IS_PLAYLISTS_MIGRATION_POSSIBLE,
+    IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE,
+    MIGRATE_PLAYLISTS,
+    MIGRATE_PLAYLISTS_RESPONSE,
     PLAYLIST_UPDATE,
-    PLAYLIST_UPDATE_POSITIONS,
     PLAYLIST_UPDATE_RESPONSE,
 } from './../../../../shared/ipc-commands';
 import { DialogService } from './../../services/dialog.service';
@@ -25,57 +36,71 @@ import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
     styleUrls: ['./recent-playlists.component.scss'],
 })
 export class RecentPlaylistsComponent implements OnDestroy {
-    /** All available playlists */
-    playlists: PlaylistMeta[] = [];
-
-    loading = true;
+    playlists$ = this.store.select(selectAllPlaylistsMeta).pipe(
+        // eslint-disable-next-line @ngrx/avoid-mapping-selectors
+        map((playlists) => playlists.sort((a, b) => a.position - b.position))
+    );
 
     /** IPC Renderer commands list with callbacks */
     commandsList = [
         new IpcCommand(
-            PLAYLIST_GET_ALL_RESPONSE,
-            (response: { payload: Partial<PlaylistMeta[]> }) => {
-                this.playlists = response.payload;
-                this.loading = false;
+            PLAYLIST_UPDATE_RESPONSE,
+            (response: { message: string; playlist: Playlist }) => {
+                console.log(response.playlist);
+                this.snackBar.open(response.message, null, { duration: 2000 });
+                this.store.dispatch(
+                    PlaylistActions.updatePlaylist({
+                        playlistId: '',
+                        playlist: response.playlist,
+                    })
+                );
             }
         ),
-        new IpcCommand(PLAYLIST_REMOVE_BY_ID_RESPONSE, (): void => {
-            this.snackBar.open('Done! Playlist was removed.', null, {
-                duration: 2000,
-            });
-            this.electronService.sendIpcEvent(PLAYLIST_GET_ALL);
-        }),
         new IpcCommand(
-            PLAYLIST_UPDATE_RESPONSE,
-            (response: { message: string }) => {
-                this.snackBar.open(response.message, null, { duration: 2000 });
+            IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE,
+            (response: { result: boolean; message: string }) => {
+                this.isMigrationPossible = response.result;
+                this.migrationMessage = response.message || '';
+            }
+        ),
+        new IpcCommand(
+            MIGRATE_PLAYLISTS_RESPONSE,
+            (response: { payload: Playlist[] }) => {
+                this.store.dispatch(
+                    PlaylistActions.addManyPlaylists({
+                        playlists: response.payload,
+                    })
+                );
+                this.snackBar.open(
+                    `${response.payload.length} playlists were successfully migrated`,
+                    null,
+                    { duration: 2000 }
+                );
             }
         ),
     ];
 
-    listeners = [];
+    isMigrationPossible = false;
+    migrationMessage = '';
 
-    /**
-     * Creates an instance of the component
-     * @param dialog angular material dialog reference
-     * @param dialogService dialog service
-     * @param electronService electron service
-     * @param snackBar angular material snackbar reference
-     * @param translate translate service
-     */
+    @Output() playlistClicked = new EventEmitter<string>();
+
     constructor(
         private dialog: MatDialog,
         private dialogService: DialogService,
         private electronService: DataService,
         private ngZone: NgZone,
+        private router: Router,
         private snackBar: MatSnackBar,
+        private readonly store: Store,
         private translate: TranslateService
     ) {}
 
     ngOnInit(): void {
-        // get all playlists
-        this.electronService.sendIpcEvent(PLAYLIST_GET_ALL);
         this.setRendererListeners();
+        if (this.electronService.isElectron) {
+            this.electronService.sendIpcEvent(IS_PLAYLISTS_MIGRATION_POSSIBLE);
+        }
     }
 
     /**
@@ -87,14 +112,6 @@ export class RecentPlaylistsComponent implements OnDestroy {
                 this.electronService.listenOn(command.id, (event, response) =>
                     this.ngZone.run(() => command.callback(response))
                 );
-            } else {
-                const cb = (response) => {
-                    if (response.data.type === command.id) {
-                        command.callback(response.data);
-                    }
-                };
-                this.electronService.listenOn(command.id, cb);
-                this.listeners.push(cb);
             }
         });
     }
@@ -113,15 +130,15 @@ export class RecentPlaylistsComponent implements OnDestroy {
      * Drop event handler - applies the new sort order to the playlists array
      * @param event drop event
      */
-    drop(event: CdkDragDrop<PlaylistMeta[]>): void {
-        moveItemInArray(
-            this.playlists,
-            event.previousIndex,
-            event.currentIndex
-        );
-        this.electronService.sendIpcEvent(
-            PLAYLIST_UPDATE_POSITIONS,
-            this.playlists
+    drop(event: CdkDragDrop<PlaylistMeta[]>, playlists: PlaylistMeta[]): void {
+        moveItemInArray(playlists, event.previousIndex, event.currentIndex);
+        this.store.dispatch(
+            PlaylistActions.updatePlaylistPositions({
+                positionUpdates: playlists.map((item, index) => ({
+                    id: item._id,
+                    changes: { position: index },
+                })),
+            })
         );
     }
 
@@ -130,9 +147,8 @@ export class RecentPlaylistsComponent implements OnDestroy {
      * @param playlistId playlist id
      */
     getPlaylist(playlistId: string): void {
-        this.electronService.sendIpcEvent(PLAYLIST_GET_BY_ID, {
-            id: playlistId,
-        });
+        this.router.navigate(['playlists', playlistId]);
+        this.playlistClicked.emit(playlistId);
     }
 
     /**
@@ -154,9 +170,7 @@ export class RecentPlaylistsComponent implements OnDestroy {
      * @param playlistId playlist id to remove
      */
     removePlaylist(playlistId: string): void {
-        this.electronService.sendIpcEvent(PLAYLIST_REMOVE_BY_ID, {
-            id: playlistId,
-        });
+        this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
     }
 
     /**
@@ -166,8 +180,17 @@ export class RecentPlaylistsComponent implements OnDestroy {
     refreshPlaylist(item: PlaylistMeta): void {
         this.electronService.sendIpcEvent(PLAYLIST_UPDATE, {
             id: item._id,
+            title: item.title,
             ...(item.url ? { url: item.url } : { filePath: item.filePath }),
         });
+    }
+
+    migratePlaylists() {
+        this.electronService.sendIpcEvent(MIGRATE_PLAYLISTS);
+    }
+
+    deleteMigratedPlaylists() {
+        this.electronService.sendIpcEvent(DELETE_ALL_PLAYLISTS);
     }
 
     /**
@@ -178,10 +201,6 @@ export class RecentPlaylistsComponent implements OnDestroy {
             this.commandsList.forEach((command) =>
                 this.electronService.removeAllListeners(command.id)
             );
-        } else {
-            this.listeners.forEach((listener) => {
-                window.removeEventListener('message', listener);
-            });
         }
     }
 }

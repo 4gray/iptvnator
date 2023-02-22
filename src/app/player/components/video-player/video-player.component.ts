@@ -7,45 +7,37 @@ import {
     NgZone,
     OnDestroy,
     OnInit,
-    ViewChild,
 } from '@angular/core';
-import { MatSidenav } from '@angular/material/sidenav';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { filter, skipWhile } from 'rxjs';
+import { filter, Observable, skipWhile, switchMap } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import {
-    PLAYLIST_GET_ALL,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
 } from '../../../../../shared/ipc-commands';
 import { Playlist } from '../../../../../shared/playlist.interface';
 import { DataService } from '../../../services/data.service';
+import { PlaylistsService } from '../../../services/playlists.service';
 import { Settings, VideoPlayer } from '../../../settings/settings.interface';
 import { STORE_KEY } from '../../../shared/enums/store-keys.enum';
-import { setPlaylist, updateFavorites } from '../../../state/actions';
+import * as PlaylistActions from '../../../state/actions';
 import {
     selectActive,
-    selectChannels,
     selectCurrentEpgProgram,
-    selectFavorites,
-    selectIsEpgAvailable,
-    selectPlaylistFilename,
-    selectPlaylistId,
+    selectPlaylistTitle,
 } from '../../../state/selectors';
 import { MultiEpgContainerComponent } from '../multi-epg/multi-epg-container.component';
 
 /** Possible sidebar view options */
-type SidebarView = 'CHANNELS' | 'PLAYLISTS';
+export type SidebarView = 'CHANNELS' | 'PLAYLISTS';
 
 export const COMPONENT_OVERLAY_REF = new InjectionToken(
     'COMPONENT_OVERLAY_REF'
 );
 
 @Component({
-    selector: 'app-video-player',
     templateUrl: './video-player.component.html',
     styleUrls: ['./video-player.component.scss'],
 })
@@ -56,16 +48,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         .pipe(filter((channel) => Boolean(channel)));
 
     /** Channels list */
-    channels$ = this.store.select(selectChannels);
-
-    /** EPG availability flag */
-    epgAvailable$ = this.store.select(selectIsEpgAvailable);
+    channels$!: Observable<Channel[]>;
 
     /** Current epg program */
     epgProgram$ = this.store.select(selectCurrentEpgProgram);
-
-    /** Favorites list */
-    favorites$ = this.store.select(selectFavorites);
 
     /** Selected video player options */
     playerSettings: Partial<Settings> = {
@@ -73,27 +59,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         showCaptions: false,
     };
 
-    /** Playlists array */
-    playlists = [];
-
-    /** Sidebar object */
-    @ViewChild('sidenav') sideNav: MatSidenav;
-
-    /** ID of the current playlist */
-    playlistId$ = this.store
-        .select(selectPlaylistId)
-        .pipe(
-            skipWhile(
-                (playlistId) => playlistId === '' || playlistId === undefined
-            )
-        );
-
     /** Title of the current playlist */
     playlistTitle$ = this.store
-        .select(selectPlaylistFilename)
+        .select(selectPlaylistTitle)
         .pipe(skipWhile((playlistFilename) => playlistFilename === ''));
-
-    isElectron = this.dataService.isElectron;
 
     /** IPC Renderer commands list with callbacks */
     commandsList = [
@@ -101,36 +70,33 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             id: PLAYLIST_PARSE_RESPONSE,
             execute: (response: { payload: Playlist }): void => {
                 this.store.dispatch(
-                    setPlaylist({ playlist: response.payload })
+                    PlaylistActions.addPlaylist({
+                        playlist: response.payload,
+                    })
                 );
-                this.setSidebarView('CHANNELS');
+                this.sidebarView = 'CHANNELS';
             },
         },
     ];
 
-    /** Current sidebar view */
-    sidebarView: SidebarView = 'CHANNELS';
-
     listeners = [];
+
+    isElectron = this.dataService.isElectron;
+
+    sidebarView: SidebarView = 'CHANNELS';
 
     /** EPG overlay reference */
     overlayRef: OverlayRef;
 
-    /**
-     * Creates an instance of VideoPlayerComponent
-     */
     constructor(
         private activatedRoute: ActivatedRoute,
-        private store: Store,
-        public dataService: DataService,
+        private dataService: DataService,
         private ngZone: NgZone,
         private overlay: Overlay,
-        private router: Router,
-        private snackBar: MatSnackBar,
-        private storage: StorageMap
-    ) {
-        this.dataService.sendIpcEvent(PLAYLIST_GET_ALL);
-    }
+        private playlistsService: PlaylistsService,
+        private storage: StorageMap,
+        private store: Store
+    ) {}
 
     /**
      * Sets video player and subscribes to channel list from the store
@@ -139,10 +105,20 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.applySettings();
         this.setRendererListeners();
         this.getPlaylistUrlAsParam();
+
+        this.channels$ = this.activatedRoute.params.pipe(
+            switchMap((params) => {
+                this.store.dispatch(
+                    PlaylistActions.setActivePlaylist({ playlistId: params.id })
+                );
+                return this.playlistsService.getPlaylistChannels(params.id);
+            })
+        );
     }
 
     /**
      * Opens a playlist provided as a url param
+     * e.g. iptvnat.or?url=http://...
      */
     getPlaylistUrlAsParam() {
         const URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
@@ -161,7 +137,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
      */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
-            if (this.dataService.isElectron) {
+            if (this.isElectron) {
                 this.dataService.listenOn(command.id, (event, response) =>
                     this.ngZone.run(() => command.execute(response))
                 );
@@ -191,41 +167,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         });
     }
 
-    /**
-     * Closes the channels sidebar
-     */
-    close(): void {
-        this.sideNav.close();
-    }
-
-    /**
-     * Adds/removes a given channel to the favorites list
-     * @param channel channel to add
-     */
-    addToFavorites(channel: Channel): void {
-        this.snackBar.open('Favorites were updated!', null, { duration: 2000 });
-        this.store.dispatch(updateFavorites({ channel }));
-    }
-
-    /**
-     * Switches the sidebar view to the specified value
-     * @param view view to change
-     */
-    setSidebarView(view: SidebarView) {
-        this.sidebarView = view;
-    }
-
-    /** Navigates back */
-    goBack(): void {
-        if (this.sidebarView === 'PLAYLISTS') {
-            this.router.navigate(['/']);
-        } else {
-            this.sidebarView = 'PLAYLISTS';
-        }
-    }
-
     ngOnDestroy() {
-        if (this.dataService.isElectron) {
+        if (this.isElectron) {
             this.dataService.removeAllListeners(PLAYLIST_PARSE_RESPONSE);
         } else {
             this.listeners.forEach((listener) =>

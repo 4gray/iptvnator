@@ -102,7 +102,7 @@ describe('RecentPlaylistsComponent', () => {
 
     it('should send an event to the main process to refresh a playlist', () => {
         const playlistMeta: PlaylistMeta = {
-            _id: 'iptv1',
+            id: 'iptv1',
             filePath: '/home/user/lists/iptv.m3u',
         } as PlaylistMeta;
         jest.spyOn(electronService, 'sendIpcEvent');
