@@ -52,7 +52,8 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",
-            "ADD_PLAYLIST": "Add playlist"
+            "ADD_PLAYLIST": "Add playlist",
+            "CORS_NOTE": "Note: In order to avoid CORS issues at this point the application uses a public CORS Proxy service. If you want to upload a playlist with sensitive data, it is better to import it as a file in the adjacent tab."
         },
         "TEXT_IMPORT": {
             "LABEL": "Insert m3u(8) playlist as text",
@@ -157,7 +158,10 @@
     "ABOUT": {
         "TITLE": "About IPTVnator",
         "DESCRIPTION": "Cross-platform IPTV player application with multiple features, such as support of m3u and m3u8 playlists, favorites, TV guide, TV archive/catchup and more.",
-        "VERSION": "Version"
+        "VERSION": "Version",
+        "GITHUB_TOOLTIP": "ITPVnator repository on GitHub",
+        "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee",
+        "TWITTER_TOOLTIP": "Share on Twitter"
     },
     "UPDATE_AVAILABLE": "Update available",
     "REFRESH": "Refresh"
