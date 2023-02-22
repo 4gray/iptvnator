@@ -1,7 +1,7 @@
 import { createReducer, on } from '@ngrx/store';
 import * as moment from 'moment';
-import { createChannel } from '../shared/channel.model';
 import * as PlaylistActions from './actions';
+import { playlistsAdapter } from './playlists.state';
 import { initialState, PlaylistState } from './state';
 
 export const playlistReducer = createReducer(
@@ -47,39 +47,135 @@ export const playlistReducer = createReducer(
             epgAvailable: action.value,
         })
     ),
-    on(PlaylistActions.setPlaylist, (state, action): PlaylistState => {
-        const { playlist } = action;
 
+    /* on(PlaylistActions.setPlaylist, (state, action): PlaylistState => {
+        const { playlist } = action;
         return {
             ...state,
             channels: playlist?.playlist.items.map((element) =>
                 createChannel(element)
             ),
-            favorites: playlist?.favorites || [],
             active: undefined,
-            playlistId: playlist._id,
-            playlistFilename: playlist.title || playlist.filename,
         };
-    }),
+    }), */
     on(PlaylistActions.updateFavorites, (state, action): PlaylistState => {
         let favorites;
         const { channel } = action;
-        if (state.favorites.includes(channel.id)) {
-            favorites = [...state.favorites.filter((id) => id !== channel.id)];
+        const playlistFavorites =
+            state.playlists.entities[state.playlists.selectedId].favorites;
+        if (playlistFavorites.includes(channel.id)) {
+            favorites = [
+                ...playlistFavorites.filter((id) => id !== channel.id),
+            ];
         } else {
-            favorites = [...state.favorites, channel.id];
+            favorites = [...playlistFavorites, channel.id];
         }
-        return { ...state, favorites };
+        return {
+            ...state,
+            playlists: {
+                ...state.playlists,
+                entities: {
+                    ...state.playlists.entities,
+                    [state.playlists.selectedId]: {
+                        ...state.playlists.entities[state.playlists.selectedId],
+                        favorites,
+                    },
+                },
+            },
+        };
+    }),
+    on(PlaylistActions.loadPlaylistsSuccess, (state, action): PlaylistState => {
+        return {
+            ...state,
+            playlists: playlistsAdapter.upsertMany(
+                action.playlists,
+                state.playlists
+            ),
+        };
+    }),
+    on(PlaylistActions.removePlaylist, (state, action): PlaylistState => {
+        return {
+            ...state,
+            playlists: playlistsAdapter.removeOne(
+                action.playlistId,
+                state.playlists
+            ),
+        };
+    }),
+    on(PlaylistActions.updatePlaylist, (state, action): PlaylistState => {
+        return {
+            ...state,
+            playlists: playlistsAdapter.updateOne(
+                {
+                    id: action.playlistId,
+                    changes: { ...action.playlist, _id: action.playlistId },
+                },
+                state.playlists
+            ),
+        };
+    }),
+    on(PlaylistActions.addPlaylist, (state, action): PlaylistState => {
+        return {
+            ...state,
+            playlists: playlistsAdapter.addOne(
+                action.playlist,
+                state.playlists
+            ),
+        };
+    }),
+    on(PlaylistActions.addManyPlaylists, (state, action): PlaylistState => {
+        return {
+            ...state,
+            playlists: playlistsAdapter.addMany(
+                action.playlists,
+                state.playlists
+            ),
+        };
+    }),
+    on(PlaylistActions.setActivePlaylist, (state, action): PlaylistState => {
+        return {
+            ...state,
+            playlists: {
+                ...state.playlists,
+                selectedId: action.playlistId,
+            },
+        };
+    }),
+    on(
+        PlaylistActions.updatePlaylistPositions,
+        (state, action): PlaylistState => {
+            return {
+                ...state,
+                playlists: playlistsAdapter.updateMany(
+                    action.positionUpdates,
+                    state.playlists
+                ),
+            };
+        }
+    ),
+    on(PlaylistActions.updatePlaylistMeta, (state, action): PlaylistState => {
+        return {
+            ...state,
+            playlists: playlistsAdapter.updateOne(
+                {
+                    id: action.playlist._id,
+                    changes: {
+                        title: action.playlist.title,
+                        autoRefresh: action.playlist.autoRefresh || false,
+                    },
+                },
+                state.playlists
+            ),
+        };
     })
 );
 
-export const selectFavorites = (state: PlaylistState) => state.favorites;
-export const selectPlaylistId = (state: PlaylistState) => state.playlistId;
-export const selectPlaylistFilename = (state: PlaylistState) =>
-    state.playlistFilename;
 export const selectIsEpgAvailable = (state: PlaylistState) =>
     state.epgAvailable;
 export const selectActive = (state: PlaylistState) => state.active;
 export const selectCurrentEpgProgram = (state: PlaylistState) =>
     state.currentEpgProgram;
 export const selectChannels = (state: PlaylistState) => state.channels;
+export const selectPlaylists = (state: PlaylistState) => state.playlists;
+export const selectPlaylistId = (state: PlaylistState) =>
+    state.playlists?.selectedId;
