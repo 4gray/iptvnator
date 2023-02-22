@@ -17,6 +17,7 @@ import {
 })
 export class ToolbarComponent {
     @Input() activeChannel!: Channel;
+    @Output() multiEpgClicked = new EventEmitter<void>();
     @Output() toggleLeftDrawerClicked = new EventEmitter<void>();
     @Output() toggleRightDrawerClicked = new EventEmitter<void>();
 

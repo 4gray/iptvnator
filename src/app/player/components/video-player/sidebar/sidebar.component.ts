@@ -21,7 +21,7 @@ export class SidebarComponent {
     sidebarView: SidebarView = 'CHANNELS';
 
     constructor(
-        private dataService: DataService,
+        public dataService: DataService,
         private router: Router,
         private store: Store
     ) {}
