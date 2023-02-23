@@ -173,6 +173,18 @@ export class PlaylistEffects {
         { dispatch: false }
     );
 
+    updateManyPlaylists$ = createEffect(
+        () => {
+            return this.actions$.pipe(
+                ofType(PlaylistActions.updateManyPlaylists),
+                switchMap((action) =>
+                    this.playlistsService.updateManyPlaylists(action.playlists)
+                )
+            );
+        },
+        { dispatch: false }
+    );
+
     constructor(
         private actions$: Actions,
         private playlistsService: PlaylistsService,

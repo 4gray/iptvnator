@@ -18,6 +18,7 @@ import { DataService } from '../../services/data.service';
 import * as PlaylistActions from '../../state/actions';
 import { selectAllPlaylistsMeta } from '../../state/selectors';
 import {
+    AUTO_UPDATE_PLAYLISTS_RESPONSE,
     DELETE_ALL_PLAYLISTS,
     IS_PLAYLISTS_MIGRATION_POSSIBLE,
     IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE,
@@ -49,7 +50,6 @@ export class RecentPlaylistsComponent implements OnDestroy {
                 this.snackBar.open(response.message, null, { duration: 2000 });
                 this.store.dispatch(
                     PlaylistActions.updatePlaylist({
-                        // TODO: check if this is correct
                         playlistId: response.playlist._id,
                         playlist: response.playlist,
                     })
@@ -75,6 +75,16 @@ export class RecentPlaylistsComponent implements OnDestroy {
                     `${response.payload.length} playlists were successfully migrated`,
                     null,
                     { duration: 2000 }
+                );
+            }
+        ),
+        new IpcCommand(
+            AUTO_UPDATE_PLAYLISTS_RESPONSE,
+            (playlists: Playlist[]) => {
+                this.store.dispatch(
+                    PlaylistActions.updateManyPlaylists({
+                        playlists,
+                    })
                 );
             }
         ),

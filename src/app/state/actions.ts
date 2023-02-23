@@ -41,6 +41,11 @@ export const updatePlaylist = createAction(
     props<{ playlist: Playlist; playlistId: string }>()
 );
 
+export const updateManyPlaylists = createAction(
+    `${PLAYLISTS_STORE_KEY} Update many playlists (auto-update mechanism)`,
+    props<{ playlists: Playlist[] }>()
+);
+
 export const parsePlaylist = createAction(
     `${PLAYLISTS_STORE_KEY} parse playlist`,
     props<{

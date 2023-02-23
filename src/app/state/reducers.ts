@@ -97,7 +97,13 @@ export const playlistReducer = createReducer(
             playlists: playlistsAdapter.updateOne(
                 {
                     id: action.playlistId,
-                    changes: { ...action.playlist, _id: action.playlistId },
+                    changes: {
+                        ...action.playlist,
+                        _id: action.playlistId,
+                        updateDate: Date.now(),
+                        favorites: [],
+                        count: action.playlist.playlist.items.length,
+                    },
                 },
                 state.playlists
             ),
@@ -161,6 +167,21 @@ export const playlistReducer = createReducer(
         return {
             ...state,
             channels: action.channels,
+        };
+    }),
+    on(PlaylistActions.updateManyPlaylists, (state, action): PlaylistState => {
+        return {
+            ...state,
+            playlists: playlistsAdapter.updateMany(
+                action.playlists.map((updatedPlaylist) => ({
+                    id: updatedPlaylist._id,
+                    changes: {
+                        ...updatedPlaylist,
+                        updateDate: Date.now(),
+                    },
+                })),
+                state.playlists
+            ),
         };
     })
 );

@@ -100,15 +100,15 @@ export class PlaylistsService {
         );
     }
 
-    // TODO: for-loop
-    updatePlaylistPosition(id: string, position: number) {
-        return this.getPlaylistById(id).pipe(
-            switchMap((playlist) =>
-                this.dbService.update(DbStores.Playlists, {
+    updateManyPlaylists(playlists: Playlist[]) {
+        return combineLatest(
+            playlists.map((playlist) => {
+                return this.dbService.update(DbStores.Playlists, {
                     ...playlist,
-                    position,
-                })
-            )
+                    updateDate: Date.now(),
+                    autoRefresh: true,
+                });
+            })
         );
     }
 
@@ -166,5 +166,18 @@ export class PlaylistsService {
 
     addManyPlaylists(playlists: Playlist[]) {
         return this.dbService.bulkAdd(DbStores.Playlists, playlists as any); // TODO: update ngx-indexed-db
+    }
+
+    getPlaylistsForAutoUpdate() {
+        return this.dbService.getAll(DbStores.Playlists).pipe(
+            map((playlists: Playlist[]) => {
+                return playlists
+                    .filter((item) => item.autoRefresh)
+                    .map(
+                        ({ playlist, header, items, favorites, ...rest }) =>
+                            rest
+                    );
+            })
+        );
     }
 }

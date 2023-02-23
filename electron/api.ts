@@ -1,7 +1,11 @@
 import axios from 'axios';
 import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { promises as fsPromises } from 'fs';
 import { parse } from 'iptv-playlist-parser';
+import { Channel } from '../shared/channel.interface';
 import {
+    AUTO_UPDATE_PLAYLISTS,
+    AUTO_UPDATE_PLAYLISTS_RESPONSE,
     CHANNEL_SET_USER_AGENT,
     DELETE_ALL_PLAYLISTS,
     EPG_ERROR,
@@ -25,6 +29,7 @@ import {
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
 } from '../shared/ipc-commands';
+import { Playlist } from '../shared/playlist.interface';
 import { createPlaylistObject } from '../shared/playlist.utils';
 import { ParsedPlaylist } from '../src/typings.d';
 
@@ -162,6 +167,35 @@ export class Api {
                     );
                 });
             })
+            .on(
+                AUTO_UPDATE_PLAYLISTS,
+                // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                async (event, playlists: Partial<Playlist>[]) => {
+                    const results: any[] = [];
+                    let playlist: any;
+                    for (const element of playlists) {
+                        if (element.url && element._id) {
+                            playlist = await this.fetchPlaylistByUrl({
+                                id: element._id,
+                                title: element.title || '',
+                                url: element.url,
+                            });
+                            results.push(playlist);
+                        } else if (element.filePath && element._id) {
+                            playlist = await this.fetchPlaylistByFilePath({
+                                id: element._id,
+                                title: element.title || '',
+                                filePath: element.filePath,
+                            });
+                            results.push(playlist);
+                        }
+                    }
+                    event.sender.send(
+                        AUTO_UPDATE_PLAYLISTS_RESPONSE,
+                        results.filter((item) => item !== undefined)
+                    );
+                }
+            )
             .on(MIGRATE_PLAYLISTS, (event) => {
                 this.getAllPlaylists().then((playlists) => {
                     event.sender.send(MIGRATE_PLAYLISTS_RESPONSE, {
@@ -211,32 +245,7 @@ export class Api {
             .on(EPG_FORCE_FETCH, (event, arg) =>
                 this.workerWindow.webContents.send(EPG_FORCE_FETCH, arg)
             );
-
-        // this.refreshPlaylists();
     }
-
-    /**
-     * Starts the update process for all the playlists with the enabled auto-refresh flag
-     */
-    // TODO: implement the same mechanism for self-hosted PWAs (ignore vercel instance)
-    /* refreshPlaylists(): void {
-        this.getAllPlaylistsMeta().then((playlists) => {
-            playlists.forEach((playlist) => {
-                if (playlist.autoRefresh && playlist.autoRefresh === true) {
-                    if (playlist.url) {
-                        this.fetchPlaylistByUrl(playlist._id, playlist.url);
-                    } else if (playlist.filePath) {
-                        this.fetchPlaylistByFilePath(
-                            playlist._id,
-                            playlist.filePath
-                        );
-                    } else {
-                        console.log('skip...');
-                    }
-                }
-            });
-        });
-    } */
 
     /**
      * Sets the user agent header for all http requests
@@ -282,30 +291,39 @@ export class Api {
      * Converts the fetched playlist string to the playlist object, updates it  in the database and sends the updated playlists array back to the renderer
      * @param id id of the playlist to update
      * @param playlistString updated playlist as string
-     * @param event ipc event to send the response back to the renderer
      */
-    handlePlaylistRefresh(
+    getRefreshedPlaylist(
         args: { id: string; title: string; filePath?: string; url?: string },
-        playlistString: string,
-        event?: Electron.IpcMainEvent
+        playlistString: string
     ) {
-        if (event) {
-            const parsedPlaylist: ParsedPlaylist =
-                this.parsePlaylist(playlistString);
-            const playlist = createPlaylistObject(
-                args.title,
-                parsedPlaylist,
-                args.url ? args.url : args.filePath,
-                args.url ? 'URL' : 'FILE'
-            );
-            event.sender.send(PLAYLIST_UPDATE_RESPONSE, {
-                message: `Success! The playlist was successfully updated (${parsedPlaylist.items.length} channels)`,
-                playlist: {
-                    ...playlist,
-                    _id: args.id,
-                },
-            });
-        }
+        const parsedPlaylist: ParsedPlaylist =
+            this.parsePlaylist(playlistString);
+        const playlist = createPlaylistObject(
+            args.title,
+            parsedPlaylist,
+            args.url ? args.url : args.filePath,
+            args.url ? 'URL' : 'FILE'
+        );
+        return {
+            ...playlist,
+            _id: args.id,
+        };
+    }
+
+    sendPlaylistRefreshResponse(
+        playlistId: string,
+        playlist: Playlist,
+        event: Electron.IpcMainEvent
+    ) {
+        event.sender.send(PLAYLIST_UPDATE_RESPONSE, {
+            message: `Success! The playlist was successfully updated (${
+                (playlist.playlist.items as Channel[]).length
+            } channels)`,
+            playlist: {
+                ...playlist,
+                _id: playlistId,
+            },
+        });
     }
 
     /**
@@ -317,14 +335,24 @@ export class Api {
     async fetchPlaylistByUrl(
         args: { id: string; title: string; url?: string },
         event?: Electron.IpcMainEvent
-    ): Promise<void> {
+    ) {
         if (!args.url) return;
         try {
-            await axios
-                .get(args.url, { httpsAgent: agent })
-                .then((result) =>
-                    this.handlePlaylistRefresh(args, result.data, event)
+            const result = await axios.get(args.url, { httpsAgent: agent });
+
+            const refreshedPlaylist = this.getRefreshedPlaylist(
+                args,
+                result.data
+            );
+            if (event) {
+                this.sendPlaylistRefreshResponse(
+                    refreshedPlaylist._id,
+                    refreshedPlaylist,
+                    event
                 );
+            } else {
+                return refreshedPlaylist;
+            }
         } catch (err) {
             if (event)
                 event.sender.send(ERROR, {
@@ -340,22 +368,28 @@ export class Api {
      * @param playlistString updated playlist as string
      * @param event ipc event to send the response back to the renderer
      */
-    fetchPlaylistByFilePath(
+    async fetchPlaylistByFilePath(
         args: { id: string; title: string; filePath?: string },
         event?: Electron.IpcMainEvent
-    ): void {
+    ) {
         if (!args.filePath) return;
-        try {
-            fs.readFile(args.filePath, 'utf-8', (err, data) => {
-                if (err) {
-                    this.handleFileNotFoundError(err, event);
-                    return;
-                }
+        let refreshedPlaylist: Playlist;
 
-                this.handlePlaylistRefresh(args, data, event);
-            });
+        try {
+            const playlist = await fsPromises.readFile(args.filePath, 'utf-8');
+            refreshedPlaylist = this.getRefreshedPlaylist(args, playlist);
+
+            if (event) {
+                this.sendPlaylistRefreshResponse(
+                    refreshedPlaylist._id,
+                    refreshedPlaylist,
+                    event
+                );
+            } else {
+                return refreshedPlaylist;
+            }
         } catch (err) {
-            this.handleFileNotFoundError(err, event);
+            return;
         }
     }
 
@@ -394,15 +428,16 @@ export class Api {
     }
 
     /** @deprecated - used only for migration */
-    removeAllPlaylists(event: Electron.IpcMainEvent) {
+    async removeAllPlaylists(event: Electron.IpcMainEvent) {
+        const removeCount = await db.remove({}, { multi: true });
+        console.info(removeCount, ' playlists were removed');
         fs.unlink(dbPath, (err) => {
             if (err && err.code == 'ENOENT') {
-                // file doesn't exist
                 console.info("File doesn't exist, won't remove it.");
             } else if (err) {
                 console.error('Error occurred while trying to remove file');
             } else {
-                console.log(`${dbPath} was deleted`);
+                console.info(`${dbPath} was deleted`);
                 event.sender.send(IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE, {
                     result: false,
                 });
