@@ -17,8 +17,10 @@
             <div class="channels-count">
                 {{
                     sidebarView === 'CHANNELS'
-                        ? channels.length + ' channels'
-                        : 'all available playlists'
+                        ? channels.length +
+                          ' ' +
+                          ('HOME.PLAYLISTS.CHANNELS' | translate)
+                        : ('HOME.PLAYLISTS.MY_PLAYLISTS_SUBTITLE' | translate)
                 }}
             </div>
         </div>
