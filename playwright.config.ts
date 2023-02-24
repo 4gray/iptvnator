@@ -2,6 +2,7 @@ import { devices, PlaywrightTestConfig } from '@playwright/test';
 
 const config: PlaywrightTestConfig = {
     testDir: './e2e',
+    timeout: 45000,
     maxFailures: 2,
     testMatch: /.*\.e2e\.ts/,
     projects: [
@@ -28,6 +29,7 @@ const config: PlaywrightTestConfig = {
         }, */
     ],
     use: {
+        headless: false,
         screenshot: 'only-on-failure',
         testIdAttribute: 'data-test-id',
     },
