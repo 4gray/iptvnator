@@ -43,7 +43,8 @@
             "GLOBAL_FAVORITES": "Global favorites",
             "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
             "MY_PLAYLISTS": "My playlists",
-            "MY_PLAYLISTS_SUBTITLE": "all available playlists"
+            "MY_PLAYLISTS_SUBTITLE": "all available playlists",
+            "PLAYLIST_UPDATE_SUCCESS": "Success! The playlist was successfully updated."
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Drag & drop files here",

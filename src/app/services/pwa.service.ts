@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { HttpClient } from '@angular/common/http';
 import { ApplicationRef, inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { catchError, throwError } from 'rxjs';
 import {
     ERROR,
@@ -33,22 +31,12 @@ export class PwaService extends DataService {
     /** Proxy URL to avoid CORS issues */
     corsProxyUrl = AppConfig.BACKEND_URL;
 
-    /**
-     * Creates an instance of PwaService.
-     * @param dbService database service
-     * @param http angular http client
-     */
-    constructor(
-        private dbService: NgxIndexedDBService,
-        private http: HttpClient
-    ) {
+    constructor(private http: HttpClient) {
         super();
         console.log('PWA service initialized...');
     }
 
-    /**
-     * Uses service worker mechanism to check for available application updates
-     */
+    /** Uses service worker mechanism to check for available application updates */
     checkUpdates() {
         this.swUpdate.versionUpdates.subscribe(() => {
             this.snackBar
@@ -63,9 +51,6 @@ export class PwaService extends DataService {
         });
     }
 
-    /**
-     * Returns the current version of the app
-     */
     getAppVersion(): string {
         return AppConfig.version;
     }
@@ -75,34 +60,40 @@ export class PwaService extends DataService {
      * @param type ipc command type
      * @param payload payload
      */
-    sendIpcEvent(type: string, payload?: any): void {
+    sendIpcEvent(type: string, payload?: unknown): void {
         if (type === PLAYLIST_PARSE_BY_URL) {
             this.fetchFromUrl(payload);
         } else if (type === PLAYLIST_UPDATE) {
-            this.getPlaylistFromUrl(payload.url)
-                .pipe(
-                    catchError((error) => {
-                        window.postMessage({
-                            type: ERROR,
-                        });
-                        return throwError(() => error);
-                    })
-                )
-                .subscribe((playlist: Playlist) => {
-                    this.store.dispatch(
-                        PlaylistActions.updatePlaylist({
-                            playlist,
-                            playlistId: payload.id,
-                        })
-                    );
-
-                    this.snackBar.open(
-                        `Success! The playlist was successfully updated.`,
-                        null,
-                        { duration: 2000 }
-                    );
-                });
+            this.refreshPlaylist(payload);
         }
+    }
+
+    refreshPlaylist(payload: Partial<Playlist & { id: string }>) {
+        this.getPlaylistFromUrl(payload.url)
+            .pipe(
+                catchError((error) => {
+                    window.postMessage({
+                        type: ERROR,
+                    });
+                    return throwError(() => error);
+                })
+            )
+            .subscribe((playlist: Playlist) => {
+                this.store.dispatch(
+                    PlaylistActions.updatePlaylist({
+                        playlist,
+                        playlistId: payload.id,
+                    })
+                );
+
+                this.snackBar.open(
+                    this.translateService.instant(
+                        'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
+                    ),
+                    null,
+                    { duration: 2000 }
+                );
+            });
     }
 
     /**
