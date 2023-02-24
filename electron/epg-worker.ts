@@ -112,7 +112,10 @@ const convertEpgData = () => {
 // fetches epg data from the provided URL
 ipcRenderer.on(EPG_FETCH, (event, epgUrl: string) => {
     console.log(loggerLabel, 'epg fetch command was triggered');
-    if (fetchedUrls.indexOf(epgUrl) > -1) return;
+    if (fetchedUrls.indexOf(epgUrl) > -1) {
+        ipcRenderer.send(EPG_FETCH_DONE);
+        return;
+    }
     fetchedUrls.push(epgUrl);
     fetchEpgDataFromUrl(epgUrl);
 });

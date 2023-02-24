@@ -7,14 +7,15 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
+import { TranslateService } from '@ngx-translate/core';
 import * as _ from 'lodash';
-import { combineLatestWith, map, skipWhile } from 'rxjs';
+import { map, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
+import { PlaylistsService } from '../../../services/playlists.service';
 import * as PlaylistActions from '../../../state/actions';
 import {
-    selectChannels,
+    selectActivePlaylistId,
     selectFavorites,
-    selectPlaylistId,
 } from '../../../state/selectors';
 @Component({
     selector: 'app-channel-list-container',
@@ -43,14 +44,6 @@ export class ChannelListContainerComponent {
     /** Selected channel */
     selected!: Channel;
 
-    /** List with favorites */
-    favorites$ = this.store.select(selectChannels).pipe(
-        combineLatestWith(this.store.select(selectFavorites)),
-        map(([channels, favorites]) =>
-            channels.filter((channel) => favorites.includes(channel.id))
-        )
-    );
-
     /** Search term for channel filter */
     searchTerm: any = {
         name: '',
@@ -69,17 +62,30 @@ export class ChannelListContainerComponent {
 
     /** ID of the current playlist */
     playlistId$ = this.store
-        .select(selectPlaylistId)
+        .select(selectActivePlaylistId)
         .pipe(
             skipWhile(
                 (playlistId) => playlistId === '' || playlistId === undefined
             )
         );
 
-    /**
-     * Creates an instance of ChannelListContainerComponent
-     */
-    constructor(private readonly store: Store, private snackBar: MatSnackBar) {}
+    /** List with favorites */
+    favorites$ = this.store
+        .select(selectFavorites)
+        .pipe(
+            map((favorites) =>
+                this.channelList.filter((channel) =>
+                    favorites.includes(channel.id)
+                )
+            )
+        );
+
+    constructor(
+        private playlistService: PlaylistsService,
+        private readonly store: Store,
+        private snackBar: MatSnackBar,
+        private translateService: TranslateService
+    ) {}
 
     /**
      * Sets clicked channel as selected and emits them to the parent component
@@ -97,7 +103,11 @@ export class ChannelListContainerComponent {
      */
     toggleFavoriteChannel(channel: Channel, clickEvent: MouseEvent): void {
         clickEvent.stopPropagation();
-        this.snackBar.open('Favorites were updated!', null, { duration: 2000 });
+        this.snackBar.open(
+            this.translateService.instant('CHANNELS.FAVORITES_UPDATED'),
+            null,
+            { duration: 2000 }
+        );
         this.store.dispatch(PlaylistActions.updateFavorites({ channel }));
     }
 

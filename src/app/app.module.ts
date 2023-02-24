@@ -44,7 +44,7 @@ export function DataFactory(dbService: NgxIndexedDBService, http: HttpClient) {
     if (isElectron()) {
         return new ElectronService();
     }
-    return new PwaService(dbService, http);
+    return new PwaService(http);
 }
 
 @NgModule({

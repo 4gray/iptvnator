@@ -13,8 +13,9 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslatePipe } from '@ngx-translate/core';
-import { MockModule, MockPipes } from 'ng-mocks';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { MockModule, MockPipes, MockProviders } from 'ng-mocks';
+import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { Observable } from 'rxjs';
 import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
 import { DataService } from '../../../services/data.service';
@@ -44,6 +45,7 @@ describe('ChannelListContainerComponent', () => {
                 { provide: DataService, useClass: ElectronServiceStub },
                 provideMockStore(),
                 provideMockActions(actions$),
+                MockProviders(NgxIndexedDBService, TranslateService),
             ],
             imports: [
                 MockModule(MatSnackBarModule),
@@ -73,8 +75,6 @@ describe('ChannelListContainerComponent', () => {
         mockStore.setState({
             playlistState: {
                 channels,
-                favorites: [MOCKED_PLAYLIST.playlist.items[0].url],
-                playlistId: '',
                 active: undefined,
             },
         });
@@ -158,9 +158,10 @@ describe('ChannelListContainerComponent', () => {
             new MouseEvent('click')
         );
         fixture.detectChanges();
-        expect(mockStore.dispatch).toHaveBeenCalledWith(
-            {channel: component._channelList[0], type: expect.stringContaining('favorites')}, 
-        );
+        expect(mockStore.dispatch).toHaveBeenCalledWith({
+            channel: component._channelList[0],
+            type: expect.stringContaining('favorites'),
+        });
         expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
     });
 });

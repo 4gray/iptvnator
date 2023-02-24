@@ -54,7 +54,7 @@
                 {{ 'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED' | translate }}
             </mat-hint>
         </mat-form-field>
-        <ng-container *ngIf="playlist.url || playlist.filePath">
+        <ng-container *ngIf="isElectron && (playlist.url || playlist.filePath)">
             <mat-checkbox class="full-width" formControlName="autoRefresh">
                 {{ 'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE' | translate }}
             </mat-checkbox>

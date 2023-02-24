@@ -1,0 +1,52 @@
+<div id="playlists-navigation">
+    <div class="current-playlist">
+        <button mat-icon-button matTooltip="Back" (click)="goBack()">
+            <mat-icon>arrow_back_ios</mat-icon>
+        </button>
+        <div class="playlist-info">
+            <div class="name">
+                <ng-container
+                    *ngIf="sidebarView === 'CHANNELS'; else allPlaylists"
+                >
+                    {{ playlistTitle$ | async }}
+                </ng-container>
+                <ng-template #allPlaylists>
+                    {{ 'HOME.PLAYLISTS.MY_PLAYLISTS' | translate }}
+                </ng-template>
+            </div>
+            <div class="channels-count">
+                {{
+                    sidebarView === 'CHANNELS'
+                        ? channels.length +
+                          ' ' +
+                          ('HOME.PLAYLISTS.CHANNELS' | translate)
+                        : ('HOME.PLAYLISTS.MY_PLAYLISTS_SUBTITLE' | translate)
+                }}
+            </div>
+        </div>
+
+        <button
+            mat-icon-button
+            *ngIf="sidebarView === 'CHANNELS'"
+            routerLink="/"
+            [matTooltip]="
+                'CHANNELS.UPLOAD_OR_SELECT_OTHER_PLAYLIST' | translate
+            "
+        >
+            <mat-icon>playlist_add</mat-icon>
+        </button>
+    </div>
+</div>
+<mat-divider></mat-divider>
+<app-channel-list-container
+    *ngIf="sidebarView === 'CHANNELS'; else playlistsTemplate"
+    [channelList]="channels"
+>
+</app-channel-list-container>
+<ng-template #playlistsTemplate>
+    <app-recent-playlists
+        class="recent-playlists"
+        [class.electron]="dataService.isElectron"
+        (playlistClicked)="selectPlaylist()"
+    ></app-recent-playlists>
+</ng-template>

@@ -9,12 +9,10 @@ import { ActivatedRoute } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe } from '@ngx-translate/core';
-import { MockComponent, MockModule, MockPipe } from 'ng-mocks';
-import * as MOCKED_PLAYLIST from '../../../../mocks/playlist.json';
+import { MockComponent, MockModule, MockPipe, MockProviders } from 'ng-mocks';
 import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { VideoPlayer } from '../../../settings/settings.interface';
-import { createChannel } from '../../../shared/channel.model';
 import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
 import { EpgListComponent } from '../epg-list/epg-list.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
@@ -24,7 +22,10 @@ import { VideoPlayerComponent } from './video-player.component';
 
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
-import { Observable } from 'rxjs';
+import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { Observable, of } from 'rxjs';
+import { PlaylistsService } from '../../../services/playlists.service';
+import { initialState } from '../../../state/state';
 
 class MatSnackBarStub {
     open(): void {}
@@ -56,6 +57,7 @@ describe('VideoPlayerComponent', () => {
                     {
                         provide: ActivatedRoute,
                         useValue: {
+                            params: of({ id: '1' }),
                             snapshot: {
                                 queryParams: {
                                     url: 'https://iptvnator/list.m3u',
@@ -65,6 +67,7 @@ describe('VideoPlayerComponent', () => {
                     },
                     provideMockStore(),
                     provideMockActions(actions$),
+                    MockProviders(NgxIndexedDBService, PlaylistsService),
                 ],
                 imports: [
                     MockModule(MatSidenavModule),
@@ -83,34 +86,16 @@ describe('VideoPlayerComponent', () => {
         component = fixture.componentInstance;
         mockStore = TestBed.inject(MockStore);
 
-        // set channels
-        channels = MOCKED_PLAYLIST.playlist.items.map((element) =>
-            createChannel(element)
-        );
-
-        mockStore.setState({ playlistState: {channels} });
-    });
-
-    it('should create and init component', () => {
-        expect(component).toBeTruthy();
-        jest.spyOn(component, 'applySettings');
+        mockStore.setState({
+            playlistState: initialState,
+        });
         fixture.detectChanges();
-        expect(component.applySettings).toHaveBeenCalledTimes(1);
     });
 
     it('should check default component settings', () => {
-        fixture.detectChanges();
         expect(component.playerSettings).toEqual({
             player: VideoPlayer.VideoJs,
             showCaptions: false,
         });
-    });
-
-    it('should update store after channel was faved', () => {
-        jest.spyOn(mockStore, 'dispatch');
-        const [firstChannel] = channels;
-        component.addToFavorites(firstChannel);
-        expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
-        expect(mockStore.dispatch).toHaveBeenCalledWith({channel: firstChannel, type: expect.stringContaining('favorite')});
     });
 });

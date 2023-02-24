@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+import { ParsedPlaylist } from '../src/typings';
 import { Channel } from './channel.interface';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from './constants';
 import { Playlist } from './playlist.interface';
@@ -33,7 +35,6 @@ export function createFavoritesPlaylist(
     channels: Channel[]
 ): Partial<Playlist> {
     return {
-        id: GLOBAL_FAVORITES_PLAYLIST_ID,
         _id: GLOBAL_FAVORITES_PLAYLIST_ID,
         count: channels.length,
         playlist: {
@@ -42,16 +43,6 @@ export function createFavoritesPlaylist(
         filename: 'Global favorites',
     };
 }
-
-export const getUUID = () =>
-    // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-    (String(1e7) + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
-        (
-            Number(c) ^
-            (crypto.getRandomValues(new Uint8Array(1))[0] &
-                (15 >> (Number(c) / 4)))
-        ).toString(16)
-    );
 
 /**
  * Returns last segment (part after last slash "/") of the given URL
@@ -62,4 +53,38 @@ export const getFilenameFromUrl = (value: string): string => {
         return value.substring(value.lastIndexOf('/') + 1);
     }
     return 'Untitled playlist';
+};
+
+/**
+ * Creates a playlist object
+ * @param name name of the playlist
+ * @param playlist playlist to save
+ * @param urlOrPath absolute fs path or url of the playlist
+ * @param uploadType upload type - by file or via an url
+ */
+export const createPlaylistObject = (
+    name: string,
+    playlist: ParsedPlaylist,
+    urlOrPath?: string,
+    uploadType?: 'URL' | 'FILE' | 'TEXT'
+): Playlist => {
+    return {
+        _id: uuidv4(),
+        filename: name,
+        title: name,
+        count: playlist.items.length,
+        playlist: {
+            ...playlist,
+            items: playlist.items.map((item) => ({
+                id: uuidv4(),
+                ...item,
+            })),
+        },
+        importDate: new Date().toISOString(),
+        lastUsage: new Date().toISOString(),
+        favorites: [],
+        autoRefresh: false,
+        ...(uploadType === 'URL' ? { url: urlOrPath } : {}),
+        ...(uploadType === 'FILE' ? { filePath: urlOrPath } : {}),
+    };
 };

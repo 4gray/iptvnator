@@ -42,7 +42,9 @@
             "REFRESH": "Refresh playlist",
             "GLOBAL_FAVORITES": "Global favorites",
             "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
-            "MY_PLAYLISTS": "My playlists"
+            "MY_PLAYLISTS": "My playlists",
+            "MY_PLAYLISTS_SUBTITLE": "all available playlists",
+            "PLAYLIST_UPDATE_SUCCESS": "Success! The playlist was successfully updated."
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Drag & drop files here",
@@ -102,7 +104,8 @@
         "FAVORITES": "Favorites",
         "NO_FAVORITES": "No favorites yet",
         "USE_STAR_TO_FAVORITE": "Please use the 'star' icon to add channels to this list.",
-        "REMOVE_FAVORITE": "Remove from favorites"
+        "REMOVE_FAVORITE": "Remove from favorites",
+        "FAVORITES_UPDATED": "Favorites were updated!"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Open channel list",

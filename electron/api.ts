@@ -1,9 +1,13 @@
 import axios from 'axios';
 import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { promises as fsPromises } from 'fs';
 import { parse } from 'iptv-playlist-parser';
-import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../shared/constants';
+import { Channel } from '../shared/channel.interface';
 import {
+    AUTO_UPDATE_PLAYLISTS,
+    AUTO_UPDATE_PLAYLISTS_RESPONSE,
     CHANNEL_SET_USER_AGENT,
+    DELETE_ALL_PLAYLISTS,
     EPG_ERROR,
     EPG_FETCH,
     EPG_FETCH_DONE,
@@ -15,49 +19,42 @@ import {
     EPG_GET_PROGRAM,
     EPG_GET_PROGRAM_DONE,
     ERROR,
+    IS_PLAYLISTS_MIGRATION_POSSIBLE,
+    IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE,
+    MIGRATE_PLAYLISTS,
+    MIGRATE_PLAYLISTS_RESPONSE,
     OPEN_FILE,
-    PLAYLIST_GET_ALL,
-    PLAYLIST_GET_ALL_RESPONSE,
-    PLAYLIST_GET_BY_ID,
-    PLAYLIST_PARSE,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
-    PLAYLIST_PARSE_TEXT,
-    PLAYLIST_REMOVE_BY_ID,
-    PLAYLIST_REMOVE_BY_ID_RESPONSE,
-    PLAYLIST_SAVE_DETAILS,
     PLAYLIST_UPDATE,
-    PLAYLIST_UPDATE_FAVORITES,
-    PLAYLIST_UPDATE_POSITIONS,
     PLAYLIST_UPDATE_RESPONSE,
 } from '../shared/ipc-commands';
-import { Playlist, PlaylistUpdateState } from '../shared/playlist.interface';
-import {
-    aggregateFavoriteChannels,
-    createFavoritesPlaylist,
-} from '../shared/playlist.utils';
+import { Playlist } from '../shared/playlist.interface';
+import { createPlaylistObject } from '../shared/playlist.utils';
 import { ParsedPlaylist } from '../src/typings.d';
-
-const Nedb = require('nedb-promises');
 
 const fs = require('fs');
 const https = require('https');
+
+/** @deprecated - used only for migration */
+const Nedb = require('nedb-promises');
+
+/** @deprecated - used only for migration */
 const userData = process.env['e2e']
     ? process.cwd() + '/e2e'
     : app.getPath('userData');
 
+/** @deprecated - used only for migration */
+const dbPath = `${userData}/db/data.db`;
+/** @deprecated - used only for migration */
 const db = new Nedb({
-    filename: `${userData}/db/data.db`,
+    filename: dbPath,
     autoload: true,
 });
 
 const agent = new https.Agent({
     rejectUnauthorized: false,
 });
-
-export function guid() {
-    return Math.random().toString(36).slice(2);
-}
 
 export class Api {
     /** Instance of the main application window */
@@ -73,130 +70,142 @@ export class Api {
     workerWindow: BrowserWindow;
 
     constructor() {
-        ipcMain.on(PLAYLIST_PARSE_BY_URL, (event, args) => {
-            try {
-                axios.get(args.url, { httpsAgent: agent }).then((result) => {
-                    const parsedPlaylist = this.convertFileStringToPlaylist(
-                        result.data
-                    );
-                    const playlistObject = this.createPlaylistObject(
-                        args.title,
-                        parsedPlaylist,
-                        args.url,
-                        'URL'
-                    );
-                    this.insertToDb(playlistObject);
-                    event.sender.send(PLAYLIST_PARSE_RESPONSE, {
-                        payload: playlistObject,
-                    });
-                });
-            } catch (err) {
-                event.sender.send(ERROR, {
-                    message: err.response.statusText,
-                    status: err.response.status,
-                });
-            }
-        });
-
-        ipcMain.on(PLAYLIST_PARSE_TEXT, (event, args) => {
-            try {
-                const parsedPlaylist = this.parsePlaylist(
-                    args.text.split('\n')
-                );
-                const playlistObject = this.createPlaylistObject(
-                    'Imported as text',
-                    parsedPlaylist
-                );
-                this.insertToDb(playlistObject);
-                event.sender.send(PLAYLIST_PARSE_RESPONSE, {
-                    payload: playlistObject,
-                });
-            } catch (err) {
-                event.sender.send(ERROR, {
-                    message: err.response.statusText,
-                    status: err.response.status,
-                });
-            }
-        });
-
-        ipcMain.on(PLAYLIST_PARSE, (event, args) => {
-            const parsedPlaylist = this.parsePlaylist(args.playlist);
-            const playlistObject = this.createPlaylistObject(
-                args.title,
-                parsedPlaylist,
-                args.path,
-                'FILE'
-            );
-            this.insertToDb(playlistObject);
-            event.sender.send(PLAYLIST_PARSE_RESPONSE, {
-                payload: playlistObject,
-            });
-        });
-
-        ipcMain.on(PLAYLIST_GET_ALL, (event) => this.sendAllPlaylists(event));
-
-        ipcMain.on(PLAYLIST_GET_BY_ID, (event, args) => {
-            if (args.id === GLOBAL_FAVORITES_PLAYLIST_ID) {
-                this.sendPlaylistWithGlobalFavorites(event);
-            } else {
-                db.findOne({ _id: args.id }).then((playlist) => {
-                    this.setUserAgent(playlist?.userAgent);
-                    event.sender.send(PLAYLIST_PARSE_RESPONSE, {
-                        payload: playlist,
-                    });
-                });
-            }
-        });
-
-        ipcMain.on(PLAYLIST_REMOVE_BY_ID, (event, args) => {
-            db.remove({ _id: args.id }).then((removed) => {
-                if (removed) {
-                    event.sender.send(PLAYLIST_REMOVE_BY_ID_RESPONSE, {
-                        message: 'playlist was removed',
+        ipcMain
+            .on(PLAYLIST_PARSE_BY_URL, (event, args) => {
+                try {
+                    axios
+                        .get(args.url, { httpsAgent: agent })
+                        .then((result) => {
+                            const parsedPlaylist = this.parsePlaylist(
+                                result.data
+                            );
+                            const playlistObject = createPlaylistObject(
+                                args.title,
+                                parsedPlaylist,
+                                args.url,
+                                'URL'
+                            );
+                            event.sender.send(PLAYLIST_PARSE_RESPONSE, {
+                                payload: playlistObject,
+                            });
+                        });
+                } catch (err) {
+                    event.sender.send(ERROR, {
+                        message: err.response.statusText,
+                        status: err.response.status,
                     });
                 }
-            });
-        });
+            })
+            .on(OPEN_FILE, (event, args) => {
+                fs.readFile(
+                    args.filePath,
+                    'utf-8',
+                    (err: NodeJS.ErrnoException, data: string) => {
+                        if (err) {
+                            console.log(
+                                'An error ocurred reading the file :' +
+                                    err.message
+                            );
+                            return;
+                        }
 
-        // open playlist from file system
-        ipcMain.on(OPEN_FILE, (event, args) => {
-            fs.readFile(
-                args.filePath,
-                'utf-8',
-                (err: NodeJS.ErrnoException, data: string) => {
-                    if (err) {
-                        console.log(
-                            'An error ocurred reading the file :' + err.message
+                        const parsedPlaylist = this.parsePlaylist(data);
+                        const playlistObject = createPlaylistObject(
+                            args.fileName,
+                            parsedPlaylist,
+                            args.filePath,
+                            'FILE'
                         );
-                        return;
+
+                        event.sender.send(PLAYLIST_PARSE_RESPONSE, {
+                            payload: playlistObject,
+                        });
                     }
-
-                    const parsedPlaylist =
-                        this.convertFileStringToPlaylist(data);
-                    const playlistObject = this.createPlaylistObject(
-                        args.fileName,
-                        parsedPlaylist,
-                        args.filePath,
-                        'FILE'
+                );
+            })
+            .on(
+                PLAYLIST_UPDATE,
+                (
+                    event,
+                    args: {
+                        id: string;
+                        title: string;
+                        filePath?: string;
+                        url?: string;
+                    }
+                ) => {
+                    if (args.filePath && args.id) {
+                        this.fetchPlaylistByFilePath(args, event);
+                    } else if (args.url && args.id) {
+                        this.fetchPlaylistByUrl(args, event);
+                    }
+                }
+            )
+            .on(
+                CHANNEL_SET_USER_AGENT,
+                (event, args: { userAgent: string; referer?: string }) => {
+                    if (args.userAgent && args.referer) {
+                        this.setUserAgent(args.userAgent, args.referer);
+                    } else {
+                        this.setUserAgent(this.defaultUserAgent, 'localhost');
+                    }
+                }
+            )
+            .on(IS_PLAYLISTS_MIGRATION_POSSIBLE, (event) => {
+                db.count({
+                    type: { $exists: false },
+                }).then((count: number) => {
+                    event.sender.send(
+                        IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE,
+                        {
+                            result: count > 0,
+                            message:
+                                count > 0
+                                    ? `${count} playlists were found, which can be migrated from the database used in the last version of the application.`
+                                    : 'No playlists for migration',
+                        }
                     );
-                    this.insertToDb(playlistObject);
-                    event.sender.send(PLAYLIST_PARSE_RESPONSE, {
-                        payload: playlistObject,
+                });
+            })
+            .on(
+                AUTO_UPDATE_PLAYLISTS,
+                // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                async (event, playlists: Partial<Playlist>[]) => {
+                    const results: any[] = [];
+                    let playlist: any;
+                    for (const element of playlists) {
+                        if (element.url && element._id) {
+                            playlist = await this.fetchPlaylistByUrl({
+                                id: element._id,
+                                title: element.title || '',
+                                url: element.url,
+                            });
+                            results.push(playlist);
+                        } else if (element.filePath && element._id) {
+                            playlist = await this.fetchPlaylistByFilePath({
+                                id: element._id,
+                                title: element.title || '',
+                                filePath: element.filePath,
+                            });
+                            results.push(playlist);
+                        }
+                    }
+                    event.sender.send(
+                        AUTO_UPDATE_PLAYLISTS_RESPONSE,
+                        results.filter((item) => item !== undefined)
+                    );
+                }
+            )
+            .on(MIGRATE_PLAYLISTS, (event) => {
+                this.getAllPlaylists().then((playlists) => {
+                    event.sender.send(MIGRATE_PLAYLISTS_RESPONSE, {
+                        payload: playlists,
                     });
-                }
-            );
-        });
-
-        ipcMain.on(PLAYLIST_UPDATE_FAVORITES, (event, args) => {
-            db.update(
-                { _id: args.id },
-                { $set: { favorites: args.favorites } }
-            ).then((updated) => {
-                if (!updated.numAffected || updated.numAffected === 0) {
-                    console.error('Error: Favorites were not updated');
-                }
+                });
+            })
+            .on(DELETE_ALL_PLAYLISTS, (event) => {
+                this.removeAllPlaylists(event);
             });
-        });
 
         // listeners for EPG events
         ipcMain
@@ -237,80 +246,85 @@ export class Api {
                 this.workerWindow.webContents.send(EPG_FORCE_FETCH, arg)
             );
 
-        ipcMain.on(
-            PLAYLIST_SAVE_DETAILS,
-            (
-                event,
-                args: Pick<
-                    Playlist,
-                    '_id' | 'title' | 'userAgent' | 'autoRefresh'
-                >
-            ) => {
-                this.updatePlaylistById(args._id, {
-                    title: args.title,
-                    userAgent: args.userAgent,
-                    autoRefresh: args.autoRefresh,
-                }).then((updated) => {
-                    if (!updated.numAffected || updated.numAffected === 0) {
-                        console.error(
-                            'Error: Playlist details were not updated'
-                        );
-                    }
-                    this.sendAllPlaylists(event);
-                });
-            }
-        );
-
-        ipcMain.on(
-            PLAYLIST_UPDATE,
-            (event, args: { id: string; filePath?: string; url?: string }) => {
-                if (args.filePath && args.id) {
-                    this.fetchPlaylistByFilePath(args.id, args.filePath, event);
-                } else if (args.url && args.id) {
-                    this.fetchPlaylistByUrl(args.id, args.url, event);
-                }
-            }
-        );
-
-        ipcMain.on(
-            CHANNEL_SET_USER_AGENT,
-            (event, args: { userAgent: string; referer?: string }) => {
-                if (args.userAgent && args.referer) {
-                    this.setUserAgent(args.userAgent, args.referer);
-                } else {
-                    this.setUserAgent(this.defaultUserAgent, 'localhost');
-                }
-            }
-        );
-
-        ipcMain.on(
-            PLAYLIST_UPDATE_POSITIONS,
-            (event, playlists: Partial<Playlist[]>) =>
-                playlists.forEach((list, index) => {
-                    this.updatePlaylistById((list as Playlist)._id, {
-                        ...list,
-                        position: index,
-                    });
-                })
-        );
-
         this.setTitleBarListeners();
-        this.refreshPlaylists();
     }
 
     /**
-     * Sends a message with playlist that contains favorite channels from all available playlists
-     * @param event ipc main event
+     * Sets the user agent header for all http requests
+     * @param userAgent user agent to use
+     * @param referer referer to use
      */
-    sendPlaylistWithGlobalFavorites(event: Electron.IpcMainEvent) {
-        db.find({ type: { $exists: false } }).then((playlists: Playlist[]) => {
-            const favoriteChannels = aggregateFavoriteChannels(playlists);
-            const favPlaylist = createFavoritesPlaylist(favoriteChannels);
+    setUserAgent(userAgent: string, referer?: string): void {
+        if (userAgent === undefined || userAgent === null || userAgent === '') {
+            userAgent = this.defaultUserAgent;
+        }
 
-            event.sender.send(PLAYLIST_PARSE_RESPONSE, {
-                type: PLAYLIST_PARSE_RESPONSE,
-                payload: favPlaylist,
-            });
+        session.defaultSession.webRequest.onBeforeSendHeaders(
+            (details, callback) => {
+                details.requestHeaders['User-Agent'] = userAgent;
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+                details.requestHeaders['Referer'] = referer as string;
+                callback({ requestHeaders: details.requestHeaders });
+            }
+        );
+        console.log(`Success: Set "${userAgent}" as user agent header`);
+    }
+
+    /**
+     * Sets epg browser window
+     * @param workerWindow
+     */
+    setEpgWorkerWindow(workerWindow: BrowserWindow): void {
+        this.workerWindow = workerWindow;
+
+        // store default user agent as fallback
+        this.defaultUserAgent = this.workerWindow.webContents.getUserAgent();
+    }
+
+    /**
+     * Sets browser window of the main app window
+     * @param mainWindow
+     */
+    setMainWindow(mainWindow: BrowserWindow): void {
+        this.mainWindow = mainWindow;
+    }
+
+    /**
+     * Converts the fetched playlist string to the playlist object, updates it  in the database and sends the updated playlists array back to the renderer
+     * @param id id of the playlist to update
+     * @param playlistString updated playlist as string
+     */
+    getRefreshedPlaylist(
+        args: { id: string; title: string; filePath?: string; url?: string },
+        playlistString: string
+    ) {
+        const parsedPlaylist: ParsedPlaylist =
+            this.parsePlaylist(playlistString);
+        const playlist = createPlaylistObject(
+            args.title,
+            parsedPlaylist,
+            args.url ? args.url : args.filePath,
+            args.url ? 'URL' : 'FILE'
+        );
+        return {
+            ...playlist,
+            _id: args.id,
+        };
+    }
+
+    sendPlaylistRefreshResponse(
+        playlistId: string,
+        playlist: Playlist,
+        event: Electron.IpcMainEvent
+    ) {
+        event.sender.send(PLAYLIST_UPDATE_RESPONSE, {
+            message: `Success! The playlist was successfully updated (${
+                (playlist.playlist.items as Channel[]).length
+            } channels)`,
+            playlist: {
+                ...playlist,
+                _id: playlistId,
+            },
         });
     }
 
@@ -339,219 +353,37 @@ export class Api {
     }
 
     /**
-     * Starts the update process for all the playlists with the enabled auto-refresh flag
-     */
-    refreshPlaylists(): void {
-        this.getAllPlaylistsMeta().then((playlists) => {
-            playlists.forEach((playlist) => {
-                if (playlist.autoRefresh && playlist.autoRefresh === true) {
-                    if (playlist.url) {
-                        this.fetchPlaylistByUrl(playlist._id, playlist.url);
-                    } else if (playlist.filePath) {
-                        this.fetchPlaylistByFilePath(
-                            playlist._id,
-                            playlist.filePath
-                        );
-                    } else {
-                        console.log('skip...');
-                    }
-                }
-            });
-        });
-    }
-
-    /**
-     * Sends list with all playlists which are stored in the database
-     * @param event main event
-     */
-    sendAllPlaylists(event: Electron.IpcMainEvent): void {
-        this.getAllPlaylistsMeta().then((playlists) => {
-            event.sender.send(PLAYLIST_GET_ALL_RESPONSE, {
-                payload: playlists,
-            });
-        });
-    }
-
-    /**
-     * Returns all existing playlists with meta information from the database
-     * @returns
-     */
-    getAllPlaylistsMeta() {
-        return db
-            .find(
-                { type: { $exists: false } },
-                {
-                    count: 1,
-                    title: 1,
-                    _id: 1,
-                    id: 1,
-                    url: 1,
-                    importDate: 1,
-                    userAgent: 1,
-                    filename: 1,
-                    filePath: 1,
-                    autoRefresh: 1,
-                    updateDate: 1,
-                    updateState: 1,
-                    position: 1,
-                }
-            )
-            .sort({ position: 1, importDate: -1 });
-    }
-
-    /**
-     * Sets the user agent header for all http requests
-     * @param userAgent user agent to use
-     * @param referer referer to use
-     */
-    setUserAgent(userAgent: string, referer?: string): void {
-        if (userAgent === undefined || userAgent === null || userAgent === '') {
-            userAgent = this.defaultUserAgent;
-        }
-
-        session.defaultSession.webRequest.onBeforeSendHeaders(
-            (details, callback) => {
-                details.requestHeaders['User-Agent'] = userAgent;
-                details.requestHeaders['Referer'] = referer as string;
-                callback({ requestHeaders: details.requestHeaders });
-            }
-        );
-        console.log(`Success: Set "${userAgent}" as user agent header`);
-    }
-
-    /**
-     * Sets epg browser window
-     * @param workerWindow
-     */
-    setEpgWorkerWindow(workerWindow: BrowserWindow): void {
-        this.workerWindow = workerWindow;
-
-        // store default user agent as fallback
-        this.defaultUserAgent = this.workerWindow.webContents.getUserAgent();
-    }
-
-    /**
-     * Sets browser window of the main app window
-     * @param mainWindow
-     */
-    setMainWindow(mainWindow: BrowserWindow): void {
-        this.mainWindow = mainWindow;
-    }
-
-    /**
-     * Creates a playlist object
-     * @param name name of the playlist
-     * @param playlist playlist to save
-     * @param urlOrPath absolute fs path or url of the playlist
-     * @param uploadType upload type - by file or via an url
-     */
-    createPlaylistObject(
-        name: string,
-        playlist: ParsedPlaylist,
-        urlOrPath?: string,
-        uploadType?: 'URL' | 'FILE'
-    ): Playlist {
-        return {
-            id: guid(),
-            _id: guid(),
-            filename: name,
-            title: name,
-            count: playlist.items.length,
-            playlist: {
-                ...playlist,
-                items: playlist.items.map((item) => ({
-                    ...item,
-                    id: guid(),
-                })),
-            },
-            importDate: new Date().toISOString(),
-            lastUsage: new Date().toISOString(),
-            favorites: [],
-            autoRefresh: false,
-            ...(uploadType === 'URL' ? { url: urlOrPath } : {}),
-            ...(uploadType === 'FILE' ? { filePath: urlOrPath } : {}),
-        };
-    }
-
-    /**
-     * Updates the provided playlist in the database
-     * @param id id of the playlist
-     * @param data playlist data to update
-     * @returns
-     */
-    updatePlaylistById(
-        id: string,
-        data: Partial<Playlist>
-    ): Promise<{
-        numAffected: number;
-        upsert: boolean;
-    }> {
-        return db.update(
-            { _id: id },
-            {
-                $set: data,
-            }
-        );
-    }
-
-    /**
-     * Converts the fetched playlist string to the playlist object, updates it  in the database and sends the updated playlists array back to the renderer
-     * @param id id of the playlist to update
-     * @param playlistString updated playlist as string
-     * @param event ipc event to send the response back to the renderer
-     */
-    async handlePlaylistRefresh(
-        id: string,
-        playlistString: string,
-        event?: Electron.IpcMainEvent
-    ): Promise<void> {
-        const playlist: ParsedPlaylist =
-            this.convertFileStringToPlaylist(playlistString);
-        const updated = await this.updatePlaylistById(id, {
-            playlist,
-            count: playlist.items.length,
-            updateDate: Date.now(),
-            updateState: PlaylistUpdateState.UPDATED,
-        });
-        if (!updated.numAffected || updated.numAffected === 0) {
-            console.error('Error: Playlist details were not updated');
-        }
-
-        if (event) {
-            event.sender.send(PLAYLIST_UPDATE_RESPONSE, {
-                message: `Success! The playlist was successfully updated (${playlist.items.length} channels)`,
-            });
-
-            // send all playlists back to the renderer process
-            this.sendAllPlaylists(event);
-        }
-    }
-
-    /**
      * Fetches the playlist from the given url and triggers the update operation
      * @param id id of the playlist to update
      * @param playlistString updated playlist as string
      * @param event ipc event to send the response back to the renderer
      */
     async fetchPlaylistByUrl(
-        id: string,
-        url: string,
+        args: { id: string; title: string; url?: string },
         event?: Electron.IpcMainEvent
-    ): Promise<void> {
+    ) {
+        if (!args.url) return;
         try {
-            await axios
-                .get(url, { httpsAgent: agent })
-                .then((result) =>
-                    this.handlePlaylistRefresh(id, result.data, event)
+            const result = await axios.get(args.url, { httpsAgent: agent });
+
+            const refreshedPlaylist = this.getRefreshedPlaylist(
+                args,
+                result.data
+            );
+            if (event) {
+                this.sendPlaylistRefreshResponse(
+                    refreshedPlaylist._id,
+                    refreshedPlaylist,
+                    event
                 );
+            } else {
+                return refreshedPlaylist;
+            }
         } catch (err) {
-            this.updatePlaylistById(id, {
-                updateState: PlaylistUpdateState.NOT_UPDATED,
-            });
             if (event)
                 event.sender.send(ERROR, {
                     message: `File not found. Please check the entered playlist URL again.`,
-                    status: err.response.status,
+                    status: err.response?.status,
                 });
         }
     }
@@ -562,31 +394,32 @@ export class Api {
      * @param playlistString updated playlist as string
      * @param event ipc event to send the response back to the renderer
      */
-    fetchPlaylistByFilePath(
-        id: string,
-        path: string,
+    async fetchPlaylistByFilePath(
+        args: { id: string; title: string; filePath?: string },
         event?: Electron.IpcMainEvent
-    ): void {
-        try {
-            fs.readFile(path, 'utf-8', (err, data) => {
-                if (err) {
-                    this.handleFileNotFoundError(err, id, event);
-                    return;
-                }
+    ) {
+        if (!args.filePath) return;
+        let refreshedPlaylist: Playlist;
 
-                this.handlePlaylistRefresh(id, data, event);
-            });
+        try {
+            const playlist = await fsPromises.readFile(args.filePath, 'utf-8');
+            refreshedPlaylist = this.getRefreshedPlaylist(args, playlist);
+
+            if (event) {
+                this.sendPlaylistRefreshResponse(
+                    refreshedPlaylist._id,
+                    refreshedPlaylist,
+                    event
+                );
+            } else {
+                return refreshedPlaylist;
+            }
         } catch (err) {
-            this.handleFileNotFoundError(err, id, event);
+            return;
         }
     }
 
-    /**
-     * Sends an error message to the renderer process
-     * @param error
-     * @param id
-     * @param event
-     */
+    /** Sends an error message to the renderer process */
     handleFileNotFoundError(
         error: {
             errno: string;
@@ -594,16 +427,10 @@ export class Api {
             syscall: string;
             path: string;
         },
-        id: string,
         event?: Electron.IpcMainEvent
     ): void {
         console.error(error);
-        this.updatePlaylistById(id, {
-            updateState: PlaylistUpdateState.NOT_UPDATED,
-        });
         if (event) {
-            // send all playlists back to the renderer process
-            this.sendAllPlaylists(event);
             event.sender.send(ERROR, {
                 message: `Sorry, playlist was not found (${error.path})`,
                 status: 'ENOENT',
@@ -611,26 +438,36 @@ export class Api {
         }
     }
 
-    convertFileStringToPlaylist(m3uString: string): ParsedPlaylist {
-        return this.parsePlaylist(m3uString.split('\n'));
-    }
-
     /**
      * Parses string based array to playlist object
-     * @param m3uArray m3u playlist as array with strings
+     * @param m3uString m3u playlist as string
      */
-    parsePlaylist(m3uArray: string[]): ParsedPlaylist {
-        const playlistAsString = m3uArray.join('\n');
-        return parse(playlistAsString);
+    parsePlaylist(m3uString: string): ParsedPlaylist {
+        return parse(m3uString);
     }
 
-    /**
-     * Inserts new playlist to the database
-     * @param playlist playlist to add
-     */
-    insertToDb(playlist: Playlist): void {
-        db.insert(playlist).then((response) => {
-            console.log('playlist was saved...', response._id);
+    /** @deprecated - used only for migration */
+    getAllPlaylists() {
+        return db
+            .find({ type: { $exists: false } })
+            .sort({ position: 1, importDate: -1 });
+    }
+
+    /** @deprecated - used only for migration */
+    async removeAllPlaylists(event: Electron.IpcMainEvent) {
+        const removeCount = await db.remove({}, { multi: true });
+        console.info(removeCount, ' playlists were removed');
+        fs.unlink(dbPath, (err) => {
+            if (err && err.code == 'ENOENT') {
+                console.info("File doesn't exist, won't remove it.");
+            } else if (err) {
+                console.error('Error occurred while trying to remove file');
+            } else {
+                console.info(`${dbPath} was deleted`);
+                event.sender.send(IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE, {
+                    result: false,
+                });
+            }
         });
     }
 }

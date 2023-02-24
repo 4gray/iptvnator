@@ -1,11 +1,14 @@
 import { Component, NgZone } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
+import { firstValueFrom } from 'rxjs';
 import * as semver from 'semver';
 import { IpcCommand } from '../../shared/ipc-command.class';
 import {
+    AUTO_UPDATE_PLAYLISTS,
     EPG_ERROR,
     EPG_FETCH_DONE,
     ERROR,
@@ -16,13 +19,14 @@ import {
 } from '../../shared/ipc-commands';
 import { DataService } from './services/data.service';
 import { EpgService } from './services/epg.service';
+import { PlaylistsService } from './services/playlists.service';
 import { SettingsService } from './services/settings.service';
 import { WhatsNewService } from './services/whats-new.service';
 import { Language } from './settings/language.enum';
 import { Settings } from './settings/settings.interface';
 import { Theme } from './settings/theme.enum';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
-
+import * as PlaylistActions from './state/actions';
 /**
  * AppComponent
  */
@@ -57,14 +61,13 @@ export class AppComponent {
 
     listeners = [];
 
-    /**
-     * Creates an instance of AppComponent
-     */
     constructor(
         private electronService: DataService,
         private epgService: EpgService,
         private ngZone: NgZone,
+        private playlistService: PlaylistsService,
         private router: Router,
+        private store: Store,
         private snackBar: MatSnackBar,
         private translate: TranslateService,
         private settingsService: SettingsService,
@@ -91,15 +94,28 @@ export class AppComponent {
         }
     }
 
-    /**
-     * Starts all the functions to initialize the component
-     */
-    ngOnInit(): void {
+    ngOnInit() {
+        this.store.dispatch(PlaylistActions.loadPlaylists());
         this.translate.setDefaultLang(this.DEFAULT_LANG);
 
         this.setRendererListeners();
         this.initSettings();
         this.handleWhatsNewDialog();
+
+        this.triggerAutoUpdateMechanism();
+    }
+
+    async triggerAutoUpdateMechanism() {
+        if (this.electronService.isElectron) {
+            const playlistForAutoUpdate = await firstValueFrom(
+                this.playlistService.getPlaylistsForAutoUpdate()
+            );
+            if (playlistForAutoUpdate && playlistForAutoUpdate.length > 0)
+                this.electronService.sendIpcEvent(
+                    AUTO_UPDATE_PLAYLISTS,
+                    playlistForAutoUpdate
+                );
+        }
     }
 
     /**

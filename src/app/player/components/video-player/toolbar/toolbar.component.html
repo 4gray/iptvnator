@@ -1,0 +1,41 @@
+<mat-toolbar color="primary">
+    <button
+        mat-icon-button
+        (click)="toggleLeftDrawerClicked.emit()"
+        [matTooltip]="'TOP_MENU.OPEN_CHANNELS_LIST' | translate"
+    >
+        <mat-icon>menu</mat-icon>
+    </button>
+    <button
+        *ngIf="(playlistId$ | async) !== 'GLOBAL_FAVORITES'"
+        mat-icon-button
+        (click)="addToFavorites(activeChannel)"
+        [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
+    >
+        <mat-icon>
+            {{
+                (favorites$ | async).includes(activeChannel?.id)
+                    ? 'star'
+                    : 'star_outline'
+            }}</mat-icon
+        >
+    </button>
+    {{ activeChannel?.name }}
+    <div class="spacer"></div>
+    <ng-container *ngIf="isEpgAvailable$ | async">
+        <button
+            mat-icon-button
+            (click)="multiEpgClicked.emit()"
+            [matTooltip]="'TOP_MENU.OPEN_MULTI_EPG' | translate"
+        >
+            <mat-icon>view_list</mat-icon>
+        </button>
+        <button
+            mat-button
+            (click)="toggleRightDrawerClicked.emit()"
+            [matTooltip]="'TOP_MENU.OPEN_EPG_LIST' | translate"
+        >
+            EPG
+        </button>
+    </ng-container>
+</mat-toolbar>

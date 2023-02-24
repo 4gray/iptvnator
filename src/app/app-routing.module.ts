@@ -8,7 +8,17 @@ const routes: Routes = [
             import('./home/home.module').then((m) => m.HomeModule),
     },
     {
+        path: 'playlists',
+        loadChildren: () =>
+            import('./player/player.module').then((m) => m.PlayerModule),
+    },
+    {
         path: 'iptv',
+        loadChildren: () =>
+            import('./player/player.module').then((m) => m.PlayerModule),
+    },
+    {
+        path: 'playlists/:id',
         loadChildren: () =>
             import('./player/player.module').then((m) => m.PlayerModule),
     },

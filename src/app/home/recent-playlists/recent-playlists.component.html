@@ -1,30 +1,9 @@
-<div id="skeleton-container" *ngIf="loading; else playlistsView">
-    <div class="skeleton-item" *ngFor="let a of [].constructor(10)">
-        <ngx-skeleton-loader
-            count="1"
-            appearance="circle"
-        ></ngx-skeleton-loader>
-        <div class="text">
-            <ngx-skeleton-loader
-                count="1"
-                [theme]="{ width: '30%', height: '20px' }"
-            ></ngx-skeleton-loader>
-            <ngx-skeleton-loader
-                count="1"
-                [theme]="{ width: '50%', height: '10px' }"
-            ></ngx-skeleton-loader>
-        </div>
-        <div class="actions">
-            <ngx-skeleton-loader
-                count="2"
-                appearance="circle"
-            ></ngx-skeleton-loader>
-        </div>
-    </div>
-</div>
-
-<ng-template #playlistsView>
-    <mat-nav-list cdkDropList (cdkDropListDropped)="drop($event)">
+<ng-container *ngIf="allPlaylistsLoaded$ | async; else skeletonView">
+    <mat-nav-list
+        cdkDropList
+        (cdkDropListDropped)="drop($event, playlists)"
+        *ngIf="playlists$ | async as playlists"
+    >
         <mat-list-item *ngIf="playlists.length === 0">
             <mat-icon class="favorites-icon" mat-list-icon>search</mat-icon>
             <div mat-line>{{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}</div>
@@ -54,5 +33,54 @@
             (refreshClicked)="refreshPlaylist($event)"
             (removeClicked)="removeClicked($event)"
         ></app-playlist-item>
+
+        <div *ngIf="isMigrationPossible" id="migration-container">
+            <p>{{ migrationMessage }}</p>
+            <button
+                mat-button
+                (click)="migratePlaylists()"
+                class="migration-btn"
+                color="accent"
+            >
+                <mat-icon>playlist_add</mat-icon>
+                Migrate playlists</button
+            >&nbsp;
+            <button
+                mat-button
+                (click)="deleteMigratedPlaylists()"
+                class="migration-btn"
+                color="accent"
+            >
+                <mat-icon>delete</mat-icon>
+                Delete all playlists
+            </button>
+        </div>
     </mat-nav-list>
+</ng-container>
+
+<ng-template #skeletonView>
+    <div id="skeleton-container">
+        <div class="skeleton-item" *ngFor="let a of [].constructor(10)">
+            <ngx-skeleton-loader
+                count="1"
+                appearance="circle"
+            ></ngx-skeleton-loader>
+            <div class="text">
+                <ngx-skeleton-loader
+                    count="1"
+                    [theme]="{ width: '30%', height: '20px' }"
+                ></ngx-skeleton-loader>
+                <ngx-skeleton-loader
+                    count="1"
+                    [theme]="{ width: '50%', height: '10px' }"
+                ></ngx-skeleton-loader>
+            </div>
+            <div class="actions">
+                <ngx-skeleton-loader
+                    count="2"
+                    appearance="circle"
+                ></ngx-skeleton-loader>
+            </div>
+        </div>
+    </div>
 </ng-template>

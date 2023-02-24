@@ -11,6 +11,8 @@ import { EpgListComponent } from './components/epg-list/epg-list.component';
 import { HtmlVideoPlayerComponent } from './components/html-video-player/html-video-player.component';
 import { InfoOverlayComponent } from './components/info-overlay/info-overlay.component';
 import { MultiEpgContainerComponent } from './components/multi-epg/multi-epg-container.component';
+import { SidebarComponent } from './components/video-player/sidebar/sidebar.component';
+import { ToolbarComponent } from './components/video-player/toolbar/toolbar.component';
 import { VideoPlayerComponent } from './components/video-player/video-player.component';
 import { VjsPlayerComponent } from './components/vjs-player/vjs-player.component';
 
@@ -32,6 +34,8 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
         InfoOverlayComponent,
         HtmlVideoPlayerComponent,
         MultiEpgContainerComponent,
+        SidebarComponent,
+        ToolbarComponent,
         VideoPlayerComponent,
         VjsPlayerComponent,
     ],

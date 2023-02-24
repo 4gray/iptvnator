@@ -4,17 +4,19 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Actions } from '@ngrx/effects';
+import { provideMockActions } from '@ngrx/effects/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockModule, MockPipe, MockProvider } from 'ng-mocks';
-import {
-    PLAYLIST_GET_BY_ID,
-    PLAYLIST_REMOVE_BY_ID,
-    PLAYLIST_UPDATE,
-} from '../../../../shared/ipc-commands';
+import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
+import { Observable } from 'rxjs';
+import { PLAYLIST_UPDATE } from '../../../../shared/ipc-commands';
 import { DataService } from '../../services/data.service';
 import { DialogService } from '../../services/dialog.service';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
 import { PlaylistMeta } from '../../shared/playlist-meta.type';
+import { initialPlaylistMetaState } from '../../state/playlists.state';
 import { RecentPlaylistsComponent } from './recent-playlists.component';
 
 describe('RecentPlaylistsComponent', () => {
@@ -23,6 +25,8 @@ describe('RecentPlaylistsComponent', () => {
     let electronService: DataService;
     let dialog: MatDialog;
     let dialogService: DialogService;
+    let mockStore: MockStore;
+    const actions$ = new Observable<Actions>();
 
     beforeEach(
         waitForAsync(() => {
@@ -36,12 +40,15 @@ describe('RecentPlaylistsComponent', () => {
                     MockModule(MatListModule),
                     MockModule(MatIconModule),
                     MockModule(MatTooltipModule),
+                    MockModule(NgxSkeletonLoaderModule),
                 ],
                 providers: [
                     { provide: DataService, useClass: ElectronServiceStub },
                     MockProvider(TranslateService),
                     MockProvider(DialogService),
                     MatSnackBar,
+                    provideMockStore(),
+                    provideMockActions(actions$),
                 ],
             }).compileComponents();
         })
@@ -50,10 +57,13 @@ describe('RecentPlaylistsComponent', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(RecentPlaylistsComponent);
         component = fixture.componentInstance;
-        component.playlists = [];
         dialog = TestBed.inject(MatDialog);
         electronService = TestBed.inject(DataService);
         dialogService = TestBed.inject(DialogService);
+        mockStore = TestBed.inject(MockStore);
+        mockStore.setState({
+            playlistState: { playlists: initialPlaylistMetaState },
+        });
         fixture.detectChanges();
     });
 
@@ -78,9 +88,9 @@ describe('RecentPlaylistsComponent', () => {
             distance: { x: 0, y: 0 },
             dropPoint: { x: 0, y: 0 },
         } as any;
-        jest.spyOn(electronService, 'sendIpcEvent');
-        component.drop(event);
-        expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
+        jest.spyOn(mockStore, 'dispatch');
+        component.drop(event, []);
+        expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
     });
 
     it('should open the confirmation dialog on remove icon click', () => {
@@ -92,36 +102,33 @@ describe('RecentPlaylistsComponent', () => {
 
     it('should send an event to the main process to remove a playlist', () => {
         const playlistId = '12345';
-        jest.spyOn(electronService, 'sendIpcEvent');
+        jest.spyOn(mockStore, 'dispatch');
         component.removePlaylist(playlistId);
-        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
-            PLAYLIST_REMOVE_BY_ID,
-            { id: playlistId }
-        );
+        expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
     });
 
     it('should send an event to the main process to refresh a playlist', () => {
         const playlistMeta: PlaylistMeta = {
-            _id: 'iptv1',
+            id: 'iptv1',
+            title: 'iptv',
             filePath: '/home/user/lists/iptv.m3u',
-        } as PlaylistMeta;
+        } as unknown as PlaylistMeta;
         jest.spyOn(electronService, 'sendIpcEvent');
         component.refreshPlaylist(playlistMeta);
         expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
             PLAYLIST_UPDATE,
-            { id: playlistMeta._id, filePath: playlistMeta.filePath }
+            {
+                id: playlistMeta._id,
+                filePath: playlistMeta.filePath,
+                title: playlistMeta.title,
+            }
         );
     });
 
     it('should send an event to the main process to get a playlist', () => {
         const playlistId = '6789';
-        jest.spyOn(electronService, 'sendIpcEvent');
+        jest.spyOn(component.playlistClicked, 'emit');
         component.getPlaylist(playlistId);
-        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
-            PLAYLIST_GET_BY_ID,
-            {
-                id: playlistId,
-            }
-        );
+        expect(component.playlistClicked.emit).toHaveBeenCalledTimes(1);
     });
 });

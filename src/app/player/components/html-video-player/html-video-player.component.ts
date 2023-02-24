@@ -48,15 +48,17 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
      */
     playChannel(channel: Channel): void {
         if (this.hls) this.hls.destroy();
-        const url = channel.url + channel.epgParams;
-        if (Hls && Hls.isSupported()) {
-            console.log('... switching channel to ', channel.name, url);
-            this.hls = new Hls();
-            this.hls.attachMedia(this.videoPlayer.nativeElement);
-            this.hls.loadSource(url);
-            this.handlePlayOperation();
-        } else {
-            console.error('something wrong with hls.js init...');
+        if (channel.url) {
+            const url = channel.url + channel.epgParams;
+            if (Hls && Hls.isSupported()) {
+                console.log('... switching channel to ', channel.name, url);
+                this.hls = new Hls();
+                this.hls.attachMedia(this.videoPlayer.nativeElement);
+                this.hls.loadSource(url);
+                this.handlePlayOperation();
+            } else {
+                console.error('something wrong with hls.js init...');
+            }
         }
     }
 

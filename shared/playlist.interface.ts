@@ -11,7 +11,6 @@ export enum PlaylistUpdateState {
  * Describes playlist interface
  */
 export interface Playlist {
-    id: string;
     _id: string;
     title: string;
     filename: string;
