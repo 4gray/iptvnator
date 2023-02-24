@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Channel } from '../../../../../../shared/channel.interface';
 import { DataService } from '../../../../services/data.service';
+import * as PlaylistActions from '../../../../state/actions';
 import { selectPlaylistTitle } from '../../../../state/selectors';
 import { SidebarView } from '../video-player.component';
 
@@ -28,6 +29,7 @@ export class SidebarComponent {
 
     goBack(): void {
         if (this.sidebarView === 'PLAYLISTS') {
+            this.store.dispatch(PlaylistActions.resetActiveChannel());
             this.router.navigate(['/']);
         } else {
             this.sidebarView = 'PLAYLISTS';

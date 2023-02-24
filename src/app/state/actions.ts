@@ -71,6 +71,10 @@ export const setActiveChannel = createAction(
     props<{ channel: Channel }>()
 );
 
+export const resetActiveChannel = createAction(
+    `${STORE_KEY} Reset active channel`
+);
+
 export const setActiveChannelSuccess = createAction(
     `${STORE_KEY} Set active channel success`,
     props<{ channel: Channel }>()

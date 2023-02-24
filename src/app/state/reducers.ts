@@ -33,6 +33,12 @@ export const playlistReducer = createReducer(
             };
         }
     ),
+    on(PlaylistActions.resetActiveChannel, (state): PlaylistState => {
+        return {
+            ...state,
+            active: undefined,
+        };
+    }),
     on(
         PlaylistActions.setCurrentEpgProgram,
         (state, action): PlaylistState => ({
