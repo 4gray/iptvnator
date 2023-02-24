@@ -132,16 +132,6 @@ describe('HomeComponent', () => {
         expect(component.showNotification).toHaveBeenCalledTimes(1);
     });
 
-    it('should navigate to the player view', () => {
-        jest.spyOn(router, 'navigateByUrl');
-        const playlistId = 'some-id';
-        component.navigateToPlayer(playlistId);
-        expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
-        expect(router.navigateByUrl).toHaveBeenCalledWith(
-            `/playlists/${playlistId}`
-        );
-    });
-
     it('should remove all ipc listeners on destroy', () => {
         jest.spyOn(electronService, 'removeAllListeners');
         component.ngOnDestroy();

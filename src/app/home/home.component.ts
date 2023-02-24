@@ -1,6 +1,5 @@
 import { Component, NgZone } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -32,7 +31,6 @@ export class HomeComponent {
                         playlist: response.payload,
                     })
                 );
-                this.navigateToPlayer(response.payload._id);
             },
         },
         {
@@ -46,7 +44,6 @@ export class HomeComponent {
     constructor(
         private dataService: DataService,
         private ngZone: NgZone,
-        private router: Router,
         private snackBar: MatSnackBar,
         private readonly store: Store,
         private translateService: TranslateService
@@ -105,14 +102,6 @@ export class HomeComponent {
                 path: payload.file.path,
             })
         );
-    }
-
-    /**
-     * Navigates to the video player route
-     */
-    navigateToPlayer(playlistId: string): void {
-        this.isLoading = false;
-        this.router.navigateByUrl(`/playlists/${playlistId}`);
     }
 
     /**
