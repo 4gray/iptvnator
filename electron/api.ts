@@ -245,6 +245,8 @@ export class Api {
             .on(EPG_FORCE_FETCH, (event, arg) =>
                 this.workerWindow.webContents.send(EPG_FORCE_FETCH, arg)
             );
+
+        this.setTitleBarListeners();
     }
 
     /**
@@ -323,6 +325,30 @@ export class Api {
                 ...playlist,
                 _id: playlistId,
             },
+        });
+    }
+
+    /**
+     * Set default listeners for custom-titlebar
+     */
+    setTitleBarListeners() {
+        ipcMain.on('window-minimize', function (event) {
+            BrowserWindow.fromWebContents(event.sender).minimize();
+        });
+
+        ipcMain.on('window-maximize', function (event) {
+            const window = BrowserWindow.fromWebContents(event.sender);
+            window.isMaximized() ? window.unmaximize() : window.maximize();
+        });
+
+        ipcMain.on('window-close', function (event) {
+            BrowserWindow.fromWebContents(event.sender).close();
+        });
+
+        ipcMain.on('window-is-maximized', function (event) {
+            event.returnValue = BrowserWindow.fromWebContents(
+                event.sender
+            ).isMaximized();
         });
     }
 
