@@ -1,5 +1,9 @@
-<ng-container *ngIf="playlists$ | async as playlists; else skeletonView">
-    <mat-nav-list cdkDropList (cdkDropListDropped)="drop($event, playlists)">
+<ng-container *ngIf="allPlaylistsLoaded$ | async; else skeletonView">
+    <mat-nav-list
+        cdkDropList
+        (cdkDropListDropped)="drop($event, playlists)"
+        *ngIf="playlists$ | async as playlists"
+    >
         <mat-list-item *ngIf="playlists.length === 0">
             <mat-icon class="favorites-icon" mat-list-icon>search</mat-icon>
             <div mat-line>{{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}</div>

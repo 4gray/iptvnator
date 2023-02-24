@@ -26,6 +26,11 @@ export const selectChannels = createSelector(
     fromPlaylistState.selectChannels
 );
 
+export const selectPlaylistsLoadingFlag = createSelector(
+    selectPlaylistState,
+    fromPlaylistState.selectPlaylistsLoadingFlag
+);
+
 /** Playlist entity store selectors */
 export const selectPlaylistsMetaState = createSelector(
     selectPlaylistState,

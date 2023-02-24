@@ -9,11 +9,13 @@ export const playlistsAdapter: EntityAdapter<PlaylistMeta> =
 
 export interface PlaylistMetaState extends EntityState<PlaylistMeta> {
     selectedId: string;
+    allPlaylistsLoaded: boolean;
 }
 
 export const initialPlaylistMetaState: PlaylistMetaState =
     playlistsAdapter.getInitialState({
         selectedId: '',
+        allPlaylistsLoaded: false,
     });
 
 export const {

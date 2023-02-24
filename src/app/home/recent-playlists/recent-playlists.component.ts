@@ -16,7 +16,10 @@ import { IpcCommand } from '../../../../shared/ipc-command.class';
 import { Playlist } from '../../../../shared/playlist.interface';
 import { DataService } from '../../services/data.service';
 import * as PlaylistActions from '../../state/actions';
-import { selectAllPlaylistsMeta } from '../../state/selectors';
+import {
+    selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
+} from '../../state/selectors';
 import {
     AUTO_UPDATE_PLAYLISTS_RESPONSE,
     DELETE_ALL_PLAYLISTS,
@@ -41,6 +44,8 @@ export class RecentPlaylistsComponent implements OnDestroy {
         // eslint-disable-next-line @ngrx/avoid-mapping-selectors
         map((playlists) => playlists.sort((a, b) => a.position - b.position))
     );
+
+    allPlaylistsLoaded$ = this.store.select(selectPlaylistsLoadingFlag);
 
     /** IPC Renderer commands list with callbacks */
     commandsList = [

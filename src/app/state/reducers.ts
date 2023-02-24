@@ -82,10 +82,10 @@ export const playlistReducer = createReducer(
     on(PlaylistActions.loadPlaylistsSuccess, (state, action): PlaylistState => {
         return {
             ...state,
-            playlists: playlistsAdapter.upsertMany(
-                action.playlists,
-                state.playlists
-            ),
+            playlists: playlistsAdapter.addMany(action.playlists, {
+                ...state.playlists,
+                allPlaylistsLoaded: true,
+            }),
         };
     }),
     on(PlaylistActions.removePlaylist, (state, action): PlaylistState => {
@@ -201,3 +201,5 @@ export const selectChannels = (state: PlaylistState) => state.channels;
 export const selectPlaylists = (state: PlaylistState) => state.playlists;
 export const selectPlaylistId = (state: PlaylistState) =>
     state.playlists?.selectedId;
+export const selectPlaylistsLoadingFlag = (state: PlaylistState) =>
+    state.playlists?.allPlaylistsLoaded;
