@@ -98,28 +98,28 @@
             </div>
         </ng-template>
         <mat-nav-list
+            cdkDropList
             *ngIf="favorites$ | async as favorites"
+            (cdkDropListDropped)="drop($event, favorites)"
             id="favorites-list"
         >
             <ng-container *ngIf="favorites.length > 0; else noFavorites">
-                <ng-container *ngFor="let channel of favorites; index as i">
-                    <app-channel-list-item
-                        [name]="
-                            i +
-                            1 +
-                            '. ' +
-                            (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
-                                | translate)
-                        "
-                        [logo]="channel?.tvg?.logo"
-                        (clicked)="selectChannel(channel)"
-                        [selected]="selected?.id === channel.id"
-                        [showFavoriteButton]="true"
-                        (favoriteToggled)="
-                            toggleFavoriteChannel(channel, $event)
-                        "
-                    ></app-channel-list-item>
-                </ng-container>
+                <app-channel-list-item
+                    *ngFor="let channel of favorites; index as i"
+                    [name]="
+                        i +
+                        1 +
+                        '. ' +
+                        (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
+                            | translate)
+                    "
+                    [isDraggable]="true"
+                    [logo]="channel?.tvg?.logo"
+                    (clicked)="selectChannel(channel)"
+                    [selected]="selected?.id === channel.id"
+                    [showFavoriteButton]="true"
+                    (favoriteToggled)="toggleFavoriteChannel(channel, $event)"
+                ></app-channel-list-item>
             </ng-container>
             <ng-template #noFavorites>
                 <mat-list-item

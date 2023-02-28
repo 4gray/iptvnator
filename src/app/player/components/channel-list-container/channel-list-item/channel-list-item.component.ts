@@ -4,10 +4,20 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
     selector: 'app-channel-list-item',
     styleUrls: ['./channel-list-item.component.scss'],
     template: `<mat-list-item
+        cdkDrag
+        [cdkDragDisabled]="!isDraggable"
+        cdkDragPreviewContainer="parent"
         [class.active]="selected"
         (click)="clicked.emit()"
         data-test-id="channel-item"
     >
+        <mat-icon
+            *ngIf="isDraggable"
+            mat-list-icon
+            cdkDragHandle
+            class="drag-icon"
+            >drag_indicator</mat-icon
+        >
         <div class="channel-logo" *ngIf="logo">
             <img [src]="logo" width="48" onerror="this.style.display='none'" />
         </div>
@@ -27,6 +37,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
     ></mat-list-item>`,
 })
 export class ChannelListItemComponent {
+    @Input() isDraggable = false;
     @Input() logo!: string;
     @Input() name = '';
     @Input() showFavoriteButton = false;

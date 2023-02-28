@@ -79,6 +79,22 @@ export const playlistReducer = createReducer(
             },
         };
     }),
+    on(PlaylistActions.setFavorites, (state, action): PlaylistState => {
+        const { channelIds } = action;
+        return {
+            ...state,
+            playlists: {
+                ...state.playlists,
+                entities: {
+                    ...state.playlists.entities,
+                    [state.playlists.selectedId]: {
+                        ...state.playlists.entities[state.playlists.selectedId],
+                        favorites: channelIds,
+                    },
+                },
+            },
+        };
+    }),
     on(PlaylistActions.loadPlaylistsSuccess, (state, action): PlaylistState => {
         return {
             ...state,

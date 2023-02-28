@@ -66,6 +66,11 @@ export const updateFavorites = createAction(
     props<{ channel: Channel }>()
 );
 
+export const setFavorites = createAction(
+    `${STORE_KEY} Set favorites`,
+    props<{ channelIds: string[] }>()
+);
+
 export const setActiveChannel = createAction(
     `${STORE_KEY} Set active channel`,
     props<{ channel: Channel }>()

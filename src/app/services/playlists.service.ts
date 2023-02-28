@@ -180,4 +180,15 @@ export class PlaylistsService {
             })
         );
     }
+
+    setFavorites(playlistId: string, favorites: string[]) {
+        return this.getPlaylistById(playlistId).pipe(
+            switchMap((playlist) =>
+                this.dbService.update(DbStores.Playlists, {
+                    ...playlist,
+                    favorites,
+                })
+            )
+        );
+    }
 }

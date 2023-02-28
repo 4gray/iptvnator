@@ -35,6 +35,24 @@ export class PlaylistEffects {
         { dispatch: false }
     );
 
+    setFavorites$ = createEffect(
+        () => {
+            return this.actions$.pipe(
+                ofType(PlaylistActions.setFavorites),
+                combineLatestWith(this.store.select(selectActivePlaylistId)),
+                switchMap(([action, playlistId]) =>
+                    this.playlistsService.setFavorites(
+                        playlistId,
+                        action.channelIds
+                    )
+                )
+            );
+        },
+        {
+            dispatch: false,
+        }
+    );
+
     setActiveChannel$ = createEffect(() => {
         return this.actions$.pipe(
             ofType(PlaylistActions.setActiveChannel),

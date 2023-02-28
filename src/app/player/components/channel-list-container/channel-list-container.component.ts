@@ -1,3 +1,4 @@
+import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
     Component,
     ElementRef,
@@ -11,7 +12,6 @@ import { TranslateService } from '@ngx-translate/core';
 import * as _ from 'lodash';
 import { map, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
-import { PlaylistsService } from '../../../services/playlists.service';
 import * as PlaylistActions from '../../../state/actions';
 import {
     selectActivePlaylistId,
@@ -73,15 +73,16 @@ export class ChannelListContainerComponent {
     favorites$ = this.store
         .select(selectFavorites)
         .pipe(
-            map((favorites) =>
-                this.channelList.filter((channel) =>
-                    favorites.includes(channel.id)
+            map((favoriteChannelIds) =>
+                favoriteChannelIds.map((favoriteChannelId) =>
+                    this.channelList.find(
+                        (channel) => channel.id === favoriteChannelId
+                    )
                 )
             )
         );
 
     constructor(
-        private playlistService: PlaylistsService,
         private readonly store: Store,
         private snackBar: MatSnackBar,
         private translateService: TranslateService
@@ -118,5 +119,15 @@ export class ChannelListContainerComponent {
      */
     trackByFn(index: number, channel: Channel): string {
         return channel.id;
+    }
+
+    drop(event: CdkDragDrop<Channel[]>, favorites: Channel[]) {
+        moveItemInArray(favorites, event.previousIndex, event.currentIndex);
+        console.log(favorites);
+        this.store.dispatch(
+            PlaylistActions.setFavorites({
+                channelIds: favorites.map((item) => item.id),
+            })
+        );
     }
 }

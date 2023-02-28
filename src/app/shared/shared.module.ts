@@ -34,6 +34,7 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
         }),
     ],
     exports: [
+        DragDropModule,
         FilterPipe,
         FormsModule,
         HeaderComponent,
