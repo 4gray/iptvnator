@@ -14,7 +14,7 @@ import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule, MockPipe, MockProvider } from 'ng-mocks';
-import { NgxIndexedDBModule } from 'ngx-indexed-db';
+import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { Observable } from 'rxjs';
 import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
@@ -45,7 +45,7 @@ describe('PlaylistInfoComponent', () => {
                     UntypedFormBuilder,
                     provideMockStore(),
                     provideMockActions(actions$),
-                    MockProvider(NgxIndexedDBModule),
+                    MockProvider(NgxIndexedDBService),
                 ],
             }).compileComponents();
         })
@@ -54,7 +54,6 @@ describe('PlaylistInfoComponent', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(PlaylistInfoComponent);
         component = fixture.componentInstance;
-        electronService = TestBed.inject(DataService);
         mockStore = TestBed.inject(MockStore);
         fixture.detectChanges();
     });
