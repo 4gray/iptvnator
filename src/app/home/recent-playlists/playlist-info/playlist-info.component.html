@@ -67,6 +67,10 @@
         </ng-container>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
+        <button mat-flat-button color="accent" (click)="exportPlaylist()">
+            {{ 'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_PLAYLIST' | translate }}
+        </button>
+        <div style="flex: 1 1 auto"></div>
         <button
             mat-flat-button
             mat-dialog-close

@@ -6,16 +6,19 @@ import {
     ReactiveFormsModule,
     UntypedFormBuilder,
     UntypedFormGroup,
-    Validators,
+    Validators
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
+import { firstValueFrom } from 'rxjs';
 import { Playlist } from '../../../../../shared/playlist.interface';
 import { DataService } from '../../../services/data.service';
+import { PlaylistsService } from '../../../services/playlists.service';
 import { PlaylistMeta } from '../../../shared/playlist-meta.type';
 import * as PlaylistActions from '../../../state/actions';
 
@@ -26,6 +29,7 @@ import * as PlaylistActions from '../../../state/actions';
     imports: [
         TranslateModule,
         MatButtonModule,
+        MatIconModule,
         MatInputModule,
         MatCheckboxModule,
         CommonModule,
@@ -49,6 +53,7 @@ export class PlaylistInfoComponent {
         private formBuilder: UntypedFormBuilder,
         private dataService: DataService,
         @Inject(MAT_DIALOG_DATA) playlist: Playlist,
+        private playlistService: PlaylistsService,
         private store: Store
     ) {
         this.playlist = playlist;
@@ -88,5 +93,22 @@ export class PlaylistInfoComponent {
 
     saveChanges(playlist: PlaylistMeta): void {
         this.store.dispatch(PlaylistActions.updatePlaylistMeta({ playlist }));
+    }
+
+    async exportPlaylist() {
+        const playlistAsString = await firstValueFrom(
+            this.playlistService.getRawPlaylistById(this.playlist._id)
+        );
+        const element = document.createElement('a');
+        element.setAttribute(
+            'href',
+            'data:text/plain;charset=utf-8,' +
+                encodeURIComponent(playlistAsString)
+        );
+        element.setAttribute('download', this.playlist.title || 'exported.m3u');
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
     }
 }

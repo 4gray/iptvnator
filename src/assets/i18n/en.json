@@ -32,7 +32,8 @@
                 "UPDATE_FAILED": "Last playlist update failed",
                 "AUTO_UPDATE": "Auto-update",
                 "AUTO_UPDATE_DESCRIPTION": "If the auto-refresh function is activated, the playlist will be updated automatically each time the app is started.",
-                "CUSTOM_USER_AGENT": "Some IPTV providers need a specific user-agent in order to play their playlist."
+                "CUSTOM_USER_AGENT": "Some IPTV providers need a specific user-agent in order to play their playlist.",
+                "EXPORT_PLAYLIST": "Export playlist as m3u"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Remove playlist",
