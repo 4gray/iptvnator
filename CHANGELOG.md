@@ -1,3 +1,63 @@
+# [0.12.0](https://github.com/4gray/iptvnator/compare/v0.11.1...v0.12.0) (2023-03-11)
+
+
+### Important change
+
+The storage location of playlists has been changed, now everything is stored in IndexedDB. So after the update you will see a panel offering to migrate playlists.
+
+### Bug Fixes
+
+* macos related window management improvements ([b336680](https://github.com/4gray/iptvnator/commit/**b336680ec93b6c2a78af08bf1847f6e133895719**))
+* set epgSource as not required field ([049ed6b](https://github.com/4gray/iptvnator/commit/049ed6be519df602fd8eb5071fb17efe1a850000)), closes [#175](https://github.com/4gray/iptvnator/issues/175)
+
+
+### Features
+
+* add cmd+q hotkey to close the app (macOS) ([f3e00e7](https://github.com/4gray/iptvnator/commit/f3e00e78aa65b64d058c27b616b0d11d1a374015)), closes [#181](https://github.com/4gray/iptvnator/issues/181)
+* add dockerfile and docker-compose ([4b97e3d](https://github.com/4gray/iptvnator/commit/4b97e3d4b3b84a57c5c09cc25c0c362de341e2ba))
+* add italian language ([3e3f18c](https://github.com/4gray/iptvnator/commit/3e3f18cabf3784bcfee17e54771ca0a5dbcbbf33))
+* draggable channels in favorites list ([ba41c8d](https://github.com/4gray/iptvnator/commit/ba41c8dae5e82bd1f39fb9a6cd8518e25dcdb894))
+* export playlist as m3u ([7e4d6b1](https://github.com/4gray/iptvnator/commit/7e4d6b171fa87ffb7084344a10d653dd2cb30ea2))
+* persist window size ([2ce60e0](https://github.com/4gray/iptvnator/commit/2ce60e0a205dd8034626f35bfea1632fcac56529)), closes [#205](https://github.com/4gray/iptvnator/issues/205)
+* **pwa:** load a m3u playlist as a URL parameter [#176](https://github.com/4gray/iptvnator/issues/176) ([344bd75](https://github.com/4gray/iptvnator/commit/344bd75c876ff3d26e5721e64e7b35cf7547950a))
+
+
+
+## [0.11.1](https://github.com/4gray/iptvnator/compare/v0.11.0...v0.11.1) (2022-10-01)
+
+
+### Bug Fixes
+
+* allow file:// protocol for epg source ([c4e1076](https://github.com/4gray/iptvnator/commit/c4e107681e55ac168a86b57cf0c6bfd5a2b35c5c))
+* disable service worker in electron app ([df4e99a](https://github.com/4gray/iptvnator/commit/df4e99a4ae7186322eddcab8b6a81a04bd4c2e1a))
+* red screen in PIP window ([9756a76](https://github.com/4gray/iptvnator/commit/9756a76a90c05c008cd84c690c82b04c7ec56c87))
+* service worker injection ([ba3dd88](https://github.com/4gray/iptvnator/commit/ba3dd88dde1129ac21ec6056b81f7ff8b569f5d6))
+
+
+### Reverts
+
+* Revert "Update release.yml" ([5ac1992](https://github.com/4gray/iptvnator/commit/5ac199281d0fa24998cf01dff148316f7684e46a))
+
+
+
+# [0.11.0](https://github.com/4gray/iptvnator/compare/v0.10.0...v0.11.0) (2022-09-11)
+
+
+### Bug Fixes
+
+* set default value for video player ([ab1d0bf](https://github.com/4gray/iptvnator/commit/ab1d0bfec85dd8a43606c02a215c6654b809bb15))
+* show notification after playlist refresh (PWA) ([b18e537](https://github.com/4gray/iptvnator/commit/b18e537ccb25c49002577a7aedd810c81eb981ea))
+
+
+### Features
+
+* check for available updates in PWA ([17b265f](https://github.com/4gray/iptvnator/commit/17b265f5a6bc4cae5c66532ccda3af580b52779c))
+* implement multi epg view ([b4db751](https://github.com/4gray/iptvnator/commit/b4db751fb66353700dbc9e2285232da28ee655cb))
+* import playlist as text ([6676fa0](https://github.com/4gray/iptvnator/commit/6676fa0a4267a5cb56697b47f24954581873f3e1))
+* support multiple epg sources ([f8c6874](https://github.com/4gray/iptvnator/commit/f8c6874ad3734ef74e5de25e83626c7e8e77c55a))
+
+
+
 # [0.10.0](https://github.com/4gray/iptvnator/compare/v0.9.0...v0.10.0) (2022-04-24)
 
 
