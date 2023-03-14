@@ -89,7 +89,17 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
         "VERSION_DESCRIPTION": "Current version of the application",
         "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
-        "EPG_NOTE_URL_TEXT": "Check it here"
+        "EPG_NOTE_URL_TEXT": "Check it here",
+        "IMPORT_EXPORT_DATA": "Import/Export playlists",
+        "IMPORT_EXPORT_DATA_DESCRIPTION": "E2xport and import playlists in the JSON format used within the application.",
+        "IMPORT_DATA": "Import playlists",
+        "EXPORT_DATA": "Export playlists",
+        "REMOVE_ALL": "Remove playlists",
+        "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
+        "REMOVE_DIALOG": {
+            "TITLE": "Remove all playlists",
+            "MESSAGE": "Are you sure you want to delete all playlist from the application?"
+        }
     },
     "THEMES": {
         "DARK_THEME": "Dark theme",

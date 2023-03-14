@@ -167,6 +167,59 @@
                 {{ updateMessage }}
             </div>
         </div>
+        <mat-divider></mat-divider>
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}
+                <p>
+                    {{ 'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="column">
+                <button
+                    mat-button
+                    (click)="
+                        $event.preventDefault();
+                        $event.stopPropagation();
+                        importData()
+                    "
+                >
+                    {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                </button>
+                <button
+                    mat-button
+                    (click)="
+                        $event.preventDefault();
+                        $event.stopPropagation();
+                        exportData()
+                    "
+                >
+                    {{ 'SETTINGS.EXPORT_DATA' | translate }}
+                </button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.REMOVE_ALL' | translate }}
+                <p>
+                    {{ 'SETTINGS.REMOVE_ALL_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="column">
+                <button
+                    mat-button
+                    (click)="
+                        $event.preventDefault();
+                        $event.stopPropagation();
+                        removeAll()
+                    "
+                    color="warn"
+                >
+                    {{ 'SETTINGS.REMOVE_ALL' | translate }}
+                </button>
+            </div>
+        </div>
 
         <div class="row" *ngIf="!isElectron">
             {{ 'SETTINGS.EPG_NOTE' | translate }}

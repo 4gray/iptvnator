@@ -198,4 +198,14 @@ export class PlaylistsService {
             return playlist.playlist.header.raw + '\n' + playlist.playlist.items.map(item => item.raw).join('\n');
         }));
     }
+
+    getAllData() {
+        return this.dbService.getAll<Playlist>(DbStores.Playlists);
+    }
+
+    removeAll() {
+        this.dbService.clear(DbStores.Playlists).subscribe(data => {
+            console.log(data);
+        });
+    }
 }

@@ -14,9 +14,12 @@ import { take } from 'rxjs';
 import * as semver from 'semver';
 import { EPG_FORCE_FETCH } from '../../../shared/ipc-commands';
 import { DataService } from '../services/data.service';
+import { DialogService } from '../services/dialog.service';
 import { EpgService } from '../services/epg.service';
+import { PlaylistsService } from '../services/playlists.service';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { SharedModule } from '../shared/shared.module';
+import * as PlaylistActions from '../state/actions';
 import { selectIsEpgAvailable } from '../state/selectors';
 import { SettingsService } from './../services/settings.service';
 import { Language } from './language.enum';
@@ -77,13 +80,15 @@ export class SettingsComponent implements OnInit {
      * required dependencies into the component
      */
     constructor(
-        private store: Store,
+        private dialogService: DialogService,
         private electronService: DataService,
         private epgService: EpgService,
         private formBuilder: UntypedFormBuilder,
+        private playlistsService: PlaylistsService,
         private router: Router,
         private settingsService: SettingsService,
         private snackBar: MatSnackBar,
+        private store: Store,
         private translate: TranslateService
     ) {}
 
@@ -264,5 +269,62 @@ export class SettingsComponent implements OnInit {
     removeEpgSource(index: number): void {
         this.epgUrl.removeAt(index);
         this.settingsForm.markAsDirty();
+    }
+
+    exportData() {
+        this.playlistsService
+            .getAllData()
+            .pipe(take(1))
+            .subscribe((data) => {
+                const blob = new Blob([JSON.stringify(data)], {
+                    type: 'text/plain',
+                });
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'playlists.json';
+                link.click();
+                window.URL.revokeObjectURL(url);
+            });
+    }
+
+    importData() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/json';
+
+        input.addEventListener('change', (event: Event) => {
+            const target = event.target as HTMLInputElement;
+            const file = target.files?.[0];
+
+            if (file) {
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const contents = reader.result;
+                        console.log(contents);
+
+                        const parsedPlaylists = JSON.parse(contents.toString());
+
+                        this.store.dispatch(
+                            PlaylistActions.addManyPlaylists({
+                                playlists: parsedPlaylists,
+                            })
+                        );
+                    };
+                    reader.readAsText(file);
+                }
+            }
+        });
+
+        input.click();
+    }
+
+    removeAll() {
+        this.dialogService.openConfirmDialog({
+            title: this.translate.instant('SETTINGS.REMOVE_DIALOG.TITLE'),
+            message: this.translate.instant('SETTINGS.REMOVE_DIALOG.MESSAGE'),
+            onConfirm: (): void => this.playlistsService.removeAll(),
+        });
     }
 }
