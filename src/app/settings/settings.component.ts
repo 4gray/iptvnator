@@ -13,6 +13,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import * as semver from 'semver';
 import { EPG_FORCE_FETCH } from '../../../shared/ipc-commands';
+import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
 import { DialogService } from '../services/dialog.service';
 import { EpgService } from '../services/epg.service';
@@ -302,15 +303,38 @@ export class SettingsComponent implements OnInit {
                     const reader = new FileReader();
                     reader.onload = () => {
                         const contents = reader.result;
-                        console.log(contents);
 
-                        const parsedPlaylists = JSON.parse(contents.toString());
+                        try {
+                            const parsedPlaylists: Playlist[] = JSON.parse(
+                                contents.toString()
+                            );
 
-                        this.store.dispatch(
-                            PlaylistActions.addManyPlaylists({
-                                playlists: parsedPlaylists,
-                            })
-                        );
+                            if (!Array.isArray(parsedPlaylists)) {
+                                this.snackBar.open(
+                                    this.translate.instant(
+                                        'SETTINGS.IMPORT_ERROR'
+                                    ),
+                                    null,
+                                    {
+                                        duration: 2000,
+                                    }
+                                );
+                            } else {
+                                this.store.dispatch(
+                                    PlaylistActions.addManyPlaylists({
+                                        playlists: parsedPlaylists,
+                                    })
+                                );
+                            }
+                        } catch (error) {
+                            this.snackBar.open(
+                                this.translate.instant('SETTINGS.IMPORT_ERROR'),
+                                null,
+                                {
+                                    duration: 2000,
+                                }
+                            );
+                        }
                     };
                     reader.readAsText(file);
                 }
@@ -324,7 +348,8 @@ export class SettingsComponent implements OnInit {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('SETTINGS.REMOVE_DIALOG.TITLE'),
             message: this.translate.instant('SETTINGS.REMOVE_DIALOG.MESSAGE'),
-            onConfirm: (): void => this.playlistsService.removeAll(),
+            onConfirm: (): void =>
+                this.store.dispatch(PlaylistActions.removeAllPlaylists()),
         });
     }
 }

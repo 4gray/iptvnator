@@ -7,12 +7,12 @@ import { Channel } from '../../../shared/channel.interface';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../shared/constants';
 import {
     Playlist,
-    PlaylistUpdateState
+    PlaylistUpdateState,
 } from '../../../shared/playlist.interface';
 import {
     aggregateFavoriteChannels,
     createFavoritesPlaylist,
-    createPlaylistObject
+    createPlaylistObject,
 } from '../../../shared/playlist.utils';
 import { DbStores } from '../indexed-db.config';
 import { PlaylistMeta } from '../shared/playlist-meta.type';
@@ -193,10 +193,16 @@ export class PlaylistsService {
     }
 
     getRawPlaylistById(id: string) {
-        return this.dbService.getByID<Playlist>(DbStores.Playlists, id).pipe(map(playlist => {
-            // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-            return playlist.playlist.header.raw + '\n' + playlist.playlist.items.map(item => item.raw).join('\n');
-        }));
+        return this.dbService.getByID<Playlist>(DbStores.Playlists, id).pipe(
+            map((playlist) => {
+                return (
+                    // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
+                    playlist.playlist.header.raw +
+                    '\n' +
+                    playlist.playlist.items.map((item) => item.raw).join('\n')
+                );
+            })
+        );
     }
 
     getAllData() {
@@ -204,8 +210,6 @@ export class PlaylistsService {
     }
 
     removeAll() {
-        this.dbService.clear(DbStores.Playlists).subscribe(data => {
-            console.log(data);
-        });
+        return this.dbService.clear(DbStores.Playlists);
     }
 }

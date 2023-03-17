@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
+import { TranslateService } from '@ngx-translate/core';
 import { combineLatestWith, map, switchMap, tap } from 'rxjs/operators';
 import {
     CHANNEL_SET_USER_AGENT,
@@ -203,11 +205,32 @@ export class PlaylistEffects {
         { dispatch: false }
     );
 
+    removeAll$ = createEffect(
+        () => {
+            return this.actions$.pipe(
+                ofType(PlaylistActions.removeAllPlaylists),
+                switchMap(() => this.playlistsService.removeAll()),
+                tap(() => {
+                    this.snackBar.open(
+                        this.translate.instant('SETTINGS.PLAYLISTS_REMOVED'),
+                        null,
+                        {
+                            duration: 2000,
+                        }
+                    );
+                })
+            );
+        },
+        { dispatch: false }
+    );
+
     constructor(
         private actions$: Actions,
         private playlistsService: PlaylistsService,
         private dataService: DataService,
+        private router: Router,
+        private snackBar: MatSnackBar,
         private store: Store,
-        private router: Router
+        private translate: TranslateService
     ) {}
 }

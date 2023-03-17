@@ -90,16 +90,19 @@
         "VERSION_DESCRIPTION": "Current version of the application",
         "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
         "EPG_NOTE_URL_TEXT": "Check it here",
-        "IMPORT_EXPORT_DATA": "Import/Export playlists",
-        "IMPORT_EXPORT_DATA_DESCRIPTION": "E2xport and import playlists in the JSON format used within the application.",
-        "IMPORT_DATA": "Import playlists",
-        "EXPORT_DATA": "Export playlists",
-        "REMOVE_ALL": "Remove playlists",
+        "IMPORT_EXPORT_DATA": "Import/export playlists",
+        "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
+        "IMPORT_DATA": "Import",
+        "EXPORT_DATA": "Export",
+        "REMOVE_ALL": "Remove playlist",
+        "REMOVE_ALL_BUTTON": "Remove",
         "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
         "REMOVE_DIALOG": {
             "TITLE": "Remove all playlists",
             "MESSAGE": "Are you sure you want to delete all playlist from the application?"
-        }
+        },
+        "IMPORT_ERROR": "Import error, please try with another file.",
+        "PLAYLISTS_REMOVED": "All playlists were removed."
     },
     "THEMES": {
         "DARK_THEME": "Dark theme",
