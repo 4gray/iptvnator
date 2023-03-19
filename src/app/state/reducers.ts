@@ -205,6 +205,12 @@ export const playlistReducer = createReducer(
                 state.playlists
             ),
         };
+    }),
+    on(PlaylistActions.removeAllPlaylists, (state): PlaylistState => {
+        return {
+            ...state,
+            playlists: playlistsAdapter.removeAll(state.playlists),
+        };
     })
 );
 

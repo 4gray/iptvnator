@@ -115,3 +115,7 @@ export const updatePlaylistPositions = createAction(
         positionUpdates: { id: string; changes: { position: number } }[];
     }>()
 );
+
+export const removeAllPlaylists = createAction(
+    `${STORE_KEY} Remove all playlists`
+);

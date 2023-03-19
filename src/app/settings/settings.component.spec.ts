@@ -23,7 +23,13 @@ import {
     TranslatePipe,
     TranslateService,
 } from '@ngx-translate/core';
-import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
+import {
+    MockComponent,
+    MockModule,
+    MockPipe,
+    MockProvider,
+    MockProviders,
+} from 'ng-mocks';
 import { of } from 'rxjs';
 import { EPG_FORCE_FETCH } from '../../../shared/ipc-commands';
 import { DataService } from '../services/data.service';
@@ -34,6 +40,9 @@ import { Language } from './language.enum';
 import { SettingsComponent } from './settings.component';
 import { VideoPlayer } from './settings.interface';
 import { Theme } from './theme.enum';
+
+import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { PlaylistsService } from '../services/playlists.service';
 
 class MatSnackBarStub {
     open(): void {}
@@ -80,6 +89,7 @@ describe('SettingsComponent', () => {
                     },
                     StorageMap,
                     provideMockStore(),
+                    MockProviders(NgxIndexedDBService, PlaylistsService),
                 ],
                 imports: [
                     HttpClientTestingModule,
