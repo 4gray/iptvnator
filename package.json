@@ -124,7 +124,7 @@
         "@typescript-eslint/parser": "5.40.1",
         "conventional-changelog-cli": "2.2.2",
         "electron": "22.0.0",
-        "electron-builder": "23.6.0",
+        "electron-builder": "24.0.0",
         "eslint": "8.26.0",
         "eslint-plugin-import": "2.26.0",
         "husky": "5.0.9",
