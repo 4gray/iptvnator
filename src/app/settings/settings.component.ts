@@ -47,6 +47,10 @@ export class SettingsComponent implements OnInit {
             id: VideoPlayer.VideoJs,
             label: 'VideoJs Player',
         },
+        {
+            id: VideoPlayer.MPV,
+            label: 'MPV Player',
+        },
     ];
 
     /** Current version of the app */

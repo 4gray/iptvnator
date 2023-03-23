@@ -8,6 +8,7 @@ import {
     OnDestroy,
     OnInit,
 } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -20,6 +21,7 @@ import {
 } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import {
+    ERROR,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
 } from '../../../../../shared/ipc-commands';
@@ -74,6 +76,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     /** IPC Renderer commands list with callbacks */
     commandsList = [
         {
+            id: ERROR,
+            execute: (response: { message: string }): void => {
+                this.snackBar.open(response.message, '', {
+                    duration: 3100,
+                });
+            },
+        },
+        {
             id: PLAYLIST_PARSE_RESPONSE,
             execute: (response: { payload: Playlist }): void => {
                 if (response.payload.isTemporary) {
@@ -109,6 +119,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         private ngZone: NgZone,
         private overlay: Overlay,
         private playlistsService: PlaylistsService,
+        private snackBar: MatSnackBar,
         private storage: StorageMap,
         private store: Store
     ) {}
@@ -216,5 +227,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         );
         this.overlayRef.addPanelClass('epg-overlay');
         this.overlayRef.attach(componentPortal);
+    }
+
+    openUrl(url: string) {
+        window.open(url, '_blank');
     }
 }

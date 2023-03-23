@@ -40,3 +40,6 @@ export const DELETE_ALL_PLAYLISTS = 'DELETE_ALL_PLAYLISTS';
 // Auto-update
 export const AUTO_UPDATE_PLAYLISTS = 'AUTO_UPDATE';
 export const AUTO_UPDATE_PLAYLISTS_RESPONSE = 'AUTO_UPDATE_RESPONSE';
+
+// Experimental
+export const OPEN_MPV_PLAYER = 'OPEN_MPV_PLAYER';

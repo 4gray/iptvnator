@@ -24,6 +24,7 @@ import {
     MIGRATE_PLAYLISTS,
     MIGRATE_PLAYLISTS_RESPONSE,
     OPEN_FILE,
+    OPEN_MPV_PLAYER,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
@@ -35,6 +36,11 @@ import { ParsedPlaylist } from '../src/typings.d';
 
 const fs = require('fs');
 const https = require('https');
+
+const mpvAPI = require('node-mpv');
+const createMpvInstance = () => new mpvAPI({}, ['--autofit=70%']);
+let mpv = createMpvInstance();
+mpv.on('quit', () => (mpv = null));
 
 /** @deprecated - used only for migration */
 const Nedb = require('nedb-promises');
@@ -143,7 +149,7 @@ export class Api {
             )
             .on(
                 CHANNEL_SET_USER_AGENT,
-                (event, args: { userAgent: string; referer?: string }) => {
+                (_event, args: { userAgent: string; referer?: string }) => {
                     if (args.userAgent && args.referer) {
                         this.setUserAgent(args.userAgent, args.referer);
                     } else {
@@ -205,44 +211,64 @@ export class Api {
             })
             .on(DELETE_ALL_PLAYLISTS, (event) => {
                 this.removeAllPlaylists(event);
+            })
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises
+            .on(OPEN_MPV_PLAYER, async (event, { url }) => {
+                try {
+                    if (mpv === null) {
+                        mpv = createMpvInstance();
+                    }
+                    if (mpv.isRunning()) {
+                        await mpv.load(url);
+                    } else {
+                        await mpv.start();
+                        await mpv.load(url);
+                    }
+                } catch (error) {
+                    console.log(error);
+                    event.sender.send(ERROR, {
+                        message:
+                            'Error: Something went wrong. Make sure that mpv player is installed on your system.',
+                    });
+                }
             });
 
         // listeners for EPG events
         ipcMain
-            .on(EPG_GET_PROGRAM, (event, arg) =>
+            .on(EPG_GET_PROGRAM, (_event, arg) =>
                 this.workerWindow.webContents.send(EPG_GET_PROGRAM, arg)
             )
-            .on(EPG_GET_CHANNELS, (event, arg) =>
+            .on(EPG_GET_CHANNELS, (_event, arg) =>
                 this.workerWindow.webContents.send(EPG_GET_CHANNELS, arg)
             )
-            .on(EPG_GET_CHANNELS_DONE, (event, arg) =>
+            .on(EPG_GET_CHANNELS_DONE, (_event, arg) =>
                 this.mainWindow.webContents.send(EPG_GET_CHANNELS_DONE, arg)
             )
-            .on(EPG_GET_PROGRAM_DONE, (event, arg) => {
+            .on(EPG_GET_PROGRAM_DONE, (_event, arg) => {
                 this.mainWindow.webContents.send(EPG_GET_PROGRAM_DONE, arg);
             })
-            .on(EPG_FETCH, (event, arg) =>
+            .on(EPG_FETCH, (_event, arg) =>
                 this.workerWindow.webContents.send(EPG_FETCH, arg?.url)
             )
-            .on(EPG_FETCH_DONE, (event, arg) =>
+            .on(EPG_FETCH_DONE, (_event, arg) =>
                 this.mainWindow.webContents.send(EPG_FETCH_DONE, arg)
             )
-            .on(EPG_ERROR, (event, arg) =>
+            .on(EPG_ERROR, (_event, arg) =>
                 this.mainWindow.webContents.send(EPG_ERROR, arg)
             )
-            .on(EPG_GET_CHANNELS_BY_RANGE, (event, arg) => {
+            .on(EPG_GET_CHANNELS_BY_RANGE, (_event, arg) => {
                 this.workerWindow.webContents.send(
                     EPG_GET_CHANNELS_BY_RANGE,
                     arg
                 );
             })
-            .on(EPG_GET_CHANNELS_BY_RANGE_RESPONSE, (event, arg) =>
+            .on(EPG_GET_CHANNELS_BY_RANGE_RESPONSE, (_event, arg) =>
                 this.mainWindow.webContents.send(
                     EPG_GET_CHANNELS_BY_RANGE_RESPONSE,
                     arg
                 )
             )
-            .on(EPG_FORCE_FETCH, (event, arg) =>
+            .on(EPG_FORCE_FETCH, (_event, arg) =>
                 this.workerWindow.webContents.send(EPG_FORCE_FETCH, arg)
             );
 
