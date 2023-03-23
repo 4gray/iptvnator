@@ -72,6 +72,7 @@ export class AppMenu {
                 {
                     label: 'Exit',
                     click: () => app.quit(),
+                    accelerator: 'CmdOrCtrl+Q',
                 },
             ],
         });
