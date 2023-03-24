@@ -25,6 +25,7 @@
                 [class.hide-captions]="!playerSettings.showCaptions"
             ></app-vjs-player>
         </ng-container>
+
         <!-- default html player component -->
         <app-html-video-player
             *ngIf="playerSettings.player === 'html5'"
@@ -32,6 +33,13 @@
             [showCaptions]="playerSettings.showCaptions"
         >
         </app-html-video-player>
+
+        <ng-container *ngIf="(activeChannel$ | async) && playerSettings.player === 'mpv'">
+            <div class="mpv-player">
+                <img src="./assets/images/custom-player.png" />
+                <p>The channel is played in a separate window in the MPV player. (<a [routerLink] style="cursor: pointer;" (click)="openUrl('https://github.com/4gray/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F')">Installation instructions</a>)</p>
+            </div>
+        </ng-container>
 
         <!-- channel overlay -->
         <app-info-overlay

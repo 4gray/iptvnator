@@ -4,14 +4,19 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
+import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
+import { firstValueFrom } from 'rxjs';
 import { combineLatestWith, map, switchMap, tap } from 'rxjs/operators';
 import {
     CHANNEL_SET_USER_AGENT,
     EPG_GET_PROGRAM,
+    OPEN_MPV_PLAYER,
 } from '../../../shared/ipc-commands';
 import { DataService } from '../services/data.service';
 import { PlaylistsService } from '../services/playlists.service';
+import { Settings, VideoPlayer } from '../settings/settings.interface';
+import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import * as PlaylistActions from './actions';
 import {
     selectActivePlaylistId,
@@ -72,6 +77,20 @@ export class PlaylistEffects {
                         userAgent: channel.http['user-agent'],
                     });
                 }
+
+                firstValueFrom(this.storage.get(STORE_KEY.Settings)).then(
+                    (settings: Settings) => {
+                        if (
+                            settings &&
+                            Object.keys(settings).length > 0 &&
+                            settings.player === VideoPlayer.MPV
+                        )
+                            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+                                url: channel.url,
+                            });
+                    }
+                );
+
                 return PlaylistActions.setActiveChannelSuccess({
                     channel: action.channel,
                 });
@@ -230,6 +249,7 @@ export class PlaylistEffects {
         private dataService: DataService,
         private router: Router,
         private snackBar: MatSnackBar,
+        private storage: StorageMap,
         private store: Store,
         private translate: TranslateService
     ) {}

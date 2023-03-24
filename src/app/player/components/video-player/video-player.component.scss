@@ -22,3 +22,17 @@
         min-width: 200px;
     }
 }
+
+@media (prefers-color-scheme: dark) {
+    .mpv-player {
+        display: flex;
+        margin-top: 50px;
+        flex-direction: column;
+        align-items: center;
+
+        img {
+            filter: invert(100%);
+            width: 400px;
+        }
+    }
+}

@@ -245,6 +245,20 @@ export class WhatsNewService {
                 },
             },
         ],
+        '0.13.0': [
+            {
+                imageHeight: 400,
+                imageBgColor: '#333',
+                imageSrc: './assets/updates/0130/mpv-player.png',
+                title: '🚀 MPV player integration',
+                html: 'Long-awaited mpv player support, which can now be selected from the settings. Before activating the player from the settings page, make sure it is installed on your system. For more details about mvp integration, check the <a target="_blank" href="https://github.com/4gray/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F">wiki page</a>.',
+                button: {
+                    text: 'YAY',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+        ],
     };
 
     /** Options for the "what is new" modal dialogs */
