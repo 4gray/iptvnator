@@ -38,9 +38,10 @@ const fs = require('fs');
 const https = require('https');
 
 const mpvAPI = require('node-mpv');
-const createMpvInstance = () => new mpvAPI({}, ['--autofit=70%']);
+const createMpvInstance = () =>
+    new mpvAPI({ debug: true, verbose: true }, ['--autofit=70%']);
 let mpv = createMpvInstance();
-mpv.on('quit', () => (mpv = null));
+mpv.on('quit', () => (mpv = null)).on('crash', () => (mpv = null));
 
 /** @deprecated - used only for migration */
 const Nedb = require('nedb-promises');
