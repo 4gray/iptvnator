@@ -90,7 +90,21 @@
     },
     "THEMES": {
         "DARK_THEME": "Tema scuro",
-        "LIGHT_THEME": "Tema chiaro"
+        "LIGHT_THEME": "Tema chiaro",
+        "IMPORT_EXPORT_DATA": "Importa/esporta playlist",
+        "IMPORT_EXPORT_DATA_DESCRIPTION": "Esporta/importa playlist nel formato JSON usato all'interno dell'applicazione.",
+        "IMPORT_DATA": "Importa",
+        "EXPORT_DATA": "Esporta",
+        "REMOVE_ALL": "Rimuovi playlist",
+        "REMOVE_ALL_BUTTON": "Rimuovi",
+        "REMOVE_ALL_DESCRIPTION": "Rimuoverà tutte le playlist esistenti nell'applicazione.",
+        "REMOVE_DIALOG": {
+            "TITLE": "Rimuovi tutte le playlist",
+            "MESSAGE": "Sei sicuro di voler rimuovere tutte le playlist dall'applicazione?"
+        },
+        "IMPORT_ERROR": "Errore di importazione, prova con un altro file.",
+        "PLAYLISTS_REMOVED": "Tutte le playlist sono state rimosse."
+
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Cerca canale",
