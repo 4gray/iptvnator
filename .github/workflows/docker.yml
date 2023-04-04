@@ -20,13 +20,13 @@ jobs:
         uses: docker/setup-buildx-action@v2
       -
         name: Build and push
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: ./docker/Dockerfile
           push: true
           tags: |
-              ${{ secrets.DOCKERHUB_USERNAME }}/iptvnator:latest
-              ${{ secrets.DOCKERHUB_USERNAME }}/iptvnator:${{ github.sha }}
-              ${{ secrets.DOCKERHUB_USERNAME }}/iptvnator:${{ steps.vars.outputs.tag }}
+              4gray/iptvnator:latest
+              4gray/iptvnator:${{ github.sha }}
+              4gray/iptvnator:${{ steps.vars.outputs.tag }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7
