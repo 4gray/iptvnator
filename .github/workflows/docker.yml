@@ -25,5 +25,8 @@ jobs:
           context: .
           file: ./docker/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/iptvnator:latest
+          tags: |
+              ${{ secrets.DOCKERHUB_USERNAME }}/iptvnator:latest
+              ${{ secrets.DOCKERHUB_USERNAME }}/iptvnator:${{ github.sha }}
+              ${{ secrets.DOCKERHUB_USERNAME }}/iptvnator:${{ steps.vars.outputs.tag }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7
