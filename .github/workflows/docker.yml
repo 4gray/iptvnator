@@ -28,5 +28,4 @@ jobs:
           tags: |
               4gray/iptvnator:latest
               4gray/iptvnator:${{ github.sha }}
-              4gray/iptvnator:${{ steps.vars.outputs.tag }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7
