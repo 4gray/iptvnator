@@ -8,6 +8,7 @@ export enum Language {
     GERMAN = 'de',
     SPANISH = 'es',
     CHINESE = 'zh',
+    TRADITIONAL_CHINESE = 'zhtw',
     FRENCH = 'fr',
     ITALIAN = 'it',
 }
