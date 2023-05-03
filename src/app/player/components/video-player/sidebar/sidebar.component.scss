@@ -27,6 +27,10 @@
     }
 }
 
+.mat-drawer-inner-container {
+    overflow: hidden;
+}
+
 .recent-playlists {
     height: calc(100vh - 60px);
     overflow: auto;

@@ -13,9 +13,9 @@ import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import {
+    Observable,
     combineLatestWith,
     filter,
-    Observable,
     skipWhile,
     switchMap,
 } from 'rxjs';

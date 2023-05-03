@@ -52,8 +52,8 @@
     },
     "dependencies": {
         "@angular/animations": "15.1.1",
-        "@angular/cdk": "14.0.5",
-        "@angular/material": "14.0.5",
+        "@angular/cdk": "15.2.7",
+        "@angular/material": "15.2.7",
         "@electron/remote": "2.0.8",
         "@ngrx/effects": "15.1.0",
         "@ngrx/entity": "15.1.0",
@@ -72,7 +72,6 @@
         "hls.js": "1.2.7",
         "iptv-playlist-parser": "0.8.0",
         "lodash": "4.17.21",
-        "material-icons": "0.3.1",
         "moment": "2.29.4",
         "nedb-promises": "6.0.3",
         "ngx-indexed-db": "9.4.2",

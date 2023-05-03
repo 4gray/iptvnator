@@ -1,6 +1,6 @@
+import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { EpgProgram } from './../../../models/epg-program.model';
-import { Component, Inject } from '@angular/core';
 
 @Component({
     selector: 'app-epg-item-description',

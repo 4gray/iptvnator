@@ -8,7 +8,9 @@
         />
     </mat-form-field>
     <mat-card *ngIf="!isElectron">
-        {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
+        <mat-card-content>
+            {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
+        </mat-card-content>
     </mat-card>
     <button
         class="add-button"

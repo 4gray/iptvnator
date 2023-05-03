@@ -12,7 +12,7 @@ describe('EpgService', () => {
             providers: [
                 EpgService,
                 MockProviders(DataService, TranslateService, MatSnackBar),
-                provideMockStore()
+                provideMockStore(),
             ],
             imports: [MockModule(MatSnackBarModule)],
         });
@@ -45,7 +45,10 @@ describe('EpgService', () => {
             jest.spyOn(channelStore, 'dispatch');
             service.onEpgFetchDone();
             expect(snackbar.open).toHaveBeenCalledTimes(1);
-            expect(channelStore.dispatch).toHaveBeenCalledWith({value: true, type: expect.stringContaining('active epg')});
+            expect(channelStore.dispatch).toHaveBeenCalledWith({
+                value: true,
+                type: expect.stringContaining('active epg'),
+            });
         }
     ));
 });

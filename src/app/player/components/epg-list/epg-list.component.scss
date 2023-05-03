@@ -71,6 +71,10 @@
     box-sizing: border-box;
 }
 
+.epg-not-available {
+    padding: 0 10px;
+}
+
 mat-selection-list {
     overflow: auto;
 }
@@ -97,14 +101,10 @@ mat-selection-list {
     .previous-day {
         flex: 1 1 40px;
         box-sizing: border-box;
-        max-width: 40px;
-        min-width: 40px;
     }
 
     .next-day {
         flex: 1 1 40px;
         box-sizing: border-box;
-        max-width: 40px;
-        min-width: 40px;
     }
 }

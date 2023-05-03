@@ -28,7 +28,8 @@ mat-list-item {
 
 .drag-icon {
     cursor: move;
-    margin-left: -20px;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 ::ng-deep {

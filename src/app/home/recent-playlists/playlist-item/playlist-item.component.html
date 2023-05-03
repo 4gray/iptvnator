@@ -1,9 +1,9 @@
 <mat-list-item cdkDrag (click)="playlistClicked.emit(item._id)">
-    <mat-icon mat-list-icon cdkDragHandle class="drag-icon"
+    <mat-icon matListItemAvatar cdkDragHandle class="drag-icon"
         >drag_indicator</mat-icon
     >
     <mat-icon
-        mat-list-icon
+        matListItemAvatar
         class="upload-type-icon"
         *ngIf="item?.url"
         [matTooltip]="
@@ -12,14 +12,14 @@
         >cloud</mat-icon
     >
     <mat-icon
-        mat-list-icon
+        matListItemAvatar
         class="upload-type-icon"
         *ngIf="!item?.url"
         [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
         >folder</mat-icon
     >
-    <div mat-line>{{ item.title || item.filename }}</div>
-    <div mat-line class="meta">
+    <div matListItemTitle>{{ item.title || item.filename }}</div>
+    <div matListItemLine class="meta">
         {{ 'HOME.PLAYLISTS.CHANNELS' | translate }}: {{ item.count }}
         <ng-container *ngIf="item.importDate?.length > 3">
             | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
@@ -39,33 +39,36 @@
             >
         </ng-container>
     </div>
-    <button
-        *ngIf="item.url || item.filePath"
-        mat-icon-button
-        class="refresh-btn"
-        color="accent"
-        (click)="$event.stopPropagation(); refreshClicked.emit(item)"
-        [matTooltip]="'HOME.PLAYLISTS.REFRESH' | translate"
-    >
-        <mat-icon>sync</mat-icon>
-    </button>
-    <button
-        mat-icon-button
-        color="accent"
-        class="edit-btn"
-        (click)="$event.stopPropagation(); editPlaylistClicked.emit(item)"
-        [matTooltip]="'HOME.PLAYLISTS.SHOW_DETAILS' | translate"
-    >
-        <mat-icon>edit</mat-icon>
-    </button>
-    <button
-        mat-icon-button
-        color="accent"
-        class="delete-btn"
-        (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
-        [matTooltip]="'HOME.PLAYLISTS.REMOVE' | translate"
-    >
-        <mat-icon>delete</mat-icon>
-    </button>
-    <mat-divider></mat-divider>
+    <span matListItemMeta>
+        <button
+            *ngIf="item.url || item.filePath"
+            mat-icon-button
+            class="refresh-btn"
+            color="accent"
+            (click)="$event.stopPropagation(); refreshClicked.emit(item)"
+            [matTooltip]="'HOME.PLAYLISTS.REFRESH' | translate"
+        >
+            <mat-icon>sync</mat-icon>
+        </button>
+        <button
+            mat-icon-button
+            color="accent"
+            class="edit-btn"
+            (click)="$event.stopPropagation(); editPlaylistClicked.emit(item)"
+            [matTooltip]="'HOME.PLAYLISTS.SHOW_DETAILS' | translate"
+        >
+            <mat-icon>edit</mat-icon>
+        </button>
+
+        <button
+            mat-icon-button
+            color="accent"
+            class="delete-btn"
+            (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
+            [matTooltip]="'HOME.PLAYLISTS.REMOVE' | translate"
+        >
+            <mat-icon>delete</mat-icon>
+        </button>
+    </span>
 </mat-list-item>
+<mat-divider></mat-divider>
