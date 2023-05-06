@@ -2,6 +2,7 @@ import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
     Component,
     EventEmitter,
+    Input,
     NgZone,
     OnDestroy,
     Output,
@@ -46,6 +47,8 @@ export class RecentPlaylistsComponent implements OnDestroy {
     );
 
     allPlaylistsLoaded$ = this.store.select(selectPlaylistsLoadingFlag);
+
+    @Input() sidebarMode = false;
 
     /** IPC Renderer commands list with callbacks */
     commandsList = [

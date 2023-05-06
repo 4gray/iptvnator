@@ -39,7 +39,7 @@
             >
         </ng-container>
     </div>
-    <span matListItemMeta>
+    <span matListItemMeta class="action-buttons" *ngIf="showActions">
         <button
             *ngIf="item.url || item.filePath"
             mat-icon-button

@@ -30,6 +30,7 @@
         <app-playlist-item
             *ngFor="let item of playlists; last as last"
             [item]="item"
+            [showActions]="!sidebarMode"
             (editPlaylistClicked)="openInfoDialog($event)"
             (playlistClicked)="getPlaylist($event)"
             (refreshClicked)="refreshPlaylist($event)"

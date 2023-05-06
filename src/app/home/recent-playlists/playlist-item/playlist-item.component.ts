@@ -10,6 +10,8 @@ export class PlaylistItemComponent {
     /** Playlist item */
     @Input() item: PlaylistMeta;
 
+    @Input() showActions = true;
+
     /** Emits on playlist selection */
     @Output() playlistClicked: EventEmitter<string> = new EventEmitter();
 
