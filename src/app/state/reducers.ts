@@ -1,8 +1,8 @@
 import { createReducer, on } from '@ngrx/store';
-import * as moment from 'moment';
+import moment from 'moment';
 import * as PlaylistActions from './actions';
 import { playlistsAdapter } from './playlists.state';
-import { initialState, PlaylistState } from './state';
+import { PlaylistState, initialState } from './state';
 
 export const playlistReducer = createReducer(
     initialState,

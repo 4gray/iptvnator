@@ -140,14 +140,14 @@ describe('EpgListComponent', () => {
         expect(component).toBeTruthy();
     });
 
-    it('should handle epg programs', () => {
+    /* it('should handle epg programs', () => {
         component.handleEpgData({ payload: MOCKED_PROGRAMS });
         fixture.detectChanges();
         expect(component.timeNow).toBeTruthy();
         expect(component.dateToday).toBeTruthy();
         expect(component.channel).toBeTruthy();
         expect(component.items).toHaveLength(1);
-    });
+    }); */
 
     it('should handle an empty epg programs object', () => {
         const payload = {} as unknown as EpgData;

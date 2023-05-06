@@ -99,3 +99,7 @@ textarea,
         min-height: calc(100vh - 200px) !important;
     }
 }
+
+.mat-drawer-inner-container {
+    overflow: hidden !important;
+}

@@ -1,5 +1,5 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
-import * as moment from 'moment';
+import moment from 'moment';
 import { Channel } from '../../../../../shared/channel.interface';
 import { EpgProgram } from '../../models/epg-program.model';
 
