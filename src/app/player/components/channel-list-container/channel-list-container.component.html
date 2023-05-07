@@ -38,7 +38,7 @@
                         "
                         [logo]="channel?.tvg?.logo"
                         (clicked)="selectChannel(channel)"
-                        [selected]="selected?.id === channel.id"
+                        [selected]="selected?.id === channel?.id"
                     ></app-channel-list-item>
                 </ng-container>
             </cdk-virtual-scroll-viewport>
@@ -116,7 +116,7 @@
                     [isDraggable]="true"
                     [logo]="channel?.tvg?.logo"
                     (clicked)="selectChannel(channel)"
-                    [selected]="selected?.id === channel.id"
+                    [selected]="selected?.id === channel?.id"
                     [showFavoriteButton]="true"
                     (favoriteToggled)="toggleFavoriteChannel(channel, $event)"
                 ></app-channel-list-item>
