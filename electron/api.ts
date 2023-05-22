@@ -150,8 +150,11 @@ export class Api {
             .on(
                 CHANNEL_SET_USER_AGENT,
                 (_event, args: { userAgent: string; referer?: string }) => {
-                    if (args.userAgent && args.referer) {
-                        this.setUserAgent(args.userAgent, args.referer);
+                    if (args.userAgent && args.referer !== undefined) {
+                        this.setUserAgent(
+                            args.userAgent,
+                            args.referer || 'localhost'
+                        );
                     } else {
                         this.setUserAgent(this.defaultUserAgent, 'localhost');
                     }
@@ -281,6 +284,7 @@ export class Api {
      * @param referer referer to use
      */
     setUserAgent(userAgent: string, referer?: string): void {
+        console.log('here we go', userAgent);
         if (userAgent === undefined || userAgent === null || userAgent === '') {
             userAgent = this.defaultUserAgent;
         }
