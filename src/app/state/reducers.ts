@@ -125,6 +125,7 @@ export const playlistReducer = createReducer(
                         updateDate: Date.now(),
                         favorites: [],
                         count: action.playlist.playlist.items.length,
+                        userAgent: action.playlist.userAgent,
                     },
                 },
                 state.playlists
@@ -179,6 +180,7 @@ export const playlistReducer = createReducer(
                     changes: {
                         title: action.playlist.title,
                         autoRefresh: action.playlist.autoRefresh || false,
+                        userAgent: action.playlist.userAgent,
                     },
                 },
                 state.playlists
