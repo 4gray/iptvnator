@@ -1,4 +1,5 @@
 import { createFeatureSelector, createSelector } from '@ngrx/store';
+import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../shared/constants';
 import * as fromPlaylistMetaState from './playlists.state';
 import * as fromPlaylistState from './reducers';
 import { PlaylistState } from './state';
@@ -62,7 +63,9 @@ export const selectPlaylistTitle = createSelector(
     fromPlaylistMetaState.getPlaylistMetaEntities,
     fromPlaylistState.selectPlaylistId,
     (data) => {
-        if (
+        if (data.selectedId === GLOBAL_FAVORITES_PLAYLIST_ID) {
+            return 'Global favorites';
+        } else if (
             data.entities &&
             data.selectedId &&
             data.entities[data.selectedId]
