@@ -284,7 +284,6 @@ export class Api {
      * @param referer referer to use
      */
     setUserAgent(userAgent: string, referer?: string): void {
-        console.log('here we go', userAgent);
         if (userAgent === undefined || userAgent === null || userAgent === '') {
             userAgent = this.defaultUserAgent;
         }

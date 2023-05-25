@@ -132,15 +132,15 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                     );
                     return this.playlistsService.getPlaylist(params.id).pipe(
                         map((playlist) => {
-                            if (playlist.userAgent) {
-                                this.dataService.sendIpcEvent(
-                                    CHANNEL_SET_USER_AGENT,
-                                    {
+                            this.dataService.sendIpcEvent(
+                                CHANNEL_SET_USER_AGENT,
+                                playlist.userAgent
+                                    ? {
                                         referer: 'localhost',
                                         userAgent: playlist.userAgent,
                                     }
-                                );
-                            }
+                                    : {}
+                            );
                             return playlist.playlist.items;
                         })
                     );
