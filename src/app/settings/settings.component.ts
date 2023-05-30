@@ -37,6 +37,9 @@ export class SettingsComponent implements OnInit {
     /** List with available languages as enum */
     languageEnum = Language;
 
+    /** Flag that indicates whether the app runs in electron environment */
+    isElectron = this.electronService.isElectron;
+
     /** Player options */
     players = [
         {
@@ -47,10 +50,14 @@ export class SettingsComponent implements OnInit {
             id: VideoPlayer.VideoJs,
             label: 'VideoJs Player',
         },
-        {
-            id: VideoPlayer.MPV,
-            label: 'MPV Player',
-        },
+        ...(this.isElectron
+            ? [
+                  {
+                      id: VideoPlayer.MPV,
+                      label: 'MPV Player',
+                  },
+              ]
+            : []),
     ];
 
     /** Current version of the app */
@@ -61,9 +68,6 @@ export class SettingsComponent implements OnInit {
 
     /** EPG availability flag */
     epgAvailable$ = this.store.select(selectIsEpgAvailable);
-
-    /** Flag that indicates whether the app runs in electron environment */
-    isElectron = this.electronService.isElectron;
 
     /** All available visual themes */
     themeEnum = Theme;
