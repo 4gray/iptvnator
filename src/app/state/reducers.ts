@@ -181,6 +181,15 @@ export const playlistReducer = createReducer(
                         title: action.playlist.title,
                         autoRefresh: action.playlist.autoRefresh || false,
                         userAgent: action.playlist.userAgent,
+                        ...(action.playlist.serverUrl
+                            ? { serverUrl: action.playlist.serverUrl }
+                            : {}),
+                        ...(action.playlist.username
+                            ? { username: action.playlist.username }
+                            : {}),
+                        ...(action.playlist.password
+                            ? { password: action.playlist.password }
+                            : {}),
                     },
                 },
                 state.playlists

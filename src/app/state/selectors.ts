@@ -2,6 +2,7 @@ import { createFeatureSelector, createSelector } from '@ngrx/store';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../shared/constants';
 import * as fromPlaylistMetaState from './playlists.state';
 import * as fromPlaylistState from './reducers';
+import { selectRouteParam } from './router.selectors';
 import { PlaylistState } from './state';
 
 export const selectPlaylistState =
@@ -81,6 +82,17 @@ export const selectPlaylistTitle = createSelector(
 export const selectPlaylistEntities = createSelector(
     selectPlaylistsMetaState,
     fromPlaylistMetaState.getPlaylistMetaEntities
+);
+
+export const selectCurrentPlaylist = createSelector(
+    selectPlaylistEntities,
+    selectRouteParam('id'),
+    (entities, id) => {
+        if (entities) {
+            return entities[id];
+        }
+        return null;
+    }
 );
 
 export const selectFavorites = createSelector(
