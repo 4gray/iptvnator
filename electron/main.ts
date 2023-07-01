@@ -1,5 +1,5 @@
 /* eslint-disable no-useless-catch */
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, Menu, session } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
 import { Api } from './api';
@@ -11,6 +11,7 @@ const {
 const contextMenu = require('electron-context-menu');
 const Store = require('electron-store');
 const store = new Store();
+const os = require('os');
 
 const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
 
@@ -19,7 +20,7 @@ let win: BrowserWindow | null = null;
 const args = process.argv.slice(1),
     serve = args.some((val) => val === '--serve');
 
-const api = new Api();
+const api = new Api(store);
 contextMenu();
 require('@electron/remote/main').initialize();
 
@@ -145,6 +146,18 @@ try {
     app.on('before-quit', () => {
         store.set(WINDOW_BOUNDS, win?.getNormalBounds());
     });
+
+    if (serve && process.platform === 'darwin') {
+        // add redux dev tools extension
+        const reduxDevToolsPath = path.join(
+            os.homedir(),
+            'Library/Application Support/Google/Chrome/Default/Extensions/lmhkpmbekcpmknklioeibfkpmmfibljd/3.0.19_14'
+        );
+
+        app.whenReady().then(async () => {
+            await session.defaultSession.loadExtension(reduxDevToolsPath);
+        });
+    }
 } catch (e) {
     // Catch Error
     throw e;

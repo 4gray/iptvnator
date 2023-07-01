@@ -1,0 +1,33 @@
+<app-navigation-bar
+    [breadcrumbs]="breadcrumbs"
+    [contentType]="selectedContentType"
+    (breadcrumbClicked)="breadcrumbClicked($event)"
+    (contentTypeChanged)="changeContentType($event)"
+/>
+
+<div class="container">
+    <app-category-view
+        *ngIf="currentLayout === 'category'"
+        (categoryClicked)="categoryClicked($event)"
+        [items]="items"
+    />
+
+    <app-category-content-view
+        *ngIf="currentLayout === 'category_content'"
+        [items]="items"
+        (itemClicked)="itemClicked($event)"
+    />
+
+    <app-vod-details
+        *ngIf="currentLayout === 'vod-details'"
+        [item]="vodDetails"
+        (playClicked)="playVod()"
+    />
+
+    <app-serial-details
+        *ngIf="currentLayout === 'serie-details'"
+        [item]="vodDetails"
+    />
+
+    <app-player-view *ngIf="currentLayout === 'player'" />
+</div>

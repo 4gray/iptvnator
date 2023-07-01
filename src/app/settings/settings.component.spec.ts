@@ -60,6 +60,7 @@ const DEFAULT_SETTINGS = {
     language: Language.ENGLISH,
     showCaptions: false,
     theme: Theme.LightTheme,
+    mpvPlayerPath: '',
 };
 
 describe('SettingsComponent', () => {
@@ -70,46 +71,44 @@ describe('SettingsComponent', () => {
     let storage: StorageMap;
     let translate: TranslateService;
 
-    beforeEach(
-        waitForAsync(() => {
-            TestBed.configureTestingModule({
-                declarations: [
-                    SettingsComponent,
-                    MockComponent(HeaderComponent),
-                    MockPipe(TranslatePipe),
-                ],
-                providers: [
-                    UntypedFormBuilder,
-                    MockProvider(TranslateService),
-                    { provide: MatSnackBar, useClass: MatSnackBarStub },
-                    { provide: DataService, useClass: ElectronServiceStub },
-                    {
-                        provide: Router,
-                        useClass: MockRouter,
-                    },
-                    StorageMap,
-                    provideMockStore(),
-                    MockProviders(NgxIndexedDBService, PlaylistsService),
-                ],
-                imports: [
-                    HttpClientTestingModule,
-                    MockModule(FormsModule),
-                    MockModule(MatSelectModule),
-                    MockModule(MatIconModule),
-                    MockModule(MatTooltipModule),
-                    MockModule(ReactiveFormsModule),
-                    MockModule(RouterTestingModule),
-                    MockModule(MatCardModule),
-                    MockModule(MatListModule),
-                    MockModule(MatFormFieldModule),
-                    MockModule(MatCheckboxModule),
-                    MockModule(MatDividerModule),
-                    MockModule(TranslateModule),
-                    MockModule(SharedModule),
-                ],
-            }).compileComponents();
-        })
-    );
+    beforeEach(waitForAsync(() => {
+        TestBed.configureTestingModule({
+            declarations: [
+                SettingsComponent,
+                MockComponent(HeaderComponent),
+                MockPipe(TranslatePipe),
+            ],
+            providers: [
+                UntypedFormBuilder,
+                MockProvider(TranslateService),
+                { provide: MatSnackBar, useClass: MatSnackBarStub },
+                { provide: DataService, useClass: ElectronServiceStub },
+                {
+                    provide: Router,
+                    useClass: MockRouter,
+                },
+                StorageMap,
+                provideMockStore(),
+                MockProviders(NgxIndexedDBService, PlaylistsService),
+            ],
+            imports: [
+                HttpClientTestingModule,
+                MockModule(FormsModule),
+                MockModule(MatSelectModule),
+                MockModule(MatIconModule),
+                MockModule(MatTooltipModule),
+                MockModule(ReactiveFormsModule),
+                MockModule(RouterTestingModule),
+                MockModule(MatCardModule),
+                MockModule(MatListModule),
+                MockModule(MatFormFieldModule),
+                MockModule(MatCheckboxModule),
+                MockModule(MatDividerModule),
+                MockModule(TranslateModule),
+                MockModule(SharedModule),
+            ],
+        }).compileComponents();
+    }));
 
     beforeEach(() => {
         fixture = TestBed.createComponent(SettingsComponent);
@@ -127,7 +126,12 @@ describe('SettingsComponent', () => {
     });
 
     describe('Get and set settings on component init', () => {
-        const settings = { player: 'test', showCaptions: true, epgUrl: [] };
+        const settings = {
+            player: 'test',
+            showCaptions: true,
+            epgUrl: [],
+            mpvPlayerPath: '',
+        };
         let spyOnStorageGet;
 
         beforeEach(() => {

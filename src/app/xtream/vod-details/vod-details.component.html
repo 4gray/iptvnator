@@ -1,0 +1,49 @@
+<div
+    class="container"
+    [style.background]="
+        item.info?.backdrop_path && item.info.backdrop_path.length > 0
+            ? 'linear-gradient(to top, rgba(29,29,29,1) 0%, rgba(0,0,0,0.5) 100%), url(' +
+              item.info.backdrop_path[0] +
+              ') repeat-x'
+            : 'none'
+    "
+>
+    <div class="image">
+        <img *ngIf="item.info.movie_image" [src]="item.info.movie_image" />
+    </div>
+    <div class="details">
+        <h2>{{ item.info.name }}</h2>
+        <label *ngIf="item.info.description">
+            {{ item.info.description }}
+        </label>
+        <label *ngIf="item.info.releasedate">
+            <div class="label">Release date:</div>
+            {{ item.info.releasedate }}
+        </label>
+        <label *ngIf="item.info.genre">
+            <div class="label">Genre:</div>
+            {{ item.info.genre }}
+        </label>
+        <label *ngIf="item.info.country">
+            <div class="label">Country:</div>
+            {{ item.info.country }}
+        </label>
+        <div *ngIf="item.info.actors">
+            <div class="label">Actors:</div>
+            {{ item.info.actors }}
+        </div>
+        <label *ngIf="item.info.director">
+            <div class="label">Director:</div>
+            {{ item.info.director }}
+        </label>
+        <label *ngIf="item.info.duration">
+            <div class="label">Duration:</div>
+            {{ item.info.duration }}
+        </label>
+        <div class="action-buttons">
+            <button mat-flat-button color="accent" (click)="playClicked.emit()">
+                Play
+            </button>
+        </div>
+    </div>
+</div>

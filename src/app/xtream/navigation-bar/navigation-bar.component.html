@@ -1,0 +1,35 @@
+<div id="navigation">
+    <button mat-icon-button routerLink="/">
+        <mat-icon>home</mat-icon>
+    </button>
+
+    <div>
+        <mat-button-toggle-group
+            name="contentType"
+            aria-label="Content Type"
+            [value]="contentType"
+            (change)="contentTypeChanged.emit($event.value)"
+        >
+            <mat-button-toggle [value]="ContentTypeEnum.LIVE_STREAMS"
+                >Live Streams</mat-button-toggle
+            >
+            <mat-button-toggle [value]="ContentTypeEnum.VODS"
+                >VOD Streams</mat-button-toggle
+            >
+            <mat-button-toggle [value]="ContentTypeEnum.SERIES"
+                >Series</mat-button-toggle
+            >
+        </mat-button-toggle-group>
+    </div>
+
+    <button mat-icon-button>
+        <mat-icon>info</mat-icon>
+    </button>
+</div>
+<div id="breadcrumbs">
+    <span
+        *ngFor="let item of breadcrumbs"
+        (click)="breadcrumbClicked.emit(item)"
+        >{{ item.title }}</span
+    >
+</div>

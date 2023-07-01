@@ -1,0 +1,32 @@
+:host {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+#navigation {
+    height: 70px;
+    background: black;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#breadcrumbs {
+    background: black;
+    border-bottom: 1px solid #333;
+    padding: 10px;
+
+    span {
+        cursor: pointer;
+
+        &:not(:last-child)::after {
+            content: '>';
+            margin: 0 10px;
+        }
+    }
+
+    span:hover {
+        text-decoration: underline;
+    }
+}

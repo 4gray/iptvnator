@@ -35,7 +35,7 @@
                 <app-file-upload
                     (fileRejected)="rejectFile($event)"
                     (fileSelected)="handlePlaylist($event)"
-                ></app-file-upload>
+                />
             </ng-template>
         </mat-tab>
         <mat-tab>
@@ -48,7 +48,7 @@
             <ng-template matTabContent>
                 <app-url-upload
                     (urlAdded)="sendPlaylistsUrl($event)"
-                ></app-url-upload>
+                />
             </ng-template>
         </mat-tab>
         <mat-tab>
@@ -61,7 +61,18 @@
             <ng-template matTabContent>
                 <app-text-import
                     (textAdded)="uploadAsText($event)"
-                ></app-text-import>
+                />
+            </ng-template>
+        </mat-tab>
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <mat-icon class="tab-icon">text_format</mat-icon>
+                <div class="tab-title">
+                    {{ 'HOME.TABS.XTREME_IMPORT' | translate }}
+                </div>
+            </ng-template>
+            <ng-template matTabContent>
+                <app-xtream-code-import />
             </ng-template>
         </mat-tab>
     </mat-tab-group>

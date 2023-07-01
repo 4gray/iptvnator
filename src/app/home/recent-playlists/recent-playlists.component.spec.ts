@@ -28,31 +28,26 @@ describe('RecentPlaylistsComponent', () => {
     let mockStore: MockStore;
     const actions$ = new Observable<Actions>();
 
-    beforeEach(
-        waitForAsync(() => {
-            TestBed.configureTestingModule({
-                declarations: [
-                    RecentPlaylistsComponent,
-                    MockPipe(TranslatePipe),
-                ],
-                imports: [
-                    MockModule(MatDialogModule),
-                    MockModule(MatListModule),
-                    MockModule(MatIconModule),
-                    MockModule(MatTooltipModule),
-                    MockModule(NgxSkeletonLoaderModule),
-                ],
-                providers: [
-                    { provide: DataService, useClass: ElectronServiceStub },
-                    MockProvider(TranslateService),
-                    MockProvider(DialogService),
-                    MatSnackBar,
-                    provideMockStore(),
-                    provideMockActions(actions$),
-                ],
-            }).compileComponents();
-        })
-    );
+    beforeEach(waitForAsync(() => {
+        TestBed.configureTestingModule({
+            declarations: [RecentPlaylistsComponent, MockPipe(TranslatePipe)],
+            imports: [
+                MockModule(MatDialogModule),
+                MockModule(MatListModule),
+                MockModule(MatIconModule),
+                MockModule(MatTooltipModule),
+                MockModule(NgxSkeletonLoaderModule),
+            ],
+            providers: [
+                { provide: DataService, useClass: ElectronServiceStub },
+                MockProvider(TranslateService),
+                MockProvider(DialogService),
+                MatSnackBar,
+                provideMockStore(),
+                provideMockActions(actions$),
+            ],
+        }).compileComponents();
+    }));
 
     beforeEach(() => {
         fixture = TestBed.createComponent(RecentPlaylistsComponent);
@@ -128,7 +123,7 @@ describe('RecentPlaylistsComponent', () => {
     it('should send an event to the main process to get a playlist', () => {
         const playlistId = '6789';
         jest.spyOn(component.playlistClicked, 'emit');
-        component.getPlaylist(playlistId);
+        component.getPlaylist({ _id: playlistId } as unknown as PlaylistMeta);
         expect(component.playlistClicked.emit).toHaveBeenCalledTimes(1);
     });
 });

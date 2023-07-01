@@ -7,8 +7,15 @@ import { HomeComponent } from './home.component';
 import { HomeRoutingModule } from './home.routing';
 import { TextImportComponent } from './text-import/text-import.component';
 import { UrlUploadComponent } from './url-upload/url-upload.component';
+import { XtreamCodeImportComponent } from './xtream-code-import/xtream-code-import.component';
+
 @NgModule({
-    imports: [CommonModule, HomeRoutingModule, SharedModule],
+    imports: [
+        CommonModule,
+        HomeRoutingModule,
+        SharedModule,
+        XtreamCodeImportComponent,
+    ],
     declarations: [
         DragDropFileUploadDirective,
         HomeComponent,

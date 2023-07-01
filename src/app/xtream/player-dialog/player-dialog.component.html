@@ -1,0 +1,13 @@
+<h2 mat-dialog-title>Title</h2>
+<mat-dialog-content class="mat-typography">
+    <app-vjs-player
+        [options]="{
+            sources: [
+                {
+                    src: streamUrl,
+                    type: 'application/x-mpegURL'
+                }
+            ]
+        }"
+    ></app-vjs-player>
+</mat-dialog-content>

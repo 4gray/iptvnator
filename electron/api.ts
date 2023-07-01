@@ -29,6 +29,9 @@ import {
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
+    SET_MPV_PLAYER_PATH,
+    XTREAM_REQUEST,
+    XTREAM_RESPONSE,
 } from '../shared/ipc-commands';
 import { Playlist } from '../shared/playlist.interface';
 import { createPlaylistObject } from '../shared/playlist.utils';
@@ -38,9 +41,6 @@ const fs = require('fs');
 const https = require('https');
 
 const mpvAPI = require('node-mpv');
-const createMpvInstance = () => new mpvAPI({}, ['--autofit=70%']);
-let mpv = createMpvInstance();
-mpv.on('quit', () => (mpv = null)).on('crash', () => (mpv = null));
 
 /** @deprecated - used only for migration */
 const Nedb = require('nedb-promises');
@@ -62,6 +62,8 @@ const agent = new https.Agent({
     rejectUnauthorized: false,
 });
 
+const MPV_PLAYER_PATH = 'MPV_PLAYER_PATH';
+
 export class Api {
     /** Instance of the main application window */
     mainWindow: BrowserWindow;
@@ -75,7 +77,17 @@ export class Api {
     /** Instance of the epg browser window */
     workerWindow: BrowserWindow;
 
-    constructor() {
+    store;
+
+    mpv;
+
+    constructor(store) {
+        this.store = store;
+        this.mpv = this.createMpvInstance();
+        this.mpv
+            .on('quit', () => (this.mpv = null))
+            .on('crash', () => (this.mpv = null));
+
         ipcMain
             .on(PLAYLIST_PARSE_BY_URL, (event, args) => {
                 try {
@@ -218,14 +230,14 @@ export class Api {
             // eslint-disable-next-line @typescript-eslint/no-misused-promises
             .on(OPEN_MPV_PLAYER, async (event, { url }) => {
                 try {
-                    if (mpv === null) {
-                        mpv = createMpvInstance();
+                    if (this.mpv === null) {
+                        this.mpv = this.createMpvInstance();
                     }
-                    if (mpv.isRunning()) {
-                        await mpv.load(url);
+                    if (this.mpv.isRunning()) {
+                        await this.mpv.load(url);
                     } else {
-                        await mpv.start();
-                        await mpv.load(url);
+                        await this.mpv.start();
+                        await this.mpv.load(url);
                     }
                 } catch (error) {
                     console.log(error);
@@ -234,6 +246,14 @@ export class Api {
                             'Error: Something went wrong. Make sure that mpv player is installed on your system.',
                     });
                 }
+            })
+            .on(SET_MPV_PLAYER_PATH, (_event, mpvPlayerPath) => {
+                console.log('... setting mpv player path', mpvPlayerPath);
+                store.set(MPV_PLAYER_PATH, mpvPlayerPath);
+
+                // recreate mpv player instance with new binary path if it was changed
+                if (store.get(MPV_PLAYER_PATH, mpvPlayerPath) !== mpvPlayerPath)
+                    this.mpv = this.createMpvInstance();
             });
 
         // listeners for EPG events
@@ -275,7 +295,39 @@ export class Api {
                 this.workerWindow.webContents.send(EPG_FORCE_FETCH, arg)
             );
 
-        this.setTitleBarListeners();
+        ipcMain.on(
+            XTREAM_REQUEST,
+            (event, arg: { url: string; params: Record<string, string> }) => {
+                const xtreamApiPath = '/player_api.php';
+
+                axios
+                    .get(arg.url + xtreamApiPath, {
+                        params: arg.params ?? {},
+                    })
+                    .then((result) => {
+                        event.sender.send(XTREAM_RESPONSE, {
+                            payload: result.data,
+                            action: arg.params.action,
+                        });
+                    })
+                    .catch((err) => {
+                        event.sender.send(ERROR, {
+                            message:
+                                err.response?.statusText ?? 'Error: not found',
+                            status: err.response?.status ?? 404,
+                        });
+                    });
+            }
+        );
+    }
+
+    createMpvInstance() {
+        const mpvPlayerPath = this.store.get(MPV_PLAYER_PATH);
+        console.log('... getting mpv player path', mpvPlayerPath);
+        return new mpvAPI(
+            { ...(mpvPlayerPath ? { binary: mpvPlayerPath } : {}) },
+            ['--autofit=70%']
+        );
     }
 
     /**
@@ -354,30 +406,6 @@ export class Api {
                 ...playlist,
                 _id: playlistId,
             },
-        });
-    }
-
-    /**
-     * Set default listeners for custom-titlebar
-     */
-    setTitleBarListeners() {
-        ipcMain.on('window-minimize', function (event) {
-            BrowserWindow.fromWebContents(event.sender).minimize();
-        });
-
-        ipcMain.on('window-maximize', function (event) {
-            const window = BrowserWindow.fromWebContents(event.sender);
-            window.isMaximized() ? window.unmaximize() : window.maximize();
-        });
-
-        ipcMain.on('window-close', function (event) {
-            BrowserWindow.fromWebContents(event.sender).close();
-        });
-
-        ipcMain.on('window-is-maximized', function (event) {
-            event.returnValue = BrowserWindow.fromWebContents(
-                event.sender
-            ).isMaximized();
         });
     }
 

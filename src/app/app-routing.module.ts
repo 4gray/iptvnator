@@ -30,6 +30,13 @@ const routes: Routes = [
             ),
     },
     {
+        path: 'xtreams/:id',
+        loadComponent: () =>
+            import('./xtream/xtream-main-container.component').then(
+                (c) => c.XtreamMainContainerComponent
+            ),
+    },
+    {
         path: '**',
         redirectTo: '',
     },
