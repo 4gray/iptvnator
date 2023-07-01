@@ -60,6 +60,14 @@
         "TEXT_IMPORT": {
             "LABEL": "Вставьте плейлист формата m3u(8) в данное поле",
             "BUTTON_LABEL": "Импортировать"
+        },
+        "XTREAM_PLAYLIST": {
+            "TITLE": "Название плейлиста",
+            "SERVER_URL": "Сервер URL",
+            "USERNAME": "Пользователь",
+            "PASSWORD": "Пароль",
+            "ADD": "Добавить",
+            "TEST_CREDENTIALS": "Проверить"
         }
     },
     "SETTINGS": {

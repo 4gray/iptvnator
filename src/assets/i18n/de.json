@@ -92,6 +92,14 @@
         "TEXT_IMPORT": {
             "LABEL": "Füge m3u(8)-Wiedergabeliste hier als Text ein",
             "BUTTON_LABEL": "Importieren"
+        },
+        "XTREAM_PLAYLIST": {
+            "TITLE": "Playlist Titel",
+            "SERVER_URL": "Server URL",
+            "USERNAME": "Nutzername",
+            "PASSWORD": "Passwort",
+            "ADD": "Hinzufügen",
+            "TEST_CREDENTIALS": "Verbindung testen"
         }
     },
     "LANGUAGES": {
