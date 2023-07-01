@@ -2,6 +2,7 @@ import { Injectable, Pipe, PipeTransform } from '@angular/core';
 
 @Pipe({
     name: 'filterBy',
+    standalone: true,
 })
 @Injectable()
 export class FilterPipe implements PipeTransform {

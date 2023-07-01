@@ -14,13 +14,13 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
 
 @NgModule({
     declarations: [
-        FilterPipe,
         HeaderComponent,
         MomentDatePipe,
         RecentPlaylistsComponent,
         PlaylistItemComponent,
     ],
     imports: [
+        FilterPipe,
         CommonModule,
         FormsModule,
         MaterialModule,
