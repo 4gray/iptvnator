@@ -43,3 +43,8 @@ export const AUTO_UPDATE_PLAYLISTS_RESPONSE = 'AUTO_UPDATE_RESPONSE';
 
 // Experimental
 export const OPEN_MPV_PLAYER = 'OPEN_MPV_PLAYER';
+export const SET_MPV_PLAYER_PATH = 'SET_MPV_PLAYER_PATH';
+
+// Xtream
+export const XTREAM_REQUEST = 'XTREAM_REQUEST';
+export const XTREAM_RESPONSE = 'XTREAM_RESPONSE';
