@@ -12,13 +12,31 @@
             }}</mat-label>
             <input formControlName="title" matInput />
         </mat-form-field>
+        <mat-form-field class="full-width" *ngIf="playlist.serverUrl">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.SERVER_URL' | translate
+            }}</mat-label>
+            <input matInput formControlName="serverUrl" />
+        </mat-form-field>
+        <mat-form-field class="full-width" *ngIf="playlist.username">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.USERNAME' | translate
+            }}</mat-label>
+            <input matInput formControlName="username" />
+        </mat-form-field>
+        <mat-form-field class="full-width" *ngIf="playlist.password">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.PASSWORD' | translate
+            }}</mat-label>
+            <input matInput formControlName="password" />
+        </mat-form-field>
         <mat-form-field class="full-width" *ngIf="playlist.url">
             <mat-label>{{
                 'HOME.PLAYLISTS.INFO_DIALOG.FROM_URL' | translate
             }}</mat-label>
             <input matInput formControlName="url" />
         </mat-form-field>
-        <mat-form-field class="full-width">
+        <mat-form-field class="full-width" *ngIf="playlist.filename">
             <mat-label>{{
                 'HOME.PLAYLISTS.INFO_DIALOG.ORIGINAL_FILENAME' | translate
             }}</mat-label>
@@ -30,7 +48,7 @@
             }}</mat-label>
             <input matInput formControlName="importDate" />
         </mat-form-field>
-        <mat-form-field class="full-width">
+        <mat-form-field class="full-width" *ngIf="playlist.count">
             <mat-label>{{
                 'HOME.PLAYLISTS.INFO_DIALOG.CHANNELS' | translate
             }}</mat-label>
@@ -67,10 +85,15 @@
         </ng-container>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-        <button mat-flat-button color="accent" (click)="exportPlaylist()">
+        <button
+            mat-flat-button
+            color="accent"
+            (click)="exportPlaylist()"
+            *ngIf="!playlist.serverUrl"
+        >
             {{ 'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_PLAYLIST' | translate }}
         </button>
-        <div style="flex: 1 1 auto"></div>
+        <div class="spacer"></div>
         <button
             mat-flat-button
             mat-dialog-close

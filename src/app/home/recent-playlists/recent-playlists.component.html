@@ -15,7 +15,7 @@
         </mat-list-item>
         <mat-list-item
             *ngIf="playlists.length > 0"
-            (click)="getPlaylist('GLOBAL_FAVORITES')"
+            (click)="getGlobalFavorites()"
         >
             <mat-icon class="favorites-icon" matListItemAvatar>star</mat-icon>
             <div matListItemTitle>
@@ -32,7 +32,7 @@
             [item]="item"
             [showActions]="!sidebarMode"
             (editPlaylistClicked)="openInfoDialog($event)"
-            (playlistClicked)="getPlaylist($event)"
+            (playlistClicked)="getPlaylist(item)"
             (refreshClicked)="refreshPlaylist($event)"
             (removeClicked)="removeClicked($event)"
         ></app-playlist-item>

@@ -14,31 +14,48 @@
     <mat-icon
         matListItemAvatar
         class="upload-type-icon"
-        *ngIf="!item?.url"
+        *ngIf="!item?.url && !item.serverUrl"
         [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
         >folder</mat-icon
     >
+    <mat-icon
+        matListItemAvatar
+        class="upload-type-icon"
+        *ngIf="item?.serverUrl"
+        [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
+        >globe</mat-icon
+    >
     <div matListItemTitle>{{ item.title || item.filename }}</div>
     <div matListItemLine class="meta">
-        {{ 'HOME.PLAYLISTS.CHANNELS' | translate }}: {{ item.count }}
-        <ng-container *ngIf="item.importDate?.length > 3">
-            | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
-            {{ item.importDate | date }}
+        <ng-container *ngIf="!item.serverUrl; else xtreamPlaylist">
+            {{ 'HOME.PLAYLISTS.CHANNELS' | translate }}: {{ item.count }}
+            <ng-container *ngIf="item.importDate?.length > 3">
+                | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
+                {{ item.importDate | date }}
+            </ng-container>
+            <ng-container *ngIf="item.updateDate">
+                | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
+                {{ item.updateDate | date : 'MMMM d, yyyy, HH:mm' }}
+            </ng-container>
+            <ng-container *ngIf="item.updateState === 2">
+                <mat-icon
+                    [matTooltip]="
+                        'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED' | translate
+                    "
+                    [inline]="true"
+                    >warning</mat-icon
+                >
+            </ng-container>
         </ng-container>
-        <ng-container *ngIf="item.updateDate">
-            | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
-            {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
-        </ng-container>
-        <ng-container *ngIf="item.updateState === 2">
-            <mat-icon
-                [matTooltip]="
-                    'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED' | translate
-                "
-                [inline]="true"
-                >warning</mat-icon
-            >
-        </ng-container>
+        <ng-template #xtreamPlaylist
+            >Xtream Code Playlist
+            <ng-container *ngIf="item.importDate?.length > 3">
+                | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
+                {{ item.importDate | date }}
+            </ng-container></ng-template
+        >
     </div>
+
     <span matListItemMeta class="action-buttons" *ngIf="showActions">
         <button
             *ngIf="item.url || item.filePath"
