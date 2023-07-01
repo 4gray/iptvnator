@@ -1,14 +1,8 @@
-export interface XtreamVodStream {
-    num: number;
-    name: string;
-    stream_type: string;
-    stream_id: number;
-    stream_icon: string;
+import { XtreamItem } from './xtream-item.interface';
+
+export interface XtreamVodStream extends XtreamItem {
+    stream_type: 'movie';
     rating: number;
     rating_5based: number;
-    added: string;
-    category_id: string;
     container_extension: string;
-    custom_sid: string;
-    direct_source: string;
 }
