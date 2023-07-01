@@ -9,7 +9,7 @@ import {
     OnInit,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
@@ -108,6 +108,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         private ngZone: NgZone,
         private overlay: Overlay,
         private playlistsService: PlaylistsService,
+        private router: Router,
         private snackBar: MatSnackBar,
         private storage: StorageMap,
         private store: Store
@@ -233,5 +234,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     openUrl(url: string) {
         window.open(url, '_blank');
+    }
+
+    navigateHome() {
+        this.router.navigate(['/']);
     }
 }

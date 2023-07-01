@@ -2,8 +2,9 @@
     <!-- sidebar content -->
     <mat-drawer #drawer mode="side" opened disableClose>
         <app-sidebar
-            *ngIf="channels$ | async as channels"
+            *ngIf="(channels$ | async) as channels; else noChannels"
             [channels]="channels" />
+            <ng-template #noChannels>No channels <br /> <button mat-button color="secondary" (click)="navigateHome()">Go back</button></ng-template>
     </mat-drawer>
     <mat-drawer-content>
         <ng-container *ngIf="activeChannel$ | async as activeChannel">
