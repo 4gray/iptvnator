@@ -12,7 +12,10 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import * as semver from 'semver';
-import { EPG_FORCE_FETCH } from '../../../shared/ipc-commands';
+import {
+    EPG_FORCE_FETCH,
+    SET_MPV_PLAYER_PATH,
+} from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
 import { DialogService } from '../services/dialog.service';
@@ -51,12 +54,13 @@ export class SettingsComponent implements OnInit {
             label: 'VideoJs Player',
         },
         ...(this.isElectron
-            ? [
-                  {
-                      id: VideoPlayer.MPV,
-                      label: 'MPV Player',
-                  },
-              ]
+            ? 
+            [
+                {
+                    id: VideoPlayer.MPV,
+                    label: 'MPV Player',
+                },
+            ]
             : []),
     ];
 
@@ -79,6 +83,7 @@ export class SettingsComponent implements OnInit {
         language: Language.ENGLISH,
         showCaptions: false,
         theme: Theme.LightTheme,
+        mpvPlayerPath: '',
     });
 
     /** Form array with epg sources */
@@ -132,6 +137,7 @@ export class SettingsComponent implements OnInit {
                         theme: settings.theme
                             ? settings.theme
                             : Theme.LightTheme,
+                        mpvPlayerPath: settings.mpvPlayerPath,
                     });
 
                     if (this.isElectron) {
@@ -219,6 +225,11 @@ export class SettingsComponent implements OnInit {
             .subscribe(() => {
                 this.applyChangedSettings();
             });
+
+        this.electronService.sendIpcEvent(
+            SET_MPV_PLAYER_PATH,
+            this.settingsForm.value.mpvPlayerPath
+        );
     }
 
     /**
