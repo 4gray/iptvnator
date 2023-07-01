@@ -24,6 +24,7 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
         OverlayModule,
         RouterModule.forChild(routes),
         SharedModule,
+        VjsPlayerComponent,
     ],
     declarations: [
         ChannelListContainerComponent,
@@ -37,7 +38,6 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
         SidebarComponent,
         ToolbarComponent,
         VideoPlayerComponent,
-        VjsPlayerComponent,
     ],
 })
 export class PlayerModule {}
