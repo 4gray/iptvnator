@@ -5,6 +5,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ServiceWorkerModule } from '@angular/service-worker';
 // NG Translate
 import { EffectsModule } from '@ngrx/effects';
+import { StoreRouterConnectingModule, routerReducer } from '@ngrx/router-store';
 import { StoreModule } from '@ngrx/store';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
@@ -70,7 +71,10 @@ export function DataFactory(dbService: NgxIndexedDBService, http: HttpClient) {
             enabled: AppConfig.production && !isElectron(),
             registrationStrategy: 'registerWhenStable:30000',
         }),
-        StoreModule.forRoot({}),
+        StoreModule.forRoot({
+            router: routerReducer,
+        }),
+        StoreRouterConnectingModule.forRoot(),
         StoreModule.forFeature('playlistState', playlistReducer),
         EffectsModule.forRoot([PlaylistEffects]),
         StoreDevtoolsModule.instrument({
