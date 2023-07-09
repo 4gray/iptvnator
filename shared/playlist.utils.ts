@@ -88,3 +88,7 @@ export const createPlaylistObject = (
         ...(uploadType === 'FILE' ? { filePath: urlOrPath } : {}),
     };
 };
+
+export const getExtensionFromUrl = (url: string) => {
+    return url.split(/[#?]/)[0].split('.').pop().trim();
+};
