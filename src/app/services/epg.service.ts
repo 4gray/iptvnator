@@ -31,12 +31,14 @@ export class EpgService {
         if (!Array.isArray(urls)) {
             urls = [urls];
         }
-        urls.forEach((url) =>
-            this.electronService.sendIpcEvent(EPG_FETCH, {
-                url,
-            })
-        );
-        this.showFetchSnackbar();
+        if (urls?.length > 0) {
+            urls.forEach((url) =>
+                this.electronService.sendIpcEvent(EPG_FETCH, {
+                    url,
+                })
+            );
+            this.showFetchSnackbar();
+        }
     }
 
     showFetchSnackbar() {
