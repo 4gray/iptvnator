@@ -41,7 +41,11 @@
             {{ item.info.duration }}
         </label>
         <div class="action-buttons">
-            <button mat-flat-button color="accent" (click)="playClicked.emit()">
+            <button
+                mat-flat-button
+                color="accent"
+                (click)="playClicked.emit(item)"
+            >
                 Play
             </button>
         </div>

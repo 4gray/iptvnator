@@ -6,28 +6,34 @@
 />
 
 <div class="container">
-    <app-category-view
-        *ngIf="currentLayout === 'category'"
-        (categoryClicked)="categoryClicked($event)"
-        [items]="items"
-    />
+    <ng-container *ngIf="isLoading; else contentLoaded">
+        <mat-spinner />
+    </ng-container>
+    <ng-template #contentLoaded>
+        <app-category-view
+            *ngIf="currentLayout === 'category'"
+            (categoryClicked)="categoryClicked($event)"
+            [items]="items"
+        />
 
-    <app-category-content-view
-        *ngIf="currentLayout === 'category_content'"
-        [items]="items"
-        (itemClicked)="itemClicked($event)"
-    />
+        <app-category-content-view
+            *ngIf="currentLayout === 'category_content'"
+            [items]="items"
+            (itemClicked)="itemClicked($event)"
+        />
 
-    <app-vod-details
-        *ngIf="currentLayout === 'vod-details'"
-        [item]="vodDetails"
-        (playClicked)="playVod()"
-    />
+        <app-vod-details
+            *ngIf="currentLayout === 'vod-details'"
+            [item]="vodDetails"
+            (playClicked)="playVod($event)"
+        />
 
-    <app-serial-details
-        *ngIf="currentLayout === 'serie-details'"
-        [item]="vodDetails"
-    />
+        <app-serial-details
+            *ngIf="currentLayout === 'serie-details'"
+            [item]="vodDetails"
+            (playClicked)="playEpisode($event)"
+        />
 
-    <app-player-view *ngIf="currentLayout === 'player'" />
+        <app-player-view *ngIf="currentLayout === 'player'" />
+    </ng-template>
 </div>

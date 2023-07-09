@@ -1,5 +1,12 @@
 import { JsonPipe, KeyValuePipe, NgFor, NgIf, NgSwitch } from '@angular/common';
-import { Component, NgZone, OnInit, effect, inject } from '@angular/core';
+import {
+    Component,
+    NgZone,
+    OnInit,
+    Signal,
+    effect,
+    inject,
+} from '@angular/core';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -28,7 +35,17 @@ import { NavigationBarComponent } from './navigation-bar/navigation-bar.componen
 import { PlayerViewComponent } from './player-view/player-view.component';
 import { VodDetailsComponent } from './vod-details/vod-details.component';
 
-import { XtreamSerieDetails } from '../../../shared/xtream-serie-details.interface';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { MatDialog } from '@angular/material/dialog';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { StorageMap } from '@ngx-pwa/local-storage';
+import {
+    XtreamSerieDetails,
+    XtreamSerieEpisode,
+} from '../../../shared/xtream-serie-details.interface';
+import { Settings, VideoPlayer } from '../settings/settings.interface';
+import { STORE_KEY } from '../shared/enums/store-keys.enum';
+import { PlayerDialogComponent } from './player-dialog/player-dialog.component';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 
 const ContentTypes = {
@@ -85,12 +102,16 @@ type LayoutView =
         PlayerViewComponent,
         CategoryContentViewComponent,
         SerialDetailsComponent,
+        PlayerDialogComponent,
+        MatProgressSpinnerModule,
     ],
 })
 export class XtreamMainContainerComponent implements OnInit {
     dataService = inject(DataService);
+    dialog = inject(MatDialog);
     ngZone = inject(NgZone);
     snackBar = inject(MatSnackBar);
+    storage = inject(StorageMap);
     store = inject(Store);
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
 
@@ -100,6 +121,10 @@ export class XtreamMainContainerComponent implements OnInit {
     selectedContentType = ContentType.VODS;
     currentLayout: LayoutView = 'category';
     vodDetails!: XtreamVodDetails | XtreamSerieDetails;
+    settings = toSignal(
+        this.storage.get(STORE_KEY.Settings)
+    ) as Signal<Settings>;
+    isLoading = true;
 
     commandsList = [
         new IpcCommand(XTREAM_RESPONSE, (response: XtreamResponse) =>
@@ -139,7 +164,6 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     handleResponse(response: XtreamResponse) {
-        console.log(response.payload);
         switch (response.action) {
             case XtreamCodeActions.GetSeriesCategories:
             case XtreamCodeActions.GetVodCategories:
@@ -160,6 +184,7 @@ export class XtreamMainContainerComponent implements OnInit {
             default:
                 break;
         }
+        this.isLoading = false;
     }
 
     getCategories(contentType: ContentType = this.selectedContentType) {
@@ -169,7 +194,6 @@ export class XtreamMainContainerComponent implements OnInit {
         this.sendRequest({ action });
     }
 
-    // TODO: MAKE IT ABSTRACT SOMEHOW
     ngOnDestroy(): void {
         if (this.dataService.isElectron) {
             this.commandsList.forEach((command) =>
@@ -213,7 +237,7 @@ export class XtreamMainContainerComponent implements OnInit {
                 title: item.name,
                 action: XtreamCodeActions.GetLiveStreams,
             });
-            this.playStream(item);
+            this.playLiveStream(item);
         } else if (item.series_id) {
             action = XtreamCodeActions.GetSeriesInfo;
             this.breadcrumbs.push({ title: item.name, action });
@@ -221,31 +245,47 @@ export class XtreamMainContainerComponent implements OnInit {
         }
     }
 
-    playStream(item: XtreamLiveStream) {
-        this.currentLayout = 'player';
+    playLiveStream(item: XtreamLiveStream) {
         const { serverUrl, username, password } = this.currentPlaylist();
-
         const streamUrl = `${serverUrl}/${item.stream_type}/${username}/${password}/${item.stream_id}.ts`;
-
-        this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
-            url: streamUrl,
-        });
+        this.openPlayer(streamUrl, item.name);
     }
 
-    playVod() {
-        this.currentLayout = 'player';
+    openPlayer(streamUrl: string, title: string) {
+        const player = this.settings().player;
+        if (player === VideoPlayer.MPV) {
+            this.currentLayout = 'player';
+            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+                url: streamUrl,
+            });
+        } else {
+            this.dialog.open(PlayerDialogComponent, {
+                data: { streamUrl, player, title },
+                width: '80%',
+            });
+        }
+    }
+
+    playVod(vodItem: XtreamVodDetails) {
         const { serverUrl, username, password } = this.currentPlaylist();
-
         this.items = [];
-        const streamUrl = `${serverUrl}/movie/${username}/${password}/${
-            (this.vodDetails as XtreamVodDetails).movie_data.stream_id
-        }.${
-            (this.vodDetails as XtreamVodDetails).movie_data.container_extension
-        }`;
+        const streamUrl = `${serverUrl}/movie/${username}/${password}/${vodItem.movie_data.stream_id}.${vodItem.movie_data.container_extension}`;
 
-        this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
-            url: streamUrl,
-        });
+        this.openPlayer(streamUrl, vodItem.info.name);
+    }
+
+    playEpisode(episode: XtreamSerieEpisode) {
+        const { serverUrl, username, password } = this.currentPlaylist();
+        const player = this.settings().player;
+        const streamUrl = `${serverUrl}/series/${username}/${password}/${episode.id}.${episode.container_extension}`;
+        if (player === VideoPlayer.MPV) {
+            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, { url: streamUrl });
+        } else {
+            this.dialog.open(PlayerDialogComponent, {
+                data: { streamUrl, player, title: episode.title },
+                width: '80%',
+            });
+        }
     }
 
     changeContentType(contentType: ContentType) {
@@ -261,6 +301,7 @@ export class XtreamMainContainerComponent implements OnInit {
             null,
             { duration: 4000 }
         );
+        this.isLoading = false;
     }
 
     /**
@@ -313,6 +354,7 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     sendRequest(params: Record<string, string | number>) {
+        this.isLoading = true;
         const { serverUrl, username, password } = this.currentPlaylist();
         this.dataService.sendIpcEvent(XTREAM_REQUEST, {
             url: serverUrl,

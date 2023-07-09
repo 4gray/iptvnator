@@ -52,6 +52,10 @@ import { FilterPipe } from '../../shared/pipes/filter.pipe';
                 display: block;
             }
 
+            mat-card-content {
+                overflow-wrap: break-word;
+            }
+
             .no-content {
                 text-align: center;
 

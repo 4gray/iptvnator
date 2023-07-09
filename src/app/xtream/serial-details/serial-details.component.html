@@ -45,5 +45,5 @@
 
 <app-season-container
     [seasons]="item.episodes"
-    (episodeClicked)="playEpisode($event)"
+    (episodeClicked)="playClicked.emit($event)"
 />

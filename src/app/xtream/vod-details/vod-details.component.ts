@@ -13,5 +13,5 @@ import { XtreamVodDetails } from '../../../../shared/xtream-vod-details.interfac
 export class VodDetailsComponent {
     @Input({ required: true }) item: XtreamVodDetails;
 
-    @Output() playClicked = new EventEmitter<void>();
+    @Output() playClicked = new EventEmitter<XtreamVodDetails>();
 }

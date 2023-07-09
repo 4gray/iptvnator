@@ -13,8 +13,11 @@
 
 .season-item,
 .episode-item {
+    min-height: 100px;
+    justify-content: center;
     width: 150px;
     cursor: pointer;
+    display: block;
 }
 
 .episode-item {

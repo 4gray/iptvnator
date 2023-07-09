@@ -1,7 +1,7 @@
 .container {
     display: grid;
     grid-gap: 10px;
-    grid-template-columns: 340px auto;
+    grid-template-columns: 350px 450px;
 
     &::before {
         content: '';
@@ -18,7 +18,7 @@
 
 .image {
     width: 300px;
-    padding: 20px;
+    padding: 10px;
 }
 
 .image img {
@@ -26,7 +26,7 @@
     height: auto;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 800px) {
     .container {
         display: flex;
         flex-wrap: wrap;
@@ -37,6 +37,10 @@
     .image,
     .details {
         flex: 1 1 100%;
+    }
+
+    .details {
+        padding: 0 10px;
     }
 }
 

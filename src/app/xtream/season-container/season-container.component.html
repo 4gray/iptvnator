@@ -12,14 +12,14 @@
 
     <ng-template #episodesView>
         <mat-card class="episode-item" (click)="selectedSeason = undefined">
-            <mat-card-title>< Back to seasons</mat-card-title>
+            <div class="episode-title">< Back to seasons</div>
         </mat-card>
         <mat-card
             class="episode-item"
             *ngFor="let episode of seasons[selectedSeason]"
             (click)="selectEpisode(episode)"
         >
-            <mat-card-content
+            <mat-card-content *ngIf="episode.info.movie_image"
                 ><img [src]="episode.info.movie_image" class="episode-cover"
             /></mat-card-content>
             <div class="episode-title">
