@@ -21,6 +21,7 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
 @NgModule({
     imports: [
         CommonModule,
+        HtmlVideoPlayerComponent,
         OverlayModule,
         RouterModule.forChild(routes),
         SharedModule,
@@ -33,7 +34,6 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
         EpgListComponent,
         EpgListItemComponent,
         InfoOverlayComponent,
-        HtmlVideoPlayerComponent,
         MultiEpgContainerComponent,
         SidebarComponent,
         ToolbarComponent,
