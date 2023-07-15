@@ -45,7 +45,9 @@ import {
 } from '../../../shared/xtream-serie-details.interface';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
+import { Breadcrumb } from './breadcrumb.interface';
 import { PlayerDialogComponent } from './player-dialog/player-dialog.component';
+import { PortalStore } from './portal.store';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 
 const ContentTypes = {
@@ -67,12 +69,6 @@ const ContentTypes = {
         getDetailsAction: XtreamCodeActions.GetSeriesInfo,
     },
 };
-
-export interface Breadcrumb {
-    action: XtreamCodeActions;
-    title: string;
-    category_id?: string;
-}
 
 type LayoutView =
     | 'category'
@@ -110,6 +106,7 @@ export class XtreamMainContainerComponent implements OnInit {
     dataService = inject(DataService);
     dialog = inject(MatDialog);
     ngZone = inject(NgZone);
+    portalStore = inject(PortalStore);
     snackBar = inject(MatSnackBar);
     storage = inject(StorageMap);
     store = inject(Store);
@@ -125,6 +122,7 @@ export class XtreamMainContainerComponent implements OnInit {
         this.storage.get(STORE_KEY.Settings)
     ) as Signal<Settings>;
     isLoading = true;
+    searchPhrase = this.portalStore.searchPhrase();
 
     commandsList = [
         new IpcCommand(XTREAM_RESPONSE, (response: XtreamResponse) =>
@@ -364,5 +362,10 @@ export class XtreamMainContainerComponent implements OnInit {
                 ...params,
             },
         });
+    }
+
+    setSearchPhrase(searchPhrase: string) {
+        console.log(searchPhrase);
+        this.searchPhrase = searchPhrase;
     }
 }

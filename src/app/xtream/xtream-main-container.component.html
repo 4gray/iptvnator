@@ -3,6 +3,10 @@
     [contentType]="selectedContentType"
     (breadcrumbClicked)="breadcrumbClicked($event)"
     (contentTypeChanged)="changeContentType($event)"
+    (searchTextChanged)="setSearchPhrase($event)"
+    [searchVisible]="
+        currentLayout === 'category' || currentLayout === 'category_content'
+    "
 />
 
 <div class="container">

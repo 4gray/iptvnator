@@ -1,16 +1,8 @@
 <ng-container *ngIf="items.length > 0; else noItems">
-    <div class="search">
-        <input
-            class="search-input"
-            placeholder="Search"
-            [(ngModel)]="searchText"
-            type="search"
-        />
-    </div>
     <div class="grid">
         <mat-card
             *ngFor="
-                let item of items | filterBy : searchText : 'name';
+                let item of items | filterBy : searchPhrase() : 'name';
                 trackBy: trackByFn
             "
             (click)="itemClicked.emit(item)"

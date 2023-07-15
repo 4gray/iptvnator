@@ -26,10 +26,21 @@
         <mat-icon>info</mat-icon>
     </button>
 </div>
-<div id="breadcrumbs">
-    <span
-        *ngFor="let item of breadcrumbs"
-        (click)="breadcrumbClicked.emit(item)"
-        >{{ item.title }}</span
-    >
+<div id="sub-panel">
+    <div class="breadcrumbs">
+        <span
+            *ngFor="let item of breadcrumbs"
+            (click)="processBreadcrumbClick(item)"
+            >{{ item.title }}</span
+        >
+    </div>
+    <div class="search" *ngIf="searchVisible">
+        <input
+            class="search-input"
+            placeholder="Search by name"
+            type="search"
+            [ngModel]="searchPhrase()"
+            (ngModelChange)="setSearchText($event)"
+        />
+    </div>
 </div>
