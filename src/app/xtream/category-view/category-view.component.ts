@@ -26,6 +26,16 @@ import { PortalStore } from '../portal.store';
                         {{ item.category_name }}
                     </mat-card-content>
                 </mat-card>
+                <div
+                    class="no-content"
+                    *ngIf="
+                        !(items | filterBy : searchText() : 'category_name')
+                            ?.length
+                    "
+                >
+                    <mat-icon class="icon">search</mat-icon>
+                    <div>Nothing found, try to change you search request</div>
+                </div>
             </div>
         </ng-container>
         <ng-template #noItems>
@@ -41,7 +51,7 @@ import { PortalStore } from '../portal.store';
     styles: [
         `
             :host {
-                margin: 10px;
+                margin: 20px;
                 display: block;
             }
 

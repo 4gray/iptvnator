@@ -1,4 +1,4 @@
-<ng-container *ngIf="items.length > 0; else noItems">
+<ng-container *ngIf="items?.length > 0; else noItems">
     <div class="grid">
         <mat-card
             *ngFor="
@@ -25,6 +25,13 @@
                 <div class="title">{{ item.name }}</div>
             </mat-card-content>
         </mat-card>
+        <div
+            class="no-content"
+            *ngIf="!(items | filterBy : searchPhrase() : 'name')?.length"
+        >
+            <mat-icon class="icon">search</mat-icon>
+            <div>Nothing found, try to change you search request</div>
+        </div>
     </div>
 </ng-container>
 <ng-template #noItems>

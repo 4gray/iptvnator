@@ -14,6 +14,8 @@ import {
     createFavoritesPlaylist,
     createPlaylistObject,
 } from '../../../shared/playlist.utils';
+import { XtreamItem } from '../../../shared/xtream-item.interface';
+import { XtreamSerieItem } from '../../../shared/xtream-serie-item.interface';
 import { DbStores } from '../indexed-db.config';
 import { PlaylistMeta } from '../shared/playlist-meta.type';
 
@@ -116,6 +118,43 @@ export class PlaylistsService {
                     )
                 )
             );
+    }
+
+    getPortalFavorites(portalId: string) {
+        return this.dbService
+            .getByID<{ favorites: Partial<XtreamItem>[] }>(
+                DbStores.Playlists,
+                portalId
+            )
+            .pipe(map((item) => item.favorites ?? []));
+    }
+
+    addPortalFavorite(portalId: string, item: any) {
+        return this.getPlaylistById(portalId).pipe(
+            switchMap((portal) =>
+                this.dbService.update(DbStores.Playlists, {
+                    ...portal,
+                    favorites: [...(portal.favorites ?? []), item],
+                })
+            )
+        );
+    }
+
+    removeFromPortalFavorites(portalId: string, favoriteId: number) {
+        return this.getPlaylistById(portalId).pipe(
+            switchMap((portal) =>
+                this.dbService.update(DbStores.Playlists, {
+                    ...portal,
+                    favorites: portal.favorites.filter(
+                        (i) =>
+                            (i as Partial<XtreamItem>).stream_id !==
+                                favoriteId &&
+                            (i as Partial<XtreamSerieItem>).series_id !==
+                                favoriteId
+                    ),
+                })
+            )
+        );
     }
 
     updatePlaylistPositions(

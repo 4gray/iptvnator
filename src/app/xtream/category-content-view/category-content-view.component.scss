@@ -1,12 +1,12 @@
 :host {
     display: block;
-    padding: 10px;
+    padding: 20px;
 }
 
 .grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 30px;
     justify-content: center;
 
     mat-card {
@@ -25,13 +25,13 @@
 
         .stream-icon-placeholder {
             width: 100%;
-            background: #ccc;
+            background: #999;
             height: 300px;
 
             &::after {
                 content: 'No cover';
-                position: absolute;
-                top: 130px;
+                position: relative;
+                top: 140px;
                 left: 70px;
             }
         }
@@ -51,4 +51,14 @@
         height: 64px;
         width: 64px;
     }
+}
+
+mat-card {
+    overflow: hidden;
+
+    transition: all 0.9s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+mat-card:hover {
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
 }

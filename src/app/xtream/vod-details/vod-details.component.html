@@ -9,7 +9,13 @@
     "
 >
     <div class="image">
-        <img *ngIf="item.info.movie_image" [src]="item.info.movie_image" />
+        <img
+            *ngIf="item.info.movie_image; else placeholderCover"
+            [src]="item.info.movie_image"
+        />
+        <ng-template #placeholderCover>
+            <div class="placeholder-cover"></div>
+        </ng-template>
     </div>
     <div class="details">
         <h2>{{ item.info.name }}</h2>
@@ -46,8 +52,26 @@
                 color="accent"
                 (click)="playClicked.emit(item)"
             >
-                Play
+                Play</button
+            >&nbsp;
+            <button
+                *ngIf="!isFavorite; else removeFromFavoritesButton"
+                mat-stroked-button
+                color="accent"
+                (click)="toggleFavorite()"
+            >
+                <mat-icon>star_outline</mat-icon> Add to favorites
             </button>
+
+            <ng-template #removeFromFavoritesButton>
+                <button
+                    mat-stroked-button
+                    color="accent"
+                    (click)="toggleFavorite()"
+                >
+                    <mat-icon>star</mat-icon>Remove from favorites
+                </button>
+            </ng-template>
         </div>
     </div>
 </div>

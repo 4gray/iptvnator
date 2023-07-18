@@ -40,6 +40,26 @@
             <div class="label">Episode run time:</div>
             {{ item.info.episode_run_time }}
         </label>
+        <div class="action-buttons">
+            <button
+                *ngIf="!isFavorite; else removeFromFavoritesButton"
+                mat-stroked-button
+                color="accent"
+                (click)="toggleFavorite()"
+            >
+                <mat-icon>star_outline</mat-icon> Add to favorites
+            </button>
+
+            <ng-template #removeFromFavoritesButton>
+                <button
+                    mat-flat-button
+                    color="accent"
+                    (click)="toggleFavorite()"
+                >
+                    <mat-icon>star</mat-icon>Remove from favorites
+                </button>
+            </ng-template>
+        </div>
     </div>
 </div>
 

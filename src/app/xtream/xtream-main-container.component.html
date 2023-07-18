@@ -4,6 +4,7 @@
     (breadcrumbClicked)="breadcrumbClicked($event)"
     (contentTypeChanged)="changeContentType($event)"
     (searchTextChanged)="setSearchPhrase($event)"
+    (favoritesClicked)="favoritesClicked()"
     [searchVisible]="
         currentLayout === 'category' || currentLayout === 'category_content'
     "
@@ -30,12 +31,23 @@
             *ngIf="currentLayout === 'vod-details'"
             [item]="vodDetails"
             (playClicked)="playVod($event)"
+            (addToFavoritesClicked)="addToFavorites($event)"
+            (removeFromFavoritesClicked)="removeFromFavorites($event)"
         />
 
         <app-serial-details
             *ngIf="currentLayout === 'serie-details'"
             [item]="vodDetails"
+            [seriesId]="contentId"
             (playClicked)="playEpisode($event)"
+            (addToFavoritesClicked)="addToFavorites($event)"
+            (removeFromFavoritesClicked)="removeFromFavorites($event)"
+        />
+
+        <app-category-content-view
+            *ngIf="currentLayout === 'favorites'"
+            [items]="favorites$ | async"
+            (itemClicked)="itemClicked($event)"
         />
 
         <app-player-view *ngIf="currentLayout === 'player'" />

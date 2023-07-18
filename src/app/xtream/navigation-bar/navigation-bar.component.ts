@@ -31,6 +31,7 @@ export class NavigationBarComponent {
 
     @Output() contentTypeChanged = new EventEmitter<ContentType>();
     @Output() breadcrumbClicked = new EventEmitter<Breadcrumb>();
+    @Output() favoritesClicked = new EventEmitter<void>();
 
     ContentTypeEnum = ContentType;
     portalStore = inject(PortalStore);

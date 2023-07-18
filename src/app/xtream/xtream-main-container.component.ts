@@ -1,4 +1,11 @@
-import { JsonPipe, KeyValuePipe, NgFor, NgIf, NgSwitch } from '@angular/common';
+import {
+    AsyncPipe,
+    JsonPipe,
+    KeyValuePipe,
+    NgFor,
+    NgIf,
+    NgSwitch,
+} from '@angular/common';
 import {
     Component,
     NgZone,
@@ -39,10 +46,12 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { StorageMap } from '@ngx-pwa/local-storage';
+import { Observable } from 'rxjs';
 import {
     XtreamSerieDetails,
     XtreamSerieEpisode,
 } from '../../../shared/xtream-serie-details.interface';
+import { PlaylistsService } from '../services/playlists.service';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { Breadcrumb } from './breadcrumb.interface';
@@ -75,7 +84,8 @@ type LayoutView =
     | 'category_content'
     | 'vod-details'
     | 'player'
-    | 'serie-details';
+    | 'serie-details'
+    | 'favorites';
 
 @Component({
     selector: 'app-xtream-main-container',
@@ -100,18 +110,21 @@ type LayoutView =
         SerialDetailsComponent,
         PlayerDialogComponent,
         MatProgressSpinnerModule,
+        AsyncPipe,
     ],
 })
 export class XtreamMainContainerComponent implements OnInit {
     dataService = inject(DataService);
     dialog = inject(MatDialog);
     ngZone = inject(NgZone);
+    playlistService = inject(PlaylistsService);
     portalStore = inject(PortalStore);
     snackBar = inject(MatSnackBar);
     storage = inject(StorageMap);
     store = inject(Store);
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
 
+    favorites$: Observable<any>;
     breadcrumbs: Breadcrumb[] = [];
     items = [];
     listeners = [];
@@ -123,6 +136,7 @@ export class XtreamMainContainerComponent implements OnInit {
     ) as Signal<Settings>;
     isLoading = true;
     searchPhrase = this.portalStore.searchPhrase();
+    contentId: number;
 
     commandsList = [
         new IpcCommand(XTREAM_RESPONSE, (response: XtreamResponse) =>
@@ -143,6 +157,10 @@ export class XtreamMainContainerComponent implements OnInit {
 
     ngOnInit() {
         this.setInitialBreadcrumb();
+        console.log(this.currentPlaylist()._id);
+        this.favorites$ = this.playlistService.getPortalFavorites(
+            this.currentPlaylist()._id
+        );
 
         this.commandsList.forEach((command) => {
             if (this.dataService.isElectron) {
@@ -229,6 +247,7 @@ export class XtreamMainContainerComponent implements OnInit {
         if (item.stream_type && item.stream_type === 'movie') {
             action = XtreamCodeActions.GetVodInfo;
             this.breadcrumbs.push({ title: item.name, action });
+            this.contentId = item.stream_id;
             this.sendRequest({ action, vod_id: item.stream_id });
         } else if (item.stream_type && item.stream_type === 'live') {
             this.breadcrumbs.push({
@@ -239,6 +258,7 @@ export class XtreamMainContainerComponent implements OnInit {
         } else if (item.series_id) {
             action = XtreamCodeActions.GetSeriesInfo;
             this.breadcrumbs.push({ title: item.name, action });
+            this.contentId = item.series_id;
             this.sendRequest({ action, series_id: item.series_id });
         }
     }
@@ -367,5 +387,30 @@ export class XtreamMainContainerComponent implements OnInit {
     setSearchPhrase(searchPhrase: string) {
         console.log(searchPhrase);
         this.searchPhrase = searchPhrase;
+    }
+
+    addToFavorites(item: any) {
+        this.playlistService
+            .addPortalFavorite(this.currentPlaylist()._id, item)
+            .subscribe(() => {
+                this.snackBar.open('Added to favorites', null, {
+                    duration: 1000,
+                });
+            });
+    }
+
+    removeFromFavorites(favoriteId: number) {
+        this.playlistService
+            .removeFromPortalFavorites(this.currentPlaylist()._id, favoriteId)
+            .subscribe(() => {
+                this.snackBar.open('Removed from favorites', null, {
+                    duration: 1000,
+                });
+            });
+    }
+
+    favoritesClicked() {
+        this.currentLayout = 'favorites';
+        this.setInitialBreadcrumb();
     }
 }

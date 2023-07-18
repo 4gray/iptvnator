@@ -1,3 +1,16 @@
+::ng-deep {
+    .dark-theme {
+        #navigation,
+        #sub-panel {
+            background: black;
+        }
+
+        #sub-panel {
+            border-bottom: 1px solid #333;
+        }
+    }
+}
+
 :host {
     position: sticky;
     top: 0;
@@ -6,19 +19,21 @@
 
 #navigation {
     height: 70px;
-    background: black;
+    background: white;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 0 10px;
 }
 
 #sub-panel {
-    background: black;
-    border-bottom: 1px solid #333;
+    background: white;
+    border-bottom: 1px solid #ccc;
     padding: 0 10px 5px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    height: 30px;
 
     .breadcrumbs {
         span {
@@ -39,8 +54,8 @@
         text-align: center;
 
         .search-input {
-            padding: 8px 8px 8px 40px;
-            width: 300px;
+            padding: 6px 8px 6px 40px;
+            width: 250px;
             border-radius: 5px;
             border: 1px solid #333;
             color: #000;

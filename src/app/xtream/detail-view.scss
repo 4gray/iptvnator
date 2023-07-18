@@ -1,7 +1,12 @@
+:host {
+    width: 100%;
+}
+
 .container {
     display: grid;
     grid-gap: 10px;
     grid-template-columns: 350px 450px;
+    justify-content: center;
 
     &::before {
         content: '';
@@ -19,6 +24,19 @@
 .image {
     width: 300px;
     padding: 10px;
+
+    .placeholder-cover {
+        width: 300px;
+        height: 500px;
+        background-color: #999;
+
+        &::after {
+            content: 'No cover';
+            position: relative;
+            top: 230px;
+            left: 115px;
+        }
+    }
 }
 
 .image img {

@@ -1,6 +1,6 @@
 <div id="navigation">
-    <button mat-icon-button routerLink="/">
-        <mat-icon>home</mat-icon>
+    <button mat-button routerLink="/">
+        <mat-icon>home</mat-icon> Playlists
     </button>
 
     <div>
@@ -22,8 +22,8 @@
         </mat-button-toggle-group>
     </div>
 
-    <button mat-icon-button>
-        <mat-icon>info</mat-icon>
+    <button mat-button (click)="favoritesClicked.emit()">
+        <mat-icon>star</mat-icon> Favorites
     </button>
 </div>
 <div id="sub-panel">
