@@ -259,6 +259,23 @@ export class WhatsNewService {
                 },
             },
         ],
+        '0.14.0': [
+            {
+                title: '🚀 New in v0.14.0',
+                html: `The main feature of this release is &mdash; Xtream Code IPTV support. The feature is also available in PWA, but works best in electron version of the application and combination with mpv player.<br />
+                
+                <h3>Other updates:</h3>
+                * possibility to specify custom path for mpv player<br/>
+                * fixed an annoying bug that appeared when reopening mpv player<br/>
+                * updated libraries used under the hood<br/>
+                * fixed bug related to user-agent handling`,
+                button: {
+                    text: 'GO!',
+                    textColor: '#ccc',
+                    bgColor: '#111',
+                },
+            },
+        ],
     };
 
     /** Options for the "what is new" modal dialogs */
