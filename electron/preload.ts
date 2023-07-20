@@ -1,14 +1,7 @@
-const customTitlebar = require('custom-electron-titlebar');
-const { ipcRenderer } = require('electron');
+import { Titlebar, TitlebarColor } from 'custom-electron-titlebar';
 
 window.addEventListener('DOMContentLoaded', () => {
-    new customTitlebar.Titlebar({
-        backgroundColor: customTitlebar.Color.fromHex('#000'),
-        onMinimize: () => ipcRenderer.send('window-minimize'),
-        onMaximize: () => ipcRenderer.send('window-maximize'),
-        onClose: () => ipcRenderer.send('window-close'),
-        isMaximized: () => ipcRenderer.sendSync('window-is-maximized'),
-        onMenuItemClick: (commandId) =>
-            ipcRenderer.send('menu-event', commandId),
+    new Titlebar({
+        backgroundColor: TitlebarColor.fromHex('#000'),
     });
 });

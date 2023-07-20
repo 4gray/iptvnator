@@ -13,11 +13,11 @@ export enum PlaylistUpdateState {
 export interface Playlist {
     _id: string;
     title: string;
-    filename: string;
-    playlist: any;
+    filename?: string;
+    playlist?: any;
     importDate: string;
     lastUsage: string;
-    favorites: string[];
+    favorites?: string[];
     items?: unknown[];
     header?: unknown;
     count: number;
@@ -29,4 +29,7 @@ export interface Playlist {
     updateState?: PlaylistUpdateState;
     position?: number;
     isTemporary?: boolean;
+    serverUrl?: string;
+    username?: string;
+    password?: string;
 }

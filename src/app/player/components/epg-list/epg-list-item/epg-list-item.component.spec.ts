@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { TranslatePipe } from '@ngx-translate/core';
 import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslatePipe } from '@ngx-translate/core';
+import * as moment from 'moment';
+import { MockModule, MockPipe } from 'ng-mocks';
 import { MomentDatePipe } from './../../../../shared/pipes/moment-date.pipe';
 import { EpgProgram } from './../../../models/epg-program.model';
-import { MockModule, MockPipe } from 'ng-mocks';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { EpgListItemComponent } from './epg-list-item.component';
 import { EpgItemDescriptionComponent } from './../epg-item-description/epg-item-description.component';
-import * as moment from 'moment';
+import { EpgListItemComponent } from './epg-list-item.component';
 
 const EPG_PROGRAM_ITEM = {
     start: moment(Date.now()).format('YYYYMMDD'),

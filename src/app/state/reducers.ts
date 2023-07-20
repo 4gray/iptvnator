@@ -1,8 +1,8 @@
 import { createReducer, on } from '@ngrx/store';
-import * as moment from 'moment';
+import moment from 'moment';
 import * as PlaylistActions from './actions';
 import { playlistsAdapter } from './playlists.state';
-import { initialState, PlaylistState } from './state';
+import { PlaylistState, initialState } from './state';
 
 export const playlistReducer = createReducer(
     initialState,
@@ -125,6 +125,7 @@ export const playlistReducer = createReducer(
                         updateDate: Date.now(),
                         favorites: [],
                         count: action.playlist.playlist.items.length,
+                        userAgent: action.playlist.userAgent,
                     },
                 },
                 state.playlists
@@ -179,6 +180,16 @@ export const playlistReducer = createReducer(
                     changes: {
                         title: action.playlist.title,
                         autoRefresh: action.playlist.autoRefresh || false,
+                        userAgent: action.playlist.userAgent,
+                        ...(action.playlist.serverUrl
+                            ? { serverUrl: action.playlist.serverUrl }
+                            : {}),
+                        ...(action.playlist.username
+                            ? { username: action.playlist.username }
+                            : {}),
+                        ...(action.playlist.password
+                            ? { password: action.playlist.password }
+                            : {}),
                     },
                 },
                 state.playlists

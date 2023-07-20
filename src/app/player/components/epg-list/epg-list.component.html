@@ -57,14 +57,14 @@
                         else timeshiftItem
                     "
                 >
-                    <div matLine>
+                    <div matListItemLine>
                         <app-epg-list-item
                             [timeshiftUntil]="timeshiftUntil"
                             [timeNow]="timeNow"
                             [item]="item"
                         ></app-epg-list-item>
                     </div>
-                    <p matLine>{{ item?.title[0]?.value }}</p>
+                    <p matListItemLine>{{ item?.title[0]?.value }}</p>
                 </mat-list-item>
                 <ng-template #timeshiftItem>
                     <mat-list-option
@@ -80,22 +80,26 @@
                             )
                         "
                     >
-                        <div matLine>
+                        <div matListItemLine>
                             <app-epg-list-item
                                 [timeshiftUntil]="timeshiftUntil"
                                 [timeNow]="timeNow"
                                 [item]="item"
                             ></app-epg-list-item>
                         </div>
-                        <p matLine [innerHTML]="item?.title[0]?.value"></p>
+                        <p
+                            matListItemLine
+                            [innerHTML]="item?.title[0]?.value"
+                        ></p>
                     </mat-list-option>
                 </ng-template>
+                <mat-divider></mat-divider>
             </ng-container>
         </ng-container>
         <ng-template #epgNotAvailable>
-            <mat-list-option>{{
-                'EPG.EPG_NOT_AVAILABLE_DATE' | translate
-            }}</mat-list-option>
+            <p class="epg-not-available">
+                {{ 'EPG.EPG_NOT_AVAILABLE_DATE' | translate }}
+            </p>
         </ng-template>
     </mat-selection-list>
 </ng-container>

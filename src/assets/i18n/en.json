@@ -7,13 +7,15 @@
             "RECENTLY_ADDED": "Recently added playlists",
             "FILE_UPLOAD": "Add via file upload",
             "URL_UPLOAD": "Add via URL",
-            "TEXT_IMPORT": "Import as text"
+            "TEXT_IMPORT": "Import as text",
+            "XTREME_IMPORT": "Import xtreme code"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "No playlists were added",
             "ADD_FIRST": "Please add your first playlist from the other tab",
             "ADDED_VIA_URL": "Added via URL upload. URL:",
             "ADDED_VIA_FILE": "Added via file upload",
+            "XTREAM_PLAYLIST": "Xtream playlist",
             "CHANNELS": "Channels",
             "ADDED": "Added",
             "SHOW_DETAILS": "Show playlist details",
@@ -33,7 +35,10 @@
                 "AUTO_UPDATE": "Auto-update",
                 "AUTO_UPDATE_DESCRIPTION": "If the auto-refresh function is activated, the playlist will be updated automatically each time the app is started.",
                 "CUSTOM_USER_AGENT": "Some IPTV providers need a specific user-agent in order to play their playlist.",
-                "EXPORT_PLAYLIST": "Export playlist as m3u"
+                "EXPORT_PLAYLIST": "Export playlist as m3u",
+                "SERVER_URL": "Server URL",
+                "USERNAME": "Username",
+                "PASSWORD": "Password"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Remove playlist",
@@ -61,6 +66,15 @@
         "TEXT_IMPORT": {
             "LABEL": "Insert m3u(8) playlist as text",
             "BUTTON_LABEL": "Import"
+        },
+        "XTREAM_PLAYLIST": {
+            "TITLE": "Playlist title",
+            "SERVER_URL": "Server URL",
+            "USERNAME": "Username",
+            "PASSWORD": "Password",
+            "ADD": "Add",
+            "TEST_CREDENTIALS": "Test credentials",
+            "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com or https://example.com:4324)"
         }
     },
     "SETTINGS": {
@@ -102,7 +116,10 @@
             "MESSAGE": "Are you sure you want to delete all playlist from the application?"
         },
         "IMPORT_ERROR": "Import error, please try with another file.",
-        "PLAYLISTS_REMOVED": "All playlists were removed."
+        "PLAYLISTS_REMOVED": "All playlists were removed.",
+        "MPV_PLAYER_PATH_LABEL": "mpv path",
+        "MPV_PLAYER_PATH_DESCRIPTION": "Set path to mpv player in your system. It will use the provided path to a mpv binary instead of using the one found in $PATH.",
+        "MPV_PLAYER_PATH": "mpv player path"
     },
     "THEMES": {
         "DARK_THEME": "Dark theme",
@@ -156,6 +173,7 @@
         "GERMAN": "Deutsch",
         "SPANISH": "Español",
         "CHINESE": "简体中文",
+        "TRADITIONAL_CHINESE": "繁體中文",
         "FRENCH": "Français",
         "ITALIAN": "Italiano"
     },
@@ -180,5 +198,18 @@
         "TWITTER_TOOLTIP": "Share on Twitter"
     },
     "UPDATE_AVAILABLE": "Update available",
-    "REFRESH": "Refresh"
+    "REFRESH": "Refresh",
+    "XTREAM": {
+        "PLAY": "Play",
+        "NAME": "Name",
+        "RELEASE_DATE": "Release date",
+        "GENRE": "Genre",
+        "COUNTRY": "Country",
+        "ACTORS": "Actors",
+        "DIRECTOR": "Director",
+        "DURATION": "Duration",
+        "CAST": "Cast",
+        "EPISODE_RUN_TIME": "Episode run time",
+        "RATING": "Rating"
+    }
 }

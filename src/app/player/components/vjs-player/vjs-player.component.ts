@@ -2,16 +2,17 @@ import {
     Component,
     ElementRef,
     Input,
+    OnChanges,
     OnDestroy,
     OnInit,
+    SimpleChanges,
     ViewChild,
     ViewEncapsulation,
-    SimpleChanges,
 } from '@angular/core';
-import videoJs from 'video.js';
-import 'videojs-hls-quality-selector';
-import 'videojs-contrib-quality-levels';
 import '@yangkghjh/videojs-aspect-ratio-panel';
+import videoJs from 'video.js';
+import 'videojs-contrib-quality-levels';
+import 'videojs-hls-quality-selector';
 
 /**
  * This component contains the implementation of video player that is based on video.js library
@@ -21,8 +22,9 @@ import '@yangkghjh/videojs-aspect-ratio-panel';
     templateUrl: './vjs-player.component.html',
     styleUrls: ['./vjs-player.component.scss'],
     encapsulation: ViewEncapsulation.None,
+    standalone: true,
 })
-export class VjsPlayerComponent implements OnInit, OnDestroy {
+export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     /** DOM-element reference */
     @ViewChild('target', { static: true }) target: ElementRef<Element>;
     /** Options of VideoJs player */

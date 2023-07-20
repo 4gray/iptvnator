@@ -1,6 +1,6 @@
 import { Component, NgZone } from '@angular/core';
 import { Store } from '@ngrx/store';
-import * as moment from 'moment';
+import moment from 'moment';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';

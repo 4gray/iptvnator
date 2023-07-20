@@ -12,7 +12,10 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import * as semver from 'semver';
-import { EPG_FORCE_FETCH } from '../../../shared/ipc-commands';
+import {
+    EPG_FORCE_FETCH,
+    SET_MPV_PLAYER_PATH,
+} from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
 import { DialogService } from '../services/dialog.service';
@@ -37,6 +40,9 @@ export class SettingsComponent implements OnInit {
     /** List with available languages as enum */
     languageEnum = Language;
 
+    /** Flag that indicates whether the app runs in electron environment */
+    isElectron = this.electronService.isElectron;
+
     /** Player options */
     players = [
         {
@@ -47,10 +53,15 @@ export class SettingsComponent implements OnInit {
             id: VideoPlayer.VideoJs,
             label: 'VideoJs Player',
         },
-        {
-            id: VideoPlayer.MPV,
-            label: 'MPV Player',
-        },
+        ...(this.isElectron
+            ? 
+            [
+                {
+                    id: VideoPlayer.MPV,
+                    label: 'MPV Player',
+                },
+            ]
+            : []),
     ];
 
     /** Current version of the app */
@@ -62,9 +73,6 @@ export class SettingsComponent implements OnInit {
     /** EPG availability flag */
     epgAvailable$ = this.store.select(selectIsEpgAvailable);
 
-    /** Flag that indicates whether the app runs in electron environment */
-    isElectron = this.electronService.isElectron;
-
     /** All available visual themes */
     themeEnum = Theme;
 
@@ -75,6 +83,7 @@ export class SettingsComponent implements OnInit {
         language: Language.ENGLISH,
         showCaptions: false,
         theme: Theme.LightTheme,
+        mpvPlayerPath: '',
     });
 
     /** Form array with epg sources */
@@ -128,6 +137,7 @@ export class SettingsComponent implements OnInit {
                         theme: settings.theme
                             ? settings.theme
                             : Theme.LightTheme,
+                        mpvPlayerPath: settings.mpvPlayerPath,
                     });
 
                     if (this.isElectron) {
@@ -215,6 +225,11 @@ export class SettingsComponent implements OnInit {
             .subscribe(() => {
                 this.applyChangedSettings();
             });
+
+        this.electronService.sendIpcEvent(
+            SET_MPV_PLAYER_PATH,
+            this.settingsForm.value.mpvPlayerPath
+        );
     }
 
     /**
@@ -240,6 +255,7 @@ export class SettingsComponent implements OnInit {
             null,
             {
                 duration: 2000,
+                horizontalPosition: 'left',
             }
         );
     }

@@ -46,6 +46,7 @@
 <ng-template #playlistsTemplate>
     <app-recent-playlists
         class="recent-playlists"
+        [sidebarMode]="true"
         [class.electron]="dataService.isElectron"
         (playlistClicked)="selectPlaylist()"
     ></app-recent-playlists>

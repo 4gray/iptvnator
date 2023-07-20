@@ -1,0 +1,55 @@
+<app-navigation-bar
+    [breadcrumbs]="breadcrumbs"
+    [contentType]="selectedContentType"
+    (breadcrumbClicked)="breadcrumbClicked($event)"
+    (contentTypeChanged)="changeContentType($event)"
+    (searchTextChanged)="setSearchPhrase($event)"
+    (favoritesClicked)="favoritesClicked()"
+    [searchVisible]="
+        currentLayout === 'category' || currentLayout === 'category_content'
+    "
+/>
+
+<div class="container">
+    <ng-container *ngIf="isLoading; else contentLoaded">
+        <mat-spinner />
+    </ng-container>
+    <ng-template #contentLoaded>
+        <app-category-view
+            *ngIf="currentLayout === 'category'"
+            (categoryClicked)="categoryClicked($event)"
+            [items]="items"
+        />
+
+        <app-category-content-view
+            *ngIf="currentLayout === 'category_content'"
+            [items]="items"
+            (itemClicked)="itemClicked($event)"
+        />
+
+        <app-vod-details
+            *ngIf="currentLayout === 'vod-details'"
+            [item]="vodDetails"
+            (playClicked)="playVod($event)"
+            (addToFavoritesClicked)="addToFavorites($event)"
+            (removeFromFavoritesClicked)="removeFromFavorites($event)"
+        />
+
+        <app-serial-details
+            *ngIf="currentLayout === 'serie-details'"
+            [item]="vodDetails"
+            [seriesId]="contentId"
+            (playClicked)="playEpisode($event)"
+            (addToFavoritesClicked)="addToFavorites($event)"
+            (removeFromFavoritesClicked)="removeFromFavorites($event)"
+        />
+
+        <app-category-content-view
+            *ngIf="currentLayout === 'favorites'"
+            [items]="favorites$ | async"
+            (itemClicked)="itemClicked($event)"
+        />
+
+        <app-player-view *ngIf="currentLayout === 'player'" />
+    </ng-template>
+</div>

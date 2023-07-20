@@ -9,18 +9,13 @@ import {
     OnInit,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import {
-    combineLatestWith,
-    filter,
-    Observable,
-    skipWhile,
-    switchMap,
-} from 'rxjs';
+import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import {
+    CHANNEL_SET_USER_AGENT,
     ERROR,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
@@ -35,7 +30,6 @@ import {
     selectActive,
     selectChannels,
     selectCurrentEpgProgram,
-    selectPlaylistTitle,
 } from '../../../state/selectors';
 import { MultiEpgContainerComponent } from '../multi-epg/multi-epg-container.component';
 
@@ -67,11 +61,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         player: VideoPlayer.VideoJs,
         showCaptions: false,
     };
-
-    /** Title of the current playlist */
-    playlistTitle$ = this.store
-        .select(selectPlaylistTitle)
-        .pipe(skipWhile((playlistFilename) => playlistFilename === ''));
 
     /** IPC Renderer commands list with callbacks */
     commandsList = [
@@ -119,6 +108,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         private ngZone: NgZone,
         private overlay: Overlay,
         private playlistsService: PlaylistsService,
+        private router: Router,
         private snackBar: MatSnackBar,
         private storage: StorageMap,
         private store: Store
@@ -141,7 +131,20 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                             playlistId: params.id,
                         })
                     );
-                    return this.playlistsService.getPlaylistChannels(params.id);
+                    return this.playlistsService.getPlaylist(params.id).pipe(
+                        map((playlist) => {
+                            this.dataService.sendIpcEvent(
+                                CHANNEL_SET_USER_AGENT,
+                                playlist.userAgent
+                                    ? {
+                                        referer: 'localhost',
+                                        userAgent: playlist.userAgent,
+                                    }
+                                    : {}
+                            );
+                            return playlist.playlist.items;
+                        })
+                    );
                 } else if (queryParams.url) {
                     return this.store.select(selectChannels);
                 }
@@ -231,5 +234,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     openUrl(url: string) {
         window.open(url, '_blank');
+    }
+
+    navigateHome() {
+        this.router.navigate(['/']);
     }
 }

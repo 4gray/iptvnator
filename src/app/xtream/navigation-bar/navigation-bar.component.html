@@ -1,0 +1,46 @@
+<div id="navigation">
+    <button mat-button routerLink="/">
+        <mat-icon>home</mat-icon> Playlists
+    </button>
+
+    <div>
+        <mat-button-toggle-group
+            name="contentType"
+            aria-label="Content Type"
+            [value]="contentType"
+            (change)="contentTypeChanged.emit($event.value)"
+        >
+            <mat-button-toggle [value]="ContentTypeEnum.LIVE_STREAMS"
+                >Live Streams</mat-button-toggle
+            >
+            <mat-button-toggle [value]="ContentTypeEnum.VODS"
+                >VOD Streams</mat-button-toggle
+            >
+            <mat-button-toggle [value]="ContentTypeEnum.SERIES"
+                >Series</mat-button-toggle
+            >
+        </mat-button-toggle-group>
+    </div>
+
+    <button mat-button (click)="favoritesClicked.emit()">
+        <mat-icon>star</mat-icon> Favorites
+    </button>
+</div>
+<div id="sub-panel">
+    <div class="breadcrumbs">
+        <span
+            *ngFor="let item of breadcrumbs"
+            (click)="processBreadcrumbClick(item)"
+            >{{ item.title }}</span
+        >
+    </div>
+    <div class="search" *ngIf="searchVisible">
+        <input
+            class="search-input"
+            placeholder="Search by name"
+            type="search"
+            [ngModel]="searchPhrase()"
+            (ngModelChange)="setSearchText($event)"
+        />
+    </div>
+</div>

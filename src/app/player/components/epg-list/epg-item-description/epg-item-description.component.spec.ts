@@ -1,10 +1,10 @@
-import { By } from '@angular/platform-browser';
-import { MockPipe, MockModule } from 'ng-mocks';
-import { TranslatePipe } from '@ngx-translate/core';
-import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { EpgItemDescriptionComponent } from './epg-item-description.component';
+import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
+import { By } from '@angular/platform-browser';
+import { TranslatePipe } from '@ngx-translate/core';
+import { MockModule, MockPipe } from 'ng-mocks';
 import { EpgProgram } from '../../../models/epg-program.model';
+import { EpgItemDescriptionComponent } from './epg-item-description.component';
 
 describe('EpgItemDescriptionComponent', () => {
     let component: EpgItemDescriptionComponent;

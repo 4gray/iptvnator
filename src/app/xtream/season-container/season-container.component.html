@@ -1,0 +1,30 @@
+<h3>Seasons and episodes</h3>
+<div class="seasons-container">
+    <ng-container *ngIf="!selectedSeason; else episodesView">
+        <mat-card
+            class="season-item"
+            *ngFor="let season of seasons | keyvalue"
+            (click)="selectSeason(season.key)"
+        >
+            <mat-card-content>Season {{ season.key }}</mat-card-content>
+        </mat-card>
+    </ng-container>
+
+    <ng-template #episodesView>
+        <mat-card class="episode-item" (click)="selectedSeason = undefined">
+            <div class="episode-title">< Back to seasons</div>
+        </mat-card>
+        <mat-card
+            class="episode-item"
+            *ngFor="let episode of seasons[selectedSeason]"
+            (click)="selectEpisode(episode)"
+        >
+            <mat-card-content *ngIf="episode.info.movie_image"
+                ><img [src]="episode.info.movie_image" class="episode-cover"
+            /></mat-card-content>
+            <div class="episode-title">
+                {{ episode.episode_num }}. {{ episode.title }}
+            </div>
+        </mat-card>
+    </ng-template>
+</div>

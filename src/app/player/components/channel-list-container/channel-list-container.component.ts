@@ -123,7 +123,6 @@ export class ChannelListContainerComponent {
 
     drop(event: CdkDragDrop<Channel[]>, favorites: Channel[]) {
         moveItemInArray(favorites, event.previousIndex, event.currentIndex);
-        console.log(favorites);
         this.store.dispatch(
             PlaylistActions.setFavorites({
                 channelIds: favorites.map((item) => item.id),

@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core';
-import * as moment from 'moment';
+import moment from 'moment';
 
 /**
  * Moment.js based pipe to parse and return the provided date based on given params

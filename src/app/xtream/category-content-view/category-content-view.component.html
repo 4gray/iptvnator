@@ -1,0 +1,42 @@
+<ng-container *ngIf="items?.length > 0; else noItems">
+    <div class="grid">
+        <mat-card
+            *ngFor="
+                let item of items | filterBy : searchPhrase() : 'name';
+                trackBy: trackByFn
+            "
+            (click)="itemClicked.emit(item)"
+        >
+            <mat-card-content>
+                <img
+                    class="stream-icon"
+                    *ngIf="item.stream_icon"
+                    [src]="item.stream_icon"
+                />
+                <img
+                    class="stream-icon"
+                    *ngIf="item.cover"
+                    [src]="item.cover"
+                />
+                <div
+                    class="stream-icon-placeholder"
+                    *ngIf="!item.stream_icon && !item.cover"
+                ></div>
+                <div class="title">{{ item.name }}</div>
+            </mat-card-content>
+        </mat-card>
+        <div
+            class="no-content"
+            *ngIf="!(items | filterBy : searchPhrase() : 'name')?.length"
+        >
+            <mat-icon class="icon">search</mat-icon>
+            <div>Nothing found, try to change you search request</div>
+        </div>
+    </div>
+</ng-container>
+<ng-template #noItems>
+    <div class="no-content">
+        <mat-icon class="icon">list</mat-icon>
+        <div>This category is empty, try another one</div>
+    </div>
+</ng-template>

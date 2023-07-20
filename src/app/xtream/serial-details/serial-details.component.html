@@ -1,0 +1,69 @@
+<div
+    class="container"
+    [style.background]="
+        item.info?.backdrop_path && item.info.backdrop_path.length > 0
+            ? 'linear-gradient(to top, rgba(29,29,29,1) 0%, rgba(0,0,0,0.5) 100%), url(' +
+              item.info.backdrop_path[0] +
+              ') repeat-x'
+            : 'none'
+    "
+>
+    <div class="image">
+        <img *ngIf="item.info.cover" [src]="item.info.cover" />
+    </div>
+    <div class="details">
+        <h2>{{ item.info.name }}</h2>
+        <label *ngIf="item.info.plot">
+            {{ item.info.plot }}
+        </label>
+        <label *ngIf="item.info.releaseDate">
+            <div class="label">Release date:</div>
+            {{ item.info.releaseDate }}
+        </label>
+        <label *ngIf="item.info.genre">
+            <div class="label">Genre:</div>
+            {{ item.info.genre }}
+        </label>
+        <label *ngIf="item.info.rating">
+            <div class="label">Rating:</div>
+            {{ item.info.rating }}
+        </label>
+        <div *ngIf="item.info.cast">
+            <div class="label">Cast:</div>
+            {{ item.info.cast }}
+        </div>
+        <label *ngIf="item.info.director">
+            <div class="label">Director:</div>
+            {{ item.info.director }}
+        </label>
+        <label *ngIf="item.info.episode_run_time">
+            <div class="label">Episode run time:</div>
+            {{ item.info.episode_run_time }}
+        </label>
+        <div class="action-buttons">
+            <button
+                *ngIf="!isFavorite; else removeFromFavoritesButton"
+                mat-stroked-button
+                color="accent"
+                (click)="toggleFavorite()"
+            >
+                <mat-icon>star_outline</mat-icon> Add to favorites
+            </button>
+
+            <ng-template #removeFromFavoritesButton>
+                <button
+                    mat-flat-button
+                    color="accent"
+                    (click)="toggleFavorite()"
+                >
+                    <mat-icon>star</mat-icon>Remove from favorites
+                </button>
+            </ng-template>
+        </div>
+    </div>
+</div>
+
+<app-season-container
+    [seasons]="item.episodes"
+    (episodeClicked)="playClicked.emit($event)"
+/>

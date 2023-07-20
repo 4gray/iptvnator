@@ -5,31 +5,34 @@
         *ngIf="playlists$ | async as playlists"
     >
         <mat-list-item *ngIf="playlists.length === 0">
-            <mat-icon class="favorites-icon" mat-list-icon>search</mat-icon>
-            <div mat-line>{{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}</div>
-            <div mat-line class="meta">
+            <mat-icon class="favorites-icon" matListItemAvatar>search</mat-icon>
+            <div matListItemTitle>
+                {{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}
+            </div>
+            <div matListItemLine class="meta">
                 {{ 'HOME.PLAYLISTS.ADD_FIRST' | translate }}
             </div>
         </mat-list-item>
         <mat-list-item
             *ngIf="playlists.length > 0"
-            (click)="getPlaylist('GLOBAL_FAVORITES')"
+            (click)="getGlobalFavorites()"
         >
-            <mat-icon class="favorites-icon" mat-list-icon>star</mat-icon>
-            <div mat-line>
+            <mat-icon class="favorites-icon" matListItemAvatar>star</mat-icon>
+            <div matListItemTitle>
                 {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}
             </div>
-            <div mat-line class="meta">
+            <div matListItemLine class="meta">
                 {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES_DESCRIPTION' | translate }}
             </div>
-            <mat-divider></mat-divider>
         </mat-list-item>
+        <mat-divider></mat-divider>
 
         <app-playlist-item
             *ngFor="let item of playlists; last as last"
             [item]="item"
+            [showActions]="!sidebarMode"
             (editPlaylistClicked)="openInfoDialog($event)"
-            (playlistClicked)="getPlaylist($event)"
+            (playlistClicked)="getPlaylist(item)"
             (refreshClicked)="refreshPlaylist($event)"
             (removeClicked)="removeClicked($event)"
         ></app-playlist-item>

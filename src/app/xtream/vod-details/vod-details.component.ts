@@ -1,0 +1,66 @@
+import { JsonPipe, NgIf } from '@angular/common';
+import {
+    Component,
+    EventEmitter,
+    Input,
+    OnInit,
+    Output,
+    inject,
+} from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { ActivatedRoute } from '@angular/router';
+import { XtreamVodDetails } from '../../../../shared/xtream-vod-details.interface';
+import { PlaylistsService } from '../../services/playlists.service';
+
+@Component({
+    selector: 'app-vod-details',
+    templateUrl: './vod-details.component.html',
+    styleUrls: ['../detail-view.scss'],
+    standalone: true,
+    imports: [JsonPipe, MatButtonModule, NgIf, MatIconModule],
+})
+export class VodDetailsComponent implements OnInit {
+    @Input({ required: true }) item: XtreamVodDetails;
+
+    @Output() addToFavoritesClicked = new EventEmitter<any>();
+    @Output() playClicked = new EventEmitter<XtreamVodDetails>();
+    @Output() removeFromFavoritesClicked = new EventEmitter<number>();
+
+    private playlistService = inject(PlaylistsService);
+    private route = inject(ActivatedRoute);
+    private portalId = this.route.snapshot.paramMap.get('id');
+
+    isFavorite = false;
+
+    ngOnInit(): void {
+        this.checkFavoriteStatus();
+    }
+
+    checkFavoriteStatus() {
+        this.playlistService
+            .getPortalFavorites(this.portalId)
+            .subscribe((favorites) => {
+                this.isFavorite = favorites.some(
+                    (i) => i.stream_id === this.item.movie_data.stream_id
+                );
+            });
+    }
+
+    toggleFavorite() {
+        if (this.isFavorite) {
+            this.removeFromFavoritesClicked.emit(
+                this.item.movie_data.stream_id
+            );
+        } else {
+            this.addToFavoritesClicked.emit({
+                name: this.item.movie_data.name,
+                stream_id: this.item.movie_data.stream_id,
+                container_extension: this.item.movie_data.container_extension,
+                cover: this.item.info.movie_image,
+                stream_type: 'movie',
+            });
+        }
+        this.isFavorite = !this.isFavorite;
+    }
+}

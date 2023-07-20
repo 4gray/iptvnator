@@ -1,0 +1,9 @@
+<h2 mat-dialog-title>{{ title }}</h2>
+<mat-dialog-content>
+    <app-vjs-player
+        *ngIf="player === 'videojs'"
+        [options]="vjsOptions"
+    ></app-vjs-player>
+    <app-html-video-player *ngIf="player === 'html5'" [channel]="channel">
+    </app-html-video-player>
+</mat-dialog-content>

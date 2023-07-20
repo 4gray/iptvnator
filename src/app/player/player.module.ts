@@ -21,9 +21,11 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
 @NgModule({
     imports: [
         CommonModule,
+        HtmlVideoPlayerComponent,
         OverlayModule,
         RouterModule.forChild(routes),
         SharedModule,
+        VjsPlayerComponent,
     ],
     declarations: [
         ChannelListContainerComponent,
@@ -32,12 +34,10 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
         EpgListComponent,
         EpgListItemComponent,
         InfoOverlayComponent,
-        HtmlVideoPlayerComponent,
         MultiEpgContainerComponent,
         SidebarComponent,
         ToolbarComponent,
         VideoPlayerComponent,
-        VjsPlayerComponent,
     ],
 })
 export class PlayerModule {}

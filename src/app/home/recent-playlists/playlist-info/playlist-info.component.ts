@@ -6,11 +6,11 @@ import {
     ReactiveFormsModule,
     UntypedFormBuilder,
     UntypedFormGroup,
-    Validators
+    Validators,
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
@@ -25,6 +25,13 @@ import * as PlaylistActions from '../../../state/actions';
 @Component({
     selector: 'app-playlist-info',
     templateUrl: './playlist-info.component.html',
+    styles: [
+        `
+            .spacer {
+                flex: 1 1 auto;
+            }
+        `,
+    ],
     providers: [DatePipe],
     imports: [
         TranslateModule,
@@ -88,6 +95,9 @@ export class PlaylistInfoComponent {
                 disabled: true,
             }),
             autoRefresh: new FormControl(this.playlist.autoRefresh),
+            serverUrl: new FormControl(this.playlist.serverUrl),
+            username: new FormControl(this.playlist.username),
+            password: new FormControl(this.playlist.password),
         });
     }
 

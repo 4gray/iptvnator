@@ -233,11 +233,14 @@ export class AppComponent {
 
     showErrorAsNotification(response: { message: string; status: number }) {
         this.snackBar.open(
-            `Error: ${response.message} (Status: ${response.status})`,
+            `Error: ${response?.message ?? 'Something went wrong'} (Status: ${
+                response?.status ?? 0
+            })`,
             null,
             { duration: 4000 }
         );
     }
+
     /**
      * Removes all ipc command listeners on component destroy
      */

@@ -2,7 +2,7 @@
 import { Injectable } from '@angular/core';
 import { parse } from 'iptv-playlist-parser';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { combineLatest, map, Observable, switchMap } from 'rxjs';
+import { combineLatest, map, switchMap } from 'rxjs';
 import { Channel } from '../../../shared/channel.interface';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../shared/constants';
 import {
@@ -14,6 +14,8 @@ import {
     createFavoritesPlaylist,
     createPlaylistObject,
 } from '../../../shared/playlist.utils';
+import { XtreamItem } from '../../../shared/xtream-item.interface';
+import { XtreamSerieItem } from '../../../shared/xtream-serie-item.interface';
 import { DbStores } from '../indexed-db.config';
 import { PlaylistMeta } from '../shared/playlist-meta.type';
 
@@ -40,19 +42,12 @@ export class PlaylistsService {
         return this.dbService.add(DbStores.Playlists, playlist);
     }
 
-    getPlaylistChannels(id: string) {
-        let playlist$: Observable<Partial<Playlist>>;
+    getPlaylist(id: string) {
         if (id === GLOBAL_FAVORITES_PLAYLIST_ID) {
-            playlist$ = this.getPlaylistWithGlobalFavorites();
+            return this.getPlaylistWithGlobalFavorites();
         } else {
-            playlist$ = this.dbService.getByID<Playlist>(
-                DbStores.Playlists,
-                id
-            );
+            return this.dbService.getByID<Playlist>(DbStores.Playlists, id);
         }
-        return playlist$.pipe(
-            map((data: Playlist) => data.playlist.items as Channel[])
-        );
     }
 
     deletePlaylist(playlistId: string) {
@@ -84,6 +79,7 @@ export class PlaylistsService {
                     ...playlist,
                     title: updatedPlaylist.title,
                     autoRefresh: updatedPlaylist.autoRefresh,
+                    userAgent: updatedPlaylist.userAgent,
                 })
             )
         );
@@ -122,6 +118,43 @@ export class PlaylistsService {
                     )
                 )
             );
+    }
+
+    getPortalFavorites(portalId: string) {
+        return this.dbService
+            .getByID<{ favorites: Partial<XtreamItem>[] }>(
+                DbStores.Playlists,
+                portalId
+            )
+            .pipe(map((item) => item.favorites ?? []));
+    }
+
+    addPortalFavorite(portalId: string, item: any) {
+        return this.getPlaylistById(portalId).pipe(
+            switchMap((portal) =>
+                this.dbService.update(DbStores.Playlists, {
+                    ...portal,
+                    favorites: [...(portal.favorites ?? []), item],
+                })
+            )
+        );
+    }
+
+    removeFromPortalFavorites(portalId: string, favoriteId: number) {
+        return this.getPlaylistById(portalId).pipe(
+            switchMap((portal) =>
+                this.dbService.update(DbStores.Playlists, {
+                    ...portal,
+                    favorites: portal.favorites.filter(
+                        (i) =>
+                            (i as Partial<XtreamItem>).stream_id !==
+                                favoriteId &&
+                            (i as Partial<XtreamSerieItem>).series_id !==
+                                favoriteId
+                    ),
+                })
+            )
+        );
     }
 
     updatePlaylistPositions(

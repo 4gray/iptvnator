@@ -34,7 +34,6 @@ class MatSnackBarStub {
 describe('VideoPlayerComponent', () => {
     let component: VideoPlayerComponent;
     let fixture: ComponentFixture<VideoPlayerComponent>;
-    let channels;
     let mockStore: MockStore;
     const actions$ = new Observable<Actions>();
 

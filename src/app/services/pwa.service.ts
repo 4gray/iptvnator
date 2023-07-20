@@ -10,6 +10,8 @@ import {
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
+    XTREAM_REQUEST,
+    XTREAM_RESPONSE,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { AppConfig } from '../../environments/environment';
@@ -65,6 +67,10 @@ export class PwaService extends DataService {
             this.fetchFromUrl(payload);
         } else if (type === PLAYLIST_UPDATE) {
             this.refreshPlaylist(payload);
+        } else if (type === XTREAM_REQUEST) {
+            this.forwardXtreamRequest(
+                payload as { url: string; params: Record<string, string> }
+            );
         }
     }
 
@@ -136,6 +142,26 @@ export class PwaService extends DataService {
         return message;
     }
 
+    forwardXtreamRequest(payload: {
+        url: string;
+        params: Record<string, string>;
+    }) {
+        return this.http
+            .get(`${this.corsProxyUrl}/xtream`, {
+                params: {
+                    url: payload.url,
+                    ...payload.params,
+                },
+            })
+            .subscribe((response) => {
+                window.postMessage({
+                    type: XTREAM_RESPONSE,
+                    payload: (response as any).payload,
+                    action: payload.params.action,
+                });
+            });
+    }
+
     getPlaylistFromUrl(url: string) {
         return this.http.get(`${this.corsProxyUrl}/parse`, {
             params: { url },
@@ -146,7 +172,7 @@ export class PwaService extends DataService {
         // not implemented
     }
 
-    listenOn(command: string, callback: (...args: any[]) => void): void {
+    listenOn(_command: string, callback: (...args: any[]) => void): void {
         window.addEventListener('message', callback);
     }
 }

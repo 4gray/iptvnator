@@ -1,0 +1,20 @@
+<div class="centered">
+    <mat-icon class="icon">live_tv</mat-icon>
+    <div>
+        The video is playing in external player window.<br />
+        Please make sure that mpv player is correctly installed on your
+        system.<br />
+        See
+        <a
+            [routerLink]
+            style="cursor: pointer"
+            (click)="
+                openUrl(
+                    'https://github.com/4gray/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F'
+                )
+            "
+            >installation instructions</a
+        >
+        for more details.
+    </div>
+</div>

@@ -10,7 +10,7 @@
             "TEXT_IMPORT": "Импортировать из текста"
         },
         "PLAYLISTS": {
-            "NO_PLAYLISTS": "Пока еще не было добавленно ни одного плейлиста",
+            "NO_PLAYLISTS": "Пока еще не было добавлено ни одного плейлиста",
             "ADD_FIRST": "Вы можете добавить плейлисты из соседних вкладок",
             "ADDED_VIA_URL": "Был добавлен по ссылке:",
             "ADDED_VIA_FILE": "Был загружен с компьютера",
@@ -32,23 +32,26 @@
                 "UPDATE_FAILED": "Не удалось обновить плейлист",
                 "AUTO_UPDATE": "Автообновление",
                 "AUTO_UPDATE_DESCRIPTION": "Если активирована функция автообновления, список воспроизведения будет обновляться автоматически при каждом запуске приложения.",
-                "CUSTOM_USER_AGENT": "Некоторые IPTV провайдеры требуют указанние определенного пользовательского агента (User Agent) для воспроизведения своего плейлиста.",
+                "CUSTOM_USER_AGENT": "Некоторые IPTV провайдеры требуют указание определенного пользовательского агента (User Agent) для воспроизведения своего плейлиста.",
                 "EXPORT_PLAYLIST": "Экспортировать плейлист (m3u)"
             },
             "UPDATED": "Обновлен",
             "REFRESH": "Обновить плейлист",
             "REMOVE_DIALOG": {
                 "MESSAGE": "Вы уверены, что хотите удалить этот плейлист?",
-                "TITLE": ""
+                "TITLE": "Удалить плейлист"
             },
             "GLOBAL_FAVORITES": "Все фавориты",
             "GLOBAL_FAVORITES_DESCRIPTION": "Автоматически сгенерированный плейлист, включающий в себя фавориты из всех плейлистов",
-            "MY_PLAYLISTS": "Мои плейлисты"
+            "MY_PLAYLISTS": "Мои плейлисты",
+            "MY_PLAYLISTS_SUBTITLE": "Все имеющиеся плейлисты",
+            "PLAYLIST_UPDATE_SUCCESS": "Плейлист был успешно обновлен!"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Перетащите файл в эту область",
             "OR": "или",
-            "CHOOSE_PLAYLIST": "выберите плейлист"
+            "CHOOSE_PLAYLIST": "выберите плейлист",
+            "REJECTED": "К сожалению, данный формат файлов не поддерживается {{filename}}."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Ссылка на плейлист (*.m3u или *.m3u8)",
@@ -57,6 +60,14 @@
         "TEXT_IMPORT": {
             "LABEL": "Вставьте плейлист формата m3u(8) в данное поле",
             "BUTTON_LABEL": "Импортировать"
+        },
+        "XTREAM_PLAYLIST": {
+            "TITLE": "Название плейлиста",
+            "SERVER_URL": "Сервер URL",
+            "USERNAME": "Пользователь",
+            "PASSWORD": "Пароль",
+            "ADD": "Добавить",
+            "TEST_CREDENTIALS": "Проверить"
         }
     },
     "SETTINGS": {
@@ -76,7 +87,29 @@
         "LANGUAGE": "Язык",
         "SETTINGS_SAVED": "Новые настройки были успешно сохранены!",
         "THEME": "Тема оформления",
-        "SHOW_CAPTIONS": "Отображать субтитры"
+        "SHOW_CAPTIONS": "Отображать субтитры",
+        "ADD_EPG_SOURCE": "Добавить источник EPG",
+        "EPG_URL_ERROR": "The value is not a valid URL",
+        "VIDEO_PLAYER_DESCRIPTION": "Выбрать стандартный видео плеер",
+        "LANGUAGE_DESCRIPTION": "Выбрать язык приложения",
+        "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
+        "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
+        "VERSION_DESCRIPTION": "Текущая версия приложения",
+        "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
+        "EPG_NOTE_URL_TEXT": "Подробнее здесь",
+        "IMPORT_EXPORT_DATA": "Импорт/экспорт плейлистов",
+        "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
+        "IMPORT_DATA": "Импорт",
+        "EXPORT_DATA": "Экспорт",
+        "REMOVE_ALL": "Remove playlist",
+        "REMOVE_ALL_BUTTON": "Удалить",
+        "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
+        "REMOVE_DIALOG": {
+            "TITLE": "Удалить все плейлисты",
+            "MESSAGE": "Вы уверены что хотите удалить все плейлисты из приложения?"
+        },
+        "IMPORT_ERROR": "Import error, please try with another file.",
+        "PLAYLISTS_REMOVED": "All playlists were removed."
     },
     "THEMES": {
         "DARK_THEME": "Тёмная тема",
@@ -92,7 +125,8 @@
         "FAVORITES": "Избранные",
         "NO_FAVORITES": "Избранных каналов пока нет",
         "USE_STAR_TO_FAVORITE": "Используйте иконку звезды, чтобы добавлять каналы в избранное",
-        "REMOVE_FAVORITE": "Удалить из списка фаворитов"
+        "REMOVE_FAVORITE": "Удалить из списка фаворитов",
+        "FAVORITES_UPDATED": "Список фаворитов был обновлен!"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Открыть список каналов",
@@ -129,6 +163,7 @@
         "GERMAN": "Deutsch",
         "SPANISH": "Español",
         "CHINESE": "简体中文",
+        "TRADITIONAL_CHINESE": "繁體中文",
         "FRENCH": "Français",
         "ITALIAN": "Italiano"
     },
@@ -143,5 +178,15 @@
         "WHAT_IS_NEW": "Что нового?",
         "ABOUT": "О приложении",
         "ABOUT_ARIA": "О приложении"
-    }
+    },
+    "ABOUT": {
+        "TITLE": "О приложении",
+        "DESCRIPTION": "Cross-platform IPTV player application with multiple features, such as support of m3u and m3u8 playlists, favorites, TV guide, TV archive/catchup and more.",
+        "VERSION": "Версия",
+        "GITHUB_TOOLTIP": "Репозиторий приложения на GitHub",
+        "BUY_ME_A_COFFEE_TOOLTIP": "Поддержать разработчика",
+        "TWITTER_TOOLTIP": "Поделиться на Twitter"
+    },
+    "UPDATE_AVAILABLE": "Доступно обновление",
+    "REFRESH": "Обновить"
 }

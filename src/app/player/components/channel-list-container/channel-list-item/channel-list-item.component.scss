@@ -1,6 +1,9 @@
 .channel-logo {
     max-height: 48px;
     overflow: hidden;
+    border-radius: 0;
+    margin-left: 10px;
+    margin-right: 5px;
 }
 
 .channel-name {
@@ -27,5 +30,6 @@
 
 .drag-icon {
     cursor: move;
-    margin-left: -20px;
+    margin-left: 0;
+    margin-right: 0;
 }

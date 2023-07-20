@@ -21,9 +21,9 @@
 >
 <span
     (click)="$event.stopPropagation(); showDescription(item)"
+    matListItemMeta
     *ngIf="item.desc.length > 0"
     class="description-icon"
     [matTooltip]="'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate"
     ><mat-icon>info</mat-icon></span
 >
-<mat-divider></mat-divider>

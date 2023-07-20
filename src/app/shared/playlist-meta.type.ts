@@ -15,4 +15,7 @@ export type PlaylistMeta = Pick<
     | 'position'
     | 'autoRefresh'
     | 'favorites'
+    | 'serverUrl'
+    | 'username'
+    | 'password'
 >;

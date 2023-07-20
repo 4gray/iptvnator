@@ -2,6 +2,7 @@ import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
     Component,
     EventEmitter,
+    Input,
     NgZone,
     OnDestroy,
     Output,
@@ -12,6 +13,7 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { map } from 'rxjs';
+import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../../shared/constants';
 import { IpcCommand } from '../../../../shared/ipc-command.class';
 import { Playlist } from '../../../../shared/playlist.interface';
 import { DataService } from '../../services/data.service';
@@ -46,6 +48,8 @@ export class RecentPlaylistsComponent implements OnDestroy {
     );
 
     allPlaylistsLoaded$ = this.store.select(selectPlaylistsLoadingFlag);
+
+    @Input() sidebarMode = false;
 
     /** IPC Renderer commands list with callbacks */
     commandsList = [
@@ -157,9 +161,18 @@ export class RecentPlaylistsComponent implements OnDestroy {
         );
     }
 
-    getPlaylist(playlistId: string): void {
-        this.router.navigate(['playlists', playlistId]);
-        this.playlistClicked.emit(playlistId);
+    getGlobalFavorites() {
+        this.router.navigate(['playlists', GLOBAL_FAVORITES_PLAYLIST_ID]);
+        this.playlistClicked.emit(GLOBAL_FAVORITES_PLAYLIST_ID);
+    }
+
+    getPlaylist(playlistMeta: PlaylistMeta): void {
+        if (playlistMeta.serverUrl) {
+            this.router.navigate(['xtreams', playlistMeta._id]);
+        } else {
+            this.router.navigate(['playlists', playlistMeta._id]);
+            this.playlistClicked.emit(playlistMeta._id);
+        }
     }
 
     /**

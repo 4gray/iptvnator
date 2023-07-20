@@ -76,7 +76,8 @@
             },
             "GLOBAL_FAVORITES": "Globale Favoriten",
             "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
-            "MY_PLAYLISTS": "Meine Playlisten"
+            "MY_PLAYLISTS": "Meine Playlisten",
+            "MY_PLAYLISTS_SUBTITLE": "Alle verfügbaren Playlisten"
         },
         "TABS": {
             "FILE_UPLOAD": "Aus Dateisystem hochladen",
@@ -91,6 +92,14 @@
         "TEXT_IMPORT": {
             "LABEL": "Füge m3u(8)-Wiedergabeliste hier als Text ein",
             "BUTTON_LABEL": "Importieren"
+        },
+        "XTREAM_PLAYLIST": {
+            "TITLE": "Playlist Titel",
+            "SERVER_URL": "Server URL",
+            "USERNAME": "Nutzername",
+            "PASSWORD": "Passwort",
+            "ADD": "Hinzufügen",
+            "TEST_CREDENTIALS": "Verbindung testen"
         }
     },
     "LANGUAGES": {
@@ -100,6 +109,7 @@
         "GERMAN": "Deutsch",
         "SPANISH": "Español",
         "CHINESE": "简体中文",
+        "TRADITIONAL_CHINESE": "繁體中文",
         "FRENCH": "Français",
         "ITALIAN": "Italiano"
     },

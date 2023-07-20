@@ -1,0 +1,10 @@
+.container {
+    height: calc(100vh - 140px);
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+}
+
+mat-spinner {
+    margin-top: 10px;
+}

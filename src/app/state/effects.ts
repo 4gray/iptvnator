@@ -167,7 +167,11 @@ export class PlaylistEffects {
                     this.playlistsService.addPlaylist(action.playlist)
                 ),
                 tap((playlist) => {
-                    this.router.navigate(['/playlists/', playlist._id]);
+                    if (playlist.serverUrl) {
+                        this.router.navigate(['/xtreams/', playlist._id]);
+                    } else {
+                        this.router.navigate(['/playlists/', playlist._id]);
+                    }
                 })
             );
         },

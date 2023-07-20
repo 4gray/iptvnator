@@ -1,7 +1,7 @@
-import { EpgItemDescriptionComponent } from './../epg-item-description/epg-item-description.component';
-import { MatDialog } from '@angular/material/dialog';
 import { Component, Input } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { EpgProgram } from '../../../models/epg-program.model';
+import { EpgItemDescriptionComponent } from './../epg-item-description/epg-item-description.component';
 
 @Component({
     selector: 'app-epg-list-item',

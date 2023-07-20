@@ -1,0 +1,65 @@
+:host {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+#navigation {
+    height: 70px;
+    background: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+}
+
+#sub-panel {
+    background: white;
+    border-bottom: 1px solid #ccc;
+    padding: 0 10px 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 30px;
+
+    .breadcrumbs {
+        span {
+            cursor: pointer;
+
+            &:not(:last-child)::after {
+                content: '>';
+                margin: 0 10px;
+            }
+        }
+
+        span:hover {
+            text-decoration: underline;
+        }
+    }
+
+    .search {
+        text-align: center;
+
+        .search-input {
+            padding: 6px 8px 6px 40px;
+            width: 250px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            color: #000;
+            background: #ccc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' class='bi bi-search' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'%3E%3C/path%3E%3C/svg%3E") no-repeat 13px center;
+            display: block;
+        }
+    }
+}
+
+::ng-deep {
+    .dark-theme {
+        #navigation, #sub-panel {
+            background: black;
+        }
+
+        #sub-panel {
+            border-bottom: 1px solid #333;
+        }
+    }
+}

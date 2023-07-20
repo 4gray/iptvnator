@@ -20,4 +20,5 @@ export interface Settings {
     language: Language;
     showCaptions: boolean;
     theme: Theme;
+    mpvPlayerPath: string;
 }
