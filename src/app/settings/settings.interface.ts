@@ -9,6 +9,7 @@ export enum VideoPlayer {
     VideoJs = 'videojs',
     Html5Player = 'html5',
     MPV = 'mpv',
+    VLC = 'vlc',
 }
 
 /**
@@ -21,4 +22,5 @@ export interface Settings {
     showCaptions: boolean;
     theme: Theme;
     mpvPlayerPath: string;
+    vlcPlayerPath: string;
 }

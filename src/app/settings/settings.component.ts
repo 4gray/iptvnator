@@ -15,6 +15,7 @@ import * as semver from 'semver';
 import {
     EPG_FORCE_FETCH,
     SET_MPV_PLAYER_PATH,
+    SET_VLC_PLAYER_PATH,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
@@ -43,6 +44,17 @@ export class SettingsComponent implements OnInit {
     /** Flag that indicates whether the app runs in electron environment */
     isElectron = this.electronService.isElectron;
 
+    electronPlayers = [
+        {
+            id: VideoPlayer.MPV,
+            label: 'MPV Player',
+        },
+        {
+            id: VideoPlayer.VLC,
+            label: 'VLC',
+        },
+    ];
+
     /** Player options */
     players = [
         {
@@ -53,15 +65,7 @@ export class SettingsComponent implements OnInit {
             id: VideoPlayer.VideoJs,
             label: 'VideoJs Player',
         },
-        ...(this.isElectron
-            ? 
-            [
-                {
-                    id: VideoPlayer.MPV,
-                    label: 'MPV Player',
-                },
-            ]
-            : []),
+        ...(this.isElectron ? this.electronPlayers : []),
     ];
 
     /** Current version of the app */
@@ -84,6 +88,7 @@ export class SettingsComponent implements OnInit {
         showCaptions: false,
         theme: Theme.LightTheme,
         mpvPlayerPath: '',
+        vlcPlayerPath: '',
     });
 
     /** Form array with epg sources */
@@ -138,6 +143,7 @@ export class SettingsComponent implements OnInit {
                             ? settings.theme
                             : Theme.LightTheme,
                         mpvPlayerPath: settings.mpvPlayerPath,
+                        vlcPlayerPath: settings.vlcPlayerPath,
                     });
 
                     if (this.isElectron) {
@@ -228,6 +234,11 @@ export class SettingsComponent implements OnInit {
 
         this.electronService.sendIpcEvent(
             SET_MPV_PLAYER_PATH,
+            this.settingsForm.value.mpvPlayerPath
+        );
+
+        this.electronService.sendIpcEvent(
+            SET_VLC_PLAYER_PATH,
             this.settingsForm.value.mpvPlayerPath
         );
     }
