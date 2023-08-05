@@ -12,8 +12,6 @@ export interface Channel {
     tvg: {
         id: string;
         name: string;
-        language: string;
-        country: string;
         url: string;
         logo: string;
         rec: string;
@@ -29,4 +27,5 @@ export interface Channel {
         referrer: string;
         'user-agent': string;
     };
+    radio: string;
 }

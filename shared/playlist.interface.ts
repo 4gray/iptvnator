@@ -32,4 +32,6 @@ export interface Playlist {
     serverUrl?: string;
     username?: string;
     password?: string;
+    macAddress?: string;
+    portalUrl?: string;
 }
