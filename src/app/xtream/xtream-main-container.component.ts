@@ -25,6 +25,7 @@ import { IpcCommand } from '../../../shared/ipc-command.class';
 import {
     ERROR,
     OPEN_MPV_PLAYER,
+    OPEN_VLC_PLAYER,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
 } from '../../../shared/ipc-commands';
@@ -55,24 +56,22 @@ import { PlaylistsService } from '../services/playlists.service';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { Breadcrumb } from './breadcrumb.interface';
+import { ContentTypeNavigationItem } from './content-type-navigation-item.interface';
 import { PlayerDialogComponent } from './player-dialog/player-dialog.component';
 import { PortalStore } from './portal.store';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 
 const ContentTypes = {
-    LIVE_STREAMS: {
-        title: 'Live streams',
+    [ContentType.ITV]: {
         getContentAction: XtreamCodeActions.GetLiveStreams,
         getCategoryAction: XtreamCodeActions.GetLiveCategories,
     },
-    VODS: {
-        title: 'VOD streams',
+    [ContentType.VODS]: {
         getContentAction: XtreamCodeActions.GetVodStreams,
         getCategoryAction: XtreamCodeActions.GetVodCategories,
         getDetailsAction: XtreamCodeActions.GetVodInfo,
     },
-    SERIES: {
-        title: 'Series',
+    [ContentType.SERIES]: {
         getContentAction: XtreamCodeActions.GetSeries,
         getCategoryAction: XtreamCodeActions.GetSeriesCategories,
         getDetailsAction: XtreamCodeActions.GetSeriesInfo,
@@ -123,6 +122,20 @@ export class XtreamMainContainerComponent implements OnInit {
     storage = inject(StorageMap);
     store = inject(Store);
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
+    navigationContentTypes: ContentTypeNavigationItem[] = [
+        {
+            contentType: ContentType.ITV,
+            label: 'Live Streams',
+        },
+        {
+            contentType: ContentType.VODS,
+            label: 'VOD Streams',
+        },
+        {
+            contentType: ContentType.SERIES,
+            label: 'Series',
+        },
+    ];
 
     favorites$: Observable<any>;
     breadcrumbs: Breadcrumb[] = [];
@@ -157,7 +170,6 @@ export class XtreamMainContainerComponent implements OnInit {
 
     ngOnInit() {
         this.setInitialBreadcrumb();
-        console.log(this.currentPlaylist()._id);
         this.favorites$ = this.playlistService.getPortalFavorites(
             this.currentPlaylist()._id
         );
@@ -276,6 +288,10 @@ export class XtreamMainContainerComponent implements OnInit {
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
             });
+        } else if (player === VideoPlayer.VLC) {
+            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
+                url: streamUrl,
+            });
         } else {
             this.dialog.open(PlayerDialogComponent, {
                 data: { streamUrl, player, title },
@@ -385,7 +401,6 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     setSearchPhrase(searchPhrase: string) {
-        console.log(searchPhrase);
         this.searchPhrase = searchPhrase;
     }
 
