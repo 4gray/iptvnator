@@ -8,7 +8,7 @@
             "FILE_UPLOAD": "Add via file upload",
             "URL_UPLOAD": "Add via URL",
             "TEXT_IMPORT": "Import as text",
-            "XTREME_IMPORT": "Import xtreme code",
+            "XTREME_IMPORT": "Add Xtreme Code",
             "STALKER_PORTAL_IMPORT": "Add Stalker Portal"
         },
         "PLAYLISTS": {
@@ -17,6 +17,7 @@
             "ADDED_VIA_URL": "Added via URL upload. URL:",
             "ADDED_VIA_FILE": "Added via file upload",
             "XTREAM_PLAYLIST": "Xtream playlist",
+            "STALKER_PORTAL": "Stalker portal",
             "CHANNELS": "Channels",
             "ADDED": "Added",
             "SHOW_DETAILS": "Show playlist details",
@@ -39,7 +40,8 @@
                 "EXPORT_PLAYLIST": "Export playlist as m3u",
                 "SERVER_URL": "Server URL",
                 "USERNAME": "Username",
-                "PASSWORD": "Password"
+                "PASSWORD": "Password",
+                "MAC_ADDRESS": "Mac Address"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Remove playlist",
@@ -76,6 +78,13 @@
             "ADD": "Add",
             "TEST_CREDENTIALS": "Test credentials",
             "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com or https://example.com:4324)"
+        },
+        "STALKER_PORTAL": {
+            "TITLE": "Title",
+            "MAC_ADDRESS": "Mac Address",
+            "SERVER_URL": "Server URL",
+            "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com/portal.php or https://example.com:4324/portal.php)",
+            "ADD": "Add"
         }
     },
     "SETTINGS": {
