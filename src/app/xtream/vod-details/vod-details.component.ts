@@ -1,4 +1,4 @@
-import { JsonPipe, NgIf } from '@angular/common';
+import { NgIf } from '@angular/common';
 import {
     Component,
     EventEmitter,
@@ -18,7 +18,7 @@ import { PlaylistsService } from '../../services/playlists.service';
     templateUrl: './vod-details.component.html',
     styleUrls: ['../detail-view.scss'],
     standalone: true,
-    imports: [JsonPipe, MatButtonModule, NgIf, MatIconModule],
+    imports: [MatButtonModule, NgIf, MatIconModule],
 })
 export class VodDetailsComponent implements OnInit {
     @Input({ required: true }) item: XtreamVodDetails;
