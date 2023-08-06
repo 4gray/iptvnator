@@ -1,0 +1,54 @@
+<form [formGroup]="form">
+    <mat-form-field class="full-width">
+        <mat-label for="title">{{
+            'HOME.STALKER_PORTAL.TITLE' | translate
+        }}</mat-label>
+        <input matInput type="text" id="title" formControlName="title" />
+    </mat-form-field>
+    <mat-form-field class="full-width">
+        <mat-label for="portalUrl">{{
+            'HOME.STALKER_PORTAL.SERVER_URL' | translate
+        }}</mat-label>
+        <input
+            matInput
+            type="text"
+            id="portalUrl"
+            formControlName="portalUrl"
+        />
+        <mat-hint>{{
+            'HOME.STALKER_PORTAL.URL_VALIDATION_ERROR' | translate
+        }}</mat-hint>
+        <mat-error>{{ 'SETTINGS.EPG_URL_ERROR' | translate }}</mat-error>
+    </mat-form-field>
+    <mat-form-field class="full-width">
+        <mat-label for="macAddress">{{
+            'HOME.STALKER_PORTAL.MAC_ADDRESS' | translate
+        }}</mat-label>
+        <input
+            matInput
+            type="text"
+            id="macAddress"
+            formControlName="macAddress"
+        />
+    </mat-form-field>
+    <!-- <mat-form-field class="full-width">
+        <mat-label for="username">{{
+            'HOME.XTREAM_PLAYLIST.USERNAME' | translate
+        }}</mat-label>
+        <input matInput type="text" id="username" formControlName="username" />
+    </mat-form-field>
+    <mat-form-field class="full-width">
+        <mat-label for="password">{{
+            'HOME.XTREAM_PLAYLIST.PASSWORD' | translate
+        }}</mat-label>
+        <input matInput type="text" id="password" formControlName="password" />
+    </mat-form-field> -->
+    <button
+        mat-button
+        type="submit"
+        [disabled]="!form.valid"
+        (click)="addPlaylist()"
+    >
+        {{ 'HOME.STALKER_PORTAL.ADD' | translate }}
+    </button>
+</form>

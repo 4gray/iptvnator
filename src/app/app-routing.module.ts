@@ -37,6 +37,13 @@ const routes: Routes = [
             ),
     },
     {
+        path: 'portals/:id',
+        loadComponent: () =>
+            import('./stalker/stalker-main-container.component').then(
+                (c) => c.StalkerMainContainerComponent
+            ),
+    },
+    {
         path: '**',
         redirectTo: '',
     },
