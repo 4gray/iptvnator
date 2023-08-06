@@ -80,6 +80,21 @@ export class PlaylistsService {
                     title: updatedPlaylist.title,
                     autoRefresh: updatedPlaylist.autoRefresh,
                     userAgent: updatedPlaylist.userAgent,
+                    ...(updatedPlaylist.serverUrl !== null
+                        ? { serverUrl: updatedPlaylist.serverUrl }
+                        : {}),
+                    ...(updatedPlaylist.portalUrl !== null
+                        ? { portalUrl: updatedPlaylist.portalUrl }
+                        : {}),
+                    ...(updatedPlaylist.macAddress !== null
+                        ? { macAddress: updatedPlaylist.macAddress }
+                        : {}),
+                    ...(updatedPlaylist.username !== null
+                        ? { username: updatedPlaylist.username }
+                        : {}),
+                    ...(updatedPlaylist.password !== null
+                        ? { password: updatedPlaylist.password }
+                        : {}),
                 })
             )
         );
