@@ -50,3 +50,7 @@ export const SET_VLC_PLAYER_PATH = 'SET_VLC_PLAYER_PATH';
 // Xtream
 export const XTREAM_REQUEST = 'XTREAM_REQUEST';
 export const XTREAM_RESPONSE = 'XTREAM_RESPONSE';
+
+// Stalker
+export const STALKER_REQUEST = 'STALKER_REQUEST';
+export const STALKER_RESPONSE = 'STALKER_RESPONSE';
