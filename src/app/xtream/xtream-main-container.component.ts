@@ -240,6 +240,7 @@ export class XtreamMainContainerComponent implements OnInit {
 
     categoryClicked(item: XtreamCategory) {
         this.items = [];
+        this.portalStore.setSearchPhrase('');
         const action = ContentTypes[this.selectedContentType].getContentAction;
         this.breadcrumbs.push({
             title: item.category_name,

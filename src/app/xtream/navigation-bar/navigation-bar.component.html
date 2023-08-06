@@ -8,7 +8,7 @@
             name="contentType"
             aria-label="Content Type"
             [value]="contentType"
-            (change)="contentTypeChanged.emit($event.value)"
+            (change)="changeContentType($event.value)"
         >
             <mat-button-toggle
                 *ngFor="

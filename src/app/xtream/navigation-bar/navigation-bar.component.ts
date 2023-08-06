@@ -48,6 +48,11 @@ export class NavigationBarComponent {
         this.portalStore.setSearchPhrase(text);
     }
 
+    changeContentType(type: ContentType) {
+        this.setSearchText('');
+        this.contentTypeChanged.emit(type);
+    }
+
     trackByValue(_i: number, value: ContentTypeNavigationItem) {
         return value.contentType;
     }
