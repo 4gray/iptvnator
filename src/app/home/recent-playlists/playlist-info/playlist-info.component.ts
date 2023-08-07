@@ -98,6 +98,8 @@ export class PlaylistInfoComponent {
             serverUrl: new FormControl(this.playlist.serverUrl),
             username: new FormControl(this.playlist.username),
             password: new FormControl(this.playlist.password),
+            macAddress: new FormControl(this.playlist.macAddress),
+            portalUrl: new FormControl(this.playlist.portalUrl),
         });
     }
 

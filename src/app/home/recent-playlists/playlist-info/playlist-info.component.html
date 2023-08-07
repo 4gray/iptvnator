@@ -12,6 +12,18 @@
             }}</mat-label>
             <input formControlName="title" matInput />
         </mat-form-field>
+        <mat-form-field class="full-width" *ngIf="playlist.portalUrl">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.SERVER_URL' | translate
+            }}</mat-label>
+            <input matInput formControlName="portalUrl" />
+        </mat-form-field>
+        <mat-form-field class="full-width" *ngIf="playlist.macAddress">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.MAC_ADDRESS' | translate
+            }}</mat-label>
+            <input matInput formControlName="macAddress" />
+        </mat-form-field>
         <mat-form-field class="full-width" *ngIf="playlist.serverUrl">
             <mat-label>{{
                 'HOME.PLAYLISTS.INFO_DIALOG.SERVER_URL' | translate
@@ -89,7 +101,7 @@
             mat-flat-button
             color="accent"
             (click)="exportPlaylist()"
-            *ngIf="!playlist.serverUrl"
+            *ngIf="!playlist.serverUrl && !playlist.portalUrl"
         >
             {{ 'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_PLAYLIST' | translate }}
         </button>
