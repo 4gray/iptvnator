@@ -32,6 +32,8 @@ import {
     PLAYLIST_UPDATE_RESPONSE,
     SET_MPV_PLAYER_PATH,
     SET_VLC_PLAYER_PATH,
+    STALKER_REQUEST,
+    STALKER_RESPONSE,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
 } from '../shared/ipc-commands';
@@ -318,17 +320,52 @@ export class Api {
                 this.workerWindow.webContents.send(EPG_FORCE_FETCH, arg)
             );
 
-        ipcMain.on(
-            XTREAM_REQUEST,
-            (event, arg: { url: string; params: Record<string, string> }) => {
-                const xtreamApiPath = '/player_api.php';
+        ipcMain
+            .on(
+                XTREAM_REQUEST,
+                (
+                    event,
+                    arg: { url: string; params: Record<string, string> }
+                ) => {
+                    const xtreamApiPath = '/player_api.php';
 
+                    axios
+                        .get(arg.url + xtreamApiPath, {
+                            params: arg.params ?? {},
+                        })
+                        .then((result) => {
+                            event.sender.send(XTREAM_RESPONSE, {
+                                payload: result.data,
+                                action: arg.params.action,
+                            });
+                        })
+                        .catch((err) => {
+                            event.sender.send(ERROR, {
+                                message:
+                                    err.response?.statusText ??
+                                    'Error: not found',
+                                status: err.response?.status ?? 404,
+                            });
+                        });
+                }
+            )
+            .on(STALKER_REQUEST, (event, arg: any) => {
                 axios
-                    .get(arg.url + xtreamApiPath, {
+                    .get(arg.url, {
                         params: arg.params ?? {},
+                        headers: {
+                            Cookie: `mac=${arg.macAddress as string}`,
+                            ...(arg.params.token
+                                ? {
+                                      Authorization: `Bearer ${
+                                          arg.params.token as string
+                                      }`,
+                                  }
+                                : {}),
+                        },
                     })
                     .then((result) => {
-                        event.sender.send(XTREAM_RESPONSE, {
+                        event.sender.send(STALKER_RESPONSE, {
                             payload: result.data,
                             action: arg.params.action,
                         });
@@ -340,8 +377,7 @@ export class Api {
                             status: err.response?.status ?? 404,
                         });
                     });
-            }
-        );
+            });
     }
 
     createMpvInstance() {
