@@ -169,6 +169,8 @@ export class PlaylistEffects {
                 tap((playlist) => {
                     if (playlist.serverUrl) {
                         this.router.navigate(['/xtreams/', playlist._id]);
+                    } else if (playlist.macAddress) {
+                        this.router.navigate(['portals', playlist._id]);
                     } else {
                         this.router.navigate(['/playlists/', playlist._id]);
                     }
