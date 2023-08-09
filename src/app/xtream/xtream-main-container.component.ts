@@ -55,7 +55,7 @@ import {
 import { PlaylistsService } from '../services/playlists.service';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
-import { Breadcrumb } from './breadcrumb.interface';
+import { Breadcrumb, PortalActions } from './breadcrumb.interface';
 import { ContentTypeNavigationItem } from './content-type-navigation-item.interface';
 import { PlayerDialogComponent } from './player-dialog/player-dialog.component';
 import { PortalStore } from './portal.store';
@@ -164,15 +164,15 @@ export class XtreamMainContainerComponent implements OnInit {
         effect(() => {
             if (this.currentPlaylist()) {
                 this.getCategories(this.selectedContentType);
+                this.favorites$ = this.playlistService.getPortalFavorites(
+                    this.currentPlaylist()._id
+                );
             }
         });
     }
 
     ngOnInit() {
         this.setInitialBreadcrumb();
-        this.favorites$ = this.playlistService.getPortalFavorites(
-            this.currentPlaylist()._id
-        );
 
         this.commandsList.forEach((command) => {
             if (this.dataService.isElectron) {
@@ -363,7 +363,7 @@ export class XtreamMainContainerComponent implements OnInit {
         });
     }
 
-    getLayoutViewBasedOnAction(action: XtreamCodeActions) {
+    getLayoutViewBasedOnAction(action: PortalActions) {
         let result: LayoutView = 'category';
         switch (action) {
             case XtreamCodeActions.GetLiveCategories:
