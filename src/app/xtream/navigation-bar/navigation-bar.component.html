@@ -28,11 +28,15 @@
 </div>
 <div id="sub-panel">
     <div class="breadcrumbs">
-        <span
-            *ngFor="let item of breadcrumbs"
+        <div
+            *ngFor="let item of breadcrumbs; let i = index"
             (click)="processBreadcrumbClick(item)"
-            >{{ item.title }}</span
         >
+            <span>{{ item.title }}</span>
+            <mat-icon *ngIf="i !== breadcrumbs.length - 1"
+                >chevron_right</mat-icon
+            >
+        </div>
     </div>
     <div class="search" *ngIf="searchVisible">
         <input
@@ -40,7 +44,7 @@
             placeholder="Search by name"
             type="search"
             [ngModel]="searchPhrase()"
-            (ngModelChange)="setSearchText($event)"
+            (ngModelChange)="searchPhraseUpdate.next($event)"
         />
     </div>
 </div>
