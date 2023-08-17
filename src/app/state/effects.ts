@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
@@ -6,8 +5,14 @@ import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom } from 'rxjs';
-import { combineLatestWith, map, switchMap, tap } from 'rxjs/operators';
+import {
+    combineLatestWith,
+    firstValueFrom,
+    map,
+    switchMap,
+    tap,
+    withLatestFrom,
+} from 'rxjs';
 import {
     CHANNEL_SET_USER_AGENT,
     EPG_GET_PROGRAM,
@@ -19,7 +24,9 @@ import { Settings, VideoPlayer } from '../settings/settings.interface';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import * as PlaylistActions from './actions';
 import {
+    selectActive,
     selectActivePlaylistId,
+    selectChannels,
     selectFavorites,
     selectIsEpgAvailable,
 } from './selectors';
@@ -34,7 +41,7 @@ export class PlaylistEffects {
                     this.store.select(selectFavorites),
                     this.store.select(selectActivePlaylistId)
                 ),
-                switchMap(([action, favorites, playlistId]) =>
+                switchMap(([, favorites, playlistId]) =>
                     this.playlistsService.updateFavorites(playlistId, favorites)
                 )
             );
@@ -83,7 +90,8 @@ export class PlaylistEffects {
                         if (
                             settings &&
                             Object.keys(settings).length > 0 &&
-                            settings.player === VideoPlayer.MPV
+                            settings.player === VideoPlayer.MPV &&
+                            channel.radio !== 'true'
                         )
                             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                                 url: channel.url,
@@ -248,6 +256,34 @@ export class PlaylistEffects {
         },
         { dispatch: false }
     );
+
+    setAdjacentChannelAsActive$ = createEffect(() => {
+        return this.actions$.pipe(
+            ofType(PlaylistActions.setAdjacentChannelAsActive),
+            withLatestFrom(
+                this.store.select(selectChannels),
+                this.store.select(selectActive)
+            ),
+            map(([action, channels, activeChannel]) => {
+                let adjacentChannel;
+                const index = channels.findIndex(
+                    (channel) => channel.id === activeChannel.id
+                );
+                if (action.direction === 'next') {
+                    if (index === channels.length - 1)
+                        adjacentChannel = activeChannel;
+                    adjacentChannel = channels[index + 1];
+                } else if (action.direction === 'previous') {
+                    if (index === -1 || index === 0)
+                        adjacentChannel = activeChannel;
+                    adjacentChannel = channels[index - 1];
+                }
+                return PlaylistActions.setActiveChannelSuccess({
+                    channel: adjacentChannel,
+                });
+            })
+        );
+    });
 
     constructor(
         private actions$: Actions,
