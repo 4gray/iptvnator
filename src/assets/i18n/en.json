@@ -224,5 +224,9 @@
         "CAST": "Cast",
         "EPISODE_RUN_TIME": "Episode run time",
         "RATING": "Rating"
+    },
+    "PORTALS": {
+        "ALL_CATEGORIES": "All categories",
+        "MY_FAVORITES": "My favorites"
     }
 }
