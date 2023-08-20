@@ -23,8 +23,6 @@ export interface ParsedPlaylistItem {
     tvg: {
         id: string;
         name: string;
-        language: string;
-        country: string;
         url: string;
         logo: string;
         rec: string;

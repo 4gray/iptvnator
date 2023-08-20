@@ -10,8 +10,8 @@
 >
     <div class="image">
         <img
-            *ngIf="item.info.movie_image; else placeholderCover"
-            [src]="item.info.movie_image"
+            *ngIf="item.info?.movie_image; else placeholderCover"
+            [src]="item.info?.movie_image"
         />
         <ng-template #placeholderCover>
             <div class="placeholder-cover"></div>

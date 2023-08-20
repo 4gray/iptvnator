@@ -6,42 +6,34 @@
                 {{ 'CHANNELS.ALL_CHANNELS' | translate }}
             </div>
         </ng-template>
-        <mat-list>
-            <mat-list-item>
-                <input
-                    class="full-width search-bar"
-                    type="search"
-                    #search
-                    [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
-                    [(ngModel)]="searchTerm.name"
-                />
-            </mat-list-item>
-        </mat-list>
+        <div class="search-panel">
+            <input
+                class="full-width search-bar"
+                type="search"
+                #search
+                [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
+                [(ngModel)]="searchTerm.name"
+            />
+        </div>
         <mat-divider></mat-divider>
         <mat-nav-list>
-            <cdk-virtual-scroll-viewport itemSize="50" class="scroll-viewport">
-                <ng-container
-                    *cdkVirtualFor="
-                        let channel of _channelList
-                            | filterBy: searchTerm.name:'name';
-                        index as i;
-                        trackBy: trackByFn
-                    "
-                >
-                    <app-channel-list-item
-                        [name]="
-                            i +
-                            1 +
-                            '. ' +
-                            (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
-                                | translate)
-                        "
-                        [logo]="channel?.tvg?.logo"
-                        (clicked)="selectChannel(channel)"
-                        [selected]="selected?.id === channel?.id"
-                    ></app-channel-list-item>
-                </ng-container>
-            </cdk-virtual-scroll-viewport>
+            <app-channel-list-item
+                *ngFor="
+                    let channel of _channelList
+                        | filterBy: searchTerm.name : 'name';
+                    index as i;
+                    trackBy: trackByFn
+                "
+                [name]="
+                    i +
+                    1 +
+                    '. ' +
+                    (channel?.name || 'CHANNELS.UNNAMED_CHANNEL' | translate)
+                "
+                [logo]="channel?.tvg?.logo"
+                (clicked)="selectChannel(channel)"
+                [selected]="selected?.id === channel?.id"
+            ></app-channel-list-item>
         </mat-nav-list>
     </mat-tab>
 
@@ -67,7 +59,11 @@
                         </mat-expansion-panel-header>
                         <ng-template matExpansionPanelContent>
                             <ng-container
-                                *ngFor="let channel of groups.value; index as i"
+                                *ngFor="
+                                    let channel of groups.value;
+                                    index as i;
+                                    trackBy: trackByFn
+                                "
                             >
                                 <app-channel-list-item
                                     [name]="
@@ -105,7 +101,11 @@
         >
             <ng-container *ngIf="favorites.length > 0; else noFavorites">
                 <app-channel-list-item
-                    *ngFor="let channel of favorites; index as i"
+                    *ngFor="
+                        let channel of favorites;
+                        index as i;
+                        trackBy: trackByFn
+                    "
                     [name]="
                         i +
                         1 +

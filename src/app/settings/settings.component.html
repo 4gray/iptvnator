@@ -110,6 +110,26 @@
             </div>
         </div>
         <mat-divider></mat-divider>
+        <div class="row" *ngIf="settingsForm.value.player === 'vlc'">
+            <div class="column">
+                {{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}
+                <p>{{ 'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="column">
+                <mat-form-field appearance="outline">
+                    <mat-label for="vlcPlayerPath">{{
+                        'SETTINGS.VLC_PLAYER_PATH' | translate
+                    }}</mat-label>
+                    <input
+                        matInput
+                        type="text"
+                        id="vlcPlayerPath"
+                        formControlName="vlcPlayerPath"
+                    />
+                </mat-form-field>
+            </div>
+        </div>
+        <mat-divider></mat-divider>
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.LANGUAGE' | translate }}

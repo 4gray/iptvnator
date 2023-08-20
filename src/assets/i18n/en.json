@@ -8,7 +8,8 @@
             "FILE_UPLOAD": "Add via file upload",
             "URL_UPLOAD": "Add via URL",
             "TEXT_IMPORT": "Import as text",
-            "XTREME_IMPORT": "Import xtreme code"
+            "XTREME_IMPORT": "Add Xtreme Code",
+            "STALKER_PORTAL_IMPORT": "Add Stalker Portal"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "No playlists were added",
@@ -16,6 +17,7 @@
             "ADDED_VIA_URL": "Added via URL upload. URL:",
             "ADDED_VIA_FILE": "Added via file upload",
             "XTREAM_PLAYLIST": "Xtream playlist",
+            "STALKER_PORTAL": "Stalker portal",
             "CHANNELS": "Channels",
             "ADDED": "Added",
             "SHOW_DETAILS": "Show playlist details",
@@ -38,7 +40,8 @@
                 "EXPORT_PLAYLIST": "Export playlist as m3u",
                 "SERVER_URL": "Server URL",
                 "USERNAME": "Username",
-                "PASSWORD": "Password"
+                "PASSWORD": "Password",
+                "MAC_ADDRESS": "Mac Address"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Remove playlist",
@@ -75,6 +78,13 @@
             "ADD": "Add",
             "TEST_CREDENTIALS": "Test credentials",
             "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com or https://example.com:4324)"
+        },
+        "STALKER_PORTAL": {
+            "TITLE": "Title",
+            "MAC_ADDRESS": "Mac Address",
+            "SERVER_URL": "Server URL",
+            "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com/portal.php or https://example.com:4324/portal.php)",
+            "ADD": "Add"
         }
     },
     "SETTINGS": {
@@ -119,7 +129,10 @@
         "PLAYLISTS_REMOVED": "All playlists were removed.",
         "MPV_PLAYER_PATH_LABEL": "mpv path",
         "MPV_PLAYER_PATH_DESCRIPTION": "Set path to mpv player in your system. It will use the provided path to a mpv binary instead of using the one found in $PATH.",
-        "MPV_PLAYER_PATH": "mpv player path"
+        "MPV_PLAYER_PATH": "mpv player path",
+        "VLC_PLAYER_PATH_LABEL": "VLC path",
+        "VLC_PLAYER_PATH_DESCRIPTION": "Set path to VLC player in your system. It will use the provided path to a VLC binary instead of the default path for our system.",
+        "VLC_PLAYER_PATH": "VLC player path"
     },
     "THEMES": {
         "DARK_THEME": "Dark theme",
@@ -211,5 +224,9 @@
         "CAST": "Cast",
         "EPISODE_RUN_TIME": "Episode run time",
         "RATING": "Rating"
+    },
+    "PORTALS": {
+        "ALL_CATEGORIES": "All categories",
+        "MY_FAVORITES": "My favorites"
     }
 }

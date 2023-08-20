@@ -10,6 +10,8 @@ import {
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
+    STALKER_REQUEST,
+    STALKER_RESPONSE,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
 } from '../../../shared/ipc-commands';
@@ -70,6 +72,14 @@ export class PwaService extends DataService {
         } else if (type === XTREAM_REQUEST) {
             this.forwardXtreamRequest(
                 payload as { url: string; params: Record<string, string> }
+            );
+        } else if (type === STALKER_REQUEST) {
+            this.forwardStalkerRequest(
+                payload as {
+                    url: string;
+                    macAddress: string;
+                    params: Record<string, string>;
+                }
             );
         }
     }
@@ -145,17 +155,48 @@ export class PwaService extends DataService {
     forwardXtreamRequest(payload: {
         url: string;
         params: Record<string, string>;
+        macAddress?: string;
     }) {
+        const headers = payload.macAddress
+            ? {
+                  headers: {
+                      Cookie: `mac=${payload.macAddress}`,
+                  },
+              }
+            : {};
         return this.http
             .get(`${this.corsProxyUrl}/xtream`, {
                 params: {
                     url: payload.url,
                     ...payload.params,
                 },
+                ...headers,
             })
             .subscribe((response) => {
                 window.postMessage({
                     type: XTREAM_RESPONSE,
+                    payload: (response as any).payload,
+                    action: payload.params.action,
+                });
+            });
+    }
+
+    forwardStalkerRequest(payload: {
+        url: string;
+        params: Record<string, string>;
+        macAddress: string;
+    }) {
+        return this.http
+            .get(`${this.corsProxyUrl}/stalker`, {
+                params: {
+                    url: payload.url,
+                    ...payload.params,
+                    macAddress: payload.macAddress,
+                },
+            })
+            .subscribe((response) => {
+                window.postMessage({
+                    type: STALKER_RESPONSE,
                     payload: (response as any).payload,
                     action: payload.params.action,
                 });

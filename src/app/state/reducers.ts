@@ -181,14 +181,20 @@ export const playlistReducer = createReducer(
                         title: action.playlist.title,
                         autoRefresh: action.playlist.autoRefresh || false,
                         userAgent: action.playlist.userAgent,
-                        ...(action.playlist.serverUrl
+                        ...(action.playlist.serverUrl !== null
                             ? { serverUrl: action.playlist.serverUrl }
                             : {}),
-                        ...(action.playlist.username
+                        ...(action.playlist.username !== null
                             ? { username: action.playlist.username }
                             : {}),
-                        ...(action.playlist.password
+                        ...(action.playlist.password !== null
                             ? { password: action.playlist.password }
+                            : {}),
+                        ...(action.playlist.macAddress !== null
+                            ? { macAddress: action.playlist.macAddress }
+                            : {}),
+                        ...(action.playlist.portalUrl !== null
+                            ? { portalUrl: action.playlist.portalUrl }
                             : {}),
                     },
                 },

@@ -25,11 +25,15 @@ import {
     MIGRATE_PLAYLISTS_RESPONSE,
     OPEN_FILE,
     OPEN_MPV_PLAYER,
+    OPEN_VLC_PLAYER,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
     SET_MPV_PLAYER_PATH,
+    SET_VLC_PLAYER_PATH,
+    STALKER_REQUEST,
+    STALKER_RESPONSE,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
 } from '../shared/ipc-commands';
@@ -39,6 +43,8 @@ import { ParsedPlaylist } from '../src/typings.d';
 
 const fs = require('fs');
 const https = require('https');
+const child_process = require('child_process');
+const path = require('path');
 
 const mpvAPI = require('node-mpv');
 
@@ -63,6 +69,7 @@ const agent = new https.Agent({
 });
 
 const MPV_PLAYER_PATH = 'MPV_PLAYER_PATH';
+const VLC_PLAYER_PATH = 'VLC_PLAYER_PATH';
 
 export class Api {
     /** Instance of the main application window */
@@ -254,6 +261,24 @@ export class Api {
                 // recreate mpv player instance with new binary path if it was changed
                 if (store.get(MPV_PLAYER_PATH, mpvPlayerPath) !== mpvPlayerPath)
                     this.mpv = this.createMpvInstance();
+            })
+            .on(OPEN_VLC_PLAYER, (event, { url }) => {
+                const proc = child_process.spawn(
+                    this.getVlcPath(),
+                    [`"${url as string}"`],
+                    {
+                        shell: true,
+                    }
+                );
+
+                proc.on('exit', (code) => {
+                    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                    console.log(`VLC exited with code ${code}`);
+                });
+            })
+            .on(SET_VLC_PLAYER_PATH, (_event, vlcPlayerPath) => {
+                console.log('... setting vlc player path', vlcPlayerPath);
+                store.set(VLC_PLAYER_PATH, vlcPlayerPath);
             });
 
         // listeners for EPG events
@@ -295,17 +320,52 @@ export class Api {
                 this.workerWindow.webContents.send(EPG_FORCE_FETCH, arg)
             );
 
-        ipcMain.on(
-            XTREAM_REQUEST,
-            (event, arg: { url: string; params: Record<string, string> }) => {
-                const xtreamApiPath = '/player_api.php';
+        ipcMain
+            .on(
+                XTREAM_REQUEST,
+                (
+                    event,
+                    arg: { url: string; params: Record<string, string> }
+                ) => {
+                    const xtreamApiPath = '/player_api.php';
 
+                    axios
+                        .get(arg.url + xtreamApiPath, {
+                            params: arg.params ?? {},
+                        })
+                        .then((result) => {
+                            event.sender.send(XTREAM_RESPONSE, {
+                                payload: result.data,
+                                action: arg.params.action,
+                            });
+                        })
+                        .catch((err) => {
+                            event.sender.send(ERROR, {
+                                message:
+                                    err.response?.statusText ??
+                                    'Error: not found',
+                                status: err.response?.status ?? 404,
+                            });
+                        });
+                }
+            )
+            .on(STALKER_REQUEST, (event, arg: any) => {
                 axios
-                    .get(arg.url + xtreamApiPath, {
+                    .get(arg.url, {
                         params: arg.params ?? {},
+                        headers: {
+                            Cookie: `mac=${arg.macAddress as string}`,
+                            ...(arg.params.token
+                                ? {
+                                      Authorization: `Bearer ${
+                                          arg.params.token as string
+                                      }`,
+                                  }
+                                : {}),
+                        },
                     })
                     .then((result) => {
-                        event.sender.send(XTREAM_RESPONSE, {
+                        event.sender.send(STALKER_RESPONSE, {
                             payload: result.data,
                             action: arg.params.action,
                         });
@@ -317,8 +377,7 @@ export class Api {
                             status: err.response?.status ?? 404,
                         });
                     });
-            }
-        );
+            });
     }
 
     createMpvInstance() {
@@ -501,6 +560,31 @@ export class Api {
      */
     parsePlaylist(m3uString: string): ParsedPlaylist {
         return parse(m3uString);
+    }
+
+    getDefaultVlcPath() {
+        if (process.platform === 'win32') {
+            return path.join(
+                'C:',
+                'Program Files (x86)',
+                'VideoLAN',
+                'VLC',
+                'vlc.exe'
+            );
+        } else if (process.platform === 'linux') {
+            return '/usr/bin/vlc';
+        } else if (process.platform === 'darwin') {
+            return '/Applications/VLC.app/Contents/MacOS/VLC';
+        }
+    }
+
+    getVlcPath() {
+        const customVlcPath = this.store.get(VLC_PLAYER_PATH);
+        if (customVlcPath) {
+            return customVlcPath;
+        } else {
+            return this.getDefaultVlcPath();
+        }
     }
 
     /** @deprecated - used only for migration */

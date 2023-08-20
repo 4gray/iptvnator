@@ -11,7 +11,7 @@
 
     mat-card {
         cursor: pointer;
-        width: 200px;
+        width: 170px;
 
         mat-card-content {
             padding: 0;
@@ -26,13 +26,14 @@
         .stream-icon-placeholder {
             width: 100%;
             background: #999;
-            height: 300px;
+            max-height: 300px;
+            min-height: 130px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
 
             &::after {
                 content: 'No cover';
-                position: relative;
-                top: 140px;
-                left: 70px;
             }
         }
 

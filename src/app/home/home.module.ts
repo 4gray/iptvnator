@@ -5,6 +5,7 @@ import { DragDropFileUploadDirective } from './file-upload/drag-drop-file-upload
 import { FileUploadComponent } from './file-upload/file-upload.component';
 import { HomeComponent } from './home.component';
 import { HomeRoutingModule } from './home.routing';
+import { StalkerPortalImportComponent } from './stalker-portal-import/stalker-portal-import.component';
 import { TextImportComponent } from './text-import/text-import.component';
 import { UrlUploadComponent } from './url-upload/url-upload.component';
 import { XtreamCodeImportComponent } from './xtream-code-import/xtream-code-import.component';
@@ -15,6 +16,7 @@ import { XtreamCodeImportComponent } from './xtream-code-import/xtream-code-impo
         HomeRoutingModule,
         SharedModule,
         XtreamCodeImportComponent,
+        StalkerPortalImportComponent,
     ],
     declarations: [
         DragDropFileUploadDirective,
