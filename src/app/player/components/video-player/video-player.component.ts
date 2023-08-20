@@ -142,6 +142,12 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                                     }
                                     : {}
                             );
+
+                            this.store.dispatch(
+                                PlaylistActions.setChannels({
+                                    channels: playlist.playlist.items,
+                                })
+                            );
                             return playlist.playlist.items;
                         })
                     );
