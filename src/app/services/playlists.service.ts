@@ -155,7 +155,7 @@ export class PlaylistsService {
         );
     }
 
-    removeFromPortalFavorites(portalId: string, favoriteId: number) {
+    removeFromPortalFavorites(portalId: string, favoriteId: number | string) {
         return this.getPlaylistById(portalId).pipe(
             switchMap((portal) =>
                 this.dbService.update(DbStores.Playlists, {

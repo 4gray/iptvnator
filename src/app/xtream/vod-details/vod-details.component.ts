@@ -42,7 +42,9 @@ export class VodDetailsComponent implements OnInit {
             .getPortalFavorites(this.portalId)
             .subscribe((favorites) => {
                 this.isFavorite = favorites.some(
-                    (i) => i.stream_id === this.item.movie_data.stream_id
+                    (i) =>
+                        i?.stream_id === this.item?.movie_data?.stream_id ||
+                        (i as any)?.details?.id === (this.item as any)?.id
                 );
             });
     }
@@ -50,16 +52,28 @@ export class VodDetailsComponent implements OnInit {
     toggleFavorite() {
         if (this.isFavorite) {
             this.removeFromFavoritesClicked.emit(
-                this.item.movie_data.stream_id
+                this.item?.movie_data?.stream_id || (this.item as any)?.id
             );
         } else {
-            this.addToFavoritesClicked.emit({
-                name: this.item.movie_data.name,
-                stream_id: this.item.movie_data.stream_id,
-                container_extension: this.item.movie_data.container_extension,
-                cover: this.item.info.movie_image,
-                stream_type: 'movie',
-            });
+            // stalker mode
+            if ((this.item as any).cmd) {
+                this.addToFavoritesClicked.emit({
+                    name: this.item.info.name,
+                    stream_id: (this.item as any).id,
+                    cover: this.item.info.movie_image,
+                    cmd: (this.item as any).cmd || '',
+                    details: this.item,
+                });
+            } else {
+                this.addToFavoritesClicked.emit({
+                    name: this.item.info.name,
+                    stream_id: this.item.movie_data.stream_id,
+                    container_extension:
+                        this.item.movie_data.container_extension,
+                    cover: this.item.info.movie_image,
+                    stream_type: 'movie',
+                });
+            }
         }
         this.isFavorite = !this.isFavorite;
     }
