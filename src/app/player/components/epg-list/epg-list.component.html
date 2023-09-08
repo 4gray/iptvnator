@@ -29,7 +29,7 @@
                 <mat-icon>chevron_left</mat-icon>
             </button>
             <span class="selected-date">
-                {{ dateToday | momentDate: 'YYYYMMDD':'MMMM Do, dddd' }}</span
+                {{ dateToday | momentDate: 'YYYYMMDD' : 'MMMM Do, dddd' }}</span
             >
             <button
                 class="next-day"
@@ -47,11 +47,12 @@
     <mat-selection-list
         id="program-list"
         [multiple]="false"
+        hideSingleSelectionIndicator="true"
         *ngIf="timeshiftUntil$ | async as timeshiftUntil"
     >
         <ng-container *ngIf="items?.length > 0; else epgNotAvailable">
             <ng-container *ngFor="let item of items">
-                <mat-list-item
+                <mat-list-option
                     *ngIf="
                         item.start < timeshiftUntil || item.start >= timeNow;
                         else timeshiftItem
@@ -65,7 +66,7 @@
                         ></app-epg-list-item>
                     </div>
                     <p matListItemLine>{{ item?.title[0]?.value }}</p>
-                </mat-list-item>
+                </mat-list-option>
                 <ng-template #timeshiftItem>
                     <mat-list-option
                         [value]="item"
