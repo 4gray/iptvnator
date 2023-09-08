@@ -16,8 +16,11 @@
                     <p>Add single or multiple URLs as EPG sources</p>
                 </div>
                 <div class="column">
-                    <div *ngFor="let _ of epgUrl.controls; index as i">
-                        <mat-form-field appearance="outline">
+                    <div
+                        *ngFor="let _ of epgUrl.controls; index as i"
+                        style="display: flex"
+                    >
+                        <mat-form-field appearance="outline" class="full-width">
                             <mat-label>{{
                                 'SETTINGS.EPG_URL_PLACEHOLDER' | translate
                             }}</mat-label>
