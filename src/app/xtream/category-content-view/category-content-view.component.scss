@@ -3,6 +3,15 @@
     padding: 20px;
 }
 
+mat-card {
+    overflow: hidden;
+    transition: all 0.9s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+mat-card:hover {
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 25%), 0 10px 10px rgba(0, 0, 0, 22%);
+}
+
 .grid {
     display: flex;
     flex-wrap: wrap;
@@ -52,14 +61,4 @@
         height: 64px;
         width: 64px;
     }
-}
-
-mat-card {
-    overflow: hidden;
-
-    transition: all 0.9s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-mat-card:hover {
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
 }
