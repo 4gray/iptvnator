@@ -1,4 +1,4 @@
-import {NgClass, NgIf, NgOptimizedImage} from '@angular/common';
+import { NgClass, NgIf, NgOptimizedImage } from '@angular/common';
 import {
     Component,
     ElementRef,
@@ -52,14 +52,14 @@ import { setAdjacentChannelAsActive } from '../../../state/actions';
             </div>
             <div class="volume-panel">
                 <div class="playing" *ngIf="playState === 'play'">
-                    <span class="playing__bar playing__bar1"></span>
-                    <span class="playing__bar playing__bar2"></span>
-                    <span class="playing__bar playing__bar3"></span>
+                    <span class="playing-bar playing-bar1"></span>
+                    <span class="playing-bar playing-bar2"></span>
+                    <span class="playing-bar playing-bar3"></span>
                 </div>
                 <div class="playing" *ngIf="playState === 'paused'">
-                    <span class="playing__bar__stopped playing__bar1"></span>
-                    <span class="playing__bar__stopped playing__bar2"></span>
-                    <span class="playing__bar__stopped playing__bar3"></span>
+                    <span class="playing-bar-stopped playing-bar1"></span>
+                    <span class="playing-bar-stopped playing-bar2"></span>
+                    <span class="playing-bar-stopped playing-bar3"></span>
                 </div>
                 <mat-slider min="0" max="1" step="0.1" color="accent">
                     <input matSliderThumb [(ngModel)]="audio.volume" />

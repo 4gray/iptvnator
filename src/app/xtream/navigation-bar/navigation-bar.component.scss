@@ -38,7 +38,6 @@
                 cursor: pointer;
             }
         }
-
     }
 
     .search {
@@ -56,9 +55,11 @@
     }
 }
 
+/* stylelint-disable-next-line no-descending-specificity */
 ::ng-deep {
     .dark-theme {
-        #navigation, #sub-panel {
+        #navigation,
+        #sub-panel {
             background: black;
         }
 
