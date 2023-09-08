@@ -266,7 +266,7 @@ export class SettingsComponent implements OnInit {
             null,
             {
                 duration: 2000,
-                horizontalPosition: 'left',
+                horizontalPosition: 'start',
             }
         );
     }

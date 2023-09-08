@@ -60,6 +60,7 @@ export class EpgService {
             {
                 ...this.epgSnackBarOptions,
                 duration: 2000,
+                horizontalPosition: 'start',
             }
         );
     }
