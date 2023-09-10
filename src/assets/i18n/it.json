@@ -8,7 +8,8 @@
             "FILE_UPLOAD": "Aggiungi tramite caricamento file",
             "URL_UPLOAD": "Aggiungi tramite URL",
             "TEXT_IMPORT": "Importa come testo",
-            "XTREME_IMPORT": "Importa codice Xtreme"
+            "XTREME_IMPORT": "Aggiungi codice Xtreme",
+            "STALKER_PORTAL_IMPORT": "Aggiungi portale Stalker"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "Nessuna playlist è stata aggiunta",
@@ -16,6 +17,7 @@
             "ADDED_VIA_URL": "Aggiunto tramite caricamento URL. URL:",
             "ADDED_VIA_FILE": "Aggiunto tramite caricamento file",
             "XTREAM_PLAYLIST": "Playlist Xtream",
+            "STALKER_PORTAL": "Portale Stalker",
             "CHANNELS": "Canali",
             "ADDED": "Aggiunto",
             "SHOW_DETAILS": "Visualizza i dettagli della playlist",
@@ -38,7 +40,8 @@
                 "EXPORT_PLAYLIST": "Esporta playlist come file m3u",
                 "SERVER_URL": "URL server",
                 "USERNAME": "Utente",
-                "PASSWORD": "Password"
+                "PASSWORD": "Password",
+                "MAC_ADDRESS": "Indirizzo MAC"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Rimuovi playlist",
@@ -75,6 +78,13 @@
             "ADD": "Aggiungi",
             "TEST_CREDENTIALS": "Testa credenziali",
             "URL_VALIDATION_ERROR": "Dovrebbe essere una URL valida con protocollo (es. http://esempio.it o https://esempio.it:4324)"
+        },
+        "STALKER_PORTAL": {
+            "TITLE": "Titolo",
+            "MAC_ADDRESS": "Indirizzo MAC",
+            "SERVER_URL": "URL server",
+            "URL_VALIDATION_ERROR": "Dovrebbe essere una URL valida con protocollo (es. http://example.com/portal.php or https://example.com:4324/portal.php)",
+            "ADD": "Aggiungi"
         }
     },
     "SETTINGS": {
@@ -119,7 +129,10 @@
         "PLAYLISTS_REMOVED": "Tutte le playlist sono state rimosse.",
         "MPV_PLAYER_PATH_LABEL": "percorso mpv",
         "MPV_PLAYER_PATH_DESCRIPTION": "Imposta il percorso per il lettore mpv in questo tuo sistema. Verrà usato il percorso fornito per un eseguibile mpv invece di usare quello trovato in $PATH.",
-        "MPV_PLAYER_PATH": "percorso riproduttore mpv"
+        "MPV_PLAYER_PATH": "percorso riproduttore mpv",
+        "VLC_PLAYER_PATH_LABEL": "Percorso VLC",
+        "VLC_PLAYER_PATH_DESCRIPTION": "Imposta il percorso del lettore VLC nel sistema. Verrà usato il percorso fornito per il file exe VLC invece del percorso predefinito per il sistema.",
+        "VLC_PLAYER_PATH": "Percorso lettore VLC"
     },
     "THEMES": {
         "DARK_THEME": "Tema scuro",
@@ -211,5 +224,9 @@
         "CAST": "Cast",
         "EPISODE_RUN_TIME": "Tempo esecuzione episodio",
         "RATING": "Classifica"
+    },
+    "PORTALS": {
+        "ALL_CATEGORIES": "Tutte le categorie",
+        "MY_FAVORITES": "Preferiti"
     }
 }
