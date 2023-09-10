@@ -17,6 +17,7 @@ import {
     CHANNEL_SET_USER_AGENT,
     EPG_GET_PROGRAM,
     OPEN_MPV_PLAYER,
+    OPEN_VLC_PLAYER,
 } from '../../../shared/ipc-commands';
 import { DataService } from '../services/data.service';
 import { PlaylistsService } from '../services/playlists.service';
@@ -65,6 +66,42 @@ export class PlaylistEffects {
         {
             dispatch: false,
         }
+    );
+
+    setActiveEpgProgram$ = createEffect(
+        () => {
+            return this.actions$.pipe(
+                ofType(PlaylistActions.setActiveEpgProgram),
+                combineLatestWith(this.store.select(selectActive)),
+                map(([, activeChannel]) => {
+                    firstValueFrom(this.storage.get(STORE_KEY.Settings)).then(
+                        (settings: Settings) => {
+                            if (
+                                settings &&
+                                Object.keys(settings).length > 0 &&
+                                settings.player === VideoPlayer.MPV
+                            )
+                                this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+                                    url:
+                                        activeChannel.url +
+                                            activeChannel.epgParams ?? '',
+                                });
+                            else if (
+                                settings &&
+                                Object.keys(settings).length > 0 &&
+                                settings.player === VideoPlayer.VLC
+                            )
+                                this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
+                                    url:
+                                        activeChannel.url +
+                                            activeChannel.epgParams ?? '',
+                                });
+                        }
+                    );
+                })
+            );
+        },
+        { dispatch: false }
     );
 
     setActiveChannel$ = createEffect(() => {
