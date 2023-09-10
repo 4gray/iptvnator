@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import {
-    UntypedFormArray,
-    UntypedFormBuilder,
-    UntypedFormControl,
+    FormArray,
+    FormBuilder,
+    FormControl,
     Validators,
 } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -83,7 +83,7 @@ export class SettingsComponent implements OnInit {
     /** Settings form object */
     settingsForm = this.formBuilder.group({
         player: [VideoPlayer.VideoJs],
-        ...(this.isElectron ? { epgUrl: new UntypedFormArray([]) } : {}),
+        ...(this.isElectron ? { epgUrl: new FormArray([]) } : {}),
         language: Language.ENGLISH,
         showCaptions: false,
         theme: Theme.LightTheme,
@@ -92,7 +92,7 @@ export class SettingsComponent implements OnInit {
     });
 
     /** Form array with epg sources */
-    epgUrl = this.settingsForm.get('epgUrl') as UntypedFormArray;
+    epgUrl = this.settingsForm.get('epgUrl') as FormArray;
 
     /**
      * Creates an instance of SettingsComponent and injects
@@ -102,7 +102,7 @@ export class SettingsComponent implements OnInit {
         private dialogService: DialogService,
         private electronService: DataService,
         private epgService: EpgService,
-        private formBuilder: UntypedFormBuilder,
+        private formBuilder: FormBuilder,
         private playlistsService: PlaylistsService,
         private router: Router,
         private settingsService: SettingsService,
@@ -160,16 +160,14 @@ export class SettingsComponent implements OnInit {
     setEpgUrls(epgUrls: string[] | string): void {
         const URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
 
-        if (!Array.isArray(epgUrls)) {
-            epgUrls = [epgUrls];
-        }
-        epgUrls = epgUrls.filter((url) => url !== '');
+        const urls = Array.isArray(epgUrls) ? epgUrls : [epgUrls];
+        const filteredUrls = urls.filter((url) => url !== '');
 
-        for (const url of epgUrls) {
+        filteredUrls.forEach((url) => {
             this.epgUrl.push(
-                new UntypedFormControl(url, [Validators.pattern(URL_REGEX)])
+                new FormControl(url, [Validators.pattern(URL_REGEX)])
             );
-        }
+        });
     }
 
     /**
@@ -291,7 +289,7 @@ export class SettingsComponent implements OnInit {
      * Initializes new entry in form array for EPG URL
      */
     addEpgSource(): void {
-        this.epgUrl.insert(this.epgUrl.length, new UntypedFormControl(''));
+        this.epgUrl.insert(this.epgUrl.length, new FormControl(''));
     }
 
     /**
@@ -330,34 +328,16 @@ export class SettingsComponent implements OnInit {
             const file = target.files?.[0];
 
             if (file) {
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        const contents = reader.result;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const contents = reader.result;
 
-                        try {
-                            const parsedPlaylists: Playlist[] = JSON.parse(
-                                contents.toString()
-                            );
+                    try {
+                        const parsedPlaylists: Playlist[] = JSON.parse(
+                            contents.toString()
+                        );
 
-                            if (!Array.isArray(parsedPlaylists)) {
-                                this.snackBar.open(
-                                    this.translate.instant(
-                                        'SETTINGS.IMPORT_ERROR'
-                                    ),
-                                    null,
-                                    {
-                                        duration: 2000,
-                                    }
-                                );
-                            } else {
-                                this.store.dispatch(
-                                    PlaylistActions.addManyPlaylists({
-                                        playlists: parsedPlaylists,
-                                    })
-                                );
-                            }
-                        } catch (error) {
+                        if (!Array.isArray(parsedPlaylists)) {
                             this.snackBar.open(
                                 this.translate.instant('SETTINGS.IMPORT_ERROR'),
                                 null,
@@ -365,10 +345,24 @@ export class SettingsComponent implements OnInit {
                                     duration: 2000,
                                 }
                             );
+                        } else {
+                            this.store.dispatch(
+                                PlaylistActions.addManyPlaylists({
+                                    playlists: parsedPlaylists,
+                                })
+                            );
                         }
-                    };
-                    reader.readAsText(file);
-                }
+                    } catch (error) {
+                        this.snackBar.open(
+                            this.translate.instant('SETTINGS.IMPORT_ERROR'),
+                            null,
+                            {
+                                duration: 2000,
+                            }
+                        );
+                    }
+                };
+                reader.readAsText(file);
             }
         });
 
