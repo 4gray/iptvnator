@@ -38,18 +38,14 @@ export class InfoOverlayComponent implements OnChanges {
      * @param changes component input changes
      */
     ngOnChanges(changes: SimpleChanges): void {
-        if (changes.channel && !changes.channel.firstChange) {
+        if (changes.channel) {
             clearTimeout(this.currentTimeout);
             this.isVisible = true;
             this.currentTimeout = setTimeout(() => {
                 this.isVisible = false;
             }, 4000);
         }
-        if (
-            changes.epgProgram &&
-            changes.epgProgram.currentValue &&
-            !changes.epgProgram.firstChange
-        ) {
+        if (changes.epgProgram && changes.epgProgram.currentValue) {
             const { stop, start } = changes.epgProgram.currentValue;
             this.setProgramDuration(start, stop);
         }
