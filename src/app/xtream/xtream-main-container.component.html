@@ -50,7 +50,5 @@
             [items]="favorites$ | async"
             (itemClicked)="itemClicked($event)"
         />
-
-        <app-player-view *ngIf="currentLayout === 'player'" />
     </ng-template>
 </div>

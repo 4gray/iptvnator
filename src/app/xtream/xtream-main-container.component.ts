@@ -40,7 +40,6 @@ import { CategoryContentViewComponent } from './category-content-view/category-c
 import { CategoryViewComponent } from './category-view/category-view.component';
 import { ContentType } from './content-type.enum';
 import { NavigationBarComponent } from './navigation-bar/navigation-bar.component';
-import { PlayerViewComponent } from './player-view/player-view.component';
 import { VodDetailsComponent } from './vod-details/vod-details.component';
 
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -54,6 +53,7 @@ import {
 } from '../../../shared/xtream-serie-details.interface';
 import { PlaylistsService } from '../services/playlists.service';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
+import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { Breadcrumb, PortalActions } from './breadcrumb.interface';
 import { ContentTypeNavigationItem } from './content-type-navigation-item.interface';
@@ -104,12 +104,12 @@ type LayoutView =
         MatIconModule,
         NavigationBarComponent,
         VodDetailsComponent,
-        PlayerViewComponent,
         CategoryContentViewComponent,
         SerialDetailsComponent,
         PlayerDialogComponent,
         MatProgressSpinnerModule,
         AsyncPipe,
+        ExternalPlayerInfoDialogComponent,
     ],
 })
 export class XtreamMainContainerComponent implements OnInit {
@@ -256,19 +256,16 @@ export class XtreamMainContainerComponent implements OnInit {
     ) {
         let action;
 
-        this.items = [];
         if (item.stream_type && item.stream_type === 'movie') {
+            this.items = [];
             action = XtreamCodeActions.GetVodInfo;
             this.breadcrumbs.push({ title: item.name, action });
             this.contentId = item.stream_id;
             this.sendRequest({ action, vod_id: item.stream_id });
         } else if (item.stream_type && item.stream_type === 'live') {
-            this.breadcrumbs.push({
-                title: item.name,
-                action: XtreamCodeActions.GetLiveStreams,
-            });
             this.playLiveStream(item);
         } else if (item.series_id) {
+            this.items = [];
             action = XtreamCodeActions.GetSeriesInfo;
             this.breadcrumbs.push({ title: item.name, action });
             this.contentId = item.series_id;
@@ -285,11 +282,12 @@ export class XtreamMainContainerComponent implements OnInit {
     openPlayer(streamUrl: string, title: string) {
         const player = this.settings().player;
         if (player === VideoPlayer.MPV) {
-            this.currentLayout = 'player';
+            this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
             });
         } else if (player === VideoPlayer.VLC) {
+            this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
             });

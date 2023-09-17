@@ -19,6 +19,7 @@ import { StalkerPortalActions } from '../../../shared/stalker-portal-actions.enu
 import { DataService } from '../services/data.service';
 import { PlaylistsService } from '../services/playlists.service';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
+import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { selectCurrentPlaylist } from '../state/selectors';
 import { Breadcrumb } from '../xtream/breadcrumb.interface';
@@ -35,16 +36,6 @@ import { StalkerContentTypes } from './stalker-content-types';
 @Component({
     selector: 'app-stalker-main-container',
     templateUrl: './stalker-main-container.component.html',
-    /* styles: [
-        `
-            :host {
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-                height: 100%;
-            }
-        `,
-    ], */
     standalone: true,
     imports: [
         AsyncPipe,
@@ -92,10 +83,6 @@ export class StalkerMainContainerComponent implements OnInit {
         {
             contentType: ContentType.VODS,
             label: 'VOD Streams',
-        },
-        {
-            contentType: ContentType.FAVORITES,
-            label: 'Favorites',
         },
     ];
 
@@ -260,10 +247,12 @@ export class StalkerMainContainerComponent implements OnInit {
     openPlayer(streamUrl: string, title: string) {
         const player = this.settings().player;
         if (player === VideoPlayer.MPV) {
+            this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
             });
         } else if (player === VideoPlayer.VLC) {
+            this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
             });
@@ -396,7 +385,8 @@ export class StalkerMainContainerComponent implements OnInit {
         if (
             this.currentLayout === 'category_content' &&
             this.searchPhrase !== searchPhrase
-        )
+        ) {
+            this.searchPhrase = searchPhrase;
             this.sendRequest({
                 action: StalkerContentTypes[this.selectedContentType]
                     .getContentAction,
@@ -409,6 +399,7 @@ export class StalkerMainContainerComponent implements OnInit {
                       }
                     : {}),
             });
+        }
     }
 
     handlePageChange(event: PageEvent) {
