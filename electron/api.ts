@@ -249,8 +249,11 @@ export class Api {
                 } catch (error) {
                     console.log(error);
                     event.sender.send(ERROR, {
-                        message:
-                            'Error: Something went wrong. Make sure that mpv player is installed on your system.',
+                        message: `Error: ${
+                            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                            error?.verbose ??
+                            'Something went wrong. Make sure that mpv player is installed on your system.'
+                        } `,
                     });
                 }
             })
