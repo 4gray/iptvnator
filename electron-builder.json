@@ -1,6 +1,6 @@
 {
     "asar": true,
-    "productName": "IPTVnator",
+    "productName": "I2PTVnator",
     "directories": {
         "output": "release/"
     },
