@@ -2,7 +2,7 @@
     "CLOSE": "Close",
     "HOME": {
         "TITLE": "Tv Disparat Techno",
-        "SUBTITLE": "Please select a playlist from the list or add a new playlist via file upload or via url",
+        "SUBTITLE": "Selecione uma playlist da lista ou adicione uma nova playlist via upload de arquivo ou URL",
         "TABS": {
             "RECENTLY_ADDED": "Recently added playlists",
             "FILE_UPLOAD": "Add via file upload",
