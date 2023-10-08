@@ -43,7 +43,7 @@ function createWindow(): BrowserWindow {
         frame: false,
         minWidth: 400,
         minHeight: 500,
-        title: 'IPTVnator',
+        title: '007 IPTVnator',
         ...store.get(WINDOW_BOUNDS),
     });
     attachTitlebarToWindow(win);
