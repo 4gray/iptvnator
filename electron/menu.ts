@@ -105,7 +105,7 @@ export class AppMenu {
                     label: 'Buy me a coffee',
                     click: () => {
                         shell.openExternal(
-                            'https://www.buymeacoffee.com/4gray'
+                            'https://mpago.la/1CZo8cr'
                         );
                     },
                 },
@@ -127,7 +127,7 @@ export class AppMenu {
                                 __dirname,
                                 '../dist/assets/icons/icon.png'
                             ),
-                            copyright: 'Copyright (c) 2020-2023 4gray',
+                            copyright: 'Copyright (c) 2020-2023 Like Look Solutions',
                             package_json_dir: path.join(__dirname, '../'),
                         }),
                 },
