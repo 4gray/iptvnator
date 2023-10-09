@@ -10,7 +10,7 @@
             "TEXT_IMPORT": "Import as text",
             "XTREME_IMPORT": "Add Xtreme Code",
             "STALKER_PORTAL_IMPORT": "Add Stalker Portal"
-            "PAYMENT": "Pay now" // Você pode personalizar o nome da opção de pagamento
+            "PAYMENT": "Pay now" 
 
         },
         "PLAYLISTS": {
