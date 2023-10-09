@@ -204,7 +204,7 @@
     },
     "ABOUT": {
         "TITLE": "About IPTVnator",
-        "DESCRIPTION": "Cross-platform IPTV player application with multiple features, such as support of m3u and m3u8 playlists, favorites, TV guide, TV archive/catchup and more.",
+        "DESCRIPTION": "Aplicativo reprodutor de IPTV multiplataforma com vários recursos, como suporte para listas de reprodução m3u e m3u8, favoritos, guia de TV, arquivo/catchup de TV e muito mais.",
         "VERSION": "Version",
         "GITHUB_TOOLTIP": "ITPVnator repository on GitHub",
         "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee",
