@@ -48,7 +48,7 @@ export class StalkerPortalImportComponent {
     form = new FormGroup({
         _id: new FormControl(uuid()),
         title: new FormControl('', [Validators.required]),
-        macAddress: new FormControl(''),
+        macAddress: new FormControl('', [Validators.required]),
         password: new FormControl(''),
         username: new FormControl(''),
         portalUrl: new FormControl('', [
@@ -62,8 +62,29 @@ export class StalkerPortalImportComponent {
     store = inject(Store);
 
     addPlaylist() {
+        this.form.value.portalUrl = this.transformPortalUrl(
+            this.form.value.portalUrl
+        );
         this.store.dispatch(
             addPlaylist({ playlist: this.form.value as Playlist })
         );
+    }
+
+    transformPortalUrl(url: string) {
+        // if the url ends with "/c" it should be to end with "/portal.php"
+        if (url.endsWith('/c')) {
+            return url.replace('/c', '/portal.php');
+        }
+
+        // if the url ends with "/stalker_portal" it should be extended to "/stalker_portal/server/load.php"
+        if (url.endsWith('/stalker_portal')) {
+            return url.replace(
+                '/stalker_portal/c',
+                '/stalker_portal/server/load.php'
+            );
+        }
+
+        // otherwise keep the provided url
+        return url;
     }
 }

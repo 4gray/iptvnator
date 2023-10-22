@@ -207,6 +207,7 @@ export class StalkerMainContainerComponent implements OnInit {
             response.action === StalkerPortalActions.GetCategories ||
             response.action === StalkerPortalActions.GetGenres
         ) {
+            if (typeof response.payload !== 'object') return;
             this.items = response.payload.js.map((item) => ({
                 category_name: item.title,
                 category_id: item.id,
