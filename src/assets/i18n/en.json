@@ -83,7 +83,7 @@
             "TITLE": "Title",
             "MAC_ADDRESS": "Mac Address",
             "SERVER_URL": "Server URL",
-            "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com/portal.php or https://example.com:4324/portal.php)",
+            "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com/c or https://example.com/stalker_portal/c)",
             "ADD": "Add"
         }
     },
