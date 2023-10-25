@@ -1,7 +1,7 @@
 # Stage 1 - build environment
 FROM node:18-alpine AS build
 
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ git
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -10,10 +10,11 @@ WORKDIR /usr/src/app
 #RUN chown node:node ./
 #USER node
 
+COPY .npmrc ./
 COPY package*.json ./
 
 # Install app dependencies
-RUN npm ci && npm cache clean --force
+RUN npm ci 
 
 # Copy all required files
 COPY . .
