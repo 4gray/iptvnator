@@ -10,6 +10,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { XtreamVodDetails } from '../../../../shared/xtream-vod-details.interface';
 import { PlaylistsService } from '../../services/playlists.service';
 
@@ -18,7 +19,7 @@ import { PlaylistsService } from '../../services/playlists.service';
     templateUrl: './vod-details.component.html',
     styleUrls: ['../detail-view.scss'],
     standalone: true,
-    imports: [MatButtonModule, NgIf, MatIconModule],
+    imports: [MatButtonModule, NgIf, MatIconModule, TranslateModule],
 })
 export class VodDetailsComponent implements OnInit {
     @Input({ required: true }) item: XtreamVodDetails;
