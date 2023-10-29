@@ -50,7 +50,10 @@
                     [channel]="activeChannel"
                     [showCaptions]="playerSettings.showCaptions"
                 />
-                <div class="mpv-player" *ngIf="playerSettings.player === 'mpv'">
+                <div
+                    class="custom-player"
+                    *ngIf="playerSettings.player === 'mpv'"
+                >
                     <img src="./assets/images/custom-player.png" />
                     <p>
                         The channel is played in a separate window in the MPV
@@ -64,6 +67,18 @@
                             "
                             >Installation instructions</a
                         >)
+                    </p>
+                </div>
+                <div
+                    class="custom-player"
+                    *ngIf="playerSettings.player === 'vlc'"
+                >
+                    <img src="./assets/images/custom-player.png" />
+                    <p>
+                        The channel is played in a separate window in VLC
+                        player. Please make sure that this player is installed
+                        in your system and the correct path is defined in the
+                        app settings.
                     </p>
                 </div>
                 <!-- channel overlay -->

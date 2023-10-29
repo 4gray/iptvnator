@@ -129,8 +129,16 @@ export class PlaylistEffects {
                             Object.keys(settings).length > 0 &&
                             settings.player === VideoPlayer.MPV &&
                             channel.radio !== 'true'
-                        )
+                        ) {
                             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+                                url: channel.url,
+                            });
+                        } else if (
+                            settings &&
+                            Object.keys(settings).length > 0 &&
+                            settings.player === VideoPlayer.VLC
+                        )
+                            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                                 url: channel.url,
                             });
                     }
