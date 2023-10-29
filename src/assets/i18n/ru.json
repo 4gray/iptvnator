@@ -7,7 +7,9 @@
             "RECENTLY_ADDED": "Недавно добавленные плейлисты",
             "FILE_UPLOAD": "Загрузить с компьютера",
             "URL_UPLOAD": "Загрузить по ссылке",
-            "TEXT_IMPORT": "Импортировать из текста"
+            "TEXT_IMPORT": "Импортировать из текста",
+            "STALKER_PORTAL_IMPORT": "Добавить Stalker портал",
+            "XTREME_IMPORT": "Добавить Xtreme Code "
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "Пока еще не было добавлено ни одного плейлиста",
@@ -18,6 +20,7 @@
             "ADDED": "Добавлен",
             "SHOW_DETAILS": "Показать информацию о плейлисте",
             "REMOVE": "Удалить плейлист",
+            "SEARCH_PLAYLISTS": "Поиск по названию плейлиста",
             "INFO_DIALOG": {
                 "PLAYLIST_DETAILS": "Подробная информация о плейлисте",
                 "TITLE": "Название",
@@ -33,7 +36,11 @@
                 "AUTO_UPDATE": "Автообновление",
                 "AUTO_UPDATE_DESCRIPTION": "Если активирована функция автообновления, список воспроизведения будет обновляться автоматически при каждом запуске приложения.",
                 "CUSTOM_USER_AGENT": "Некоторые IPTV провайдеры требуют указание определенного пользовательского агента (User Agent) для воспроизведения своего плейлиста.",
-                "EXPORT_PLAYLIST": "Экспортировать плейлист (m3u)"
+                "EXPORT_PLAYLIST": "Экспортировать плейлист (m3u)",
+                "PASSWORD": "Пароль",
+                "SERVER_URL": "URL-адрес сервера",
+                "USERNAME": "Имя пользователя",
+                "MAC_ADDRESS": "MAC-адрес"
             },
             "UPDATED": "Обновлен",
             "REFRESH": "Обновить плейлист",
@@ -45,7 +52,9 @@
             "GLOBAL_FAVORITES_DESCRIPTION": "Автоматически сгенерированный плейлист, включающий в себя фавориты из всех плейлистов",
             "MY_PLAYLISTS": "Мои плейлисты",
             "MY_PLAYLISTS_SUBTITLE": "Все имеющиеся плейлисты",
-            "PLAYLIST_UPDATE_SUCCESS": "Плейлист был успешно обновлен!"
+            "PLAYLIST_UPDATE_SUCCESS": "Плейлист был успешно обновлен!",
+            "STALKER_PORTAL": "Stalker портал",
+            "XTREAM_PLAYLIST": "Xtream плейлист"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Перетащите файл в эту область",
@@ -68,6 +77,12 @@
             "PASSWORD": "Пароль",
             "ADD": "Добавить",
             "TEST_CREDENTIALS": "Проверить"
+        },
+        "STALKER_PORTAL": {
+            "ADD": "Добавить",
+            "TITLE": "Название",
+            "MAC_ADDRESS": "MAC-адрес",
+            "SERVER_URL": "URL сервера"
         }
     },
     "SETTINGS": {
@@ -101,7 +116,7 @@
         "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
         "IMPORT_DATA": "Импорт",
         "EXPORT_DATA": "Экспорт",
-        "REMOVE_ALL": "Remove playlist",
+        "REMOVE_ALL": "Удалить плейлист",
         "REMOVE_ALL_BUTTON": "Удалить",
         "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
         "REMOVE_DIALOG": {
@@ -109,7 +124,11 @@
             "MESSAGE": "Вы уверены что хотите удалить все плейлисты из приложения?"
         },
         "IMPORT_ERROR": "Import error, please try with another file.",
-        "PLAYLISTS_REMOVED": "All playlists were removed."
+        "PLAYLISTS_REMOVED": "Все плейлисты были удалены.",
+        "VLC_PLAYER_PATH_LABEL": "Путь к VLC плееру",
+        "VLC_PLAYER_PATH": "Путь к VLC плееру",
+        "MPV_PLAYER_PATH_LABEL": "Путь к mpv плееру",
+        "MPV_PLAYER_PATH": "Путь к mpv плееру"
     },
     "THEMES": {
         "DARK_THEME": "Тёмная тема",
@@ -188,5 +207,24 @@
         "TWITTER_TOOLTIP": "Поделиться на Twitter"
     },
     "UPDATE_AVAILABLE": "Доступно обновление",
-    "REFRESH": "Обновить"
+    "REFRESH": "Обновить",
+    "XTREAM": {
+        "RATING": "Рейтинг",
+        "RELEASE_DATE": "Дата выпуска",
+        "ACTORS": "Актеры",
+        "PLAY": "Воспроизвести",
+        "GENRE": "Жанр",
+        "DURATION": "Продолжительность",
+        "COUNTRY": "Страна",
+        "NAME": "Название",
+        "DIRECTOR": "Режиссёр",
+        "CAST": "Бросать",
+        "EPISODE_RUN_TIME": "Длительность эпизода"
+    },
+    "PORTALS": {
+        "ALL_CATEGORIES": "Все категории",
+        "ADD_TO_FAVORITES": "Добавить в избранное",
+        "REMOVE_FROM_FAVORITES": "Удалить из избранного",
+        "MY_FAVORITES": "Избранное"
+    }
 }

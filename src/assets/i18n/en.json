@@ -22,6 +22,7 @@
             "ADDED": "Added",
             "SHOW_DETAILS": "Show playlist details",
             "REMOVE": "Remove playlist",
+            "SEARCH_PLAYLISTS": "Search playlists by title",
             "INFO_DIALOG": {
                 "PLAYLIST_DETAILS": "Playlist details",
                 "TITLE": "Title",
