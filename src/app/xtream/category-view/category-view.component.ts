@@ -14,10 +14,11 @@ import { PortalStore } from '../portal.store';
         <ng-container *ngIf="items?.length > 0; else noItems">
             <div class="grid">
                 <mat-card
+                    appearance="outlined"
                     class="category-item"
                     *ngFor="
                         let item of items
-                            | filterBy : searchText() : 'category_name';
+                            | filterBy: searchText() : 'category_name';
                         trackBy: trackByFn
                     "
                     (click)="categoryClicked.emit(item)"
@@ -29,7 +30,7 @@ import { PortalStore } from '../portal.store';
                 <div
                     class="no-content"
                     *ngIf="
-                        !(items | filterBy : searchText() : 'category_name')
+                        !(items | filterBy: searchText() : 'category_name')
                             ?.length
                     "
                 >

@@ -10,7 +10,8 @@
         "UNGROUPED": "Ohne Gruppe",
         "UNNAMED_CHANNEL": "Sender ohne Namen",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Neue Playlist hochladen oder eine andere aussuchen",
-        "USE_STAR_TO_FAVORITE": "Nutzen Sie das Star-Icon um Sender als Favoriten zu markieren"
+        "USE_STAR_TO_FAVORITE": "Nutzen Sie das Star-Icon um Sender als Favoriten zu markieren",
+        "FAVORITES_UPDATED": "Favoriten wurden aktualisiert!"
     },
     "EPG": {
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Versuchen Sie bitte die TV-Guide Einstellungen zu ändern.",
@@ -51,6 +52,7 @@
             "NO_PLAYLISTS": "Noch keine Playlisten hinzugefügt",
             "REMOVE": "Playlist entfernen",
             "SHOW_DETAILS": "Details anzeigen",
+            "SEARCH_PLAYLISTS": "Suche nach Playlisten",
             "INFO_DIALOG": {
                 "CHANNELS": "Anzahl von Sender",
                 "CLOSE": "Schließen",
@@ -66,13 +68,17 @@
                 "AUTO_UPDATE": "Auto-update",
                 "AUTO_UPDATE_DESCRIPTION": "Wenn die Auto-Refresh-Funktion aktiviert ist, wird die Wiedergabeliste bei jedem Start der Anwendung automatisch aktualisiert.",
                 "CUSTOM_USER_AGENT": "Einige IPTV-Anbieter benötigen einen bestimmten 'User-Agent', um ihre Playlist abspielen zu können.",
-                "EXPORT_PLAYLIST": "Als m3u exportieren"
+                "EXPORT_PLAYLIST": "Als m3u exportieren",
+                "PASSWORD": "Passwort",
+                "SERVER_URL": "Server-URL",
+                "USERNAME": "Nutzername",
+                "MAC_ADDRESS": "MAC-Adresse"
             },
             "UPDATED": "Aktualisiert am",
             "REFRESH": "Aktualisieren",
             "REMOVE_DIALOG": {
                 "MESSAGE": "Sind Sie sicher, dass Sie diese Wiedergabeliste vollständig löschen möchten",
-                "TITLE": ""
+                "TITLE": "Wiedergabeliste entfernen"
             },
             "GLOBAL_FAVORITES": "Globale Favoriten",
             "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
@@ -100,6 +106,10 @@
             "PASSWORD": "Passwort",
             "ADD": "Hinzufügen",
             "TEST_CREDENTIALS": "Verbindung testen"
+        },
+        "STALKER_PORTAL": {
+            "ADD": "Hinzufügen",
+            "TITLE": "Titel"
         }
     },
     "LANGUAGES": {
@@ -130,7 +140,15 @@
         "VIDEO_PLAYER_PLACEHOLDER": "Option auswählen",
         "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!",
         "THEME": "Farbdesign",
-        "SHOW_CAPTIONS": "Untertitel anzeigen"
+        "SHOW_CAPTIONS": "Untertitel anzeigen",
+        "REMOVE_ALL": "Playlist entfernen",
+        "REMOVE_ALL_BUTTON": "Entfernen",
+        "REMOVE_DIALOG": {
+            "TITLE": "Аlle Wiedergabelisten löschen"
+        },
+        "LANGUAGE_DESCRIPTION": "Wählen Sie die Sprache der Anwendung aus",
+        "PLAYLISTS_REMOVED": "Alle Playlists wurden entfernt.",
+        "VERSION_DESCRIPTION": "Aktuelle Version der Anwendung"
     },
     "THEMES": {
         "DARK_THEME": "Dunkel",
@@ -153,5 +171,30 @@
         "WHAT_IS_NEW": "Was ist neu",
         "ABOUT": "Über",
         "ABOUT_ARIA": "Über die Anwendung"
-    }
+    },
+    "XTREAM": {
+        "RELEASE_DATE": "Veröffentlichungsdatum",
+        "ACTORS": "Schauspieler",
+        "PLAY": "Abspielen",
+        "GENRE": "Genre",
+        "DURATION": "Dauer",
+        "COUNTRY": "Land",
+        "NAME": "Name",
+        "DIRECTOR": "Regisseur",
+        "CAST": "Gießen",
+        "RATING": "Bewertung"
+    },
+    "PORTALS": {
+        "ALL_CATEGORIES": "Alle Kategorien",
+        "ADD_TO_FAVORITES": "Zu den Favoriten hinzufügen",
+        "REMOVE_FROM_FAVORITES": "Von Favoriten entfernen",
+        "MY_FAVORITES": "Meine Favoriten"
+    },
+    "ABOUT": {
+        "TITLE": "Über IPTVnator",
+        "VERSION": "Ausführung",
+        "TWITTER_TOOLTIP": "Auf Twitter teilen"
+    },
+    "REFRESH": "Aktualisieren",
+    "UPDATE_AVAILABLE": "Update verfügbar"
 }

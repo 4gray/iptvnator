@@ -119,3 +119,10 @@ export const updatePlaylistPositions = createAction(
 export const removeAllPlaylists = createAction(
     `${STORE_KEY} Remove all playlists`
 );
+
+export const setAdjacentChannelAsActive = createAction(
+    `${STORE_KEY} Set adjacent channel as active`,
+    props<{
+        direction: 'next' | 'previous';
+    }>()
+);

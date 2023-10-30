@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import {
-    UntypedFormArray,
-    UntypedFormBuilder,
-    UntypedFormControl,
+    FormArray,
+    FormBuilder,
+    FormControl,
     Validators,
 } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -15,6 +15,7 @@ import * as semver from 'semver';
 import {
     EPG_FORCE_FETCH,
     SET_MPV_PLAYER_PATH,
+    SET_VLC_PLAYER_PATH,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
@@ -43,6 +44,17 @@ export class SettingsComponent implements OnInit {
     /** Flag that indicates whether the app runs in electron environment */
     isElectron = this.electronService.isElectron;
 
+    electronPlayers = [
+        {
+            id: VideoPlayer.MPV,
+            label: 'MPV Player',
+        },
+        {
+            id: VideoPlayer.VLC,
+            label: 'VLC',
+        },
+    ];
+
     /** Player options */
     players = [
         {
@@ -53,15 +65,7 @@ export class SettingsComponent implements OnInit {
             id: VideoPlayer.VideoJs,
             label: 'VideoJs Player',
         },
-        ...(this.isElectron
-            ? 
-            [
-                {
-                    id: VideoPlayer.MPV,
-                    label: 'MPV Player',
-                },
-            ]
-            : []),
+        ...(this.isElectron ? this.electronPlayers : []),
     ];
 
     /** Current version of the app */
@@ -79,15 +83,16 @@ export class SettingsComponent implements OnInit {
     /** Settings form object */
     settingsForm = this.formBuilder.group({
         player: [VideoPlayer.VideoJs],
-        ...(this.isElectron ? { epgUrl: new UntypedFormArray([]) } : {}),
+        ...(this.isElectron ? { epgUrl: new FormArray([]) } : {}),
         language: Language.ENGLISH,
         showCaptions: false,
         theme: Theme.LightTheme,
         mpvPlayerPath: '',
+        vlcPlayerPath: '',
     });
 
     /** Form array with epg sources */
-    epgUrl = this.settingsForm.get('epgUrl') as UntypedFormArray;
+    epgUrl = this.settingsForm.get('epgUrl') as FormArray;
 
     /**
      * Creates an instance of SettingsComponent and injects
@@ -97,7 +102,7 @@ export class SettingsComponent implements OnInit {
         private dialogService: DialogService,
         private electronService: DataService,
         private epgService: EpgService,
-        private formBuilder: UntypedFormBuilder,
+        private formBuilder: FormBuilder,
         private playlistsService: PlaylistsService,
         private router: Router,
         private settingsService: SettingsService,
@@ -138,6 +143,7 @@ export class SettingsComponent implements OnInit {
                             ? settings.theme
                             : Theme.LightTheme,
                         mpvPlayerPath: settings.mpvPlayerPath,
+                        vlcPlayerPath: settings.vlcPlayerPath,
                     });
 
                     if (this.isElectron) {
@@ -154,16 +160,14 @@ export class SettingsComponent implements OnInit {
     setEpgUrls(epgUrls: string[] | string): void {
         const URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
 
-        if (!Array.isArray(epgUrls)) {
-            epgUrls = [epgUrls];
-        }
-        epgUrls = epgUrls.filter((url) => url !== '');
+        const urls = Array.isArray(epgUrls) ? epgUrls : [epgUrls];
+        const filteredUrls = urls.filter((url) => url !== '');
 
-        for (const url of epgUrls) {
+        filteredUrls.forEach((url) => {
             this.epgUrl.push(
-                new UntypedFormControl(url, [Validators.pattern(URL_REGEX)])
+                new FormControl(url, [Validators.pattern(URL_REGEX)])
             );
-        }
+        });
     }
 
     /**
@@ -230,6 +234,11 @@ export class SettingsComponent implements OnInit {
             SET_MPV_PLAYER_PATH,
             this.settingsForm.value.mpvPlayerPath
         );
+
+        this.electronService.sendIpcEvent(
+            SET_VLC_PLAYER_PATH,
+            this.settingsForm.value.mpvPlayerPath
+        );
     }
 
     /**
@@ -255,7 +264,7 @@ export class SettingsComponent implements OnInit {
             null,
             {
                 duration: 2000,
-                horizontalPosition: 'left',
+                horizontalPosition: 'start',
             }
         );
     }
@@ -280,7 +289,7 @@ export class SettingsComponent implements OnInit {
      * Initializes new entry in form array for EPG URL
      */
     addEpgSource(): void {
-        this.epgUrl.insert(this.epgUrl.length, new UntypedFormControl(''));
+        this.epgUrl.insert(this.epgUrl.length, new FormControl(''));
     }
 
     /**
@@ -319,34 +328,16 @@ export class SettingsComponent implements OnInit {
             const file = target.files?.[0];
 
             if (file) {
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        const contents = reader.result;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const contents = reader.result;
 
-                        try {
-                            const parsedPlaylists: Playlist[] = JSON.parse(
-                                contents.toString()
-                            );
+                    try {
+                        const parsedPlaylists: Playlist[] = JSON.parse(
+                            contents.toString()
+                        );
 
-                            if (!Array.isArray(parsedPlaylists)) {
-                                this.snackBar.open(
-                                    this.translate.instant(
-                                        'SETTINGS.IMPORT_ERROR'
-                                    ),
-                                    null,
-                                    {
-                                        duration: 2000,
-                                    }
-                                );
-                            } else {
-                                this.store.dispatch(
-                                    PlaylistActions.addManyPlaylists({
-                                        playlists: parsedPlaylists,
-                                    })
-                                );
-                            }
-                        } catch (error) {
+                        if (!Array.isArray(parsedPlaylists)) {
                             this.snackBar.open(
                                 this.translate.instant('SETTINGS.IMPORT_ERROR'),
                                 null,
@@ -354,10 +345,24 @@ export class SettingsComponent implements OnInit {
                                     duration: 2000,
                                 }
                             );
+                        } else {
+                            this.store.dispatch(
+                                PlaylistActions.addManyPlaylists({
+                                    playlists: parsedPlaylists,
+                                })
+                            );
                         }
-                    };
-                    reader.readAsText(file);
-                }
+                    } catch (error) {
+                        this.snackBar.open(
+                            this.translate.instant('SETTINGS.IMPORT_ERROR'),
+                            null,
+                            {
+                                duration: 2000,
+                            }
+                        );
+                    }
+                };
+                reader.readAsText(file);
             }
         });
 

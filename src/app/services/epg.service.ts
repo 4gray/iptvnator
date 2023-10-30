@@ -13,32 +13,28 @@ export class EpgService {
     /** Default options for epg snackbar notifications */
     epgSnackBarOptions: MatSnackBarConfig = {
         verticalPosition: 'bottom',
-        horizontalPosition: 'right',
+        horizontalPosition: 'start',
     };
 
     constructor(
-        private readonly store: Store,
+        private store: Store,
         private electronService: DataService,
         private snackBar: MatSnackBar,
         private translate: TranslateService
     ) {}
 
     /**
-     * Fetches and updates EPG from the given URL
+     * Fetches and updates EPG from the given sources
      * @param urls epg source urls
      */
-    fetchEpg(urls: string | string[]): void {
-        if (!Array.isArray(urls)) {
-            urls = [urls];
-        }
-        if (urls?.length > 0) {
-            urls.forEach((url) =>
-                this.electronService.sendIpcEvent(EPG_FETCH, {
-                    url,
-                })
-            );
-            this.showFetchSnackbar();
-        }
+    fetchEpg(urls: string | string[]) {
+        const urlsArray = Array.isArray(urls) ? urls : [urls];
+        urlsArray.forEach((url) =>
+            this.electronService.sendIpcEvent(EPG_FETCH, {
+                url,
+            })
+        );
+        this.showFetchSnackbar();
     }
 
     showFetchSnackbar() {
@@ -49,10 +45,7 @@ export class EpgService {
         );
     }
 
-    /**
-     * Handles the event when the EPG fetching is done
-     */
-    onEpgFetchDone(): void {
+    onEpgFetchDone() {
         this.store.dispatch(setEpgAvailableFlag({ value: true }));
         this.snackBar.open(
             this.translate.instant('EPG.DOWNLOAD_SUCCESS'),
@@ -64,10 +57,7 @@ export class EpgService {
         );
     }
 
-    /**
-     * Handles epg error
-     */
-    onEpgError(): void {
+    onEpgError() {
         this.snackBar.open(this.translate.instant('EPG.ERROR'), null, {
             ...this.epgSnackBarOptions,
             duration: 2000,

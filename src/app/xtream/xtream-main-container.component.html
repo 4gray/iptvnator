@@ -8,6 +8,7 @@
     [searchVisible]="
         currentLayout === 'category' || currentLayout === 'category_content'
     "
+    [contentTypeNavigationItems]="navigationContentTypes"
 />
 
 <div class="container">
@@ -49,7 +50,5 @@
             [items]="favorites$ | async"
             (itemClicked)="itemClicked($event)"
         />
-
-        <app-player-view *ngIf="currentLayout === 'player'" />
     </ng-template>
 </div>

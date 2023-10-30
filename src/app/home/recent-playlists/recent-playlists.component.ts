@@ -12,7 +12,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { map } from 'rxjs';
+import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../../shared/constants';
 import { IpcCommand } from '../../../../shared/ipc-command.class';
 import { Playlist } from '../../../../shared/playlist.interface';
@@ -42,9 +42,20 @@ import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
     styleUrls: ['./recent-playlists.component.scss'],
 })
 export class RecentPlaylistsComponent implements OnDestroy {
-    playlists$ = this.store.select(selectAllPlaylistsMeta).pipe(
+    searchQuery = new BehaviorSubject('');
+
+    playlists$ = combineLatest([
+        this.store.select(selectAllPlaylistsMeta),
+        this.searchQuery,
+    ]).pipe(
         // eslint-disable-next-line @ngrx/avoid-mapping-selectors
-        map((playlists) => playlists.sort((a, b) => a.position - b.position))
+        map(([playlists, searchQuery]) =>
+            playlists
+                .sort((a, b) => a.position - b.position)
+                .filter((item) =>
+                    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+        )
     );
 
     allPlaylistsLoaded$ = this.store.select(selectPlaylistsLoadingFlag);
@@ -169,6 +180,8 @@ export class RecentPlaylistsComponent implements OnDestroy {
     getPlaylist(playlistMeta: PlaylistMeta): void {
         if (playlistMeta.serverUrl) {
             this.router.navigate(['xtreams', playlistMeta._id]);
+        } else if (playlistMeta.macAddress) {
+            this.router.navigate(['portals', playlistMeta._id]);
         } else {
             this.router.navigate(['playlists', playlistMeta._id]);
             this.playlistClicked.emit(playlistMeta._id);
@@ -226,5 +239,13 @@ export class RecentPlaylistsComponent implements OnDestroy {
                 this.electronService.removeAllListeners(command.id)
             );
         }
+    }
+
+    trackByFn(_index: number, item: PlaylistMeta) {
+        return item._id;
+    }
+
+    onSearchQueryUpdate(searchQuery: string) {
+        this.searchQuery.next(searchQuery);
     }
 }

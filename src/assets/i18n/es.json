@@ -32,7 +32,11 @@
                 "UPDATE_FAILED": "Última actualización de la lista fallida",
                 "AUTO_UPDATE": "Auto-actualizar",
                 "AUTO_UPDATE_DESCRIPTION": "Si la función de auto-actualizar se activa, la lista de reproducción se refrescará automáticamente cada vez que se inicia la app.",
-                "CUSTOM_USER_AGENT": "Algunos proveedores de IPTV necesitan especificar el agente de usuario para reproducir su lista de reproducción."
+                "CUSTOM_USER_AGENT": "Algunos proveedores de IPTV necesitan especificar el agente de usuario para reproducir su lista de reproducción.",
+                "PASSWORD": "Contraseña",
+                "SERVER_URL": "URL del servidor",
+                "USERNAME": "Nombre de usuario",
+                "MAC_ADDRESS": "Dirección MAC"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Quitar lista de reproducción",
@@ -56,6 +60,10 @@
         "TEXT_IMPORT": {
             "LABEL": "Insert m3u(8) playlist as text",
             "BUTTON_LABEL": "Import"
+        },
+        "STALKER_PORTAL": {
+            "ADD": "Agregar",
+            "TITLE": "Título"
         }
     },
     "SETTINGS": {
@@ -75,7 +83,15 @@
         "LANGUAGE": "Idioma",
         "SETTINGS_SAVED": "¡Completado! La configuración se guardó.",
         "THEME": "Tema visual",
-        "SHOW_CAPTIONS": "Mostrar subtítulos"
+        "SHOW_CAPTIONS": "Mostrar subtítulos",
+        "REMOVE_ALL": "Eliminar lista de reproducción",
+        "REMOVE_ALL_BUTTON": "Eliminar",
+        "REMOVE_DIALOG": {
+            "TITLE": "Eliminar todas las listas de reproducción"
+        },
+        "LANGUAGE_DESCRIPTION": "Seleccione el idioma de la aplicación",
+        "PLAYLISTS_REMOVED": "Se eliminaron todas las listas de reproducción.",
+        "VERSION_DESCRIPTION": "Versión actual de la aplicación."
     },
     "THEMES": {
         "DARK_THEME": "Tema oscuro",
@@ -91,7 +107,8 @@
         "FAVORITES": "Favoritos",
         "NO_FAVORITES": "Sin favoritos",
         "USE_STAR_TO_FAVORITE": "Por favor, usa el ícono de la 'estrella' para añadir canales a la lista.",
-        "REMOVE_FAVORITE": "Quitar de favoritos"
+        "REMOVE_FAVORITE": "Quitar de favoritos",
+        "FAVORITES_UPDATED": "¡Se actualizaron los favoritos!"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Open channels list",
@@ -143,5 +160,30 @@
         "WHAT_IS_NEW": "What is new",
         "ABOUT": "About",
         "ABOUT_ARIA": "About the application"
-    }
+    },
+    "XTREAM": {
+        "RELEASE_DATE": "Fecha de lanzamiento",
+        "ACTORS": "actores",
+        "PLAY": "Jugar",
+        "GENRE": "Género",
+        "DURATION": "Duración",
+        "COUNTRY": "País",
+        "NAME": "Nombre",
+        "DIRECTOR": "Director",
+        "CAST": "Elenco",
+        "RATING": "Clasificación"
+    },
+    "PORTALS": {
+        "ALL_CATEGORIES": "Todas las categorias",
+        "ADD_TO_FAVORITES": "Agregar a los favoritos",
+        "REMOVE_FROM_FAVORITES": "Quitar de favoritos",
+        "MY_FAVORITES": "Mis favoritos"
+    },
+    "ABOUT": {
+        "TITLE": "Acerca de IPTVnator",
+        "VERSION": "Versión",
+        "TWITTER_TOOLTIP": "Compartir en Twitter"
+    },
+    "REFRESH": "Actualizar",
+    "UPDATE_AVAILABLE": "Actualización disponible"
 }

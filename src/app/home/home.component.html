@@ -46,9 +46,7 @@
                 </div>
             </ng-template>
             <ng-template matTabContent>
-                <app-url-upload
-                    (urlAdded)="sendPlaylistsUrl($event)"
-                />
+                <app-url-upload (urlAdded)="sendPlaylistsUrl($event)" />
             </ng-template>
         </mat-tab>
         <mat-tab>
@@ -59,20 +57,29 @@
                 </div>
             </ng-template>
             <ng-template matTabContent>
-                <app-text-import
-                    (textAdded)="uploadAsText($event)"
-                />
+                <app-text-import (textAdded)="uploadAsText($event)" />
             </ng-template>
         </mat-tab>
         <mat-tab>
             <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">text_format</mat-icon>
+                <mat-icon class="tab-icon">video_library</mat-icon>
                 <div class="tab-title">
                     {{ 'HOME.TABS.XTREME_IMPORT' | translate }}
                 </div>
             </ng-template>
             <ng-template matTabContent>
                 <app-xtream-code-import />
+            </ng-template>
+        </mat-tab>
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <mat-icon class="tab-icon">dashboard</mat-icon>
+                <div class="tab-title">
+                    {{ 'HOME.TABS.STALKER_PORTAL_IMPORT' | translate }}
+                </div>
+            </ng-template>
+            <ng-template matTabContent>
+                <app-stalker-portal-import />
             </ng-template>
         </mat-tab>
     </mat-tab-group>

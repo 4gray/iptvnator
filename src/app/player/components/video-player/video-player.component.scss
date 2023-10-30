@@ -17,6 +17,10 @@
     min-width: 400px;
 }
 
+.custom-player {
+    padding: 20px;
+}
+
 @media only screen and (max-width: 480px) {
     .mat-drawer {
         width: 200px;
@@ -25,11 +29,12 @@
 }
 
 @media (prefers-color-scheme: dark) {
-    .mpv-player {
+    .custom-player {
         display: flex;
         margin-top: 50px;
         flex-direction: column;
         align-items: center;
+        padding: 10px;
 
         img {
             filter: invert(100%);

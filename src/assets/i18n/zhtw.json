@@ -33,7 +33,11 @@
                 "AUTO_UPDATE": "自動更新",
                 "AUTO_UPDATE_DESCRIPTION": "如果啟動自動重新整理功能，則每次啟動應用程式時都將自動更新播放清單。",
                 "CUSTOM_USER_AGENT": "部分 IPTV 服務提供者需要特定的 User-Agent 才能播放他們的播放清單。",
-                "EXPORT_PLAYLIST": "以 m3u 格式匯出播放清單"
+                "EXPORT_PLAYLIST": "以 m3u 格式匯出播放清單",
+                "PASSWORD": "Password",
+                "SERVER_URL": "Server URL",
+                "USERNAME": "Username",
+                "MAC_ADDRESS": "Mac Address"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "移除播放清單",
@@ -61,6 +65,10 @@
         "TEXT_IMPORT": {
             "LABEL": "將 m3u（8）播放清單以純文字的方式插入",
             "BUTTON_LABEL": "匯入"
+        },
+        "STALKER_PORTAL": {
+            "ADD": "Add",
+            "TITLE": "Title"
         }
     },
     "SETTINGS": {
@@ -181,5 +189,23 @@
         "TWITTER_TOOLTIP": "在 Twitter 上分享"
     },
     "UPDATE_AVAILABLE": "有可用的更新",
-    "REFRESH": "重新整理"
+    "REFRESH": "重新整理",
+    "XTREAM": {
+        "RELEASE_DATE": "Release date",
+        "ACTORS": "Actors",
+        "PLAY": "Play",
+        "GENRE": "Genre",
+        "DURATION": "Duration",
+        "COUNTRY": "Country",
+        "NAME": "Name",
+        "DIRECTOR": "Director",
+        "CAST": "Cast",
+        "RATING": "Rating"
+    },
+    "PORTALS": {
+        "ALL_CATEGORIES": "All categories",
+        "ADD_TO_FAVORITES": "Add to favorites",
+        "REMOVE_FROM_FAVORITES": "Remove from favorites",
+        "MY_FAVORITES": "My favorites"
+    }
 }

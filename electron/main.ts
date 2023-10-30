@@ -64,7 +64,7 @@ function createWindow(): BrowserWindow {
     }
 
     win.on('close', () => {
-        store.set(WINDOW_BOUNDS, win?.getNormalBounds());
+        if (win) store.set(WINDOW_BOUNDS, win.getNormalBounds());
     });
 
     // Emitted when the window is closed.
@@ -144,7 +144,7 @@ try {
     });
 
     app.on('before-quit', () => {
-        store.set(WINDOW_BOUNDS, win?.getNormalBounds());
+        if (win) store.set(WINDOW_BOUNDS, win.getNormalBounds());
     });
 
     if (serve && process.platform === 'darwin') {

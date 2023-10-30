@@ -6,11 +6,20 @@
     min-height: calc(100vh - 165px);
 }
 
+.search-panel {
+    padding: 10px;
+}
+
 .search-bar {
     padding: 8px;
     background: #ddd;
     border: none;
     border-radius: 4px;
+}
+
+mat-nav-list {
+    overflow: scroll;
+    max-height: calc(100vh - 193px);
 }
 
 ::ng-deep {

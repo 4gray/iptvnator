@@ -1,0 +1,48 @@
+<app-navigation-bar
+    [breadcrumbs]="breadcrumbs"
+    [contentType]="selectedContentType"
+    (searchTextChanged)="setSearchPhrase($event)"
+    [clientSideSearch]="currentLayout === 'category_content' ? false : true"
+    [searchVisible]="
+        currentLayout === 'category' || currentLayout === 'category_content'
+    "
+    [contentTypeNavigationItems]="navigationContentTypes"
+    [contentType]="selectedContentType"
+    (contentTypeChanged)="getCategories($event)"
+    (breadcrumbClicked)="breadcrumbClicked($event)"
+    (favoritesClicked)="favoritesClicked()"
+/>
+
+<app-category-view
+    *ngIf="currentLayout === 'category'"
+    (categoryClicked)="categoryClicked($event)"
+    [items]="items"
+/>
+
+<app-category-content-view
+    *ngIf="currentLayout === 'category_content'"
+    [items]="items"
+    (itemClicked)="itemClicked($event)"
+/>
+
+<app-vod-details
+    *ngIf="currentLayout === 'vod-details'"
+    [item]="itemDetails"
+    (playClicked)="playVod()"
+    (addToFavoritesClicked)="addToFavorites($event)"
+    (removeFromFavoritesClicked)="removeFromFavorites($event)"
+/>
+
+<app-category-content-view
+    *ngIf="currentLayout === 'favorites'"
+    [items]="favorites$ | async"
+    (itemClicked)="itemClicked($event)"
+/>
+
+<mat-paginator
+    *ngIf="currentLayout === 'category_content'"
+    [length]="length"
+    [pageSize]="pageSize"
+    (page)="handlePageChange($event)"
+    aria-label="Select page"
+/>

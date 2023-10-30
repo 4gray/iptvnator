@@ -61,6 +61,7 @@ const DEFAULT_SETTINGS = {
     showCaptions: false,
     theme: Theme.LightTheme,
     mpvPlayerPath: '',
+    vlcPlayerPath: '',
 };
 
 describe('SettingsComponent', () => {
@@ -131,6 +132,7 @@ describe('SettingsComponent', () => {
             showCaptions: true,
             epgUrl: [],
             mpvPlayerPath: '',
+            vlcPlayerPath: '',
         };
         let spyOnStorageGet;
 

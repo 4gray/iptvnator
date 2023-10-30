@@ -8,17 +8,17 @@
             name="contentType"
             aria-label="Content Type"
             [value]="contentType"
-            (change)="contentTypeChanged.emit($event.value)"
+            (change)="changeContentType($event.value)"
         >
-            <mat-button-toggle [value]="ContentTypeEnum.LIVE_STREAMS"
-                >Live Streams</mat-button-toggle
+            <mat-button-toggle
+                *ngFor="
+                    let item of contentTypeNavigationItems;
+                    trackBy: trackByValue
+                "
+                [value]="item.contentType"
             >
-            <mat-button-toggle [value]="ContentTypeEnum.VODS"
-                >VOD Streams</mat-button-toggle
-            >
-            <mat-button-toggle [value]="ContentTypeEnum.SERIES"
-                >Series</mat-button-toggle
-            >
+                {{ item.label }}
+            </mat-button-toggle>
         </mat-button-toggle-group>
     </div>
 
@@ -28,11 +28,15 @@
 </div>
 <div id="sub-panel">
     <div class="breadcrumbs">
-        <span
-            *ngFor="let item of breadcrumbs"
+        <div
+            *ngFor="let item of breadcrumbs; let i = index"
             (click)="processBreadcrumbClick(item)"
-            >{{ item.title }}</span
         >
+            <span>{{ item.title }}</span>
+            <mat-icon *ngIf="i !== breadcrumbs.length - 1"
+                >chevron_right</mat-icon
+            >
+        </div>
     </div>
     <div class="search" *ngIf="searchVisible">
         <input
@@ -40,7 +44,7 @@
             placeholder="Search by name"
             type="search"
             [ngModel]="searchPhrase()"
-            (ngModelChange)="setSearchText($event)"
+            (ngModelChange)="searchPhraseUpdate.next($event)"
         />
     </div>
 </div>

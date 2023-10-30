@@ -32,7 +32,11 @@
                 "UPDATE_FAILED": "마지막 재생 목록 업데이트가 실패했습니다",
                 "AUTO_UPDATE": "자동 업데이트",
                 "AUTO_UPDATE_DESCRIPTION": "자동 새로 고침 기능이 활성화되면 앱이 시작될 때마다 재생 목록이 자동으로 업데이트됩니다.",
-                "CUSTOM_USER_AGENT": "일부 IPTV 공급자는 재생 목록을 재생하기 위해 특정 사용자 에이전트가 필요합니다."
+                "CUSTOM_USER_AGENT": "일부 IPTV 공급자는 재생 목록을 재생하기 위해 특정 사용자 에이전트가 필요합니다.",
+                "PASSWORD": "비밀번호",
+                "SERVER_URL": "서버 URL",
+                "USERNAME": "사용자 이름",
+                "MAC_ADDRESS": "맥 주소"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "재생 목록 제거",
@@ -56,6 +60,10 @@
         "TEXT_IMPORT": {
             "LABEL": "Insert m3u(8) playlist as text",
             "BUTTON_LABEL": "Import"
+        },
+        "STALKER_PORTAL": {
+            "ADD": "추가하다",
+            "TITLE": "제목"
         }
     },
     "SETTINGS": {
@@ -75,7 +83,15 @@
         "LANGUAGE": "언어",
         "SETTINGS_SAVED": "설정이 저장되었습니다.",
         "THEME": "테마",
-        "SHOW_CAPTIONS": "Show subtitles"
+        "SHOW_CAPTIONS": "Show subtitles",
+        "REMOVE_ALL": "재생목록 삭제",
+        "REMOVE_ALL_BUTTON": "제거하다",
+        "REMOVE_DIALOG": {
+            "TITLE": "모든 재생목록 삭제"
+        },
+        "LANGUAGE_DESCRIPTION": "애플리케이션 언어 선택",
+        "PLAYLISTS_REMOVED": "모든 재생목록이 삭제되었습니다.",
+        "VERSION_DESCRIPTION": "애플리케이션의 현재 버전"
     },
     "THEMES": {
         "DARK_THEME": "어두운 테마",
@@ -91,7 +107,8 @@
         "FAVORITES": "즐겨찾기",
         "NO_FAVORITES": "즐겨찾기가 아직 없습니다",
         "USE_STAR_TO_FAVORITE": "'Star'아이콘을 사용하여 이 목록에 채널을 추가하십시오.",
-        "REMOVE_FAVORITE": "즐겨찾기에서 삭제하기"
+        "REMOVE_FAVORITE": "즐겨찾기에서 삭제하기",
+        "FAVORITES_UPDATED": "즐겨찾기가 업데이트되었습니다!"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "채널 열기 목록",
@@ -143,5 +160,30 @@
         "WHAT_IS_NEW": "What is new",
         "ABOUT": "About",
         "ABOUT_ARIA": "About the application"
-    }
+    },
+    "XTREAM": {
+        "RELEASE_DATE": "출시일",
+        "ACTORS": "배우",
+        "PLAY": "놀다",
+        "GENRE": "장르",
+        "DURATION": "지속",
+        "COUNTRY": "국가",
+        "NAME": "이름",
+        "DIRECTOR": "감독",
+        "CAST": "깁스",
+        "RATING": "평가"
+    },
+    "PORTALS": {
+        "ALL_CATEGORIES": "모든 카테고리",
+        "ADD_TO_FAVORITES": "즐겨 찾기에 추가",
+        "REMOVE_FROM_FAVORITES": "즐겨 찾기에서 삭제하기",
+        "MY_FAVORITES": "내가 좋아하는 것들"
+    },
+    "ABOUT": {
+        "TITLE": "IPTVnator 소개",
+        "VERSION": "버전",
+        "TWITTER_TOOLTIP": "트위터에 공유"
+    },
+    "REFRESH": "새로 고치다",
+    "UPDATE_AVAILABLE": "업데이트 가능"
 }

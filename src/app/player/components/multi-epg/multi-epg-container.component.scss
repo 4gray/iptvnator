@@ -36,6 +36,7 @@ rect {
 .parent {
     display: flex;
     background-color: black;
+    color: #fff;
 }
 
 #channels-column {
@@ -51,9 +52,10 @@ rect {
 
 #epg-navigation {
     display: flex;
-    background-color: black;
+    background-color: white;
     margin-top: 30px;
     border-bottom: 2px solid #fff;
+    align-items: center;
 }
 
 .today-date {
@@ -67,4 +69,12 @@ rect {
 #current-time-line {
     stroke-width: 2px;
     stroke: white;
+}
+
+::ng-deep {
+    .dark-theme {
+        #epg-navigation {
+            background-color: black;
+        }
+    }
 }
