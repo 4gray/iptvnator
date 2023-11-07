@@ -45,7 +45,7 @@
             "UPDATED": "Actualizado",
             "REFRESH": "Actualizar lista",
             "GLOBAL_FAVORITES": "Global favorites",
-            "GLOBAL_FAVORITES_DESCRIPTION": "Lista autogenerada automáticamente con los favoritos agregados de todas las listas",
+            "GLOBAL_FAVORITES_DESCRIPTION": "Lista autogenerada con los favoritos agregados de todas las listas",
             "MY_PLAYLISTS": "Mis listas"
         },
         "FILE_UPLOAD": {
