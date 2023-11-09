@@ -116,11 +116,8 @@
                     }
                 },
                 "test": {
-                    "builder": "@angular-devkit/build-angular:jest",
-                    "options": {
-                        "tsConfig": "tsconfig.spec.json",
-                        "polyfills": ["zone.js", "zone.js/testing"]
-                    }
+                    "builder": "@angular-builders/jest:run",
+                    "options": {}
                 },
                 "lint": {
                     "builder": "@angular-eslint/builder:lint",

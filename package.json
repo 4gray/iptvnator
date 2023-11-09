@@ -51,6 +51,7 @@
         "build-pwa": "ng build -c production --base-href /iptvnator --deploy-url /iptvnator/"
     },
     "dependencies": {
+        "@angular-builders/jest": "16.0.1",
         "@angular/animations": "16.1.5",
         "@angular/cdk": "16.1.5",
         "@angular/material": "16.1.5",
