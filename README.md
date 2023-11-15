@@ -18,10 +18,10 @@ The application is a cross-platform and open source project based on Electron an
 ## Features
 
 - M3u and M3u8 playlists support 📺
-- Upload playlists from a file system 📂
-- Add remote playlists via URL 🔗
-- Playlists auto-update feature
-- Open playlist from the file system
+- Xtream Code (XC) and Stalker portal (STB) support
+- External player support - mvp, VLC
+- Add playlists from file system or from remote URL 📂
+- Playlists auto-update feature on app startup
 - Search for channels 🔍
 - EPG support (TV Guide) with detailed info
 - TV archive/catchup/timeshift
@@ -29,10 +29,10 @@ The application is a cross-platform and open source project based on Electron an
 - Save channels as favorites
 - Global favorites aggregated from all playlists
 - HTML video player with hls.js support or Video.js based player
-- Internalization, currently 7 languages are supported (en, ru, de, ko, es, zh, fr)
+- Internalization, currently 8 languages are supported (en, ru, de, ko, es, zh, fr, it)
 - Set custom "User Agent" header for a playlist
-- Re-fetch/auto-update playlists
 - Light and Dark theme
+- Version for self-hosted docker is available
 
 ## Screenshots:
 
