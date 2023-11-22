@@ -128,23 +128,21 @@ export class SettingsComponent implements OnInit {
             .getValueFromLocalStorage(STORE_KEY.Settings)
             .subscribe((settings: Settings) => {
                 if (settings) {
-                    this.settingsForm.setValue({
-                        player: settings.player
-                            ? settings.player
-                            : VideoPlayer.VideoJs,
-                        ...(this.isElectron ? { epgUrl: [] } : {}),
-                        language: settings.language
-                            ? settings.language
-                            : Language.ENGLISH,
-                        showCaptions: settings.showCaptions
-                            ? settings.showCaptions
-                            : false,
-                        theme: settings.theme
-                            ? settings.theme
-                            : Theme.LightTheme,
-                        mpvPlayerPath: settings.mpvPlayerPath,
-                        vlcPlayerPath: settings.vlcPlayerPath,
-                    });
+                    try {
+                        this.settingsForm.setValue({
+                            player: settings.player
+                                ? settings.player
+                                : VideoPlayer.VideoJs,
+                            ...(this.isElectron ? { epgUrl: [] } : {}),
+                            language: settings.language ?? Language.ENGLISH,
+                            showCaptions: settings.showCaptions ?? false,
+                            theme: settings.theme ?? Theme.LightTheme,
+                            mpvPlayerPath: settings.mpvPlayerPath ?? '',
+                            vlcPlayerPath: settings.vlcPlayerPath ?? '',
+                        });
+                    } catch (error) {
+                        throw new Error(error);
+                    }
 
                     if (this.isElectron) {
                         this.setEpgUrls(settings.epgUrl);
