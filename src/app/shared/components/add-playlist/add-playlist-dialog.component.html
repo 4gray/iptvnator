@@ -1,0 +1,17 @@
+<h2 mat-dialog-title>Add Playlist: {{ playlistType }}</h2>
+<mat-dialog-content class="mat-typography">
+    @if (playlistType === 'file') {
+        <app-file-upload
+            (fileRejected)="rejectFile($event)"
+            (fileSelected)="handlePlaylist($event)"
+        />
+    } @else if (playlistType === 'url') {
+        <app-url-upload (urlAdded)="sendPlaylistsUrl($event)" />
+    } @else if (playlistType === 'text') {
+        <app-text-import (textAdded)="uploadAsText($event)" />
+    } @else if (playlistType === 'stalker') {
+        <app-stalker-portal-import (addClicked)="closeDialog()" />
+    } @else if (playlistType === 'xtream') {
+        <app-xtream-code-import (addClicked)="closeDialog()" />
+    }
+</mat-dialog-content>
