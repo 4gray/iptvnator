@@ -136,7 +136,8 @@ export class PlaylistEffects {
                         } else if (
                             settings &&
                             Object.keys(settings).length > 0 &&
-                            settings.player === VideoPlayer.VLC
+                            settings.player === VideoPlayer.VLC &&
+                            channel.radio !== 'true'
                         )
                             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                                 url: channel.url,
