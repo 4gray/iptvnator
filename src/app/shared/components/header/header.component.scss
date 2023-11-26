@@ -32,7 +32,15 @@
 .menu {
     place-content: center;
     align-self: center;
-    min-width: 50px;
-    max-width: 50px;
     display: flex;
+}
+
+.add-playlist-btn {
+    background-color: #3f51b5;
+}
+
+@media (max-width: 500px) {
+    .main {
+        display: none;
+    }
 }

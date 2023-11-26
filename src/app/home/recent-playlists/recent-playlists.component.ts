@@ -58,7 +58,7 @@ export class RecentPlaylistsComponent implements OnDestroy {
         )
     );
 
-    allPlaylistsLoaded$ = this.store.select(selectPlaylistsLoadingFlag);
+    allPlaylistsLoaded = this.store.selectSignal(selectPlaylistsLoadingFlag);
 
     @Input() sidebarMode = false;
 

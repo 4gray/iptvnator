@@ -4,12 +4,21 @@ import {
     FormArray,
     FormBuilder,
     FormControl,
+    FormsModule,
+    ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import * as semver from 'semver';
 import {
@@ -22,8 +31,8 @@ import { DataService } from '../services/data.service';
 import { DialogService } from '../services/dialog.service';
 import { EpgService } from '../services/epg.service';
 import { PlaylistsService } from '../services/playlists.service';
+import { HeaderComponent } from '../shared/components/header/header.component';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
-import { SharedModule } from '../shared/shared.module';
 import * as PlaylistActions from '../state/actions';
 import { selectIsEpgAvailable } from '../state/selectors';
 import { SettingsService } from './../services/settings.service';
@@ -35,7 +44,20 @@ import { Theme } from './theme.enum';
     templateUrl: './settings.component.html',
     styleUrls: ['./settings.component.scss'],
     standalone: true,
-    imports: [CommonModule, SharedModule],
+    imports: [
+        CommonModule,
+        FormsModule,
+        HeaderComponent,
+        MatButtonModule,
+        MatCheckboxModule,
+        MatDividerModule,
+        MatIconModule,
+        MatInputModule,
+        MatSelectModule,
+        MatTooltipModule,
+        ReactiveFormsModule,
+        TranslateModule,
+    ],
 })
 export class SettingsComponent implements OnInit {
     /** List with available languages as enum */

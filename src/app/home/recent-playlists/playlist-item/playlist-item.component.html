@@ -56,8 +56,12 @@
                 >
             </ng-container>
         </ng-container>
-        <ng-template #xtreamPlaylist
-            >Xtream/Stalker Playlist
+        <ng-template #xtreamPlaylist>
+            @if (item?.macAddress) {
+                Stalker Portal
+            } @else {
+                Xtream Code Playlist
+            }
             <ng-container *ngIf="item.importDate?.length > 3">
                 | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
                 {{ item.importDate | date }}

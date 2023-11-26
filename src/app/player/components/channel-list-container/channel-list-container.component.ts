@@ -70,17 +70,18 @@ export class ChannelListContainerComponent {
         );
 
     /** List with favorites */
-    favorites$ = this.store
-        .select(selectFavorites)
-        .pipe(
-            map((favoriteChannelIds) =>
+    favorites$ = this.store.select(selectFavorites).pipe(
+        map(
+            (
+                favoriteChannelIds // TODO: move to selector
+            ) =>
                 favoriteChannelIds.map((favoriteChannelId) =>
                     this.channelList.find(
                         (channel) => channel.id === favoriteChannelId
                     )
                 )
-            )
-        );
+        )
+    );
 
     constructor(
         private readonly store: Store,
@@ -128,5 +129,9 @@ export class ChannelListContainerComponent {
                 channelIds: favorites.map((item) => item.id),
             })
         );
+    }
+
+    ngOnDestroy() {
+        this.store.dispatch(PlaylistActions.setChannels({ channels: [] }));
     }
 }

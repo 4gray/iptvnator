@@ -1,89 +1,10 @@
 <div class="grid-container">
-    <!-- Application header-->
     <app-header
         [title]="'HOME.TITLE' | translate"
         [subtitle]="'HOME.SUBTITLE' | translate"
     ></app-header>
 
-    <!-- Tab-based layout -->
-    <mat-tab-group
-        [dynamicHeight]="true"
-        color="primary"
-        backgroundColor="primary"
-        mat-stretch-tabs
-    >
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">list</mat-icon>
-                <div class="tab-title">
-                    {{ 'HOME.TABS.RECENTLY_ADDED' | translate }}
-                </div>
-            </ng-template>
-            <ng-template matTabContent>
-                <app-recent-playlists class="recent-playlists">
-                </app-recent-playlists>
-            </ng-template>
-        </mat-tab>
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">attach_file</mat-icon>
-                <div class="tab-title">
-                    {{ 'HOME.TABS.FILE_UPLOAD' | translate }}
-                </div>
-            </ng-template>
-            <ng-template matTabContent>
-                <app-file-upload
-                    (fileRejected)="rejectFile($event)"
-                    (fileSelected)="handlePlaylist($event)"
-                />
-            </ng-template>
-        </mat-tab>
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">link</mat-icon>
-                <div class="tab-title">
-                    {{ 'HOME.TABS.URL_UPLOAD' | translate }}
-                </div>
-            </ng-template>
-            <ng-template matTabContent>
-                <app-url-upload (urlAdded)="sendPlaylistsUrl($event)" />
-            </ng-template>
-        </mat-tab>
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">text_format</mat-icon>
-                <div class="tab-title">
-                    {{ 'HOME.TABS.TEXT_IMPORT' | translate }}
-                </div>
-            </ng-template>
-            <ng-template matTabContent>
-                <app-text-import (textAdded)="uploadAsText($event)" />
-            </ng-template>
-        </mat-tab>
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">video_library</mat-icon>
-                <div class="tab-title">
-                    {{ 'HOME.TABS.XTREME_IMPORT' | translate }}
-                </div>
-            </ng-template>
-            <ng-template matTabContent>
-                <app-xtream-code-import />
-            </ng-template>
-        </mat-tab>
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">dashboard</mat-icon>
-                <div class="tab-title">
-                    {{ 'HOME.TABS.STALKER_PORTAL_IMPORT' | translate }}
-                </div>
-            </ng-template>
-            <ng-template matTabContent>
-                <app-stalker-portal-import />
-            </ng-template>
-        </mat-tab>
-    </mat-tab-group>
+    <app-recent-playlists class="recent-playlists" />
 
-    <!-- Loading spinner -->
     <mat-progress-bar *ngIf="isLoading" mode="indeterminate"></mat-progress-bar>
 </div>

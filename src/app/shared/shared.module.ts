@@ -8,13 +8,11 @@ import { NgxWhatsNewModule } from 'ngx-whats-new';
 import { PlaylistItemComponent } from '../home/recent-playlists/playlist-item/playlist-item.component';
 import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
 import { MaterialModule } from '../material.module';
-import { HeaderComponent } from './components/';
 import { FilterPipe } from './pipes/filter.pipe';
 import { MomentDatePipe } from './pipes/moment-date.pipe';
 
 @NgModule({
     declarations: [
-        HeaderComponent,
         MomentDatePipe,
         RecentPlaylistsComponent,
         PlaylistItemComponent,
@@ -37,7 +35,6 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
         DragDropModule,
         FilterPipe,
         FormsModule,
-        HeaderComponent,
         MaterialModule,
         NgxWhatsNewModule,
         MomentDatePipe,
