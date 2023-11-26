@@ -1,9 +1,9 @@
 import { NgIf } from '@angular/common';
 import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import {
+    FormBuilder,
+    FormGroup,
     ReactiveFormsModule,
-    UntypedFormBuilder,
-    UntypedFormGroup,
     Validators,
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,7 +16,6 @@ import { DataService } from '../../services/data.service';
     standalone: true,
     selector: 'app-url-upload',
     templateUrl: './url-upload.component.html',
-    styleUrls: ['./url-upload.component.scss'],
     imports: [
         MatButtonModule,
         MatCardModule,
@@ -30,18 +29,12 @@ export class UrlUploadComponent implements OnInit {
     /** Emits url string to the parent component on form submit */
     @Output() urlAdded: EventEmitter<string> = new EventEmitter();
 
-    /** Form group with playlist url */
-    form: UntypedFormGroup;
+    form: FormGroup;
 
-    /** Is true if app runs in electron-based environment */
     isElectron = this.dataService.isElectron;
 
-    /**
-     * Creates an instance of component
-     * @param fb angular form builder
-     */
     constructor(
-        private fb: UntypedFormBuilder,
+        private fb: FormBuilder,
         private dataService: DataService
     ) {}
 
@@ -50,7 +43,6 @@ export class UrlUploadComponent implements OnInit {
         this.form = this.fb.group({
             playlistUrl: [
                 '',
-                // eslint-disable-next-line @typescript-eslint/unbound-method
                 [Validators.required, Validators.pattern(urlRegex)],
             ],
         });
