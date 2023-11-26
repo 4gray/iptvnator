@@ -1,11 +1,30 @@
+import { NgIf } from '@angular/common';
 import { Component, EventEmitter, OnInit, Output } from '@angular/core';
-import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
+import {
+    ReactiveFormsModule,
+    UntypedFormBuilder,
+    UntypedFormGroup,
+    Validators,
+} from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatInputModule } from '@angular/material/input';
+import { TranslateModule } from '@ngx-translate/core';
 import { DataService } from '../../services/data.service';
 
 @Component({
+    standalone: true,
     selector: 'app-url-upload',
     templateUrl: './url-upload.component.html',
     styleUrls: ['./url-upload.component.scss'],
+    imports: [
+        MatButtonModule,
+        MatCardModule,
+        MatInputModule,
+        NgIf,
+        ReactiveFormsModule,
+        TranslateModule,
+    ],
 })
 export class UrlUploadComponent implements OnInit {
     /** Emits url string to the parent component on form submit */
@@ -21,7 +40,10 @@ export class UrlUploadComponent implements OnInit {
      * Creates an instance of component
      * @param fb angular form builder
      */
-    constructor(private fb: UntypedFormBuilder, private dataService: DataService) {}
+    constructor(
+        private fb: UntypedFormBuilder,
+        private dataService: DataService
+    ) {}
 
     ngOnInit(): void {
         const urlRegex = '(https?://.*?)';

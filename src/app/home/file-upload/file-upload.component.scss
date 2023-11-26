@@ -1,7 +1,6 @@
 $electron-title-width: 28px;
 
 .file-upload {
-    height: calc(100vh - 230px);
     cursor: pointer;
     border: 1px dashed #999;
     border-radius: 5px;
@@ -10,6 +9,7 @@ $electron-title-width: 28px;
     align-items: center;
     justify-content: center;
     margin: 20px;
+    padding: 10px;
     gap: 20px;
 
     .upload-icon {
