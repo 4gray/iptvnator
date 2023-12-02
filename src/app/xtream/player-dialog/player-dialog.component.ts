@@ -5,11 +5,13 @@ import { getExtensionFromUrl } from '../../../../shared/playlist.utils';
 import { HtmlVideoPlayerComponent } from '../../player/components/html-video-player/html-video-player.component';
 import { VjsPlayerComponent } from '../../player/components/vjs-player/vjs-player.component';
 import { VideoPlayer } from '../../settings/settings.interface';
+import { Channel } from '../../../../shared/channel.interface';
 
 interface DialogData {
     streamUrl: string;
     player: VideoPlayer;
     title: string;
+    channel: Channel;
 }
 
 @Component({
@@ -41,6 +43,7 @@ export class PlayerDialogComponent {
 
         this.vjsOptions = {
             sources: [{ src: data.streamUrl, type: mimeType }],
+            referrer: data.channel.http.referrer
         };
         this.channel = {
             url: data.streamUrl,
