@@ -169,14 +169,12 @@ export class Api {
             .on(
                 CHANNEL_SET_USER_AGENT,
                 (_event, args: { userAgent: string; referer?: string }) => {
-                    if (args.userAgent && args.referer !== undefined) {
+                    if (args.userAgent || args.referer !== undefined) {
                         this.setUserAgent(
-                            args.userAgent,
+                            args.userAgent || 'localhost',
                             args.referer || 'localhost'
                         );
-                    } else {
-                        this.setUserAgent(this.defaultUserAgent, 'localhost');
-                    }
+                    } 
                 }
             )
             .on(IS_PLAYLISTS_MIGRATION_POSSIBLE, (event) => {
