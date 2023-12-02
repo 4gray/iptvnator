@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { HtmlVideoPlayerComponent } from './html-video-player.component';
+import { DataService } from '../../../services/data.service';
 
 describe('HtmlVideoPlayerComponent', () => {
     let component: HtmlVideoPlayerComponent;
@@ -19,6 +20,7 @@ describe('HtmlVideoPlayerComponent', () => {
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
             declarations: [HtmlVideoPlayerComponent, MockPipe(TranslatePipe)],
+            providers: [DataService],
         }).compileComponents();
     }));
 
