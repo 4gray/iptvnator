@@ -4,10 +4,10 @@
         "TITLE": "IPTVnator",
         "SUBTITLE": "Choisissez une liste de lecture, ou ajoutez en une nouvelle via un transfert de fichier ou via une URL",
         "TABS": {
-            "RECENTLY_ADDED": "Listes de lecture ajoutées récemment",
+            "RECENTLY_ADDED": "Récemment ajoutés",
             "FILE_UPLOAD": "Ajouter un fichier",
             "URL_UPLOAD": "Ajouter une URL",
-            "TEXT_IMPORT": "Import as text"
+            "TEXT_IMPORT": "Importer sous forme de texte"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "Aucune liste de lecture n'a été ajouté",
