@@ -143,8 +143,8 @@ export class ChannelListContainerComponent {
      * @param index index of the channel item
      * @param channel channel object
      */
-    trackByFn(index: number, channel: Channel): string {
-        return channel.id;
+    trackByFn(_: number, channel: Channel): string {
+        return channel?.id;
     }
 
     drop(event: CdkDragDrop<Channel[]>, favorites: Channel[]) {
