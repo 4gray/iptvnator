@@ -63,6 +63,8 @@
         "@ngrx/store": "17.0.0",
         "@ngrx/store-devtools": "17.0.0",
         "@ngx-pwa/local-storage": "17.0.0",
+        "@rx-angular/cdk": "17.0.0",
+        "@rx-angular/template": "17.0.0",
         "@videojs/http-streaming": "2.15.0",
         "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
         "about-window": "1.15.2",
