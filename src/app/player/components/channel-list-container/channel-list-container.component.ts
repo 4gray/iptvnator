@@ -1,4 +1,5 @@
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CommonModule, TitleCasePipe } from '@angular/common';
 import {
     Component,
     ElementRef,
@@ -6,21 +7,45 @@ import {
     Input,
     ViewChild,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTabsModule } from '@angular/material/tabs';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { RxFor } from '@rx-angular/template/for';
 import * as _ from 'lodash';
 import { map, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
+import { FilterPipe } from '../../../shared/pipes/filter.pipe';
 import * as PlaylistActions from '../../../state/actions';
 import {
     selectActivePlaylistId,
     selectFavorites,
 } from '../../../state/selectors';
+import { ChannelListItemComponent } from './channel-list-item/channel-list-item.component';
 @Component({
+    standalone: true,
     selector: 'app-channel-list-container',
     templateUrl: './channel-list-container.component.html',
     styleUrls: ['./channel-list-container.component.scss'],
+    imports: [
+        CommonModule,
+        ChannelListItemComponent,
+        MatExpansionModule,
+        MatDividerModule,
+        MatListModule,
+        MatIconModule,
+        MatTabsModule,
+        TranslateModule,
+        TitleCasePipe,
+        FilterPipe,
+        FormsModule,
+        RxFor,
+    ],
 })
 export class ChannelListContainerComponent {
     /**

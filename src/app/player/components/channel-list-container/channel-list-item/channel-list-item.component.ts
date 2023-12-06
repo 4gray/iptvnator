@@ -1,6 +1,15 @@
+import { DragDropModule } from '@angular/cdk/drag-drop';
+import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslateModule } from '@ngx-translate/core';
 
 @Component({
+    standalone: true,
     selector: 'app-channel-list-item',
     styleUrls: ['./channel-list-item.component.scss'],
     template: `<mat-list-item
@@ -40,6 +49,16 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
             </button>
         </mat-list-item>
         <mat-divider></mat-divider>`,
+    imports: [
+        CommonModule,
+        DragDropModule,
+        MatButtonModule,
+        MatDividerModule,
+        MatIconModule,
+        MatListModule,
+        MatTooltipModule,
+        TranslateModule,
+    ],
 })
 export class ChannelListItemComponent {
     @Input() isDraggable = false;

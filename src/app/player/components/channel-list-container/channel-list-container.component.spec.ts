@@ -13,7 +13,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MockModule, MockPipes, MockProviders } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { Observable } from 'rxjs';
@@ -38,7 +38,7 @@ describe('ChannelListContainerComponent', () => {
         TestBed.configureTestingModule({
             declarations: [
                 ChannelListContainerComponent,
-                MockPipes(TranslatePipe, FilterPipe),
+                MockPipes(FilterPipe),
             ],
             providers: [
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
@@ -56,6 +56,7 @@ describe('ChannelListContainerComponent', () => {
                 MockModule(MatTabsModule),
                 MockModule(MatTooltipModule),
                 MockModule(MatExpansionModule),
+                MockModule(TranslateModule),
                 FormsModule,
                 RouterTestingModule,
             ],

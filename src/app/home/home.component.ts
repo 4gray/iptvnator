@@ -31,7 +31,7 @@ export class HomeComponent {
             id: ERROR,
             execute: (error: { message: string; status: string }) => {
                 //this.isLoading = false;
-                this.showNotification('Error2: ' + error.message);
+                this.showNotification('Error: ' + error.message);
             },
         },
     ];

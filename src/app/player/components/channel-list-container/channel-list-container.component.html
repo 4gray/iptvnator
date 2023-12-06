@@ -19,7 +19,7 @@
             <mat-divider></mat-divider>
             <mat-nav-list>
                 <app-channel-list-item
-                    *ngFor="
+                    *rxFor="
                         let channel of _channelList
                             | filterBy: searchTerm.name : 'name';
                         index as i;
