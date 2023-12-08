@@ -9,9 +9,9 @@ import {
 } from '@angular/core';
 import Hls from 'hls.js';
 import { Channel } from '../../../../../shared/channel.interface';
+import { CHANNEL_SET_USER_AGENT } from '../../../../../shared/ipc-commands';
 import { getExtensionFromUrl } from '../../../../../shared/playlist.utils';
 import { DataService } from '../../../services/data.service';
-import { CHANNEL_SET_USER_AGENT } from '../../../../../shared/ipc-commands';
 
 /**
  * This component contains the implementation of HTML5 based video player
@@ -26,7 +26,7 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
     /** Channel to play  */
     @Input() channel: Channel;
     dataService: DataService; // Declare the dataService property
-   
+
     constructor(dataService: DataService) {
         this.dataService = dataService; // Inject the DataService
     }
@@ -60,6 +60,11 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
         if (channel.url) {
             const url = channel.url + (channel.epgParams ?? '');
             const extension = getExtensionFromUrl(channel.url);
+            this.dataService.sendIpcEvent(CHANNEL_SET_USER_AGENT, {
+                userAgent: channel.http['user-agent'],
+                referer: channel.http.referrer,
+            });
+
             if (
                 extension !== 'mp4' &&
                 extension !== 'mpv' &&
@@ -70,10 +75,7 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
                 this.hls = new Hls();
                 this.hls.attachMedia(this.videoPlayer.nativeElement);
                 this.hls.loadSource(url);
-                this.dataService.sendIpcEvent(CHANNEL_SET_USER_AGENT, {
-                    userAgent: channel.http['user-agent'],
-                    referer: channel.http.referrer,
-                });
+
                 this.handlePlayOperation();
             } else {
                 console.error('something wrong with hls.js init...');
@@ -82,10 +84,6 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
                     url,
                     'video/mp4'
                 );
-                this.dataService.sendIpcEvent(CHANNEL_SET_USER_AGENT, {
-                    userAgent: channel.http['user-agent'],
-                    referer: channel.http.referrer,
-                });
                 this.videoPlayer.nativeElement.play();
             }
         }

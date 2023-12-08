@@ -16,6 +16,9 @@ describe('HtmlVideoPlayerComponent', () => {
         group: {
             title: 'News group',
         },
+        http: {
+            'user-agent': 'localhost',
+        },
     };
 
     beforeEach(waitForAsync(() => {
