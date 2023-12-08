@@ -17,7 +17,7 @@
             <div class="channels-count">
                 {{
                     sidebarView === 'CHANNELS'
-                        ? channels.length +
+                        ? channels?.length +
                           ' ' +
                           ('HOME.PLAYLISTS.CHANNELS' | translate)
                         : ('HOME.PLAYLISTS.MY_PLAYLISTS_SUBTITLE' | translate)
@@ -38,16 +38,13 @@
     </div>
 </div>
 <mat-divider></mat-divider>
-<app-channel-list-container
-    *ngIf="sidebarView === 'CHANNELS'; else playlistsTemplate"
-    [channelList]="channels"
->
-</app-channel-list-container>
-<ng-template #playlistsTemplate>
+@if (sidebarView === 'CHANNELS') {
+    <app-channel-list-container [channelList]="channels" />
+} @else {
     <app-recent-playlists
         class="recent-playlists"
         [sidebarMode]="true"
         [class.electron]="dataService.isElectron"
         (playlistClicked)="selectPlaylist()"
-    ></app-recent-playlists>
-</ng-template>
+    />
+}

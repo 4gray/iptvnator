@@ -1,6 +1,10 @@
 import { Component, EventEmitter, Output } from '@angular/core';
+import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule } from '@ngx-translate/core';
 
 @Component({
+    standalone: true,
+    imports: [MatIconModule, TranslateModule],
     selector: 'app-file-upload',
     templateUrl: './file-upload.component.html',
     styleUrls: ['./file-upload.component.scss'],
@@ -12,8 +16,8 @@ export class FileUploadComponent {
         file: File;
     }> = new EventEmitter();
 
-    /** Emits on reject event */
     @Output() fileRejected: EventEmitter<string> = new EventEmitter();
+    @Output() addClicked = new EventEmitter<void>();
 
     allowedContentTypes = [
         'application/mpegurl',
@@ -37,5 +41,6 @@ export class FileUploadComponent {
                 file: fileList[0],
             });
         fileReader.readAsText(fileList[0]);
+        this.addClicked.emit();
     }
 }

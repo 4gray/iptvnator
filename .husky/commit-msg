@@ -5,5 +5,5 @@
 
 npx stylelint "**/*.scss"
 npx --no-install commitlint --edit
-npm test -- --coverage
+npm test
 npx eslint src/**/*.ts

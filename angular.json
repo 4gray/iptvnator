@@ -95,32 +95,29 @@
                 "serve": {
                     "builder": "@angular-devkit/build-angular:dev-server",
                     "options": {
-                        "browserTarget": "iptvnator:build"
+                      "buildTarget": "iptvnator:build"
                     },
                     "configurations": {
                         "dev": {
-                            "browserTarget": "iptvnator:build:dev"
+                          "buildTarget": "iptvnator:build:dev"
                         },
                         "web": {
-                            "browserTarget": "iptvnator:build:web"
+                          "buildTarget": "iptvnator:build:web"
                         },
                         "production": {
-                            "browserTarget": "iptvnator:build:production"
+                          "buildTarget": "iptvnator:build:production"
                         }
                     }
                 },
                 "extract-i18n": {
                     "builder": "@angular-devkit/build-angular:extract-i18n",
                     "options": {
-                        "browserTarget": "iptvnator:build"
+                      "buildTarget": "iptvnator:build"
                     }
                 },
                 "test": {
-                    "builder": "@angular-devkit/build-angular:jest",
-                    "options": {
-                        "tsConfig": "tsconfig.spec.json",
-                        "polyfills": ["zone.js", "zone.js/testing"]
-                    }
+                    "builder": "@angular-builders/jest:run",
+                    "options": {}
                 },
                 "lint": {
                     "builder": "@angular-eslint/builder:lint",

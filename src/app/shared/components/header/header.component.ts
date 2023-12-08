@@ -1,15 +1,40 @@
+import { AsyncPipe, NgFor, NgIf } from '@angular/common';
 import { Component, Input, OnInit } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
+import { NgxWhatsNewModule } from 'ngx-whats-new';
 import { HomeComponent } from '../../../home/home.component';
 import { DataService } from '../../../services/data.service';
 import { WhatsNewService } from '../../../services/whats-new.service';
 import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
+import {
+    AddPlaylistDialogComponent,
+    PlaylistType,
+} from '../add-playlist/add-playlist-dialog.component';
 
 @Component({
+    standalone: true,
     selector: 'app-header',
     templateUrl: './header.component.html',
     styleUrls: ['./header.component.scss'],
+    imports: [
+        AsyncPipe,
+        NgIf,
+        NgFor,
+        MatButtonModule,
+        MatIconModule,
+        MatMenuModule,
+        MatDividerModule,
+        MatTooltipModule,
+        NgxWhatsNewModule,
+        TranslateModule,
+    ],
 })
 export class HeaderComponent implements OnInit {
     /** Title of the header */
@@ -81,5 +106,15 @@ export class HeaderComponent implements OnInit {
             width: '600px',
             data: this.dataService.getAppVersion(),
         });
+    }
+
+    opedAddPlaylistDialog(type: PlaylistType) {
+        this.dialog.open<AddPlaylistDialogComponent, { type: PlaylistType }>(
+            AddPlaylistDialogComponent,
+            {
+                width: '600px',
+                data: { type },
+            }
+        );
     }
 }

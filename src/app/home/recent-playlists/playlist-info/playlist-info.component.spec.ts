@@ -9,10 +9,11 @@ import {
 } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MockModule, MockPipe, MockProvider } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { Observable } from 'rxjs';
@@ -27,29 +28,30 @@ describe('PlaylistInfoComponent', () => {
     let mockStore: MockStore;
     const actions$ = new Observable<Actions>();
 
-    beforeEach(
-        waitForAsync(() => {
-            TestBed.configureTestingModule({
-                imports: [
-                    FormsModule,
-                    MockModule(MatDialogModule),
-                    MockModule(MatCheckboxModule),
-                    MockModule(MatFormFieldModule),
-                    MockModule(TranslateModule),
-                    ReactiveFormsModule,
-                ],
-                declarations: [PlaylistInfoComponent, MockPipe(DatePipe)],
-                providers: [
-                    { provide: MAT_DIALOG_DATA, useValue: {} },
-                    { provide: DataService, useClass: ElectronServiceStub },
-                    UntypedFormBuilder,
-                    provideMockStore(),
-                    provideMockActions(actions$),
-                    MockProvider(NgxIndexedDBService),
-                ],
-            }).compileComponents();
-        })
-    );
+    beforeEach(waitForAsync(() => {
+        TestBed.configureTestingModule({
+            imports: [
+                FormsModule,
+                MockModule(MatDialogModule),
+                MockModule(MatCheckboxModule),
+                MockModule(MatFormFieldModule),
+                MockModule(TranslateModule),
+                MockModule(MatSnackBarModule),
+                ReactiveFormsModule,
+            ],
+            declarations: [PlaylistInfoComponent, MockPipe(DatePipe)],
+            providers: [
+                MockProvider(MatSnackBar),
+                { provide: MAT_DIALOG_DATA, useValue: {} },
+                { provide: DataService, useClass: ElectronServiceStub },
+                UntypedFormBuilder,
+                provideMockStore(),
+                provideMockActions(actions$),
+                MockProvider(NgxIndexedDBService),
+                MockProvider(TranslateService),
+            ],
+        }).compileComponents();
+    }));
 
     beforeEach(() => {
         fixture = TestBed.createComponent(PlaylistInfoComponent);

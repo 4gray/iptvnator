@@ -54,9 +54,9 @@ describe('Service: Settings', () => {
             spyOnRemove = jest.spyOn(document.body.classList, 'remove');
         });
 
-        /* afterEach(() => {
+        afterEach(() => {
             jest.clearAllMocks();
-        }); */
+        });
 
         it('should switch to the dark theme', inject(
             [SettingsService],

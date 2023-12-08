@@ -2,18 +2,18 @@
     "CLOSE": "Close",
     "HOME": {
         "TITLE": "IPTVnator",
-        "SUBTITLE": "Please select a playlist from the list or add a new playlist via file upload or via url",
+        "SUBTITLE": "Please select a playlist from the list or add a new playlist",
         "TABS": {
             "RECENTLY_ADDED": "Recently added playlists",
             "FILE_UPLOAD": "Add via file upload",
             "URL_UPLOAD": "Add via URL",
-            "TEXT_IMPORT": "Import as text",
+            "TEXT_IMPORT": "Import from text",
             "XTREME_IMPORT": "Add Xtreme Code",
             "STALKER_PORTAL_IMPORT": "Add Stalker Portal"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "No playlists were added",
-            "ADD_FIRST": "Please add your first playlist from the other tab",
+            "ADD_FIRST": "Please add your first playlist",
             "ADDED_VIA_URL": "Added via URL upload. URL:",
             "ADDED_VIA_FILE": "Added via file upload",
             "XTREAM_PLAYLIST": "Xtream playlist",
@@ -65,7 +65,7 @@
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",
             "ADD_PLAYLIST": "Add playlist",
-            "CORS_NOTE": "Note: In order to avoid CORS issues at this point the application uses a public CORS Proxy service. If you want to upload a playlist with sensitive data, it is better to import it as a file in the adjacent tab."
+            "CORS_NOTE": "Note: In order to avoid CORS issues at this point the application uses a public CORS Proxy service. If you want to upload a playlist with sensitive data, it's more secure to import it from a file."
         },
         "TEXT_IMPORT": {
             "LABEL": "Insert m3u(8) playlist as text",
@@ -86,7 +86,11 @@
             "SERVER_URL": "Server URL",
             "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com/c or https://example.com/stalker_portal/c)",
             "ADD": "Add"
-        }
+        },
+        "FILTER_BY_NAME": "Filter by name",
+        "FILTER_BY_TYPE": "Filter by type",
+        "IMPORTED_AS_TEXT": "Imported as text",
+        "PARSING_ERROR": "Error: Parsing failed, not a valid playlist:"
     },
     "SETTINGS": {
         "TITLE": "Settings / IPTVnator",

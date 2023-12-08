@@ -22,6 +22,8 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
 @NgModule({
     imports: [
         AudioPlayerComponent,
+        ChannelListContainerComponent,
+        ChannelListItemComponent,
         CommonModule,
         HtmlVideoPlayerComponent,
         OverlayModule,
@@ -30,8 +32,6 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
         VjsPlayerComponent,
     ],
     declarations: [
-        ChannelListContainerComponent,
-        ChannelListItemComponent,
         EpgItemDescriptionComponent,
         EpgListComponent,
         EpgListItemComponent,

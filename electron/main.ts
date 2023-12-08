@@ -1,5 +1,5 @@
 /* eslint-disable no-useless-catch */
-import { app, BrowserWindow, Menu, session } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
 import { Api } from './api';
@@ -146,18 +146,6 @@ try {
     app.on('before-quit', () => {
         if (win) store.set(WINDOW_BOUNDS, win.getNormalBounds());
     });
-
-    if (serve && process.platform === 'darwin') {
-        // add redux dev tools extension
-        const reduxDevToolsPath = path.join(
-            os.homedir(),
-            'Library/Application Support/Google/Chrome/Default/Extensions/lmhkpmbekcpmknklioeibfkpmmfibljd/3.0.19_14'
-        );
-
-        app.whenReady().then(async () => {
-            await session.defaultSession.loadExtension(reduxDevToolsPath);
-        });
-    }
 } catch (e) {
     // Catch Error
     throw e;

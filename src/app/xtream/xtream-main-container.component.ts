@@ -313,6 +313,8 @@ export class XtreamMainContainerComponent implements OnInit {
         const streamUrl = `${serverUrl}/series/${username}/${password}/${episode.id}.${episode.container_extension}`;
         if (player === VideoPlayer.MPV) {
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, { url: streamUrl });
+        } else if (player === VideoPlayer.VLC) {
+            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, { url: streamUrl });
         } else {
             this.dialog.open(PlayerDialogComponent, {
                 data: { streamUrl, player, title: episode.title },

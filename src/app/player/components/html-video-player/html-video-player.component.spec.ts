@@ -2,6 +2,8 @@ import { SimpleChange } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
+import { DataService } from '../../../services/data.service';
+import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { HtmlVideoPlayerComponent } from './html-video-player.component';
 
 describe('HtmlVideoPlayerComponent', () => {
@@ -19,6 +21,9 @@ describe('HtmlVideoPlayerComponent', () => {
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
             declarations: [HtmlVideoPlayerComponent, MockPipe(TranslatePipe)],
+            providers: [
+                { provide: DataService, useClass: ElectronServiceStub },
+            ],
         }).compileComponents();
     }));
 

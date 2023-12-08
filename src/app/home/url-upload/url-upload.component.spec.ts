@@ -4,7 +4,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatInputModule } from '@angular/material/input';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { MockModule, MockPipe } from 'ng-mocks';
 import { DataService } from '../../services/data.service';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
@@ -14,26 +14,25 @@ describe('UrlUploadComponent', () => {
     let component: UrlUploadComponent;
     let fixture: ComponentFixture<UrlUploadComponent>;
 
-    beforeEach(
-        waitForAsync(() => {
-            TestBed.configureTestingModule({
-                declarations: [UrlUploadComponent, MockPipe(TranslatePipe)],
-                imports: [
-                    MockModule(MatInputModule),
-                    MockModule(MatCardModule),
-                    FormsModule,
-                    ReactiveFormsModule,
-                    NoopAnimationsModule,
-                ],
-                providers: [
-                    {
-                        provide: DataService,
-                        useClass: ElectronServiceStub,
-                    },
-                ],
-            }).compileComponents();
-        })
-    );
+    beforeEach(waitForAsync(() => {
+        TestBed.configureTestingModule({
+            declarations: [UrlUploadComponent, MockPipe(TranslatePipe)],
+            imports: [
+                MockModule(MatInputModule),
+                MockModule(MatCardModule),
+                MockModule(TranslateModule),
+                MockModule(FormsModule),
+                MockModule(ReactiveFormsModule),
+                NoopAnimationsModule,
+            ],
+            providers: [
+                {
+                    provide: DataService,
+                    useClass: ElectronServiceStub,
+                },
+            ],
+        }).compileComponents();
+    }));
 
     beforeEach(() => {
         fixture = TestBed.createComponent(UrlUploadComponent);
@@ -45,31 +44,27 @@ describe('UrlUploadComponent', () => {
         expect(component).toBeTruthy();
     });
 
-    it(
-        'submit form with playlist url',
-        waitForAsync(() => {
-            jest.spyOn(component.urlAdded, 'emit');
-            const TEST_URL = 'http://example.org/playlist.m3u';
-            const submitButton =
-                fixture.debugElement.nativeElement.querySelector('button');
+    it('submit form with playlist url', waitForAsync(() => {
+        jest.spyOn(component.urlAdded, 'emit');
+        const TEST_URL = 'http://example.org/playlist.m3u';
+        const submitButton =
+            fixture.debugElement.nativeElement.querySelector('button');
 
-            // test input field validation
-            expect(submitButton.disabled).toBeTruthy();
-            component.form.setValue({ playlistUrl: 'wrong url here' });
-            fixture.detectChanges();
-            expect(submitButton.disabled).toBeTruthy();
-            component.form.setValue({ playlistUrl: TEST_URL + '8' });
-            fixture.detectChanges();
-            expect(submitButton.disabled).toBeFalsy();
-            component.form.setValue({ playlistUrl: TEST_URL });
-            fixture.detectChanges();
-            expect(submitButton.disabled).toBeFalsy();
+        // test input field validation
+        expect(submitButton.disabled).toBeTruthy();
+        component.form.setValue({ playlistUrl: 'wrong url here' });
+        fixture.detectChanges();
+        expect(submitButton.disabled).toBeTruthy();
+        component.form.setValue({ playlistUrl: TEST_URL + '8' });
+        fixture.detectChanges();
+        expect(submitButton.disabled).toBeFalsy();
+        component.form.setValue({ playlistUrl: TEST_URL });
+        fixture.detectChanges();
+        expect(submitButton.disabled).toBeFalsy();
 
-            const form = fixture.debugElement.query(By.css('form'));
-            form.triggerEventHandler('ngSubmit', null);
+        const form = fixture.debugElement.query(By.css('form'));
+        form.triggerEventHandler('ngSubmit', null);
 
-            // eslint-disable-next-line @typescript-eslint/unbound-method
-            expect(component.urlAdded.emit).toHaveBeenCalledWith(TEST_URL);
-        })
-    );
+        expect(component.urlAdded.emit).toHaveBeenCalledWith(TEST_URL);
+    }));
 });

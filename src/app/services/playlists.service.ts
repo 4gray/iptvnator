@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { parse } from 'iptv-playlist-parser';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { combineLatest, map, switchMap } from 'rxjs';
@@ -23,7 +25,11 @@ import { PlaylistMeta } from '../shared/playlist-meta.type';
     providedIn: 'root',
 })
 export class PlaylistsService {
-    constructor(private dbService: NgxIndexedDBService) {}
+    constructor(
+        private dbService: NgxIndexedDBService,
+        private snackBar: MatSnackBar,
+        private translateService: TranslateService
+    ) {}
 
     getAllPlaylists() {
         return this.dbService.getAll<Playlist>(DbStores.Playlists).pipe(
@@ -198,8 +204,22 @@ export class PlaylistsService {
         title: string,
         path?: string
     ) {
-        const parsedPlaylist = parse(playlist);
-        return createPlaylistObject(title, parsedPlaylist, path, uploadType);
+        try {
+            const parsedPlaylist = parse(playlist);
+            return createPlaylistObject(
+                title,
+                parsedPlaylist,
+                path,
+                uploadType
+            );
+        } catch (error) {
+            this.snackBar.open(
+                this.translateService.instant('HOME.PARSING_ERROR'),
+                null,
+                { duration: 2000 }
+            ); // TODO: translate
+            throw new Error(`Parsing failed, not a valid playlist: ${error}`);
+        }
     }
 
     getPlaylistWithGlobalFavorites() {
@@ -213,7 +233,7 @@ export class PlaylistsService {
     }
 
     addManyPlaylists(playlists: Playlist[]) {
-        return this.dbService.bulkAdd(DbStores.Playlists, playlists as any); // TODO: update ngx-indexed-db
+        return this.dbService.bulkAdd(DbStores.Playlists, playlists as any);
     }
 
     getPlaylistsForAutoUpdate() {

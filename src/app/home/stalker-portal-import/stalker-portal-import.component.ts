@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, EventEmitter, Output, inject } from '@angular/core';
 import {
     FormControl,
     FormGroup,
@@ -43,6 +43,7 @@ import { addPlaylist } from '../../state/actions';
     ],
 })
 export class StalkerPortalImportComponent {
+    @Output() addClicked = new EventEmitter<void>();
     URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
 
     form = new FormGroup({
@@ -68,6 +69,7 @@ export class StalkerPortalImportComponent {
         this.store.dispatch(
             addPlaylist({ playlist: this.form.value as Playlist })
         );
+        this.addClicked.emit();
     }
 
     transformPortalUrl(url: string) {
