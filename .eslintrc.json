@@ -30,23 +30,7 @@
             },
             "plugins": ["@typescript-eslint", "@angular-eslint/eslint-plugin"],
             "rules": {
-                "@typescript-eslint/indent": [
-                    "error",
-                    4,
-                    {
-                        "SwitchCase": 1,
-                        "CallExpression": {
-                            "arguments": "first"
-                        },
-                        "FunctionExpression": {
-                            "parameters": "first"
-                        },
-                        "FunctionDeclaration": {
-                            "parameters": "first"
-                        },
-                        "ignoredNodes": ["TSTypeParameterInstantiation"]
-                    }
-                ],
+                "@typescript-eslint/indent": 0,
                 "no-unused-vars": "off",
                 "@typescript-eslint/no-unused-vars": ["error"],
                 "@typescript-eslint/no-empty-function": 0,
