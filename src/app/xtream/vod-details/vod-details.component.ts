@@ -42,11 +42,21 @@ export class VodDetailsComponent implements OnInit {
         this.playlistService
             .getPortalFavorites(this.portalId)
             .subscribe((favorites) => {
-                this.isFavorite = favorites.some(
-                    (i) =>
-                        i?.stream_id === this.item?.movie_data?.stream_id ||
-                        (i as any)?.details?.id === (this.item as any)?.id
-                );
+                this.isFavorite = favorites.some((i) => {
+                    const hasStreamId =
+                        i?.stream_id !== undefined &&
+                        this.item?.movie_data?.stream_id !== undefined;
+                    const hasId =
+                        (i as any)?.details?.id !== undefined &&
+                        (this.item as any)?.id !== undefined;
+
+                    return (
+                        (hasStreamId &&
+                            i.stream_id === this.item.movie_data.stream_id) ||
+                        (hasId &&
+                            (i as any).details.id === (this.item as any).id)
+                    );
+                });
             });
     }
 
@@ -67,7 +77,7 @@ export class VodDetailsComponent implements OnInit {
                 });
             } else {
                 this.addToFavoritesClicked.emit({
-                    name: this.item.info.name,
+                    name: this.item.movie_data.name,
                     stream_id: this.item.movie_data.stream_id,
                     container_extension:
                         this.item.movie_data.container_extension,

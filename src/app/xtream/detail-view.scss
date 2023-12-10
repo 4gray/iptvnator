@@ -29,6 +29,7 @@
         width: 300px;
         height: 500px;
         background-color: #999;
+        border-radius: 5px;
 
         &::after {
             content: 'No cover';
