@@ -86,7 +86,11 @@
             "SERVER_URL": "URL server",
             "URL_VALIDATION_ERROR": "Dovrebbe essere una URL valida con protocollo (es. http://esempio.it/c o https://esempio.it/stalker_portal/c)",
             "ADD": "Aggiungi"
-        }
+        },
+        "FILTER_BY_NAME": "Filtra per nome",
+        "FILTER_BY_TYPE": "Filtra per tipo",
+        "IMPORTED_AS_TEXT": "Importato come testo",
+        "PARSING_ERROR": "Errore: analisi fallita, non è una playlist valida:"
     },
     "SETTINGS": {
         "TITLE": "Impostazioni IPTVnator",
