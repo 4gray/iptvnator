@@ -12,43 +12,53 @@
 />
 
 <div class="container">
-    <ng-container *ngIf="isLoading; else contentLoaded">
+    @if (isLoading) {
         <mat-spinner />
-    </ng-container>
-    <ng-template #contentLoaded>
-        <app-category-view
-            *ngIf="currentLayout === 'category'"
-            (categoryClicked)="categoryClicked($event)"
-            [items]="items"
-        />
-
-        <app-category-content-view
-            *ngIf="currentLayout === 'category_content'"
-            [items]="items"
-            (itemClicked)="itemClicked($event)"
-        />
-
-        <app-vod-details
-            *ngIf="currentLayout === 'vod-details'"
-            [item]="vodDetails"
-            (playClicked)="playVod($event)"
-            (addToFavoritesClicked)="addToFavorites($event)"
-            (removeFromFavoritesClicked)="removeFromFavorites($event)"
-        />
-
-        <app-serial-details
-            *ngIf="currentLayout === 'serie-details'"
-            [item]="vodDetails"
-            [seriesId]="contentId"
-            (playClicked)="playEpisode($event)"
-            (addToFavoritesClicked)="addToFavorites($event)"
-            (removeFromFavoritesClicked)="removeFromFavorites($event)"
-        />
-
-        <app-category-content-view
-            *ngIf="currentLayout === 'favorites'"
-            [items]="favorites$ | async"
-            (itemClicked)="itemClicked($event)"
-        />
-    </ng-template>
+    } @else {
+        @switch (currentLayout) {
+            @case ('expired-account') {
+                <app-playlist-error-view
+                    [title]="'PORTALS.ACCOUNT_EXPIRED_VIEW.TITLE' | translate"
+                    [description]="
+                        'PORTALS.ACCOUNT_EXPIRED_VIEW.DESCRIPTION' | translate
+                    "
+                />
+            }
+            @case ('category') {
+                <app-category-view
+                    (categoryClicked)="categoryClicked($event)"
+                    [items]="items"
+                />
+            }
+            @case ('category_content') {
+                <app-category-content-view
+                    [items]="items"
+                    (itemClicked)="itemClicked($event)"
+                />
+            }
+            @case ('vod-details') {
+                <app-vod-details
+                    [item]="vodDetails"
+                    (playClicked)="playVod($event)"
+                    (addToFavoritesClicked)="addToFavorites($event)"
+                    (removeFromFavoritesClicked)="removeFromFavorites($event)"
+                />
+            }
+            @case ('serie-details') {
+                <app-serial-details
+                    [item]="vodDetails"
+                    [seriesId]="contentId"
+                    (playClicked)="playEpisode($event)"
+                    (addToFavoritesClicked)="addToFavorites($event)"
+                    (removeFromFavoritesClicked)="removeFromFavorites($event)"
+                />
+            }
+            @case ('favorites') {
+                <app-category-content-view
+                    [items]="favorites$ | async"
+                    (itemClicked)="itemClicked($event)"
+                />
+            }
+        }
+    }
 </div>

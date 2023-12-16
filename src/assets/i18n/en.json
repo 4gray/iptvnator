@@ -152,7 +152,7 @@
         "UNNAMED_CHANNEL": "Unnamed Channel",
         "FAVORITES": "Favorites",
         "NO_FAVORITES": "No favorites yet",
-        "USE_STAR_TO_FAVORITE": "Please use the 'star' icon to add channels to this list.",
+        "USE_STAR_TO_FAVORITE": "Please use 'star' icon to add channels to your favorites.",
         "REMOVE_FAVORITE": "Remove from favorites",
         "FAVORITES_UPDATED": "Favorites were updated!"
     },
@@ -234,6 +234,13 @@
         "ALL_CATEGORIES": "All categories",
         "MY_FAVORITES": "My favorites",
         "ADD_TO_FAVORITES": "Add to favorites",
-        "REMOVE_FROM_FAVORITES": "Remove from favorites"
+        "REMOVE_FROM_FAVORITES": "Remove from favorites",
+        "ACCOUNT_EXPIRED_VIEW": {
+            "TITLE": "Account expired",
+            "DESCRIPTION": "This account has been expired. Please check the credentials in playlist settings or remove it.",
+            "PLAYLIST_SETTINGS": "Playlist Settings",
+            "HOME": "Home",
+            "DELETE": "Delete"
+        }
     }
 }

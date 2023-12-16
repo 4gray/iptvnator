@@ -1,6 +1,5 @@
 import {
     AsyncPipe,
-    JsonPipe,
     KeyValuePipe,
     NgFor,
     NgIf,
@@ -45,16 +44,20 @@ import { VodDetailsComponent } from './vod-details/vod-details.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Router, RouterLink } from '@angular/router';
 import { StorageMap } from '@ngx-pwa/local-storage';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import {
     XtreamSerieDetails,
     XtreamSerieEpisode,
 } from '../../../shared/xtream-serie-details.interface';
+import { DialogService } from '../services/dialog.service';
 import { PlaylistsService } from '../services/playlists.service';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
 import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
+import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { Breadcrumb, PortalActions } from './breadcrumb.interface';
 import { ContentTypeNavigationItem } from './content-type-navigation-item.interface';
 import { PlayerDialogComponent } from './player-dialog/player-dialog.component';
@@ -84,7 +87,8 @@ type LayoutView =
     | 'vod-details'
     | 'player'
     | 'serie-details'
-    | 'favorites';
+    | 'favorites'
+    | 'expired-account';
 
 @Component({
     selector: 'app-xtream-main-container',
@@ -96,7 +100,6 @@ type LayoutView =
         MatButtonToggleModule,
         NgFor,
         NgIf,
-        JsonPipe,
         CategoryViewComponent,
         NgSwitch,
         MatButtonModule,
@@ -110,17 +113,23 @@ type LayoutView =
         MatProgressSpinnerModule,
         AsyncPipe,
         ExternalPlayerInfoDialogComponent,
+        RouterLink,
+        PlaylistErrorViewComponent,
+        TranslateModule,
     ],
 })
 export class XtreamMainContainerComponent implements OnInit {
     dataService = inject(DataService);
     dialog = inject(MatDialog);
+    dialogService = inject(DialogService);
     ngZone = inject(NgZone);
     playlistService = inject(PlaylistsService);
     portalStore = inject(PortalStore);
+    router = inject(Router);
     snackBar = inject(MatSnackBar);
     storage = inject(StorageMap);
     store = inject(Store);
+    translate = inject(TranslateService);
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
     navigationContentTypes: ContentTypeNavigationItem[] = [
         {
@@ -192,6 +201,9 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     handleResponse(response: XtreamResponse) {
+        if ((response.payload as any)?.user_info?.status === 'Expired') {
+            this.currentLayout = 'expired-account';
+        }
         switch (response.action) {
             case XtreamCodeActions.GetSeriesCategories:
             case XtreamCodeActions.GetVodCategories:

@@ -1,9 +1,9 @@
 <div
     class="container"
     [style.background]="
-        item.info?.backdrop_path && item.info.backdrop_path.length > 0
+        item?.info?.backdrop_path && item?.info?.backdrop_path.length > 0
             ? 'linear-gradient(to top, rgba(29,29,29,1) 0%, rgba(0,0,0,0.5) 100%), url(' +
-              item.info.backdrop_path[0] +
+              item?.info?.backdrop_path[0] +
               ') repeat-x'
             : 'none'
     "
