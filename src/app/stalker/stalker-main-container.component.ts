@@ -6,6 +6,7 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
+import { TranslateModule } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import { IpcCommand } from '../../../shared/ipc-command.class';
 import {
@@ -29,6 +30,7 @@ import { ContentTypeNavigationItem } from '../xtream/content-type-navigation-ite
 import { ContentType } from '../xtream/content-type.enum';
 import { NavigationBarComponent } from '../xtream/navigation-bar/navigation-bar.component';
 import { PlayerDialogComponent } from '../xtream/player-dialog/player-dialog.component';
+import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../xtream/portal.store';
 import { VodDetailsComponent } from '../xtream/vod-details/vod-details.component';
 import { StalkerContentTypes } from './stalker-content-types';
@@ -44,6 +46,8 @@ import { StalkerContentTypes } from './stalker-content-types';
         NavigationBarComponent,
         NgIf,
         MatPaginatorModule,
+        PlaylistErrorViewComponent,
+        TranslateModule,
         VodDetailsComponent,
     ],
 })
@@ -53,7 +57,12 @@ export class StalkerMainContainerComponent implements OnInit {
     listeners = [];
     isLoading = true;
     selectedContentType: ContentType = ContentType.VODS;
-    currentLayout = 'category';
+    currentLayout:
+        | 'category'
+        | 'category_content'
+        | 'favorites'
+        | 'vod-details'
+        | 'not-available' = 'category';
     searchPhrase = this.portalStore.searchPhrase();
     settings = toSignal(
         this.storage.get(STORE_KEY.Settings)
@@ -97,8 +106,12 @@ export class StalkerMainContainerComponent implements OnInit {
         new IpcCommand(STALKER_RESPONSE, (response: any) =>
             this.handleResponse(response)
         ),
-        new IpcCommand(ERROR, (response: { message: string; status: number }) =>
-            this.showErrorAsNotification(response)
+        new IpcCommand(
+            ERROR,
+            (response: { message: string; status: number }) => {
+                this.currentLayout = 'not-available';
+                this.showErrorAsNotification(response);
+            }
         ),
     ];
 

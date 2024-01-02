@@ -21,6 +21,7 @@ data.db
 preload.js
 shared/*.js
 playwright-report
+.nx
 
 # dependencies
 /node_modules
