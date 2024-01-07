@@ -69,3 +69,9 @@
         text-transform: uppercase;
     }
 }
+
+@media (max-width: 500px) {
+    .favorites-icon {
+        padding-left: 0 !important;
+    }
+}

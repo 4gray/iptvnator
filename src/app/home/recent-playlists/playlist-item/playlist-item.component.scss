@@ -49,3 +49,9 @@ mat-list-item {
 .action-buttons {
     align-self: center !important;
 }
+
+@media (max-width: 500px) {
+    .drag-icon {
+        display: none;
+    }
+}
