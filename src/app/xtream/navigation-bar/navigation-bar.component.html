@@ -3,24 +3,23 @@
         <mat-icon>home</mat-icon> Playlists
     </button>
 
-    <div>
-        <mat-button-toggle-group
-            name="contentType"
-            aria-label="Content Type"
-            [value]="contentType"
-            (change)="changeContentType($event.value)"
+    <mat-button-toggle-group
+        *ngIf="showCategories"
+        name="contentType"
+        aria-label="Content Type"
+        [value]="contentType"
+        (change)="changeContentType($event.value)"
+    >
+        <mat-button-toggle
+            *ngFor="
+                let item of contentTypeNavigationItems;
+                trackBy: trackByValue
+            "
+            [value]="item.contentType"
         >
-            <mat-button-toggle
-                *ngFor="
-                    let item of contentTypeNavigationItems;
-                    trackBy: trackByValue
-                "
-                [value]="item.contentType"
-            >
-                {{ item.label }}
-            </mat-button-toggle>
-        </mat-button-toggle-group>
-    </div>
+            {{ item.label }}
+        </mat-button-toggle>
+    </mat-button-toggle-group>
 
     <button mat-button (click)="favoritesClicked.emit()">
         <mat-icon>star</mat-icon> Favorites

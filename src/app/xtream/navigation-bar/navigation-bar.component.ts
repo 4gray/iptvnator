@@ -32,6 +32,7 @@ export class NavigationBarComponent {
     @Input() searchVisible = true;
     @Input() contentTypeNavigationItems: ContentTypeNavigationItem[];
     @Input() clientSideSearch = true;
+    @Input() showCategories = false;
 
     @Output() contentTypeChanged = new EventEmitter<ContentType>();
     @Output() breadcrumbClicked = new EventEmitter<Breadcrumb>();
