@@ -61,8 +61,8 @@ export class HtmlVideoPlayerComponent implements OnChanges, OnDestroy {
             const url = channel.url + (channel.epgParams ?? '');
             const extension = getExtensionFromUrl(channel.url);
             this.dataService.sendIpcEvent(CHANNEL_SET_USER_AGENT, {
-                userAgent: channel.http['user-agent'],
-                referer: channel.http.referrer,
+                userAgent: channel.http?.['user-agent'] ?? '',
+                referer: channel.http?.referrer ?? '',
             });
 
             if (
