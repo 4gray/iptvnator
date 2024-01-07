@@ -235,9 +235,19 @@
         "MY_FAVORITES": "My favorites",
         "ADD_TO_FAVORITES": "Add to favorites",
         "REMOVE_FROM_FAVORITES": "Remove from favorites",
-        "ACCOUNT_EXPIRED_VIEW": {
-            "TITLE": "Account expired",
-            "DESCRIPTION": "This account has been expired. Please check the credentials in playlist settings or remove it.",
+        "ERROR_VIEW": {
+            "ACCOUNT_EXPIRED": {
+                "TITLE": "Account expired",
+                "DESCRIPTION": "This account has been expired. Please check the credentials in playlist settings or remove it."
+            },
+            "UNAUTHORIZED": {
+                "TITLE": "Unauthorized",
+                "DESCRIPTION": "Please check the credentials in playlist settings or remove it."
+            },
+            "NOT_FOUND": {
+                "TITLE": "Portal not found",
+                "DESCRIPTION": "Please check the credentials and portal url in playlist settings or remove it."
+            },
             "PLAYLIST_SETTINGS": "Playlist Settings",
             "HOME": "Home",
             "DELETE": "Delete"

@@ -1,6 +1,7 @@
 <app-navigation-bar
     [breadcrumbs]="breadcrumbs"
     [contentType]="selectedContentType"
+    [showCategories]="currentLayout !== 'error-view'"
     (breadcrumbClicked)="breadcrumbClicked($event)"
     (contentTypeChanged)="changeContentType($event)"
     (searchTextChanged)="setSearchPhrase($event)"
@@ -16,12 +17,10 @@
         <mat-spinner />
     } @else {
         @switch (currentLayout) {
-            @case ('expired-account') {
+            @case ('error-view') {
                 <app-playlist-error-view
-                    [title]="'PORTALS.ACCOUNT_EXPIRED_VIEW.TITLE' | translate"
-                    [description]="
-                        'PORTALS.ACCOUNT_EXPIRED_VIEW.DESCRIPTION' | translate
-                    "
+                    [title]="this.errorViewInfo.title | translate"
+                    [description]="this.errorViewInfo.message | translate"
                 />
             }
             @case ('category') {

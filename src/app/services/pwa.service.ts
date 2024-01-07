@@ -4,7 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { catchError, throwError } from 'rxjs';
+import { catchError, EMPTY, throwError } from 'rxjs';
 import {
     ERROR,
     PLAYLIST_PARSE_BY_URL,
@@ -172,6 +172,16 @@ export class PwaService extends DataService {
                 },
                 ...headers,
             })
+            .pipe(
+                catchError((response) => {
+                    window.postMessage({
+                        type: ERROR,
+                        status: response.error.status,
+                        message: response.error.message ?? 'Unknown error',
+                    });
+                    return EMPTY;
+                })
+            )
             .subscribe((response) => {
                 window.postMessage({
                     type: XTREAM_RESPONSE,

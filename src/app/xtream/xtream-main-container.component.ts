@@ -88,7 +88,7 @@ type LayoutView =
     | 'player'
     | 'serie-details'
     | 'favorites'
-    | 'expired-account';
+    | 'error-view';
 
 @Component({
     selector: 'app-xtream-main-container',
@@ -159,6 +159,7 @@ export class XtreamMainContainerComponent implements OnInit {
     isLoading = true;
     searchPhrase = this.portalStore.searchPhrase();
     contentId: number;
+    errorViewInfo = { title: '', message: '' };
 
     commandsList = [
         new IpcCommand(XTREAM_RESPONSE, (response: XtreamResponse) =>
@@ -202,8 +203,19 @@ export class XtreamMainContainerComponent implements OnInit {
 
     handleResponse(response: XtreamResponse) {
         if ((response.payload as any)?.user_info?.status === 'Expired') {
-            this.currentLayout = 'expired-account';
+            this.errorViewInfo = {
+                title: 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.TITLE',
+                message: 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.DESCRIPTION',
+            };
+            this.currentLayout = 'error-view';
+        } else if ((response.payload as any)?.user_info?.auth === 0) {
+            this.errorViewInfo = {
+                title: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.TITLE',
+                message: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.DESCRIPTION',
+            };
+            this.currentLayout = 'error-view';
         }
+
         switch (response.action) {
             case XtreamCodeActions.GetSeriesCategories:
             case XtreamCodeActions.GetVodCategories:
@@ -341,6 +353,20 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     showErrorAsNotification(response: { message: string; status: number }) {
+        if ('status' in response && response.status === 401) {
+            this.errorViewInfo = {
+                title: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.TITLE',
+                message: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.DESCRIPTION',
+            };
+            this.currentLayout = 'error-view';
+        } else if ('status' in response && response.status === 404) {
+            this.errorViewInfo = {
+                title: 'PORTALS.ERROR_VIEW.NOT_FOUND.TITLE',
+                message: 'PORTALS.ERROR_VIEW.NOT_FOUND.DESCRIPTION',
+            };
+            this.currentLayout = 'error-view';
+        }
+
         this.snackBar.open(
             `Error: ${response?.message ?? 'Something went wrong'} (Status: ${
                 response?.status ?? 0
