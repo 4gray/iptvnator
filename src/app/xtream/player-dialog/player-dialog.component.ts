@@ -1,5 +1,5 @@
 import { NgIf } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, ViewEncapsulation } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { getExtensionFromUrl } from '../../../../shared/playlist.utils';
 import { HtmlVideoPlayerComponent } from '../../player/components/html-video-player/html-video-player.component';
@@ -22,6 +22,14 @@ interface DialogData {
         NgIf,
         VjsPlayerComponent,
     ],
+    styles: `
+        mat-dialog-content {
+            .video-js {
+                height: 500px !important;
+            }
+        }
+    `,
+    encapsulation: ViewEncapsulation.None,
 })
 export class PlayerDialogComponent {
     channel = {};
