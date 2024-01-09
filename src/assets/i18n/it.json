@@ -152,7 +152,7 @@
         "UNNAMED_CHANNEL": "Canale senza nome",
         "FAVORITES": "Preferiti",
         "NO_FAVORITES": "Ancora nessun preferito",
-        "USE_STAR_TO_FAVORITE": "Usa l'icona 'stella' per aggiungere canali a questo elenco.",
+        "USE_STAR_TO_FAVORITE": "Usa l'icona 'stella' per aggiungere canali ai preferiti.",
         "REMOVE_FAVORITE": "Rimuovi dai preferiti",
         "FAVORITES_UPDATED": "Aggiornamento preferiti completato!"
     },
@@ -235,5 +235,22 @@
         "MY_FAVORITES": "Preferiti",
         "ADD_TO_FAVORITES": "Aggiungi ai preferiti",
         "REMOVE_FROM_FAVORITES": "Rimuovi dai preferiti"
+        "ERROR_VIEW": {
+            "ACCOUNT_EXPIRED": {
+                "TITLE": "Account scaduto",
+                "DESCRIPTION": "Questo account è scaduto. Controlla le credenziali nelle impostazioni della playlist o rimuovile."
+            },
+            "UNAUTHORIZED": {
+                "TITLE": "Non autorizzato",
+                "DESCRIPTION": "Controlla le credenziali nelle impostazioni della playlist o rimuovile."
+            },
+            "NOT_FOUND": {
+                "TITLE": "Portale non trovato",
+                "DESCRIPTION": "Controlla le credenziali e l'URL del portale nelle impostazioni della playlist o rimuovile."
+            },
+            "PLAYLIST_SETTINGS": "Playlist Settings",
+            "HOME": "Home",
+            "DELETE": "Elimina"
+        }
     }
 }
