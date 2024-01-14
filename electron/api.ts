@@ -406,11 +406,18 @@ export class Api {
             userAgent = this.defaultUserAgent;
         }
 
+        // Remove trailing slash from referer if it exists
+        let originURL: string;
+        if (referer?.endsWith('/')) {
+        originURL= referer.slice(0, -1);
+        }
+
         session.defaultSession.webRequest.onBeforeSendHeaders(
             (details, callback) => {
                 details.requestHeaders['User-Agent'] = userAgent;
                 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
                 details.requestHeaders['Referer'] = referer as string;
+                details.requestHeaders['Origin'] = originURL as string;
                 callback({ requestHeaders: details.requestHeaders });
             }
         );
