@@ -113,6 +113,12 @@ export class Api {
                             event.sender.send(PLAYLIST_PARSE_RESPONSE, {
                                 payload: playlistObject,
                             });
+                        })
+                        .catch((err) => {
+                            event.sender.send(ERROR, {
+                                message: err.response.statusText,
+                                status: err.response.status,
+                            });
                         });
                 } catch (err) {
                     event.sender.send(ERROR, {
@@ -400,20 +406,12 @@ export class Api {
             userAgent = this.defaultUserAgent;
         }
 
-        // Remove trailing slash from referer if it exists
-        let originURL: string;
-        if (referer?.endsWith('/')) {
-        originURL= referer.slice(0, -1);
-        }
-
         session.defaultSession.webRequest.onBeforeSendHeaders(
             (details, callback) => {
                 details.requestHeaders['User-Agent'] = userAgent;
                 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
                 details.requestHeaders['Referer'] = referer as string;
-                details.requestHeaders['Origin'] = originURL as string;
                 callback({ requestHeaders: details.requestHeaders });
-            
             }
         );
         console.log(`Success: Set "${userAgent}" as user agent header`);
