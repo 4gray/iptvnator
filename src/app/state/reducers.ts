@@ -228,7 +228,19 @@ export const playlistReducer = createReducer(
             ...state,
             playlists: playlistsAdapter.removeAll(state.playlists),
         };
-    })
+    }),
+    on(
+        PlaylistActions.setSelectedFilters,
+        (state, { selectedFilters }): PlaylistState => {
+            return {
+                ...state,
+                playlists: {
+                    ...state.playlists,
+                    selectedFilters,
+                },
+            };
+        }
+    )
 );
 
 export const selectIsEpgAvailable = (state: PlaylistState) =>

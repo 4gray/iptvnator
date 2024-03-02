@@ -19,6 +19,7 @@ import { Playlist } from '../../../../shared/playlist.interface';
 import { DataService } from '../../services/data.service';
 import * as PlaylistActions from '../../state/actions';
 import {
+    selectActiveTypeFilters,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from '../../state/selectors';
@@ -47,20 +48,43 @@ export class RecentPlaylistsComponent implements OnDestroy {
     playlists$ = combineLatest([
         this.store.select(selectAllPlaylistsMeta),
         this.searchQuery,
+        // eslint-disable-next-line @ngrx/avoid-combining-selectors
+        this.store.select(selectActiveTypeFilters),
     ]).pipe(
-        // eslint-disable-next-line @ngrx/avoid-mapping-selectors
-        map(([playlists, searchQuery]) =>
+        map(([playlists, searchQuery, filters]) =>
             playlists
-                .sort((a, b) => a.position - b.position)
+                .filter((item) => {
+                    const isStalkerFilter =
+                        item.macAddress && filters.includes('stalker');
+                    const isXtreamFilter =
+                        item.username &&
+                        item.password &&
+                        item.serverUrl &&
+                        filters.includes('xtream');
+                    const isM3uFilter =
+                        !item.username &&
+                        !item.password &&
+                        !item.serverUrl &&
+                        !item.macAddress &&
+                        filters.includes('m3u');
+
+                    return (
+                        (isStalkerFilter && filters.includes('stalker')) ||
+                        (isXtreamFilter && filters.includes('xtream')) ||
+                        (isM3uFilter && filters.includes('m3u'))
+                    );
+                })
                 .filter((item) =>
                     item.title.toLowerCase().includes(searchQuery.toLowerCase())
                 )
+                .sort((a, b) => a.position - b.position)
         )
     );
 
     allPlaylistsLoaded = this.store.selectSignal(selectPlaylistsLoadingFlag);
 
     @Input() sidebarMode = false;
+    @Output() playlistClicked = new EventEmitter<string>();
 
     /** IPC Renderer commands list with callbacks */
     commandsList = [
@@ -112,8 +136,6 @@ export class RecentPlaylistsComponent implements OnDestroy {
 
     isMigrationPossible = false;
     migrationMessage = '';
-
-    @Output() playlistClicked = new EventEmitter<string>();
 
     constructor(
         private dialog: MatDialog,

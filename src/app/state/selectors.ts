@@ -44,6 +44,12 @@ export const selectAllPlaylistsMeta = createSelector(
     fromPlaylistMetaState.getAllPlaylistsMeta
 );
 
+export const selectActiveTypeFilters = createSelector(
+    selectPlaylistsMetaState,
+    fromPlaylistMetaState.getPlaylistMetaEntities,
+    (state) => state.selectedFilters
+);
+
 export const selectPlaylistEntity = (id: string) =>
     createSelector(
         selectPlaylistsMetaState,

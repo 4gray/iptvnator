@@ -21,14 +21,15 @@
         data-test-id="filter-playlist-by-name"
     >
         <mat-icon>search</mat-icon>
-    </button>
+    </button> -->
     <button
         mat-icon-button
+        [matMenuTriggerFor]="filterPlaylistMenu"
         [matTooltip]="'HOME.FILTER_BY_TYPE' | translate"
         data-test-id="filter-playlist-by-type"
     >
         <mat-icon>filter_list</mat-icon>
-    </button> -->
+    </button>
     <button
         *ngIf="isElectron; else pwaMenu"
         mat-icon-button
@@ -38,6 +39,24 @@
     >
         <mat-icon>settings</mat-icon>
     </button>
+
+    <mat-menu #filterPlaylistMenu="matMenu">
+        <section (click)="$event.stopPropagation()" class="filter-container">
+            <h4>{{ 'HOME.FILTER_BY_TYPE' | translate }}:</h4>
+            @for (type of playlistTypes; track $index) {
+                <p>
+                    <mat-checkbox
+                        (click)="$event.stopPropagation()"
+                        [checked]="true"
+                        (change)="onPlaylistFilterChange()"
+                        [(ngModel)]="type.checked"
+                        >{{ type.title }}</mat-checkbox
+                    >
+                </p>
+            }
+        </section>
+    </mat-menu>
+
     <mat-menu #addPlaylistMenu="matMenu">
         <button
             mat-menu-item

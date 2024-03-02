@@ -126,3 +126,8 @@ export const setAdjacentChannelAsActive = createAction(
         direction: 'next' | 'previous';
     }>()
 );
+
+export const setSelectedFilters = createAction(
+    `${STORE_KEY} Set selected filters`,
+    props<{ selectedFilters: string[] }>()
+);

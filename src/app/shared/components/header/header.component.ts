@@ -1,17 +1,22 @@
 import { AsyncPipe, NgFor, NgIf } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, effect } from '@angular/core';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { NgxWhatsNewModule } from 'ngx-whats-new';
 import { HomeComponent } from '../../../home/home.component';
 import { DataService } from '../../../services/data.service';
 import { WhatsNewService } from '../../../services/whats-new.service';
+import { setSelectedFilters } from '../../../state/actions';
+import { selectActiveTypeFilters } from '../../../state/selectors';
 import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
 import {
     AddPlaylistDialogComponent,
@@ -25,14 +30,17 @@ import {
     styleUrls: ['./header.component.scss'],
     imports: [
         AsyncPipe,
-        NgIf,
-        NgFor,
         MatButtonModule,
+        MatCheckboxModule,
+        MatDividerModule,
         MatIconModule,
         MatMenuModule,
-        MatDividerModule,
         MatTooltipModule,
+        NgIf,
+        NgFor,
+        FormsModule,
         NgxWhatsNewModule,
+        ReactiveFormsModule,
         TranslateModule,
     ],
 })
@@ -57,14 +65,43 @@ export class HeaderComponent implements OnInit {
 
     isHome = true;
 
-    /** Creates an instance of HeaderComponent */
+    playlistTypes = [
+        {
+            title: 'M3U (local, url, text)',
+            id: 'm3u',
+            checked: true,
+        },
+        {
+            title: 'Xtream',
+            id: 'xtream',
+            checked: true,
+        },
+        {
+            title: 'Stalker',
+            id: 'stalker',
+            checked: true,
+        },
+    ];
+
+    selectedTypeFilters = this.store.selectSignal(selectActiveTypeFilters);
+
     constructor(
         private activatedRoute: ActivatedRoute,
         private dialog: MatDialog,
         private dataService: DataService,
         private router: Router,
+        private store: Store,
         private whatsNewService: WhatsNewService
-    ) {}
+    ) {
+        effect(() => {
+            if (this.selectedTypeFilters) {
+                this.playlistTypes = this.playlistTypes.map((type) => {
+                    type.checked = this.selectedTypeFilters().includes(type.id);
+                    return type;
+                });
+            }
+        });
+    }
 
     ngOnInit() {
         this.isHome =
@@ -115,6 +152,16 @@ export class HeaderComponent implements OnInit {
                 width: '600px',
                 data: { type },
             }
+        );
+    }
+
+    onPlaylistFilterChange() {
+        this.store.dispatch(
+            setSelectedFilters({
+                selectedFilters: this.playlistTypes
+                    .filter((f) => f.checked)
+                    .map((f) => f.id),
+            })
         );
     }
 }
