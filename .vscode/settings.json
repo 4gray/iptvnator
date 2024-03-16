@@ -3,5 +3,11 @@
     "i18n-ally.keystyle": "nested",
     "cSpell.words": ["iptvnator", "lcov", "titlebar", "Whitespaces"],
     "cSpell.ignorePaths": ["node_modules", "package.json", "package-lock.json"],
-    "angular.enable-strict-mode-prompt": false
+    "angular.enable-strict-mode-prompt": false,
+    "testing.openTesting": "neverOpen",
+    "jest.outputConfig": {
+        "revealOn": "run",
+        "revealWithFocus": "none",
+        "clearOnRun": "none"
+    }
 }
