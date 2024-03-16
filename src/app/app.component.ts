@@ -149,7 +149,10 @@ export class AppComponent {
             .subscribe((settings: Settings) => {
                 if (settings && Object.keys(settings).length > 0) {
                     this.translate.use(settings.language ?? this.DEFAULT_LANG);
-                    if (settings.epgUrl) {
+                    if (
+                        settings.epgUrl?.length > 0 &&
+                        settings.epgUrl?.some((u) => u !== '')
+                    ) {
                         this.epgService.fetchEpg(settings.epgUrl);
                     }
 
