@@ -4,6 +4,8 @@ import * as path from 'path';
 import * as url from 'url';
 import { Api } from './api';
 import { AppMenu } from './menu';
+
+const fixPath = require('fix-path');
 const {
     setupTitlebar,
     attachTitlebarToWindow,
@@ -11,10 +13,10 @@ const {
 const contextMenu = require('electron-context-menu');
 const Store = require('electron-store');
 const store = new Store();
-const os = require('os');
 
 const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
 
+fixPath();
 setupTitlebar();
 let win: BrowserWindow | null = null;
 const args = process.argv.slice(1),

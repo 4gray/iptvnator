@@ -74,6 +74,7 @@
         "electron-context-menu": "3.6.1",
         "electron-store": "8.1.0",
         "epg-parser": "0.1.6",
+        "fix-path": "3.0.0",
         "hls.js": "1.4.12",
         "iptv-playlist-parser": "github:4gray/iptv-playlist-parser",
         "lodash": "4.17.21",
