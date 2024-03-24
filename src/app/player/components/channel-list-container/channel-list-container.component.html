@@ -17,25 +17,30 @@
                 />
             </div>
             <mat-divider></mat-divider>
-            <mat-nav-list>
-                <app-channel-list-item
-                    *rxFor="
-                        let channel of _channelList
-                            | filterBy: searchTerm.name : 'name';
-                        index as i;
-                        trackBy: trackByFn
-                    "
-                    [name]="
-                        i +
-                        1 +
-                        '. ' +
-                        (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
-                            | translate)
-                    "
-                    [logo]="channel?.tvg?.logo"
-                    (clicked)="selectChannel(channel)"
-                    [selected]="selected?.id === channel?.id"
-                ></app-channel-list-item>
+            <mat-nav-list style="overflow: hidden">
+                <cdk-virtual-scroll-viewport
+                    itemSize="50"
+                    class="scroll-viewport"
+                >
+                    <app-channel-list-item
+                        *cdkVirtualFor="
+                            let channel of _channelList
+                                | filterBy: searchTerm.name : 'name';
+                            index as i;
+                            trackBy: trackByFn
+                        "
+                        [name]="
+                            i +
+                            1 +
+                            '. ' +
+                            (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
+                                | translate)
+                        "
+                        [logo]="channel?.tvg?.logo"
+                        (clicked)="selectChannel(channel)"
+                        [selected]="selected?.id === channel?.id"
+                    ></app-channel-list-item>
+                </cdk-virtual-scroll-viewport>
             </mat-nav-list>
         </mat-tab>
 

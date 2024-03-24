@@ -1,4 +1,5 @@
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { ScrollingModule } from '@angular/cdk/scrolling';
 import { CommonModule, TitleCasePipe } from '@angular/common';
 import {
     Component,
@@ -16,7 +17,6 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { RxFor } from '@rx-angular/template/for';
 import * as _ from 'lodash';
 import { map, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
@@ -27,6 +27,7 @@ import {
     selectFavorites,
 } from '../../../state/selectors';
 import { ChannelListItemComponent } from './channel-list-item/channel-list-item.component';
+
 @Component({
     standalone: true,
     selector: 'app-channel-list-container',
@@ -44,7 +45,7 @@ import { ChannelListItemComponent } from './channel-list-item/channel-list-item.
         TitleCasePipe,
         FilterPipe,
         FormsModule,
-        RxFor,
+        ScrollingModule,
     ],
 })
 export class ChannelListContainerComponent {
@@ -138,11 +139,6 @@ export class ChannelListContainerComponent {
         this.store.dispatch(PlaylistActions.updateFavorites({ channel }));
     }
 
-    /**
-     * Required for change detection mechanism to nor re-init the whole component after changes
-     * @param index index of the channel item
-     * @param channel channel object
-     */
     trackByFn(_: number, channel: Channel): string {
         return channel?.id;
     }
