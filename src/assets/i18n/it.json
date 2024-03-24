@@ -234,7 +234,7 @@
         "ALL_CATEGORIES": "Tutte le categorie",
         "MY_FAVORITES": "Preferiti",
         "ADD_TO_FAVORITES": "Aggiungi ai preferiti",
-        "REMOVE_FROM_FAVORITES": "Rimuovi dai preferiti"
+        "REMOVE_FROM_FAVORITES": "Rimuovi dai preferiti",
         "ERROR_VIEW": {
             "ACCOUNT_EXPIRED": {
                 "TITLE": "Account scaduto",
