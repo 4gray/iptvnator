@@ -7,7 +7,7 @@ import { PlayerViewComponent } from '../../../xtream/player-view/player-view.com
 @Component({
     standalone: true,
     template: `
-        <h2 mat-dialog-title>Information</h2>
+        <h2 mat-dialog-title>{{ 'INFORMATION' | translate }}</h2>
         <mat-dialog-content class="mat-typography">
             <app-player-view />
         </mat-dialog-content>
