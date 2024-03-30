@@ -4,4 +4,6 @@ export enum StalkerPortalActions {
     CreateLink = 'create_link',
     GetOrderedList = 'get_ordered_list',
     Favorites = 'favorites',
+    Handshake = 'handshake',
+    DoAuth = 'do_auth',
 }

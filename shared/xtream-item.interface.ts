@@ -8,4 +8,5 @@ export interface XtreamItem {
     category_id: string;
     custom_sid: string;
     direct_source: string;
+    rating_imdb?: string;
 }

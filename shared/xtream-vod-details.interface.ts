@@ -26,6 +26,8 @@ export interface XtreamVodDetails {
         audio: string[];
         bitrate: number;
         rating: number;
+        rating_kinopoisk?: string;
+        rating_imdb?: string;
     };
     movie_data: {
         stream_id: number;

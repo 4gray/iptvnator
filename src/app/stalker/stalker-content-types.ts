@@ -17,4 +17,16 @@ export const StalkerContentTypes = {
         getCategoryAction: StalkerPortalActions.GetCategories,
         getLink: StalkerPortalActions.CreateLink,
     },
+    series: {
+        title: 'Series',
+        getContentAction: StalkerPortalActions.GetOrderedList,
+        getCategoryAction: StalkerPortalActions.GetCategories,
+        getLink: StalkerPortalActions.CreateLink,
+    },
+    /* radio: {
+        title: 'Radio',
+        getContentAction: StalkerPortalActions.GetOrderedList,
+        getCategoryAction: StalkerPortalActions.GetOrderedList,
+        getLink: StalkerPortalActions.CreateLink,
+    }, */
 };
