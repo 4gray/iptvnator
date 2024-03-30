@@ -1,0 +1,16 @@
+<button
+    *ngIf="!isFavorite; else removeFromFavoritesButton"
+    mat-flat-button
+    color="accent"
+    (click)="addToFavorites()"
+>
+    <mat-icon>star_outline</mat-icon>
+    {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
+</button>
+
+<ng-template #removeFromFavoritesButton>
+    <button mat-stroked-button color="accent" (click)="removeFromFavorites()">
+        <mat-icon>star</mat-icon>
+        {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
+    </button>
+</ng-template>
