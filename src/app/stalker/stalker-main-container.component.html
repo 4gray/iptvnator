@@ -11,6 +11,7 @@
     (contentTypeChanged)="getCategories($event)"
     (breadcrumbClicked)="breadcrumbClicked($event)"
     (favoritesClicked)="favoritesClicked()"
+    [showCategories]="true"
 />
 
 @switch (currentLayout) {
@@ -39,6 +40,13 @@
             (playClicked)="playVod()"
             (addToFavoritesClicked)="addToFavorites($event)"
             (removeFromFavoritesClicked)="removeFromFavorites($event)"
+        />
+    }
+    @case ('serial-details') {
+        <app-stalker-series-view
+            [seasons]="seasons"
+            [serialDetails]="itemDetails"
+            (playEpisode)="playEpisode($event)"
         />
     }
     @case ('favorites') {
