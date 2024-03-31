@@ -1,7 +1,6 @@
 <ng-container *ngIf="items?.length > 0; else noItems">
     <div class="grid">
         <mat-card
-            appearance="outlined"
             *ngFor="
                 let item of items | filterBy: searchPhrase() : 'name';
                 trackBy: trackByFn
@@ -23,6 +22,14 @@
                     class="stream-icon-placeholder"
                     *ngIf="!item.stream_icon && !item.cover"
                 ></div>
+                <div
+                    *ngIf="item.rating || item.rating_imdb"
+                    class="rating"
+                    matTooltip="IMDB Rating"
+                >
+                    <mat-icon>star</mat-icon
+                    >{{ item.rating || item.rating_imdb }}
+                </div>
                 <div class="title">{{ item.name }}</div>
             </mat-card-content>
         </mat-card>
@@ -31,13 +38,15 @@
             *ngIf="!(items | filterBy: searchPhrase() : 'name')?.length"
         >
             <mat-icon class="icon">search</mat-icon>
-            <div>Nothing found, try to change you search request</div>
+            <div>
+                {{ 'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate }}
+            </div>
         </div>
     </div>
 </ng-container>
 <ng-template #noItems>
     <div class="no-content">
         <mat-icon class="icon">list</mat-icon>
-        <div>This category is empty, try another one</div>
+        <div>{{ 'PORTALS.EMPTY_LIST_VIEW.EMPTY_CATEGORY' | translate }}</div>
     </div>
 </ng-template>

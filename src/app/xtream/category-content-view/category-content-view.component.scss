@@ -6,6 +6,7 @@
 mat-card {
     overflow: hidden;
     transition: all 0.9s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: none;
 }
 
 mat-card:hover {
@@ -49,7 +50,28 @@ mat-card:hover {
         .title {
             word-break: break-all;
             padding: 8px;
+            text-align: center;
         }
+    }
+}
+
+.rating {
+    position: absolute;
+    top: 5px;
+    right: 6px;
+    background-color: #3bb33b;
+    color: #fff;
+    font-size: 0.8em;
+    border-radius: 3px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 5px;
+
+    mat-icon {
+        font-size: 16px;
+        height: 18px;
+        width: 18px;
     }
 }
 
