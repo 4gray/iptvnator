@@ -228,13 +228,18 @@
     "DURATION": "Duration",
     "CAST": "Cast",
     "EPISODE_RUN_TIME": "Episode run time",
-    "RATING": "Rating"
+    "RATING": "Rating",
+    "DESCRIPTION": "Description",
+    "YEAR": "Year",
+    "AGE": "Age"
   },
   "PORTALS": {
     "ALL_CATEGORIES": "All categories",
     "MY_FAVORITES": "My favorites",
     "ADD_TO_FAVORITES": "Add to favorites",
     "REMOVE_FROM_FAVORITES": "Remove from favorites",
+    "REMOVED_FROM_FAVORITES": "Removed from favorites",
+    "ADDED_TO_FAVORITES": "Added to favorites",
     "ERROR_VIEW": {
       "ACCOUNT_EXPIRED": {
         "TITLE": "Account expired",
@@ -251,6 +256,10 @@
       "PLAYLIST_SETTINGS": "Playlist Settings",
       "HOME": "Home",
       "DELETE": "Delete"
+    },
+    "EMPTY_LIST_VIEW": {
+      "NO_SEARCH_RESULTS": "Nothing found, try to change you search request",
+      "EMPTY_CATEGORY": "This category is empty, try another one"
     }
   },
   "INFORMATION": "Information"
