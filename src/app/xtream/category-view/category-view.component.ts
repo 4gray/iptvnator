@@ -24,7 +24,7 @@ import { PortalStore } from '../portal.store';
                     (click)="categoryClicked.emit(item)"
                 >
                     <mat-card-content>
-                        {{ item.category_name }}
+                        {{ item.category_name || item.name || 'no name' }}
                     </mat-card-content>
                 </mat-card>
                 <div
