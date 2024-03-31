@@ -27,7 +27,7 @@
             (itemClicked)="itemClicked($event)"
         />
         <mat-paginator
-            *ngIf="currentLayout === 'category_content'"
+            *ngIf="currentLayout === 'category_content' && length && length > 0"
             [length]="length"
             [pageSize]="pageSize"
             (page)="handlePageChange($event)"
@@ -45,7 +45,6 @@
     @case ('serial-details') {
         <app-stalker-series-view
             [seasons]="seasons"
-            [serialDetails]="itemDetails"
             (playEpisode)="playEpisode($event)"
         />
     }
