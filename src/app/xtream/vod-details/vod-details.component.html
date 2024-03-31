@@ -46,6 +46,14 @@
             <div class="label">{{ 'XTREAM.DURATION' | translate }}:</div>
             {{ item.info.duration }}
         </label>
+        <label *ngIf="item.info.rating_imdb">
+            <div class="label">Rating IMDB:</div>
+            {{ item.info.rating_imdb }}
+        </label>
+        <label *ngIf="item.info.rating_kinopoisk">
+            <div class="label">Rating Kinopoisk:</div>
+            {{ item.info.rating_kinopoisk }}
+        </label>
         <div class="action-buttons">
             <button
                 mat-flat-button
