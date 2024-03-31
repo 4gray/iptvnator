@@ -1,4 +1,5 @@
 export interface StalkerSeason {
+    id: string;
     series: string[];
     name: string;
     cmd: string;
