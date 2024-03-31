@@ -84,7 +84,7 @@ export class PlaylistEffects {
                                 this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                                     url:
                                         activeChannel.url +
-                                            activeChannel.epgParams ?? '',
+                                        (activeChannel.epgParams ?? ''),
                                 });
                             else if (
                                 settings &&
@@ -94,7 +94,7 @@ export class PlaylistEffects {
                                 this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                                     url:
                                         activeChannel.url +
-                                            activeChannel.epgParams ?? '',
+                                        (activeChannel.epgParams ?? ''),
                                 });
                         }
                     );
