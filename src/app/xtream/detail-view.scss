@@ -21,6 +21,18 @@
     }
 }
 
+.seasons {
+    padding: 20px;
+
+    .episodes {
+        margin-bottom: 10px;
+
+        button {
+            margin-top: 5px;
+        }
+    }
+}
+
 .image {
     width: 300px;
     padding: 20px 10px;

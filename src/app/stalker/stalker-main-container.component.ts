@@ -1,12 +1,14 @@
-import { AsyncPipe, NgIf } from '@angular/common';
+import { AsyncPipe, NgFor, NgIf } from '@angular/common';
 import { Component, NgZone, OnInit, Signal, effect } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { Observable } from 'rxjs';
 import { IpcCommand } from '../../../shared/ipc-command.class';
 import {
@@ -33,20 +35,30 @@ import { PlayerDialogComponent } from '../xtream/player-dialog/player-dialog.com
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../xtream/portal.store';
 import { VodDetailsComponent } from '../xtream/vod-details/vod-details.component';
+import {
+    StalkerFavoriteItem,
+    StalkerSeason,
+    StalkerVodDetails,
+} from './models';
 import { StalkerContentTypes } from './stalker-content-types';
+import { StalkerSeriesViewComponent } from './stalker-series-view/stalker-series-view.component';
 
 @Component({
     selector: 'app-stalker-main-container',
     templateUrl: './stalker-main-container.component.html',
+    styleUrl: './stalker-main-container.component.scss',
     standalone: true,
     imports: [
         AsyncPipe,
-        CategoryViewComponent,
         CategoryContentViewComponent,
-        NavigationBarComponent,
-        NgIf,
+        CategoryViewComponent,
         MatPaginatorModule,
+        NavigationBarComponent,
+        NgFor,
+        NgIf,
+        NgxSkeletonLoaderModule,
         PlaylistErrorViewComponent,
+        StalkerSeriesViewComponent,
         TranslateModule,
         VodDetailsComponent,
     ],
@@ -56,11 +68,12 @@ export class StalkerMainContainerComponent implements OnInit {
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
     listeners = [];
     isLoading = true;
-    selectedContentType: ContentType = ContentType.VODS;
+    selectedContentType = ContentType.VODS;
     currentLayout:
         | 'category'
         | 'category_content'
         | 'favorites'
+        | 'serial-details'
         | 'vod-details'
         | 'not-available' = 'category';
     searchPhrase = this.portalStore.searchPhrase();
@@ -70,19 +83,7 @@ export class StalkerMainContainerComponent implements OnInit {
     favorites$: Observable<any>;
 
     items: any[] = [];
-    itemDetails!: {
-        id: string;
-        cmd: string;
-        info: {
-            movie_image: string;
-            description: string;
-            name: string;
-            actors: string;
-            director: string;
-            releasedate: string;
-            genre: string;
-        };
-    };
+    itemDetails!: StalkerVodDetails;
 
     navigationContentTypes: ContentTypeNavigationItem[] = [
         {
@@ -93,6 +94,14 @@ export class StalkerMainContainerComponent implements OnInit {
             contentType: ContentType.VODS,
             label: 'VOD Streams',
         },
+        {
+            contentType: ContentType.SERIES,
+            label: 'Series',
+        },
+        /* {
+            contentType: ContentType.RADIO,
+            label: 'Radio',
+        }, */
     ];
 
     currentCategoryId;
@@ -101,6 +110,8 @@ export class StalkerMainContainerComponent implements OnInit {
     length = 0;
     pageSize = 14;
     pageIndex = 0;
+
+    seasons: StalkerSeason[] = [];
 
     commandsList = [
         new IpcCommand(STALKER_RESPONSE, (response: any) =>
@@ -111,37 +122,64 @@ export class StalkerMainContainerComponent implements OnInit {
             (response: { message: string; status: number }) => {
                 this.currentLayout = 'not-available';
                 this.showErrorAsNotification(response);
+                this.isLoading = false;
             }
         ),
     ];
 
     constructor(
+        private activatedRoute: ActivatedRoute,
         private dataService: DataService,
         private dialog: MatDialog,
         private ngZone: NgZone,
         private playlistService: PlaylistsService,
         private portalStore: PortalStore,
+        private router: Router,
         private snackBar: MatSnackBar,
         private storage: StorageMap,
-        private store: Store
+        private store: Store,
+        private translate: TranslateService
     ) {
-        effect(() => {
-            if (this.currentPlaylist()) {
-                if (
-                    this.currentPlaylist().password &&
-                    this.currentPlaylist().username
-                ) {
-                    this.handshake();
-                } else {
-                    this.selectedContentType = ContentType.VODS;
-                    this.getCategories(this.selectedContentType);
-                }
+        effect(
+            () => {
+                if (this.currentPlaylist()) {
+                    if (
+                        this.currentPlaylist().password &&
+                        this.currentPlaylist().username
+                    ) {
+                        this.handshake();
+                    } else {
+                        this.selectedContentType =
+                            this.activatedRoute.snapshot.queryParams.type ??
+                            ContentType.VODS;
 
-                this.favorites$ = this.playlistService.getPortalFavorites(
-                    this.currentPlaylist()._id
-                );
-            }
-        });
+                        const action =
+                            this.activatedRoute.snapshot.queryParams.action ??
+                            'get_categories';
+                        const { category, movie_id } =
+                            this.activatedRoute.snapshot.queryParams;
+
+                        if (action === StalkerPortalActions.GetCategories) {
+                            this.getCategories(this.selectedContentType);
+                        } else if (
+                            action === StalkerPortalActions.GetOrderedList &&
+                            (category || movie_id)
+                        ) {
+                            this.getOrderedList(
+                                this.selectedContentType,
+                                category,
+                                movie_id
+                            );
+                        }
+                    }
+
+                    this.favorites$ = this.playlistService.getPortalFavorites(
+                        this.currentPlaylist()._id
+                    );
+                }
+            },
+            { allowSignalWrites: true }
+        );
 
         this.portalStore.setSearchPhrase('');
     }
@@ -165,7 +203,10 @@ export class StalkerMainContainerComponent implements OnInit {
     }
 
     handshake() {
-        this.sendRequest({ action: 'handshake', type: 'stb' });
+        this.sendRequest({
+            action: StalkerPortalActions.Handshake,
+            type: ContentType.STB,
+        });
     }
 
     setInitialBreadcrumb(
@@ -176,6 +217,7 @@ export class StalkerMainContainerComponent implements OnInit {
     }
 
     getCategories(contentType: ContentType = this.selectedContentType) {
+        this.router.navigate([], { queryParams: { type: contentType } });
         this.selectedContentType = contentType;
         this.currentLayout = 'category';
         const action = StalkerContentTypes[contentType].getCategoryAction;
@@ -183,14 +225,43 @@ export class StalkerMainContainerComponent implements OnInit {
         this.sendRequest({ action, type: contentType });
     }
 
-    sendRequest(params: Record<string, string | number>) {
-        this.isLoading = true;
-        if (params.action !== 'create_link') this.items = [];
+    getOrderedList(
+        type: ContentType = this.selectedContentType,
+        category: string,
+        movieId?: string
+    ) {
+        if (!movieId) {
+            this.currentLayout = 'category_content';
+        } else {
+            if (type === ContentType.SERIES) {
+                this.currentLayout = 'serial-details';
+            } else if (type === ContentType.VODS) {
+                this.currentLayout = 'vod-details';
+            }
+        }
+        const action = StalkerPortalActions.GetOrderedList;
+        this.setInitialBreadcrumb(action);
+        this.sendRequest({
+            action,
+            type,
+            category,
+            ...(movieId ? { movie_id: movieId } : {}),
+        });
+    }
+
+    sendRequest(params: Record<string, string | number | string[]>) {
+        if (params.action !== 'create_link') {
+            this.isLoading = true;
+            this.items = [];
+        }
         const { portalUrl, macAddress } = this.currentPlaylist();
         let token = {};
         if (sessionStorage.getItem(this.currentPlaylist()._id)) {
             token = sessionStorage.getItem(this.currentPlaylist()._id);
         }
+
+        this.updateRoute(params);
+
         this.dataService.sendIpcEvent(STALKER_REQUEST, {
             url: portalUrl,
             macAddress,
@@ -199,6 +270,26 @@ export class StalkerMainContainerComponent implements OnInit {
                 token,
             },
         });
+    }
+
+    updateRoute(params: Record<string, string | number | string[]>) {
+        if (params.action === 'get_categories') {
+            this.router.navigate([], {
+                queryParams: {
+                    action: params.action,
+                    type: params.type,
+                },
+            });
+        } else if (params.action === 'get_ordered_list') {
+            this.router.navigate([], {
+                queryParams: {
+                    action: params.action,
+                    type: params.type,
+                    ...(params.category ? { category: params.category } : {}),
+                    ...(params.movie_id ? { movie_id: params.movie_id } : {}),
+                },
+            });
+        }
     }
 
     showErrorAsNotification(response: { message: string; status: number }) {
@@ -213,14 +304,24 @@ export class StalkerMainContainerComponent implements OnInit {
     }
 
     handleResponse(response: {
-        action: string;
+        action: StalkerPortalActions;
         payload: { js: any; cmd?: string };
     }) {
+        if (typeof response.payload !== 'object') {
+            this.isLoading = false;
+            return;
+        }
+
+        if (
+            this.currentLayout === 'serial-details' &&
+            response.action !== StalkerPortalActions.CreateLink
+        ) {
+            this.seasons = response.payload.js.data;
+        }
         if (
             response.action === StalkerPortalActions.GetCategories ||
             response.action === StalkerPortalActions.GetGenres
         ) {
-            if (typeof response.payload !== 'object') return;
             this.items = response.payload.js.map((item) => ({
                 category_name: item.title,
                 category_id: item.id,
@@ -242,20 +343,22 @@ export class StalkerMainContainerComponent implements OnInit {
             }
 
             this.openPlayer(url, response.payload.js.name);
-        } else if (response.action === 'handshake') {
+        } else if (response.action === StalkerPortalActions.Handshake) {
             const token = response.payload.js.token;
             sessionStorage.setItem(this.currentPlaylist()._id, token);
 
             this.sendRequest({
-                action: 'do_auth',
+                action: StalkerPortalActions.DoAuth,
                 login: this.currentPlaylist().username,
                 password: this.currentPlaylist().password,
-                type: 'stb',
+                type: ContentType.STB,
                 token,
             });
-        } else if (response.action === 'do_auth') {
+        } else if (response.action === StalkerPortalActions.DoAuth) {
             this.getCategories();
         }
+
+        this.isLoading = false;
     }
 
     openPlayer(streamUrl: string, title: string) {
@@ -299,32 +402,95 @@ export class StalkerMainContainerComponent implements OnInit {
         });
     }
 
-    itemClicked(i: any) {
-        if (this.selectedContentType === ContentType.ITV) {
-            this.playVod(i.cmd);
-            return;
+    favoriteClicked(item: StalkerFavoriteItem) {
+        if (item.movie_id) {
+            this.getSerialDetails(item);
+        } else if (item.stream_id && item.details) {
+            this.itemDetails = item.details;
+            this.breadcrumbs.push({
+                title: this.itemDetails?.info?.name,
+                action: StalkerPortalActions.GetOrderedList,
+            });
+            this.currentLayout = 'vod-details';
+        } else {
+            this.snackBar.open('Something went wrong, id is missing.');
         }
-        const selectedContent = this.portalStore.getContentById(i.id)();
-        this.itemDetails = !selectedContent
-            ? i.details // to read from favorites
-            : {
-                  id: i.id,
-                  cmd: selectedContent.cmd,
-                  info: {
-                      movie_image: selectedContent.screenshot_uri,
-                      description: selectedContent.description,
-                      name: selectedContent.name,
-                      director: selectedContent.director,
-                      releasedate: selectedContent.year,
-                      genre: selectedContent.genres_str,
-                      actors: selectedContent.actors,
-                  },
-              };
+    }
+
+    getSerialDetails(item: StalkerFavoriteItem) {
+        this.sendRequest({
+            action: StalkerPortalActions.GetOrderedList,
+            type: ContentType.SERIES,
+            movie_id: item.id ?? item.movie_id,
+        });
+        this.breadcrumbs.push({
+            title: item.name,
+            action: StalkerPortalActions.GetCategories,
+        });
+        this.currentLayout = 'serial-details';
+    }
+
+    getVodDetails(item: {
+        id: string;
+        cmd: string;
+        category_id: string;
+        movie_id?: string;
+        details: any;
+        name: string;
+    }) {
+        const selectedContent = this.portalStore.getContentById(item.id)();
+        this.itemDetails = {
+            id: item.id,
+            cmd: selectedContent.cmd,
+            info: {
+                movie_image: selectedContent.screenshot_uri,
+                description: selectedContent.description,
+                name: selectedContent.name,
+                director: selectedContent.director,
+                releasedate: selectedContent.year,
+                genre: selectedContent.genres_str,
+                actors: selectedContent.actors,
+                rating_imdb: selectedContent.rating_imdb,
+                rating_kinopoisk: selectedContent.rating_kinopoisk,
+            },
+        };
         this.breadcrumbs.push({
             title: this.itemDetails?.info?.name,
             action: StalkerPortalActions.GetOrderedList,
         });
         this.currentLayout = 'vod-details';
+    }
+
+    itemClicked(item: {
+        id: string;
+        cmd: string;
+        category_id: string;
+        movie_id?: string;
+        details: any;
+        name: string;
+    }) {
+        if (this.selectedContentType === ContentType.SERIES) {
+            this.getSerialDetails(item);
+            return;
+        }
+        if (this.selectedContentType === ContentType.ITV) {
+            this.playVod(item.cmd);
+            return;
+        }
+
+        this.getVodDetails(item);
+    }
+
+    playEpisode(payload: StalkerSeason) {
+        this.sendRequest({
+            action: StalkerContentTypes[ContentType.SERIES].getLink,
+            type: ContentType.VODS,
+            cmd: payload.cmd,
+            series: payload.series,
+            forced_storage: 'undefined',
+            disable_ad: '0',
+            JsHttpRequest: '1-xml',
+        });
     }
 
     playVod(cmd?: string) {
@@ -379,9 +545,13 @@ export class StalkerMainContainerComponent implements OnInit {
         this.playlistService
             .addPortalFavorite(this.currentPlaylist()._id, item)
             .subscribe(() => {
-                this.snackBar.open('Added to favorites', null, {
-                    duration: 1000,
-                });
+                this.snackBar.open(
+                    this.translate.instant('PORTALS.ADDED_TO_FAVORITES'),
+                    null,
+                    {
+                        duration: 1000,
+                    }
+                );
             });
     }
 
@@ -389,9 +559,13 @@ export class StalkerMainContainerComponent implements OnInit {
         this.playlistService
             .removeFromPortalFavorites(this.currentPlaylist()._id, favoriteId)
             .subscribe(() => {
-                this.snackBar.open('Removed from favorites', null, {
-                    duration: 1000,
-                });
+                this.snackBar.open(
+                    this.translate.instant('PORTALS.REMOVED_FROM_FAVORITES'),
+                    null,
+                    {
+                        duration: 1000,
+                    }
+                );
             });
     }
 
@@ -426,15 +600,15 @@ export class StalkerMainContainerComponent implements OnInit {
         });
     }
 
-    favoritesClicked() {
+    favoriteViewClicked() {
         this.currentLayout = 'favorites';
         this.setInitialBreadcrumb(
             StalkerPortalActions.Favorites,
-            'My favorites'
+            this.translate.instant('PORTALS.MY_FAVORITES')
         );
     }
 
-    ngOnDestroy(): void {
+    ngOnDestroy() {
         if (this.dataService.isElectron) {
             this.commandsList.forEach((command) =>
                 this.dataService.removeAllListeners(command.id)
