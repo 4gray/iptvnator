@@ -1,9 +1,7 @@
 import { NgIf } from '@angular/common';
 import { Component, Inject, ViewEncapsulation } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { getExtensionFromUrl } from '../../../../shared/playlist.utils';
-import { HtmlVideoPlayerComponent } from '../../player/components/html-video-player/html-video-player.component';
-import { VjsPlayerComponent } from '../../player/components/vjs-player/vjs-player.component';
+import { WebPlayerViewComponent } from '../../portals/web-player-view/web-player-view.component';
 import { VideoPlayer } from '../../settings/settings.interface';
 
 interface DialogData {
@@ -16,14 +14,16 @@ interface DialogData {
     selector: 'app-player-dialog',
     templateUrl: './player-dialog.component.html',
     standalone: true,
-    imports: [
-        HtmlVideoPlayerComponent,
-        MatDialogModule,
-        NgIf,
-        VjsPlayerComponent,
-    ],
+    imports: [MatDialogModule, NgIf, WebPlayerViewComponent],
     styles: `
+        .content {
+            overflow: hidden; 
+                padding: 10px !important;
+        }
+
         mat-dialog-content {
+            
+
             .video-js {
                 height: 500px !important;
             }
@@ -32,26 +32,11 @@ interface DialogData {
     encapsulation: ViewEncapsulation.None,
 })
 export class PlayerDialogComponent {
-    channel = {};
-    vjsOptions = {};
-    player: VideoPlayer;
     title: string;
+    streamUrl: string;
 
     constructor(@Inject(MAT_DIALOG_DATA) data: DialogData) {
-        this.player = data.player;
+        this.streamUrl = data.streamUrl;
         this.title = data.title;
-
-        const extension = getExtensionFromUrl(data.streamUrl);
-        const mimeType =
-            extension === 'm3u' || extension === 'm3u8' || extension === 'ts'
-                ? 'application/x-mpegURL'
-                : 'video/mp4';
-
-        this.vjsOptions = {
-            sources: [{ src: data.streamUrl, type: mimeType }],
-        };
-        this.channel = {
-            url: data.streamUrl,
-        };
     }
 }
