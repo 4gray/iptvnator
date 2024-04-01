@@ -87,3 +87,10 @@
 .action-buttons {
     margin-top: 10px;
 }
+
+.youtube-trailer {
+    display: flex;
+    flex-direction: column;
+    align-content: center;
+    flex-wrap: wrap;
+}
