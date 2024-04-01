@@ -228,14 +228,19 @@
         "DURATION": "Durata",
         "CAST": "Cast",
         "EPISODE_RUN_TIME": "Tempo esecuzione episodio",
-        "RATING": "Classifica"
+        "RATING": "Classifica",
+        "DESCRIPTION": "Descrizione",
+        "YEAR": "Anno",
+        "AGE": "Età"
     },
     "PORTALS": {
         "ALL_CATEGORIES": "Tutte le categorie",
         "MY_FAVORITES": "Preferiti",
         "ADD_TO_FAVORITES": "Aggiungi ai preferiti",
         "REMOVE_FROM_FAVORITES": "Rimuovi dai preferiti",
-        "ERROR_VIEW": {
+        "REMOVED_FROM_FAVORITES": "Rimosso dai preferiti",
+        "ADDED_TO_FAVORITES": "Aggiunto ai preferiti",
+       "ERROR_VIEW": {
             "ACCOUNT_EXPIRED": {
                 "TITLE": "Account scaduto",
                 "DESCRIPTION": "Questo account è scaduto. Controlla le credenziali nelle impostazioni della playlist o rimuovile."
@@ -251,6 +256,11 @@
             "PLAYLIST_SETTINGS": "Playlist Settings",
             "HOME": "Home",
             "DELETE": "Elimina"
-        }
+            },
+            "EMPTY_LIST_VIEW": {
+            "NO_SEARCH_RESULTS": "Nessun risultato, prova a modificare la richiesta di ricerca",
+            "EMPTY_CATEGORY": "Questa categoria è vuota, provane un'altra"
     }
+  },
+  "INFORMATION": "Informazioni"
 }
