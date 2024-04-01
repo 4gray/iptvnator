@@ -25,6 +25,7 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
         ChannelListContainerComponent,
         ChannelListItemComponent,
         CommonModule,
+        EpgItemDescriptionComponent,
         HtmlVideoPlayerComponent,
         OverlayModule,
         RouterModule.forChild(routes),
@@ -32,7 +33,6 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
         VjsPlayerComponent,
     ],
     declarations: [
-        EpgItemDescriptionComponent,
         EpgListComponent,
         EpgListItemComponent,
         InfoOverlayComponent,

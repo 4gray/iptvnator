@@ -7,7 +7,7 @@
             {{ 'EPG.PROGRAM_DIALOG.TITLE' | translate }}
         </div>
         <p data-test="title">{{ epgProgram.title[0].value }}</p>
-        <div class="subheading-2">
+        <div class="subheading-2" *ngIf="epgProgram.title[0].lang">
             {{ 'EPG.PROGRAM_DIALOG.LANGUAGE' | translate }}
         </div>
         <p data-test="lang">{{ epgProgram.title[0].lang }}</p>
