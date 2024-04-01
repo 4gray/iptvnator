@@ -13,7 +13,6 @@ import {
     effect,
     inject,
 } from '@angular/core';
-
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
@@ -38,6 +37,7 @@ import { selectCurrentPlaylist } from '../state/selectors';
 import { CategoryContentViewComponent } from './category-content-view/category-content-view.component';
 import { CategoryViewComponent } from './category-view/category-view.component';
 import { ContentType } from './content-type.enum';
+import { EpgItem } from './epg-item.interface';
 import { NavigationBarComponent } from './navigation-bar/navigation-bar.component';
 import { VodDetailsComponent } from './vod-details/vod-details.component';
 
@@ -52,6 +52,7 @@ import {
     XtreamSerieDetails,
     XtreamSerieEpisode,
 } from '../../../shared/xtream-serie-details.interface';
+import { LiveStreamLayoutComponent } from '../portals/live-stream-layout/live-stream-layout.component';
 import { DialogService } from '../services/dialog.service';
 import { PlaylistsService } from '../services/playlists.service';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
@@ -63,6 +64,16 @@ import { ContentTypeNavigationItem } from './content-type-navigation-item.interf
 import { PlayerDialogComponent } from './player-dialog/player-dialog.component';
 import { PortalStore } from './portal.store';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
+
+function b64DecodeUnicode(str: string) {
+    return decodeURIComponent(
+        Array.prototype.map
+            .call(atob(str), function (c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            })
+            .join('')
+    );
+}
 
 const ContentTypes = {
     [ContentType.ITV]: {
@@ -116,6 +127,7 @@ type LayoutView =
         RouterLink,
         PlaylistErrorViewComponent,
         TranslateModule,
+        LiveStreamLayoutComponent,
     ],
 })
 export class XtreamMainContainerComponent implements OnInit {
@@ -146,6 +158,7 @@ export class XtreamMainContainerComponent implements OnInit {
         },
     ];
 
+    player: VideoPlayer;
     favorites$: Observable<any>;
     breadcrumbs: Breadcrumb[] = [];
     items = [];
@@ -160,6 +173,8 @@ export class XtreamMainContainerComponent implements OnInit {
     searchPhrase = this.portalStore.searchPhrase();
     contentId: number;
     errorViewInfo = { title: '', message: '' };
+    streamUrl: string;
+    epgItems = [];
 
     commandsList = [
         new IpcCommand(XTREAM_RESPONSE, (response: XtreamResponse) =>
@@ -233,6 +248,15 @@ export class XtreamMainContainerComponent implements OnInit {
                 this.currentLayout = 'serie-details';
                 this.vodDetails = response.payload as XtreamSerieDetails;
                 break;
+            case 'get_short_epg':
+                this.epgItems = (
+                    (response.payload as any).epg_listings as EpgItem[]
+                ).map((i) => ({
+                    ...i,
+                    title: b64DecodeUnicode(i.title).trim(),
+                    description: b64DecodeUnicode(i.description).trim(),
+                }));
+                break;
             default:
                 break;
         }
@@ -287,6 +311,11 @@ export class XtreamMainContainerComponent implements OnInit {
             this.contentId = item.stream_id;
             this.sendRequest({ action, vod_id: item.stream_id });
         } else if (item.stream_type && item.stream_type === 'live') {
+            this.sendRequest({
+                action: 'get_short_epg',
+                stream_id: item.stream_id,
+                limit: 10,
+            });
             this.playLiveStream(item);
         } else if (item.series_id) {
             this.items = [];
@@ -304,22 +333,25 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     openPlayer(streamUrl: string, title: string) {
-        const player = this.settings().player;
-        if (player === VideoPlayer.MPV) {
+        this.player = this.settings().player ?? VideoPlayer.VideoJs;
+        if (this.player === VideoPlayer.MPV) {
             this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
             });
-        } else if (player === VideoPlayer.VLC) {
+        } else if (this.player === VideoPlayer.VLC) {
             this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
             });
         } else {
-            this.dialog.open(PlayerDialogComponent, {
-                data: { streamUrl, player, title },
-                width: '80%',
-            });
+            this.streamUrl = streamUrl;
+            if (this.selectedContentType !== ContentType.ITV) {
+                this.dialog.open(PlayerDialogComponent, {
+                    data: { streamUrl, player: this.player, title },
+                    width: '80%',
+                });
+            }
         }
     }
 
@@ -427,7 +459,9 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     sendRequest(params: Record<string, string | number>) {
-        this.isLoading = true;
+        if (params.action !== 'get_short_epg') {
+            this.isLoading = true;
+        }
         const { serverUrl, username, password } = this.currentPlaylist();
         this.dataService.sendIpcEvent(XTREAM_REQUEST, {
             url: serverUrl,

@@ -1,0 +1,40 @@
+<div
+    [class]="
+        player === 'videojs' || player === 'html5'
+            ? 'itv-container'
+            : 'itv-container-epg'
+    "
+>
+    <div class="sidebar">
+        <div class="sidebar-content">
+            <mat-selection-list
+                [multiple]="false"
+                [hideSingleSelectionIndicator]="true"
+            >
+                @for (item of channels; track $index) {
+                    <mat-list-option (click)="itemClicked.emit(item)">
+                        <img
+                            matListItemAvatar
+                            class="stream-icon"
+                            *ngIf="item.stream_icon"
+                            [src]="item.stream_icon"
+                        />
+                        <div class="title">{{ item.name }}</div>
+                    </mat-list-option>
+                }
+            </mat-selection-list>
+        </div>
+    </div>
+    @if (player === 'videojs' || player === 'html5') {
+        <div class="video-player">
+            @if (streamUrl) {
+                <app-web-player-view [streamUrl]="streamUrl" />
+            }
+        </div>
+    }
+    <div class="epg">
+        <div class="epg-content">
+            <app-epg-view [epgItems]="epgItems" />
+        </div>
+    </div>
+</div>

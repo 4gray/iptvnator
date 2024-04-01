@@ -30,10 +30,20 @@
                 />
             }
             @case ('category_content') {
-                <app-category-content-view
-                    [items]="items"
-                    (itemClicked)="itemClicked($event)"
-                />
+                @if (selectedContentType === 'itv') {
+                    <app-live-stream-layout
+                        [channels]="items"
+                        [player]="player"
+                        [streamUrl]="streamUrl"
+                        [epgItems]="epgItems"
+                        (itemClicked)="itemClicked($event)"
+                    />
+                } @else {
+                    <app-category-content-view
+                        [items]="items"
+                        (itemClicked)="itemClicked($event)"
+                    />
+                }
             }
             @case ('vod-details') {
                 <app-vod-details
