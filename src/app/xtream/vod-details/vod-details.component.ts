@@ -13,13 +13,14 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamVodDetails } from '../../../../shared/xtream-vod-details.interface';
 import { PlaylistsService } from '../../services/playlists.service';
+import { SafePipe } from './safe.pipe';
 
 @Component({
     selector: 'app-vod-details',
     templateUrl: './vod-details.component.html',
     styleUrls: ['../detail-view.scss'],
     standalone: true,
-    imports: [MatButtonModule, NgIf, MatIconModule, TranslateModule],
+    imports: [MatButtonModule, NgIf, MatIconModule, SafePipe, TranslateModule],
 })
 export class VodDetailsComponent implements OnInit {
     @Input({ required: true }) item: XtreamVodDetails;
