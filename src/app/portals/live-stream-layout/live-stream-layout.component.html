@@ -19,7 +19,9 @@
                             *ngIf="item.stream_icon"
                             [src]="item.stream_icon"
                         />
-                        <div class="title">{{ item.name }}</div>
+                        <div class="title" matListItemTitle>
+                            {{ item.name }}
+                        </div>
                     </mat-list-option>
                 }
             </mat-selection-list>
