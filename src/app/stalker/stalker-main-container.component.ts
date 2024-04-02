@@ -31,7 +31,10 @@ import { CategoryViewComponent } from '../xtream/category-view/category-view.com
 import { ContentTypeNavigationItem } from '../xtream/content-type-navigation-item.interface';
 import { ContentType } from '../xtream/content-type.enum';
 import { NavigationBarComponent } from '../xtream/navigation-bar/navigation-bar.component';
-import { PlayerDialogComponent } from '../xtream/player-dialog/player-dialog.component';
+import {
+    PlayerDialogComponent,
+    PlayerDialogData,
+} from '../xtream/player-dialog/player-dialog.component';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../xtream/portal.store';
 import { VodDetailsComponent } from '../xtream/vod-details/vod-details.component';
@@ -338,6 +341,7 @@ export class StalkerMainContainerComponent implements OnInit {
             this.pageIndex = response.payload.js.cur_page;
         } else if (response.action === StalkerPortalActions.CreateLink) {
             let url = response.payload.js.cmd as string;
+            //url = url.replace('extension=ts', 'extension=m3u8');
             if (url?.startsWith('ffmpeg')) {
                 url = url.split(' ')[1];
             }
@@ -374,10 +378,16 @@ export class StalkerMainContainerComponent implements OnInit {
                 url: streamUrl,
             });
         } else {
-            this.dialog.open(PlayerDialogComponent, {
-                data: { streamUrl, player, title },
-                width: '80%',
-            });
+            this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
+                PlayerDialogComponent,
+                {
+                    data: {
+                        streamUrl,
+                        title: title ?? this.itemDetails.info.name,
+                    },
+                    width: '80%',
+                }
+            );
         }
     }
 
@@ -473,6 +483,7 @@ export class StalkerMainContainerComponent implements OnInit {
             this.getSerialDetails(item);
             return;
         }
+
         if (this.selectedContentType === ContentType.ITV) {
             this.playVod(item.cmd);
             return;
