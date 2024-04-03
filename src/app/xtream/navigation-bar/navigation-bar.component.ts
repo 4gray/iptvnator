@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { Breadcrumb } from '../breadcrumb.interface';
 import { ContentTypeNavigationItem } from '../content-type-navigation-item.interface';
@@ -17,13 +18,14 @@ import { PortalStore } from '../portal.store';
     styleUrls: ['./navigation-bar.component.scss'],
     standalone: true,
     imports: [
+        FormsModule,
+        MatButtonModule,
         MatButtonToggleModule,
         MatIconModule,
-        MatButtonModule,
-        RouterLink,
         NgFor,
-        FormsModule,
         NgIf,
+        RouterLink,
+        TranslateModule,
     ],
 })
 export class NavigationBarComponent {

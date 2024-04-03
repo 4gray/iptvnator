@@ -49,40 +49,7 @@ import { PortalStore } from '../portal.store';
             </div>
         </ng-template>
     `,
-    styles: [
-        `
-            :host {
-                margin: 20px;
-                display: block;
-            }
-
-            mat-card-content {
-                overflow-wrap: break-word;
-            }
-
-            .no-content {
-                text-align: center;
-
-                .icon {
-                    font-size: 64px;
-                    height: 64px;
-                    width: 64px;
-                }
-            }
-
-            .grid {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 10px;
-                justify-content: center;
-
-                .category-item {
-                    cursor: pointer;
-                    width: 200px;
-                }
-            }
-        `,
-    ],
+    styleUrl: './category-view.component.scss',
     imports: [
         FilterPipe,
         FormsModule,

@@ -68,3 +68,22 @@
         }
     }
 }
+
+@media (max-width: 800px) {
+    .button-label {
+        display: none;
+    }
+
+    #sub-panel {
+        height: auto;
+        padding: 10px 1em;
+    }
+
+    .breadcrumbs {
+        flex-direction: column;
+    }
+
+    .label {
+        display: none;
+    }
+}

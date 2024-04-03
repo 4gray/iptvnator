@@ -1,0 +1,38 @@
+:host {
+    margin: 20px;
+    display: block;
+}
+
+mat-card-content {
+    overflow-wrap: break-word;
+}
+
+.no-content {
+    text-align: center;
+
+    .icon {
+        font-size: 64px;
+        height: 64px;
+        width: 64px;
+    }
+}
+
+.grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+
+    .category-item {
+        cursor: pointer;
+        width: 200px;
+    }
+}
+
+@media (max-width: 800px) {
+    .grid {
+        .category-item {
+            width: 100%;
+        }
+    }
+}
