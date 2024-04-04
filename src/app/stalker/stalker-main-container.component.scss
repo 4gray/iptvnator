@@ -5,7 +5,14 @@
 
 .loading-container {
     display: flex;
-    gap: 30px;
     flex-wrap: wrap;
     justify-content: center;
+}
+
+.category-content-view {
+    gap: 30px;
+}
+
+.category-view {
+    gap: 10px;
 }
