@@ -1,5 +1,6 @@
 {
     "CLOSE": "Chiudi",
+    "PLAYLISTS": "Playlist",
     "HOME": {
         "TITLE": "IPTVnator",
         "SUBTITLE": "Seleziona una playlist dall'elenco o aggiungi una nuova playlist tramite caricamento del file o tramite URL",
@@ -260,7 +261,9 @@
             "EMPTY_LIST_VIEW": {
             "NO_SEARCH_RESULTS": "Nessun risultato, prova a modificare la richiesta di ricerca",
             "EMPTY_CATEGORY": "Questa categoria è vuota, provane un'altra"
-    }
+    },
+    "STREAM_URL_COPIED": "URL streaming copiato negli appunti",
+    "COPY_STREAM_URL": "Copia URL streaming"
   },
   "INFORMATION": "Informazioni"
 }
