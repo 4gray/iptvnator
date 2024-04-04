@@ -147,14 +147,17 @@ export class XtreamMainContainerComponent implements OnInit {
         {
             contentType: ContentType.ITV,
             label: 'Live Streams',
+            icon: 'live_tv',
         },
         {
             contentType: ContentType.VODS,
             label: 'VOD Streams',
+            icon: 'movie',
         },
         {
             contentType: ContentType.SERIES,
             label: 'Series',
+            icon: 'video_library',
         },
     ];
 
