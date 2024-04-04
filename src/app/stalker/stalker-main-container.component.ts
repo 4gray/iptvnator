@@ -117,6 +117,8 @@ export class StalkerMainContainerComponent implements OnInit {
     pageSize = 14;
     pageIndex = 0;
 
+    itvTitle: string;
+
     seasons: StalkerSeason[] = [];
 
     commandsList = [
@@ -386,7 +388,10 @@ export class StalkerMainContainerComponent implements OnInit {
                 {
                     data: {
                         streamUrl,
-                        title: title ?? this.itemDetails.info.name,
+                        title:
+                            title ??
+                            this.itemDetails?.info?.name ??
+                            this.itvTitle,
                     },
                     width: '80%',
                 }
@@ -488,6 +493,7 @@ export class StalkerMainContainerComponent implements OnInit {
         }
 
         if (this.selectedContentType === ContentType.ITV) {
+            this.itvTitle = item.name;
             this.playVod(item.cmd);
             return;
         }
