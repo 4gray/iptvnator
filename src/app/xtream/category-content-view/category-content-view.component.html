@@ -10,17 +10,12 @@
             <mat-card-content>
                 <img
                     class="stream-icon"
-                    *ngIf="item.stream_icon"
-                    [src]="item.stream_icon"
-                />
-                <img
-                    class="stream-icon"
-                    *ngIf="item.cover"
-                    [src]="item.cover"
+                    *ngIf="item.stream_icon || item.cover || item.logo"
+                    [src]="item.stream_icon || item.cover || item.logo"
                 />
                 <div
                     class="stream-icon-placeholder"
-                    *ngIf="!item.stream_icon && !item.cover"
+                    *ngIf="!item.stream_icon && !item.cover && !item.logo"
                 ></div>
                 <div
                     *ngIf="item.rating || item.rating_imdb"
