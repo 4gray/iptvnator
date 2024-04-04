@@ -19,14 +19,16 @@
         @if (currentLayout === 'category_content') {
             <div class="loading-container category-content-view">
                 @for (a of [].constructor(14); track $index) {
-                    <ngx-skeleton-loader
-                        count="1"
-                        [theme]="{ width: '170px', height: '270px' }"
-                    />
-                    <ngx-skeleton-loader
-                        count="1"
-                        [theme]="{ width: '60%', height: '30px' }"
-                    />
+                    <div class="skeleton-item">
+                        <ngx-skeleton-loader
+                            count="1"
+                            [theme]="{ width: '170px', height: '270px' }"
+                        />
+                        <ngx-skeleton-loader
+                            count="1"
+                            [theme]="{ width: '60%', height: '30px' }"
+                        />
+                    </div>
                 }
             </div>
         } @else if (currentLayout === 'category') {
