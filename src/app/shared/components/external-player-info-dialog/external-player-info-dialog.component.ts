@@ -1,9 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
+import { PortalStore } from '../../../xtream/portal.store';
 
 @Component({
     standalone: true,
@@ -31,7 +33,12 @@ import { TranslateModule } from '@ngx-translate/core';
                 </div>
             </div>
         </mat-dialog-content>
-        <mat-dialog-actions align="end">
+        <mat-dialog-actions style="justify-content: space-between;">
+            <div>
+                <mat-checkbox (change)="setVisibility($event.checked)"
+                    >Don't show anymore</mat-checkbox
+                >
+            </div>
             <button mat-button mat-dialog-close cdkFocusInitial color="accent">
                 {{ 'CLOSE' | translate }}
             </button>
@@ -54,6 +61,7 @@ import { TranslateModule } from '@ngx-translate/core';
     ],
     imports: [
         MatButtonModule,
+        MatCheckboxModule,
         MatDialogModule,
         MatIconModule,
         RouterLink,
@@ -61,7 +69,12 @@ import { TranslateModule } from '@ngx-translate/core';
     ],
 })
 export class ExternalPlayerInfoDialogComponent {
+    portalStore = inject(PortalStore);
     openUrl(url: string) {
         window.open(url, '_blank');
+    }
+
+    setVisibility(value: boolean) {
+        this.portalStore.setHideExternalInfoDialog(value);
     }
 }

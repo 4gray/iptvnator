@@ -110,6 +110,8 @@ export class StalkerMainContainerComponent implements OnInit {
         }, */
     ];
 
+    hideExternalInfoDialog = this.portalStore.hideExternalInfoDialog;
+
     currentCategoryId;
 
     //pagination
@@ -346,12 +348,11 @@ export class StalkerMainContainerComponent implements OnInit {
             this.pageIndex = response.payload.js.cur_page;
         } else if (response.action === StalkerPortalActions.CreateLink) {
             let url = response.payload.js.cmd as string;
-            //url = url.replace('extension=ts', 'extension=m3u8');
             if (url?.startsWith('ffmpeg')) {
                 url = url.split(' ')[1];
             }
 
-            this.openPlayer(url, response.payload.js.name);
+            this.openPlayer(url);
         } else if (response.action === StalkerPortalActions.Handshake) {
             const token = response.payload.js.token;
             sessionStorage.setItem(this.currentPlaylist()._id, token);
@@ -370,15 +371,17 @@ export class StalkerMainContainerComponent implements OnInit {
         this.isLoading = false;
     }
 
-    openPlayer(streamUrl: string, title: string) {
+    openPlayer(streamUrl: string) {
         const player = this.settings().player;
         if (player === VideoPlayer.MPV) {
-            this.dialog.open(ExternalPlayerInfoDialogComponent);
+            if (!this.hideExternalInfoDialog())
+                this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
             });
         } else if (player === VideoPlayer.VLC) {
-            this.dialog.open(ExternalPlayerInfoDialogComponent);
+            if (!this.hideExternalInfoDialog())
+                this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
             });
@@ -388,10 +391,7 @@ export class StalkerMainContainerComponent implements OnInit {
                 {
                     data: {
                         streamUrl,
-                        title:
-                            title ??
-                            this.itemDetails?.info?.name ??
-                            this.itvTitle,
+                        title: this.itvTitle,
                     },
                     width: '80%',
                 }
@@ -472,6 +472,7 @@ export class StalkerMainContainerComponent implements OnInit {
                 rating_kinopoisk: selectedContent.rating_kinopoisk,
             },
         };
+        this.itvTitle = item.name;
         this.breadcrumbs.push({
             title: this.itemDetails?.info?.name,
             action: StalkerPortalActions.GetOrderedList,
@@ -488,6 +489,7 @@ export class StalkerMainContainerComponent implements OnInit {
         name: string;
     }) {
         if (this.selectedContentType === ContentType.SERIES) {
+            this.itvTitle = item.name;
             this.getSerialDetails(item);
             return;
         }

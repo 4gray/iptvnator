@@ -142,6 +142,7 @@ export class XtreamMainContainerComponent implements OnInit {
     storage = inject(StorageMap);
     store = inject(Store);
     translate = inject(TranslateService);
+
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
     navigationContentTypes: ContentTypeNavigationItem[] = [
         {
@@ -178,6 +179,7 @@ export class XtreamMainContainerComponent implements OnInit {
     errorViewInfo = { title: '', message: '' };
     streamUrl: string;
     epgItems = [];
+    hideExternalInfoDialog = this.portalStore.hideExternalInfoDialog;
 
     commandsList = [
         new IpcCommand(XTREAM_RESPONSE, (response: XtreamResponse) =>
@@ -302,9 +304,7 @@ export class XtreamMainContainerComponent implements OnInit {
         this.currentLayout = 'category_content';
     }
 
-    itemClicked(
-        item: any /* XtreamLiveStream | XtreamVodStream | XtreamSerieItem */
-    ) {
+    itemClicked(item: any) {
         let action;
 
         if (item.stream_type && item.stream_type === 'movie') {
@@ -338,12 +338,14 @@ export class XtreamMainContainerComponent implements OnInit {
     openPlayer(streamUrl: string, title: string) {
         this.player = this.settings().player ?? VideoPlayer.VideoJs;
         if (this.player === VideoPlayer.MPV) {
-            this.dialog.open(ExternalPlayerInfoDialogComponent);
+            if (!this.hideExternalInfoDialog())
+                this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
             });
         } else if (this.player === VideoPlayer.VLC) {
-            this.dialog.open(ExternalPlayerInfoDialogComponent);
+            if (!this.hideExternalInfoDialog())
+                this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
             });
@@ -484,9 +486,13 @@ export class XtreamMainContainerComponent implements OnInit {
         this.playlistService
             .addPortalFavorite(this.currentPlaylist()._id, item)
             .subscribe(() => {
-                this.snackBar.open('Added to favorites', null, {
-                    duration: 1000,
-                });
+                this.snackBar.open(
+                    this.translate.instant('PORTALS.ADDED_TO_FAVORITES'),
+                    null,
+                    {
+                        duration: 1000,
+                    }
+                );
             });
     }
 
@@ -494,9 +500,13 @@ export class XtreamMainContainerComponent implements OnInit {
         this.playlistService
             .removeFromPortalFavorites(this.currentPlaylist()._id, favoriteId)
             .subscribe(() => {
-                this.snackBar.open('Removed from favorites', null, {
-                    duration: 1000,
-                });
+                this.snackBar.open(
+                    this.translate.instant('PORTALS.REMOVED_FROM_FAVORITES'),
+                    null,
+                    {
+                        duration: 1000,
+                    }
+                );
             });
     }
 
