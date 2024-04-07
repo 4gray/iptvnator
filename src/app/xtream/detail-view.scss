@@ -2,6 +2,12 @@
     width: 100%;
 }
 
+.details {
+    h2 {
+        word-wrap: break-word;
+    }
+}
+
 .container {
     display: grid;
     grid-gap: 10px;

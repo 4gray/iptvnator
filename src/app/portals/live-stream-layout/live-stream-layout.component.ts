@@ -1,3 +1,4 @@
+import { ScrollingModule } from '@angular/cdk/scrolling';
 import { NgIf } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { MatListModule } from '@angular/material/list';
@@ -12,7 +13,13 @@ import { WebPlayerViewComponent } from '../web-player-view/web-player-view.compo
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
     styleUrls: ['./live-stream-layout.component.scss'],
-    imports: [EpgViewComponent, MatListModule, NgIf, WebPlayerViewComponent],
+    imports: [
+        EpgViewComponent,
+        MatListModule,
+        NgIf,
+        ScrollingModule,
+        WebPlayerViewComponent,
+    ],
 })
 export class LiveStreamLayoutComponent {
     @Input({ required: true }) channels: XtreamItem[];

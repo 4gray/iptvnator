@@ -11,8 +11,14 @@
                 [multiple]="false"
                 [hideSingleSelectionIndicator]="true"
             >
-                @for (item of channels; track $index) {
-                    <mat-list-option (click)="itemClicked.emit(item)">
+                <cdk-virtual-scroll-viewport
+                    itemSize="56"
+                    class="scroll-viewport-portals"
+                >
+                    <mat-list-option
+                        *cdkVirtualFor="let item of channels"
+                        (click)="itemClicked.emit(item)"
+                    >
                         <img
                             matListItemAvatar
                             class="stream-icon"
@@ -23,7 +29,7 @@
                             {{ item.name }}
                         </div>
                     </mat-list-option>
-                }
+                </cdk-virtual-scroll-viewport>
             </mat-selection-list>
         </div>
     </div>
