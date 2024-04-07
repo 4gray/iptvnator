@@ -1,5 +1,7 @@
 :host {
     width: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .details {
@@ -87,6 +89,10 @@
     .details {
         padding: 0 10px;
     }
+
+    .youtube-trailer {
+        width: 95% !important;
+    }
 }
 
 .label {
@@ -103,7 +109,7 @@
 
 .youtube-trailer {
     display: flex;
-    flex-direction: column;
-    align-content: center;
     flex-wrap: wrap;
+    align-self: center;
+    width: 650px;
 }

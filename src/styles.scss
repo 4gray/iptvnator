@@ -81,6 +81,10 @@ textarea,
         height: calc(100vh - 82px) !important;
     }
 
+    app-web-player-view > app-vjs-player > .video-js {
+        height: 100% !important;
+    }
+
     #video-player {
         width: 100%;
         height: calc(100vh - 80px) !important;
@@ -98,6 +102,16 @@ textarea,
     .scroll-viewport {
         min-height: calc(100vh - 210px) !important;
     }
+
+    .scroll-viewport-portals {
+        min-height: calc(100vh - 160px) !important;
+        overflow-x: hidden !important;
+    }
+}
+
+.scroll-viewport-portals {
+    min-height: calc(100vh - 160px) !important;
+    overflow-x: hidden !important;
 }
 
 .mat-drawer-inner-container {
