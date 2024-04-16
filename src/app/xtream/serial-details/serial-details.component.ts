@@ -4,6 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { TranslateModule } from '@ngx-translate/core';
 import {
     XtreamSerieDetails,
     XtreamSerieEpisode,
@@ -25,6 +26,7 @@ import { SeasonContainerComponent } from '../season-container/season-container.c
         NgIf,
         SeasonContainerComponent,
         PlayerDialogComponent,
+        TranslateModule,
     ],
 })
 export class SerialDetailsComponent {
