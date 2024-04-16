@@ -1,15 +1,28 @@
+import { NgIf } from '@angular/common';
 import { Component, NgZone } from '@angular/core';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
+import { TranslateModule } from '@ngx-translate/core';
 import { ERROR, PLAYLIST_PARSE_RESPONSE } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
+import { HeaderComponent } from '../shared/components/header/header.component';
 import { addPlaylist } from '../state/actions';
+import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
 
 @Component({
+    standalone: true,
     selector: 'app-home',
     templateUrl: './home.component.html',
     styleUrls: ['./home.component.scss'],
+    imports: [
+        HeaderComponent,
+        MatProgressBarModule,
+        NgIf,
+        RecentPlaylistsComponent,
+        TranslateModule,
+    ],
 })
 export class HomeComponent {
     /** Loading spinner state */

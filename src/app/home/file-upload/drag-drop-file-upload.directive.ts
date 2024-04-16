@@ -6,6 +6,7 @@ import {
     Output,
 } from '@angular/core';
 @Directive({
+    standalone: true,
     selector: '[appDragDropFileUpload]',
 })
 export class DragDropFileUploadDirective {

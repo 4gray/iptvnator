@@ -1,22 +1,21 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
+import { DragDropFileUploadDirective } from './drag-drop-file-upload.directive';
 
 @Component({
     standalone: true,
-    imports: [MatIconModule, TranslateModule],
+    imports: [DragDropFileUploadDirective, MatIconModule, TranslateModule],
     selector: 'app-file-upload',
     templateUrl: './file-upload.component.html',
     styleUrls: ['./file-upload.component.scss'],
 })
 export class FileUploadComponent {
-    /** Emits after successful file selection */
-    @Output() fileSelected: EventEmitter<{
+    @Output() fileSelected = new EventEmitter<{
         uploadEvent: Event;
         file: File;
-    }> = new EventEmitter();
-
-    @Output() fileRejected: EventEmitter<string> = new EventEmitter();
+    }>();
+    @Output() fileRejected = new EventEmitter<string>();
     @Output() addClicked = new EventEmitter<void>();
 
     allowedContentTypes = [

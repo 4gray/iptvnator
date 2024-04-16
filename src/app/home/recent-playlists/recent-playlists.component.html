@@ -47,7 +47,7 @@
                         }}
                     </div>
                 </mat-list-item>
-                <mat-divider></mat-divider>
+                <mat-divider />
 
                 <app-playlist-item
                     *ngFor="
@@ -61,7 +61,7 @@
                     (playlistClicked)="getPlaylist(item)"
                     (refreshClicked)="refreshPlaylist($event)"
                     (removeClicked)="removeClicked($event)"
-                ></app-playlist-item>
+                />
 
                 <div *ngIf="isMigrationPossible" id="migration-container">
                     <p>{{ migrationMessage }}</p>
@@ -89,25 +89,19 @@
     } @placeholder {
         <div id="skeleton-container">
             <div class="skeleton-item" *ngFor="let a of [].constructor(10)">
-                <ngx-skeleton-loader
-                    count="1"
-                    appearance="circle"
-                ></ngx-skeleton-loader>
+                <ngx-skeleton-loader count="1" appearance="circle" />
                 <div class="text">
                     <ngx-skeleton-loader
                         count="1"
                         [theme]="{ width: '30%', height: '20px' }"
-                    ></ngx-skeleton-loader>
+                    />
                     <ngx-skeleton-loader
                         count="1"
                         [theme]="{ width: '50%', height: '10px' }"
-                    ></ngx-skeleton-loader>
+                    />
                 </div>
                 <div class="actions">
-                    <ngx-skeleton-loader
-                        count="2"
-                        appearance="circle"
-                    ></ngx-skeleton-loader>
+                    <ngx-skeleton-loader count="2" appearance="circle" />
                 </div>
             </div>
         </div>

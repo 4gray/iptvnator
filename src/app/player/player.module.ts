@@ -2,6 +2,7 @@ import { OverlayModule } from '@angular/cdk/overlay';
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
 import { SharedModule } from '../shared/shared.module';
 import { AudioPlayerComponent } from './components/audio-player/audio-player.component';
 import { ChannelListContainerComponent } from './components/channel-list-container/channel-list-container.component';
@@ -28,6 +29,7 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
         EpgItemDescriptionComponent,
         HtmlVideoPlayerComponent,
         OverlayModule,
+        RecentPlaylistsComponent,
         RouterModule.forChild(routes),
         SharedModule,
         VjsPlayerComponent,

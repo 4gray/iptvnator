@@ -1,14 +1,16 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { MockModule, MockPipe, MockProvider } from 'ng-mocks';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { MockComponent, MockModule, MockProvider } from 'ng-mocks';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { Observable } from 'rxjs';
 import { PLAYLIST_UPDATE } from '../../../../shared/ipc-commands';
@@ -17,6 +19,7 @@ import { DialogService } from '../../services/dialog.service';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
 import { PlaylistMeta } from '../../shared/playlist-meta.type';
 import { initialPlaylistMetaState } from '../../state/playlists.state';
+import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
 import { RecentPlaylistsComponent } from './recent-playlists.component';
 
 describe('RecentPlaylistsComponent', () => {
@@ -30,21 +33,27 @@ describe('RecentPlaylistsComponent', () => {
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
-            declarations: [RecentPlaylistsComponent, MockPipe(TranslatePipe)],
+            declarations: [
+                MockComponent(PlaylistItemComponent),
+                RecentPlaylistsComponent,
+            ],
             imports: [
                 MockModule(MatDialogModule),
+                MockModule(MatDividerModule),
                 MockModule(MatListModule),
                 MockModule(MatIconModule),
+                MockModule(MatInputModule),
                 MockModule(MatTooltipModule),
                 MockModule(NgxSkeletonLoaderModule),
+                MockModule(TranslateModule),
             ],
             providers: [
                 { provide: DataService, useClass: ElectronServiceStub },
-                MockProvider(TranslateService),
                 MockProvider(DialogService),
                 MatSnackBar,
                 provideMockStore(),
                 provideMockActions(actions$),
+                MockProvider(TranslateService),
             ],
         }).compileComponents();
     }));
