@@ -61,7 +61,7 @@ export class ChannelListContainerComponent {
     @Input('channelList')
     set channelList(value: Channel[]) {
         this._channelList = value;
-        this.groupedChannels = _.groupBy(value, 'group.title');
+        this.groupedChannels = _.default.groupBy(value, 'group.title');
     }
 
     /** Object with channels sorted by groups */
