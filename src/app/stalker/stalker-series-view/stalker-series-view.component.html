@@ -2,10 +2,14 @@
     @if (seasons()[0]; as serial) {
         <div class="image">
             <img
+                *ngIf="serial.screenshot_uri; else placeholderCover"
                 [ngSrc]="serial.screenshot_uri"
                 style="position: relative"
                 fill
             />
+            <ng-template #placeholderCover>
+                <div class="placeholder-cover"></div>
+            </ng-template>
         </div>
 
         <div class="details">
@@ -34,15 +38,19 @@
                 {{ serial.age }}
             </div>
             <div>
-                <div class="label">IMDB Rating:</div>
+                <div class="label">{{ 'XTREAM.IMDB_RATING' | translate }}:</div>
                 {{ serial.rating_imdb }}
             </div>
             <div>
-                <div class="label">Kinopoisk Rating:</div>
+                <div class="label">
+                    {{ 'XTREAM.KINOPOISK_RATING' | translate }}:
+                </div>
                 {{ serial.rating_kinopoisk }}
             </div>
             <div>
-                <div class="label">Added:</div>
+                <div class="label">
+                    {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
+                </div>
                 {{ serial.added }}
             </div>
             <div class="action-buttons">
@@ -69,7 +77,7 @@
                         playEpisode.emit({ series: episode, cmd: item.cmd })
                     "
                 >
-                    Episode {{ episode }}
+                    {{ 'XTREAM.EPISODE' | translate }} {{ episode }}
                 </button>
             }
         </div>

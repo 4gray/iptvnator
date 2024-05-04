@@ -1,4 +1,4 @@
-import { NgFor, NgOptimizedImage } from '@angular/common';
+import { NgFor, NgIf, NgOptimizedImage } from '@angular/common';
 import { Component, Signal, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
@@ -33,6 +33,7 @@ function extractNumericValue(str: string) {
         FavoritesButtonComponent,
         MatButtonModule,
         MatDividerModule,
+        NgIf,
         NgFor,
         NgOptimizedImage,
         TranslateModule,
