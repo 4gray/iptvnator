@@ -22,6 +22,7 @@ mat-card:hover {
     mat-card {
         cursor: pointer;
         width: 170px;
+        // height: 300px;
 
         mat-card-content {
             padding: 0;
@@ -30,6 +31,9 @@ mat-card:hover {
 
         .stream-icon {
             width: 100%;
+            position: relative !important;
+
+            /* max-height: 300px; */
             display: block;
         }
 
@@ -37,7 +41,7 @@ mat-card:hover {
             width: 100%;
             background: #999;
             max-height: 300px;
-            min-height: 130px;
+            min-height: 255px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -49,8 +53,12 @@ mat-card:hover {
 
         .title {
             word-break: break-all;
-            padding: 8px;
+            /* padding: 8px; */
             text-align: center;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;  
+            overflow: hidden;
         }
     }
 }

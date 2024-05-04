@@ -11,7 +11,11 @@
                 <img
                     class="stream-icon"
                     *ngIf="item.stream_icon || item.cover || item.logo"
-                    [src]="item.stream_icon || item.cover || item.logo"
+                    [ngSrc]="item.stream_icon || item.cover || item.logo"
+                    fill
+                    priority
+                    placeholder
+                    placeholder="data:image/png;base64,iVBORw0K..."
                 />
                 <div
                     class="stream-icon-placeholder"
@@ -25,8 +29,10 @@
                     <mat-icon>star</mat-icon
                     >{{ item.rating || item.rating_imdb }}
                 </div>
-                <div class="title">{{ item.name }}</div>
             </mat-card-content>
+            <mat-card-actions>
+                <div class="title">{{ item.name }}</div>
+            </mat-card-actions>
         </mat-card>
         <div
             class="no-content"

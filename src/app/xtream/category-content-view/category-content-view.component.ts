@@ -1,4 +1,4 @@
-import { NgFor, NgIf } from '@angular/common';
+import { NgFor, NgIf, NgOptimizedImage } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -22,6 +22,7 @@ import { PortalStore } from '../portal.store';
         FilterPipe,
         FormsModule,
         MatTooltipModule,
+        NgOptimizedImage,
         TranslateModule,
     ],
 })

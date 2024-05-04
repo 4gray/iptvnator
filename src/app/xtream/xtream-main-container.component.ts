@@ -61,7 +61,10 @@ import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { Breadcrumb, PortalActions } from './breadcrumb.interface';
 import { ContentTypeNavigationItem } from './content-type-navigation-item.interface';
-import { PlayerDialogComponent } from './player-dialog/player-dialog.component';
+import {
+    PlayerDialogComponent,
+    PlayerDialogData,
+} from './player-dialog/player-dialog.component';
 import { PortalStore } from './portal.store';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 
@@ -352,10 +355,13 @@ export class XtreamMainContainerComponent implements OnInit {
         } else {
             this.streamUrl = streamUrl;
             if (this.selectedContentType !== ContentType.ITV) {
-                this.dialog.open(PlayerDialogComponent, {
-                    data: { streamUrl, player: this.player, title },
-                    width: '80%',
-                });
+                this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
+                    PlayerDialogComponent,
+                    {
+                        data: { streamUrl, title },
+                        width: '80%',
+                    }
+                );
             }
         }
     }

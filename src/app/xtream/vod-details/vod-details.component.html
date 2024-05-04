@@ -47,11 +47,13 @@
             {{ item.info.duration }}
         </label>
         <label *ngIf="item.info.rating_imdb">
-            <div class="label">Rating IMDB:</div>
+            <div class="label">{{ 'XTREAM.IMDB_RATING' | translate }}:</div>
             {{ item.info.rating_imdb }}
         </label>
         <label *ngIf="item.info.rating_kinopoisk">
-            <div class="label">Rating Kinopoisk:</div>
+            <div class="label">
+                {{ 'XTREAM.KINOPOISK_RATING' | translate }}:
+            </div>
             {{ item.info.rating_kinopoisk }}
         </label>
         <div class="action-buttons">
@@ -86,7 +88,7 @@
     </div>
 </div>
 <div class="youtube-trailer" *ngIf="item.info.youtube_trailer">
-    <h3>YouTube Trailer</h3>
+    <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
     <iframe
         width="100%"
         height="450"
