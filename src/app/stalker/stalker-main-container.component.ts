@@ -4,7 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Params, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -165,7 +165,7 @@ export class StalkerMainContainerComponent implements OnInit {
 
                         const action =
                             this.activatedRoute.snapshot.queryParams.action ??
-                            'get_categories';
+                            StalkerPortalActions.GetCategories;
                         const { category, movie_id } =
                             this.activatedRoute.snapshot.queryParams;
 
@@ -219,27 +219,24 @@ export class StalkerMainContainerComponent implements OnInit {
         });
     }
 
-    setInitialBreadcrumb(
-        action = StalkerPortalActions.GetCategories,
-        title = 'All categories'
-    ) {
+    setInitialBreadcrumb(action: StalkerPortalActions, title: string) {
         this.breadcrumbs = [{ title, action }];
     }
 
-    getCategories(contentType: ContentType = this.selectedContentType) {
+    getCategories(contentType: ContentType) {
         this.router.navigate([], { queryParams: { type: contentType } });
         this.selectedContentType = contentType;
         this.currentLayout = 'category';
         const action = StalkerContentTypes[contentType].getCategoryAction;
-        this.setInitialBreadcrumb(action);
+        this.pageIndex = 0;
+        this.setInitialBreadcrumb(
+            action,
+            this.translate.instant('PORTALS.ALL_CATEGORIES')
+        );
         this.sendRequest({ action, type: contentType });
     }
 
-    getOrderedList(
-        type: ContentType = this.selectedContentType,
-        category: string,
-        movieId?: string
-    ) {
+    getOrderedList(type: ContentType, category: string, movieId?: string) {
         if (!movieId) {
             this.currentLayout = 'category_content';
         } else {
@@ -250,7 +247,10 @@ export class StalkerMainContainerComponent implements OnInit {
             }
         }
         const action = StalkerPortalActions.GetOrderedList;
-        this.setInitialBreadcrumb(action);
+        this.setInitialBreadcrumb(
+            action,
+            this.translate.instant('PORTALS.ALL_CATEGORIES')
+        );
         this.sendRequest({
             action,
             type,
@@ -260,7 +260,7 @@ export class StalkerMainContainerComponent implements OnInit {
     }
 
     sendRequest(params: Record<string, string | number | string[]>) {
-        if (params.action !== 'create_link') {
+        if (params.action !== StalkerPortalActions.CreateLink) {
             this.isLoading = true;
             this.items = [];
         }
@@ -283,23 +283,23 @@ export class StalkerMainContainerComponent implements OnInit {
     }
 
     updateRoute(params: Record<string, string | number | string[]>) {
-        if (params.action === 'get_categories') {
-            this.router.navigate([], {
-                queryParams: {
-                    action: params.action,
-                    type: params.type,
-                },
-            });
-        } else if (params.action === 'get_ordered_list') {
-            this.router.navigate([], {
-                queryParams: {
-                    action: params.action,
-                    type: params.type,
-                    ...(params.category ? { category: params.category } : {}),
-                    ...(params.movie_id ? { movie_id: params.movie_id } : {}),
-                },
-            });
+        let queryParams: Params;
+        if (params.action === StalkerPortalActions.GetCategories) {
+            queryParams = {
+                action: params.action,
+                type: params.type,
+            };
+        } else if (params.action === StalkerPortalActions.GetOrderedList) {
+            queryParams = {
+                action: params.action,
+                type: params.type,
+                ...(params.category ? { category: params.category } : {}),
+                ...(params.movie_id ? { movie_id: params.movie_id } : {}),
+            };
         }
+        this.router.navigate([], {
+            queryParams,
+        });
     }
 
     showErrorAsNotification(response: { message: string; status: number }) {
@@ -327,6 +327,7 @@ export class StalkerMainContainerComponent implements OnInit {
             response.action !== StalkerPortalActions.CreateLink
         ) {
             this.seasons = response.payload.js.data;
+            this.portalStore.setCurrentSerial(this.seasons);
         }
         if (
             response.action === StalkerPortalActions.GetCategories ||
@@ -345,7 +346,6 @@ export class StalkerMainContainerComponent implements OnInit {
                 cover: item.screenshot_uri,
             }));
             this.length = response.payload.js.total_items;
-            this.pageIndex = response.payload.js.cur_page;
         } else if (response.action === StalkerPortalActions.CreateLink) {
             let url = response.payload.js.cmd as string;
             if (url?.startsWith('ffmpeg')) {
@@ -365,14 +365,14 @@ export class StalkerMainContainerComponent implements OnInit {
                 token,
             });
         } else if (response.action === StalkerPortalActions.DoAuth) {
-            this.getCategories();
+            this.getCategories(this.selectedContentType);
         }
 
         this.isLoading = false;
     }
 
     openPlayer(streamUrl: string) {
-        const player = this.settings().player;
+        const player = this.settings()?.player ?? VideoPlayer.VideoJs;
         if (player === VideoPlayer.MPV) {
             if (!this.hideExternalInfoDialog())
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
@@ -472,7 +472,6 @@ export class StalkerMainContainerComponent implements OnInit {
                 rating_kinopoisk: selectedContent.rating_kinopoisk,
             },
         };
-        this.itvTitle = item.name;
         this.breadcrumbs.push({
             title: this.itemDetails?.info?.name,
             action: StalkerPortalActions.GetOrderedList,
@@ -488,24 +487,19 @@ export class StalkerMainContainerComponent implements OnInit {
         details: any;
         name: string;
     }) {
+        this.itvTitle = item.name;
         if (this.selectedContentType === ContentType.SERIES) {
-            this.itvTitle = item.name;
             this.getSerialDetails(item);
-            return;
+        } else if (this.selectedContentType === ContentType.ITV) {
+            this.createLinkToPlayVod(item.cmd);
+        } else if (this.selectedContentType === ContentType.VODS) {
+            this.getVodDetails(item);
         }
-
-        if (this.selectedContentType === ContentType.ITV) {
-            this.itvTitle = item.name;
-            this.playVod(item.cmd);
-            return;
-        }
-
-        this.getVodDetails(item);
     }
 
-    playEpisode(payload: StalkerSeason) {
+    createLinkToPlayEpisode(payload: StalkerSeason) {
         this.sendRequest({
-            action: StalkerContentTypes[ContentType.SERIES].getLink,
+            action: StalkerPortalActions.CreateLink,
             type: ContentType.VODS,
             cmd: payload.cmd,
             series: payload.series,
@@ -515,13 +509,11 @@ export class StalkerMainContainerComponent implements OnInit {
         });
     }
 
-    playVod(cmd?: string) {
-        const command = cmd ?? this.itemDetails.cmd;
-        const action = StalkerContentTypes[this.selectedContentType].getLink;
+    createLinkToPlayVod(cmd?: string) {
         this.sendRequest({
-            action,
+            action: StalkerPortalActions.CreateLink,
             type: this.selectedContentType,
-            cmd: command,
+            cmd: cmd ?? this.itemDetails.cmd,
             forced_storage: 'undefined',
             disable_ad: '0',
             JsHttpRequest: '1-xml',
@@ -545,6 +537,7 @@ export class StalkerMainContainerComponent implements OnInit {
             breadcrumb.action === StalkerPortalActions.GetCategories ||
             breadcrumb.action === StalkerPortalActions.GetGenres
         ) {
+            this.pageIndex = 0;
             this.currentLayout = 'category';
         } else if (breadcrumb.action === StalkerPortalActions.Favorites) {
             this.currentLayout = 'favorites';
@@ -596,6 +589,7 @@ export class StalkerMainContainerComponent implements OnInit {
             this.currentLayout === 'category_content' &&
             this.searchPhrase !== searchPhrase
         ) {
+            this.pageIndex = 0;
             this.searchPhrase = searchPhrase;
             this.sendRequest({
                 action: StalkerContentTypes[this.selectedContentType]
@@ -613,12 +607,12 @@ export class StalkerMainContainerComponent implements OnInit {
     }
 
     handlePageChange(event: PageEvent) {
+        this.pageIndex = Number(event.pageIndex);
         this.sendRequest({
-            action: StalkerContentTypes[this.selectedContentType]
-                .getContentAction,
+            action: StalkerPortalActions.GetOrderedList,
             type: this.selectedContentType,
             category: this.currentCategoryId,
-            p: event.pageIndex + 1,
+            p: this.pageIndex + 1,
         });
     }
 
