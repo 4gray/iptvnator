@@ -230,9 +230,13 @@
     "CAST": "Cast",
     "EPISODE_RUN_TIME": "Episode run time",
     "RATING": "Rating",
+    "IMDB_RATING": " Rating IMDB",
+    "KINOPOISK_RATING": "Rating Kinopoisk",
     "DESCRIPTION": "Description",
     "YEAR": "Year",
-    "AGE": "Age"
+    "AGE": "Age",
+    "YOUTUBE_TRAILER": "YouTube Trailer",
+    "EPISODE": "Episode"
   },
   "PORTALS": {
     "ALL_CATEGORIES": "All categories",
