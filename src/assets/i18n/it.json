@@ -231,9 +231,13 @@
         "CAST": "Cast",
         "EPISODE_RUN_TIME": "Tempo esecuzione episodio",
         "RATING": "Classifica",
+        "IMDB_RATING": "Classifica IMDB",
+         "KINOPOISK_RATING": "Classifica Kinopoisk",
         "DESCRIPTION": "Descrizione",
         "YEAR": "Anno",
-        "AGE": "Età"
+        "AGE": "Età",
+        "YOUTUBE_TRAILER": "Trailer YouTube",
+        "EPISODE": "Episodio"
     },
     "PORTALS": {
         "ALL_CATEGORIES": "Tutte le categorie",
