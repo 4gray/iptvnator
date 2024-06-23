@@ -1,4 +1,5 @@
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { CommonModule } from '@angular/common';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -7,13 +8,12 @@ import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { MockComponents, MockModule, MockProvider } from 'ng-mocks';
+import { MockComponent, MockModule, MockProvider } from 'ng-mocks';
 import { Observable } from 'rxjs';
-import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
 import { DataService } from '../services/data.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
-import { HeaderComponent } from '../shared/components/header/header.component';
 import { HomeComponent } from './home.component';
+import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
 
 describe('HomeComponent', () => {
     let component: HomeComponent;
@@ -22,13 +22,12 @@ describe('HomeComponent', () => {
     let mockStore: MockStore;
     const actions$ = new Observable<Actions>();
 
-    beforeEach(waitForAsync(() => {
+    beforeEach(() => {
         TestBed.configureTestingModule({
-            declarations: [
-                HomeComponent,
-                MockComponents(HeaderComponent, RecentPlaylistsComponent),
-            ],
+            declarations: [HomeComponent],
             imports: [
+                CommonModule,
+                MockComponent(RecentPlaylistsComponent),
                 MockModule(MatProgressBarModule),
                 MockModule(MatSnackBarModule),
                 MockModule(TranslateModule),
@@ -46,7 +45,7 @@ describe('HomeComponent', () => {
                 provideMockActions(actions$),
             ],
         }).compileComponents();
-    }));
+    });
 
     beforeEach(() => {
         fixture = TestBed.createComponent(HomeComponent);
@@ -55,8 +54,6 @@ describe('HomeComponent', () => {
 
         mockStore = TestBed.inject(MockStore);
         mockStore.setState({});
-
-        fixture.detectChanges();
     });
 
     it('should create', () => {
