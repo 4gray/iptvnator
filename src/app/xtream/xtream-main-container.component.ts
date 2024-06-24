@@ -225,18 +225,26 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     handleResponse(response: XtreamResponse) {
-        if ((response.payload as any)?.user_info?.status === 'Expired') {
+        if (!response.payload) {
             this.errorViewInfo = {
-                title: 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.TITLE',
-                message: 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.DESCRIPTION',
+                title: 'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE',
+                message: 'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION',
             };
             this.currentLayout = 'error-view';
-        } else if ((response.payload as any)?.user_info?.auth === 0) {
-            this.errorViewInfo = {
-                title: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.TITLE',
-                message: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.DESCRIPTION',
-            };
-            this.currentLayout = 'error-view';
+        } else {
+            if ((response.payload as any)?.user_info?.status === 'Expired') {
+                this.errorViewInfo = {
+                    title: 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.TITLE',
+                    message: 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.DESCRIPTION',
+                };
+                this.currentLayout = 'error-view';
+            } else if ((response.payload as any)?.user_info?.auth === 0) {
+                this.errorViewInfo = {
+                    title: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.TITLE',
+                    message: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.DESCRIPTION',
+                };
+                this.currentLayout = 'error-view';
+            }
         }
 
         switch (response.action) {

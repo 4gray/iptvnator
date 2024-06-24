@@ -1,4 +1,4 @@
-<ng-container *ngIf="items?.length > 0; else noItems">
+@if (items?.length > 0) {
     <div class="grid">
         <mat-card
             *ngFor="
@@ -24,7 +24,7 @@
                 <div
                     *ngIf="item.rating || item.rating_imdb"
                     class="rating"
-                    matTooltip="IMDB Rating"
+                    [matTooltip]="'XTREAM.IMDB_RATING' | translate"
                 >
                     <mat-icon>star</mat-icon
                     >{{ item.rating || item.rating_imdb }}
@@ -44,10 +44,13 @@
             </div>
         </div>
     </div>
-</ng-container>
-<ng-template #noItems>
-    <div class="no-content">
-        <mat-icon class="icon">list</mat-icon>
-        <div>{{ 'PORTALS.EMPTY_LIST_VIEW.EMPTY_CATEGORY' | translate }}</div>
-    </div>
-</ng-template>
+} @else {
+    <app-playlist-error-view
+        [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"
+        [description]="
+            'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION' | translate
+        "
+        [showActionButtons]="false"
+        [viewType]="'EMPTY_CATEGORY'"
+    />
+}

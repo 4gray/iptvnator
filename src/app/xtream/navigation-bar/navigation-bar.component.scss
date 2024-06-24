@@ -1,7 +1,5 @@
 :host {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
+    position: relative;
 }
 
 #navigation {
@@ -77,6 +75,10 @@
     #sub-panel {
         height: auto;
         padding: 10px 1em;
+
+        .search > .search-input {
+            width: 160px;
+        }
     }
 
     .breadcrumbs {

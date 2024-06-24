@@ -7,6 +7,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamItem } from '../../../../shared/xtream-item.interface';
 import { FilterPipe } from '../../shared/pipes/filter.pipe';
+import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../portal.store';
 
 @Component({
@@ -23,6 +24,7 @@ import { PortalStore } from '../portal.store';
         FormsModule,
         MatTooltipModule,
         NgOptimizedImage,
+        PlaylistErrorViewComponent,
         TranslateModule,
     ],
 })

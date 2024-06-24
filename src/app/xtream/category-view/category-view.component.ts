@@ -3,15 +3,17 @@ import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule } from '@ngx-translate/core';
 import { XtreamCategory } from '../../../../shared/xtream-category.interface';
 import { FilterPipe } from '../../shared/pipes/filter.pipe';
+import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../portal.store';
 
 @Component({
     selector: 'app-category-view',
     standalone: true,
     template: `
-        <ng-container *ngIf="items?.length > 0; else noItems">
+        @if (items?.length > 0) {
             <div class="grid">
                 <mat-card
                     appearance="outlined"
@@ -35,28 +37,35 @@ import { PortalStore } from '../portal.store';
                     "
                 >
                     <mat-icon class="icon">search</mat-icon>
-                    <div>Nothing found, try to change you search request</div>
+                    <div>
+                        {{
+                            'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
+                                | translate
+                        }}
+                    </div>
                 </div>
             </div>
-        </ng-container>
-        <ng-template #noItems>
-            <div class="no-content">
-                <mat-icon class="icon">warning</mat-icon>
-                <div>
-                    Oops, no content here, please change the category or content
-                    type
-                </div>
-            </div>
-        </ng-template>
+        } @else {
+            <app-playlist-error-view
+                [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"
+                [description]="
+                    'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION' | translate
+                "
+                [showActionButtons]="false"
+                [viewType]="'EMPTY_CATEGORY'"
+            />
+        }
     `,
     styleUrl: './category-view.component.scss',
     imports: [
+        PlaylistErrorViewComponent,
         FilterPipe,
         FormsModule,
         MatCardModule,
         MatIconModule,
         NgFor,
         NgIf,
+        TranslateModule,
     ],
 })
 export class CategoryViewComponent {

@@ -5,14 +5,11 @@
         </button>
         <div class="playlist-info">
             <div class="name">
-                <ng-container
-                    *ngIf="sidebarView === 'CHANNELS'; else allPlaylists"
-                >
+                @if (sidebarView === 'CHANNELS') {
                     {{ playlistTitle$ | async }}
-                </ng-container>
-                <ng-template #allPlaylists>
+                } @else {
                     {{ 'HOME.PLAYLISTS.MY_PLAYLISTS' | translate }}
-                </ng-template>
+                }
             </div>
             <div class="channels-count">
                 {{

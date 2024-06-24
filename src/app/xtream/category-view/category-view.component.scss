@@ -1,6 +1,6 @@
 :host {
-    margin: 20px;
-    display: block;
+    overflow-y: auto;
+    padding: 10px;
 }
 
 mat-card-content {
@@ -22,6 +22,8 @@ mat-card-content {
     flex-wrap: wrap;
     gap: 10px;
     justify-content: center;
+
+    /* padding-bottom: 20px; */
 
     .category-item {
         cursor: pointer;
