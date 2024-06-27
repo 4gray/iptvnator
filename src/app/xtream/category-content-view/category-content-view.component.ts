@@ -1,6 +1,5 @@
-import { NgFor, NgIf, NgOptimizedImage } from '@angular/common';
+import { NgOptimizedImage } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -16,12 +15,9 @@ import { PortalStore } from '../portal.store';
     styleUrls: ['./category-content-view.component.scss'],
     standalone: true,
     imports: [
-        NgFor,
+        FilterPipe,
         MatCardModule,
         MatIconModule,
-        NgIf,
-        FilterPipe,
-        FormsModule,
         MatTooltipModule,
         NgOptimizedImage,
         PlaylistErrorViewComponent,
@@ -33,10 +29,5 @@ export class CategoryContentViewComponent {
     @Output() itemClicked = new EventEmitter<XtreamItem>();
 
     portalStore = inject(PortalStore);
-
     searchPhrase = this.portalStore.searchPhrase;
-
-    trackByFn(_index: number, item: XtreamItem) {
-        return item.stream_id;
-    }
 }

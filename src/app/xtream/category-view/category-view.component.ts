@@ -1,6 +1,4 @@
-import { NgFor, NgIf } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
@@ -14,37 +12,36 @@ import { PortalStore } from '../portal.store';
     standalone: true,
     template: `
         @if (items?.length > 0) {
-            <div class="grid">
+            @for (
+                item of items | filterBy: searchPhrase() : 'category_name';
+                track $index
+            ) {
                 <mat-card
                     appearance="outlined"
                     class="category-item"
-                    *ngFor="
-                        let item of items
-                            | filterBy: searchText() : 'category_name';
-                        trackBy: trackByFn
-                    "
                     (click)="categoryClicked.emit(item)"
                 >
                     <mat-card-content>
-                        {{ item.category_name || item.name || 'no name' }}
+                        {{
+                            item.category_name ||
+                                item.name ||
+                                'No category name'
+                        }}
                     </mat-card-content>
                 </mat-card>
-                <div
-                    class="no-content"
-                    *ngIf="
-                        !(items | filterBy: searchText() : 'category_name')
-                            ?.length
+            }
+            @if (
+                !(items | filterBy: searchPhrase() : 'category_name')?.length
+            ) {
+                <app-playlist-error-view
+                    title="No results"
+                    [description]="
+                        'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate
                     "
-                >
-                    <mat-icon class="icon">search</mat-icon>
-                    <div>
-                        {{
-                            'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
-                                | translate
-                        }}
-                    </div>
-                </div>
-            </div>
+                    [showActionButtons]="false"
+                    [viewType]="'NO_SEARCH_RESULTS'"
+                />
+            }
         } @else {
             <app-playlist-error-view
                 [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"
@@ -58,13 +55,10 @@ import { PortalStore } from '../portal.store';
     `,
     styleUrl: './category-view.component.scss',
     imports: [
-        PlaylistErrorViewComponent,
         FilterPipe,
-        FormsModule,
         MatCardModule,
         MatIconModule,
-        NgFor,
-        NgIf,
+        PlaylistErrorViewComponent,
         TranslateModule,
     ],
 })
@@ -74,10 +68,5 @@ export class CategoryViewComponent {
     @Output() categoryClicked = new EventEmitter<XtreamCategory>();
 
     portalStore = inject(PortalStore);
-
-    searchText = this.portalStore.searchPhrase;
-
-    trackByFn(_index: number, item: XtreamCategory) {
-        return item.category_id;
-    }
+    searchPhrase = this.portalStore.searchPhrase;
 }

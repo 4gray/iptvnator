@@ -1,4 +1,4 @@
-import { AsyncPipe, NgFor, NgIf } from '@angular/common';
+import { AsyncPipe } from '@angular/common';
 import { Component, NgZone, OnInit, Signal, effect } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
@@ -57,8 +57,6 @@ import { StalkerSeriesViewComponent } from './stalker-series-view/stalker-series
         CategoryViewComponent,
         MatPaginatorModule,
         NavigationBarComponent,
-        NgFor,
-        NgIf,
         NgxSkeletonLoaderModule,
         PlaylistErrorViewComponent,
         StalkerSeriesViewComponent,

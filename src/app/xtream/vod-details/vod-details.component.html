@@ -9,13 +9,11 @@
     "
 >
     <div class="image">
-        <img
-            *ngIf="item.info?.movie_image; else placeholderCover"
-            [src]="item.info?.movie_image"
-        />
-        <ng-template #placeholderCover>
+        @if (item.info?.movie_image) {
+            <img [src]="item.info?.movie_image" />
+        } @else {
             <div class="placeholder-cover"></div>
-        </ng-template>
+        }
     </div>
     <div class="details">
         <h2>{{ item.info.name }}</h2>
