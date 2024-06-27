@@ -29,7 +29,8 @@ export class PlaylistErrorViewComponent {
     @Input() description: string;
     @Input() showActionButtons = true;
     @Input() title: string;
-    @Input() viewType: 'ERROR' | 'EMPTY_CATEGORY' = 'ERROR';
+    @Input() viewType: 'ERROR' | 'EMPTY_CATEGORY' | 'NO_SEARCH_RESULTS' =
+        'ERROR';
 
     openPlaylistDetails() {
         this.dialog.open(PlaylistInfoComponent, {
