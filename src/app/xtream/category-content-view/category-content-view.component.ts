@@ -1,4 +1,4 @@
-import { NgOptimizedImage } from '@angular/common';
+import { DecimalPipe, NgOptimizedImage } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -15,6 +15,7 @@ import { PortalStore } from '../portal.store';
     styleUrls: ['./category-content-view.component.scss'],
     standalone: true,
     imports: [
+        DecimalPipe,
         FilterPipe,
         MatCardModule,
         MatIconModule,

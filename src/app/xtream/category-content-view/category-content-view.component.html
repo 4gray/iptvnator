@@ -24,7 +24,10 @@
                             [matTooltip]="'XTREAM.IMDB_RATING' | translate"
                         >
                             <mat-icon>star</mat-icon
-                            >{{ item.rating || item.rating_imdb }}
+                            >{{
+                                item.rating || item.rating_imdb
+                                    | number: '1.0-2'
+                            }}
                         </div>
                     }
                 </mat-card-content>
