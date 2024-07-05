@@ -259,13 +259,20 @@
                 "TITLE": "Portale non trovato",
                 "DESCRIPTION": "Controlla le credenziali e l'URL del portale nelle impostazioni della playlist o rimuovile."
             },
-            "PLAYLIST_SETTINGS": "Playlist Settings",
+           "EMPTY_CATEGORY": {
+               "TITLE": "Categoria vuota",
+               "DESCRIPTION": "Questa categoria non ha contenuti, seleziona un'altra categoria o modifica il tipo di contenuto"
+            },
+            "UNKNOWN_ERROR": {
+               "TITLE": "Qualcosa è andato storto",
+               "DESCRIPTION": "Errore sconosciuto, riprova più tardi"
+            },
+           "PLAYLIST_SETTINGS": "Impostazioni Playlist",
             "HOME": "Home",
             "DELETE": "Elimina"
             },
             "EMPTY_LIST_VIEW": {
-            "NO_SEARCH_RESULTS": "Nessun risultato, prova a modificare la richiesta di ricerca",
-            "EMPTY_CATEGORY": "Questa categoria è vuota, provane un'altra"
+            "NO_SEARCH_RESULTS": "Nessun risultato, prova a modificare la richiesta di ricerca"
     },
     "STREAM_URL_COPIED": "URL streaming copiato negli appunti",
     "COPY_STREAM_URL": "Copia URL streaming"
