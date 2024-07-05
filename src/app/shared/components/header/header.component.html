@@ -5,7 +5,7 @@
     <div class="title">{{ title }}</div>
     <div class="subtitle">{{ subtitle }}</div>
 </div>
-<div class="menu">
+<div class="menu" *ngIf="isHome">
     <button
         mat-icon-button
         class="add-playlist-btn"
