@@ -433,11 +433,11 @@ export class XtreamMainContainerComponent implements OnInit {
      * @param breadcrumb clicked breadcrumb item
      */
     breadcrumbClicked(breadcrumb: Breadcrumb) {
-        this.items = [];
         const itemIndex = this.breadcrumbs.findIndex((i) => i === breadcrumb);
 
         // do nothing if last breadcrumb child was clicked
         if (itemIndex === this.breadcrumbs.length - 1) return;
+        this.items = [];
 
         this.breadcrumbs.splice(
             itemIndex + 1,
