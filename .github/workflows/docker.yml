@@ -28,4 +28,4 @@ jobs:
           tags: |
               4gray/iptvnator:latest
               4gray/iptvnator:${{ github.sha }}
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
