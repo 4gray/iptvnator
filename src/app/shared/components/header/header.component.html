@@ -150,6 +150,15 @@
         </button>
         <button
             mat-menu-item
+            [attr.aria-label]="'MENU.SUPPORT_PROJECT' | translate"
+            (click)="openUrl('https://github.com/sponsors/4gray')"
+        >
+            <mat-icon>savings</mat-icon>
+            <span>{{ 'MENU.SUPPORT_PROJECT' | translate }}</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button
+            mat-menu-item
             [attr.aria-label]="'MENU.ABOUT_ARIA' | translate"
             (click)="openAboutDialog()"
         >

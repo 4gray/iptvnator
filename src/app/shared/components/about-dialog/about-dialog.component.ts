@@ -33,7 +33,7 @@ import { TranslateModule } from '@ngx-translate/core';
                     />
                 </a>
                 <a
-                    href="https://www.buymeacoffee.com/4gray"
+                    href="https://github.com/sponsors/4gray"
                     target="_blank"
                     [title]="'ABOUT.BUY_ME_A_COFFEE_TOOLTIP' | translate"
                     [attr.aria-label]="

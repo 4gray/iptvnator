@@ -111,7 +111,7 @@ export class WhatsNewService {
             },
             {
                 title: 'This and that',
-                html: 'In addition to the already mentioned new features, some bugs have been fixed and the internal dependencies of the application have been updated. Thanks for all the <a href="https://github.com/4gray/iptvnator/issues" target="_blank">ideas</a>, contributions and <a target="_blank" href="https://www.buymeacoffee.com/4gray">first donations.</a>',
+                html: 'In addition to the already mentioned new features, some bugs have been fixed and the internal dependencies of the application have been updated. Thanks for all the <a href="https://github.com/4gray/iptvnator/issues" target="_blank">ideas</a>, contributions and <a target="_blank" href="https://github.com/sponsors/4gray">first donations.</a>',
                 button: {
                     text: 'YAY!',
                     textColor: '#ccc',
