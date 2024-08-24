@@ -164,6 +164,7 @@
     "OPEN_MULTI_EPG": "Open Multi-EPG view"
   },
   "EPG": {
+    "TITLE": "Electronic Program Guide",
     "NEXT_DAY": "Next day",
     "PREVIOUS_DAY": "Previous day",
     "LIVE_NOW": "Live now",

@@ -76,14 +76,20 @@
       "USERNAME": "Пользователь",
       "PASSWORD": "Пароль",
       "ADD": "Добавить",
-      "TEST_CREDENTIALS": "Проверить"
+      "TEST_CREDENTIALS": "Проверить",
+      "URL_VALIDATION_ERROR": "Должен быть действительный URL-адрес с протоколом (например, http://example.com или https://example.com:4324)."
     },
     "STALKER_PORTAL": {
       "ADD": "Добавить",
       "TITLE": "Название",
       "MAC_ADDRESS": "MAC-адрес",
-      "SERVER_URL": "URL сервера"
-    }
+      "SERVER_URL": "URL сервера",
+      "URL_VALIDATION_ERROR": "Должен быть действительный URL-адрес с протоколом (например, http://example.com/c или https://example.com/stalker_portal/c)."
+    },
+    "FILTER_BY_TYPE": "Фильтровать по типу",
+    "IMPORTED_AS_TEXT": "Импортировано как текст",
+    "FILTER_BY_NAME": "Фильтровать по имени",
+    "PARSING_ERROR": "Ошибка парсинга, недействительный плейлист:"
   },
   "SETTINGS": {
     "TITLE": "Настройки / IPTVnator",
@@ -104,13 +110,13 @@
     "THEME": "Тема оформления",
     "SHOW_CAPTIONS": "Отображать субтитры",
     "ADD_EPG_SOURCE": "Добавить источник EPG",
-    "EPG_URL_ERROR": "The value is not a valid URL",
+    "EPG_URL_ERROR": "Введенное значение не является URL-адресом.",
     "VIDEO_PLAYER_DESCRIPTION": "Выбрать стандартный видео плеер",
     "LANGUAGE_DESCRIPTION": "Выбрать язык приложения",
     "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
-    "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
+    "SHOW_CAPTIONS_DESCRIPTION": "Показать или скрыть субтитры по умолчанию.",
     "VERSION_DESCRIPTION": "Текущая версия приложения",
-    "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
+    "EPG_NOTE": "На данный момент EPG доступен только в нативной версии IPTVnator.",
     "EPG_NOTE_URL_TEXT": "Подробнее здесь",
     "IMPORT_EXPORT_DATA": "Импорт/экспорт плейлистов",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
@@ -118,17 +124,18 @@
     "EXPORT_DATA": "Экспорт",
     "REMOVE_ALL": "Удалить плейлист",
     "REMOVE_ALL_BUTTON": "Удалить",
-    "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
+    "REMOVE_ALL_DESCRIPTION": " Это действие удалит все существующие плейлисты из приложения.",
     "REMOVE_DIALOG": {
       "TITLE": "Удалить все плейлисты",
       "MESSAGE": "Вы уверены что хотите удалить все плейлисты из приложения?"
     },
-    "IMPORT_ERROR": "Import error, please try with another file.",
+    "IMPORT_ERROR": "Ошибка импорта, пожалуйста попробуйте импортировать другой файл.",
     "PLAYLISTS_REMOVED": "Все плейлисты были удалены.",
     "VLC_PLAYER_PATH_LABEL": "Путь к VLC плееру",
     "VLC_PLAYER_PATH": "Путь к VLC плееру",
     "MPV_PLAYER_PATH_LABEL": "Путь к mpv плееру",
-    "MPV_PLAYER_PATH": "Путь к mpv плееру"
+    "MPV_PLAYER_PATH": "Путь к mpv плееру",
+    "VLC_PLAYER_PATH_DESCRIPTION": "Установите путь к проигрывателю VLC в вашей системе. \nОн будет использовать предоставленный путь к binary файлу VLC вместо пути по умолчанию."
   },
   "THEMES": {
     "DARK_THEME": "Тёмная тема",
@@ -220,13 +227,51 @@
     "NAME": "Название",
     "DIRECTOR": "Режиссёр",
     "CAST": "Бросать",
-    "EPISODE_RUN_TIME": "Длительность эпизода"
+    "EPISODE_RUN_TIME": "Длительность эпизода",
+    "AGE": "Возраст",
+    "EPISODE": "Эпизод",
+    "YEAR": "Год",
+    "YOUTUBE_TRAILER": "YouTube-трейлер",
+    "DESCRIPTION": "Описание",
+    "KINOPOISK_RATING": "Рейтинг на Кинопоиск",
+    "IMDB_RATING": "Рейтинг на IMDB"
   },
   "PORTALS": {
     "ALL_CATEGORIES": "Все категории",
     "ADD_TO_FAVORITES": "Добавить в избранное",
     "REMOVE_FROM_FAVORITES": "Удалить из избранного",
-    "MY_FAVORITES": "Избранное"
+    "MY_FAVORITES": "Избранное",
+    "COPY_STREAM_URL": "Копировать URL-адрес потока",
+    "ERROR_VIEW": {
+      "DELETE": "Удалить",
+      "ACCOUNT_EXPIRED": {
+        "TITLE": "Срок действия учетной записи истек",
+        "DESCRIPTION": "Срок действия этой учетной записи истек. \nПожалуйста, проверьте учетные данные в настройках плейлиста или удалите его."
+      },
+      "HOME": "На главную",
+      "EMPTY_CATEGORY": {
+        "TITLE": "Пустая категория",
+        "DESCRIPTION": "В этой категории нет контента. Выберите другую категорию или измените тип контента."
+      },
+      "UNAUTHORIZED": {
+        "TITLE": "Несанкционированный",
+        "DESCRIPTION": "Пожалуйста, проверьте учетные данные в настройках плейлиста или удалите их."
+      },
+      "NOT_FOUND": {
+        "TITLE": "Портал не найден"
+      },
+      "UNKNOWN_ERROR": {
+        "TITLE": "Что-то пошло не так",
+        "DESCRIPTION": "Неизвестная ошибка. Повторите попытку позже."
+      },
+      "PLAYLIST_SETTINGS": "Настройки плейлиста"
+    },
+    "STREAM_URL_COPIED": "URL-адрес потока был скопирован в буфер обмена.",
+    "EMPTY_LIST_VIEW": {
+      "NO_SEARCH_RESULTS": "Ничего не найдено, попробуйте изменить поисковый запрос"
+    },
+    "REMOVED_FROM_FAVORITES": "Удалено из избранного",
+    "ADDED_TO_FAVORITES": "Добавлено в избранное"
   },
   "INFORMATION": "Инфо"
 }

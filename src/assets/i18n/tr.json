@@ -233,7 +233,11 @@
     "RATING": "Değerlendirme",
     "DESCRIPTION": "Açıklama",
     "YEAR": "Yıl",
-    "AGE": "Yaş"
+    "AGE": "Yaş",
+    "EPISODE": "Bölüm",
+    "YOUTUBE_TRAILER": "YouTube Fragmanı",
+    "KINOPOISK_RATING": "Derecelendirme Kinopoisk",
+    "IMDB_RATING": "IMDB'nin derecelendirmesi"
   },
   "PORTALS": {
     "ALL_CATEGORIES": "Tüm kategoriler",
@@ -257,7 +261,15 @@
       },
       "PLAYLIST_SETTINGS": "Oynatma Listesi Ayarları",
       "HOME": "Ana Sayfa",
-      "DELETE": "Sil"
+      "DELETE": "Sil",
+      "EMPTY_CATEGORY": {
+        "TITLE": "Boş kategori",
+        "DESCRIPTION": "Bu kategoride içerik yok, lütfen başka bir kategori seçin veya içerik türünü değiştirin"
+      },
+      "UNKNOWN_ERROR": {
+        "TITLE": "Bir şeyler ters gitti",
+        "DESCRIPTION": "Bilinmeyen hata, lütfen daha sonra tekrar deneyin"
+      }
     },
     "EMPTY_LIST_VIEW": {
       "NO_SEARCH_RESULTS": "Hiçbir şey bulunamadı, arama isteğinizi değiştirmeyi deneyin",
