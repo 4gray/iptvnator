@@ -34,15 +34,19 @@
         </div>
     </div>
     @if (player === 'videojs' || player === 'html5') {
-        <div class="video-player">
-            @if (streamUrl) {
+        @if (streamUrl) {
+            <div class="video-player">
                 <app-web-player-view [streamUrl]="streamUrl" />
-            }
-        </div>
+            </div>
+        }
     }
-    <div class="epg">
-        <div class="epg-content">
-            <app-epg-view [epgItems]="epgItems" />
+    @if (streamUrl) {
+        <div class="epg">
+            <div class="epg-content">
+                <app-epg-view [epgItems]="epgItems" />
+            </div>
         </div>
-    </div>
+    } @else {
+        <div class="no-channel-selected">Please select a channel</div>
+    }
 </div>
