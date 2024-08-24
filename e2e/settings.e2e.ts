@@ -52,8 +52,6 @@ test.describe('Settings', () => {
     });
 
     test('Change app theme', async () => {
-        await page.getByTestId('open-settings').click();
-
         await expect(page.locator('text="Light theme"')).toBeVisible();
         await page.getByTestId('select-theme').click();
         await page.getByTestId('DARK_THEME').click();
@@ -66,8 +64,6 @@ test.describe('Settings', () => {
     });
 
     test('Change app language', async () => {
-        await page.getByTestId('open-settings').click();
-
         await expect(page.locator('text="English"')).toBeVisible();
         await page.getByTestId('select-language').click();
         await page.getByTestId('de').click();
