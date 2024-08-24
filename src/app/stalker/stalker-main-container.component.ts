@@ -623,6 +623,7 @@ export class StalkerMainContainerComponent implements OnInit {
     }
 
     ngOnDestroy() {
+        this.portalStore.setSearchPhrase('');
         if (this.dataService.isElectron) {
             this.commandsList.forEach((command) =>
                 this.dataService.removeAllListeners(command.id)
