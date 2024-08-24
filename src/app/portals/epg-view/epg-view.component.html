@@ -1,4 +1,4 @@
-<div mat-subheader>Electronic Program Guide</div>
+<div mat-subheader>{{ 'EPG.TITLE' | translate }}</div>
 <mat-list>
     @for (item of epgItems; track $index) {
         <mat-list-item [lines]="3">
