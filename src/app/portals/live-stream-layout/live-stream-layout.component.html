@@ -7,16 +7,18 @@
 >
     <div class="sidebar">
         <div class="sidebar-content">
-            <mat-selection-list
-                [multiple]="false"
-                [hideSingleSelectionIndicator]="true"
-            >
+            <mat-selection-list [multiple]="false">
                 <cdk-virtual-scroll-viewport
-                    itemSize="56"
+                    [itemSize]="56"
                     class="scroll-viewport-portals"
                 >
                     <mat-list-option
-                        *cdkVirtualFor="let item of channels"
+                        *cdkVirtualFor="
+                            let item of channels;
+                            trackBy: trackBy;
+                            templateCacheSize: 0
+                        "
+                        [value]="item"
                         (click)="itemClicked.emit(item)"
                     >
                         <img
