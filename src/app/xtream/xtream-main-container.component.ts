@@ -287,6 +287,7 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     ngOnDestroy(): void {
+        this.portalStore.setSearchPhrase('');
         if (this.dataService.isElectron) {
             this.commandsList.forEach((command) =>
                 this.dataService.removeAllListeners(command.id)
@@ -304,6 +305,7 @@ export class XtreamMainContainerComponent implements OnInit {
 
     categoryClicked(item: XtreamCategory) {
         this.items = [];
+        this.streamUrl = undefined;
         this.portalStore.setSearchPhrase('');
         const action = ContentTypes[this.selectedContentType].getContentAction;
         this.breadcrumbs.push({
@@ -342,7 +344,7 @@ export class XtreamMainContainerComponent implements OnInit {
 
     playLiveStream(item: XtreamLiveStream) {
         const { serverUrl, username, password } = this.currentPlaylist();
-        const streamUrl = `${serverUrl}/${item.stream_type}/${username}/${password}/${item.stream_id}.ts`;
+        const streamUrl = `${serverUrl}/${item.stream_type}/${username}/${password}/${item.stream_id}.m3u8`;
         this.openPlayer(streamUrl, item.name);
     }
 
