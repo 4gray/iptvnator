@@ -22,6 +22,12 @@ import { EpgItem } from '../../xtream/epg-item.interface';
         MatListModule,
         TranslateModule,
     ],
+    styles: `
+        mat-list {
+            overflow-y: scroll;
+            height: calc(100vh - 459px);
+        }
+    `,
 })
 export class EpgViewComponent {
     @Input() epgItems: EpgItem[];
