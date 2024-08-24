@@ -13,11 +13,11 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v4
               with:
                   persist-credentials: false
             - name: Use Node.js
-              uses: actions/setup-node@v1
+              uses: actions/setup-node@v4
               with:
                   node-version: '20'
             - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
@@ -35,11 +35,11 @@ jobs:
                 os: [macos-latest]
 
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v4
               with:
                   persist-credentials: false
             - name: Use Node.js
-              uses: actions/setup-node@v1
+              uses: actions/setup-node@v4
               with:
                   node-version: '20'
             - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
@@ -65,10 +65,10 @@ jobs:
 
         steps:
             - name: Check out Git repository
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
 
             - name: Install Node.js, NPM and Yarn
-              uses: actions/setup-node@v1
+              uses: actions/setup-node@v4
               with:
                   node-version: '20'
 
