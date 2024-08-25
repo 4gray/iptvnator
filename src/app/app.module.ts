@@ -1,4 +1,8 @@
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import {
+    HttpClient,
+    provideHttpClient,
+    withInterceptorsFromDi,
+} from '@angular/common/http';
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -50,11 +54,11 @@ export function DataFactory(dbService: NgxIndexedDBService, http: HttpClient) {
 
 @NgModule({
     declarations: [AppComponent],
+    bootstrap: [AppComponent],
     imports: [
         AppRoutingModule,
         BrowserAnimationsModule,
         BrowserModule,
-        HttpClientModule,
         SharedModule,
         AppConfig.environment === 'WEB'
             ? NgxIndexedDBModule.forRoot(dbConfig)
@@ -88,7 +92,7 @@ export function DataFactory(dbService: NgxIndexedDBService, http: HttpClient) {
             useFactory: DataFactory,
             deps: [NgxIndexedDBService, HttpClient],
         },
+        provideHttpClient(withInterceptorsFromDi()),
     ],
-    bootstrap: [AppComponent],
 })
 export class AppModule {}
