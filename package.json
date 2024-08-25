@@ -68,7 +68,7 @@
     "@videojs/http-streaming": "2.15.0",
     "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
     "about-window": "1.15.2",
-    "axios": "1.6.2",
+    "axios": "1.7.4",
     "custom-electron-titlebar": "4.2.8",
     "date-fns": "2.29.3",
     "electron-context-menu": "3.6.1",
