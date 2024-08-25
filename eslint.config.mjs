@@ -3,6 +3,7 @@ import angularEslintTemplate from '@angular-eslint/eslint-plugin-template';
 import parser from '@angular-eslint/template-parser';
 import { FlatCompat } from '@eslint/eslintrc';
 import js from '@eslint/js';
+import ngrxEslint from '@ngrx/eslint-plugin';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import globals from 'globals';
@@ -45,6 +46,7 @@ export default [
         plugins: {
             '@typescript-eslint': typescriptEslint,
             '@angular-eslint': angularEslintPlugin,
+            '@ngrx/recommended': ngrxEslint,
         },
         languageOptions: {
             parser: tsParser,
