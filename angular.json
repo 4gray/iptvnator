@@ -33,7 +33,7 @@
                         ],
                         "styles": [
                             "./node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
-                            "src/styles.scss",
+                            "src/m3-theme.scss",
                             "./node_modules/video.js/dist/video-js.css"
                         ],
                         "scripts": [],
@@ -95,24 +95,24 @@
                 "serve": {
                     "builder": "@angular-devkit/build-angular:dev-server",
                     "options": {
-                      "buildTarget": "iptvnator:build"
+                        "buildTarget": "iptvnator:build"
                     },
                     "configurations": {
                         "dev": {
-                          "buildTarget": "iptvnator:build:dev"
+                            "buildTarget": "iptvnator:build:dev"
                         },
                         "web": {
-                          "buildTarget": "iptvnator:build:web"
+                            "buildTarget": "iptvnator:build:web"
                         },
                         "production": {
-                          "buildTarget": "iptvnator:build:production"
+                            "buildTarget": "iptvnator:build:production"
                         }
                     }
                 },
                 "extract-i18n": {
                     "builder": "@angular-devkit/build-angular:extract-i18n",
                     "options": {
-                      "buildTarget": "iptvnator:build"
+                        "buildTarget": "iptvnator:build"
                     }
                 },
                 "test": {
