@@ -1,4 +1,6 @@
-<h2 mat-dialog-title>Add Playlist: {{ playlistType }}</h2>
+<h2 mat-dialog-title>
+    {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}: {{ playlistType }}
+</h2>
 <mat-dialog-content class="mat-typography">
     @if (playlistType === 'file') {
         <app-file-upload
