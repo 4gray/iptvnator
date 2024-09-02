@@ -164,6 +164,7 @@
     "OPEN_MULTI_EPG": "Apri vista Multi-EPG"
   },
   "EPG": {
+    "TITLE": "Guida elettronica programmi",
     "NEXT_DAY": "Giorno successivo",
     "PREVIOUS_DAY": "Giorno precedente",
     "LIVE_NOW": "Live attuale",
@@ -208,7 +209,7 @@
     "WHAT_IS_NEW": "Novità del programma",
     "ABOUT": "Info sul programma",
     "ABOUT_ARIA": "Info sull'applicazione",
-    "SUPPORT_PROJECT": "Sostieni il progetto"
+    "SUPPORT_PROJECT": "Supporta il progetto"
   },
   "ABOUT": {
     "TITLE": "Info su IPTVnator",
