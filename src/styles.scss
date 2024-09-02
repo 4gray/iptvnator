@@ -1,7 +1,6 @@
 // @import 'themes/';
 @import '@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
 
-
 body,
 html {
     user-select: none;
@@ -42,12 +41,12 @@ textarea,
     outline: none;
 }
 
-.dark-theme .mat-expansion-panel,
+/* .dark-theme .mat-expansion-panel,
 .dark-theme .mat-drawer,
 .dark-theme .mat-app-background,
 .dark-theme.mat-app-background {
     background-color: #1d1d1d;
-}
+} */
 
 .dark-theme {
     ::-webkit-scrollbar {

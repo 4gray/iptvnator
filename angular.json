@@ -32,7 +32,6 @@
                             "src/manifest.webmanifest"
                         ],
                         "styles": [
-                            "./node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
                             "src/m3-theme.scss",
                             "./node_modules/video.js/dist/video-js.css"
                         ],
