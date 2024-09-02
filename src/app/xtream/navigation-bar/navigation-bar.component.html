@@ -10,6 +10,7 @@
         aria-label="Content Type"
         [value]="contentType"
         (change)="changeContentType($event.value)"
+        hideSingleSelectionIndicator
     >
         <mat-button-toggle
             *ngFor="
@@ -23,10 +24,19 @@
         </mat-button-toggle>
     </mat-button-toggle-group>
 
-    <button mat-button (click)="favoritesClicked.emit()">
-        <mat-icon>star</mat-icon>
-        <span class="button-label">{{ 'CHANNELS.FAVORITES' | translate }}</span>
-    </button>
+    <div>
+        <button mat-button (click)="openPlaylistDetails()">
+            <mat-icon>info</mat-icon>
+            <span class="button-label">{{ 'Info' | translate }}</span>
+        </button>
+
+        <button mat-button (click)="favoritesClicked.emit()">
+            <mat-icon>star</mat-icon>
+            <span class="button-label">{{
+                'CHANNELS.FAVORITES' | translate
+            }}</span>
+        </button>
+    </div>
 </div>
 <div id="sub-panel">
     <div class="breadcrumbs">
@@ -41,12 +51,15 @@
         </div>
     </div>
     <div class="search" *ngIf="searchVisible">
-        <input
-            class="search-input"
-            placeholder="Search by name"
-            type="search"
-            [ngModel]="searchPhrase()"
-            (ngModelChange)="searchPhraseUpdate.next($event)"
-        />
+        <mat-form-field class="search-input">
+            <mat-icon matPrefix>search</mat-icon>
+            <input
+                matInput
+                placeholder="Search by name"
+                type="search"
+                [ngModel]="searchPhrase()"
+                (ngModelChange)="searchPhraseUpdate.next($event)"
+            />
+        </mat-form-field>
     </div>
 </div>
