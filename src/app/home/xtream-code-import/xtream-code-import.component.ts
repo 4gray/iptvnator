@@ -62,8 +62,16 @@ export class XtreamCodeImportComponent {
     store = inject(Store);
 
     addPlaylist() {
+        const serverUrlAsString = this.form.value.serverUrl as string;
+        const url = new URL(serverUrlAsString);
+        const serverUrl = `${url.protocol}//${url.hostname}${url.port ? ':' + url.port : ''}`;
         this.store.dispatch(
-            addPlaylist({ playlist: this.form.value as Playlist })
+            addPlaylist({
+                playlist: {
+                    ...this.form.value,
+                    serverUrl,
+                } as Playlist,
+            })
         );
         this.addClicked.emit();
     }
