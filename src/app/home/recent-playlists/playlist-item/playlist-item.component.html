@@ -1,9 +1,9 @@
 <mat-list-item cdkDrag (click)="playlistClicked.emit(item._id)">
-    <mat-icon matListItemAvatar cdkDragHandle class="drag-icon"
+    <mat-icon matListItemIcon cdkDragHandle class="drag-icon"
         >drag_indicator</mat-icon
     >
     <mat-icon
-        matListItemAvatar
+        matListItemIcon
         class="upload-type-icon"
         *ngIf="item?.url"
         [matTooltip]="
@@ -12,21 +12,21 @@
         >cloud</mat-icon
     >
     <mat-icon
-        matListItemAvatar
+        matListItemIcon
         class="upload-type-icon"
         *ngIf="!item?.url && !item.serverUrl && !item.macAddress"
         [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
         >folder</mat-icon
     >
     <mat-icon
-        matListItemAvatar
+        matListItemIcon
         class="upload-type-icon"
         *ngIf="item?.serverUrl"
         [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
         >public</mat-icon
     >
     <mat-icon
-        matListItemAvatar
+        matListItemIcon
         class="upload-type-icon"
         *ngIf="item?.macAddress"
         [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
@@ -101,4 +101,3 @@
         </button>
     </span>
 </mat-list-item>
-<mat-divider />

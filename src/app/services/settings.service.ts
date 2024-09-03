@@ -14,7 +14,10 @@ const PACKAGE_JSON_URL =
 })
 export class SettingsService {
     /** Creates an instance of SettingsService */
-    constructor(private http: HttpClient, private storage: StorageMap) {}
+    constructor(
+        private http: HttpClient,
+        private storage: StorageMap
+    ) {}
 
     /**
      * Changes the visual theme of the application

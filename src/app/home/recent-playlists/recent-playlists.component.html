@@ -1,5 +1,6 @@
 @if (allPlaylistsLoaded()) {
-    <mat-form-field class="full-width search-field" subscriptSizing="dynamic">
+    <mat-form-field class="search-field" subscriptSizing="dynamic">
+        <mat-icon matPrefix>search</mat-icon>
         <input
             matInput
             #searchQuery
@@ -17,7 +18,7 @@
             <mat-list-item
                 *ngIf="playlists.length === 0; else playlistsTemplate"
             >
-                <mat-icon class="favorites-icon" matListItemAvatar
+                <mat-icon class="favorites-icon" matListItemIcon
                     >search</mat-icon
                 >
                 <div matListItemTitle>
@@ -30,7 +31,7 @@
 
             <ng-template #playlistsTemplate>
                 <mat-list-item (click)="getGlobalFavorites()">
-                    <mat-icon class="favorites-icon" matListItemAvatar
+                    <mat-icon class="favorites-icon" matListItemIcon
                         >star</mat-icon
                     >
                     <div matListItemTitle>
@@ -43,7 +44,6 @@
                         }}
                     </div>
                 </mat-list-item>
-                <mat-divider />
 
                 <app-playlist-item
                     *ngFor="

@@ -1,8 +1,5 @@
-@import '@angular/material/theming';
-@import 'themes/';
+// @import 'themes/';
 @import '@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
-
-@include mat-core();
 
 body,
 html {
@@ -44,12 +41,12 @@ textarea,
     outline: none;
 }
 
-.dark-theme .mat-expansion-panel,
+/* .dark-theme .mat-expansion-panel,
 .dark-theme .mat-drawer,
 .dark-theme .mat-app-background,
 .dark-theme.mat-app-background {
     background-color: #1d1d1d;
-}
+} */
 
 .dark-theme {
     ::-webkit-scrollbar {
@@ -78,7 +75,7 @@ textarea,
 
 .cet-container {
     .video-js {
-        height: calc(100vh - 82px) !important;
+        height: calc(100vh - 93px) !important;
     }
 
     app-web-player-view > app-vjs-player > .video-js {

@@ -67,4 +67,25 @@ export class XtreamCodeImportComponent {
         );
         this.addClicked.emit();
     }
+
+    extractParams(urlAsString: string): void {
+        if (
+            this.form.get('username').value !== '' ||
+            this.form.get('password').value !== ''
+        )
+            return;
+        try {
+            // Create a new URL object from the complete link
+            const url = new URL(urlAsString);
+
+            // Extract username and password from query parameters
+            const username = url.searchParams.get('username') || '';
+            const password = url.searchParams.get('password') || '';
+
+            this.form.get('username')?.setValue(username);
+            this.form.get('password')?.setValue(password);
+        } catch (error) {
+            console.error('Invalid URL', error);
+        }
+    }
 }

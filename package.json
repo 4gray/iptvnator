@@ -53,8 +53,8 @@
   "dependencies": {
     "@angular-builders/jest": "17.0.0",
     "@angular/animations": "18.2.1",
-    "@angular/cdk": "16.1.5",
-    "@angular/material": "16.1.5",
+    "@angular/cdk": "18.2.1",
+    "@angular/material": "18.2.1",
     "@electron/remote": "2.1.0",
     "@ngrx/component-store": "18.0.2",
     "@ngrx/effects": "18.0.2",
