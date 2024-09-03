@@ -35,7 +35,7 @@ import { TranslateModule } from '@ngx-translate/core';
                 width="48"
                 onerror="this.style.display='none'"
             />
-            <p matListItemLine class="channel-name">
+            <p matListItemTitle class="channel-name">
                 {{ name }}
             </p>
             <button
