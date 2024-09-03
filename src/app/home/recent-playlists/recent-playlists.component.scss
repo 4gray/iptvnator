@@ -62,10 +62,11 @@
 
 #skeleton-container {
     padding-top: 10px;
+    width: 100%;
 
     .skeleton-item {
         display: flex;
-        padding-left: 25px;
+        padding: 0 20px;
         height: 72px;
 
         .text {
