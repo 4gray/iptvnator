@@ -8,6 +8,10 @@
 
 .logo {
     flex: 1 1 100px;
+
+    img {
+        height: 100px;
+    }
 }
 
 .main {
@@ -46,8 +50,12 @@
     color: #fff;
 }
 
-@media (max-width: 500px) {
+@media (max-width: 599px) {
     .subtitle {
         display: none;
+    }
+
+    .logo > img {
+        height: 48px;
     }
 }

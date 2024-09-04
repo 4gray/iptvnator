@@ -106,6 +106,9 @@
             {{ 'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_PLAYLIST' | translate }}
         </button>
         <div class="spacer"></div>
+        <button mat-button mat-dialog-close cdkFocusInitial color="accent">
+            {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
+        </button>
         <button
             mat-flat-button
             mat-dialog-close
@@ -114,9 +117,6 @@
             [disabled]="!playlistDetails.valid || playlistDetails.pristine"
         >
             {{ 'HOME.PLAYLISTS.INFO_DIALOG.SAVE' | translate }}
-        </button>
-        <button mat-button mat-dialog-close cdkFocusInitial color="accent">
-            {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
         </button>
     </mat-dialog-actions>
 </form>

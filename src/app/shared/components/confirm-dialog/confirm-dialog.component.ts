@@ -14,11 +14,11 @@ import { ConfirmDialogData } from './confirm-dialog-data.interface';
             {{ dialogData.message }}
         </mat-dialog-content>
         <mat-dialog-actions align="end">
-            <button mat-flat-button [mat-dialog-close]="true" color="accent">
-                {{ dialogData?.confirmLabel || 'YES' | translate }}
-            </button>
             <button mat-button mat-dialog-close cdkFocusInitial color="accent">
                 {{ dialogData?.cancelLabel || 'NO' | translate }}
+            </button>
+            <button mat-flat-button [mat-dialog-close]="true" color="accent">
+                {{ dialogData?.confirmLabel || 'YES' | translate }}
             </button>
         </mat-dialog-actions>
     `,
