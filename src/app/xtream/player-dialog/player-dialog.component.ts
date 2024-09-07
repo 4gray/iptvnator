@@ -3,7 +3,9 @@ import { NgIf } from '@angular/common';
 import { Component, Inject, ViewEncapsulation } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { WebPlayerViewComponent } from '../../portals/web-player-view/web-player-view.component';
@@ -20,35 +22,14 @@ export interface PlayerDialogData {
         ClipboardModule,
         MatButtonModule,
         MatDialogModule,
+        MatFormFieldModule,
         MatIconModule,
+        MatInputModule,
         NgIf,
         TranslateModule,
         WebPlayerViewComponent,
     ],
-    styles: `
-        .content {
-            overflow: hidden; 
-                padding: 10px !important;
-        }
-
-        .link-input {
-            padding: 10px;
-            margin-right: 5px;
-            border-radius: 4px;
-            border: 0;
-            width: 200px;
-        }
-
-        .align-actions {
-            justify-content: space-between;
-        }
-
-        mat-dialog-content {
-            .video-js {
-                height: 500px !important;
-            }
-        }
-    `,
+    styleUrl: './player-dialog.component.scss',
     encapsulation: ViewEncapsulation.None,
 })
 export class PlayerDialogComponent {

@@ -1,0 +1,22 @@
+@use '@angular/material' as mat;
+
+.content {
+    overflow: hidden;
+    padding: 10px !important;
+}
+
+.link-input {
+    width: 98%;
+    padding-top: 5px;
+    @include mat.form-field-density(-5);
+}
+
+.align-actions {
+    justify-content: space-between;
+}
+
+mat-dialog-content {
+    .video-js {
+        height: 500px !important;
+    }
+}
