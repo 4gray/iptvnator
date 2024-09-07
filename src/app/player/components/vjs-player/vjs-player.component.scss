@@ -12,3 +12,10 @@
         display: none;
     }
 }
+
+
+@media only screen and (max-width: 599px) {
+    .video-js {
+        height: calc(50vh - 65px) !important;
+    }
+}

@@ -64,7 +64,7 @@ mat-nav-list {
     height: calc(100vh - 120px);
 }
 
-@media only screen and (max-width: 480px) {
+@media only screen and (max-width: 599px) {
     .channel-name {
         max-width: 100px;
     }
@@ -75,5 +75,9 @@ mat-nav-list {
 
     .tab-icon {
         display: block;
+    }
+
+    .scroll-viewport {
+        min-height: calc(50vh - 159px);
     }
 }

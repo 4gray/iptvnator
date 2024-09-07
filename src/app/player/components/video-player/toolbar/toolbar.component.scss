@@ -1,3 +1,9 @@
 .spacer {
     flex: 1 1 auto;
 }
+
+@media only screen and (max-width: 599px) {
+    .sidenav-toggle-button {
+        display: none;
+    }
+}

@@ -2,3 +2,11 @@
     width: 100%;
     height: calc(100vh - 60px);
 }
+
+
+@media only screen and (max-width: 599px) {
+    #video-player {
+        width: 100%;
+        height: calc(50vh - 60px) !important;
+    }
+}

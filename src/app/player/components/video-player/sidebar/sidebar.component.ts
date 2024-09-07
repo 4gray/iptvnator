@@ -4,7 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { Channel } from '../../../../../../shared/channel.interface';
@@ -29,6 +29,7 @@ import { ChannelListContainerComponent } from './../../channel-list-container/ch
         NgIf,
         RecentPlaylistsComponent,
         TranslateModule,
+        RouterLink,
     ],
 })
 export class SidebarComponent {

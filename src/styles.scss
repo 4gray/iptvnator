@@ -19,6 +19,7 @@ html {
 
 .mat-toolbar.mat-primary {
     background: #000;
+    color: #b8b8b8;
 }
 
 .full-width {
@@ -113,4 +114,21 @@ textarea,
 
 .mat-drawer-inner-container {
     overflow: hidden !important;
+}
+
+@media only screen and (max-width: 599px) {
+    .cet-container {
+        .video-js {
+            height: calc(50vh - 70px) !important;
+        }
+
+        #video-player {
+            height: calc(50vh - 80px) !important;
+        }
+
+        .scroll-viewport {
+            min-height: calc(50vh - 159px) !important
+        }
+    }
+
 }

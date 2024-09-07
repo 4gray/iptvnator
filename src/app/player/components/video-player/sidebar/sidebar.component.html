@@ -1,24 +1,27 @@
 <div id="playlists-navigation">
     <div class="current-playlist">
-        <button mat-icon-button matTooltip="Back" (click)="goBack()">
-            <mat-icon>arrow_back_ios</mat-icon>
-        </button>
-        <div class="playlist-info">
-            <div class="name">
-                @if (sidebarView === 'CHANNELS') {
-                    {{ playlistTitle$ | async }}
-                } @else {
-                    {{ 'HOME.PLAYLISTS.MY_PLAYLISTS' | translate }}
-                }
-            </div>
-            <div class="channels-count">
-                {{
-                    sidebarView === 'CHANNELS'
-                        ? channels?.length +
-                          ' ' +
-                          ('HOME.PLAYLISTS.CHANNELS' | translate)
-                        : ('HOME.PLAYLISTS.MY_PLAYLISTS_SUBTITLE' | translate)
-                }}
+        <div class="left">
+            <button mat-icon-button matTooltip="Back" (click)="goBack()">
+                <mat-icon>arrow_back_ios</mat-icon>
+            </button>
+            <div class="playlist-info">
+                <div class="name">
+                    @if (sidebarView === 'CHANNELS') {
+                        {{ playlistTitle$ | async }}
+                    } @else {
+                        {{ 'HOME.PLAYLISTS.MY_PLAYLISTS' | translate }}
+                    }
+                </div>
+                <div class="channels-count">
+                    {{
+                        sidebarView === 'CHANNELS'
+                            ? channels?.length +
+                              ' ' +
+                              ('HOME.PLAYLISTS.CHANNELS' | translate)
+                            : ('HOME.PLAYLISTS.MY_PLAYLISTS_SUBTITLE'
+                              | translate)
+                    }}
+                </div>
             </div>
         </div>
 

@@ -21,11 +21,23 @@
     padding: 20px;
 }
 
-@media only screen and (max-width: 480px) {
-    .mat-drawer {
-        width: 200px;
-        min-width: 200px;
+@media only screen and (max-width: 599px) {
+    .main-container {
+        display: flex;
+        flex-direction: column-reverse; 
     }
+    
+    .mat-drawer {
+        height: 50vh; 
+        width: 100%; 
+        position: unset;
+    }
+    
+    .drawer-content {
+        height: 50vh;
+        margin-left: 0 !important; 
+    }
+      
 }
 
 @media (prefers-color-scheme: dark) {
