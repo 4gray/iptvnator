@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 :host {
     width: 100%;
 }
@@ -34,6 +36,18 @@
 
 .epg { grid-area: epg; }
 
+.search-panel {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: -15px;
+}
+
+.search-bar {
+    width: 90%;
+    @include mat.form-field-density(-5);
+}
+
 .epg-content {
     height: 100%;
     overflow-y: auto;
@@ -53,4 +67,12 @@
 
 mat-list-option {
     width: 320px;
+}
+
+::ng-deep {
+    .search-bar {
+        div {
+            border-radius: 20px;
+        }
+    }
 }
