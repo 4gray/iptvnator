@@ -610,6 +610,7 @@ export class StalkerMainContainerComponent implements OnInit {
             action: StalkerPortalActions.GetOrderedList,
             type: this.selectedContentType,
             category: this.currentCategoryId,
+            genre: this.currentCategoryId,
             p: this.pageIndex + 1,
         });
     }
