@@ -42,6 +42,10 @@ mat-list-item {
                 display: none;
             }
         }
+
+        .mdc-list-item__content {
+            padding-left: 20px;
+        }
     }
 }
 
