@@ -13,7 +13,6 @@ import {
     effect,
     inject,
 } from '@angular/core';
-
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
@@ -38,6 +37,7 @@ import { selectCurrentPlaylist } from '../state/selectors';
 import { CategoryContentViewComponent } from './category-content-view/category-content-view.component';
 import { CategoryViewComponent } from './category-view/category-view.component';
 import { ContentType } from './content-type.enum';
+import { EpgItem } from './epg-item.interface';
 import { NavigationBarComponent } from './navigation-bar/navigation-bar.component';
 import { VodDetailsComponent } from './vod-details/vod-details.component';
 
@@ -52,6 +52,7 @@ import {
     XtreamSerieDetails,
     XtreamSerieEpisode,
 } from '../../../shared/xtream-serie-details.interface';
+import { LiveStreamLayoutComponent } from '../portals/live-stream-layout/live-stream-layout.component';
 import { DialogService } from '../services/dialog.service';
 import { PlaylistsService } from '../services/playlists.service';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
@@ -60,9 +61,22 @@ import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { Breadcrumb, PortalActions } from './breadcrumb.interface';
 import { ContentTypeNavigationItem } from './content-type-navigation-item.interface';
-import { PlayerDialogComponent } from './player-dialog/player-dialog.component';
+import {
+    PlayerDialogComponent,
+    PlayerDialogData,
+} from './player-dialog/player-dialog.component';
 import { PortalStore } from './portal.store';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
+
+function b64DecodeUnicode(str: string) {
+    return decodeURIComponent(
+        Array.prototype.map
+            .call(atob(str), function (c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            })
+            .join('')
+    );
+}
 
 const ContentTypes = {
     [ContentType.ITV]: {
@@ -116,6 +130,7 @@ type LayoutView =
         RouterLink,
         PlaylistErrorViewComponent,
         TranslateModule,
+        LiveStreamLayoutComponent,
     ],
 })
 export class XtreamMainContainerComponent implements OnInit {
@@ -130,22 +145,27 @@ export class XtreamMainContainerComponent implements OnInit {
     storage = inject(StorageMap);
     store = inject(Store);
     translate = inject(TranslateService);
+
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
     navigationContentTypes: ContentTypeNavigationItem[] = [
         {
             contentType: ContentType.ITV,
             label: 'Live Streams',
+            icon: 'live_tv',
         },
         {
             contentType: ContentType.VODS,
             label: 'VOD Streams',
+            icon: 'movie',
         },
         {
             contentType: ContentType.SERIES,
             label: 'Series',
+            icon: 'video_library',
         },
     ];
 
+    player: VideoPlayer;
     favorites$: Observable<any>;
     breadcrumbs: Breadcrumb[] = [];
     items = [];
@@ -160,6 +180,9 @@ export class XtreamMainContainerComponent implements OnInit {
     searchPhrase = this.portalStore.searchPhrase();
     contentId: number;
     errorViewInfo = { title: '', message: '' };
+    streamUrl: string;
+    epgItems = [];
+    hideExternalInfoDialog = this.portalStore.hideExternalInfoDialog;
 
     commandsList = [
         new IpcCommand(XTREAM_RESPONSE, (response: XtreamResponse) =>
@@ -202,18 +225,26 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     handleResponse(response: XtreamResponse) {
-        if ((response.payload as any)?.user_info?.status === 'Expired') {
+        if (!response.payload) {
             this.errorViewInfo = {
-                title: 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.TITLE',
-                message: 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.DESCRIPTION',
+                title: 'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE',
+                message: 'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION',
             };
             this.currentLayout = 'error-view';
-        } else if ((response.payload as any)?.user_info?.auth === 0) {
-            this.errorViewInfo = {
-                title: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.TITLE',
-                message: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.DESCRIPTION',
-            };
-            this.currentLayout = 'error-view';
+        } else {
+            if ((response.payload as any)?.user_info?.status === 'Expired') {
+                this.errorViewInfo = {
+                    title: 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.TITLE',
+                    message: 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.DESCRIPTION',
+                };
+                this.currentLayout = 'error-view';
+            } else if ((response.payload as any)?.user_info?.auth === 0) {
+                this.errorViewInfo = {
+                    title: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.TITLE',
+                    message: 'PORTALS.ERROR_VIEW.UNAUTHORIZED.DESCRIPTION',
+                };
+                this.currentLayout = 'error-view';
+            }
         }
 
         switch (response.action) {
@@ -233,6 +264,15 @@ export class XtreamMainContainerComponent implements OnInit {
                 this.currentLayout = 'serie-details';
                 this.vodDetails = response.payload as XtreamSerieDetails;
                 break;
+            case 'get_short_epg':
+                this.epgItems = (
+                    (response.payload as any).epg_listings as EpgItem[]
+                ).map((i) => ({
+                    ...i,
+                    title: b64DecodeUnicode(i.title).trim(),
+                    description: b64DecodeUnicode(i.description).trim(),
+                }));
+                break;
             default:
                 break;
         }
@@ -247,6 +287,7 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     ngOnDestroy(): void {
+        this.portalStore.setSearchPhrase('');
         if (this.dataService.isElectron) {
             this.commandsList.forEach((command) =>
                 this.dataService.removeAllListeners(command.id)
@@ -264,6 +305,7 @@ export class XtreamMainContainerComponent implements OnInit {
 
     categoryClicked(item: XtreamCategory) {
         this.items = [];
+        this.streamUrl = undefined;
         this.portalStore.setSearchPhrase('');
         const action = ContentTypes[this.selectedContentType].getContentAction;
         this.breadcrumbs.push({
@@ -275,9 +317,7 @@ export class XtreamMainContainerComponent implements OnInit {
         this.currentLayout = 'category_content';
     }
 
-    itemClicked(
-        item: any /* XtreamLiveStream | XtreamVodStream | XtreamSerieItem */
-    ) {
+    itemClicked(item: any) {
         let action;
 
         if (item.stream_type && item.stream_type === 'movie') {
@@ -287,6 +327,11 @@ export class XtreamMainContainerComponent implements OnInit {
             this.contentId = item.stream_id;
             this.sendRequest({ action, vod_id: item.stream_id });
         } else if (item.stream_type && item.stream_type === 'live') {
+            this.sendRequest({
+                action: 'get_short_epg',
+                stream_id: item.stream_id,
+                limit: 10,
+            });
             this.playLiveStream(item);
         } else if (item.series_id) {
             this.items = [];
@@ -299,27 +344,35 @@ export class XtreamMainContainerComponent implements OnInit {
 
     playLiveStream(item: XtreamLiveStream) {
         const { serverUrl, username, password } = this.currentPlaylist();
-        const streamUrl = `${serverUrl}/${item.stream_type}/${username}/${password}/${item.stream_id}.ts`;
+        const streamUrl = `${serverUrl}/${item.stream_type}/${username}/${password}/${item.stream_id}.m3u8`;
         this.openPlayer(streamUrl, item.name);
     }
 
     openPlayer(streamUrl: string, title: string) {
-        const player = this.settings().player;
-        if (player === VideoPlayer.MPV) {
-            this.dialog.open(ExternalPlayerInfoDialogComponent);
+        this.player = this.settings()?.player ?? VideoPlayer.VideoJs;
+        if (this.player === VideoPlayer.MPV) {
+            if (!this.hideExternalInfoDialog())
+                this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
             });
-        } else if (player === VideoPlayer.VLC) {
-            this.dialog.open(ExternalPlayerInfoDialogComponent);
+        } else if (this.player === VideoPlayer.VLC) {
+            if (!this.hideExternalInfoDialog())
+                this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
             });
         } else {
-            this.dialog.open(PlayerDialogComponent, {
-                data: { streamUrl, player, title },
-                width: '80%',
-            });
+            this.streamUrl = streamUrl;
+            if (this.selectedContentType !== ContentType.ITV) {
+                this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
+                    PlayerDialogComponent,
+                    {
+                        data: { streamUrl, title },
+                        width: '80%',
+                    }
+                );
+            }
         }
     }
 
@@ -382,11 +435,11 @@ export class XtreamMainContainerComponent implements OnInit {
      * @param breadcrumb clicked breadcrumb item
      */
     breadcrumbClicked(breadcrumb: Breadcrumb) {
-        this.items = [];
         const itemIndex = this.breadcrumbs.findIndex((i) => i === breadcrumb);
 
         // do nothing if last breadcrumb child was clicked
         if (itemIndex === this.breadcrumbs.length - 1) return;
+        this.items = [];
 
         this.breadcrumbs.splice(
             itemIndex + 1,
@@ -427,7 +480,9 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     sendRequest(params: Record<string, string | number>) {
-        this.isLoading = true;
+        if (params.action !== 'get_short_epg') {
+            this.isLoading = true;
+        }
         const { serverUrl, username, password } = this.currentPlaylist();
         this.dataService.sendIpcEvent(XTREAM_REQUEST, {
             url: serverUrl,
@@ -447,9 +502,13 @@ export class XtreamMainContainerComponent implements OnInit {
         this.playlistService
             .addPortalFavorite(this.currentPlaylist()._id, item)
             .subscribe(() => {
-                this.snackBar.open('Added to favorites', null, {
-                    duration: 1000,
-                });
+                this.snackBar.open(
+                    this.translate.instant('PORTALS.ADDED_TO_FAVORITES'),
+                    null,
+                    {
+                        duration: 1000,
+                    }
+                );
             });
     }
 
@@ -457,9 +516,13 @@ export class XtreamMainContainerComponent implements OnInit {
         this.playlistService
             .removeFromPortalFavorites(this.currentPlaylist()._id, favoriteId)
             .subscribe(() => {
-                this.snackBar.open('Removed from favorites', null, {
-                    duration: 1000,
-                });
+                this.snackBar.open(
+                    this.translate.instant('PORTALS.REMOVED_FROM_FAVORITES'),
+                    null,
+                    {
+                        duration: 1000,
+                    }
+                );
             });
     }
 

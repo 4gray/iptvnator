@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { By } from '@angular/platform-browser';
-import { TranslatePipe } from '@ngx-translate/core';
-import { MockModule, MockPipe } from 'ng-mocks';
+import { TranslateModule } from '@ngx-translate/core';
+import { MockModule } from 'ng-mocks';
 import { EpgProgram } from '../../../models/epg-program.model';
 import { EpgItemDescriptionComponent } from './epg-item-description.component';
 
@@ -10,18 +10,13 @@ describe('EpgItemDescriptionComponent', () => {
     let component: EpgItemDescriptionComponent;
     let fixture: ComponentFixture<EpgItemDescriptionComponent>;
 
-    beforeEach(
-        waitForAsync(() => {
-            TestBed.configureTestingModule({
-                declarations: [
-                    EpgItemDescriptionComponent,
-                    MockPipe(TranslatePipe),
-                ],
-                imports: [MockModule(MatDialogModule)],
-                providers: [{ provide: MAT_DIALOG_DATA, useValue: {} }],
-            }).compileComponents();
-        })
-    );
+    beforeEach(waitForAsync(() => {
+        TestBed.configureTestingModule({
+            declarations: [EpgItemDescriptionComponent],
+            imports: [MockModule(MatDialogModule), MockModule(TranslateModule)],
+            providers: [{ provide: MAT_DIALOG_DATA, useValue: {} }],
+        }).compileComponents();
+    }));
 
     beforeEach(() => {
         fixture = TestBed.createComponent(EpgItemDescriptionComponent);

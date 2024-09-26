@@ -8,15 +8,17 @@
                 </div>
             </ng-template>
             <div class="search-panel">
-                <input
-                    class="full-width search-bar"
-                    type="search"
-                    #search
-                    [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
-                    [(ngModel)]="searchTerm.name"
-                />
+                <mat-form-field class="search-bar">
+                    <input
+                        matInput
+                        class="full-width"
+                        type="search"
+                        #search
+                        [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
+                        [(ngModel)]="searchTerm.name"
+                    />
+                </mat-form-field>
             </div>
-            <mat-divider></mat-divider>
             <mat-nav-list style="overflow: hidden">
                 <cdk-virtual-scroll-viewport
                     itemSize="50"
@@ -39,7 +41,7 @@
                         [logo]="channel?.tvg?.logo"
                         (clicked)="selectChannel(channel)"
                         [selected]="selected?.id === channel?.id"
-                    ></app-channel-list-item>
+                    />
                 </cdk-virtual-scroll-viewport>
             </mat-nav-list>
         </mat-tab>

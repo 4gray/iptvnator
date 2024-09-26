@@ -3,9 +3,16 @@ import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDialog } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { TranslateModule } from '@ngx-translate/core';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { PlaylistInfoComponent } from '../../home/recent-playlists/playlist-info/playlist-info.component';
+import { selectCurrentPlaylist } from '../../state/selectors';
 import { Breadcrumb } from '../breadcrumb.interface';
 import { ContentTypeNavigationItem } from '../content-type-navigation-item.interface';
 import { ContentType } from '../content-type.enum';
@@ -17,13 +24,16 @@ import { PortalStore } from '../portal.store';
     styleUrls: ['./navigation-bar.component.scss'],
     standalone: true,
     imports: [
+        FormsModule,
+        MatButtonModule,
         MatButtonToggleModule,
         MatIconModule,
-        MatButtonModule,
-        RouterLink,
+        MatInputModule,
+        MatFormFieldModule,
         NgFor,
-        FormsModule,
         NgIf,
+        RouterLink,
+        TranslateModule,
     ],
 })
 export class NavigationBarComponent {
@@ -40,9 +50,12 @@ export class NavigationBarComponent {
     @Output() searchTextChanged = new EventEmitter<string>();
 
     ContentTypeEnum = ContentType;
+    dialog = inject(MatDialog);
     portalStore = inject(PortalStore);
+    store = inject(Store);
     searchPhrase = this.portalStore.searchPhrase;
     searchPhraseUpdate = new Subject<string>();
+    currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
 
     constructor() {
         this.searchPhraseUpdate
@@ -50,6 +63,12 @@ export class NavigationBarComponent {
             .subscribe((value) => {
                 this.setSearchText(value);
             });
+    }
+
+    openPlaylistDetails() {
+        this.dialog.open(PlaylistInfoComponent, {
+            data: this.currentPlaylist(),
+        });
     }
 
     processBreadcrumbClick(item: Breadcrumb) {

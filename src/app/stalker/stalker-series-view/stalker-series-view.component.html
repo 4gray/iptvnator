@@ -1,0 +1,85 @@
+<div class="container">
+    @if (seasons()[0]; as serial) {
+        <div class="image">
+            <img
+                *ngIf="serial.screenshot_uri; else placeholderCover"
+                [ngSrc]="serial.screenshot_uri"
+                style="position: relative"
+                fill
+            />
+            <ng-template #placeholderCover>
+                <div class="placeholder-cover"></div>
+            </ng-template>
+        </div>
+
+        <div class="details">
+            <h2>{{ serial.name }}</h2>
+            <div>
+                {{ serial.description }}
+            </div>
+            <div>
+                <div class="label">{{ 'XTREAM.DIRECTOR' | translate }}:</div>
+                {{ serial.director }}
+            </div>
+            <div>
+                <div class="label">{{ 'XTREAM.ACTORS' | translate }}:</div>
+                {{ serial.actors }}
+            </div>
+            <div>
+                <div class="label">{{ 'XTREAM.YEAR' | translate }}:</div>
+                {{ serial.year }}
+            </div>
+            <div>
+                <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
+                {{ serial.genres_str }}
+            </div>
+            <div>
+                <div class="label">{{ 'XTREAM.AGE' | translate }}:</div>
+                {{ serial.age }}
+            </div>
+            <div>
+                <div class="label">{{ 'XTREAM.IMDB_RATING' | translate }}:</div>
+                {{ serial.rating_imdb }}
+            </div>
+            <div>
+                <div class="label">
+                    {{ 'XTREAM.KINOPOISK_RATING' | translate }}:
+                </div>
+                {{ serial.rating_kinopoisk }}
+            </div>
+            <div>
+                <div class="label">
+                    {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
+                </div>
+                {{ serial.added }}
+            </div>
+            <div class="action-buttons">
+                <app-favorites-button
+                    [serialMeta]="{
+                        movie_id: serial.id,
+                        name: serial.name,
+                        cover: serial.screenshot_uri
+                    }"
+                />
+            </div>
+        </div>
+    }
+</div>
+<div class="seasons">
+    @for (item of seasons(); track $index) {
+        <mat-divider />
+        <h4>{{ item.name }}</h4>
+        <div class="episodes">
+            @for (episode of item.series; track $index) {
+                <button
+                    mat-stroked-button
+                    (click)="
+                        playEpisode.emit({ series: episode, cmd: item.cmd })
+                    "
+                >
+                    {{ 'XTREAM.EPISODE' | translate }} {{ episode }}
+                </button>
+            }
+        </div>
+    }
+</div>

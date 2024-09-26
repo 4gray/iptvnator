@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 .mat-list-base {
     padding-top: 0;
 }
@@ -7,14 +9,14 @@
 }
 
 .search-panel {
-    padding: 10px;
+    padding: 10px 0 0 0;
+    display: flex;
+    justify-content: center;
 }
 
 .search-bar {
-    padding: 8px;
-    background: #ddd;
-    border: none;
-    border-radius: 4px;
+    @include mat.form-field-density(-5);
+    width: 96%;
 }
 
 mat-nav-list {
@@ -23,23 +25,18 @@ mat-nav-list {
 }
 
 ::ng-deep {
+    .search-bar {
+        div {
+            border-radius: 20px;
+        }
+    }
+
+    div[matformfieldlineripple], .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+    }
+
     .mat-expansion-panel-body {
         padding: 0 !important;
-    }
-
-    .dark-theme {
-        .search-bar {
-            background: #666;
-            color: #fff;
-        }
-
-        .search-bar::placeholder {
-            color: #ccc;
-        }
-    }
-
-    .mat-tab-label-content {
-        text-transform: uppercase;
     }
 
     .mat-expansion-panel {
@@ -67,7 +64,7 @@ mat-nav-list {
     height: calc(100vh - 120px);
 }
 
-@media only screen and (max-width: 480px) {
+@media only screen and (max-width: 599px) {
     .channel-name {
         max-width: 100px;
     }
@@ -78,5 +75,9 @@ mat-nav-list {
 
     .tab-icon {
         display: block;
+    }
+
+    .scroll-viewport {
+        min-height: calc(50vh - 159px);
     }
 }

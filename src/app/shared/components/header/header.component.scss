@@ -1,12 +1,17 @@
 :host {
-    background: #000;
+    background: #1b1c1c;
     color: #fff;
     display: flex;
     width: 100%;
+    --mat-toolbar-standard-height: 100px;
 }
 
 .logo {
     flex: 1 1 100px;
+
+    img {
+        height: 100px;
+    }
 }
 
 .main {
@@ -19,13 +24,14 @@
     max-width: 100%;
 
     .title {
-        font-size: 1.1em;
+        font-size: 1em;
     }
 
     .subtitle {
         color: #999;
-        font-size: 0.9em;
-        margin-top: 10px;
+        font-size: 0.7em;
+        margin-top: 5px;
+        text-wrap: pretty;
     }
 }
 
@@ -41,10 +47,15 @@
 
 .add-playlist-btn {
     background-color: #3f51b5;
+    color: #fff;
 }
 
-@media (max-width: 500px) {
+@media (max-width: 599px) {
     .subtitle {
         display: none;
+    }
+
+    .logo > img {
+        height: 48px;
     }
 }

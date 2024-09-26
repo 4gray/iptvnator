@@ -1,0 +1,26 @@
+<div mat-subheader>{{ 'EPG.TITLE' | translate }}</div>
+<mat-list>
+    @for (item of epgItems; track $index) {
+        <mat-list-item [lines]="3">
+            <div class="title" matListItemTitle>{{ item.title }}</div>
+            <div class="description" matListItemLine>
+                {{ item.description }}
+            </div>
+            <div matListItemLine>
+                {{ item.start | date: 'HH:mm' }} -
+                {{ item.end | date: 'HH:mm (dd.MM.yyyy)' }}
+            </div>
+            <span matListItemMeta>
+                <button mat-icon-button (click)="showDetails(item)">
+                    <mat-icon>info</mat-icon>
+                </button>
+            </span>
+        </mat-list-item>
+    }
+
+    @if (epgItems?.length === 0) {
+        <mat-list-item>
+            {{ 'EPG.EPG_NOT_AVAILABLE_CHANNEL_TITLE' | translate }}
+        </mat-list-item>
+    }
+</mat-list>

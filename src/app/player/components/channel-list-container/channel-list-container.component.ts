@@ -11,7 +11,9 @@ import {
 import { FormsModule } from '@angular/forms';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -36,10 +38,12 @@ import { ChannelListItemComponent } from './channel-list-item/channel-list-item.
     imports: [
         CommonModule,
         ChannelListItemComponent,
-        MatExpansionModule,
         MatDividerModule,
-        MatListModule,
+        MatExpansionModule,
+        MatFormFieldModule,
         MatIconModule,
+        MatInputModule,
+        MatListModule,
         MatTabsModule,
         TranslateModule,
         TitleCasePipe,
@@ -61,7 +65,7 @@ export class ChannelListContainerComponent {
     @Input('channelList')
     set channelList(value: Channel[]) {
         this._channelList = value;
-        this.groupedChannels = _.groupBy(value, 'group.title');
+        this.groupedChannels = _.default.groupBy(value, 'group.title');
     }
 
     /** Object with channels sorted by groups */

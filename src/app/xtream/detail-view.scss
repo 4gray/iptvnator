@@ -1,5 +1,14 @@
 :host {
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+
+.details {
+    h2 {
+        word-wrap: break-word;
+    }
 }
 
 .container {
@@ -18,6 +27,18 @@
         background-size: cover;
         z-index: -1;
         background-repeat: no-repeat;
+    }
+}
+
+.seasons {
+    padding: 20px;
+
+    .episodes {
+        margin-bottom: 10px;
+
+        button {
+            margin-top: 5px;
+        }
     }
 }
 
@@ -57,10 +78,21 @@
     .image,
     .details {
         flex: 1 1 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+
+        img {
+            border-radius: 0;
+        }
     }
 
     .details {
         padding: 0 10px;
+    }
+
+    .youtube-trailer {
+        width: 95% !important;
     }
 }
 
@@ -74,4 +106,11 @@
 
 .action-buttons {
     margin-top: 10px;
+}
+
+.youtube-trailer {
+    display: flex;
+    flex-wrap: wrap;
+    align-self: center;
+    width: 650px;
 }

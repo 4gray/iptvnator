@@ -183,11 +183,19 @@ export class PwaService extends DataService {
                 })
             )
             .subscribe((response) => {
-                window.postMessage({
-                    type: XTREAM_RESPONSE,
-                    payload: (response as any).payload,
-                    action: payload.params.action,
-                });
+                if (!(response as any).payload) {
+                    window.postMessage({
+                        type: ERROR,
+                        status: (response as any).status,
+                        message: (response as any).message ?? 'Unknown error',
+                    });
+                } else {
+                    window.postMessage({
+                        type: XTREAM_RESPONSE,
+                        payload: (response as any).payload,
+                        action: payload.params.action,
+                    });
+                }
             });
     }
 

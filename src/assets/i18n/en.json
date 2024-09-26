@@ -1,256 +1,283 @@
 {
-    "CLOSE": "Close",
-    "HOME": {
-        "TITLE": "IPTVnator",
-        "SUBTITLE": "Please select a playlist from the list or add a new playlist",
-        "TABS": {
-            "RECENTLY_ADDED": "Recently added playlists",
-            "FILE_UPLOAD": "Add via file upload",
-            "URL_UPLOAD": "Add via URL",
-            "TEXT_IMPORT": "Import from text",
-            "XTREME_IMPORT": "Add Xtreme Code",
-            "STALKER_PORTAL_IMPORT": "Add Stalker Portal"
-        },
-        "PLAYLISTS": {
-            "NO_PLAYLISTS": "No playlists were added",
-            "ADD_FIRST": "Please add your first playlist",
-            "ADDED_VIA_URL": "Added via URL upload. URL:",
-            "ADDED_VIA_FILE": "Added via file upload",
-            "XTREAM_PLAYLIST": "Xtream playlist",
-            "STALKER_PORTAL": "Stalker portal",
-            "CHANNELS": "Channels",
-            "ADDED": "Added",
-            "SHOW_DETAILS": "Show playlist details",
-            "REMOVE": "Remove playlist",
-            "SEARCH_PLAYLISTS": "Search playlists by title",
-            "INFO_DIALOG": {
-                "PLAYLIST_DETAILS": "Playlist details",
-                "TITLE": "Title",
-                "FROM_URL": "Added from the URL",
-                "IMPORT_DATE": "Import date",
-                "CHANNELS": "Number of channels",
-                "CLOSE": "Close",
-                "SAVE": "Save",
-                "USER_AGENT": "User agent",
-                "ORIGINAL_FILENAME": "Original filename",
-                "FILE_PATH": "File path",
-                "UPDATE_FAILED": "Last playlist update failed",
-                "AUTO_UPDATE": "Auto-update",
-                "AUTO_UPDATE_DESCRIPTION": "If the auto-refresh function is activated, the playlist will be updated automatically each time the app is started.",
-                "CUSTOM_USER_AGENT": "Some IPTV providers need a specific user-agent in order to play their playlist.",
-                "EXPORT_PLAYLIST": "Export playlist as m3u",
-                "SERVER_URL": "Server URL",
-                "USERNAME": "Username",
-                "PASSWORD": "Password",
-                "MAC_ADDRESS": "Mac Address"
-            },
-            "REMOVE_DIALOG": {
-                "TITLE": "Remove playlist",
-                "MESSAGE": "Are you sure you want to delete this playlist completely?"
-            },
-            "UPDATED": "Updated",
-            "REFRESH": "Refresh playlist",
-            "GLOBAL_FAVORITES": "Global favorites",
-            "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
-            "MY_PLAYLISTS": "My playlists",
-            "MY_PLAYLISTS_SUBTITLE": "all available playlists",
-            "PLAYLIST_UPDATE_SUCCESS": "Success! The playlist was successfully updated."
-        },
-        "FILE_UPLOAD": {
-            "DRAG_DROP": "Drag & drop files here",
-            "OR": "or",
-            "CHOOSE_PLAYLIST": "choose a playlist",
-            "REJECTED": "File was rejected, unsupported file format {{filename}}."
-        },
-        "URL_UPLOAD": {
-            "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",
-            "ADD_PLAYLIST": "Add playlist",
-            "CORS_NOTE": "Note: In order to avoid CORS issues at this point the application uses a public CORS Proxy service. If you want to upload a playlist with sensitive data, it's more secure to import it from a file."
-        },
-        "TEXT_IMPORT": {
-            "LABEL": "Insert m3u(8) playlist as text",
-            "BUTTON_LABEL": "Import"
-        },
-        "XTREAM_PLAYLIST": {
-            "TITLE": "Playlist title",
-            "SERVER_URL": "Server URL",
-            "USERNAME": "Username",
-            "PASSWORD": "Password",
-            "ADD": "Add",
-            "TEST_CREDENTIALS": "Test credentials",
-            "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com or https://example.com:4324)"
-        },
-        "STALKER_PORTAL": {
-            "TITLE": "Title",
-            "MAC_ADDRESS": "Mac Address",
-            "SERVER_URL": "Server URL",
-            "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com/c or https://example.com/stalker_portal/c)",
-            "ADD": "Add"
-        },
-        "FILTER_BY_NAME": "Filter by name",
-        "FILTER_BY_TYPE": "Filter by type",
-        "IMPORTED_AS_TEXT": "Imported as text",
-        "PARSING_ERROR": "Error: Parsing failed, not a valid playlist:"
+  "CLOSE": "Close",
+  "PLAYLISTS": "Playlists",
+  "HOME": {
+    "TITLE": "IPTVnator",
+    "SUBTITLE": "Please select a playlist from the list or add a new playlist",
+    "TABS": {
+      "RECENTLY_ADDED": "Recently added playlists",
+      "FILE_UPLOAD": "Add via file upload",
+      "URL_UPLOAD": "Add via URL",
+      "TEXT_IMPORT": "Import from text",
+      "XTREME_IMPORT": "Add Xtreme Code",
+      "STALKER_PORTAL_IMPORT": "Add Stalker Portal"
     },
-    "SETTINGS": {
-        "TITLE": "Settings / IPTVnator",
-        "SUBTITLE": "Change the configuration of the application",
-        "DESCRIPTION": "Please adapt the options from the list below and confirm with the save changes button",
-        "EPG_URL_LABEL": "EPG Url (*.xml or *.xml.gz)",
-        "EPG_URL_PLACEHOLDER": "Enter an URL",
-        "REFRESH_EPG": "Refresh EPG",
-        "VIDEO_PLAYER_LABEL": "Video player",
-        "VIDEO_PLAYER_PLACEHOLDER": "Select an option",
-        "VERSION": "Version",
-        "SAVE_CHANGES": "Save changes",
-        "BACK_TO_HOME": "Back to home",
-        "NEW_VERSION_AVAILABLE": "There is a new version available",
-        "LATEST_VERSION": "You are using the latest version",
-        "LANGUAGE": "Language",
-        "SETTINGS_SAVED": "Success! Configuration was saved.",
-        "THEME": "Visual theme",
-        "SHOW_CAPTIONS": "Show subtitles",
-        "ADD_EPG_SOURCE": "Add EPG source",
-        "EPG_URL_ERROR": "The value is not a valid URL",
-        "VIDEO_PLAYER_DESCRIPTION": "Select default video player",
-        "LANGUAGE_DESCRIPTION": "Select language of the application",
-        "THEME_DESCRIPTION": "Select visual theme of the application",
-        "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
-        "VERSION_DESCRIPTION": "Current version of the application",
-        "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
-        "EPG_NOTE_URL_TEXT": "Check it here",
-        "IMPORT_EXPORT_DATA": "Import/export playlists",
-        "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
-        "IMPORT_DATA": "Import",
-        "EXPORT_DATA": "Export",
-        "REMOVE_ALL": "Remove playlist",
-        "REMOVE_ALL_BUTTON": "Remove",
-        "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
-        "REMOVE_DIALOG": {
-            "TITLE": "Remove all playlists",
-            "MESSAGE": "Are you sure you want to delete all playlist from the application?"
-        },
-        "IMPORT_ERROR": "Import error, please try with another file.",
-        "PLAYLISTS_REMOVED": "All playlists were removed.",
-        "MPV_PLAYER_PATH_LABEL": "mpv path",
-        "MPV_PLAYER_PATH_DESCRIPTION": "Set path to mpv player in your system. It will use the provided path to a mpv binary instead of using the one found in $PATH.",
-        "MPV_PLAYER_PATH": "mpv player path",
-        "VLC_PLAYER_PATH_LABEL": "VLC path",
-        "VLC_PLAYER_PATH_DESCRIPTION": "Set path to VLC player in your system. It will use the provided path to a VLC binary instead of the default path for our system.",
-        "VLC_PLAYER_PATH": "VLC player path"
+    "PLAYLISTS": {
+      "NO_PLAYLISTS": "No playlists were added",
+      "ADD_FIRST": "Please add your first playlist",
+      "ADDED_VIA_URL": "Added via URL upload. URL:",
+      "ADDED_VIA_FILE": "Added via file upload",
+      "XTREAM_PLAYLIST": "Xtream playlist",
+      "STALKER_PORTAL": "Stalker portal",
+      "CHANNELS": "Channels",
+      "ADDED": "Added",
+      "SHOW_DETAILS": "Show playlist details",
+      "REMOVE": "Remove playlist",
+      "SEARCH_PLAYLISTS": "Search playlists by title",
+      "INFO_DIALOG": {
+        "PLAYLIST_DETAILS": "Playlist details",
+        "TITLE": "Title",
+        "FROM_URL": "Added from the URL",
+        "IMPORT_DATE": "Import date",
+        "CHANNELS": "Number of channels",
+        "CLOSE": "Close",
+        "SAVE": "Save",
+        "USER_AGENT": "User agent",
+        "ORIGINAL_FILENAME": "Original filename",
+        "FILE_PATH": "File path",
+        "UPDATE_FAILED": "Last playlist update failed",
+        "AUTO_UPDATE": "Auto-update",
+        "AUTO_UPDATE_DESCRIPTION": "If the auto-refresh function is activated, the playlist will be updated automatically each time the app is started.",
+        "CUSTOM_USER_AGENT": "Some IPTV providers need a specific user-agent in order to play their playlist.",
+        "EXPORT_PLAYLIST": "Export playlist as m3u",
+        "SERVER_URL": "Server URL",
+        "USERNAME": "Username",
+        "PASSWORD": "Password",
+        "MAC_ADDRESS": "Mac Address"
+      },
+      "REMOVE_DIALOG": {
+        "TITLE": "Remove playlist",
+        "MESSAGE": "Are you sure you want to delete this playlist completely?"
+      },
+      "UPDATED": "Updated",
+      "REFRESH": "Refresh playlist",
+      "GLOBAL_FAVORITES": "Global favorites",
+      "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
+      "MY_PLAYLISTS": "My playlists",
+      "MY_PLAYLISTS_SUBTITLE": "all available playlists",
+      "PLAYLIST_UPDATE_SUCCESS": "Success! The playlist was successfully updated."
     },
-    "THEMES": {
-        "DARK_THEME": "Dark theme",
-        "LIGHT_THEME": "Light theme"
+    "FILE_UPLOAD": {
+      "DRAG_DROP": "Drag & drop files here",
+      "OR": "or",
+      "CHOOSE_PLAYLIST": "choose a playlist",
+      "REJECTED": "File was rejected, unsupported file format {{filename}}."
     },
-    "CHANNELS": {
-        "SEARCH_CHANNEL": "Search channel",
-        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload or select other playlist",
-        "ALL_CHANNELS": "All channels",
-        "GROUPS": "Groups",
-        "UNGROUPED": "Ungrouped",
-        "UNNAMED_CHANNEL": "Unnamed Channel",
-        "FAVORITES": "Favorites",
-        "NO_FAVORITES": "No favorites yet",
-        "USE_STAR_TO_FAVORITE": "Please use 'star' icon to add channels to your favorites.",
-        "REMOVE_FAVORITE": "Remove from favorites",
-        "FAVORITES_UPDATED": "Favorites were updated!"
+    "URL_UPLOAD": {
+      "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",
+      "ADD_PLAYLIST": "Add playlist",
+      "CORS_NOTE": "Note: In order to avoid CORS issues at this point the application uses a public CORS Proxy service. If you want to upload a playlist with sensitive data, it's more secure to import it from a file."
     },
-    "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Open channel list",
-        "TOGGLE_FAVORITE_FLAG": "Toggle favorite flag",
-        "OPEN_EPG_LIST": "Open EPG list",
-        "OPEN_MULTI_EPG": "Open Multi-EPG view"
+    "TEXT_IMPORT": {
+      "LABEL": "Insert m3u(8) playlist as text",
+      "BUTTON_LABEL": "Import"
     },
-    "EPG": {
-        "NEXT_DAY": "Next day",
-        "PREVIOUS_DAY": "Previous day",
-        "LIVE_NOW": "Live now",
-        "LIVE_STREAM": "Live stream",
-        "TIMESHIFT_AVAILABLE": "Timeshift is available, click to play",
-        "EPG_NOT_AVAILABLE_DATE": "Ooops, EPG is not available for the selected date",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ooops, EPG is not available for this channel.",
-        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the URL of the EPG list in the settings of the app.",
-        "FETCH_EPG": "Fetching EPG data...",
-        "ERROR": "Ooops, EPG could not be loaded.",
-        "DOWNLOAD_SUCCESS": "EPG was successfully downloaded.",
-        "PROGRAM_DIALOG": {
-            "PROGRAM_DETAILS": "Details about the TV program",
-            "TITLE": "Title",
-            "CATEGORY": "Category",
-            "PARENTAL_RATING_SYSTEM": "Television content rating system",
-            "DESCRIPTION": "Description",
-            "LANGUAGE": "Language",
-            "SHOW_PROGRAM_DETAILS": "Show details about this program"
-        }
+    "XTREAM_PLAYLIST": {
+      "TITLE": "Playlist title",
+      "SERVER_URL": "Server URL",
+      "USERNAME": "Username",
+      "PASSWORD": "Password",
+      "ADD": "Add",
+      "TEST_CREDENTIALS": "Test credentials",
+      "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com or https://example.com:4324)"
     },
-    "LANGUAGES": {
-        "ENGLISH": "English",
-        "KOREAN": "한국어",
-        "RUSSIAN": "Русский",
-        "GERMAN": "Deutsch",
-        "SPANISH": "Español",
-        "CHINESE": "简体中文",
-        "TRADITIONAL_CHINESE": "繁體中文",
-        "FRENCH": "Français",
-        "ITALIAN": "Italiano"
+    "STALKER_PORTAL": {
+      "TITLE": "Title",
+      "MAC_ADDRESS": "Mac Address",
+      "SERVER_URL": "Server URL",
+      "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com/c or https://example.com/stalker_portal/c)",
+      "ADD": "Add"
     },
-    "YES": "Yes",
-    "NO": "No",
-    "MENU": {
-        "OPEN": "Open menu",
-        "SUPPORT_ARIA": "Support IPTVnator on GitHub",
-        "SETTINGS": "Settings",
-        "SETTINGS_ARIA": "Open settings",
-        "BUG_REPORT": "Report a bug",
-        "WHAT_IS_NEW": "What is new",
-        "ABOUT": "About",
-        "ABOUT_ARIA": "About the application"
+    "FILTER_BY_NAME": "Filter by name",
+    "FILTER_BY_TYPE": "Filter by type",
+    "IMPORTED_AS_TEXT": "Imported as text",
+    "PARSING_ERROR": "Error: Parsing failed, not a valid playlist:"
+  },
+  "SETTINGS": {
+    "TITLE": "Settings / IPTVnator",
+    "SUBTITLE": "Change the configuration of the application",
+    "DESCRIPTION": "Please adapt the options from the list below and confirm with the save changes button",
+    "EPG_URL_LABEL": "EPG Url (*.xml or *.xml.gz)",
+    "EPG_URL_PLACEHOLDER": "Enter an URL",
+    "REFRESH_EPG": "Refresh EPG",
+    "VIDEO_PLAYER_LABEL": "Video player",
+    "VIDEO_PLAYER_PLACEHOLDER": "Select an option",
+    "VERSION": "Version",
+    "SAVE_CHANGES": "Save changes",
+    "BACK_TO_HOME": "Back to home",
+    "NEW_VERSION_AVAILABLE": "There is a new version available",
+    "LATEST_VERSION": "You are using the latest version",
+    "LANGUAGE": "Language",
+    "SETTINGS_SAVED": "Success! Configuration was saved.",
+    "THEME": "Visual theme",
+    "SHOW_CAPTIONS": "Show subtitles",
+    "ADD_EPG_SOURCE": "Add EPG source",
+    "EPG_URL_ERROR": "The value is not a valid URL",
+    "VIDEO_PLAYER_DESCRIPTION": "Select default video player",
+    "LANGUAGE_DESCRIPTION": "Select language of the application",
+    "THEME_DESCRIPTION": "Select visual theme of the application",
+    "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
+    "VERSION_DESCRIPTION": "Current version of the application",
+    "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
+    "EPG_NOTE_URL_TEXT": "Check it here",
+    "IMPORT_EXPORT_DATA": "Import/export playlists",
+    "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
+    "IMPORT_DATA": "Import",
+    "EXPORT_DATA": "Export",
+    "REMOVE_ALL": "Remove playlist",
+    "REMOVE_ALL_BUTTON": "Remove",
+    "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
+    "REMOVE_DIALOG": {
+      "TITLE": "Remove all playlists",
+      "MESSAGE": "Are you sure you want to delete all playlist from the application?"
     },
-    "ABOUT": {
-        "TITLE": "About IPTVnator",
-        "DESCRIPTION": "Cross-platform IPTV player application with multiple features, such as support of m3u and m3u8 playlists, favorites, TV guide, TV archive/catchup and more.",
-        "VERSION": "Version",
-        "GITHUB_TOOLTIP": "ITPVnator repository on GitHub",
-        "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee",
-        "TWITTER_TOOLTIP": "Share on Twitter"
-    },
-    "UPDATE_AVAILABLE": "Update available",
-    "REFRESH": "Refresh",
-    "XTREAM": {
-        "PLAY": "Play",
-        "NAME": "Name",
-        "RELEASE_DATE": "Release date",
-        "GENRE": "Genre",
-        "COUNTRY": "Country",
-        "ACTORS": "Actors",
-        "DIRECTOR": "Director",
-        "DURATION": "Duration",
-        "CAST": "Cast",
-        "EPISODE_RUN_TIME": "Episode run time",
-        "RATING": "Rating"
-    },
-    "PORTALS": {
-        "ALL_CATEGORIES": "All categories",
-        "MY_FAVORITES": "My favorites",
-        "ADD_TO_FAVORITES": "Add to favorites",
-        "REMOVE_FROM_FAVORITES": "Remove from favorites",
-        "ERROR_VIEW": {
-            "ACCOUNT_EXPIRED": {
-                "TITLE": "Account expired",
-                "DESCRIPTION": "This account has been expired. Please check the credentials in playlist settings or remove it."
-            },
-            "UNAUTHORIZED": {
-                "TITLE": "Unauthorized",
-                "DESCRIPTION": "Please check the credentials in playlist settings or remove it."
-            },
-            "NOT_FOUND": {
-                "TITLE": "Portal not found",
-                "DESCRIPTION": "Please check the credentials and portal url in playlist settings or remove it."
-            },
-            "PLAYLIST_SETTINGS": "Playlist Settings",
-            "HOME": "Home",
-            "DELETE": "Delete"
-        }
+    "IMPORT_ERROR": "Import error, please try with another file.",
+    "PLAYLISTS_REMOVED": "All playlists were removed.",
+    "MPV_PLAYER_PATH_LABEL": "mpv path",
+    "MPV_PLAYER_PATH_DESCRIPTION": "Set path to mpv player in your system. It will use the provided path to a mpv binary instead of using the one found in $PATH.",
+    "MPV_PLAYER_PATH": "mpv player path",
+    "VLC_PLAYER_PATH_LABEL": "VLC path",
+    "VLC_PLAYER_PATH_DESCRIPTION": "Set path to VLC player in your system. It will use the provided path to a VLC binary instead of the default path for our system.",
+    "VLC_PLAYER_PATH": "VLC player path"
+  },
+  "THEMES": {
+    "DARK_THEME": "Dark theme",
+    "LIGHT_THEME": "Light theme"
+  },
+  "CHANNELS": {
+    "SEARCH_CHANNEL": "Search channel",
+    "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload or select other playlist",
+    "ALL_CHANNELS": "All channels",
+    "GROUPS": "Groups",
+    "UNGROUPED": "Ungrouped",
+    "UNNAMED_CHANNEL": "Unnamed Channel",
+    "FAVORITES": "Favorites",
+    "NO_FAVORITES": "No favorites yet",
+    "USE_STAR_TO_FAVORITE": "Please use 'star' icon to add channels to your favorites.",
+    "REMOVE_FAVORITE": "Remove from favorites",
+    "FAVORITES_UPDATED": "Favorites were updated!"
+  },
+  "TOP_MENU": {
+    "OPEN_CHANNELS_LIST": "Open channel list",
+    "TOGGLE_FAVORITE_FLAG": "Toggle favorite flag",
+    "OPEN_EPG_LIST": "Open EPG list",
+    "OPEN_MULTI_EPG": "Open Multi-EPG view"
+  },
+  "EPG": {
+    "TITLE": "Electronic Program Guide",
+    "NEXT_DAY": "Next day",
+    "PREVIOUS_DAY": "Previous day",
+    "LIVE_NOW": "Live now",
+    "LIVE_STREAM": "Live stream",
+    "TIMESHIFT_AVAILABLE": "Timeshift is available, click to play",
+    "EPG_NOT_AVAILABLE_DATE": "Ooops, EPG is not available for the selected date",
+    "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ooops, EPG is not available for this channel.",
+    "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the URL of the EPG list in the settings of the app.",
+    "FETCH_EPG": "Fetching EPG data...",
+    "ERROR": "Ooops, EPG could not be loaded.",
+    "DOWNLOAD_SUCCESS": "EPG was successfully downloaded.",
+    "PROGRAM_DIALOG": {
+      "PROGRAM_DETAILS": "Details about the TV program",
+      "TITLE": "Title",
+      "CATEGORY": "Category",
+      "PARENTAL_RATING_SYSTEM": "Television content rating system",
+      "DESCRIPTION": "Description",
+      "LANGUAGE": "Language",
+      "SHOW_PROGRAM_DETAILS": "Show details about this program"
     }
+  },
+  "LANGUAGES": {
+    "ENGLISH": "English",
+    "KOREAN": "한국어",
+    "RUSSIAN": "Русский",
+    "GERMAN": "Deutsch",
+    "SPANISH": "Español",
+    "CHINESE": "简体中文",
+    "TRADITIONAL_CHINESE": "繁體中文",
+    "FRENCH": "Français",
+    "ITALIAN": "Italiano",
+    "TURKISH": "Türkçe"
+  },
+  "YES": "Yes",
+  "NO": "No",
+  "MENU": {
+    "OPEN": "Open menu",
+    "SUPPORT_ARIA": "Support IPTVnator on GitHub",
+    "SETTINGS": "Settings",
+    "SETTINGS_ARIA": "Open settings",
+    "BUG_REPORT": "Report a bug",
+    "WHAT_IS_NEW": "What is new",
+    "ABOUT": "About",
+    "ABOUT_ARIA": "About the application",
+    "SUPPORT_PROJECT": "Support project"
+  },
+  "ABOUT": {
+    "TITLE": "About IPTVnator",
+    "DESCRIPTION": "Cross-platform IPTV player application with multiple features, such as support of m3u and m3u8 playlists, favorites, TV guide, TV archive/catchup and more.",
+    "VERSION": "Version",
+    "GITHUB_TOOLTIP": "ITPVnator repository on GitHub",
+    "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee",
+    "TWITTER_TOOLTIP": "Share on Twitter"
+  },
+  "UPDATE_AVAILABLE": "Update available",
+  "REFRESH": "Refresh",
+  "XTREAM": {
+    "PLAY": "Play",
+    "NAME": "Name",
+    "RELEASE_DATE": "Release date",
+    "GENRE": "Genre",
+    "COUNTRY": "Country",
+    "ACTORS": "Actors",
+    "DIRECTOR": "Director",
+    "DURATION": "Duration",
+    "CAST": "Cast",
+    "EPISODE_RUN_TIME": "Episode run time",
+    "RATING": "Rating",
+    "IMDB_RATING": " Rating IMDB",
+    "KINOPOISK_RATING": "Rating Kinopoisk",
+    "DESCRIPTION": "Description",
+    "YEAR": "Year",
+    "AGE": "Age",
+    "YOUTUBE_TRAILER": "YouTube Trailer",
+    "EPISODE": "Episode"
+  },
+  "PORTALS": {
+    "ALL_CATEGORIES": "All categories",
+    "MY_FAVORITES": "My favorites",
+    "ADD_TO_FAVORITES": "Add to favorites",
+    "REMOVE_FROM_FAVORITES": "Remove from favorites",
+    "REMOVED_FROM_FAVORITES": "Removed from favorites",
+    "ADDED_TO_FAVORITES": "Added to favorites",
+    "ERROR_VIEW": {
+      "ACCOUNT_EXPIRED": {
+        "TITLE": "Account expired",
+        "DESCRIPTION": "This account has been expired. Please check the credentials in playlist settings or remove it."
+      },
+      "UNAUTHORIZED": {
+        "TITLE": "Unauthorized",
+        "DESCRIPTION": "Please check the credentials in playlist settings or remove it."
+      },
+      "NOT_FOUND": {
+        "TITLE": "Portal not found",
+        "DESCRIPTION": "Please check the credentials and portal url in playlist settings or remove it."
+      },
+      "EMPTY_CATEGORY": {
+        "TITLE": "Empty category",
+        "DESCRIPTION": "This category has no content, please select another category or change the content type"
+      },
+      "UNKNOWN_ERROR": {
+        "TITLE": "Something went wrong",
+        "DESCRIPTION": "Unknown error, please try again later"
+      },
+      "PLAYLIST_SETTINGS": "Playlist Settings",
+      "HOME": "Home",
+      "DELETE": "Delete"
+    },
+    "EMPTY_LIST_VIEW": {
+      "NO_SEARCH_RESULTS": "Nothing found, try to change you search request"
+    },
+    "STREAM_URL_COPIED": "Stream URL copied to clipboard",
+    "COPY_STREAM_URL": "Copy Stream URL"
+  },
+  "INFORMATION": "Information"
 }

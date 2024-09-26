@@ -69,6 +69,7 @@ test.describe('Check Home Page', () => {
 
 test.describe('Upload playlists', () => {
     test('should upload m3u playlist via file upload', async () => {
+        await page.getByTestId('add-playlist').click();
         await page.click('"Add via file upload"');
         await page.setInputFiles(
             'input[type="file"]',

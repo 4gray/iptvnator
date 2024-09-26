@@ -1,189 +1,246 @@
 {
-    "CLOSE": "关闭",
-    "HOME": {
-        "TITLE": "IPTVnator",
-        "SUBTITLE": "选择一个播放列表或者从URL/文件中添加一个新的播放列表",
-        "TABS": {
-            "RECENTLY_ADDED": "最近添加的播放列表",
-            "FILE_UPLOAD": "从文件添加",
-            "URL_UPLOAD": "从URL链接添加",
-            "TEXT_IMPORT": "从文本添加"
-        },
-        "PLAYLISTS": {
-            "NO_PLAYLISTS": "未添加播放列表",
-            "ADD_FIRST": "从其他标签页添加你的第一个播放列表",
-            "ADDED_VIA_URL": "添加自URL链接:",
-            "ADDED_VIA_FILE": "添加自文件",
-            "CHANNELS": "频道",
-            "ADDED": "已添加的",
-            "SHOW_DETAILS": "显示播放列表详情",
-            "REMOVE": "移除播放列表",
-            "INFO_DIALOG": {
-                "PLAYLIST_DETAILS": "播放列表详情",
-                "TITLE": "标题",
-                "FROM_URL": "添加自URL链接",
-                "IMPORT_DATE": "导入日期",
-                "CHANNELS": "频道数",
-                "CLOSE": "关闭",
-                "SAVE": "保存",
-                "USER_AGENT": "User agent",
-                "ORIGINAL_FILENAME": "原始文件名",
-                "FILE_PATH": "文件路径",
-                "UPDATE_FAILED": "上次播放列表更新失败",
-                "AUTO_UPDATE": "自动更新",
-                "AUTO_UPDATE_DESCRIPTION": "如果启用了自动刷新功能，则每次启动应用程序时都会自动更新播放列表。",
-                "CUSTOM_USER_AGENT": "一些 IPTV 提供商需要特定的用户代理才能播放他们的播放列表。",
-                "PASSWORD": "密码",
-                "SERVER_URL": "服务器地址",
-                "USERNAME": "用户名",
-                "MAC_ADDRESS": "MAC地址"
-            },
-            "REMOVE_DIALOG": {
-                "TITLE": "移除播放列表",
-                "MESSAGE": "您确定要完全删除此播放列表吗？"
-            },
-            "UPDATED": "更新",
-            "REFRESH": "刷新播放列表",
-            "GLOBAL_FAVORITES": "我的收藏",
-            "GLOBAL_FAVORITES_DESCRIPTION": "由所有播放列表自动生成的聚合收藏列表",
-            "MY_PLAYLISTS": "我的播放列表"
-        },
-        "FILE_UPLOAD": {
-            "DRAG_DROP": "将文件拖放到此处",
-            "OR": "或",
-            "CHOOSE_PLAYLIST": "选择一个播放列表"
-        },
-        "URL_UPLOAD": {
-            "PLAYLIST_URL": "播放一个播放列表(m3u, m3u8)",
-            "ADD_PLAYLIST": "添加播放列表"
-        },
-        "TEXT_IMPORT": {
-            "LABEL": "从文本导入播放列表(m3u, m3u8)",
-            "BUTTON_LABEL": "导入"
-        },
-        "STALKER_PORTAL": {
-            "ADD": "添加",
-            "TITLE": "标题"
-        }
+  "CLOSE": "关闭",
+  "HOME": {
+    "TITLE": "IPTVnator",
+    "SUBTITLE": "选择一个播放列表或者从URL/文件中添加一个新的播放列表",
+    "TABS": {
+      "RECENTLY_ADDED": "最近添加的播放列表",
+      "FILE_UPLOAD": "从文件添加",
+      "URL_UPLOAD": "从URL链接添加",
+      "TEXT_IMPORT": "从文本添加",
+      "STALKER_PORTAL_IMPORT": "添加跟踪者门户"
     },
-    "SETTINGS": {
-        "TITLE": "设置",
-        "SUBTITLE": "更改应用程序的配置 ",
-        "DESCRIPTION": "请调整以下列表中的选项并使用保存按钮确认",
-        "EPG_URL_LABEL": "电子节目单EPG Url (*.xml 或 *.xml.gz)",
-        "EPG_URL_PLACEHOLDER": "输入一个 URL",
-        "REFRESH_EPG": "刷新电子节目单EPG",
-        "VIDEO_PLAYER_LABEL": "视频播放器",
-        "VIDEO_PLAYER_PLACEHOLDER": "选择一个选项",
-        "VERSION": "版本",
-        "SAVE_CHANGES": "保存更改",
-        "BACK_TO_HOME": "回到主页",
-        "NEW_VERSION_AVAILABLE": "有新版本可用 ",
-        "LATEST_VERSION": "您使用的是最新版本",
-        "LANGUAGE": "语言",
-        "SETTINGS_SAVED": "配置已成功保存",
-        "THEME": "主题",
-        "SHOW_CAPTIONS": "显示字幕",
-        "REMOVE_ALL": "删除播放列表",
-        "REMOVE_ALL_BUTTON": "消除",
-        "REMOVE_DIALOG": {
-            "TITLE": "删除所有播放列表"
-        },
-        "LANGUAGE_DESCRIPTION": "选择应用程序的语言",
-        "PLAYLISTS_REMOVED": "所有播放列表均已删除。",
-        "VERSION_DESCRIPTION": "应用程序的当前版本"
+    "PLAYLISTS": {
+      "NO_PLAYLISTS": "未添加播放列表",
+      "ADD_FIRST": "从其他标签页添加你的第一个播放列表",
+      "ADDED_VIA_URL": "添加自URL链接:",
+      "ADDED_VIA_FILE": "添加自文件",
+      "CHANNELS": "频道",
+      "ADDED": "已添加的",
+      "SHOW_DETAILS": "显示播放列表详情",
+      "REMOVE": "移除播放列表",
+      "INFO_DIALOG": {
+        "PLAYLIST_DETAILS": "播放列表详情",
+        "TITLE": "标题",
+        "FROM_URL": "添加自URL链接",
+        "IMPORT_DATE": "导入日期",
+        "CHANNELS": "频道数",
+        "CLOSE": "关闭",
+        "SAVE": "保存",
+        "USER_AGENT": "User agent",
+        "ORIGINAL_FILENAME": "原始文件名",
+        "FILE_PATH": "文件路径",
+        "UPDATE_FAILED": "上次播放列表更新失败",
+        "AUTO_UPDATE": "自动更新",
+        "AUTO_UPDATE_DESCRIPTION": "如果启用了自动刷新功能，则每次启动应用程序时都会自动更新播放列表。",
+        "CUSTOM_USER_AGENT": "一些 IPTV 提供商需要特定的用户代理才能播放他们的播放列表。",
+        "PASSWORD": "密码",
+        "SERVER_URL": "服务器地址",
+        "USERNAME": "用户名",
+        "MAC_ADDRESS": "MAC地址"
+      },
+      "REMOVE_DIALOG": {
+        "TITLE": "移除播放列表",
+        "MESSAGE": "您确定要完全删除此播放列表吗？"
+      },
+      "UPDATED": "更新",
+      "REFRESH": "刷新播放列表",
+      "GLOBAL_FAVORITES": "我的收藏",
+      "GLOBAL_FAVORITES_DESCRIPTION": "由所有播放列表自动生成的聚合收藏列表",
+      "MY_PLAYLISTS": "我的播放列表"
     },
-    "THEMES": {
-        "DARK_THEME": "暗黑模式",
-        "LIGHT_THEME": "明亮模式"
+    "FILE_UPLOAD": {
+      "DRAG_DROP": "将文件拖放到此处",
+      "OR": "或",
+      "CHOOSE_PLAYLIST": "选择一个播放列表"
     },
-    "CHANNELS": {
-        "SEARCH_CHANNEL": "搜索频道",
-        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上传或选择其他播放列表",
-        "ALL_CHANNELS": "所有频道",
-        "GROUPS": "分组",
-        "UNGROUPED": "未分组",
-        "UNNAMED_CHANNEL": "未命名频道",
-        "FAVORITES": "收藏",
-        "NO_FAVORITES": "还没有收藏夹",
-        "USE_STAR_TO_FAVORITE": "使用“☆”图标将频道添加到此列表中",
-        "REMOVE_FAVORITE": "从收藏夹中删除",
-        "FAVORITES_UPDATED": "收藏夹已更新！"
+    "URL_UPLOAD": {
+      "PLAYLIST_URL": "播放一个播放列表(m3u, m3u8)",
+      "ADD_PLAYLIST": "添加播放列表"
     },
-    "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "打开频道列表",
-        "TOGGLE_FAVORITE_FLAG": "切换收藏夹标志",
-        "OPEN_EPG_LIST": "打开电子节目单EPG列表",
-        "OPEN_MULTI_EPG": "打开多EPG显示"
+    "TEXT_IMPORT": {
+      "LABEL": "从文本导入播放列表(m3u, m3u8)",
+      "BUTTON_LABEL": "导入"
     },
-    "EPG": {
-        "NEXT_DAY": "明天",
-        "PREVIOUS_DAY": "昨天",
-        "LIVE_NOW": "正在播放",
-        "LIVE_STREAM": "正在直播",
-        "TIMESHIFT_AVAILABLE": "时移功能可用，点击播放",
-        "EPG_NOT_AVAILABLE_DATE": "错误：电子节目单EPG在所选日期不可用",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "错误：电子节目单EPG不适用于此频道",
-        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "请添加/更改设置项中电子节目单的URL",
-        "FETCH_EPG": "获取 EPG 数据...",
-        "ERROR": "错误: 获取 EPG 数据失败",
-        "DOWNLOAD_SUCCESS": "EPG 数据下载成功",
-        "PROGRAM_DIALOG": {
-            "PROGRAM_DETAILS": "电视节目详情",
-            "TITLE": "标题",
-            "CATEGORY": "类别",
-            "PARENTAL_RATING_SYSTEM": "电视内容分级系统",
-            "DESCRIPTION": "描述",
-            "LANGUAGE": "语言",
-            "SHOW_PROGRAM_DETAILS": "显示有关此程序的详细信息"
-        }
+    "STALKER_PORTAL": {
+      "ADD": "添加",
+      "TITLE": "标题",
+      "URL_VALIDATION_ERROR": "应该是带有协议的有效网址（例如 http://example.com/c 或 https://example.com/stalker_portal/c）"
     },
-    "LANGUAGES": {
-        "CHINESE": "简体中文",
-        "TRADITIONAL_CHINESE": "繁體中文",
-        "ENGLISH": "English",
-        "KOREAN": "한국어",
-        "RUSSIAN": "Русский",
-        "GERMAN": "Deutsch",
-        "SPANISH": "Español",
-        "FRENCH": "Français",
-        "ITALIAN": "Italiano"
+    "XTREAM_PLAYLIST": {
+      "URL_VALIDATION_ERROR": "应该是带有协议的有效 url（例如 http://example.com 或 https://example.com:4324）"
+    }
+  },
+  "SETTINGS": {
+    "TITLE": "设置",
+    "SUBTITLE": "更改应用程序的配置 ",
+    "DESCRIPTION": "请调整以下列表中的选项并使用保存按钮确认",
+    "EPG_URL_LABEL": "电子节目单EPG Url (*.xml 或 *.xml.gz)",
+    "EPG_URL_PLACEHOLDER": "输入一个 URL",
+    "REFRESH_EPG": "刷新电子节目单EPG",
+    "VIDEO_PLAYER_LABEL": "视频播放器",
+    "VIDEO_PLAYER_PLACEHOLDER": "选择一个选项",
+    "VERSION": "版本",
+    "SAVE_CHANGES": "保存更改",
+    "BACK_TO_HOME": "回到主页",
+    "NEW_VERSION_AVAILABLE": "有新版本可用 ",
+    "LATEST_VERSION": "您使用的是最新版本",
+    "LANGUAGE": "语言",
+    "SETTINGS_SAVED": "配置已成功保存",
+    "THEME": "主题",
+    "SHOW_CAPTIONS": "显示字幕",
+    "REMOVE_ALL": "删除播放列表",
+    "REMOVE_ALL_BUTTON": "消除",
+    "REMOVE_DIALOG": {
+      "TITLE": "删除所有播放列表",
+      "MESSAGE": "您确定要从应用程序中删除所有播放列表吗？"
     },
-    "YES": "是",
-    "NO": "否",
-    "MENU": {
-        "OPEN": "打开菜单",
-        "SUPPORT_ARIA": "在 GitHub 上支持 IPTVnator",
-        "SETTINGS": "设置",
-        "SETTINGS_ARIA": "打开设置",
-        "BUG_REPORT": "问题反馈",
-        "WHAT_IS_NEW": "更新日志",
-        "ABOUT": "关于",
-        "ABOUT_ARIA": "关于应用"
+    "LANGUAGE_DESCRIPTION": "选择应用程序的语言",
+    "PLAYLISTS_REMOVED": "所有播放列表均已删除。",
+    "VERSION_DESCRIPTION": "应用程序的当前版本",
+    "IMPORT_DATA": "进口",
+    "ADD_EPG_SOURCE": "添加EPG源",
+    "IMPORT_ERROR": "导入错误，请尝试使用其他文件。",
+    "EPG_URL_ERROR": "该值不是有效的 URL",
+    "EXPORT_DATA": "出口",
+    "VIDEO_PLAYER_DESCRIPTION": "选择默认视频播放器",
+    "IMPORT_EXPORT_DATA": "导入/导出播放列表",
+    "VLC_PLAYER_PATH_LABEL": "VLC路径",
+    "VLC_PLAYER_PATH_DESCRIPTION": "设置系统中 VLC 播放器的路径。\n它将使用提供的 VLC 二进制文件路径，而不是我们系统的默认路径。",
+    "THEME_DESCRIPTION": "选择应用程序的视觉主题",
+    "EPG_NOTE": "目前 EPG 仅在基于电子的 IPTVnator 版本中可用。",
+    "VLC_PLAYER_PATH": "VLC播放器路径",
+    "IMPORT_EXPORT_DATA_DESCRIPTION": "以应用程序中使用的 JSON 格式导出或导入播放列表。",
+    "EPG_NOTE_URL_TEXT": "在这里检查一下",
+    "MPV_PLAYER_PATH_LABEL": "多用途车路径"
+  },
+  "THEMES": {
+    "DARK_THEME": "暗黑模式",
+    "LIGHT_THEME": "明亮模式"
+  },
+  "CHANNELS": {
+    "SEARCH_CHANNEL": "搜索频道",
+    "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上传或选择其他播放列表",
+    "ALL_CHANNELS": "所有频道",
+    "GROUPS": "分组",
+    "UNGROUPED": "未分组",
+    "UNNAMED_CHANNEL": "未命名频道",
+    "FAVORITES": "收藏",
+    "NO_FAVORITES": "还没有收藏夹",
+    "USE_STAR_TO_FAVORITE": "使用“☆”图标将频道添加到此列表中",
+    "REMOVE_FAVORITE": "从收藏夹中删除",
+    "FAVORITES_UPDATED": "收藏夹已更新！"
+  },
+  "TOP_MENU": {
+    "OPEN_CHANNELS_LIST": "打开频道列表",
+    "TOGGLE_FAVORITE_FLAG": "切换收藏夹标志",
+    "OPEN_EPG_LIST": "打开电子节目单EPG列表",
+    "OPEN_MULTI_EPG": "打开多EPG显示"
+  },
+  "EPG": {
+    "NEXT_DAY": "明天",
+    "PREVIOUS_DAY": "昨天",
+    "LIVE_NOW": "正在播放",
+    "LIVE_STREAM": "正在直播",
+    "TIMESHIFT_AVAILABLE": "时移功能可用，点击播放",
+    "EPG_NOT_AVAILABLE_DATE": "错误：电子节目单EPG在所选日期不可用",
+    "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "错误：电子节目单EPG不适用于此频道",
+    "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "请添加/更改设置项中电子节目单的URL",
+    "FETCH_EPG": "获取 EPG 数据...",
+    "ERROR": "错误: 获取 EPG 数据失败",
+    "DOWNLOAD_SUCCESS": "EPG 数据下载成功",
+    "PROGRAM_DIALOG": {
+      "PROGRAM_DETAILS": "电视节目详情",
+      "TITLE": "标题",
+      "CATEGORY": "类别",
+      "PARENTAL_RATING_SYSTEM": "电视内容分级系统",
+      "DESCRIPTION": "描述",
+      "LANGUAGE": "语言",
+      "SHOW_PROGRAM_DETAILS": "显示有关此程序的详细信息"
+    }
+  },
+  "LANGUAGES": {
+    "CHINESE": "简体中文",
+    "TRADITIONAL_CHINESE": "繁體中文",
+    "ENGLISH": "English",
+    "KOREAN": "한국어",
+    "RUSSIAN": "Русский",
+    "GERMAN": "Deutsch",
+    "SPANISH": "Español",
+    "FRENCH": "Français",
+    "ITALIAN": "Italiano",
+    "TURKISH": "Türkçe"
+  },
+  "YES": "是",
+  "NO": "否",
+  "MENU": {
+    "OPEN": "打开菜单",
+    "SUPPORT_ARIA": "在 GitHub 上支持 IPTVnator",
+    "SETTINGS": "设置",
+    "SETTINGS_ARIA": "打开设置",
+    "BUG_REPORT": "问题反馈",
+    "WHAT_IS_NEW": "更新日志",
+    "ABOUT": "关于",
+    "ABOUT_ARIA": "关于应用",
+    "SUPPORT_PROJECT": "支持项目"
+  },
+  "XTREAM": {
+    "RELEASE_DATE": "发布日期",
+    "ACTORS": "演员",
+    "PLAY": "玩",
+    "GENRE": "类型",
+    "DURATION": "期间",
+    "COUNTRY": "国家",
+    "NAME": "姓名",
+    "DIRECTOR": "导演",
+    "CAST": "投掷",
+    "RATING": "评分",
+    "AGE": "年龄",
+    "EPISODE": "插曲",
+    "YEAR": "年",
+    "YOUTUBE_TRAILER": "YouTube 预告片",
+    "DESCRIPTION": "描述",
+    "KINOPOISK_RATING": "评级动力学",
+    "IMDB_RATING": "评级IMDB",
+    "EPISODE_RUN_TIME": "剧集运行时间"
+  },
+  "PORTALS": {
+    "ALL_CATEGORIES": "所有类别",
+    "ADD_TO_FAVORITES": "添加到收藏夹",
+    "REMOVE_FROM_FAVORITES": "从收藏夹中删除",
+    "MY_FAVORITES": "我最喜欢的",
+    "ERROR_VIEW": {
+      "DELETE": "删除",
+      "ACCOUNT_EXPIRED": {
+        "TITLE": "帐户已过期",
+        "DESCRIPTION": "该帐户已过期。\n请检查播放列表设置中的凭据或将其删除。"
+      },
+      "EMPTY_CATEGORY": {
+        "TITLE": "空类别",
+        "DESCRIPTION": "该类别没有内容，请选择其他类别或更改内容类型"
+      },
+      "UNAUTHORIZED": {
+        "TITLE": "未经授权",
+        "DESCRIPTION": "请检查播放列表设置中的凭据或将其删除。"
+      },
+      "UNKNOWN_ERROR": {
+        "TITLE": "出了点问题",
+        "DESCRIPTION": "未知错误，请稍后重试"
+      },
+      "PLAYLIST_SETTINGS": "播放列表设置"
     },
-    "XTREAM": {
-        "RELEASE_DATE": "发布日期",
-        "ACTORS": "演员",
-        "PLAY": "玩",
-        "GENRE": "类型",
-        "DURATION": "期间",
-        "COUNTRY": "国家",
-        "NAME": "姓名",
-        "DIRECTOR": "导演",
-        "CAST": "投掷",
-        "RATING": "评分"
+    "EMPTY_LIST_VIEW": {
+      "NO_SEARCH_RESULTS": "未找到任何内容，请尝试更改您的搜索请求"
     },
-    "PORTALS": {
-        "ALL_CATEGORIES": "所有类别",
-        "ADD_TO_FAVORITES": "添加到收藏夹",
-        "REMOVE_FROM_FAVORITES": "从收藏夹中删除",
-        "MY_FAVORITES": "我最喜欢的"
-    },
-    "ABOUT": {
-        "TITLE": "关于 IPTVnator",
-        "VERSION": "版本",
-        "TWITTER_TOOLTIP": "分享到Twitter"
-    },
-    "REFRESH": "刷新",
-    "UPDATE_AVAILABLE": "可用更新"
+    "REMOVED_FROM_FAVORITES": "已从收藏夹中删除",
+    "ADDED_TO_FAVORITES": "已添加至收藏夹"
+  },
+  "ABOUT": {
+    "TITLE": "关于 IPTVnator",
+    "VERSION": "版本",
+    "TWITTER_TOOLTIP": "分享到Twitter",
+    "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee"
+  },
+  "REFRESH": "刷新",
+  "UPDATE_AVAILABLE": "可用更新"
 }

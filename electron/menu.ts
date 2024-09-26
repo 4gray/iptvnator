@@ -104,9 +104,7 @@ export class AppMenu {
                 {
                     label: 'Buy me a coffee',
                     click: () => {
-                        shell.openExternal(
-                            'https://www.buymeacoffee.com/4gray'
-                        );
+                        shell.openExternal('https://github.com/sponsors/4gray');
                     },
                 },
                 {

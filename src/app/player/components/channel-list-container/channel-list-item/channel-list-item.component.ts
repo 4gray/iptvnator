@@ -27,14 +27,15 @@ import { TranslateModule } from '@ngx-translate/core';
                 class="drag-icon"
                 >drag_indicator</mat-icon
             >
-            <div matListItemAvatar class="channel-logo" *ngIf="logo">
-                <img
-                    [src]="logo"
-                    width="48"
-                    onerror="this.style.display='none'"
-                />
-            </div>
-            <p matListItemLine class="channel-name">
+            <img
+                matListItemAvatar
+                class="channel-logo"
+                *ngIf="logo"
+                [src]="logo"
+                width="48"
+                onerror="this.style.display='none'"
+            />
+            <p matListItemTitle class="channel-name">
                 {{ name }}
             </p>
             <button
@@ -48,7 +49,7 @@ import { TranslateModule } from '@ngx-translate/core';
                 <mat-icon color="accent">star</mat-icon>
             </button>
         </mat-list-item>
-        <mat-divider></mat-divider>`,
+        <!-- <mat-divider /> -->`,
     imports: [
         CommonModule,
         DragDropModule,

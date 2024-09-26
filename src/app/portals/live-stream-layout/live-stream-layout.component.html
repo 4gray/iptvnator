@@ -1,0 +1,66 @@
+<div
+    [class]="
+        player === 'videojs' || player === 'html5'
+            ? 'itv-container'
+            : 'itv-container-epg'
+    "
+>
+    <div class="sidebar">
+        <div class="sidebar-content">
+            <div class="search-panel">
+                <mat-form-field class="search-bar">
+                    <mat-icon matPrefix>search</mat-icon>
+                    <input
+                        matInput
+                        type="search"
+                        [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
+                        [(ngModel)]="searchString"
+                    />
+                </mat-form-field>
+            </div>
+            <mat-selection-list [multiple]="false">
+                <cdk-virtual-scroll-viewport
+                    [itemSize]="56"
+                    class="scroll-viewport-portals"
+                >
+                    <mat-list-option
+                        *cdkVirtualFor="
+                            let item of channels
+                                | filterBy: searchString() : 'name';
+                            trackBy: trackBy;
+                            templateCacheSize: 0
+                        "
+                        [value]="item"
+                        (click)="itemClicked.emit(item)"
+                    >
+                        <img
+                            matListItemAvatar
+                            class="stream-icon"
+                            *ngIf="item.stream_icon"
+                            [src]="item.stream_icon"
+                        />
+                        <div class="title" matListItemTitle>
+                            {{ item.name }}
+                        </div>
+                    </mat-list-option>
+                </cdk-virtual-scroll-viewport>
+            </mat-selection-list>
+        </div>
+    </div>
+    @if (player === 'videojs' || player === 'html5') {
+        @if (streamUrl) {
+            <div class="video-player">
+                <app-web-player-view [streamUrl]="streamUrl" />
+            </div>
+        }
+    }
+    @if (streamUrl) {
+        <div class="epg">
+            <div class="epg-content">
+                <app-epg-view [epgItems]="epgItems" />
+            </div>
+        </div>
+    } @else {
+        <div class="no-channel-selected">Please select a channel</div>
+    }
+</div>

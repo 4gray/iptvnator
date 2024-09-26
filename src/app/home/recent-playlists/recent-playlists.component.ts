@@ -1,4 +1,9 @@
-import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import {
+    CdkDragDrop,
+    DragDropModule,
+    moveItemInArray,
+} from '@angular/cdk/drag-drop';
+import { AsyncPipe, NgFor, NgIf } from '@angular/common';
 import {
     Component,
     EventEmitter,
@@ -7,11 +12,17 @@ import {
     OnDestroy,
     Output,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../../shared/constants';
 import { IpcCommand } from '../../../../shared/ipc-command.class';
@@ -36,11 +47,27 @@ import {
 import { DialogService } from './../../services/dialog.service';
 import { PlaylistMeta } from './../../shared/playlist-meta.type';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
+import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
 
 @Component({
+    standalone: true,
     selector: 'app-recent-playlists',
     templateUrl: './recent-playlists.component.html',
     styleUrls: ['./recent-playlists.component.scss'],
+    imports: [
+        AsyncPipe,
+        DragDropModule,
+        MatButtonModule,
+        MatDividerModule,
+        MatIconModule,
+        MatInputModule,
+        MatListModule,
+        NgFor,
+        NgIf,
+        NgxSkeletonLoaderModule,
+        PlaylistItemComponent,
+        TranslateModule,
+    ],
 })
 export class RecentPlaylistsComponent implements OnDestroy {
     searchQuery = new BehaviorSubject('');

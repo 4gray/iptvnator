@@ -1,6 +1,6 @@
 <mat-drawer-container class="main-container">
     <!-- sidebar content -->
-    <mat-drawer #drawer mode="side" opened disableClose>
+    <mat-drawer #drawer mode="side" opened disableClose class="mat-drawer">
         @defer {
             <app-sidebar [channels]="channels$ | async" />
         } @loading {
@@ -9,7 +9,7 @@
             <p>Loading...</p>
         }
     </mat-drawer>
-    <mat-drawer-content>
+    <mat-drawer-content class="drawer-content">
         <ng-container *ngIf="activeChannel$ | async as activeChannel">
             <!-- toolbar with drawer icon -->
             <app-toolbar
@@ -34,9 +34,9 @@
                                 src:
                                     activeChannel?.url +
                                     activeChannel?.epgParams,
-                                type: 'application/x-mpegURL'
-                            }
-                        ]
+                                type: 'application/x-mpegURL',
+                            },
+                        ],
                     }"
                     [class.hide-captions]="!playerSettings.showCaptions"
                 ></app-vjs-player>

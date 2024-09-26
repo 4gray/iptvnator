@@ -12,52 +12,60 @@
     [contentTypeNavigationItems]="navigationContentTypes"
 />
 
-<div class="container">
-    @if (isLoading) {
-        <mat-spinner />
-    } @else {
-        @switch (currentLayout) {
-            @case ('error-view') {
-                <app-playlist-error-view
-                    [title]="this.errorViewInfo.title | translate"
-                    [description]="this.errorViewInfo.message | translate"
-                />
-            }
-            @case ('category') {
-                <app-category-view
-                    (categoryClicked)="categoryClicked($event)"
-                    [items]="items"
-                />
-            }
-            @case ('category_content') {
-                <app-category-content-view
-                    [items]="items"
+@if (isLoading) {
+    <mat-spinner />
+} @else {
+    @switch (currentLayout) {
+        @case ('error-view') {
+            <app-playlist-error-view
+                [title]="this.errorViewInfo.title | translate"
+                [description]="this.errorViewInfo.message | translate"
+            />
+        }
+        @case ('category') {
+            <app-category-view
+                (categoryClicked)="categoryClicked($event)"
+                [items]="items"
+            />
+        }
+        @case ('category_content') {
+            @if (selectedContentType === 'itv') {
+                <app-live-stream-layout
+                    [channels]="items"
+                    [player]="player"
+                    [streamUrl]="streamUrl"
+                    [epgItems]="epgItems"
                     (itemClicked)="itemClicked($event)"
                 />
-            }
-            @case ('vod-details') {
-                <app-vod-details
-                    [item]="vodDetails"
-                    (playClicked)="playVod($event)"
-                    (addToFavoritesClicked)="addToFavorites($event)"
-                    (removeFromFavoritesClicked)="removeFromFavorites($event)"
-                />
-            }
-            @case ('serie-details') {
-                <app-serial-details
-                    [item]="vodDetails"
-                    [seriesId]="contentId"
-                    (playClicked)="playEpisode($event)"
-                    (addToFavoritesClicked)="addToFavorites($event)"
-                    (removeFromFavoritesClicked)="removeFromFavorites($event)"
-                />
-            }
-            @case ('favorites') {
+            } @else {
                 <app-category-content-view
-                    [items]="favorites$ | async"
+                    [items]="items"
                     (itemClicked)="itemClicked($event)"
                 />
             }
         }
+        @case ('vod-details') {
+            <app-vod-details
+                [item]="vodDetails"
+                (playClicked)="playVod($event)"
+                (addToFavoritesClicked)="addToFavorites($event)"
+                (removeFromFavoritesClicked)="removeFromFavorites($event)"
+            />
+        }
+        @case ('serie-details') {
+            <app-serial-details
+                [item]="vodDetails"
+                [seriesId]="contentId"
+                (playClicked)="playEpisode($event)"
+                (addToFavoritesClicked)="addToFavorites($event)"
+                (removeFromFavoritesClicked)="removeFromFavorites($event)"
+            />
+        }
+        @case ('favorites') {
+            <app-category-content-view
+                [items]="favorites$ | async"
+                (itemClicked)="itemClicked($event)"
+            />
+        }
     }
-</div>
+}

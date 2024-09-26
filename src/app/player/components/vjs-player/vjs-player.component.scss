@@ -1,7 +1,7 @@
 .video-js {
     position: relative !important;
     width: 100% !important;
-    height: calc(100vh - 54px);
+    height: calc(100vh - 65px);
 }
 
 /* Hide the captions settings item from the captions menu. */
@@ -10,5 +10,12 @@
     .vjs-text-track-display,
     .vjs-subs-caps-button {
         display: none;
+    }
+}
+
+
+@media only screen and (max-width: 599px) {
+    .video-js {
+        height: calc(50vh - 65px) !important;
     }
 }

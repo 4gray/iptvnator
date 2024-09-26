@@ -1,230 +1,279 @@
 {
-    "CLOSE": "Закрыть",
-    "HOME": {
-        "TITLE": "IPTVnator",
-        "SUBTITLE": "Выберите плейлист из списка, добавьте новый с компьютера или загрузите по ссылке",
-        "TABS": {
-            "RECENTLY_ADDED": "Недавно добавленные плейлисты",
-            "FILE_UPLOAD": "Загрузить с компьютера",
-            "URL_UPLOAD": "Загрузить по ссылке",
-            "TEXT_IMPORT": "Импортировать из текста",
-            "STALKER_PORTAL_IMPORT": "Добавить Stalker портал",
-            "XTREME_IMPORT": "Добавить Xtreme Code "
-        },
-        "PLAYLISTS": {
-            "NO_PLAYLISTS": "Пока еще не было добавлено ни одного плейлиста",
-            "ADD_FIRST": "Вы можете добавить плейлисты из соседних вкладок",
-            "ADDED_VIA_URL": "Был добавлен по ссылке:",
-            "ADDED_VIA_FILE": "Был загружен с компьютера",
-            "CHANNELS": "Каналов",
-            "ADDED": "Добавлен",
-            "SHOW_DETAILS": "Показать информацию о плейлисте",
-            "REMOVE": "Удалить плейлист",
-            "SEARCH_PLAYLISTS": "Поиск по названию плейлиста",
-            "INFO_DIALOG": {
-                "PLAYLIST_DETAILS": "Подробная информация о плейлисте",
-                "TITLE": "Название",
-                "FROM_URL": "Добавлен по ссылке",
-                "IMPORT_DATE": "Дата импорта",
-                "CHANNELS": "Количество каналов",
-                "CLOSE": "Закрыть",
-                "SAVE": "Сохранить",
-                "USER_AGENT": "User agent",
-                "ORIGINAL_FILENAME": "Имя файла при загрузке",
-                "FILE_PATH": "Путь к файлу",
-                "UPDATE_FAILED": "Не удалось обновить плейлист",
-                "AUTO_UPDATE": "Автообновление",
-                "AUTO_UPDATE_DESCRIPTION": "Если активирована функция автообновления, список воспроизведения будет обновляться автоматически при каждом запуске приложения.",
-                "CUSTOM_USER_AGENT": "Некоторые IPTV провайдеры требуют указание определенного пользовательского агента (User Agent) для воспроизведения своего плейлиста.",
-                "EXPORT_PLAYLIST": "Экспортировать плейлист (m3u)",
-                "PASSWORD": "Пароль",
-                "SERVER_URL": "URL-адрес сервера",
-                "USERNAME": "Имя пользователя",
-                "MAC_ADDRESS": "MAC-адрес"
-            },
-            "UPDATED": "Обновлен",
-            "REFRESH": "Обновить плейлист",
-            "REMOVE_DIALOG": {
-                "MESSAGE": "Вы уверены, что хотите удалить этот плейлист?",
-                "TITLE": "Удалить плейлист"
-            },
-            "GLOBAL_FAVORITES": "Все фавориты",
-            "GLOBAL_FAVORITES_DESCRIPTION": "Автоматически сгенерированный плейлист, включающий в себя фавориты из всех плейлистов",
-            "MY_PLAYLISTS": "Мои плейлисты",
-            "MY_PLAYLISTS_SUBTITLE": "Все имеющиеся плейлисты",
-            "PLAYLIST_UPDATE_SUCCESS": "Плейлист был успешно обновлен!",
-            "STALKER_PORTAL": "Stalker портал",
-            "XTREAM_PLAYLIST": "Xtream плейлист"
-        },
-        "FILE_UPLOAD": {
-            "DRAG_DROP": "Перетащите файл в эту область",
-            "OR": "или",
-            "CHOOSE_PLAYLIST": "выберите плейлист",
-            "REJECTED": "К сожалению, данный формат файлов не поддерживается {{filename}}."
-        },
-        "URL_UPLOAD": {
-            "PLAYLIST_URL": "Ссылка на плейлист (*.m3u или *.m3u8)",
-            "ADD_PLAYLIST": "Добавить плейлист"
-        },
-        "TEXT_IMPORT": {
-            "LABEL": "Вставьте плейлист формата m3u(8) в данное поле",
-            "BUTTON_LABEL": "Импортировать"
-        },
-        "XTREAM_PLAYLIST": {
-            "TITLE": "Название плейлиста",
-            "SERVER_URL": "Сервер URL",
-            "USERNAME": "Пользователь",
-            "PASSWORD": "Пароль",
-            "ADD": "Добавить",
-            "TEST_CREDENTIALS": "Проверить"
-        },
-        "STALKER_PORTAL": {
-            "ADD": "Добавить",
-            "TITLE": "Название",
-            "MAC_ADDRESS": "MAC-адрес",
-            "SERVER_URL": "URL сервера"
-        }
+  "CLOSE": "Закрыть",
+  "PLAYLISTS": "Плейлисты",
+  "HOME": {
+    "TITLE": "IPTVnator",
+    "SUBTITLE": "Выберите плейлист из списка, добавьте новый с компьютера или загрузите по ссылке",
+    "TABS": {
+      "RECENTLY_ADDED": "Недавно добавленные плейлисты",
+      "FILE_UPLOAD": "Загрузить с компьютера",
+      "URL_UPLOAD": "Загрузить по ссылке",
+      "TEXT_IMPORT": "Импортировать из текста",
+      "STALKER_PORTAL_IMPORT": "Добавить Stalker портал",
+      "XTREME_IMPORT": "Добавить Xtreme Code "
     },
-    "SETTINGS": {
-        "TITLE": "Настройки / IPTVnator",
-        "SUBTITLE": "Здесь можно изменить общие настройки приложения",
-        "DESCRIPTION": "Закончив настройку, не забудьте подтвердить новые настройки кнопкой 'Сохранить'",
-        "EPG_URL_LABEL": "Ссылка на программу каналов (EPG) (*.xml или *.xml.gz)",
-        "EPG_URL_PLACEHOLDER": "Введите ссылку",
-        "REFRESH_EPG": "Обновить программу каналов (EPG)",
-        "VIDEO_PLAYER_LABEL": "Видеоплеер",
-        "VIDEO_PLAYER_PLACEHOLDER": "Выберите из списка",
-        "VERSION": "Версия приложения",
-        "SAVE_CHANGES": "Сохранить",
-        "BACK_TO_HOME": "Назад",
-        "NEW_VERSION_AVAILABLE": "Доступна новая версия приложения",
-        "LATEST_VERSION": "Вы используете последнюю версию приложения",
-        "LANGUAGE": "Язык",
-        "SETTINGS_SAVED": "Новые настройки были успешно сохранены!",
-        "THEME": "Тема оформления",
-        "SHOW_CAPTIONS": "Отображать субтитры",
-        "ADD_EPG_SOURCE": "Добавить источник EPG",
-        "EPG_URL_ERROR": "The value is not a valid URL",
-        "VIDEO_PLAYER_DESCRIPTION": "Выбрать стандартный видео плеер",
-        "LANGUAGE_DESCRIPTION": "Выбрать язык приложения",
-        "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
-        "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
-        "VERSION_DESCRIPTION": "Текущая версия приложения",
-        "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
-        "EPG_NOTE_URL_TEXT": "Подробнее здесь",
-        "IMPORT_EXPORT_DATA": "Импорт/экспорт плейлистов",
-        "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
-        "IMPORT_DATA": "Импорт",
-        "EXPORT_DATA": "Экспорт",
-        "REMOVE_ALL": "Удалить плейлист",
-        "REMOVE_ALL_BUTTON": "Удалить",
-        "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
-        "REMOVE_DIALOG": {
-            "TITLE": "Удалить все плейлисты",
-            "MESSAGE": "Вы уверены что хотите удалить все плейлисты из приложения?"
-        },
-        "IMPORT_ERROR": "Import error, please try with another file.",
-        "PLAYLISTS_REMOVED": "Все плейлисты были удалены.",
-        "VLC_PLAYER_PATH_LABEL": "Путь к VLC плееру",
-        "VLC_PLAYER_PATH": "Путь к VLC плееру",
-        "MPV_PLAYER_PATH_LABEL": "Путь к mpv плееру",
-        "MPV_PLAYER_PATH": "Путь к mpv плееру"
+    "PLAYLISTS": {
+      "NO_PLAYLISTS": "Пока еще не было добавлено ни одного плейлиста",
+      "ADD_FIRST": "Вы можете добавить плейлисты из соседних вкладок",
+      "ADDED_VIA_URL": "Был добавлен по ссылке:",
+      "ADDED_VIA_FILE": "Был загружен с компьютера",
+      "CHANNELS": "Каналов",
+      "ADDED": "Добавлен",
+      "SHOW_DETAILS": "Показать информацию о плейлисте",
+      "REMOVE": "Удалить плейлист",
+      "SEARCH_PLAYLISTS": "Поиск по названию плейлиста",
+      "INFO_DIALOG": {
+        "PLAYLIST_DETAILS": "Подробная информация о плейлисте",
+        "TITLE": "Название",
+        "FROM_URL": "Добавлен по ссылке",
+        "IMPORT_DATE": "Дата импорта",
+        "CHANNELS": "Количество каналов",
+        "CLOSE": "Закрыть",
+        "SAVE": "Сохранить",
+        "USER_AGENT": "User agent",
+        "ORIGINAL_FILENAME": "Имя файла при загрузке",
+        "FILE_PATH": "Путь к файлу",
+        "UPDATE_FAILED": "Не удалось обновить плейлист",
+        "AUTO_UPDATE": "Автообновление",
+        "AUTO_UPDATE_DESCRIPTION": "Если активирована функция автообновления, список воспроизведения будет обновляться автоматически при каждом запуске приложения.",
+        "CUSTOM_USER_AGENT": "Некоторые IPTV провайдеры требуют указание определенного пользовательского агента (User Agent) для воспроизведения своего плейлиста.",
+        "EXPORT_PLAYLIST": "Экспортировать плейлист (m3u)",
+        "PASSWORD": "Пароль",
+        "SERVER_URL": "URL-адрес сервера",
+        "USERNAME": "Имя пользователя",
+        "MAC_ADDRESS": "MAC-адрес"
+      },
+      "UPDATED": "Обновлен",
+      "REFRESH": "Обновить плейлист",
+      "REMOVE_DIALOG": {
+        "MESSAGE": "Вы уверены, что хотите удалить этот плейлист?",
+        "TITLE": "Удалить плейлист"
+      },
+      "GLOBAL_FAVORITES": "Все фавориты",
+      "GLOBAL_FAVORITES_DESCRIPTION": "Автоматически сгенерированный плейлист, включающий в себя фавориты из всех плейлистов",
+      "MY_PLAYLISTS": "Мои плейлисты",
+      "MY_PLAYLISTS_SUBTITLE": "Все имеющиеся плейлисты",
+      "PLAYLIST_UPDATE_SUCCESS": "Плейлист был успешно обновлен!",
+      "STALKER_PORTAL": "Stalker портал",
+      "XTREAM_PLAYLIST": "Xtream плейлист"
     },
-    "THEMES": {
-        "DARK_THEME": "Тёмная тема",
-        "LIGHT_THEME": "Светлая тема"
+    "FILE_UPLOAD": {
+      "DRAG_DROP": "Перетащите файл в эту область",
+      "OR": "или",
+      "CHOOSE_PLAYLIST": "выберите плейлист",
+      "REJECTED": "К сожалению, данный формат файлов не поддерживается {{filename}}."
     },
-    "CHANNELS": {
-        "SEARCH_CHANNEL": "Поиск каналов",
-        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",
-        "ALL_CHANNELS": "Все каналы",
-        "GROUPS": "Группы",
-        "UNGROUPED": "Негруппированные",
-        "UNNAMED_CHANNEL": "Канал без названия",
-        "FAVORITES": "Избранные",
-        "NO_FAVORITES": "Избранных каналов пока нет",
-        "USE_STAR_TO_FAVORITE": "Используйте иконку звезды, чтобы добавлять каналы в избранное",
-        "REMOVE_FAVORITE": "Удалить из списка фаворитов",
-        "FAVORITES_UPDATED": "Список фаворитов был обновлен!"
+    "URL_UPLOAD": {
+      "PLAYLIST_URL": "Ссылка на плейлист (*.m3u или *.m3u8)",
+      "ADD_PLAYLIST": "Добавить плейлист"
     },
-    "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Открыть список каналов",
-        "TOGGLE_FAVORITE_FLAG": "Избранный",
-        "OPEN_EPG_LIST": "Открыть программу (EPG)",
-        "OPEN_MULTI_EPG": "Open Multi-EPG view"
+    "TEXT_IMPORT": {
+      "LABEL": "Вставьте плейлист формата m3u(8) в данное поле",
+      "BUTTON_LABEL": "Импортировать"
     },
-    "EPG": {
-        "NEXT_DAY": "Следующий день",
-        "PREVIOUS_DAY": "Предыдущий день",
-        "LIVE_NOW": "Сейчас",
-        "LIVE_STREAM": "Прямая трансляция",
-        "TIMESHIFT_AVAILABLE": "Доступна функция архива (timeshift). Нажмите на передачу для воспроизведения.",
-        "EPG_NOT_AVAILABLE_DATE": "Ой, программа на этот день, к сожалению, отсутствует.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Программа для этого канала недоступна.",
-        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Попробуйте изменить или обновить ссылку на EPG в настройках приложения.",
-        "FETCH_EPG": "Загружаю программу ТВ-передач (EPG)...",
-        "ERROR": "Ой, не удалось загрузить программу каналов (EPG)",
-        "DOWNLOAD_SUCCESS": "Программа каналов (EPG) была успешно загружена.",
-        "PROGRAM_DIALOG": {
-            "PROGRAM_DETAILS": "Подробности передачи",
-            "TITLE": "Название",
-            "CATEGORY": "Категория",
-            "PARENTAL_RATING_SYSTEM": "Возрастное ограничение",
-            "DESCRIPTION": "Описание",
-            "LANGUAGE": "Язык",
-            "SHOW_PROGRAM_DETAILS": "Показать подробности"
-        }
+    "XTREAM_PLAYLIST": {
+      "TITLE": "Название плейлиста",
+      "SERVER_URL": "Сервер URL",
+      "USERNAME": "Пользователь",
+      "PASSWORD": "Пароль",
+      "ADD": "Добавить",
+      "TEST_CREDENTIALS": "Проверить",
+      "URL_VALIDATION_ERROR": "Должен быть действительный URL-адрес с протоколом (например, http://example.com или https://example.com:4324)."
     },
-    "LANGUAGES": {
-        "ENGLISH": "English",
-        "KOREAN": "한국어",
-        "RUSSIAN": "Русский",
-        "GERMAN": "Deutsch",
-        "SPANISH": "Español",
-        "CHINESE": "简体中文",
-        "TRADITIONAL_CHINESE": "繁體中文",
-        "FRENCH": "Français",
-        "ITALIAN": "Italiano"
+    "STALKER_PORTAL": {
+      "ADD": "Добавить",
+      "TITLE": "Название",
+      "MAC_ADDRESS": "MAC-адрес",
+      "SERVER_URL": "URL сервера",
+      "URL_VALIDATION_ERROR": "Должен быть действительный URL-адрес с протоколом (например, http://example.com/c или https://example.com/stalker_portal/c)."
     },
-    "NO": "Нет",
-    "YES": "Да",
-    "MENU": {
-        "OPEN": "Открыть меню",
-        "SUPPORT_ARIA": "Поддержать IPTVnator на GitHub",
-        "SETTINGS": "Настройки",
-        "SETTINGS_ARIA": "Открыть настройки",
-        "BUG_REPORT": "Сообщить об ошибке",
-        "WHAT_IS_NEW": "Что нового?",
-        "ABOUT": "О приложении",
-        "ABOUT_ARIA": "О приложении"
+    "FILTER_BY_TYPE": "Фильтровать по типу",
+    "IMPORTED_AS_TEXT": "Импортировано как текст",
+    "FILTER_BY_NAME": "Фильтровать по имени",
+    "PARSING_ERROR": "Ошибка парсинга, недействительный плейлист:"
+  },
+  "SETTINGS": {
+    "TITLE": "Настройки / IPTVnator",
+    "SUBTITLE": "Здесь можно изменить общие настройки приложения",
+    "DESCRIPTION": "Закончив настройку, не забудьте подтвердить новые настройки кнопкой 'Сохранить'",
+    "EPG_URL_LABEL": "Ссылка на программу каналов (EPG) (*.xml или *.xml.gz)",
+    "EPG_URL_PLACEHOLDER": "Введите ссылку",
+    "REFRESH_EPG": "Обновить программу каналов (EPG)",
+    "VIDEO_PLAYER_LABEL": "Видеоплеер",
+    "VIDEO_PLAYER_PLACEHOLDER": "Выберите из списка",
+    "VERSION": "Версия приложения",
+    "SAVE_CHANGES": "Сохранить",
+    "BACK_TO_HOME": "Назад",
+    "NEW_VERSION_AVAILABLE": "Доступна новая версия приложения",
+    "LATEST_VERSION": "Вы используете последнюю версию приложения",
+    "LANGUAGE": "Язык",
+    "SETTINGS_SAVED": "Новые настройки были успешно сохранены!",
+    "THEME": "Тема оформления",
+    "SHOW_CAPTIONS": "Отображать субтитры",
+    "ADD_EPG_SOURCE": "Добавить источник EPG",
+    "EPG_URL_ERROR": "Введенное значение не является URL-адресом.",
+    "VIDEO_PLAYER_DESCRIPTION": "Выбрать стандартный видео плеер",
+    "LANGUAGE_DESCRIPTION": "Выбрать язык приложения",
+    "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
+    "SHOW_CAPTIONS_DESCRIPTION": "Показать или скрыть субтитры по умолчанию.",
+    "VERSION_DESCRIPTION": "Текущая версия приложения",
+    "EPG_NOTE": "На данный момент EPG доступен только в нативной версии IPTVnator.",
+    "EPG_NOTE_URL_TEXT": "Подробнее здесь",
+    "IMPORT_EXPORT_DATA": "Импорт/экспорт плейлистов",
+    "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
+    "IMPORT_DATA": "Импорт",
+    "EXPORT_DATA": "Экспорт",
+    "REMOVE_ALL": "Удалить плейлист",
+    "REMOVE_ALL_BUTTON": "Удалить",
+    "REMOVE_ALL_DESCRIPTION": " Это действие удалит все существующие плейлисты из приложения.",
+    "REMOVE_DIALOG": {
+      "TITLE": "Удалить все плейлисты",
+      "MESSAGE": "Вы уверены что хотите удалить все плейлисты из приложения?"
     },
-    "ABOUT": {
-        "TITLE": "О приложении",
-        "DESCRIPTION": "Cross-platform IPTV player application with multiple features, such as support of m3u and m3u8 playlists, favorites, TV guide, TV archive/catchup and more.",
-        "VERSION": "Версия",
-        "GITHUB_TOOLTIP": "Репозиторий приложения на GitHub",
-        "BUY_ME_A_COFFEE_TOOLTIP": "Поддержать разработчика",
-        "TWITTER_TOOLTIP": "Поделиться на Twitter"
-    },
-    "UPDATE_AVAILABLE": "Доступно обновление",
-    "REFRESH": "Обновить",
-    "XTREAM": {
-        "RATING": "Рейтинг",
-        "RELEASE_DATE": "Дата выпуска",
-        "ACTORS": "Актеры",
-        "PLAY": "Воспроизвести",
-        "GENRE": "Жанр",
-        "DURATION": "Продолжительность",
-        "COUNTRY": "Страна",
-        "NAME": "Название",
-        "DIRECTOR": "Режиссёр",
-        "CAST": "Бросать",
-        "EPISODE_RUN_TIME": "Длительность эпизода"
-    },
-    "PORTALS": {
-        "ALL_CATEGORIES": "Все категории",
-        "ADD_TO_FAVORITES": "Добавить в избранное",
-        "REMOVE_FROM_FAVORITES": "Удалить из избранного",
-        "MY_FAVORITES": "Избранное"
+    "IMPORT_ERROR": "Ошибка импорта, пожалуйста попробуйте импортировать другой файл.",
+    "PLAYLISTS_REMOVED": "Все плейлисты были удалены.",
+    "VLC_PLAYER_PATH_LABEL": "Путь к VLC плееру",
+    "VLC_PLAYER_PATH": "Путь к VLC плееру",
+    "MPV_PLAYER_PATH_LABEL": "Путь к mpv плееру",
+    "MPV_PLAYER_PATH": "Путь к mpv плееру",
+    "VLC_PLAYER_PATH_DESCRIPTION": "Установите путь к проигрывателю VLC в вашей системе. \nОн будет использовать предоставленный путь к binary файлу VLC вместо пути по умолчанию."
+  },
+  "THEMES": {
+    "DARK_THEME": "Тёмная тема",
+    "LIGHT_THEME": "Светлая тема"
+  },
+  "CHANNELS": {
+    "SEARCH_CHANNEL": "Поиск каналов",
+    "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",
+    "ALL_CHANNELS": "Все каналы",
+    "GROUPS": "Группы",
+    "UNGROUPED": "Негруппированные",
+    "UNNAMED_CHANNEL": "Канал без названия",
+    "FAVORITES": "Избранные",
+    "NO_FAVORITES": "Избранных каналов пока нет",
+    "USE_STAR_TO_FAVORITE": "Используйте иконку звезды, чтобы добавлять каналы в избранное",
+    "REMOVE_FAVORITE": "Удалить из списка фаворитов",
+    "FAVORITES_UPDATED": "Список фаворитов был обновлен!"
+  },
+  "TOP_MENU": {
+    "OPEN_CHANNELS_LIST": "Открыть список каналов",
+    "TOGGLE_FAVORITE_FLAG": "Избранный",
+    "OPEN_EPG_LIST": "Открыть программу (EPG)",
+    "OPEN_MULTI_EPG": "Open Multi-EPG view"
+  },
+  "EPG": {
+    "NEXT_DAY": "Следующий день",
+    "PREVIOUS_DAY": "Предыдущий день",
+    "LIVE_NOW": "Сейчас",
+    "LIVE_STREAM": "Прямая трансляция",
+    "TIMESHIFT_AVAILABLE": "Доступна функция архива (timeshift). Нажмите на передачу для воспроизведения.",
+    "EPG_NOT_AVAILABLE_DATE": "Ой, программа на этот день, к сожалению, отсутствует.",
+    "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Программа для этого канала недоступна.",
+    "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Попробуйте изменить или обновить ссылку на EPG в настройках приложения.",
+    "FETCH_EPG": "Загружаю программу ТВ-передач (EPG)...",
+    "ERROR": "Ой, не удалось загрузить программу каналов (EPG)",
+    "DOWNLOAD_SUCCESS": "Программа каналов (EPG) была успешно загружена.",
+    "PROGRAM_DIALOG": {
+      "PROGRAM_DETAILS": "Подробности передачи",
+      "TITLE": "Название",
+      "CATEGORY": "Категория",
+      "PARENTAL_RATING_SYSTEM": "Возрастное ограничение",
+      "DESCRIPTION": "Описание",
+      "LANGUAGE": "Язык",
+      "SHOW_PROGRAM_DETAILS": "Показать подробности"
     }
+  },
+  "LANGUAGES": {
+    "ENGLISH": "English",
+    "KOREAN": "한국어",
+    "RUSSIAN": "Русский",
+    "GERMAN": "Deutsch",
+    "SPANISH": "Español",
+    "CHINESE": "简体中文",
+    "TRADITIONAL_CHINESE": "繁體中文",
+    "FRENCH": "Français",
+    "ITALIAN": "Italiano",
+    "TURKISH": "Türkçe"
+  },
+  "NO": "Нет",
+  "YES": "Да",
+  "MENU": {
+    "OPEN": "Открыть меню",
+    "SUPPORT_ARIA": "Поддержать IPTVnator на GitHub",
+    "SETTINGS": "Настройки",
+    "SETTINGS_ARIA": "Открыть настройки",
+    "BUG_REPORT": "Сообщить об ошибке",
+    "WHAT_IS_NEW": "Что нового?",
+    "ABOUT": "О приложении",
+    "ABOUT_ARIA": "О приложении",
+    "SUPPORT_PROJECT": "Поддержать проект"
+  },
+  "ABOUT": {
+    "TITLE": "О приложении",
+    "DESCRIPTION": "Cross-platform IPTV player application with multiple features, such as support of m3u and m3u8 playlists, favorites, TV guide, TV archive/catchup and more.",
+    "VERSION": "Версия",
+    "GITHUB_TOOLTIP": "Репозиторий приложения на GitHub",
+    "BUY_ME_A_COFFEE_TOOLTIP": "Поддержать разработчика",
+    "TWITTER_TOOLTIP": "Поделиться на Twitter"
+  },
+  "UPDATE_AVAILABLE": "Доступно обновление",
+  "REFRESH": "Обновить",
+  "XTREAM": {
+    "RATING": "Рейтинг",
+    "RELEASE_DATE": "Дата выпуска",
+    "ACTORS": "Актеры",
+    "PLAY": "Воспроизвести",
+    "GENRE": "Жанр",
+    "DURATION": "Продолжительность",
+    "COUNTRY": "Страна",
+    "NAME": "Название",
+    "DIRECTOR": "Режиссёр",
+    "CAST": "Бросать",
+    "EPISODE_RUN_TIME": "Длительность эпизода",
+    "AGE": "Возраст",
+    "EPISODE": "Эпизод",
+    "YEAR": "Год",
+    "YOUTUBE_TRAILER": "YouTube-трейлер",
+    "DESCRIPTION": "Описание",
+    "KINOPOISK_RATING": "Рейтинг на Кинопоиск",
+    "IMDB_RATING": "Рейтинг на IMDB"
+  },
+  "PORTALS": {
+    "ALL_CATEGORIES": "Все категории",
+    "ADD_TO_FAVORITES": "Добавить в избранное",
+    "REMOVE_FROM_FAVORITES": "Удалить из избранного",
+    "MY_FAVORITES": "Избранное",
+    "COPY_STREAM_URL": "Копировать URL-адрес потока",
+    "ERROR_VIEW": {
+      "DELETE": "Удалить",
+      "ACCOUNT_EXPIRED": {
+        "TITLE": "Срок действия учетной записи истек",
+        "DESCRIPTION": "Срок действия этой учетной записи истек. \nПожалуйста, проверьте учетные данные в настройках плейлиста или удалите его."
+      },
+      "HOME": "На главную",
+      "EMPTY_CATEGORY": {
+        "TITLE": "Пустая категория",
+        "DESCRIPTION": "В этой категории нет контента. Выберите другую категорию или измените тип контента."
+      },
+      "UNAUTHORIZED": {
+        "TITLE": "Несанкционированный",
+        "DESCRIPTION": "Пожалуйста, проверьте учетные данные в настройках плейлиста или удалите их."
+      },
+      "NOT_FOUND": {
+        "TITLE": "Портал не найден"
+      },
+      "UNKNOWN_ERROR": {
+        "TITLE": "Что-то пошло не так",
+        "DESCRIPTION": "Неизвестная ошибка. Повторите попытку позже."
+      },
+      "PLAYLIST_SETTINGS": "Настройки плейлиста"
+    },
+    "STREAM_URL_COPIED": "URL-адрес потока был скопирован в буфер обмена.",
+    "EMPTY_LIST_VIEW": {
+      "NO_SEARCH_RESULTS": "Ничего не найдено, попробуйте изменить поисковый запрос"
+    },
+    "REMOVED_FROM_FAVORITES": "Удалено из избранного",
+    "ADDED_TO_FAVORITES": "Добавлено в избранное"
+  },
+  "INFORMATION": "Инфо"
 }

@@ -1,0 +1,283 @@
+{
+  "CLOSE": "Kapat",
+  "PLAYLISTS": "Oynatma Listeleri",
+  "HOME": {
+    "TITLE": "IPTVnator",
+    "SUBTITLE": "Lütfen listeden bir oynatma listesi seçin veya yeni bir liste ekleyin",
+    "TABS": {
+      "RECENTLY_ADDED": "Son Eklenen Listeler",
+      "FILE_UPLOAD": "Dosya Yükle",
+      "URL_UPLOAD": "URL ile Ekle",
+      "TEXT_IMPORT": "Metinden İçe Aktar",
+      "XTREME_IMPORT": "Xtreme Kodu Ekle",
+      "STALKER_PORTAL_IMPORT": "Stalker Portalı Ekle"
+    },
+    "PLAYLISTS": {
+      "NO_PLAYLISTS": "Oynatma listesi eklenmedi",
+      "ADD_FIRST": "Lütfen ilk oynatma listenizi ekleyin",
+      "ADDED_VIA_URL": "URL yüklemesi ile eklendi. URL:",
+      "ADDED_VIA_FILE": "Dosya yüklemesi ile eklendi",
+      "XTREAM_PLAYLIST": "Xtream oynatma listesi",
+      "STALKER_PORTAL": "Stalker portalı",
+      "CHANNELS": "Kanallar",
+      "ADDED": "Eklendi",
+      "SHOW_DETAILS": "Oynatma listesi ayrıntılarını göster",
+      "REMOVE": "Oynatma listesini kaldır",
+      "SEARCH_PLAYLISTS": "Oynatma listelerini başlığa göre ara",
+      "INFO_DIALOG": {
+        "PLAYLIST_DETAILS": "Oynatma Listesi Ayrıntıları",
+        "TITLE": "Başlık",
+        "FROM_URL": "URL'den Eklendi",
+        "IMPORT_DATE": "İçe Aktarma Tarihi",
+        "CHANNELS": "Kanal Sayısı",
+        "CLOSE": "Kapat",
+        "SAVE": "Kaydet",
+        "USER_AGENT": "Kullanıcı Aracısı",
+        "ORIGINAL_FILENAME": "Orijinal Dosya Adı",
+        "FILE_PATH": "Dosya Yolu",
+        "UPDATE_FAILED": "Son oynatma listesi güncellemesi başarısız oldu",
+        "AUTO_UPDATE": "Otomatik Güncelleme",
+        "AUTO_UPDATE_DESCRIPTION": "Otomatik yenileme işlevi etkinleştirilirse, uygulama her başlatıldığında oynatma listesi otomatik olarak güncellenecektir.",
+        "CUSTOM_USER_AGENT": "Bazı IPTV sağlayıcıları, oynatma listelerini oynatmak için belirli bir kullanıcı aracısına ihtiyaç duyar.",
+        "EXPORT_PLAYLIST": "Oynatma listesini m3u olarak dışa aktar",
+        "SERVER_URL": "Sunucu URL'si",
+        "USERNAME": "Kullanıcı Adı",
+        "PASSWORD": "Parola",
+        "MAC_ADDRESS": "MAC Adresi"
+      },
+      "REMOVE_DIALOG": {
+        "TITLE": "Oynatma Listesini Kaldır",
+        "MESSAGE": "Bu oynatma listesini tamamen silmek istediğinizden emin misiniz?"
+      },
+      "UPDATED": "Güncellendi",
+      "REFRESH": "Oynatma Listesini Yenile",
+      "GLOBAL_FAVORITES": "Global Favoriler",
+      "GLOBAL_FAVORITES_DESCRIPTION": "Tüm oynatma listelerinden toplanan favorilerle otomatik olarak oluşturulan oynatma listesi",
+      "MY_PLAYLISTS": "Oynatma Listelerim",
+      "MY_PLAYLISTS_SUBTITLE": "tüm mevcut oynatma listeleri",
+      "PLAYLIST_UPDATE_SUCCESS": "Başarılı! Oynatma listesi başarıyla güncellendi."
+    },
+    "FILE_UPLOAD": {
+      "DRAG_DROP": "Dosyaları buraya sürükleyip bırakın",
+      "OR": "veya",
+      "CHOOSE_PLAYLIST": "bir oynatma listesi seçin",
+      "REJECTED": "{{filename}} dosyası reddedildi, desteklenmeyen dosya formatı."
+    },
+    "URL_UPLOAD": {
+      "PLAYLIST_URL": "Oynatma Listesi URL'si (m3u, m3u8)",
+      "ADD_PLAYLIST": "Oynatma Listesi Ekle",
+      "CORS_NOTE": "Not: Bu noktada CORS sorunlarını önlemek için uygulama, genel bir CORS Proxy hizmeti kullanır. Hassas veriler içeren bir oynatma listesi yüklemek istiyorsanız, bir dosyadan içe aktarmak daha güvenlidir."
+    },
+    "TEXT_IMPORT": {
+      "LABEL": "m3u(8) oynatma listesini metin olarak ekleyin",
+      "BUTTON_LABEL": "İçe Aktar"
+    },
+    "XTREAM_PLAYLIST": {
+      "TITLE": "Oynatma Listesi Başlığı",
+      "SERVER_URL": "Sunucu URL'si",
+      "USERNAME": "Kullanıcı Adı",
+      "PASSWORD": "Parola",
+      "ADD": "Ekle",
+      "TEST_CREDENTIALS": "Kimlik Bilgilerini Test Et",
+      "URL_VALIDATION_ERROR": "Protokolü olan geçerli bir url olmalıdır (örn. http://example.com veya https://example.com:4324)"
+    },
+    "STALKER_PORTAL": {
+      "TITLE": "Başlık",
+      "MAC_ADDRESS": "MAC Adresi",
+      "SERVER_URL": "Sunucu URL'si",
+      "URL_VALIDATION_ERROR": "Protokolü olan geçerli bir url olmalıdır (örn. http://example.com/c veya https://example.com/stalker_portal/c)",
+      "ADD": "Ekle"
+    },
+    "FILTER_BY_NAME": "İsme Göre Filtrele",
+    "FILTER_BY_TYPE": "Türe Göre Filtrele",
+    "IMPORTED_AS_TEXT": "Metin Olarak İçe Aktarıldı",
+    "PARSING_ERROR": "Hata: Ayrıştırma başarısız oldu, geçerli bir oynatma listesi değil:"
+  },
+  "SETTINGS": {
+    "TITLE": "Ayarlar / IPTVnator",
+    "SUBTITLE": "Uygulamanın yapılandırmasını değiştir",
+    "DESCRIPTION": "Lütfen aşağıdaki seçenekleri düzenleyin ve değişiklikleri kaydet düğmesiyle onaylayın",
+    "EPG_URL_LABEL": "EPG Url (*.xml veya *.xml.gz)",
+    "EPG_URL_PLACEHOLDER": "Bir URL girin",
+    "REFRESH_EPG": "EPG'yi Yenile",
+    "VIDEO_PLAYER_LABEL": "Video oynatıcı",
+    "VIDEO_PLAYER_PLACEHOLDER": "Bir seçenek belirleyin",
+    "VERSION": "Sürüm",
+    "SAVE_CHANGES": "Değişiklikleri Kaydet",
+    "BACK_TO_HOME": "Ana Sayfaya Dön",
+    "NEW_VERSION_AVAILABLE": "Yeni bir sürüm mevcut",
+    "LATEST_VERSION": "En son sürümü kullanıyorsunuz",
+    "LANGUAGE": "Dil",
+    "SETTINGS_SAVED": "Başarılı! Yapılandırma kaydedildi.",
+    "THEME": "Görsel tema",
+    "SHOW_CAPTIONS": "Altyazıları göster",
+    "ADD_EPG_SOURCE": "EPG kaynağı ekle",
+    "EPG_URL_ERROR": "Değer geçerli bir URL değil",
+    "VIDEO_PLAYER_DESCRIPTION": "Varsayılan video oynatıcıyı seçin",
+    "LANGUAGE_DESCRIPTION": "Uygulamanın dilini seçin",
+    "THEME_DESCRIPTION": "Uygulamanın görsel temasını seçin",
+    "SHOW_CAPTIONS_DESCRIPTION": "Varsayılan olarak altyazıları göster veya gizle",
+    "VERSION_DESCRIPTION": "Uygulamanın mevcut sürümü",
+    "EPG_NOTE": "Şu anda EPG yalnızca IPTVnator'ın elektron tabanlı sürümünde mevcuttur.",
+    "EPG_NOTE_URL_TEXT": "Buradan kontrol edin",
+    "IMPORT_EXPORT_DATA": "Oynatma listelerini içe/dışa aktar",
+    "IMPORT_EXPORT_DATA_DESCRIPTION": "Uygulamada kullanılan JSON formatında oynatma listelerini dışa aktarın veya içe aktarın.",
+    "IMPORT_DATA": "İçe Aktar",
+    "EXPORT_DATA": "Dışa Aktar",
+    "REMOVE_ALL": "Oynatma listesini kaldır",
+    "REMOVE_ALL_BUTTON": "Kaldır",
+    "REMOVE_ALL_DESCRIPTION": "Uygulamadaki tüm mevcut oynatma listelerini kaldıracaktır.",
+    "REMOVE_DIALOG": {
+      "TITLE": "Tüm oynatma listelerini kaldır",
+      "MESSAGE": "Uygulamadaki tüm oynatma listelerini silmek istediğinizden emin misiniz?"
+    },
+    "IMPORT_ERROR": "İçe aktarma hatası, lütfen başka bir dosyayla deneyin.",
+    "PLAYLISTS_REMOVED": "Tüm oynatma listeleri kaldırıldı.",
+    "MPV_PLAYER_PATH_LABEL": "mpv yolu",
+    "MPV_PLAYER_PATH_DESCRIPTION": "Sisteminizdeki mpv oynatıcı yolunu ayarlayın. $PATH'de bulunanı kullanmak yerine, sağlanan mpv ikili dosyası yolunu kullanacaktır.",
+    "MPV_PLAYER_PATH": "mpv oynatıcı yolu",
+    "VLC_PLAYER_PATH_LABEL": "VLC yolu",
+    "VLC_PLAYER_PATH_DESCRIPTION": "Sisteminizdeki VLC oynatıcı yolunu ayarlayın. Sistemimiz için varsayılan yolu kullanmak yerine, sağlanan VLC ikili dosyası yolunu kullanacaktır.",
+    "VLC_PLAYER_PATH": "VLC oynatıcı yolu"
+  },
+  "THEMES": {
+    "DARK_THEME": "Koyu Tema",
+    "LIGHT_THEME": "Açık Tema"
+  },
+  "CHANNELS": {
+    "SEARCH_CHANNEL": "Kanal Ara",
+    "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Yükle veya başka bir oynatma listesi seç",
+    "ALL_CHANNELS": "Tüm Kanallar",
+    "GROUPS": "Gruplar",
+    "UNGROUPED": "Grupsuz",
+    "UNNAMED_CHANNEL": "İsimsiz Kanal",
+    "FAVORITES": "Favoriler",
+    "NO_FAVORITES": "Henüz favori yok",
+    "USE_STAR_TO_FAVORITE": "Kanalları favorilerinize eklemek için lütfen 'yıldız' simgesini kullanın.",
+    "REMOVE_FAVORITE": "Favorilerden Kaldır",
+    "FAVORITES_UPDATED": "Favoriler güncellendi!"
+  },
+  "TOP_MENU": {
+    "OPEN_CHANNELS_LIST": "Kanal listesini aç",
+    "TOGGLE_FAVORITE_FLAG": "Favori işaretini değiştir",
+    "OPEN_EPG_LIST": "EPG listesini aç",
+    "OPEN_MULTI_EPG": "Çoklu EPG görünümünü aç"
+  },
+  "EPG": {
+    "NEXT_DAY": "Sonraki gün",
+    "PREVIOUS_DAY": "Önceki gün",
+    "LIVE_NOW": "Şu an canlı",
+    "LIVE_STREAM": "Canlı yayın",
+    "TIMESHIFT_AVAILABLE": "Zaman kaydırma mevcut, oynatmak için tıklayın",
+    "EPG_NOT_AVAILABLE_DATE": "Üzgünüz, seçilen tarih için EPG mevcut değil",
+    "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Üzgünüz, bu kanal için EPG mevcut değil.",
+    "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Lütfen uygulamanın ayarlarından EPG listesinin URL'sini ekleyin/değiştirin.",
+    "FETCH_EPG": "EPG verileri getiriliyor...",
+    "ERROR": "Üzgünüz, EPG yüklenemedi.",
+    "DOWNLOAD_SUCCESS": "EPG başarıyla indirildi.",
+    "PROGRAM_DIALOG": {
+      "PROGRAM_DETAILS": "TV programı hakkında ayrıntılar",
+      "TITLE": "Başlık",
+      "CATEGORY": "Kategori",
+      "PARENTAL_RATING_SYSTEM": "Televizyon içerik derecelendirme sistemi",
+      "DESCRIPTION": "Açıklama",
+      "LANGUAGE": "Dil",
+      "SHOW_PROGRAM_DETAILS": "Bu program hakkında ayrıntıları göster"
+    }
+  },
+  "LANGUAGES": {
+    "ENGLISH": "İngilizce",
+    "KOREAN": "한국어",
+    "RUSSIAN": "Русский",
+    "GERMAN": "Deutsch",
+    "SPANISH": "Español",
+    "CHINESE": "简体中文",
+    "TRADITIONAL_CHINESE": "繁體中文",
+    "FRENCH": "Français",
+    "ITALIAN": "Italiano",
+    "TURKISH": "Türkçe"
+  },
+  "YES": "Evet",
+  "NO": "Hayır",
+  "MENU": {
+    "OPEN": "Menüyü Aç",
+    "SUPPORT_ARIA": "GitHub'da IPTVnator'ı Destekle",
+    "SETTINGS": "Ayarlar",
+    "SETTINGS_ARIA": "Ayarları aç",
+    "BUG_REPORT": "Bir hata bildir",
+    "WHAT_IS_NEW": "Yenilikler",
+    "ABOUT": "Hakkında",
+    "ABOUT_ARIA": "Uygulama Hakkında",
+    "SUPPORT_PROJECT": "Destek projesi"
+  },
+  "ABOUT": {
+    "TITLE": "IPTVnator Hakkında",
+    "DESCRIPTION": "m3u ve m3u8 oynatma listesi, favoriler, TV rehberi, TV arşivi/catchup ve daha fazlası gibi birçok özelliğe sahip, platformlar arası IPTV oynatıcı uygulaması.",
+    "VERSION": "Sürüm",
+    "GITHUB_TOOLTIP": "GitHub'daki ITPVnator deposu",
+    "BUY_ME_A_COFFEE_TOOLTIP": "Bana bir kahve ısmarla",
+    "TWITTER_TOOLTIP": "Twitter'da Paylaş"
+  },
+  "UPDATE_AVAILABLE": "Güncelleme mevcut",
+  "REFRESH": "Yenile",
+  "XTREAM": {
+    "PLAY": "Oynat",
+    "NAME": "Ad",
+    "RELEASE_DATE": "Çıkış tarihi",
+    "GENRE": "Tür",
+    "COUNTRY": "Ülke",
+    "ACTORS": "Oyuncular",
+    "DIRECTOR": "Yönetmen",
+    "DURATION": "Süre",
+    "CAST": "Oyuncular",
+    "EPISODE_RUN_TIME": "Bölüm çalışma süresi",
+    "RATING": "Değerlendirme",
+    "DESCRIPTION": "Açıklama",
+    "YEAR": "Yıl",
+    "AGE": "Yaş",
+    "EPISODE": "Bölüm",
+    "YOUTUBE_TRAILER": "YouTube Fragmanı",
+    "KINOPOISK_RATING": "Derecelendirme Kinopoisk",
+    "IMDB_RATING": "IMDB'nin derecelendirmesi"
+  },
+  "PORTALS": {
+    "ALL_CATEGORIES": "Tüm kategoriler",
+    "MY_FAVORITES": "Favorilerim",
+    "ADD_TO_FAVORITES": "Favorilere ekle",
+    "REMOVE_FROM_FAVORITES": "Favorilerden kaldır",
+    "REMOVED_FROM_FAVORITES": "Favorilerden kaldırıldı",
+    "ADDED_TO_FAVORITES": "Favorilere eklendi",
+    "ERROR_VIEW": {
+      "ACCOUNT_EXPIRED": {
+        "TITLE": "Hesap süresi doldu",
+        "DESCRIPTION": "Bu hesabın süresi doldu. Lütfen oynatma listesi ayarlarındaki kimlik bilgilerini kontrol edin veya kaldırın."
+      },
+      "UNAUTHORIZED": {
+        "TITLE": "Yetkisiz",
+        "DESCRIPTION": "Lütfen oynatma listesi ayarlarındaki kimlik bilgilerini kontrol edin veya kaldırın."
+      },
+      "NOT_FOUND": {
+        "TITLE": "Portal bulunamadı",
+        "DESCRIPTION": "Lütfen oynatma listesi ayarlarındaki kimlik bilgilerini ve portal url'sini kontrol edin veya kaldırın."
+      },
+      "PLAYLIST_SETTINGS": "Oynatma Listesi Ayarları",
+      "HOME": "Ana Sayfa",
+      "DELETE": "Sil",
+      "EMPTY_CATEGORY": {
+        "TITLE": "Boş kategori",
+        "DESCRIPTION": "Bu kategoride içerik yok, lütfen başka bir kategori seçin veya içerik türünü değiştirin"
+      },
+      "UNKNOWN_ERROR": {
+        "TITLE": "Bir şeyler ters gitti",
+        "DESCRIPTION": "Bilinmeyen hata, lütfen daha sonra tekrar deneyin"
+      }
+    },
+    "EMPTY_LIST_VIEW": {
+      "NO_SEARCH_RESULTS": "Hiçbir şey bulunamadı, arama isteğinizi değiştirmeyi deneyin",
+      "EMPTY_CATEGORY": "Bu kategori boş, başka bir kategori deneyin"
+    },
+    "STREAM_URL_COPIED": "Yayın URL'si panoya kopyalandı",
+    "COPY_STREAM_URL": "Yayın URL'sini Kopyala"
+  },
+  "INFORMATION": "Bilgi"
+}

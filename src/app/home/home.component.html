@@ -2,9 +2,7 @@
     <app-header
         [title]="'HOME.TITLE' | translate"
         [subtitle]="'HOME.SUBTITLE' | translate"
-    ></app-header>
-
+    />
     <app-recent-playlists class="recent-playlists" />
-
-    <mat-progress-bar *ngIf="isLoading" mode="indeterminate"></mat-progress-bar>
+    <mat-progress-bar *ngIf="isLoading" mode="indeterminate" />
 </div>

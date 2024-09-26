@@ -1,6 +1,7 @@
 <div id="navigation">
     <button mat-button routerLink="/">
-        <mat-icon>home</mat-icon> Playlists
+        <mat-icon>home</mat-icon>
+        <span class="button-label">{{ 'PLAYLISTS' | translate }}</span>
     </button>
 
     <mat-button-toggle-group
@@ -9,6 +10,7 @@
         aria-label="Content Type"
         [value]="contentType"
         (change)="changeContentType($event.value)"
+        hideSingleSelectionIndicator
     >
         <mat-button-toggle
             *ngFor="
@@ -17,13 +19,24 @@
             "
             [value]="item.contentType"
         >
-            {{ item.label }}
+            <mat-icon class="icon">{{ item.icon }}</mat-icon>
+            <span class="label">{{ item.label }}</span>
         </mat-button-toggle>
     </mat-button-toggle-group>
 
-    <button mat-button (click)="favoritesClicked.emit()">
-        <mat-icon>star</mat-icon> Favorites
-    </button>
+    <div>
+        <button mat-button (click)="openPlaylistDetails()">
+            <mat-icon>info</mat-icon>
+            <span class="button-label">{{ 'Info' | translate }}</span>
+        </button>
+
+        <button mat-button (click)="favoritesClicked.emit()">
+            <mat-icon>star</mat-icon>
+            <span class="button-label">{{
+                'CHANNELS.FAVORITES' | translate
+            }}</span>
+        </button>
+    </div>
 </div>
 <div id="sub-panel">
     <div class="breadcrumbs">
@@ -38,12 +51,15 @@
         </div>
     </div>
     <div class="search" *ngIf="searchVisible">
-        <input
-            class="search-input"
-            placeholder="Search by name"
-            type="search"
-            [ngModel]="searchPhrase()"
-            (ngModelChange)="searchPhraseUpdate.next($event)"
-        />
+        <mat-form-field class="search-input">
+            <mat-icon matPrefix>search</mat-icon>
+            <input
+                matInput
+                placeholder="Search by name"
+                type="search"
+                [ngModel]="searchPhrase()"
+                (ngModelChange)="searchPhraseUpdate.next($event)"
+            />
+        </mat-form-field>
     </div>
 </div>

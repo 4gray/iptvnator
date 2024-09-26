@@ -9,13 +9,11 @@
     "
 >
     <div class="image">
-        <img
-            *ngIf="item.info?.movie_image; else placeholderCover"
-            [src]="item.info?.movie_image"
-        />
-        <ng-template #placeholderCover>
+        @if (item.info?.movie_image) {
+            <img [src]="item.info?.movie_image" />
+        } @else {
             <div class="placeholder-cover"></div>
-        </ng-template>
+        }
     </div>
     <div class="details">
         <h2>{{ item.info.name }}</h2>
@@ -46,12 +44,23 @@
             <div class="label">{{ 'XTREAM.DURATION' | translate }}:</div>
             {{ item.info.duration }}
         </label>
+        <label *ngIf="item.info.rating_imdb">
+            <div class="label">{{ 'XTREAM.IMDB_RATING' | translate }}:</div>
+            {{ item.info.rating_imdb }}
+        </label>
+        <label *ngIf="item.info.rating_kinopoisk">
+            <div class="label">
+                {{ 'XTREAM.KINOPOISK_RATING' | translate }}:
+            </div>
+            {{ item.info.rating_kinopoisk }}
+        </label>
         <div class="action-buttons">
             <button
                 mat-flat-button
                 color="accent"
                 (click)="playClicked.emit(item)"
             >
+                <mat-icon>play_arrow</mat-icon>
                 {{ 'XTREAM.PLAY' | translate }}</button
             >&nbsp;
             <button
@@ -76,4 +85,19 @@
             </ng-template>
         </div>
     </div>
+</div>
+<div class="youtube-trailer" *ngIf="item.info.youtube_trailer">
+    <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
+    <iframe
+        width="100%"
+        height="450"
+        [src]="
+            'https://www.youtube.com/embed/' + item.info?.youtube_trailer | safe
+        "
+        title="YouTube video player"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allowfullscreen
+    ></iframe>
 </div>

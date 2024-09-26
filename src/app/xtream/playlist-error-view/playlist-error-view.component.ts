@@ -26,8 +26,11 @@ export class PlaylistErrorViewComponent {
 
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
 
-    @Input() title: string;
     @Input() description: string;
+    @Input() showActionButtons = true;
+    @Input() title: string;
+    @Input() viewType: 'ERROR' | 'EMPTY_CATEGORY' | 'NO_SEARCH_RESULTS' =
+        'ERROR';
 
     openPlaylistDetails() {
         this.dialog.open(PlaylistInfoComponent, {

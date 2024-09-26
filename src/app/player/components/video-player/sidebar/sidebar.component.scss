@@ -1,16 +1,21 @@
 #playlists-navigation {
-    background-color: #000;
-    color: #fff;
 
     .current-playlist {
         display: flex;
         align-items: center;
         padding: 8px;
+        justify-content: space-between;
+
+        .left {
+            display: flex;
+            gap: 5px;
+        }
     }
 
     .playlist-info {
         flex: 1;
         max-width: 300px;
+
 
         .name {
             font-size: 1.1em;
@@ -21,7 +26,6 @@
 
         .channels-count {
             font-size: 0.8em;
-            color: #ccc;
         }
     }
 }
@@ -30,7 +34,6 @@
     height: calc(100vh - 60px);
     overflow: auto;
     width: 100%;
-    display: block;
 }
 
 .electron {

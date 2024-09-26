@@ -1,95 +1,65 @@
-import { NgFor, NgIf } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule } from '@ngx-translate/core';
 import { XtreamCategory } from '../../../../shared/xtream-category.interface';
 import { FilterPipe } from '../../shared/pipes/filter.pipe';
+import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../portal.store';
 
 @Component({
     selector: 'app-category-view',
     standalone: true,
     template: `
-        <ng-container *ngIf="items?.length > 0; else noItems">
-            <div class="grid">
+        @if (items?.length > 0) {
+            @for (
+                item of items | filterBy: searchPhrase() : 'category_name';
+                track $index
+            ) {
                 <mat-card
                     appearance="outlined"
                     class="category-item"
-                    *ngFor="
-                        let item of items
-                            | filterBy: searchText() : 'category_name';
-                        trackBy: trackByFn
-                    "
                     (click)="categoryClicked.emit(item)"
                 >
                     <mat-card-content>
-                        {{ item.category_name }}
+                        {{
+                            item.category_name ||
+                                item.name ||
+                                'No category name'
+                        }}
                     </mat-card-content>
                 </mat-card>
-                <div
-                    class="no-content"
-                    *ngIf="
-                        !(items | filterBy: searchText() : 'category_name')
-                            ?.length
+            }
+            @if (
+                !(items | filterBy: searchPhrase() : 'category_name')?.length
+            ) {
+                <app-playlist-error-view
+                    title="No results"
+                    [description]="
+                        'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate
                     "
-                >
-                    <mat-icon class="icon">search</mat-icon>
-                    <div>Nothing found, try to change you search request</div>
-                </div>
-            </div>
-        </ng-container>
-        <ng-template #noItems>
-            <div class="no-content">
-                <mat-icon class="icon">warning</mat-icon>
-                <div>
-                    Oops, no content here, please change the category or content
-                    type
-                </div>
-            </div>
-        </ng-template>
+                    [showActionButtons]="false"
+                    [viewType]="'NO_SEARCH_RESULTS'"
+                />
+            }
+        } @else {
+            <app-playlist-error-view
+                [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"
+                [description]="
+                    'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION' | translate
+                "
+                [showActionButtons]="false"
+                [viewType]="'EMPTY_CATEGORY'"
+            />
+        }
     `,
-    styles: [
-        `
-            :host {
-                margin: 20px;
-                display: block;
-            }
-
-            mat-card-content {
-                overflow-wrap: break-word;
-            }
-
-            .no-content {
-                text-align: center;
-
-                .icon {
-                    font-size: 64px;
-                    height: 64px;
-                    width: 64px;
-                }
-            }
-
-            .grid {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 10px;
-                justify-content: center;
-
-                .category-item {
-                    cursor: pointer;
-                    width: 200px;
-                }
-            }
-        `,
-    ],
+    styleUrl: './category-view.component.scss',
     imports: [
         FilterPipe,
-        FormsModule,
         MatCardModule,
         MatIconModule,
-        NgFor,
-        NgIf,
+        PlaylistErrorViewComponent,
+        TranslateModule,
     ],
 })
 export class CategoryViewComponent {
@@ -98,10 +68,5 @@ export class CategoryViewComponent {
     @Output() categoryClicked = new EventEmitter<XtreamCategory>();
 
     portalStore = inject(PortalStore);
-
-    searchText = this.portalStore.searchPhrase;
-
-    trackByFn(_index: number, item: XtreamCategory) {
-        return item.category_id;
-    }
+    searchPhrase = this.portalStore.searchPhrase;
 }

@@ -1,57 +1,57 @@
+import { ClipboardModule } from '@angular/cdk/clipboard';
 import { NgIf } from '@angular/common';
 import { Component, Inject, ViewEncapsulation } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { getExtensionFromUrl } from '../../../../shared/playlist.utils';
-import { HtmlVideoPlayerComponent } from '../../player/components/html-video-player/html-video-player.component';
-import { VjsPlayerComponent } from '../../player/components/vjs-player/vjs-player.component';
-import { VideoPlayer } from '../../settings/settings.interface';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { WebPlayerViewComponent } from '../../portals/web-player-view/web-player-view.component';
 
-interface DialogData {
+export interface PlayerDialogData {
     streamUrl: string;
-    player: VideoPlayer;
     title: string;
 }
 
 @Component({
-    selector: 'app-player-dialog',
     templateUrl: './player-dialog.component.html',
     standalone: true,
     imports: [
-        HtmlVideoPlayerComponent,
+        ClipboardModule,
+        MatButtonModule,
         MatDialogModule,
+        MatFormFieldModule,
+        MatIconModule,
+        MatInputModule,
         NgIf,
-        VjsPlayerComponent,
+        TranslateModule,
+        WebPlayerViewComponent,
     ],
-    styles: `
-        mat-dialog-content {
-            .video-js {
-                height: 500px !important;
-            }
-        }
-    `,
+    styleUrl: './player-dialog.component.scss',
     encapsulation: ViewEncapsulation.None,
 })
 export class PlayerDialogComponent {
-    channel = {};
-    vjsOptions = {};
-    player: VideoPlayer;
     title: string;
+    streamUrl: string;
 
-    constructor(@Inject(MAT_DIALOG_DATA) data: DialogData) {
-        this.player = data.player;
+    constructor(
+        @Inject(MAT_DIALOG_DATA) data: PlayerDialogData,
+        private snackBar: MatSnackBar,
+        private translateService: TranslateService
+    ) {
+        this.streamUrl = data.streamUrl;
         this.title = data.title;
+    }
 
-        const extension = getExtensionFromUrl(data.streamUrl);
-        const mimeType =
-            extension === 'm3u' || extension === 'm3u8' || extension === 'ts'
-                ? 'application/x-mpegURL'
-                : 'video/mp4';
-
-        this.vjsOptions = {
-            sources: [{ src: data.streamUrl, type: mimeType }],
-        };
-        this.channel = {
-            url: data.streamUrl,
-        };
+    showCopyNotification() {
+        this.snackBar.open(
+            this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
+            null,
+            {
+                duration: 2000,
+            }
+        );
     }
 }

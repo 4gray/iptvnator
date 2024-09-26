@@ -14,6 +14,7 @@
             type="text"
             id="serverUrl"
             formControlName="serverUrl"
+            (input)="extractParams(form.value.serverUrl)"
         />
         <mat-hint>{{
             'HOME.XTREAM_PLAYLIST.URL_VALIDATION_ERROR' | translate

@@ -1,10 +1,12 @@
-import { NgFor, NgIf } from '@angular/common';
+import { NgOptimizedImage } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslateModule } from '@ngx-translate/core';
 import { XtreamItem } from '../../../../shared/xtream-item.interface';
 import { FilterPipe } from '../../shared/pipes/filter.pipe';
+import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../portal.store';
 
 @Component({
@@ -13,23 +15,19 @@ import { PortalStore } from '../portal.store';
     styleUrls: ['./category-content-view.component.scss'],
     standalone: true,
     imports: [
-        NgFor,
+        FilterPipe,
         MatCardModule,
         MatIconModule,
-        NgIf,
-        FilterPipe,
-        FormsModule,
+        MatTooltipModule,
+        NgOptimizedImage,
+        PlaylistErrorViewComponent,
+        TranslateModule,
     ],
 })
 export class CategoryContentViewComponent {
     @Input({ required: true }) items: XtreamItem[];
-    @Output() itemClicked = new EventEmitter<any>();
+    @Output() itemClicked = new EventEmitter<XtreamItem>();
 
     portalStore = inject(PortalStore);
-
     searchPhrase = this.portalStore.searchPhrase;
-
-    trackByFn(_index: number, item: XtreamItem) {
-        return item.stream_id;
-    }
 }

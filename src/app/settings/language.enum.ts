@@ -11,4 +11,5 @@ export enum Language {
     TRADITIONAL_CHINESE = 'zhtw',
     FRENCH = 'fr',
     ITALIAN = 'it',
+    TURKISH = 'tr',
 }

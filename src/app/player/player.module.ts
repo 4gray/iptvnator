@@ -2,10 +2,9 @@ import { OverlayModule } from '@angular/cdk/overlay';
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
 import { SharedModule } from '../shared/shared.module';
 import { AudioPlayerComponent } from './components/audio-player/audio-player.component';
-import { ChannelListContainerComponent } from './components/channel-list-container/channel-list-container.component';
-import { ChannelListItemComponent } from './components/channel-list-container/channel-list-item/channel-list-item.component';
 import { EpgItemDescriptionComponent } from './components/epg-list/epg-item-description/epg-item-description.component';
 import { EpgListItemComponent } from './components/epg-list/epg-list-item/epg-list-item.component';
 import { EpgListComponent } from './components/epg-list/epg-list.component';
@@ -22,22 +21,21 @@ const routes: Routes = [{ path: '', component: VideoPlayerComponent }];
 @NgModule({
     imports: [
         AudioPlayerComponent,
-        ChannelListContainerComponent,
-        ChannelListItemComponent,
         CommonModule,
+        EpgItemDescriptionComponent,
         HtmlVideoPlayerComponent,
         OverlayModule,
+        RecentPlaylistsComponent,
         RouterModule.forChild(routes),
+        SidebarComponent,
         SharedModule,
         VjsPlayerComponent,
     ],
     declarations: [
-        EpgItemDescriptionComponent,
         EpgListComponent,
         EpgListItemComponent,
         InfoOverlayComponent,
         MultiEpgContainerComponent,
-        SidebarComponent,
         ToolbarComponent,
         VideoPlayerComponent,
     ],

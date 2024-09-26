@@ -4,55 +4,96 @@
     (searchTextChanged)="setSearchPhrase($event)"
     [clientSideSearch]="currentLayout === 'category_content' ? false : true"
     [searchVisible]="
-        currentLayout === 'category' || currentLayout === 'category_content'
+        (currentLayout === 'category' ||
+            currentLayout === 'category_content') &&
+        items?.length > 0
     "
     [contentTypeNavigationItems]="navigationContentTypes"
     [contentType]="selectedContentType"
     (contentTypeChanged)="getCategories($event)"
     (breadcrumbClicked)="breadcrumbClicked($event)"
-    (favoritesClicked)="favoritesClicked()"
+    (favoritesClicked)="favoriteViewClicked()"
+    [showCategories]="true"
 />
 
-@switch (currentLayout) {
-    @case ('category') {
-        <app-category-view
-            (categoryClicked)="categoryClicked($event)"
-            [items]="items"
-        />
-    }
-    @case ('category_content') {
-        <app-category-content-view
-            [items]="items"
-            (itemClicked)="itemClicked($event)"
-        />
-        <mat-paginator
-            *ngIf="currentLayout === 'category_content'"
-            [length]="length"
-            [pageSize]="pageSize"
-            (page)="handlePageChange($event)"
-            aria-label="Select page"
-        />
-    }
-    @case ('vod-details') {
-        <app-vod-details
-            [item]="itemDetails"
-            (playClicked)="playVod()"
-            (addToFavoritesClicked)="addToFavorites($event)"
-            (removeFromFavoritesClicked)="removeFromFavorites($event)"
-        />
-    }
-    @case ('favorites') {
-        <app-category-content-view
-            [items]="favorites$ | async"
-            (itemClicked)="itemClicked($event)"
-        />
-    }
-    @case ('not-available') {
-        <app-playlist-error-view
-            [title]="'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.TITLE' | translate"
-            [description]="
-                'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.DESCRIPTION' | translate
-            "
-        />
+@if (isLoading) {
+    <div class="loading-wrapper">
+        @if (currentLayout === 'category_content') {
+            <div class="loading-container category-content-view">
+                @for (a of [].constructor(14); track $index) {
+                    <div class="skeleton-item">
+                        <ngx-skeleton-loader
+                            count="1"
+                            [theme]="{ width: '170px', height: '270px' }"
+                        />
+                        <ngx-skeleton-loader
+                            count="1"
+                            [theme]="{ width: '60%', height: '30px' }"
+                        />
+                    </div>
+                }
+            </div>
+        } @else if (currentLayout === 'category') {
+            <div class="loading-container category-view">
+                @for (a of [].constructor(14); track $index) {
+                    <ngx-skeleton-loader
+                        count="1"
+                        [theme]="{ width: '170px', height: '51px' }"
+                    />
+                }
+            </div>
+        }
+    </div>
+} @else {
+    @switch (currentLayout) {
+        @case ('category') {
+            <app-category-view
+                (categoryClicked)="categoryClicked($event)"
+                [items]="items"
+            />
+        }
+        @case ('category_content') {
+            <app-category-content-view
+                [items]="items"
+                (itemClicked)="itemClicked($event)"
+            />
+            @if (currentLayout === 'category_content' && length && length > 0) {
+                <mat-paginator
+                    [length]="length"
+                    [pageIndex]="pageIndex"
+                    [pageSize]="pageSize"
+                    (page)="handlePageChange($event)"
+                    aria-label="Select page"
+                />
+            }
+        }
+        @case ('vod-details') {
+            <app-vod-details
+                [item]="itemDetails"
+                (playClicked)="createLinkToPlayVod(itemDetails.cmd)"
+                (addToFavoritesClicked)="addToFavorites($event)"
+                (removeFromFavoritesClicked)="removeFromFavorites($event)"
+            />
+        }
+        @case ('serial-details') {
+            <app-stalker-series-view
+                [seasons]="seasons"
+                (playEpisode)="createLinkToPlayEpisode($event)"
+            />
+        }
+        @case ('favorites') {
+            <app-category-content-view
+                [items]="favorites$ | async"
+                (itemClicked)="favoriteClicked($event)"
+            />
+        }
+        @case ('not-available') {
+            <app-playlist-error-view
+                [title]="'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.TITLE' | translate"
+                [description]="
+                    'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.DESCRIPTION' | translate
+                "
+            />
+        }
     }
 }

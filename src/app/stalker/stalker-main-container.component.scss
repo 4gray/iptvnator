@@ -1,0 +1,26 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    justify-content: flex-start;
+}
+
+.loading-wrapper {
+    display: block;
+    padding: 20px;
+}
+
+.loading-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.category-content-view {
+    gap: 30px;
+}
+
+.category-view {
+    gap: 10px;
+}

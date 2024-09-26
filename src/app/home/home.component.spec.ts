@@ -1,27 +1,19 @@
+import { CommonModule } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatIconModule } from '@angular/material/icon';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTabsModule } from '@angular/material/tabs';
-import { RouterTestingModule } from '@angular/router/testing';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import {
-    TranslateModule,
-    TranslatePipe,
-    TranslateService,
-} from '@ngx-translate/core';
-import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
-import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { MockComponent, MockModule, MockProvider } from 'ng-mocks';
 import { Observable } from 'rxjs';
-import { FileUploadComponent } from '../home/file-upload/file-upload.component';
-import { RecentPlaylistsComponent } from '../home/recent-playlists/recent-playlists.component';
-import { UrlUploadComponent } from '../home/url-upload/url-upload.component';
 import { DataService } from '../services/data.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
-import { HeaderComponent } from '../shared/components/header/header.component';
 import { HomeComponent } from './home.component';
+import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
 
 describe('HomeComponent', () => {
     let component: HomeComponent;
@@ -32,28 +24,23 @@ describe('HomeComponent', () => {
 
     beforeEach(() => {
         TestBed.configureTestingModule({
-            declarations: [
-                HomeComponent,
-                MockComponent(HeaderComponent),
-                MockComponent(FileUploadComponent),
-                MockComponent(RecentPlaylistsComponent),
-                MockComponent(UrlUploadComponent),
-                MockPipe(TranslatePipe),
-            ],
+            declarations: [HomeComponent],
             imports: [
-                MockModule(MatTabsModule),
-                MockModule(MatIconModule),
+                CommonModule,
+                MockComponent(RecentPlaylistsComponent),
                 MockModule(MatProgressBarModule),
                 MockModule(MatSnackBarModule),
-                MockModule(RouterTestingModule),
-                MockModule(NgxIndexedDBModule),
                 MockModule(TranslateModule),
+                MockModule(RouterModule),
+                MockModule(MatDialogModule),
             ],
             providers: [
+                MockProvider(ActivatedRoute, {
+                    snapshot: { component: '' } as any,
+                }),
+                MockProvider(TranslateService),
                 MockProvider(MatSnackBar),
                 { provide: DataService, useClass: ElectronServiceStub },
-                MockProvider(TranslateService),
-                MockProvider(NgxIndexedDBService),
                 provideMockStore(),
                 provideMockActions(actions$),
             ],
@@ -67,9 +54,6 @@ describe('HomeComponent', () => {
 
         mockStore = TestBed.inject(MockStore);
         mockStore.setState({});
-
-        TestBed.inject(NgxIndexedDBService);
-        fixture.detectChanges();
     });
 
     it('should create', () => {

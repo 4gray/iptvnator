@@ -1,211 +1,234 @@
 {
-    "CLOSE": "關閉",
-    "HOME": {
-        "TITLE": "IPTVnator",
-        "SUBTITLE": "請從列表中選擇一個播放清單，或透過檔案上傳或網址新增新播放清單",
-        "TABS": {
-            "RECENTLY_ADDED": "最近新增的播放清單",
-            "FILE_UPLOAD": "透過檔案上傳新增",
-            "URL_UPLOAD": "透過網址新增",
-            "TEXT_IMPORT": "以文字匯入"
-        },
-        "PLAYLISTS": {
-            "NO_PLAYLISTS": "尚未新增播放清單",
-            "ADD_FIRST": "請從其他分頁新增您的第一個播放清單",
-            "ADDED_VIA_URL": "透過網址上傳。網址：",
-            "ADDED_VIA_FILE": "透過檔案上傳",
-            "CHANNELS": "頻道",
-            "ADDED": "已新增",
-            "SHOW_DETAILS": "顯示播放清單詳細資訊",
-            "REMOVE": "移除播放清單",
-            "INFO_DIALOG": {
-                "PLAYLIST_DETAILS": "播放清單詳細資訊",
-                "TITLE": "標題",
-                "FROM_URL": "來自網址",
-                "IMPORT_DATE": "匯入日期",
-                "CHANNELS": "頻道數量",
-                "CLOSE": "關閉",
-                "SAVE": "儲存",
-                "USER_AGENT": "User Agent",
-                "ORIGINAL_FILENAME": "原始檔名",
-                "FILE_PATH": "檔案路徑",
-                "UPDATE_FAILED": "上次播放清單更新失敗",
-                "AUTO_UPDATE": "自動更新",
-                "AUTO_UPDATE_DESCRIPTION": "如果啟動自動重新整理功能，則每次啟動應用程式時都將自動更新播放清單。",
-                "CUSTOM_USER_AGENT": "部分 IPTV 服務提供者需要特定的 User-Agent 才能播放他們的播放清單。",
-                "EXPORT_PLAYLIST": "以 m3u 格式匯出播放清單",
-                "PASSWORD": "Password",
-                "SERVER_URL": "Server URL",
-                "USERNAME": "Username",
-                "MAC_ADDRESS": "Mac Address"
-            },
-            "REMOVE_DIALOG": {
-                "TITLE": "移除播放清單",
-                "MESSAGE": "您確定要完全刪除此播放清單嗎？"
-            },
-            "UPDATED": "已更新",
-            "REFRESH": "重新整理播放清單",
-            "GLOBAL_FAVORITES": "全域我的最愛",
-            "GLOBAL_FAVORITES_DESCRIPTION": "從所有播放清單中自動產生的匯總我的最愛清單",
-            "MY_PLAYLISTS": "我的播放清單",
-            "MY_PLAYLISTS_SUBTITLE": "所有可用清單",
-            "PLAYLIST_UPDATE_SUCCESS": "成功！播放清單已成功更新。"
-        },
-        "FILE_UPLOAD": {
-            "DRAG_DROP": "在此處拖放檔案",
-            "OR": "或者",
-            "CHOOSE_PLAYLIST": "選擇播放清單",
-            "REJECTED": "檔案被拒絕，不支援的檔案格式 {{filename}}。"
-        },
-        "URL_UPLOAD": {
-            "PLAYLIST_URL": "播放清單網址（m3u，m3u8）",
-            "ADD_PLAYLIST": "新增播放清單",
-            "CORS_NOTE": "為了避免 CORS 問題，此應用程式目前使用了一個公開的 CORS 代理服務。如果您要上傳包含敏感資料的播放清單，建議在相鄰的分頁中將其作為檔案匯入。"
-        },
-        "TEXT_IMPORT": {
-            "LABEL": "將 m3u（8）播放清單以純文字的方式插入",
-            "BUTTON_LABEL": "匯入"
-        },
-        "STALKER_PORTAL": {
-            "ADD": "Add",
-            "TITLE": "Title"
-        }
+  "CLOSE": "關閉",
+  "HOME": {
+    "TITLE": "IPTVnator",
+    "SUBTITLE": "請從列表中選擇一個播放清單，或透過檔案上傳或網址新增新播放清單",
+    "TABS": {
+      "RECENTLY_ADDED": "最近新增的播放清單",
+      "FILE_UPLOAD": "透過檔案上傳新增",
+      "URL_UPLOAD": "透過網址新增",
+      "TEXT_IMPORT": "以文字匯入",
+      "STALKER_PORTAL_IMPORT": "Add Stalker Portal"
     },
-    "SETTINGS": {
-        "TITLE": "設定 / IPTVnator",
-        "SUBTITLE": "更改應用程式的配置",
-        "DESCRIPTION": "請調整下面的選項列表，並使用儲存變更按鈕確認",
-        "EPG_URL_LABEL": "EPG 網址（*.xml 或 *.xml.gz）",
-        "EPG_URL_PLACEHOLDER": "輸入網址",
-        "REFRESH_EPG": "重新整理 EPG",
-        "VIDEO_PLAYER_LABEL": "影片播放器",
-        "VIDEO_PLAYER_PLACEHOLDER": "選擇一個選項",
-        "VERSION": "版本",
-        "SAVE_CHANGES": "儲存變更",
-        "BACK_TO_HOME": "返回主頁",
-        "NEW_VERSION_AVAILABLE": "有新版本可用",
-        "LATEST_VERSION": "您正在使用最新版本",
-        "LANGUAGE": "語言",
-        "SETTINGS_SAVED": "成功！設定已儲存。",
-        "THEME": "視覺主題",
-        "SHOW_CAPTIONS": "顯示字幕",
-        "ADD_EPG_SOURCE": "新增 EPG 來源",
-        "EPG_URL_ERROR": "該值不是有效的網址",
-        "VIDEO_PLAYER_DESCRIPTION": "選擇預設影片播放器",
-        "LANGUAGE_DESCRIPTION": "選擇應用程式語言",
-        "THEME_DESCRIPTION": "選擇應用程式視覺主題",
-        "SHOW_CAPTIONS_DESCRIPTION": "預設顯示或隱藏字幕",
-        "VERSION_DESCRIPTION": "應用程式目前版本",
-        "EPG_NOTE": "目前僅在 Electron 版的 IPTVnator 中提供 EPG。",
-        "EPG_NOTE_URL_TEXT": "在此處查看",
-        "IMPORT_EXPORT_DATA": "匯入/匯出播放清單",
-        "IMPORT_EXPORT_DATA_DESCRIPTION": "以應用程式內使用的 JSON 格式匯出或匯入播放清單。",
-        "IMPORT_DATA": "匯入",
-        "EXPORT_DATA": "匯出",
-        "REMOVE_ALL": "移除播放清單",
-        "REMOVE_ALL_BUTTON": "移除",
-        "REMOVE_ALL_DESCRIPTION": "這將從應用程式中移除所有現有的播放清單。",
-        "REMOVE_DIALOG": {
-            "TITLE": "移除所有播放清單",
-            "MESSAGE": "您確定要從應用程式中刪除所有播放清單嗎？"
-        },
-        "IMPORT_ERROR": "匯入錯誤，請嘗試另外一個檔案。",
-        "PLAYLISTS_REMOVED": "所有播放清單已移除。"
+    "PLAYLISTS": {
+      "NO_PLAYLISTS": "尚未新增播放清單",
+      "ADD_FIRST": "請從其他分頁新增您的第一個播放清單",
+      "ADDED_VIA_URL": "透過網址上傳。網址：",
+      "ADDED_VIA_FILE": "透過檔案上傳",
+      "CHANNELS": "頻道",
+      "ADDED": "已新增",
+      "SHOW_DETAILS": "顯示播放清單詳細資訊",
+      "REMOVE": "移除播放清單",
+      "INFO_DIALOG": {
+        "PLAYLIST_DETAILS": "播放清單詳細資訊",
+        "TITLE": "標題",
+        "FROM_URL": "來自網址",
+        "IMPORT_DATE": "匯入日期",
+        "CHANNELS": "頻道數量",
+        "CLOSE": "關閉",
+        "SAVE": "儲存",
+        "USER_AGENT": "User Agent",
+        "ORIGINAL_FILENAME": "原始檔名",
+        "FILE_PATH": "檔案路徑",
+        "UPDATE_FAILED": "上次播放清單更新失敗",
+        "AUTO_UPDATE": "自動更新",
+        "AUTO_UPDATE_DESCRIPTION": "如果啟動自動重新整理功能，則每次啟動應用程式時都將自動更新播放清單。",
+        "CUSTOM_USER_AGENT": "部分 IPTV 服務提供者需要特定的 User-Agent 才能播放他們的播放清單。",
+        "EXPORT_PLAYLIST": "以 m3u 格式匯出播放清單",
+        "PASSWORD": "Password",
+        "SERVER_URL": "Server URL",
+        "USERNAME": "Username",
+        "MAC_ADDRESS": "Mac Address"
+      },
+      "REMOVE_DIALOG": {
+        "TITLE": "移除播放清單",
+        "MESSAGE": "您確定要完全刪除此播放清單嗎？"
+      },
+      "UPDATED": "已更新",
+      "REFRESH": "重新整理播放清單",
+      "GLOBAL_FAVORITES": "全域我的最愛",
+      "GLOBAL_FAVORITES_DESCRIPTION": "從所有播放清單中自動產生的匯總我的最愛清單",
+      "MY_PLAYLISTS": "我的播放清單",
+      "MY_PLAYLISTS_SUBTITLE": "所有可用清單",
+      "PLAYLIST_UPDATE_SUCCESS": "成功！播放清單已成功更新。"
     },
-    "THEMES": {
-        "DARK_THEME": "深色主題",
-        "LIGHT_THEME": "亮色主題"
+    "FILE_UPLOAD": {
+      "DRAG_DROP": "在此處拖放檔案",
+      "OR": "或者",
+      "CHOOSE_PLAYLIST": "選擇播放清單",
+      "REJECTED": "檔案被拒絕，不支援的檔案格式 {{filename}}。"
     },
-    "CHANNELS": {
-        "SEARCH_CHANNEL": "搜尋頻道",
-        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上傳或選擇其他播放清單",
-        "ALL_CHANNELS": "所有頻道",
-        "GROUPS": "群組",
-        "UNGROUPED": "未分組",
-        "UNNAMED_CHANNEL": "未命名頻道",
-        "FAVORITES": "我的最愛",
-        "NO_FAVORITES": "尚無最愛",
-        "USE_STAR_TO_FAVORITE": "請使用“星星”圖示將頻道新增至此列表。",
-        "REMOVE_FAVORITE": "從我的最愛中移除",
-        "FAVORITES_UPDATED": "我的最愛已更新！"
+    "URL_UPLOAD": {
+      "PLAYLIST_URL": "播放清單網址（m3u，m3u8）",
+      "ADD_PLAYLIST": "新增播放清單",
+      "CORS_NOTE": "為了避免 CORS 問題，此應用程式目前使用了一個公開的 CORS 代理服務。如果您要上傳包含敏感資料的播放清單，建議在相鄰的分頁中將其作為檔案匯入。"
     },
-    "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "打開頻道列表",
-        "TOGGLE_FAVORITE_FLAG": "切換我的最愛標記",
-        "OPEN_EPG_LIST": "開啟 EPG 列表",
-        "OPEN_MULTI_EPG": "開啟多 EPG 視圖"
+    "TEXT_IMPORT": {
+      "LABEL": "將 m3u（8）播放清單以純文字的方式插入",
+      "BUTTON_LABEL": "匯入"
     },
-    "EPG": {
-        "NEXT_DAY": "下一天",
-        "PREVIOUS_DAY": "上一天",
-        "LIVE_NOW": "現在播放",
-        "LIVE_STREAM": "現場直播",
-        "TIMESHIFT_AVAILABLE": "時間平移功能可用，點選以播放",
-        "EPG_NOT_AVAILABLE_DATE": "抱歉，選擇的日期上 EPG 無法使用",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "抱歉，此頻道上的 EPG 無法使用。",
-        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "請在應用程式設定中增加/更改 EPG 列表的URL。",
-        "FETCH_EPG": "取得 EPG 資料...",
-        "ERROR": "抱歉，無法載入 EPG。",
-        "DOWNLOAD_SUCCESS": "EPG 已成功下載。",
-        "PROGRAM_DIALOG": {
-            "PROGRAM_DETAILS": "關於電視節目的詳細資訊",
-            "TITLE": "標題",
-            "CATEGORY": "類別",
-            "PARENTAL_RATING_SYSTEM": "電視內容分級制度",
-            "DESCRIPTION": "說明",
-            "LANGUAGE": "語言",
-            "SHOW_PROGRAM_DETAILS": "顯示關於該節目的詳細資訊"
-        }
-    },
-    "LANGUAGES": {
-        "CHINESE": "簡體中文",
-        "TRADITIONAL_CHINESE": "繁體中文",
-        "ENGLISH": "English",
-        "KOREAN": "한국어",
-        "RUSSIAN": "Русский",
-        "GERMAN": "Deutsch",
-        "SPANISH": "Español",
-        "FRENCH": "Français",
-        "ITALIAN": "Italiano"
-    },
-    "YES": "是",
-    "NO": "否",
-    "MENU": {
-        "OPEN": "開啟選單",
-        "SUPPORT_ARIA": "在 GitHub 上支持 IPTVnator",
-        "SETTINGS": "設定",
-        "SETTINGS_ARIA": "開啟設定",
-        "BUG_REPORT": "回報問題",
-        "WHAT_IS_NEW": "更新內容",
-        "ABOUT": "關於",
-        "ABOUT_ARIA": "關於本應用程式"
-    },
-    "ABOUT": {
-        "TITLE": "關於 IPTVnator",
-        "DESCRIPTION": "跨平台 IPTV 播放器，具有多種功能，如支援 m3u 和 m3u8 播放清單、我的最愛、電視指南、電視節目存檔/回看等。",
-        "VERSION": "版本",
-        "GITHUB_TOOLTIP": "ITPVnator 的 GitHub 專案",
-        "BUY_ME_A_COFFEE_TOOLTIP": "請我喝杯咖啡",
-        "TWITTER_TOOLTIP": "在 Twitter 上分享"
-    },
-    "UPDATE_AVAILABLE": "有可用的更新",
-    "REFRESH": "重新整理",
-    "XTREAM": {
-        "RELEASE_DATE": "Release date",
-        "ACTORS": "Actors",
-        "PLAY": "Play",
-        "GENRE": "Genre",
-        "DURATION": "Duration",
-        "COUNTRY": "Country",
-        "NAME": "Name",
-        "DIRECTOR": "Director",
-        "CAST": "Cast",
-        "RATING": "Rating"
-    },
-    "PORTALS": {
-        "ALL_CATEGORIES": "All categories",
-        "ADD_TO_FAVORITES": "Add to favorites",
-        "REMOVE_FROM_FAVORITES": "Remove from favorites",
-        "MY_FAVORITES": "My favorites"
+    "STALKER_PORTAL": {
+      "ADD": "Add",
+      "TITLE": "Title"
     }
+  },
+  "SETTINGS": {
+    "TITLE": "設定 / IPTVnator",
+    "SUBTITLE": "更改應用程式的配置",
+    "DESCRIPTION": "請調整下面的選項列表，並使用儲存變更按鈕確認",
+    "EPG_URL_LABEL": "EPG 網址（*.xml 或 *.xml.gz）",
+    "EPG_URL_PLACEHOLDER": "輸入網址",
+    "REFRESH_EPG": "重新整理 EPG",
+    "VIDEO_PLAYER_LABEL": "影片播放器",
+    "VIDEO_PLAYER_PLACEHOLDER": "選擇一個選項",
+    "VERSION": "版本",
+    "SAVE_CHANGES": "儲存變更",
+    "BACK_TO_HOME": "返回主頁",
+    "NEW_VERSION_AVAILABLE": "有新版本可用",
+    "LATEST_VERSION": "您正在使用最新版本",
+    "LANGUAGE": "語言",
+    "SETTINGS_SAVED": "成功！設定已儲存。",
+    "THEME": "視覺主題",
+    "SHOW_CAPTIONS": "顯示字幕",
+    "ADD_EPG_SOURCE": "新增 EPG 來源",
+    "EPG_URL_ERROR": "該值不是有效的網址",
+    "VIDEO_PLAYER_DESCRIPTION": "選擇預設影片播放器",
+    "LANGUAGE_DESCRIPTION": "選擇應用程式語言",
+    "THEME_DESCRIPTION": "選擇應用程式視覺主題",
+    "SHOW_CAPTIONS_DESCRIPTION": "預設顯示或隱藏字幕",
+    "VERSION_DESCRIPTION": "應用程式目前版本",
+    "EPG_NOTE": "目前僅在 Electron 版的 IPTVnator 中提供 EPG。",
+    "EPG_NOTE_URL_TEXT": "在此處查看",
+    "IMPORT_EXPORT_DATA": "匯入/匯出播放清單",
+    "IMPORT_EXPORT_DATA_DESCRIPTION": "以應用程式內使用的 JSON 格式匯出或匯入播放清單。",
+    "IMPORT_DATA": "匯入",
+    "EXPORT_DATA": "匯出",
+    "REMOVE_ALL": "移除播放清單",
+    "REMOVE_ALL_BUTTON": "移除",
+    "REMOVE_ALL_DESCRIPTION": "這將從應用程式中移除所有現有的播放清單。",
+    "REMOVE_DIALOG": {
+      "TITLE": "移除所有播放清單",
+      "MESSAGE": "您確定要從應用程式中刪除所有播放清單嗎？"
+    },
+    "IMPORT_ERROR": "匯入錯誤，請嘗試另外一個檔案。",
+    "PLAYLISTS_REMOVED": "所有播放清單已移除。",
+    "VLC_PLAYER_PATH_LABEL": "VLC path",
+    "VLC_PLAYER_PATH_DESCRIPTION": "Set path to VLC player in your system. It will use the provided path to a VLC binary instead of the default path for our system.",
+    "VLC_PLAYER_PATH": "VLC player path",
+    "MPV_PLAYER_PATH_LABEL": "mpv path"
+  },
+  "THEMES": {
+    "DARK_THEME": "深色主題",
+    "LIGHT_THEME": "亮色主題"
+  },
+  "CHANNELS": {
+    "SEARCH_CHANNEL": "搜尋頻道",
+    "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上傳或選擇其他播放清單",
+    "ALL_CHANNELS": "所有頻道",
+    "GROUPS": "群組",
+    "UNGROUPED": "未分組",
+    "UNNAMED_CHANNEL": "未命名頻道",
+    "FAVORITES": "我的最愛",
+    "NO_FAVORITES": "尚無最愛",
+    "USE_STAR_TO_FAVORITE": "請使用“星星”圖示將頻道新增至此列表。",
+    "REMOVE_FAVORITE": "從我的最愛中移除",
+    "FAVORITES_UPDATED": "我的最愛已更新！"
+  },
+  "TOP_MENU": {
+    "OPEN_CHANNELS_LIST": "打開頻道列表",
+    "TOGGLE_FAVORITE_FLAG": "切換我的最愛標記",
+    "OPEN_EPG_LIST": "開啟 EPG 列表",
+    "OPEN_MULTI_EPG": "開啟多 EPG 視圖"
+  },
+  "EPG": {
+    "NEXT_DAY": "下一天",
+    "PREVIOUS_DAY": "上一天",
+    "LIVE_NOW": "現在播放",
+    "LIVE_STREAM": "現場直播",
+    "TIMESHIFT_AVAILABLE": "時間平移功能可用，點選以播放",
+    "EPG_NOT_AVAILABLE_DATE": "抱歉，選擇的日期上 EPG 無法使用",
+    "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "抱歉，此頻道上的 EPG 無法使用。",
+    "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "請在應用程式設定中增加/更改 EPG 列表的URL。",
+    "FETCH_EPG": "取得 EPG 資料...",
+    "ERROR": "抱歉，無法載入 EPG。",
+    "DOWNLOAD_SUCCESS": "EPG 已成功下載。",
+    "PROGRAM_DIALOG": {
+      "PROGRAM_DETAILS": "關於電視節目的詳細資訊",
+      "TITLE": "標題",
+      "CATEGORY": "類別",
+      "PARENTAL_RATING_SYSTEM": "電視內容分級制度",
+      "DESCRIPTION": "說明",
+      "LANGUAGE": "語言",
+      "SHOW_PROGRAM_DETAILS": "顯示關於該節目的詳細資訊"
+    }
+  },
+  "LANGUAGES": {
+    "CHINESE": "簡體中文",
+    "TRADITIONAL_CHINESE": "繁體中文",
+    "ENGLISH": "English",
+    "KOREAN": "한국어",
+    "RUSSIAN": "Русский",
+    "GERMAN": "Deutsch",
+    "SPANISH": "Español",
+    "FRENCH": "Français",
+    "ITALIAN": "Italiano",
+    "TURKISH": "Türkçe"
+  },
+  "YES": "是",
+  "NO": "否",
+  "MENU": {
+    "OPEN": "開啟選單",
+    "SUPPORT_ARIA": "在 GitHub 上支持 IPTVnator",
+    "SETTINGS": "設定",
+    "SETTINGS_ARIA": "開啟設定",
+    "BUG_REPORT": "回報問題",
+    "WHAT_IS_NEW": "更新內容",
+    "ABOUT": "關於",
+    "ABOUT_ARIA": "關於本應用程式",
+    "SUPPORT_PROJECT": "Support project"
+  },
+  "ABOUT": {
+    "TITLE": "關於 IPTVnator",
+    "DESCRIPTION": "跨平台 IPTV 播放器，具有多種功能，如支援 m3u 和 m3u8 播放清單、我的最愛、電視指南、電視節目存檔/回看等。",
+    "VERSION": "版本",
+    "GITHUB_TOOLTIP": "ITPVnator 的 GitHub 專案",
+    "BUY_ME_A_COFFEE_TOOLTIP": "請我喝杯咖啡",
+    "TWITTER_TOOLTIP": "在 Twitter 上分享"
+  },
+  "UPDATE_AVAILABLE": "有可用的更新",
+  "REFRESH": "重新整理",
+  "XTREAM": {
+    "RELEASE_DATE": "Release date",
+    "ACTORS": "Actors",
+    "PLAY": "Play",
+    "GENRE": "Genre",
+    "DURATION": "Duration",
+    "COUNTRY": "Country",
+    "NAME": "Name",
+    "DIRECTOR": "Director",
+    "CAST": "Cast",
+    "RATING": "Rating"
+  },
+  "PORTALS": {
+    "ALL_CATEGORIES": "All categories",
+    "ADD_TO_FAVORITES": "Add to favorites",
+    "REMOVE_FROM_FAVORITES": "Remove from favorites",
+    "MY_FAVORITES": "My favorites",
+    "ERROR_VIEW": {
+      "DELETE": "",
+      "ACCOUNT_EXPIRED": {
+        "DESCRIPTION": "This account has been expired. Please check the credentials in playlist settings or remove it."
+      },
+      "UNKNOWN_ERROR": {
+        "TITLE": "Something went wrong",
+        "DESCRIPTION": "Unknown error, please try again later"
+      },
+      "PLAYLIST_SETTINGS": "Playlist Settings",
+      "UNAUTHORIZED": {
+        "DESCRIPTION": "Please check the credentials in playlist settings or remove it."
+      }
+    },
+    "REMOVED_FROM_FAVORITES": "Removed from favorites",
+    "ADDED_TO_FAVORITES": "Added to favorites"
+  }
 }

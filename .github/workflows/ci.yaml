@@ -13,13 +13,13 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v4
               with:
                   persist-credentials: false
             - name: Use Node.js
-              uses: actions/setup-node@v1
+              uses: actions/setup-node@v4
               with:
-                  node-version: '18'
+                  node-version: '20'
             - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
             - run: npm ci
             - run: npm test -- --coverage
@@ -35,19 +35,19 @@ jobs:
                 os: [macos-latest]
 
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v4
               with:
                   persist-credentials: false
             - name: Use Node.js
-              uses: actions/setup-node@v1
+              uses: actions/setup-node@v4
               with:
-                  node-version: '18'
+                  node-version: '20'
             - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
             - run: npm ci
             #  env:
             #      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
             - run: npm run build:prod
-            #- run: npx playwright install --with-deps chromium
+            - run: npx playwright install --with-deps
             #- run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" -- npm run e2e:ci
             #  if: matrix.os == 'ubuntu-latest'
             #  env:
@@ -65,12 +65,12 @@ jobs:
 
         steps:
             - name: Check out Git repository
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
 
             - name: Install Node.js, NPM and Yarn
-              uses: actions/setup-node@v1
+              uses: actions/setup-node@v4
               with:
-                  node-version: '18'
+                  node-version: '20'
 
             - name: Build Electron app
               uses: samuelmeuli/action-electron-builder@v1

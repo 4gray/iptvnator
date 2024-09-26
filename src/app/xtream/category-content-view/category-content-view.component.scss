@@ -1,11 +1,12 @@
 :host {
-    display: block;
-    padding: 20px;
+    overflow-y: auto;
+    padding: 10px;
 }
 
 mat-card {
     overflow: hidden;
     transition: all 0.9s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: none;
 }
 
 mat-card:hover {
@@ -21,6 +22,7 @@ mat-card:hover {
     mat-card {
         cursor: pointer;
         width: 170px;
+        // height: 300px;
 
         mat-card-content {
             padding: 0;
@@ -29,6 +31,9 @@ mat-card:hover {
 
         .stream-icon {
             width: 100%;
+            position: relative !important;
+
+            /* max-height: 300px; */
             display: block;
         }
 
@@ -36,7 +41,7 @@ mat-card:hover {
             width: 100%;
             background: #999;
             max-height: 300px;
-            min-height: 130px;
+            min-height: 255px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -48,17 +53,32 @@ mat-card:hover {
 
         .title {
             word-break: break-all;
-            padding: 8px;
+            /* padding: 8px; */
+            text-align: center;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;  
+            overflow: hidden;
         }
     }
 }
 
-.no-content {
-    text-align: center;
+.rating {
+    position: absolute;
+    top: 5px;
+    right: 6px;
+    background-color: #3bb33b;
+    color: #fff;
+    font-size: 0.8em;
+    border-radius: 3px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 5px;
 
-    .icon {
-        font-size: 64px;
-        height: 64px;
-        width: 64px;
+    mat-icon {
+        font-size: 16px;
+        height: 18px;
+        width: 18px;
     }
 }

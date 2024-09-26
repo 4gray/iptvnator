@@ -171,6 +171,8 @@ export class PlaylistsService {
                             (i as Partial<XtreamItem>).stream_id !==
                                 favoriteId &&
                             (i as Partial<XtreamSerieItem>).series_id !==
+                                favoriteId &&
+                            (i as Partial<{ movie_id: string }>).movie_id !==
                                 favoriteId
                     ),
                 })
