@@ -49,7 +49,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release Electron app - MacOS
-        uses: samuelmeuli/action-electron-builder@v1
+        uses: Yan-Jobs/action-electron-builder@v1.7.0
         if: startsWith(matrix.os, 'macos')
         with:
           # GitHub token, automatically provided to the action
