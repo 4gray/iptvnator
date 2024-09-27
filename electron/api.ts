@@ -271,7 +271,7 @@ export class Api {
             })
             .on(OPEN_VLC_PLAYER, (event, { url }) => {
                 const proc = child_process.spawn(
-                    this.getVlcPath(),
+                    `"${this.getVlcPath()}"`,
                     [`"${url as string}"`],
                     {
                         shell: true,
