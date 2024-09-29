@@ -155,7 +155,11 @@
     "NO_FAVORITES": "Henüz favori yok",
     "USE_STAR_TO_FAVORITE": "Kanalları favorilerinize eklemek için lütfen 'yıldız' simgesini kullanın.",
     "REMOVE_FAVORITE": "Favorilerden Kaldır",
-    "FAVORITES_UPDATED": "Favoriler güncellendi!"
+    "FAVORITES_UPDATED": "Favoriler güncellendi!",
+    "SORT_BY": "Sırala",
+    "SORT_BY_DATE": "Eklenme Tarihine Göre Sırala (Önce En Yeni)",
+    "SORT_BY_RATING": "Puana Göre Sırala",
+    "SORT_BY_NAME": "İsmine Göre Sırala (A-Z)"
   },
   "TOP_MENU": {
     "OPEN_CHANNELS_LIST": "Kanal listesini aç",

@@ -1,6 +1,6 @@
 @if (items?.length > 0) {
     <div class="grid">
-        @for (item of items | filterBy: searchPhrase() : 'name'; track $index) {
+        @for (item of items | filterBy: searchPhrase() : 'name' | sortBy: sortType(); track $index) {
             <mat-card (click)="itemClicked.emit(item)">
                 <mat-card-content>
                     @if (item.stream_icon || item.cover || item.logo) {
