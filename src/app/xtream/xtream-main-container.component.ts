@@ -349,6 +349,7 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     openPlayer(streamUrl: string, title: string) {
+        this.streamUrl = streamUrl;
         this.player = this.settings()?.player ?? VideoPlayer.VideoJs;
         if (this.player === VideoPlayer.MPV) {
             if (!this.hideExternalInfoDialog())
@@ -363,7 +364,6 @@ export class XtreamMainContainerComponent implements OnInit {
                 url: streamUrl,
             });
         } else {
-            this.streamUrl = streamUrl;
             if (this.selectedContentType !== ContentType.ITV) {
                 this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
                     PlayerDialogComponent,
