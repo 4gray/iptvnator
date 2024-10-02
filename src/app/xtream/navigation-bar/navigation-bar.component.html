@@ -50,16 +50,46 @@
             >
         </div>
     </div>
-    <div class="search" *ngIf="searchVisible">
-        <mat-form-field class="search-input">
-            <mat-icon matPrefix>search</mat-icon>
-            <input
-                matInput
-                placeholder="Search by name"
-                type="search"
-                [ngModel]="searchPhrase()"
-                (ngModelChange)="searchPhraseUpdate.next($event)"
-            />
-        </mat-form-field>
+    <div class="search-container">
+        <div class="sort" *ngIf="sortVisible">
+            <button
+                mat-icon-button
+                [matTooltip]="'CHANNELS.SORT_BY' | translate"
+                [matMenuTriggerFor]="sortPlaylistMenu"
+                data-test-id="sort-playlist"
+            >
+                <mat-icon>sort</mat-icon>
+            </button>
+        </div>
+        <div class="search" *ngIf="searchVisible">
+            <mat-form-field class="search-input">
+                <mat-icon matPrefix>search</mat-icon>
+                <input
+                    matInput
+                    placeholder="Search by name"
+                    type="search"
+                    [ngModel]="searchPhrase()"
+                    (ngModelChange)="searchPhraseUpdate.next($event)"
+                />
+            </mat-form-field>
+        </div>
     </div>
+    <mat-menu #sortPlaylistMenu="matMenu">
+        <section
+            (click)="$event.stopPropagation()"
+        >
+            <button mat-menu-item (click)="setSortType('date')">
+                <mat-icon>calendar_today</mat-icon>
+                <span>{{ 'CHANNELS.SORT_BY_DATE' | translate }}</span>
+            </button>
+            <button mat-menu-item (click)="setSortType('rating')">
+                <mat-icon>star</mat-icon>
+                <span>{{ 'CHANNELS.SORT_BY_RATING' | translate }}</span>
+            </button>
+            <button mat-menu-item (click)="setSortType('alpha')">
+                <mat-icon>sort_by_alpha</mat-icon>
+                <span>{{ 'CHANNELS.SORT_BY_NAME' | translate }}</span>
+            </button>
+        </section>
+    </mat-menu>
 </div>

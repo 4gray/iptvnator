@@ -17,6 +17,9 @@ import { Breadcrumb } from '../breadcrumb.interface';
 import { ContentTypeNavigationItem } from '../content-type-navigation-item.interface';
 import { ContentType } from '../content-type.enum';
 import { PortalStore } from '../portal.store';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @Component({
     selector: 'app-navigation-bar',
@@ -34,12 +37,16 @@ import { PortalStore } from '../portal.store';
         NgIf,
         RouterLink,
         TranslateModule,
+        MatMenuModule,
+        MatCheckboxModule,
+        MatTooltipModule
     ],
 })
 export class NavigationBarComponent {
     @Input({ required: true }) breadcrumbs: Breadcrumb[];
     @Input({ required: true }) contentType: ContentType;
     @Input() searchVisible = true;
+    @Input() sortVisible = false;
     @Input() contentTypeNavigationItems: ContentTypeNavigationItem[];
     @Input() clientSideSearch = true;
     @Input() showCategories = false;
@@ -56,6 +63,7 @@ export class NavigationBarComponent {
     searchPhrase = this.portalStore.searchPhrase;
     searchPhraseUpdate = new Subject<string>();
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
+    sortType = this.portalStore.sortType;
 
     constructor() {
         this.searchPhraseUpdate
@@ -74,6 +82,10 @@ export class NavigationBarComponent {
     processBreadcrumbClick(item: Breadcrumb) {
         this.setSearchText('');
         this.breadcrumbClicked.emit(item);
+    }
+
+    setSortType(type: string) {
+        this.portalStore.setSortType(type);
     }
 
     setSearchText(text: string) {
