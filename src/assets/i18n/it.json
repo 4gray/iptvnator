@@ -155,7 +155,11 @@
     "NO_FAVORITES": "Ancora nessun preferito",
     "USE_STAR_TO_FAVORITE": "Usa l'icona 'stella' per aggiungere canali ai preferiti.",
     "REMOVE_FAVORITE": "Rimuovi dai preferiti",
-    "FAVORITES_UPDATED": "Aggiornamento preferiti completato!"
+    "FAVORITES_UPDATED": "Aggiornamento preferiti completato!",
+    "SORT_BY": "Ordina per",
+    "SORT_BY_DATE": "Data inserimento (prima più recenti)",
+    "SORT_BY_RATING": "Valutazione",
+    "SORT_BY_NAME": "Nome (A-Z)"
   },
   "TOP_MENU": {
     "OPEN_CHANNELS_LIST": "Apri elenco canali",
