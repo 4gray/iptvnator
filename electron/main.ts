@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as url from 'url';
 import { Api } from './api';
 import { AppMenu } from './menu';
+import { Server } from './server';
 
 const fixPath = require('fix-path');
 const {
@@ -120,6 +121,7 @@ try {
         const menu = new AppMenu(win);
         Menu.setApplicationMenu(menu.getMenu());
         api.setMainWindow(win);
+        new Server(3000, api);
 
         // create hidden window for epg worker
         createEpgWorkerWindow();

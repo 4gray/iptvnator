@@ -283,5 +283,12 @@
     "STREAM_URL_COPIED": "Stream URL copied to clipboard",
     "COPY_STREAM_URL": "Copy Stream URL"
   },
-  "INFORMATION": "Information"
+  "INFORMATION": "Information",
+  "REMOTE_CONTROL": {
+    "TITLE": "Remote control",
+    "UP_CHANNEL": "Up channel",
+    "DOWN_CHANNEL": "Down channel",
+    "HEADER": "IPTVNator Remote Control",
+    "FOOTER": "IPTVNator Remote Control"
+  }
 }
