@@ -30,6 +30,7 @@
                             trackBy: trackBy;
                             templateCacheSize: 0
                         "
+                        [selected]="item.stream_id === activeLiveStream?.stream_id"
                         [value]="item"
                         (click)="itemClicked.emit(item)"
                     >

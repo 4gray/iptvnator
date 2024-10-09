@@ -13,6 +13,7 @@ import {
     EPG_FETCH_DONE,
     ERROR,
     OPEN_FILE,
+    SETTINGS_UPDATE,
     SHOW_WHATS_NEW,
     VIEW_ADD_PLAYLIST,
     VIEW_SETTINGS,
@@ -148,6 +149,7 @@ export class AppComponent {
             .getValueFromLocalStorage(STORE_KEY.Settings)
             .subscribe((settings: Settings) => {
                 if (settings && Object.keys(settings).length > 0) {
+                    this.electronService.sendIpcEvent(SETTINGS_UPDATE, settings);
                     this.translate.use(settings.language ?? this.DEFAULT_LANG);
                     if (
                         settings.epgUrl?.length > 0 &&
