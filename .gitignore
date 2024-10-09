@@ -22,6 +22,7 @@ preload.js
 shared/*.js
 playwright-report
 .nx
+server.js
 
 # dependencies
 /node_modules

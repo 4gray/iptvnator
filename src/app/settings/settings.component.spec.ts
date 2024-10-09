@@ -62,6 +62,8 @@ const DEFAULT_SETTINGS = {
     theme: Theme.LightTheme,
     mpvPlayerPath: '',
     vlcPlayerPath: '',
+    remoteControl: false,
+    remoteControlPort: 3000
 };
 
 describe('SettingsComponent', () => {

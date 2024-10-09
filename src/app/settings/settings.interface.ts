@@ -23,4 +23,6 @@ export interface Settings {
     theme: Theme;
     mpvPlayerPath: string;
     vlcPlayerPath: string;
+    remoteControl: boolean;
+    remoteControlPort: number;
 }
