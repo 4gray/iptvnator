@@ -138,7 +138,11 @@
     "MPV_PLAYER_PATH": "mpv oynatıcı yolu",
     "VLC_PLAYER_PATH_LABEL": "VLC yolu",
     "VLC_PLAYER_PATH_DESCRIPTION": "Sisteminizdeki VLC oynatıcı yolunu ayarlayın. Sistemimiz için varsayılan yolu kullanmak yerine, sağlanan VLC ikili dosyası yolunu kullanacaktır.",
-    "VLC_PLAYER_PATH": "VLC oynatıcı yolu"
+    "VLC_PLAYER_PATH": "VLC oynatıcı yolu",
+    "REMOTE_CONTROL": "Uzaktan kontrol",
+    "REMOTE_CONTROL_DESCRIPTION": "Uygulamanın uzaktan kontrolünü etkinleştirin.",
+    "REMOTE_CONTROL_PORT": "Uzaktan kontrol portu",
+    "REMOTE_CONTROL_PORT_DESCRIPTION": "Uzaktan kontrol için bir port belirleyin. Varsayılan olarak 3080 kullanılır."
   },
   "THEMES": {
     "DARK_THEME": "Koyu Tema",
@@ -283,5 +287,12 @@
     "STREAM_URL_COPIED": "Yayın URL'si panoya kopyalandı",
     "COPY_STREAM_URL": "Yayın URL'sini Kopyala"
   },
-  "INFORMATION": "Bilgi"
+  "INFORMATION": "Bilgi",
+  "REMOTE_CONTROL": {
+    "TITLE": "Uzaktan Kontrol",
+    "UP_CHANNEL": "Yukarı Kanal",
+    "DOWN_CHANNEL": "Aşağı Kanal",
+    "HEADER": "IPTVNator Uzaktan Kontrol",
+    "FOOTER": "IPTVNator Uzaktan Kontrol"
+  }
 }

@@ -120,7 +120,7 @@ try {
         const menu = new AppMenu(win);
         Menu.setApplicationMenu(menu.getMenu());
         api.setMainWindow(win);
-
+        
         // create hidden window for epg worker
         createEpgWorkerWindow();
     });

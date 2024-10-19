@@ -219,7 +219,7 @@ describe('AppComponent', () => {
 
             expect(spyOnSettingsGet).toHaveBeenCalledWith(STORE_KEY.Settings);
             expect(settingsService.changeTheme).toHaveBeenCalledWith(theme);
-            expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
+            expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(2);
             expect(translateService.use).toHaveBeenCalledWith(language);
         });
 
@@ -245,7 +245,7 @@ describe('AppComponent', () => {
 
             expect(spyOnSettingsGet).toHaveBeenCalledWith(STORE_KEY.Settings);
             expect(settingsService.changeTheme).toHaveBeenCalledWith(theme);
-            expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(0);
+            expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
             expect(translateService.use).toHaveBeenCalledWith(defaultLanguage);
         });
     });

@@ -202,6 +202,36 @@
         <mat-divider></mat-divider>
         <div class="row">
             <div class="column">
+                {{ 'SETTINGS.REMOTE_CONTROL' | translate }}
+                <p>{{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="column" style="margin-right: 10px">
+                <mat-checkbox
+                    class="column"
+                    formControlName="remoteControl"
+                ></mat-checkbox>
+            </div>
+        </div>
+        <mat-divider></mat-divider>
+        <div class="row" *ngIf="settingsForm.value.remoteControl === true">
+            <div class="column">
+                {{ 'SETTINGS.REMOTE_CONTROL_PORT' | translate }}
+                <p>{{ 'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="column" style="margin-right: 10px">
+                <mat-form-field appearance="outline" class="full-width">
+                    <input
+                        matInput
+                        type="text"
+                        id="remoteControlPort"
+                        formControlName="remoteControlPort"
+                    />
+                </mat-form-field>
+            </div>
+        </div>
+        <mat-divider></mat-divider>
+        <div class="row">
+            <div class="column">
                 {{ 'SETTINGS.VERSION' | translate }}
                 <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
             </div>
