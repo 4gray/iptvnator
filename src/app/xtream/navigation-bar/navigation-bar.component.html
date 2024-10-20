@@ -51,6 +51,22 @@
         </div>
     </div>
     <div class="search-container">
+        <div class="favorite">
+            <button
+                *ngIf="favoriteVisible && activeLiveStream"
+                mat-icon-button
+                (click)="clickFavorites()"
+                [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
+            >
+                <mat-icon>
+                    {{
+                        isFavoriteStream
+                            ? 'star'
+                            : 'star_outline'
+                    }}
+                </mat-icon>
+            </button>
+        </div>
         <div class="sort" *ngIf="sortVisible">
             <button
                 mat-icon-button
