@@ -25,6 +25,7 @@ import {
     EPG_FORCE_FETCH,
     SET_MPV_PLAYER_PATH,
     SET_VLC_PLAYER_PATH,
+    SETTINGS_UPDATE,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
@@ -111,6 +112,8 @@ export class SettingsComponent implements OnInit {
         theme: Theme.LightTheme,
         mpvPlayerPath: '',
         vlcPlayerPath: '',
+        remoteControl: false,
+        remoteControlPort: 3000
     });
 
     /** Form array with epg sources */
@@ -161,6 +164,8 @@ export class SettingsComponent implements OnInit {
                             theme: settings.theme ?? Theme.LightTheme,
                             mpvPlayerPath: settings.mpvPlayerPath ?? '',
                             vlcPlayerPath: settings.vlcPlayerPath ?? '',
+                            remoteControl: settings.remoteControl ?? false,
+                            remoteControlPort: settings.remoteControlPort ?? 3000
                         });
                     } catch (error) {
                         throw new Error(error);
@@ -249,6 +254,8 @@ export class SettingsComponent implements OnInit {
             .subscribe(() => {
                 this.applyChangedSettings();
             });
+
+        this.electronService.sendIpcEvent(SETTINGS_UPDATE, this.settingsForm.value);
 
         this.electronService.sendIpcEvent(
             SET_MPV_PLAYER_PATH,

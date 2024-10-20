@@ -21,6 +21,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { IpcCommand } from '../../../shared/ipc-command.class';
 import {
+    REMOTE_CONTROL_CHANGE_CHANNEL,
     ERROR,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
@@ -194,6 +195,9 @@ export class XtreamMainContainerComponent implements OnInit {
         new IpcCommand(ERROR, (response: { message: string; status: number }) =>
             this.showErrorAsNotification(response)
         ),
+        new IpcCommand(REMOTE_CONTROL_CHANGE_CHANNEL, (response: { type: 'up' | 'down' }) => {
+            this.remoteControlChangeChannel(response.type);
+        })
     ];
 
     constructor() {
@@ -352,6 +356,7 @@ export class XtreamMainContainerComponent implements OnInit {
     playLiveStream(item: XtreamLiveStream) {
         const { serverUrl, username, password } = this.currentPlaylist();
         const streamUrl = `${serverUrl}/${item.stream_type}/${username}/${password}/${item.stream_id}.m3u8`;
+        this.activeLiveStream = item;
         this.openPlayer(streamUrl, item.name);
     }
 
@@ -542,4 +547,21 @@ export class XtreamMainContainerComponent implements OnInit {
         this.setInitialBreadcrumb();
     }
 
+    remoteControlChangeChannel(type: 'up' | 'down') {
+        if (this.currentLayout === 'category_content' && this.activeLiveStream) {
+            let nextItem;
+            const index = this.activeLiveStream.num - 1;
+            if (type === 'up') {
+                if (index - 1 >= 0) {
+                    nextItem = this.items[index - 1];
+                }
+            } else if (type === 'down') {
+                const index = this.activeLiveStream.num - 1;
+                if (index + 1 < this.items.length) {
+                    nextItem = this.items[index + 1];
+                }
+            }
+            this.itemClicked(nextItem);
+        }
+    }
 }
