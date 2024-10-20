@@ -102,7 +102,8 @@ type LayoutView =
     | 'player'
     | 'serie-details'
     | 'favorites'
-    | 'error-view';
+    | 'error-view'
+    | 'live-stream-favorites';
 
 @Component({
     selector: 'app-xtream-main-container',
@@ -167,6 +168,7 @@ export class XtreamMainContainerComponent implements OnInit {
 
     player: VideoPlayer;
     favorites$: Observable<any>;
+    favoritesLiveStream$: Observable<any>;
     breadcrumbs: Breadcrumb[] = [];
     items = [];
     listeners = [];
@@ -183,6 +185,7 @@ export class XtreamMainContainerComponent implements OnInit {
     streamUrl: string;
     epgItems = [];
     hideExternalInfoDialog = this.portalStore.hideExternalInfoDialog;
+    activeLiveStream: XtreamLiveStream;
 
     commandsList = [
         new IpcCommand(XTREAM_RESPONSE, (response: XtreamResponse) =>
@@ -198,6 +201,9 @@ export class XtreamMainContainerComponent implements OnInit {
             if (this.currentPlaylist()) {
                 this.getCategories(this.selectedContentType);
                 this.favorites$ = this.playlistService.getPortalFavorites(
+                    this.currentPlaylist()._id
+                );
+                this.favoritesLiveStream$ = this.playlistService.getPortalLiveStreamFavorites(
                     this.currentPlaylist()._id
                 );
             }
@@ -332,6 +338,7 @@ export class XtreamMainContainerComponent implements OnInit {
                 stream_id: item.stream_id,
                 limit: 10,
             });
+            this.activeLiveStream = item;
             this.playLiveStream(item);
         } else if (item.series_id) {
             this.items = [];
@@ -527,7 +534,12 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     favoritesClicked() {
-        this.currentLayout = 'favorites';
+        if (this.selectedContentType === ContentType.ITV) {
+            this.currentLayout = 'live-stream-favorites';
+        } else {
+            this.currentLayout = 'favorites';
+        }
         this.setInitialBreadcrumb();
     }
+
 }

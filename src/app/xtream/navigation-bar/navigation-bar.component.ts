@@ -1,5 +1,5 @@
-import { NgFor, NgIf } from '@angular/common';
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { NgFor, NgIf, AsyncPipe } from '@angular/common';
+import { Component, EventEmitter, Input, Output, inject, OnChanges, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -10,7 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { Observable, Subject, debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { PlaylistInfoComponent } from '../../home/recent-playlists/playlist-info/playlist-info.component';
 import { selectCurrentPlaylist } from '../../state/selectors';
 import { Breadcrumb } from '../breadcrumb.interface';
@@ -20,6 +20,7 @@ import { PortalStore } from '../portal.store';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { XtreamLiveStream } from '../../../../shared/xtream-live-stream.interface';
 
 @Component({
     selector: 'app-navigation-bar',
@@ -39,10 +40,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
         TranslateModule,
         MatMenuModule,
         MatCheckboxModule,
-        MatTooltipModule
+        MatTooltipModule,
+        AsyncPipe
     ],
 })
-export class NavigationBarComponent {
+export class NavigationBarComponent implements OnChanges {
     @Input({ required: true }) breadcrumbs: Breadcrumb[];
     @Input({ required: true }) contentType: ContentType;
     @Input() searchVisible = true;
@@ -50,12 +52,17 @@ export class NavigationBarComponent {
     @Input() contentTypeNavigationItems: ContentTypeNavigationItem[];
     @Input() clientSideSearch = true;
     @Input() showCategories = false;
+    @Input() activeLiveStream!: XtreamLiveStream;
+    @Input() favoritesLiveStream$: Observable<any>;
+    @Input() favoriteVisible = false;
 
     @Output() contentTypeChanged = new EventEmitter<ContentType>();
     @Output() breadcrumbClicked = new EventEmitter<Breadcrumb>();
     @Output() favoritesClicked = new EventEmitter<void>();
     @Output() searchTextChanged = new EventEmitter<string>();
-
+    @Output() addToFavoritesClicked = new EventEmitter<any>();
+    @Output() removeFromFavoritesClicked = new EventEmitter<number>();
+    
     ContentTypeEnum = ContentType;
     dialog = inject(MatDialog);
     portalStore = inject(PortalStore);
@@ -64,6 +71,7 @@ export class NavigationBarComponent {
     searchPhraseUpdate = new Subject<string>();
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
     sortType = this.portalStore.sortType;
+    isFavoriteStream = false;
 
     constructor() {
         this.searchPhraseUpdate
@@ -100,5 +108,37 @@ export class NavigationBarComponent {
 
     trackByValue(_i: number, value: ContentTypeNavigationItem) {
         return value.contentType;
+    }
+
+    clickFavorites(): void {
+        const item = this.activeLiveStream;
+        if (!this.isFavoriteStream) {
+            this.addToFavoritesClicked.emit({
+                name: item.name,
+                stream_id: item.stream_id,
+                cover: item.stream_icon,
+                stream_type: 'live'
+            });
+            this.isFavoriteStream = true;
+        } else {
+            this.removeFromFavoritesClicked.emit(item.stream_id);
+            this.isFavoriteStream = false;
+        }
+    }
+
+    ngOnChanges(changes: SimpleChanges) {
+        if (changes.activeLiveStream && this.activeLiveStream) {
+          this.checkFavorite();
+        }
+    }
+
+    checkFavorite() {
+        // if activeLiveStream.stream_id include in favorites return the true
+        const activeLiveStream = this.activeLiveStream;
+        this.favoritesLiveStream$.pipe(
+            map(favorites => favorites.some(fav => fav.stream_id === activeLiveStream.stream_id))
+        ).subscribe(isFavorite => {
+            this.isFavoriteStream = isFavorite;
+        });
     }
 }

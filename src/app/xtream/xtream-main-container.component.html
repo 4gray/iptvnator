@@ -10,7 +10,12 @@
         currentLayout === 'category' || currentLayout === 'category_content'
     "
     [sortVisible]="currentLayout === 'category_content'"
+    [favoriteVisible]="currentLayout === 'category_content' || currentLayout === 'live-stream-favorites'"
     [contentTypeNavigationItems]="navigationContentTypes"
+    [activeLiveStream]="activeLiveStream"
+    [favoritesLiveStream$]="favoritesLiveStream$"
+    (addToFavoritesClicked)="addToFavorites($event)"
+    (removeFromFavoritesClicked)="removeFromFavorites($event)"
 />
 
 @if (isLoading) {
@@ -65,6 +70,15 @@
         @case ('favorites') {
             <app-category-content-view
                 [items]="favorites$ | async"
+                (itemClicked)="itemClicked($event)"
+            />
+        }
+        @case ('live-stream-favorites') {
+            <app-live-stream-layout
+                [channels]="favoritesLiveStream$"
+                [player]="player"
+                [streamUrl]="streamUrl"
+                [epgItems]="epgItems"
                 (itemClicked)="itemClicked($event)"
             />
         }
