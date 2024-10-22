@@ -53,7 +53,7 @@ function createWindow(): BrowserWindow {
     require('@electron/remote/main').enable(win.webContents);
 
     if (serve) {
-        win.webContents.openDevTools();
+        win.on('ready-to-show', () => win?.webContents.openDevTools());
         win.loadURL('http://localhost:4200');
     } else {
         win.loadURL(
