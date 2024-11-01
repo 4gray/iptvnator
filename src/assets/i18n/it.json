@@ -138,7 +138,11 @@
     "MPV_PLAYER_PATH": "percorso riproduttore mpv",
     "VLC_PLAYER_PATH_LABEL": "Percorso VLC",
     "VLC_PLAYER_PATH_DESCRIPTION": "Imposta il percorso del lettore VLC nel sistema. Verrà usato il percorso fornito per il file exe VLC invece del percorso predefinito per il sistema.",
-    "VLC_PLAYER_PATH": "Percorso lettore VLC"
+    "VLC_PLAYER_PATH": "Percorso lettore VLC",
+    "REMOTE_CONTROL": "Telecomando",
+    "REMOTE_CONTROL_DESCRIPTION": "Abilita controllo remoto nell'applicazione.",
+    "REMOTE_CONTROL_PORT": "Porta controllo remoto",
+    "REMOTE_CONTROL_PORT_DESCRIPTION": "Porta usata per il controllo remoto dell'applicazione. Per impostazione predefinita viene usata la porta 3000."
   },
   "THEMES": {
     "DARK_THEME": "Tema scuro",
@@ -283,5 +287,12 @@
     "STREAM_URL_COPIED": "URL streaming copiato negli appunti",
     "COPY_STREAM_URL": "Copia URL streaming"
   },
-  "INFORMATION": "Informazioni"
+  "INFORMATION": "Informazioni",
+  "REMOTE_CONTROL": {
+    "TITLE": "Controllo remoto",
+    "UP_CHANNEL": "Canale +",
+    "DOWN_CHANNEL": "Canale -",
+    "HEADER": "Controllo remoto IPTVNator",
+    "FOOTER": "Controllo remoto IPTVNator"
+  }
 }
