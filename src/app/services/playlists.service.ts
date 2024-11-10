@@ -36,7 +36,7 @@ export class PlaylistsService {
     ) {}
 
     private useExternalDB(): boolean {
-        return this.configService.getExternalDB();
+        return this.configService.isExternalDBEnabled();
     }
     
     getAllPlaylists() {
@@ -456,7 +456,7 @@ export class PlaylistsService {
     
     removeAll() {
         if (this.useExternalDB()) {
-            return this.pwaExternalService.removeAllPlaylists();
+            return this.pwaExternalService.deleteAllPlaylists();
         } else {
             return this.dbService.clear(DbStores.Playlists);
         }

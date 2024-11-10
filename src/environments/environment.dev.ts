@@ -8,4 +8,5 @@ export const AppConfig = {
     environment: 'DEV',
     version: require('../../package.json').version,
     BACKEND_URL: 'http://localhost:3000',
+    ENABLE_EXTERNAL_DB: false,
 };

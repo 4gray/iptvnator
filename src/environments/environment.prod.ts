@@ -3,4 +3,5 @@ export const AppConfig = {
     environment: 'PROD',
     version: require('../../package.json').version,
     BACKEND_URL: 'https://iptvnator-playlist-parser-api.vercel.app',
+    ENABLE_EXTERNAL_DB: false,
 };

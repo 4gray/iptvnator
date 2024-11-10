@@ -39,8 +39,9 @@ export class PwaService extends DataService {
 
     constructor(private http: HttpClient) {
         super();
+        this.configService.setExternalDB(AppConfig.ENABLE_EXTERNAL_DB);
         console.log('PWA service initialized...');
-        this.configService.setExternalDB(true);
+        console.log('External DB enabled:', AppConfig.ENABLE_EXTERNAL_DB);
     }
 
     /** Uses service worker mechanism to check for available application updates */

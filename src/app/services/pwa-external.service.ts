@@ -42,7 +42,7 @@ export class PWAExternalService {
     return this.http.post(`${this.baseUrl}/addManyPlaylists`, playlists);
   }
 
-  removeAllPlaylists(): Observable<any> {
-    return this.http.delete(`${this.baseUrl}/removeAllPlaylists`);
+  deleteAllPlaylists(): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/deleteAllPlaylists`);
   }
 }
