@@ -21,6 +21,7 @@ import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { Playlist } from './../../../../../shared/playlist.interface';
 import { PlaylistInfoComponent } from './playlist-info.component';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
@@ -41,6 +42,7 @@ describe('PlaylistInfoComponent', () => {
             ],
             declarations: [PlaylistInfoComponent, MockPipe(DatePipe)],
             providers: [
+                provideHttpClient(withInterceptorsFromDi()),
                 MockProvider(MatSnackBar),
                 { provide: MAT_DIALOG_DATA, useValue: {} },
                 { provide: DataService, useClass: ElectronServiceStub },
