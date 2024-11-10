@@ -1,0 +1,39 @@
+{
+    "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+    "productName": "iptvnator",
+    "version": "0.1.0",
+    "identifier": "com.4gray.dev",
+    "build": {
+        "frontendDist": "../dist",
+        "devUrl": "http://localhost:4200",
+        "beforeDevCommand": "npm run ng:serve",
+        "beforeBuildCommand": "npm run ng:build"
+    },
+    "plugins": {},
+    "app": {
+        "windows": [
+            {
+                "title": "IPTVnator",
+                "width": 800,
+                "height": 600,
+                "resizable": true,
+                "fullscreen": false,
+                "titleBarStyle": "Transparent"
+            }
+        ],
+        "security": {
+            "csp": "default-src 'self' 'unsafe-eval' 'unsafe-inline'; media-src *"
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ]
+    }
+}
