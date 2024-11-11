@@ -8,41 +8,41 @@ import { Playlist } from '../../../shared/playlist.interface';
   providedIn: 'root'
 })
 export class PWAExternalService {
-  private baseUrl: string;
+  /** Proxy URL to avoid CORS issues */
+  corsProxyUrl = AppConfig.BACKEND_URL;
 
   constructor(private http: HttpClient) {
-    this.baseUrl = AppConfig.BACKEND_URL;
   }
 
   insertPlaylist(data: Playlist): Observable<Playlist> {
-    return this.http.post<Playlist>(`${this.baseUrl}/addPlaylist`, data);
+    return this.http.post<Playlist>(`${this.corsProxyUrl}/addPlaylist`, data);
   }
 
   getPlaylists(query: any = {}): Observable<Playlist[]> {
-    return this.http.get<Playlist[]>(`${this.baseUrl}/getPlaylists`, { params: query });
+    return this.http.get<Playlist[]>(`${this.corsProxyUrl}/getPlaylists`, { params: query });
   }
 
   getAllPlaylists(): Observable<Playlist[]> {
-    return this.http.get<Playlist[]>(`${this.baseUrl}/getAllPlaylists`);
+    return this.http.get<Playlist[]>(`${this.corsProxyUrl}/getAllPlaylists`);
   }
 
   getPlaylistById(id: string): Observable<Playlist> {
-    return this.http.get<Playlist>(`${this.baseUrl}/getPlaylist/${id}`);
+    return this.http.get<Playlist>(`${this.corsProxyUrl}/getPlaylist/${id}`);
   }
 
   deletePlaylist(playlistId: string): Observable<any> {
-    return this.http.delete(`${this.baseUrl}/deletePlaylist/${playlistId}`);
+    return this.http.delete(`${this.corsProxyUrl}/deletePlaylist/${playlistId}`);
   }
 
   updatePlaylist(playlistId: string, updatedPlaylist: Partial<Playlist>): Observable<any> {
-    return this.http.put(`${this.baseUrl}/updatePlaylist/${playlistId}`, updatedPlaylist);
+    return this.http.put(`${this.corsProxyUrl}/updatePlaylist/${playlistId}`, updatedPlaylist);
   }
 
   addManyPlaylists(playlists: Playlist[]): Observable<any> {
-    return this.http.post(`${this.baseUrl}/addManyPlaylists`, playlists);
+    return this.http.post(`${this.corsProxyUrl}/addManyPlaylists`, playlists);
   }
 
   deleteAllPlaylists(): Observable<any> {
-    return this.http.delete(`${this.baseUrl}/deleteAllPlaylists`);
+    return this.http.delete(`${this.corsProxyUrl}/deleteAllPlaylists`);
   }
 }

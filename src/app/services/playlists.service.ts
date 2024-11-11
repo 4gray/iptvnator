@@ -21,7 +21,7 @@ import { XtreamSerieItem } from '../../../shared/xtream-serie-item.interface';
 import { DbStores } from '../indexed-db.config';
 import { PWAExternalService } from './pwa-external.service';
 import { PlaylistMeta } from '../shared/playlist-meta.type';
-import { ConfigService } from './config.service';
+import { AppConfig } from '../../environments/environment';
 
 @Injectable({
     providedIn: 'root',
@@ -31,12 +31,11 @@ export class PlaylistsService {
         private dbService: NgxIndexedDBService,
         private snackBar: MatSnackBar,
         private translateService: TranslateService,
-        private pwaExternalService: PWAExternalService,
-        private configService: ConfigService
+        private pwaExternalService: PWAExternalService
     ) {}
 
     private useExternalDB(): boolean {
-        return this.configService.isExternalDBEnabled();
+        return AppConfig.ENABLE_EXTERNAL_DB;
     }
     
     getAllPlaylists() {

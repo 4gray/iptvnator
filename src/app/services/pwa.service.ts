@@ -20,7 +20,6 @@ import { AppConfig } from '../../environments/environment';
 import * as PlaylistActions from '../state/actions';
 import { DataService } from './data.service';
 import { PlaylistsService } from './playlists.service';
-import { ConfigService } from './config.service';
 
 @Injectable({
     providedIn: 'root',
@@ -32,14 +31,12 @@ export class PwaService extends DataService {
     store = inject(Store);
     swUpdate = inject(SwUpdate);
     translateService = inject(TranslateService);
-    configService = inject(ConfigService);
 
     /** Proxy URL to avoid CORS issues */
     corsProxyUrl = AppConfig.BACKEND_URL;
 
     constructor(private http: HttpClient) {
         super();
-        this.configService.setExternalDB(AppConfig.ENABLE_EXTERNAL_DB);
         console.log('PWA service initialized...');
         console.log('External DB enabled:', AppConfig.ENABLE_EXTERNAL_DB);
     }
