@@ -33,7 +33,9 @@
                 }
             ]
         },
-        "shell:default",
-        "http:default"
+        "http:default",
+        "window-state:default",
+        "os:default",
+        "fs:default"
     ]
 }

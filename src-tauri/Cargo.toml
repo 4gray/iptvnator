@@ -26,3 +26,8 @@ tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-http = {version = "2", features = ["unsafe-headers"] }
 tauri-plugin-shell = "2"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
+tauri-plugin-os = "2"
+tauri-plugin-fs = "2"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-window-state = "2"
