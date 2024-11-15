@@ -21,10 +21,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { IpcCommand } from '../../../shared/ipc-command.class';
 import {
-    REMOTE_CONTROL_CHANGE_CHANNEL,
     ERROR,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
+    REMOTE_CONTROL_CHANGE_CHANNEL,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
 } from '../../../shared/ipc-commands';
@@ -195,9 +195,12 @@ export class XtreamMainContainerComponent implements OnInit {
         new IpcCommand(ERROR, (response: { message: string; status: number }) =>
             this.showErrorAsNotification(response)
         ),
-        new IpcCommand(REMOTE_CONTROL_CHANGE_CHANNEL, (response: { type: 'up' | 'down' }) => {
-            this.remoteControlChangeChannel(response.type);
-        })
+        new IpcCommand(
+            REMOTE_CONTROL_CHANGE_CHANNEL,
+            (response: { type: 'up' | 'down' }) => {
+                this.remoteControlChangeChannel(response.type);
+            }
+        ),
     ];
 
     constructor() {
@@ -207,16 +210,16 @@ export class XtreamMainContainerComponent implements OnInit {
                 this.favorites$ = this.playlistService.getPortalFavorites(
                     this.currentPlaylist()._id
                 );
-                this.favoritesLiveStream$ = this.playlistService.getPortalLiveStreamFavorites(
-                    this.currentPlaylist()._id
-                );
+                this.favoritesLiveStream$ =
+                    this.playlistService.getPortalLiveStreamFavorites(
+                        this.currentPlaylist()._id
+                    );
             }
         });
     }
 
     ngOnInit() {
         this.setInitialBreadcrumb();
-
         this.commandsList.forEach((command) => {
             if (this.dataService.isElectron) {
                 this.dataService.listenOn(command.id, (_event, response) =>
@@ -274,6 +277,7 @@ export class XtreamMainContainerComponent implements OnInit {
                 this.currentLayout = 'serie-details';
                 this.vodDetails = response.payload as XtreamSerieDetails;
                 break;
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
             case 'get_short_epg':
                 this.epgItems = (
                     (response.payload as any).epg_listings as EpgItem[]
@@ -368,12 +372,14 @@ export class XtreamMainContainerComponent implements OnInit {
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
+                mpvPlayerPath: this.settings()?.mpvPlayerPath,
             });
         } else if (this.player === VideoPlayer.VLC) {
             if (!this.hideExternalInfoDialog())
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
+                vlcPlayerPath: this.settings()?.vlcPlayerPath,
             });
         } else {
             if (this.selectedContentType !== ContentType.ITV) {
@@ -548,7 +554,10 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     remoteControlChangeChannel(type: 'up' | 'down') {
-        if (this.currentLayout === 'category_content' && this.activeLiveStream) {
+        if (
+            this.currentLayout === 'category_content' &&
+            this.activeLiveStream
+        ) {
             let nextItem;
             const index = this.activeLiveStream.num - 1;
             if (type === 'up') {

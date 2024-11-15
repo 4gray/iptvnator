@@ -85,6 +85,7 @@ export class PlaylistEffects {
                                     url:
                                         activeChannel.url +
                                         (activeChannel.epgParams ?? ''),
+                                    mpvPlayerPath: settings?.mpvPlayerPath,
                                 });
                             else if (
                                 settings &&
@@ -95,6 +96,7 @@ export class PlaylistEffects {
                                     url:
                                         activeChannel.url +
                                         (activeChannel.epgParams ?? ''),
+                                    vlcPlayerPath: settings?.vlcPlayerPath,
                                 });
                         }
                     );

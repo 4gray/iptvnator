@@ -10,10 +10,11 @@ export abstract class DataService {
         return this.isElectron ? window.require('electron').ipcRenderer : null;
     }
     abstract getAppVersion(): string;
-    abstract sendIpcEvent(type: string, payload?: unknown): void;
+    abstract sendIpcEvent(type: string, payload?: unknown);
     abstract removeAllListeners(type: string): void;
     abstract listenOn(
         command: string,
         callback: (...args: any[]) => void
     ): void;
+    abstract getAppEnvironment(): string;
 }

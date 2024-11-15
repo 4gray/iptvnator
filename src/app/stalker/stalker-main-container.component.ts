@@ -376,12 +376,14 @@ export class StalkerMainContainerComponent implements OnInit {
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
+                mpvPlayerPath: this.settings()?.mpvPlayerPath,
             });
         } else if (player === VideoPlayer.VLC) {
             if (!this.hideExternalInfoDialog())
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
+                vlcPlayerPath: this.settings()?.vlcPlayerPath,
             });
         } else {
             this.dialog.open<PlayerDialogComponent, PlayerDialogData>(

@@ -199,24 +199,30 @@
                 ></mat-checkbox>
             </div>
         </div>
-        <mat-divider></mat-divider>
-        <div class="row">
-            <div class="column">
-                {{ 'SETTINGS.REMOTE_CONTROL' | translate }}
-                <p>{{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}</p>
+        @if (isPwa || isElectron) {
+            <mat-divider></mat-divider>
+            <div class="row">
+                <div class="column">
+                    {{ 'SETTINGS.REMOTE_CONTROL' | translate }}
+                    <p>
+                        {{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="column" style="margin-right: 10px">
+                    <mat-checkbox
+                        class="column"
+                        formControlName="remoteControl"
+                    ></mat-checkbox>
+                </div>
             </div>
-            <div class="column" style="margin-right: 10px">
-                <mat-checkbox
-                    class="column"
-                    formControlName="remoteControl"
-                ></mat-checkbox>
-            </div>
-        </div>
+        }
         <mat-divider></mat-divider>
         <div class="row" *ngIf="settingsForm.value.remoteControl === true">
             <div class="column">
                 {{ 'SETTINGS.REMOTE_CONTROL_PORT' | translate }}
-                <p>{{ 'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION' | translate }}</p>
+                <p>
+                    {{ 'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION' | translate }}
+                </p>
             </div>
             <div class="column" style="margin-right: 10px">
                 <mat-form-field appearance="outline" class="full-width">
@@ -294,7 +300,7 @@
             </div>
         </div>
 
-        <div class="row" *ngIf="!isElectron">
+        <div class="row" *ngIf="isPwa">
             {{ 'SETTINGS.EPG_NOTE' | translate }}
             &nbsp;<a href="https://github.com/4gray/iptvnator/releases">{{
                 'SETTINGS.EPG_NOTE_URL_TEXT' | translate

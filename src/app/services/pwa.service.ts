@@ -234,4 +234,8 @@ export class PwaService extends DataService {
     listenOn(_command: string, callback: (...args: any[]) => void): void {
         window.addEventListener('message', callback);
     }
+
+    getAppEnvironment(): string {
+        return 'pwa';
+    }
 }

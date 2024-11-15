@@ -67,6 +67,8 @@ export class SettingsComponent implements OnInit {
     /** Flag that indicates whether the app runs in electron environment */
     isElectron = this.electronService.isElectron;
 
+    isPwa = this.electronService.getAppEnvironment() === 'pwa';
+
     electronPlayers = [
         {
             id: VideoPlayer.MPV,
@@ -88,7 +90,8 @@ export class SettingsComponent implements OnInit {
             id: VideoPlayer.VideoJs,
             label: 'VideoJs Player',
         },
-        ...(this.isElectron ? this.electronPlayers : []),
+        ...this.electronPlayers,
+        /* ...(this.isElectron ? this.electronPlayers : []), */
     ];
 
     /** Current version of the app */
@@ -113,7 +116,7 @@ export class SettingsComponent implements OnInit {
         mpvPlayerPath: '',
         vlcPlayerPath: '',
         remoteControl: false,
-        remoteControlPort: 3000
+        remoteControlPort: 3000,
     });
 
     /** Form array with epg sources */
@@ -125,7 +128,7 @@ export class SettingsComponent implements OnInit {
      */
     constructor(
         private dialogService: DialogService,
-        private electronService: DataService,
+        public electronService: DataService,
         private epgService: EpgService,
         private formBuilder: FormBuilder,
         private playlistsService: PlaylistsService,
@@ -165,7 +168,8 @@ export class SettingsComponent implements OnInit {
                             mpvPlayerPath: settings.mpvPlayerPath ?? '',
                             vlcPlayerPath: settings.vlcPlayerPath ?? '',
                             remoteControl: settings.remoteControl ?? false,
-                            remoteControlPort: settings.remoteControlPort ?? 3000
+                            remoteControlPort:
+                                settings.remoteControlPort ?? 3000,
                         });
                     } catch (error) {
                         throw new Error(error);
@@ -255,7 +259,10 @@ export class SettingsComponent implements OnInit {
                 this.applyChangedSettings();
             });
 
-        this.electronService.sendIpcEvent(SETTINGS_UPDATE, this.settingsForm.value);
+        this.electronService.sendIpcEvent(
+            SETTINGS_UPDATE,
+            this.settingsForm.value
+        );
 
         this.electronService.sendIpcEvent(
             SET_MPV_PLAYER_PATH,

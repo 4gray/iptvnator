@@ -45,4 +45,8 @@ export class ElectronService extends DataService {
     listenOn(command: string, callback: (...args: any[]) => void): void {
         this.ipcRenderer.on(command, callback);
     }
+
+    getAppEnvironment(): string {
+        return 'electron';
+    }
 }

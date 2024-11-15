@@ -10,7 +10,10 @@
         currentLayout === 'category' || currentLayout === 'category_content'
     "
     [sortVisible]="currentLayout === 'category_content'"
-    [favoriteVisible]="currentLayout === 'category_content' || currentLayout === 'live-stream-favorites'"
+    [favoriteVisible]="
+        currentLayout === 'category_content' ||
+        currentLayout === 'live-stream-favorites'
+    "
     [contentTypeNavigationItems]="navigationContentTypes"
     [activeLiveStream]="activeLiveStream"
     [favoritesLiveStream$]="favoritesLiveStream$"

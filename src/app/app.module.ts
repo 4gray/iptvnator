@@ -24,6 +24,7 @@ import { dbConfig } from './indexed-db.config';
 import { DataService } from './services/data.service';
 import { ElectronService } from './services/electron.service';
 import { PwaService } from './services/pwa.service';
+import { TauriService } from './services/tauri.service';
 import { SharedModule } from './shared/shared.module';
 import { PlaylistEffects } from './state/effects';
 import { playlistReducer } from './state/reducers';
@@ -40,14 +41,19 @@ function isElectron() {
     return !!(window && window.process && (window.process as any).type);
 }
 
+function isTauri() {
+    return '__TAURI_INTERNALS__' in window || '__TAURI__' in window;
+}
+
 /**
  * Conditionally imports the necessary service based on the current environment
- * @param dbService indexed db service
- * @returns
  */
-export function DataFactory(dbService: NgxIndexedDBService, http: HttpClient) {
+export function DataFactory(http: HttpClient) {
     if (isElectron()) {
         return new ElectronService();
+    }
+    if (isTauri()) {
+        return new TauriService();
     }
     return new PwaService(http);
 }
