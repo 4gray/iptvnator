@@ -22,7 +22,54 @@
             }
         ],
         "security": {
-            "csp": "default-src 'self' 'unsafe-eval' 'unsafe-inline'; media-src *"
+            "csp": {
+                "default-src": [
+                    "'self'",
+                    "data:",
+                    "tauri:",
+                    "asset:",
+                    "blob:",
+                    "https:",
+                    "http:",
+                    "'unsafe-eval'",
+                    "'unsafe-inline'"
+                ],
+                "img-src": [
+                    "'self'",
+                    "data:",
+                    "asset:",
+                    "https:",
+                    "http:",
+                    "blob:"
+                ],
+                "media-src": ["'self'", "https:", "http:", "blob:", "data:"],
+                "script-src": [
+                    "'self'",
+                    "'unsafe-inline'",
+                    "'unsafe-eval'",
+                    "tauri:",
+                    "asset:"
+                ],
+                "style-src": [
+                    "'self'",
+                    "'unsafe-inline'",
+                    "https:",
+                    "http:",
+                    "https://fonts.googleapis.com"
+                ],
+                "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
+                "connect-src": [
+                    "'self'",
+                    "https:",
+                    "http:",
+                    "ws:",
+                    "wss:",
+                    "data:",
+                    "tauri:"
+                ],
+                "frame-src": ["'self'", "https:", "http:", "blob:", "data:"],
+                "worker-src": ["'self'", "blob:", "data:"]
+            }
         }
     },
     "bundle": {
@@ -34,6 +81,13 @@
             "icons/128x128@2x.png",
             "icons/icon.icns",
             "icons/icon.ico"
-        ]
+        ],
+        "macOS": {
+            "entitlements": null,
+            "exceptionDomain": "*",
+            "frameworks": [],
+            "providerShortName": null,
+            "signingIdentity": null
+        }
     }
 }
