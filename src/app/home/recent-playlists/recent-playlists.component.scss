@@ -81,21 +81,6 @@
     }
 }
 
-#migration-container {
-    padding: 10px;
-    border: 1px solid #999;
-    border-radius: 5px;
-    margin: 5px;
-
-    p {
-        margin-left: 15px;
-    }
-
-    .migration-btn {
-        text-transform: uppercase;
-    }
-}
-
 @media (max-width: 599px) {
     .favorites-icon {
         padding-left: 0 !important;

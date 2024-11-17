@@ -37,10 +37,7 @@ import {
 import {
     AUTO_UPDATE_PLAYLISTS_RESPONSE,
     DELETE_ALL_PLAYLISTS,
-    IS_PLAYLISTS_MIGRATION_POSSIBLE,
-    IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE,
     MIGRATE_PLAYLISTS,
-    MIGRATE_PLAYLISTS_RESPONSE,
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
 } from './../../../../shared/ipc-commands';
@@ -128,28 +125,6 @@ export class RecentPlaylistsComponent implements OnDestroy {
             }
         ),
         new IpcCommand(
-            IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE,
-            (response: { result: boolean; message: string }) => {
-                this.isMigrationPossible = response.result;
-                this.migrationMessage = response.message || '';
-            }
-        ),
-        new IpcCommand(
-            MIGRATE_PLAYLISTS_RESPONSE,
-            (response: { payload: Playlist[] }) => {
-                this.store.dispatch(
-                    PlaylistActions.addManyPlaylists({
-                        playlists: response.payload,
-                    })
-                );
-                this.snackBar.open(
-                    `${response.payload.length} playlists were successfully migrated`,
-                    null,
-                    { duration: 2000 }
-                );
-            }
-        ),
-        new IpcCommand(
             AUTO_UPDATE_PLAYLISTS_RESPONSE,
             (playlists: Playlist[]) => {
                 this.store.dispatch(
@@ -160,9 +135,6 @@ export class RecentPlaylistsComponent implements OnDestroy {
             }
         ),
     ];
-
-    isMigrationPossible = false;
-    migrationMessage = '';
 
     constructor(
         private dialog: MatDialog,
@@ -177,9 +149,6 @@ export class RecentPlaylistsComponent implements OnDestroy {
 
     ngOnInit(): void {
         this.setRendererListeners();
-        if (this.electronService.isElectron) {
-            this.electronService.sendIpcEvent(IS_PLAYLISTS_MIGRATION_POSSIBLE);
-        }
     }
 
     /**
