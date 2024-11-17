@@ -102,6 +102,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     /** EPG overlay reference */
     overlayRef: OverlayRef;
 
+    volume = 1;
+
     constructor(
         private activatedRoute: ActivatedRoute,
         private dataService: DataService,
@@ -112,7 +114,13 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         private snackBar: MatSnackBar,
         private storage: StorageMap,
         private store: Store
-    ) {}
+    ) {
+        // Initialize volume from localStorage in constructor
+        const savedVolume = localStorage.getItem('volume');
+        if (savedVolume !== null) {
+            this.volume = Number(savedVolume);
+        }
+    }
 
     /**
      * Sets video player and subscribes to channel list from the store
@@ -137,9 +145,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                                 CHANNEL_SET_USER_AGENT,
                                 playlist.userAgent
                                     ? {
-                                        referer: 'localhost',
-                                        userAgent: playlist.userAgent,
-                                    }
+                                          referer: 'localhost',
+                                          userAgent: playlist.userAgent,
+                                      }
                                     : {}
                             );
 
@@ -205,6 +213,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                     player: settings.player || VideoPlayer.VideoJs,
                     showCaptions: settings.showCaptions || false,
                 };
+                // Don't override volume from settings storage anymore
+                // as we're using localStorage for volume persistence
             }
         });
     }

@@ -31,6 +31,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     @Input() options: videoJs.PlayerOptions;
     /** VideoJs object */
     player: videoJs.Player;
+    @Input() volume = 1;
 
     /**
      * Instantiate Video.js on component init
@@ -42,8 +43,17 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 ...this.options,
                 autoplay: true,
             },
-            function onPlayerReady() {
-                this.volume(100);
+            () => {
+                console.log(
+                    'Setting VideoJS player initial volume to:',
+                    this.volume
+                );
+                this.player.volume(this.volume);
+
+                this.player.on('volumechange', () => {
+                    const currentVolume = this.player.volume();
+                    localStorage.setItem('volume', currentVolume.toString());
+                });
             }
         );
         this.player.hlsQualitySelector({
@@ -59,6 +69,13 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     ngOnChanges(changes: SimpleChanges): void {
         if (changes.options.previousValue) {
             this.player.src(changes.options.currentValue.sources[0]);
+        }
+        if (changes.volume?.currentValue !== undefined && this.player) {
+            console.log(
+                'Setting VideoJS player volume to:',
+                changes.volume.currentValue
+            );
+            this.player.volume(changes.volume.currentValue);
         }
     }
 
