@@ -9,18 +9,24 @@ const routes: Routes = [
     },
     {
         path: 'playlists',
-        loadChildren: () =>
-            import('./player/player.module').then((m) => m.PlayerModule),
+        loadComponent: () =>
+            import(
+                './player/components/video-player/video-player.component'
+            ).then((c) => c.VideoPlayerComponent),
     },
     {
         path: 'iptv',
-        loadChildren: () =>
-            import('./player/player.module').then((m) => m.PlayerModule),
+        loadComponent: () =>
+            import(
+                './player/components/video-player/video-player.component'
+            ).then((c) => c.VideoPlayerComponent),
     },
     {
         path: 'playlists/:id',
-        loadChildren: () =>
-            import('./player/player.module').then((m) => m.PlayerModule),
+        loadComponent: () =>
+            import(
+                './player/components/video-player/video-player.component'
+            ).then((c) => c.VideoPlayerComponent),
     },
     {
         path: 'settings',
