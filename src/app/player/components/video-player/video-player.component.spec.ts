@@ -20,6 +20,7 @@ import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import { InfoOverlayComponent } from './../info-overlay/info-overlay.component';
 import { VideoPlayerComponent } from './video-player.component';
 
+import { CommonModule } from '@angular/common';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
@@ -37,48 +38,47 @@ describe('VideoPlayerComponent', () => {
     let mockStore: MockStore;
     const actions$ = new Observable<Actions>();
 
-    beforeEach(
-        waitForAsync(() => {
-            TestBed.configureTestingModule({
-                declarations: [
-                    MockComponent(EpgListComponent),
-                    MockComponent(HtmlVideoPlayerComponent),
-                    MockComponent(VjsPlayerComponent),
-                    MockComponent(VideoPlayerComponent),
-                    MockComponent(ChannelListContainerComponent),
-                    MockComponent(InfoOverlayComponent),
-                    VideoPlayerComponent,
-                    MockPipe(TranslatePipe),
-                ],
-                providers: [
-                    { provide: MatSnackBar, useClass: MatSnackBarStub },
-                    { provide: DataService, useClass: ElectronServiceStub },
-                    {
-                        provide: ActivatedRoute,
-                        useValue: {
-                            params: of({ id: '1' }),
-                            snapshot: {
-                                queryParams: {
-                                    url: 'https://iptvnator/list.m3u',
-                                },
+    beforeEach(waitForAsync(() => {
+        TestBed.configureTestingModule({
+            declarations: [
+                MockComponent(EpgListComponent),
+                MockComponent(HtmlVideoPlayerComponent),
+                MockComponent(VjsPlayerComponent),
+                MockComponent(VideoPlayerComponent),
+                MockComponent(ChannelListContainerComponent),
+                MockComponent(InfoOverlayComponent),
+                VideoPlayerComponent,
+                MockPipe(TranslatePipe),
+                CommonModule,
+            ],
+            providers: [
+                { provide: MatSnackBar, useClass: MatSnackBarStub },
+                { provide: DataService, useClass: ElectronServiceStub },
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        params: of({ id: '1' }),
+                        snapshot: {
+                            queryParams: {
+                                url: 'https://iptvnator/list.m3u',
                             },
                         },
                     },
-                    provideMockStore(),
-                    provideMockActions(actions$),
-                    MockProviders(NgxIndexedDBService, PlaylistsService),
-                ],
-                imports: [
-                    MockModule(MatSidenavModule),
-                    MockModule(MatIconModule),
-                    MockModule(MatToolbarModule),
-                    MockModule(MatTooltipModule),
-                    MockModule(RouterTestingModule),
-                    MockModule(MatDividerModule),
-                ],
-            }).compileComponents();
-        })
-    );
+                },
+                provideMockStore(),
+                provideMockActions(actions$),
+                MockProviders(NgxIndexedDBService, PlaylistsService),
+            ],
+            imports: [
+                MockModule(MatSidenavModule),
+                MockModule(MatIconModule),
+                MockModule(MatToolbarModule),
+                MockModule(MatTooltipModule),
+                MockModule(RouterTestingModule),
+                MockModule(MatDividerModule),
+            ],
+        }).compileComponents();
+    }));
 
     beforeEach(() => {
         fixture = TestBed.createComponent(VideoPlayerComponent);

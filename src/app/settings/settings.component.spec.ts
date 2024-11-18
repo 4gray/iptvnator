@@ -35,7 +35,6 @@ import { EPG_FORCE_FETCH } from '../../../shared/ipc-commands';
 import { DataService } from '../services/data.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { HeaderComponent } from '../shared/components';
-import { SharedModule } from '../shared/shared.module';
 import { Language } from './language.enum';
 import { SettingsComponent } from './settings.component';
 import { VideoPlayer } from './settings.interface';
@@ -63,7 +62,7 @@ const DEFAULT_SETTINGS = {
     mpvPlayerPath: '',
     vlcPlayerPath: '',
     remoteControl: false,
-    remoteControlPort: 3000
+    remoteControlPort: 3000,
 };
 
 describe('SettingsComponent', () => {
@@ -108,7 +107,6 @@ describe('SettingsComponent', () => {
                 MockModule(MatCheckboxModule),
                 MockModule(MatDividerModule),
                 MockModule(TranslateModule),
-                MockModule(SharedModule),
             ],
         }).compileComponents();
     }));
