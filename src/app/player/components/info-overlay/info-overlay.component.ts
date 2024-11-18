@@ -1,9 +1,13 @@
+import { NgStyle } from '@angular/common';
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import moment from 'moment';
 import { Channel } from '../../../../../shared/channel.interface';
+import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
 import { EpgProgram } from '../../models/epg-program.model';
 
 @Component({
+    standalone: true,
+    imports: [MomentDatePipe, NgStyle],
     selector: 'app-info-overlay',
     templateUrl: './info-overlay.component.html',
     styleUrls: ['./info-overlay.component.scss'],

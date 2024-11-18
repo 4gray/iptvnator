@@ -22,7 +22,7 @@
         <mat-icon>navigate_next</mat-icon>
     </button>
     <div class="today-date">
-        {{ today | momentDate: 'YYYYMMDD':'MMMM Do, dddd' }}
+        {{ today | momentDate: 'YYYYMMDD' : 'MMMM Do, dddd' }}
     </div>
     <button mat-icon-button (click)="zoomIn()" [disabled]="hourWidth >= 800">
         <mat-icon>zoom_in</mat-icon>
@@ -50,24 +50,26 @@
                     [attr.y]="barHeight * i + barHeight"
                     stroke="black"
                 ></rect>
-                <image
-                    *ngIf="item.icon[0]"
-                    [attr.y]="barHeight * i + barHeight + 1"
-                    [attr.href]="item.icon[0]"
-                    [attr.height]="barHeight - 2"
-                    width="100"
-                    [matTooltip]="item.name[0].value"
-                ></image>
-                <foreignObject
-                    *ngIf="!item.icon[0]"
-                    [attr.y]="barHeight * i + barHeight"
-                    width="100"
-                    [attr.height]="barHeight"
-                >
-                    <div class="channel-name">
-                        {{ item.name[0].value }}
-                    </div>
-                </foreignObject>
+                @if (item.icon[0]) {
+                    <image
+                        [attr.y]="barHeight * i + barHeight + 1"
+                        [attr.href]="item.icon[0]"
+                        [attr.height]="barHeight - 2"
+                        width="100"
+                        [matTooltip]="item.name[0].value"
+                    ></image>
+                }
+                @if (!item.icon[0]) {
+                    <foreignObject
+                        [attr.y]="barHeight * i + barHeight"
+                        width="100"
+                        [attr.height]="barHeight"
+                    >
+                        <div class="channel-name">
+                            {{ item.name[0].value }}
+                        </div>
+                    </foreignObject>
+                }
             </g>
         </g>
     </svg>

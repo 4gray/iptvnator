@@ -1,5 +1,6 @@
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
+import { AsyncPipe, CommonModule } from '@angular/common';
 import {
     Component,
     InjectionToken,
@@ -8,8 +9,9 @@ import {
     OnDestroy,
     OnInit,
 } from '@angular/core';
+import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
@@ -31,7 +33,14 @@ import {
     selectChannels,
     selectCurrentEpgProgram,
 } from '../../../state/selectors';
+import { AudioPlayerComponent } from '../audio-player/audio-player.component';
+import { EpgListComponent } from '../epg-list/epg-list.component';
+import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
+import { InfoOverlayComponent } from '../info-overlay/info-overlay.component';
 import { MultiEpgContainerComponent } from '../multi-epg/multi-epg-container.component';
+import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
+import { SidebarComponent } from './sidebar/sidebar.component';
+import { ToolbarComponent } from './toolbar/toolbar.component';
 
 /** Possible sidebar view options */
 export type SidebarView = 'CHANNELS' | 'PLAYLISTS';
@@ -41,6 +50,20 @@ export const COMPONENT_OVERLAY_REF = new InjectionToken(
 );
 
 @Component({
+    standalone: true,
+    imports: [
+        AsyncPipe,
+        AudioPlayerComponent,
+        InfoOverlayComponent,
+        CommonModule,
+        EpgListComponent,
+        HtmlVideoPlayerComponent,
+        MatSidenavModule,
+        RouterLink,
+        SidebarComponent,
+        ToolbarComponent,
+        VjsPlayerComponent,
+    ],
     templateUrl: './video-player.component.html',
     styleUrls: ['./video-player.component.scss'],
 })

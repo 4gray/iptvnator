@@ -1,7 +1,12 @@
+import { AsyncPipe, CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { Channel } from '../../../../../../shared/channel.interface';
 import { updateFavorites } from '../../../../state/actions';
 import {
@@ -11,6 +16,16 @@ import {
 } from '../../../../state/selectors';
 
 @Component({
+    standalone: true,
+    imports: [
+        AsyncPipe,
+        CommonModule,
+        MatIconModule,
+        MatButtonModule,
+        MatToolbarModule,
+        MatTooltipModule,
+        TranslateModule,
+    ],
     selector: 'app-toolbar',
     templateUrl: './toolbar.component.html',
     styleUrls: ['./toolbar.component.scss'],

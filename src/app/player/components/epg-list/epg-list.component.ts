@@ -1,10 +1,19 @@
+import { AsyncPipe } from '@angular/common';
 import { Component, NgZone } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
+import { TranslateModule } from '@ngx-translate/core';
 import moment from 'moment';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
 import { DataService } from '../../../services/data.service';
+import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
 import {
     resetActiveEpgProgram,
     setActiveEpgProgram,
@@ -13,6 +22,7 @@ import {
 import { selectActive } from '../../../state/selectors';
 import { EpgChannel } from '../../models/epg-channel.model';
 import { EpgProgram } from '../../models/epg-program.model';
+import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 
 export interface EpgData {
     channel: EpgChannel;
@@ -23,6 +33,19 @@ const DATE_FORMAT = 'YYYYMMDD';
 const DATE_TIME_FORMAT = 'YYYYMMDDHHmm ZZ';
 
 @Component({
+    standalone: true,
+    imports: [
+        AsyncPipe,
+        EpgListItemComponent,
+        FormsModule,
+        MatButtonModule,
+        MatDividerModule,
+        MatIconModule,
+        MatListModule,
+        MatTooltipModule,
+        MomentDatePipe,
+        TranslateModule,
+    ],
     selector: 'app-epg-list',
     templateUrl: './epg-list.component.html',
     styleUrls: ['./epg-list.component.scss'],

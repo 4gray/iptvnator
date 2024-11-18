@@ -1,9 +1,11 @@
-<ng-container *ngIf="channel; else noEpg">
+@if (channel) {
     <!-- channel info panel -->
     <div id="channel-header" color="primary">
         <div class="channel-info">
             <div class="channel-icon">
-                <img *ngIf="channel?.icon" [src]="channel.icon" width="48" />
+                @if (channel?.icon) {
+                    <img [src]="channel.icon" width="48" />
+                }
             </div>
             <div class="channel-details">
                 <div class="channel-name">
@@ -18,7 +20,7 @@
                 </div>
             </div>
         </div>
-        <mat-divider></mat-divider>
+        <mat-divider />
         <div id="date-navigator">
             <button
                 class="previous-day"
@@ -41,44 +43,23 @@
             </button>
         </div>
     </div>
-    <mat-divider></mat-divider>
+    <mat-divider />
 
-    <!-- program list -->
-    <mat-selection-list
-        id="program-list"
-        [multiple]="false"
-        hideSingleSelectionIndicator="true"
-        *ngIf="timeshiftUntil$ | async as timeshiftUntil"
-    >
-        <ng-container *ngIf="items?.length > 0; else epgNotAvailable">
-            <ng-container *ngFor="let item of items">
-                <mat-list-option
-                    *ngIf="
-                        item.start < timeshiftUntil || item.start >= timeNow;
-                        else timeshiftItem
-                    "
-                >
-                    <div matListItemLine>
-                        <app-epg-list-item
-                            [timeshiftUntil]="timeshiftUntil"
-                            [timeNow]="timeNow"
-                            [item]="item"
-                        ></app-epg-list-item>
-                    </div>
-                    <p matListItemLine>{{ item?.title[0]?.value }}</p>
-                </mat-list-option>
-                <ng-template #timeshiftItem>
+    @let timeshiftUntil = timeshiftUntil$ | async;
+    @if (timeshiftUntil) {
+        <!-- program list -->
+        <mat-selection-list
+            id="program-list"
+            [multiple]="false"
+            hideSingleSelectionIndicator="true"
+        >
+            @if (items?.length > 0) {
+                <ng-container *ngFor="let item of items">
                     <mat-list-option
-                        [value]="item"
-                        [class.active]="
-                            timeNow >= item.start && timeNow <= item.stop
-                        "
-                        (click)="
-                            setEpgProgram(
-                                item,
-                                timeNow >= item.start && timeNow <= item.stop,
-                                item.start > timeshiftUntil
-                            )
+                        *ngIf="
+                            item.start < timeshiftUntil ||
+                                item.start >= timeNow;
+                            else timeshiftItem
                         "
                     >
                         <div matListItemLine>
@@ -86,30 +67,52 @@
                                 [timeshiftUntil]="timeshiftUntil"
                                 [timeNow]="timeNow"
                                 [item]="item"
-                            ></app-epg-list-item>
+                            />
                         </div>
-                        <p
-                            matListItemLine
-                            [innerHTML]="item?.title[0]?.value"
-                        ></p>
+                        <p matListItemLine>{{ item?.title[0]?.value }}</p>
                     </mat-list-option>
-                </ng-template>
-                <mat-divider></mat-divider>
-            </ng-container>
-        </ng-container>
-        <ng-template #epgNotAvailable>
-            <p class="epg-not-available">
-                {{ 'EPG.EPG_NOT_AVAILABLE_DATE' | translate }}
-            </p>
-        </ng-template>
-    </mat-selection-list>
-</ng-container>
-
-<ng-template #noEpg>
+                    <ng-template #timeshiftItem>
+                        <mat-list-option
+                            [value]="item"
+                            [class.active]="
+                                timeNow >= item.start && timeNow <= item.stop
+                            "
+                            (click)="
+                                setEpgProgram(
+                                    item,
+                                    timeNow >= item.start &&
+                                        timeNow <= item.stop,
+                                    item.start > timeshiftUntil
+                                )
+                            "
+                        >
+                            <div matListItemLine>
+                                <app-epg-list-item
+                                    [timeshiftUntil]="timeshiftUntil"
+                                    [timeNow]="timeNow"
+                                    [item]="item"
+                                />
+                            </div>
+                            <p
+                                matListItemLine
+                                [innerHTML]="item?.title[0]?.value"
+                            ></p>
+                        </mat-list-option>
+                    </ng-template>
+                    <mat-divider />
+                </ng-container>
+            } @else {
+                <p class="epg-not-available">
+                    {{ 'EPG.EPG_NOT_AVAILABLE_DATE' | translate }}
+                </p>
+            }
+        </mat-selection-list>
+    }
+} @else {
     <mat-list>
         <mat-list-item>
             {{ 'EPG.EPG_NOT_AVAILABLE_CHANNEL_TITLE' | translate }}<br />
             {{ 'EPG.EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION' | translate }}
         </mat-list-item>
     </mat-list>
-</ng-template>
+}

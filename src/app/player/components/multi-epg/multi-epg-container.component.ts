@@ -1,4 +1,5 @@
 import { OverlayRef } from '@angular/cdk/overlay';
+import { CommonModule } from '@angular/common';
 import {
     AfterViewInit,
     Component,
@@ -8,19 +9,33 @@ import {
     OnInit,
     ViewChild,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslateModule } from '@ngx-translate/core';
 import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
 import {
     EPG_GET_CHANNELS_BY_RANGE,
     EPG_GET_CHANNELS_BY_RANGE_RESPONSE,
 } from '../../../../../shared/ipc-commands';
 import { DataService } from '../../../services/data.service';
+import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
 import { EpgChannel } from '../../models/epg-channel.model';
 import { EpgProgram } from '../../models/epg-program.model';
 import { EpgItemDescriptionComponent } from '../epg-list/epg-item-description/epg-item-description.component';
 import { COMPONENT_OVERLAY_REF } from '../video-player/video-player.component';
 
 @Component({
+    standalone: true,
+    imports: [
+        CommonModule,
+        MatButtonModule,
+        MatIconModule,
+        MatTooltipModule,
+        MomentDatePipe,
+        TranslateModule,
+    ],
     selector: 'app-multi-epg-container',
     templateUrl: './multi-epg-container.component.html',
     styleUrls: ['./multi-epg-container.component.scss'],

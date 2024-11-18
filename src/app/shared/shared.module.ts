@@ -6,10 +6,8 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { NgxWhatsNewModule } from 'ngx-whats-new';
 import { MaterialModule } from '../material.module';
 import { FilterPipe } from './pipes/filter.pipe';
-import { MomentDatePipe } from './pipes/moment-date.pipe';
 
 @NgModule({
-    declarations: [MomentDatePipe],
     imports: [
         FilterPipe,
         CommonModule,
@@ -28,7 +26,6 @@ import { MomentDatePipe } from './pipes/moment-date.pipe';
         FormsModule,
         MaterialModule,
         NgxWhatsNewModule,
-        MomentDatePipe,
         ReactiveFormsModule,
         TranslateModule,
     ],
