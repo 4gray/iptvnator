@@ -15,6 +15,8 @@ import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
+import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
+import { NgxWhatsNewModule } from 'ngx-whats-new';
 import 'reflect-metadata';
 import { AppConfig } from '../environments/environment';
 import '../polyfills';
@@ -25,7 +27,6 @@ import { DataService } from './services/data.service';
 import { ElectronService } from './services/electron.service';
 import { PwaService } from './services/pwa.service';
 import { TauriService } from './services/tauri.service';
-import { SharedModule } from './shared/shared.module';
 import { PlaylistEffects } from './state/effects';
 import { playlistReducer } from './state/reducers';
 
@@ -65,11 +66,15 @@ export function DataFactory(http: HttpClient) {
         AppRoutingModule,
         BrowserAnimationsModule,
         BrowserModule,
-        SharedModule,
         AppConfig.environment === 'WEB'
             ? NgxIndexedDBModule.forRoot(dbConfig)
             : [],
+        NgxWhatsNewModule,
         NgxIndexedDBModule.forRoot(dbConfig),
+        NgxSkeletonLoaderModule.forRoot({
+            animation: 'pulse',
+            loadingText: 'This item is actually loading...',
+        }),
         TranslateModule.forRoot({
             loader: {
                 provide: TranslateLoader,
