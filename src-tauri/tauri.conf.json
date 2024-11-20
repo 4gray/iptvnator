@@ -9,7 +9,14 @@
         "beforeDevCommand": "npm run ng:serve",
         "beforeBuildCommand": "npm run ng:build"
     },
-    "plugins": {},
+    "plugins": {
+        "updater": {
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkwNkIxNzBGQzMxNDdCClJXUjdGTU1QRjJ1UUFIVjgrSk9jVjFxeVFBOXFzVlZ1M0RQbnFGM0gvZEluY0MxQzBibGtlVU5HCg==",
+            "endpoints": [
+                "https://github.com/4gray/iptvnator/releases/latest/download/latest.json"
+            ]
+        }
+    },
     "app": {
         "windows": [
             {
@@ -73,6 +80,7 @@
         }
     },
     "bundle": {
+        "createUpdaterArtifacts": true,
         "active": true,
         "targets": "all",
         "icon": [

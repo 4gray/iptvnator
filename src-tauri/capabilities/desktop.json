@@ -6,6 +6,7 @@
     "linux"
   ],
   "permissions": [
-    "window-state:default"
+    "window-state:default",
+    "updater:default"
   ]
 }

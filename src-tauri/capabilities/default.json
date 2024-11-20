@@ -36,6 +36,9 @@
         "http:default",
         "window-state:default",
         "os:default",
-        "fs:default"
+        "fs:default",
+        "updater:default",
+        "dialog:default",
+        "process:default"
     ]
 }

@@ -74,6 +74,7 @@ describe('AppComponent', () => {
         // TODO: investigate in detail
         component.triggerAutoUpdateMechanism = jest.fn();
         component.modals = [];
+        component.checkForUpdates = jest.fn();
         fixture.detectChanges();
     });
 
