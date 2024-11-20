@@ -6,8 +6,8 @@
     "build": {
         "frontendDist": "../dist",
         "devUrl": "http://localhost:4200",
-        "beforeDevCommand": "npm run ng:serve",
-        "beforeBuildCommand": "npm run ng:build"
+        "beforeDevCommand": "npm run serve",
+        "beforeBuildCommand": "npm run build:prod"
     },
     "plugins": {
         "updater": {

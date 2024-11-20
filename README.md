@@ -117,7 +117,7 @@ The Electron version of the application will open in a separate window, and the 
 If you want to run only the angular app without electron, in this case you can use the command:
 
   ```
-  $ npm run ng:serve
+  $ npm run serve
   ```
 
 
