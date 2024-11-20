@@ -11,7 +11,7 @@
     },
     "plugins": {
         "updater": {
-            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkwNkIxNzBGQzMxNDdCClJXUjdGTU1QRjJ1UUFIVjgrSk9jVjFxeVFBOXFzVlZ1M0RQbnFGM0gvZEluY0MxQzBibGtlVU5HCg==",
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyRTRBNzlCMkE5QkI0MjgKUldRb3RKc3FtNmZra3BmeDVKYmtLd3RUNnZkUHdDbmM0TkpHQ25hZzhoS1FZcFRqaTl2eXRScU0K",
             "endpoints": [
                 "https://github.com/4gray/iptvnator/releases/latest/download/latest.json"
             ]
