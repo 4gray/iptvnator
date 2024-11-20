@@ -9,32 +9,32 @@
 
 <a href="https://t.me/iptvnator">Telegram channel for discussions</a>
 
-**IPTVnator** is a video player application that provides support for the playback of IPTV playlists (m3u, m3u8). The application allows to import playlists by using remote URLs or per file upload from the file system. Additionally there is a support of EPG information XMLTV-based which can be provided by URL.
+**IPTVnator** is a video player application that provides support for IPTV playlist playback (m3u, m3u8). The application allows users to import playlists using remote URLs or by uploading files from the local file system. Additionally, it supports EPG information in XMLTV format which can be provided via URL.
 
-The application is a cross-platform and open source project based on Electron and Angular.
+The application is a cross-platform, open-source project built with Electron and Angular.
 
-⚠️ Note: IPTVnator doesn't provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
+⚠️ Note: IPTVnator does not provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
 
 ![IPTVnator: Channels list, player and epg list](./iptv-dark-theme.png)
 
 ## Features
 
-- M3u and M3u8 playlists support 📺
+- M3u and M3u8 playlist support 📺
 - Xtream Code (XC) and Stalker portal (STB) support
-- External player support - mvp, VLC
-- Add playlists from file system or from remote URL 📂
-- Playlists auto-update feature on app startup
-- Search for channels 🔍
-- EPG support (TV Guide) with detailed info
-- TV archive/catchup/timeshift
-- Group-based channels list
-- Save channels as favorites
+- External player support - MPV, VLC
+- Add playlists from the file system or remote URLs 📂
+- Automatic playlist updates on application startup
+- Channel search functionality 🔍
+- EPG support (TV Guide) with detailed information
+- TV archive/catchup/timeshift functionality
+- Group-based channel list
+- Favorite channels management
 - Global favorites aggregated from all playlists
-- HTML video player with hls.js support or Video.js based player
-- Internalization, currently 8 languages are supported (en, ru, de, ko, es, zh, fr, it)
-- Set custom "User Agent" header for a playlist
-- Light and Dark theme
-- Version for self-hosted docker is available
+- HTML video player with HLS.js support or Video.js-based player
+- Internationalization with support for 8 languages (English, Russian, German, Korean, Spanish, Chinese, French, Italian)
+- Custom "User Agent" header configuration for playlists
+- Light and Dark themes
+- Docker version available for self-hosting
 
 ## Screenshots:
 
@@ -52,7 +52,7 @@ The application is a cross-platform and open source project based on Electron an
 
 ## Download
 
-Download the latest version of the application for macOS, Windows and Linux from the [release page](https://github.com/4gray/iptvnator/releases).
+Download the latest version of the application for macOS, Windows, and Linux from the [release page](https://github.com/4gray/iptvnator/releases).
 
 **IPTVnator** is also available as a snap package:
 
@@ -69,57 +69,56 @@ $ yay -S iptvnator-bin
 
 <a href="https://github.com/sponsors/4gray" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-green.png" alt="Buy Me A Coffee" width="185"></a>
 
-## How to build
+## How to Build
 
-Requirements: node.js with npm.
+Requirements: Node.js with npm
 
-1. Clone this repository and install all project dependencies with:
+1. Clone this repository and install project dependencies:
    ```
    $ npm install
    ```
 
-2. To build the application on your local machine use one of the following commands:
+2. Build the application for your platform using one of the following commands:
    ```
-   # linux
+   # Linux
    $ npm run electron:build:linux
    ```
 
    ```
-   #mac
+   # macOS
    $ npm run electron:build:mac
    ```
 
    ```
-   # windows
+   # Windows
    $ npm run electron:build:windows
    ```
 
-This command will produce the distributable assets in the `release` folder based on the configuration from electron-builder which is stored in `electron-builder.json` and `package.json`. Check the [API description of electron-builder](https://www.electron.build/) and adapt the configuration if you need some special configuration for you environment.
+These commands will generate distributable assets in the `release` folder based on the electron-builder configuration stored in `electron-builder.json` and `package.json`. For custom configurations, please refer to the [electron-builder API documentation](https://www.electron.build/).
 
-*Note: Don’t expect that you can build app for all platforms on one platform. [Read details](https://www.electron.build/multi-platform-build)*
+*Note: Cross-platform building may not be supported. [Read more](https://www.electron.build/multi-platform-build)*
 
 ## Development
 
-The first thing to do is to install all the necessary dependencies:
+First, install all required dependencies:
 
   ```
   $ npm install
   ```
 
-To develop an application in PWA and Electron mode, you need to run the application with a command:
+To develop the application in both PWA and Electron modes, run:
 
   ```
   $ npm run start
   ```
 
-The Electron version of the application will open in a separate window, and the PWA version will be available in the browser at http://localhost:4200.
+This will open the Electron version in a separate window, while the PWA version will be available at http://localhost:4200.
 
-If you want to run only the angular app without electron, in this case you can use the command:
+To run only the Angular app without Electron, use:
 
   ```
   $ npm run serve
   ```
-
 
 ## Disclaimer
 
