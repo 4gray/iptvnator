@@ -63,7 +63,7 @@ export class AddPlaylistDialogComponent {
                 uploadType: 'FILE',
                 playlist,
                 title: payload.file.name,
-                path: payload.file.path,
+                path: (payload.file as any).path,
             })
         );
         this.closeDialog();
