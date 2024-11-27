@@ -78,6 +78,26 @@ async fn open_in_vlc(url: String, path: String) -> Result<(), String> {
     Ok(())
 }
 
+mod epg;
+use epg::get_programs_by_channel;
+
+#[tauri::command]
+async fn fetch_epg(url: Vec<String>) -> Result<(), String> {
+    for single_url in url {
+        epg::fetch_and_parse_epg(single_url)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_channel_programs(channel_id: String) -> Result<Vec<epg::Program>, String> {
+    get_programs_by_channel(channel_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -89,7 +109,12 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
-        .invoke_handler(tauri::generate_handler![open_in_mpv, open_in_vlc])
+        .invoke_handler(tauri::generate_handler![
+            fetch_epg,
+            get_channel_programs,
+            open_in_mpv,
+            open_in_vlc
+        ])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
