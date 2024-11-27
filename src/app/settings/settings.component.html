@@ -9,7 +9,7 @@
 
 <div class="settings-container" data-test-id="settings-container">
     <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" novalidate>
-        <ng-container formArrayName="epgUrl" *ngIf="isElectron">
+        <ng-container formArrayName="epgUrl" *ngIf="isTauri">
             <div class="row">
                 <div class="column">
                     {{ 'SETTINGS.EPG_URL_LABEL' | translate }}
@@ -205,7 +205,7 @@
                 ></mat-checkbox>
             </div>
         </div>
-        @if (isPwa || isElectron) {
+        @if (isPwa || isTauri) {
             <mat-divider />
             <div class="row">
                 <div class="column">
@@ -311,12 +311,14 @@
             </div>
         </div>
 
-        <div class="row" *ngIf="isPwa">
-            {{ 'SETTINGS.EPG_NOTE' | translate }}
-            &nbsp;<a href="https://github.com/4gray/iptvnator/releases">{{
-                'SETTINGS.EPG_NOTE_URL_TEXT' | translate
-            }}</a>
-        </div>
+        @if (isPwa) {
+            <div class="row">
+                {{ 'SETTINGS.EPG_NOTE' | translate }}
+                &nbsp;<a href="https://github.com/4gray/iptvnator/releases">{{
+                    'SETTINGS.EPG_NOTE_URL_TEXT' | translate
+                }}</a>
+            </div>
+        }
 
         <mat-divider />
         <div class="action-buttons" align="end">

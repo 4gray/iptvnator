@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { fetch } from '@tauri-apps/plugin-http';
 import { parse } from 'iptv-playlist-parser';
 import {
+    EPG_GET_PROGRAM_DONE,
     ERROR,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
@@ -65,6 +66,11 @@ export class TauriService extends DataService {
                     message: `Error launching VLC: ${error}`,
                 });
                 throw error;
+            });
+        } else if (type === 'EPG_FETCH_DONE') {
+            window.postMessage({
+                type: EPG_GET_PROGRAM_DONE,
+                payload,
             });
         } else {
             console.log('Unknown type', type);
@@ -184,7 +190,10 @@ export class TauriService extends DataService {
     }
 
     removeAllListeners(type: string): void {
-        throw new Error('Method not implemented.');
+        console.error(
+            'Method not implemented. Following type was provided:',
+            type
+        );
     }
 
     listenOn(command: string, callback: (...args: any[]) => void): void {

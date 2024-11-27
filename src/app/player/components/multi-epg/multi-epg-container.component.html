@@ -50,23 +50,23 @@
                     [attr.y]="barHeight * i + barHeight"
                     stroke="black"
                 ></rect>
-                @if (item.icon[0]) {
+                @if (item.icon) {
                     <image
                         [attr.y]="barHeight * i + barHeight + 1"
-                        [attr.href]="item.icon[0]"
+                        [attr.href]="item.icon"
                         [attr.height]="barHeight - 2"
                         width="100"
-                        [matTooltip]="item.name[0].value"
+                        [matTooltip]="item.name"
                     ></image>
                 }
-                @if (!item.icon[0]) {
+                @if (!item.icon) {
                     <foreignObject
                         [attr.y]="barHeight * i + barHeight"
                         width="100"
                         [attr.height]="barHeight"
                     >
                         <div class="channel-name">
-                            {{ item.name[0].value }}
+                            {{ item.name }}
                         </div>
                     </foreignObject>
                 }
@@ -99,7 +99,7 @@
             <g *ngFor="let item of channels; let i = index">
                 <g
                     *ngFor="let program of item.programs; let a = index"
-                    [matTooltip]="program.title[0].value"
+                    [matTooltip]="program.title"
                     class="program-item"
                 >
                     <!-- program item -->
@@ -118,7 +118,7 @@
                         [attr.x]="program.startPosition"
                     >
                         <div
-                            [innerHtml]="program.title[0]?.value"
+                            [innerHtml]="program.title"
                             class="program-name"
                         ></div>
                     </foreignObject>

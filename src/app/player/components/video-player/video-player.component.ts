@@ -118,7 +118,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     listeners = [];
 
-    isElectron = this.dataService.isElectron;
+    isTauri = this.dataService.getAppEnvironment() === 'tauri';
 
     sidebarView: SidebarView = 'CHANNELS';
 
@@ -210,7 +210,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
      */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
-            if (this.isElectron) {
+            if (this.isTauri) {
                 this.dataService.listenOn(command.id, (event, response) =>
                     this.ngZone.run(() => command.execute(response))
                 );
@@ -243,7 +243,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy() {
-        if (this.isElectron) {
+        if (this.isTauri) {
             this.dataService.removeAllListeners(PLAYLIST_PARSE_RESPONSE);
         } else {
             this.listeners.forEach((listener) =>

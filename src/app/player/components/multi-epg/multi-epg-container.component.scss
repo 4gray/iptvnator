@@ -28,7 +28,7 @@ rect {
 
 #epg-container {
     width: calc(100vw - 100px);
-    height: calc(100vh - 73px);
+    height: calc(100vh - 42px);
     overflow-x: scroll;
     overflow-y: hidden;
 }
@@ -53,7 +53,6 @@ rect {
 #epg-navigation {
     display: flex;
     background-color: white;
-    margin-top: 30px;
     border-bottom: 2px solid #fff;
     align-items: center;
 }

@@ -23,7 +23,8 @@
     </button>
     {{ activeChannel?.name }}
     <div class="spacer"></div>
-    <ng-container *ngIf="isEpgAvailable$ | async">
+    @let isEpgAvailable = isEpgAvailable$ | async;
+    @if (isEpgAvailable) {
         <button
             mat-icon-button
             (click)="multiEpgClicked.emit()"
@@ -38,5 +39,5 @@
         >
             EPG
         </button>
-    </ng-container>
+    }
 </mat-toolbar>

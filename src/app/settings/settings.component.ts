@@ -22,7 +22,6 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import * as semver from 'semver';
 import {
-    EPG_FORCE_FETCH,
     SET_MPV_PLAYER_PATH,
     SET_VLC_PLAYER_PATH,
     SETTINGS_UPDATE,
@@ -65,7 +64,7 @@ export class SettingsComponent implements OnInit {
     languageEnum = Language;
 
     /** Flag that indicates whether the app runs in electron environment */
-    isElectron = this.electronService.isElectron;
+    isTauri = this.electronService.getAppEnvironment() === 'tauri';
 
     isPwa = this.electronService.getAppEnvironment() === 'pwa';
 
@@ -91,7 +90,7 @@ export class SettingsComponent implements OnInit {
             label: 'VideoJs Player',
         },
         ...this.electronPlayers,
-        /* ...(this.isElectron ? this.electronPlayers : []), */
+        /* ...(this.isTauri ? this.electronPlayers : []), */
     ];
 
     /** Current version of the app */
@@ -109,7 +108,7 @@ export class SettingsComponent implements OnInit {
     /** Settings form object */
     settingsForm = this.formBuilder.group({
         player: [VideoPlayer.VideoJs],
-        ...(this.isElectron ? { epgUrl: new FormArray([]) } : {}),
+        ...(this.isTauri ? { epgUrl: new FormArray([]) } : {}),
         language: Language.ENGLISH,
         showCaptions: false,
         theme: Theme.LightTheme,
@@ -161,7 +160,7 @@ export class SettingsComponent implements OnInit {
                             player: settings.player
                                 ? settings.player
                                 : VideoPlayer.VideoJs,
-                            ...(this.isElectron ? { epgUrl: [] } : {}),
+                            ...(this.isTauri ? { epgUrl: [] } : {}),
                             language: settings.language ?? Language.ENGLISH,
                             showCaptions: settings.showCaptions ?? false,
                             theme: settings.theme ?? Theme.LightTheme,
@@ -175,7 +174,7 @@ export class SettingsComponent implements OnInit {
                         throw new Error(error);
                     }
 
-                    if (this.isElectron) {
+                    if (this.isTauri) {
                         this.setEpgUrls(settings.epgUrl);
                     }
                 }
@@ -280,15 +279,17 @@ export class SettingsComponent implements OnInit {
      */
     applyChangedSettings(): void {
         this.settingsForm.markAsPristine();
-        // check whether the epg url was changed or not
-        if (this.isElectron) {
+        if (this.isTauri) {
             let epgUrls = this.settingsForm.value.epgUrl;
             if (epgUrls) {
                 if (!Array.isArray(epgUrls)) {
                     epgUrls = [epgUrls];
                 }
                 epgUrls = epgUrls.filter((url) => url !== '');
-                this.epgService.fetchEpg(epgUrls);
+                if (epgUrls.length > 0) {
+                    // Fetch all EPG URLs at once
+                    this.epgService.fetchEpg(epgUrls);
+                }
             }
         }
         this.translate.use(this.settingsForm.value.language);
@@ -315,8 +316,7 @@ export class SettingsComponent implements OnInit {
      * @param url epg source url
      */
     refreshEpg(url: string): void {
-        this.electronService.sendIpcEvent(EPG_FORCE_FETCH, url);
-        this.epgService.showFetchSnackbar();
+        this.epgService.fetchEpg([url]);
     }
 
     /**
