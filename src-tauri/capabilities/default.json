@@ -39,6 +39,7 @@
         "fs:default",
         "updater:default",
         "dialog:default",
-        "process:default"
+        "process:default",
+        "core:window:allow-set-fullscreen"
     ]
 }
