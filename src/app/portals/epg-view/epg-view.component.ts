@@ -15,7 +15,6 @@ import { EpgItem } from '../../xtream/epg-item.interface';
     templateUrl: './epg-view.component.html',
     imports: [
         DatePipe,
-        EpgItemDescriptionComponent,
         MatButtonModule,
         MatDividerModule,
         MatIconModule,
@@ -24,8 +23,8 @@ import { EpgItem } from '../../xtream/epg-item.interface';
     ],
     styles: `
         mat-list {
-            overflow-y: scroll;
-            height: calc(100vh - 459px);
+            /* overflow-y: scroll; */
+            height: 100vh;
         }
     `,
 })
@@ -37,8 +36,8 @@ export class EpgViewComponent {
     showDetails(item: EpgItem) {
         this.dialog.open(EpgItemDescriptionComponent, {
             data: {
-                title: [{ value: item.title, lang: item.lang }],
-                desc: [{ value: item.description }],
+                title: item.title ?? 'No title',
+                desc: item.description ?? 'No description',
             },
         });
     }

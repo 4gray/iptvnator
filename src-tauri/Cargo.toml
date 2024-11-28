@@ -1,6 +1,6 @@
 [package]
 name = "IPTVnator"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 description = "IPTVnator"
 authors = ["4gray"]
 license = "MIT"
@@ -21,7 +21,7 @@ tauri-build = { version = "2.0.1", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.0.6", features = [] }
+tauri = { version = "2.0.6", features = ["macos-private-api"] }
 tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-http = {version = "2", features = ["unsafe-headers"] }
 tauri-plugin-shell = "2"
@@ -30,6 +30,12 @@ tauri-plugin-os = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-process = "2"
 tauri-plugin-dialog = "2"
+xmltv = "0.9"
+tokio = { version = "1.0", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+reqwest = { version = "0.11", features = ["json", "gzip"] }
+flate2 = "1.0"
+quick-xml = { version = "0.31", features = ["serialize"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

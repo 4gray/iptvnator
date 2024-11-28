@@ -48,17 +48,14 @@ function isTauri() {
 /**
  * Conditionally imports the necessary service based on the current environment
  */
-export function DataFactory(
-    ngxIndexedDBService: NgxIndexedDBService,
-    http: HttpClient
-) {
+export function DataFactory() {
     if (isElectron()) {
         return new ElectronService();
     }
     if (isTauri()) {
         return new TauriService();
     }
-    return new PwaService(http);
+    return new PwaService();
 }
 
 @NgModule({

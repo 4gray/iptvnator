@@ -17,7 +17,7 @@
     >
 }
 
-@if (item.desc.length > 0) {
+@if (item.desc?.length > 0) {
     <span
         (click)="$event.stopPropagation(); showDescription(item)"
         matListItemMeta

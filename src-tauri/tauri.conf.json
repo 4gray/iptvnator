@@ -1,7 +1,7 @@
 {
     "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
     "productName": "iptvnator",
-    "version": "1.0.0-2",
+    "version": "1.0.0-3",
     "identifier": "com.4gray.dev",
     "build": {
         "frontendDist": "../dist",
@@ -28,6 +28,7 @@
                 "titleBarStyle": "Transparent"
             }
         ],
+        "macOSPrivateApi": true,
         "security": {
             "csp": {
                 "default-src": [

@@ -12,8 +12,6 @@ import * as semver from 'semver';
 import { IpcCommand } from '../../shared/ipc-command.class';
 import {
     AUTO_UPDATE_PLAYLISTS,
-    EPG_ERROR,
-    EPG_FETCH_DONE,
     ERROR,
     OPEN_FILE,
     SETTINGS_UPDATE,
@@ -50,8 +48,6 @@ export class AppComponent {
     commandsList = [
         new IpcCommand(VIEW_ADD_PLAYLIST, () => this.navigateToRoute('/')),
         new IpcCommand(VIEW_SETTINGS, () => this.navigateToRoute('/settings')),
-        new IpcCommand(EPG_FETCH_DONE, () => this.epgService.onEpgFetchDone()),
-        new IpcCommand(EPG_ERROR, () => this.epgService.onEpgError()),
         new IpcCommand(SHOW_WHATS_NEW, () => this.showWhatsNewDialog()),
         new IpcCommand(ERROR, (response: { message: string; status: number }) =>
             this.showErrorAsNotification(response)

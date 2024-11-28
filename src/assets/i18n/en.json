@@ -192,7 +192,8 @@
       "DESCRIPTION": "Description",
       "LANGUAGE": "Language",
       "SHOW_PROGRAM_DETAILS": "Show details about this program"
-    }
+    },
+    "FETCH_SUCCESS": "EPG was fetched successfully"
   },
   "LANGUAGES": {
     "ENGLISH": "English",

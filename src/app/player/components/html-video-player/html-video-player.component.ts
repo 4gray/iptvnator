@@ -75,32 +75,61 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         if (channel.url) {
             const url = channel.url + (channel.epgParams ?? '');
             const extension = getExtensionFromUrl(channel.url);
-            this.dataService.sendIpcEvent(CHANNEL_SET_USER_AGENT, {
-                userAgent: channel.http?.['user-agent'] ?? '',
-                referer: channel.http?.referrer ?? '',
-            });
 
-            if (
-                extension !== 'mp4' &&
-                extension !== 'mpv' &&
-                Hls &&
-                Hls.isSupported()
-            ) {
-                console.log('... switching channel to ', channel.name, url);
-                this.hls = new Hls();
-                this.hls.attachMedia(this.videoPlayer.nativeElement);
-                this.hls.loadSource(url);
-
-                this.handlePlayOperation();
-            } else {
-                console.error('something wrong with hls.js init...');
-                this.addSourceToVideo(
-                    this.videoPlayer.nativeElement,
-                    url,
-                    'video/mp4'
-                );
-                this.videoPlayer.nativeElement.play();
-            }
+            // Send IPC event and handle the response
+            this.dataService
+                .sendIpcEvent(CHANNEL_SET_USER_AGENT, {
+                    userAgent: channel.http?.['user-agent'] ?? '',
+                    referer: channel.http?.referrer ?? '',
+                })
+                .then(() => {
+                    if (
+                        extension !== 'mp4' &&
+                        extension !== 'mpv' &&
+                        Hls &&
+                        Hls.isSupported()
+                    ) {
+                        console.log(
+                            '... switching channel to ',
+                            channel.name,
+                            url
+                        );
+                        this.hls = new Hls();
+                        this.hls.attachMedia(this.videoPlayer.nativeElement);
+                        this.hls.loadSource(url);
+                        this.handlePlayOperation();
+                    } else {
+                        console.log('Using native video player...');
+                        this.addSourceToVideo(
+                            this.videoPlayer.nativeElement,
+                            url,
+                            'video/mp4'
+                        );
+                        this.videoPlayer.nativeElement.play();
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error setting user agent:', error);
+                    // Continue playback even if setting user agent fails
+                    if (
+                        extension !== 'mp4' &&
+                        extension !== 'mpv' &&
+                        Hls &&
+                        Hls.isSupported()
+                    ) {
+                        this.hls = new Hls();
+                        this.hls.attachMedia(this.videoPlayer.nativeElement);
+                        this.hls.loadSource(url);
+                        this.handlePlayOperation();
+                    } else {
+                        this.addSourceToVideo(
+                            this.videoPlayer.nativeElement,
+                            url,
+                            'video/mp4'
+                        );
+                        this.videoPlayer.nativeElement.play();
+                    }
+                });
         }
     }
 
