@@ -1,11 +1,15 @@
-<app-header
-    [title]="'SETTINGS.TITLE' | translate"
-    [subtitle]="
-        ('SETTINGS.SUBTITLE' | translate) +
-        '. ' +
-        ('SETTINGS.DESCRIPTION' | translate)
-    "
-></app-header>
+@if (!isDialog) {
+    <app-header
+        [title]="'SETTINGS.TITLE' | translate"
+        [subtitle]="
+            ('SETTINGS.SUBTITLE' | translate) +
+            '. ' +
+            ('SETTINGS.DESCRIPTION' | translate)
+        "
+    />
+} @else {
+    <h2 mat-dialog-title>{{ 'SETTINGS.TITLE' | translate }}</h2>
+}
 
 <div class="settings-container" data-test-id="settings-container">
     <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" novalidate>
