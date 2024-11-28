@@ -54,15 +54,29 @@ The application is a cross-platform, open-source project built with Electron and
 
 Download the latest version of the application for macOS, Windows, and Linux from the [release page](https://github.com/4gray/iptvnator/releases).
 
-**IPTVnator** is also available as a snap package:
+Alternatively, you can install the application using one of the following package managers:
 
-```
+### Snap
+
+```shell
 $ sudo snap install iptvnator
 ```
 
+### Arch
+
 Also available as an Arch PKG, [iptvnator-bin](https://aur.archlinux.org/packages/iptvnator-bin/), in the AUR (using your favourite AUR-helper, .e.g. `yay`)
-```
+```shell
 $ yay -S iptvnator-bin
+```
+
+### Gentoo
+
+You can install IPTVnator from the [gentoo-zh overlay](https://github.com/microcai/gentoo-zh)
+
+```shell
+sudo eselect repository enable gentoo-zh
+sudo emerge --sync gentoo-zh
+sudo emerge iptvnator-bin
 ```
 
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/iptvnator)
