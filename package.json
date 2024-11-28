@@ -43,6 +43,7 @@
         "@ngrx/effects": "18.0.2",
         "@ngrx/entity": "18.0.2",
         "@ngrx/router-store": "18.0.2",
+        "@ngrx/signals": "18.1.1",
         "@ngrx/store": "18.0.2",
         "@ngrx/store-devtools": "18.0.2",
         "@ngx-pwa/local-storage": "18.0.0",
