@@ -1,18 +1,5 @@
-import {
-    AsyncPipe,
-    KeyValuePipe,
-    NgFor,
-    NgIf,
-    NgSwitch,
-} from '@angular/common';
-import {
-    Component,
-    NgZone,
-    OnInit,
-    Signal,
-    effect,
-    inject,
-} from '@angular/core';
+import { AsyncPipe } from '@angular/common';
+import { Component, NgZone, OnInit, effect, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
@@ -42,10 +29,9 @@ import { EpgItem } from './epg-item.interface';
 import { NavigationBarComponent } from './navigation-bar/navigation-bar.component';
 import { VodDetailsComponent } from './vod-details/vod-details.component';
 
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
@@ -56,9 +42,9 @@ import {
 import { LiveStreamLayoutComponent } from '../portals/live-stream-layout/live-stream-layout.component';
 import { DialogService } from '../services/dialog.service';
 import { PlaylistsService } from '../services/playlists.service';
-import { Settings, VideoPlayer } from '../settings/settings.interface';
+import { SettingsStore } from '../services/settings-store.service';
+import { VideoPlayer } from '../settings/settings.interface';
 import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
-import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { Breadcrumb, PortalActions } from './breadcrumb.interface';
 import { ContentTypeNavigationItem } from './content-type-navigation-item.interface';
@@ -112,12 +98,8 @@ type LayoutView =
     styleUrls: ['./xtream-main-container.component.scss'],
     standalone: true,
     imports: [
-        KeyValuePipe,
         MatButtonToggleModule,
-        NgFor,
-        NgIf,
         CategoryViewComponent,
-        NgSwitch,
         MatButtonModule,
         MatCardModule,
         MatIconModule,
@@ -125,11 +107,8 @@ type LayoutView =
         VodDetailsComponent,
         CategoryContentViewComponent,
         SerialDetailsComponent,
-        PlayerDialogComponent,
         MatProgressSpinnerModule,
         AsyncPipe,
-        ExternalPlayerInfoDialogComponent,
-        RouterLink,
         PlaylistErrorViewComponent,
         TranslateModule,
         LiveStreamLayoutComponent,
@@ -143,6 +122,7 @@ export class XtreamMainContainerComponent implements OnInit {
     playlistService = inject(PlaylistsService);
     portalStore = inject(PortalStore);
     router = inject(Router);
+    settingsStore = inject(SettingsStore);
     snackBar = inject(MatSnackBar);
     storage = inject(StorageMap);
     store = inject(Store);
@@ -176,9 +156,7 @@ export class XtreamMainContainerComponent implements OnInit {
     selectedContentType = ContentType.VODS;
     currentLayout: LayoutView = 'category';
     vodDetails!: XtreamVodDetails | XtreamSerieDetails;
-    settings = toSignal(
-        this.storage.get(STORE_KEY.Settings)
-    ) as Signal<Settings>;
+    settings = this.settingsStore.getSettings();
     isLoading = true;
     searchPhrase = this.portalStore.searchPhrase();
     contentId: number;
