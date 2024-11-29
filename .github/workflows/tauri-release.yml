@@ -61,8 +61,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: v__VERSION__-${{ matrix.platform }}${{ matrix.args != '' && format('-{0}', matrix.args) || '' }}
-          releaseName: "IPTVnator v__VERSION__ (${{ matrix.platform }}${{ matrix.args != '' && format(' {0}', matrix.args) || '' }})"
+          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          releaseName: 'App v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
