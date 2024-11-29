@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "IPTVnator"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "chrono",
  "fix-path-env",
