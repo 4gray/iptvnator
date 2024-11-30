@@ -97,6 +97,20 @@
             "frameworks": [],
             "providerShortName": null,
             "signingIdentity": "-"
+        },
+        "linux": {
+            "appimage": {
+                "bundleMediaFramework": true,
+                "files": {}
+            },
+            "deb": {
+                "files": {}
+            },
+            "rpm": {
+                "epoch": 0,
+                "files": {},
+                "release": "1"
+            }
         }
     }
 }
