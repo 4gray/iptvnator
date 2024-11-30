@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { BehaviorSubject, from } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { EpgProgram } from '../player/models/epg-program.model';
@@ -28,6 +28,7 @@ export class EpgService {
      * Fetches EPG from the given URLs
      */
     fetchEpg(urls: string[]): void {
+        if (!isTauri()) return;
         this.showFetchSnackbar();
 
         // Filter out empty URLs and send all URLs at once
@@ -54,6 +55,7 @@ export class EpgService {
      * Gets EPG programs for a specific channel
      */
     getChannelPrograms(channelId: string): void {
+        if (!isTauri()) return;
         console.log('Fetching EPG for channel ID:', channelId);
         from(invoke<EpgProgram[]>('get_channel_programs', { channelId }))
             .pipe(
