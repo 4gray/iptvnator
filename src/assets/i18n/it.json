@@ -192,7 +192,8 @@
       "DESCRIPTION": "Descrizione",
       "LANGUAGE": "Lingua",
       "SHOW_PROGRAM_DETAILS": "Visualizza dettagli su questo programma"
-    }
+    },
+    "FETCH_SUCCESS": "Download dati EPG completato"
   },
   "LANGUAGES": {
     "ENGLISH": "English",
