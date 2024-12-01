@@ -15,6 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
+import { isTauri } from '@tauri-apps/api/core';
 import { firstValueFrom } from 'rxjs';
 import { Playlist } from '../../../../../shared/playlist.interface';
 import { DataService } from '../../../services/data.service';
@@ -46,8 +47,7 @@ import * as PlaylistActions from '../../../state/actions';
     standalone: true,
 })
 export class PlaylistInfoComponent {
-    /** Flag that returns true if application runs in electron-based environment */
-    isElectron = this.dataService.isElectron;
+    isTauri = isTauri();
 
     /** Playlist object */
     playlist: Playlist;
