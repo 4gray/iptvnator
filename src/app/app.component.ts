@@ -3,6 +3,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { isTauri } from '@tauri-apps/api/core';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { check } from '@tauri-apps/plugin-updater';
@@ -191,7 +192,8 @@ export class AppComponent {
                     this.translate.use(settings.language ?? this.DEFAULT_LANG);
                     if (
                         settings.epgUrl?.length > 0 &&
-                        settings.epgUrl?.some((u) => u !== '')
+                        settings.epgUrl?.some((u) => u !== '') &&
+                        isTauri()
                     ) {
                         this.epgService.fetchEpg(settings.epgUrl);
                     }

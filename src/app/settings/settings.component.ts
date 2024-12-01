@@ -72,9 +72,9 @@ export class SettingsComponent implements OnInit {
     languageEnum = Language;
 
     /** Flag that indicates whether the app runs in electron environment */
-    isTauri = this.electronService.getAppEnvironment() === 'tauri';
+    isTauri = this.dataService.getAppEnvironment() === 'tauri';
 
-    isPwa = this.electronService.getAppEnvironment() === 'pwa';
+    isPwa = this.dataService.getAppEnvironment() === 'pwa';
 
     osPlayers = [
         {
@@ -134,7 +134,7 @@ export class SettingsComponent implements OnInit {
      */
     constructor(
         private dialogService: DialogService,
-        public electronService: DataService,
+        public dataService: DataService,
         private epgService: EpgService,
         private formBuilder: FormBuilder,
         private playlistsService: PlaylistsService,
@@ -229,7 +229,7 @@ export class SettingsComponent implements OnInit {
      * @returns returns true if an update is available
      */
     isCurrentVersionOutdated(latestVersion: string): boolean {
-        this.version = this.electronService.getAppVersion();
+        this.version = this.dataService.getAppVersion();
         return semver.lt(this.version, latestVersion);
     }
 
@@ -240,17 +240,17 @@ export class SettingsComponent implements OnInit {
     onSubmit(): void {
         this.settingsStore.updateSettings(this.settingsForm.value).then(() => {
             this.applyChangedSettings();
-            this.electronService.sendIpcEvent(
+            this.dataService.sendIpcEvent(
                 SETTINGS_UPDATE,
                 this.settingsForm.value
             );
 
-            this.electronService.sendIpcEvent(
+            this.dataService.sendIpcEvent(
                 SET_MPV_PLAYER_PATH,
                 this.settingsForm.value.mpvPlayerPath
             );
 
-            this.electronService.sendIpcEvent(
+            this.dataService.sendIpcEvent(
                 SET_VLC_PLAYER_PATH,
                 this.settingsForm.value.mpvPlayerPath
             );
