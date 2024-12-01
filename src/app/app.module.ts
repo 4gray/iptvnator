@@ -23,7 +23,6 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { dbConfig } from './indexed-db.config';
 import { DataService } from './services/data.service';
-import { ElectronService } from './services/electron.service';
 import { PwaService } from './services/pwa.service';
 import { TauriService } from './services/tauri.service';
 import { PlaylistEffects } from './state/effects';
@@ -49,9 +48,6 @@ function isTauri() {
  * Conditionally imports the necessary service based on the current environment
  */
 export function DataFactory() {
-    if (isElectron()) {
-        return new ElectronService();
-    }
     if (isTauri()) {
         return new TauriService();
     }
