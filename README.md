@@ -4,14 +4,16 @@
   <img src="https://raw.githubusercontent.com/4gray/iptvnator/electron/src/assets/icons/favicon.256x256.png" alt="IPTVnator icon" title="Free IPTV player application" />
 </p>
 <p align="center">
-  <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/release/4gray/iptvnator.svg?style=for-the-badge&logo=github" alt="Release"></a> <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/4gray/iptvnator/ci.yaml?style=for-the-badge"> <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/downloads/4gray/iptvnator/total?style=for-the-badge&logo=github" alt="Releases"></a> <a href="https://codecov.io/gh/4gray/iptvnator"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/4gray/iptvnator?style=for-the-badge"></a> <a href="https://t.me/iptvnator"><img src="https://img.shields.io/badge/telegram-iptvnator-blue?logo=telegram&style=for-the-badge" alt="Telegram"></a>
+  <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/release/4gray/iptvnator.svg?style=for-the-badge&logo=github" alt="Release"></a> 
+  <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/v/release/4gray/iptvnator?include_prereleases&label=pre-release&logo=github&style=for-the-badge" /></a>
+ <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/4gray/iptvnator/build-and-test.yaml?style=for-the-badge&logo=github"> <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/downloads/4gray/iptvnator/total?style=for-the-badge&logo=github" alt="Releases"></a> <a href="https://codecov.io/gh/4gray/iptvnator"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/4gray/iptvnator?style=for-the-badge"></a> <a href="https://t.me/iptvnator"><img src="https://img.shields.io/badge/telegram-iptvnator-blue?logo=telegram&style=for-the-badge" alt="Telegram"></a> <a href="https://bsky.app/profile/iptvnator.bsky.social"><img src="https://img.shields.io/badge/bluesky-iptvnator-darkblue?logo=bluesky&style=for-the-badge" alt="Bluesky"></a>
 </p>
 
 <a href="https://t.me/iptvnator">Telegram channel for discussions</a>
 
 **IPTVnator** is a video player application that provides support for IPTV playlist playback (m3u, m3u8). The application allows users to import playlists using remote URLs or by uploading files from the local file system. Additionally, it supports EPG information in XMLTV format which can be provided via URL.
 
-The application is a cross-platform, open-source project built with Electron and Angular.
+The application is a cross-platform, open-source project built with Electron (currently migrating to Tauri) and Angular.
 
 ⚠️ Note: IPTVnator does not provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
 
@@ -83,52 +85,25 @@ sudo emerge iptvnator-bin
 
 <a href="https://github.com/sponsors/4gray" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-green.png" alt="Buy Me A Coffee" width="185"></a>
 
-## How to Build
+## How to Build and Develop
 
-Requirements: Node.js with npm
+Requirements: 
+* Node.js with npm
+* Rust (required for tauri)
 
 1. Clone this repository and install project dependencies:
    ```
    $ npm install
    ```
 
-2. Build the application for your platform using one of the following commands:
+2. Start the application:
    ```
-   # Linux
-   $ npm run electron:build:linux
-   ```
-
-   ```
-   # macOS
-   $ npm run electron:build:mac
+   $ npm run tauri dev
    ```
 
-   ```
-   # Windows
-   $ npm run electron:build:windows
-   ```
+This will open the Tauri version in a separate window, while the PWA version will be available at http://localhost:4200.
 
-These commands will generate distributable assets in the `release` folder based on the electron-builder configuration stored in `electron-builder.json` and `package.json`. For custom configurations, please refer to the [electron-builder API documentation](https://www.electron.build/).
-
-*Note: Cross-platform building may not be supported. [Read more](https://www.electron.build/multi-platform-build)*
-
-## Development
-
-First, install all required dependencies:
-
-  ```
-  $ npm install
-  ```
-
-To develop the application in both PWA and Electron modes, run:
-
-  ```
-  $ npm run start
-  ```
-
-This will open the Electron version in a separate window, while the PWA version will be available at http://localhost:4200.
-
-To run only the Angular app without Electron, use:
+To run only the Angular app without Tauri, use:
 
   ```
   $ npm run serve
@@ -136,7 +111,7 @@ To run only the Angular app without Electron, use:
 
 ## Disclaimer
 
-IPTVnator doesn't provide any playlists or other digital content.
+**IPTVnator doesn't provide any playlists or other digital content.**
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-13-orange.svg?style=flat-square)](#contributors)
