@@ -97,6 +97,14 @@ export class SettingsComponent implements OnInit {
             id: VideoPlayer.VideoJs,
             label: 'VideoJs Player',
         },
+        /* {
+            id: VideoPlayer.DPlayer,
+            label: 'DPlayer',
+        },
+        {
+            id: VideoPlayer.ArtPlayer,
+            label: 'ArtPlayer',
+        }, */
         ...(this.isTauri ? this.osPlayers : []),
     ];
 
@@ -180,7 +188,9 @@ export class SettingsComponent implements OnInit {
         const URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
 
         const urls = Array.isArray(epgUrls) ? epgUrls : [epgUrls];
-        const filteredUrls = urls.filter((url) => url !== '');
+        const filteredUrls = urls
+            .map((url) => url.trim())
+            .filter((url) => url !== '');
 
         filteredUrls.forEach((url) => {
             this.epgUrl.push(
@@ -313,7 +323,14 @@ export class SettingsComponent implements OnInit {
      * Initializes new entry in form array for EPG URL
      */
     addEpgSource(): void {
-        this.epgUrl.insert(this.epgUrl.length, new FormControl(''));
+        this.epgUrl.insert(
+            this.epgUrl.length,
+            new FormControl('', {
+                validators: [
+                    Validators.pattern(/^(http|https|file):\/\/[^ "]+$/),
+                ],
+            })
+        );
     }
 
     /**
