@@ -76,7 +76,7 @@ export class SettingsComponent implements OnInit {
 
     isPwa = this.electronService.getAppEnvironment() === 'pwa';
 
-    electronPlayers = [
+    osPlayers = [
         {
             id: VideoPlayer.MPV,
             label: 'MPV Player',
@@ -97,8 +97,7 @@ export class SettingsComponent implements OnInit {
             id: VideoPlayer.VideoJs,
             label: 'VideoJs Player',
         },
-        ...this.electronPlayers,
-        /* ...(this.isTauri ? this.electronPlayers : []), */
+        ...(this.isTauri ? this.osPlayers : []),
     ];
 
     /** Current version of the app */
@@ -163,7 +162,8 @@ export class SettingsComponent implements OnInit {
     /**
      * Sets saved settings from the indexed db store
      */
-    setSettings(): void {
+    async setSettings() {
+        await this.settingsStore.loadSettings();
         const currentSettings = this.settingsStore.getSettings()();
         this.settingsForm.patchValue(currentSettings);
 
