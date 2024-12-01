@@ -8,22 +8,41 @@ import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe } from '@ngx-translate/core';
-import * as moment from 'moment';
 import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
 import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
+import { EpgService } from '../../../services/epg.service';
 import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
+import { EpgProgram } from '../../models/epg-program.model';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
-import { EpgData, EpgListComponent } from './epg-list.component';
+import { EpgListComponent } from './epg-list.component';
+
+// Update moment mock to handle namespace import
+jest.mock('moment', () => {
+    const momentFunc = () => ({
+        format: () => '2023-01-01',
+        subtract: () => ({
+            toISOString: () => '2023-01-01T00:00:00Z',
+            format: () => '2023-01-01',
+        }),
+        diff: () => 0,
+        add: () => ({
+            format: () => '2023-01-01',
+        }),
+    });
+    momentFunc.default = momentFunc;
+    return momentFunc;
+});
 
 describe('EpgListComponent', () => {
     let component: EpgListComponent;
     let fixture: ComponentFixture<EpgListComponent>;
     let electronService: DataService;
     let mockStore: MockStore;
+    let epgService: EpgService;
     const actions$ = new Observable<Actions>();
 
     const MOCKED_PROGRAMS = {
@@ -44,8 +63,8 @@ describe('EpgListComponent', () => {
         },
         items: [
             {
-                start: moment(Date.now()).format('YYYYMMDD'),
-                stop: moment(Date.now()).format('YYYYMMDD'),
+                start: '2023-01-01',
+                stop: '2023-01-01',
                 channel: '12345',
                 title: [{ lang: 'en', value: 'NOW on PBS' }],
                 desc: [
@@ -82,42 +101,46 @@ describe('EpgListComponent', () => {
                 ],
                 audio: [],
                 _attributes: {
-                    start: moment(Date.now()).format('YYYYMMDD'),
-                    stop: moment(Date.now()).format('YYYYMMDD'),
+                    start: '2023-01-01',
+                    stop: '2023-01-01',
                 },
             },
         ],
     };
 
-    beforeEach(
-        waitForAsync(() => {
-            TestBed.configureTestingModule({
-                declarations: [
-                    EpgListComponent,
-                    MockPipe(MomentDatePipe),
-                    MockPipe(TranslatePipe),
-                    MockComponent(EpgListItemComponent),
-                ],
-                imports: [
-                    MockModule(MatIconModule),
-                    MockModule(MatTooltipModule),
-                    MockModule(MatListModule),
-                    MockModule(MatDialogModule),
-                ],
-                providers: [
-                    { provide: DataService, useClass: ElectronServiceStub },
-                    MockProvider(MatDialog),
-                    provideMockStore(),
-                    provideMockActions(actions$),
-                ],
-            }).compileComponents();
-        })
-    );
+    beforeEach(waitForAsync(() => {
+        const mockEpgService = {
+            currentEpgPrograms$: new BehaviorSubject<EpgProgram[]>([]),
+        };
+
+        TestBed.configureTestingModule({
+            declarations: [
+                EpgListComponent,
+                MockPipe(MomentDatePipe),
+                MockPipe(TranslatePipe),
+                MockComponent(EpgListItemComponent),
+            ],
+            imports: [
+                MockModule(MatIconModule),
+                MockModule(MatTooltipModule),
+                MockModule(MatListModule),
+                MockModule(MatDialogModule),
+            ],
+            providers: [
+                { provide: DataService, useClass: ElectronServiceStub },
+                { provide: EpgService, useValue: mockEpgService },
+                MockProvider(MatDialog),
+                provideMockStore(),
+                provideMockActions(actions$),
+            ],
+        }).compileComponents();
+    }));
 
     beforeEach(() => {
         fixture = TestBed.createComponent(EpgListComponent);
         component = fixture.componentInstance;
         electronService = TestBed.inject(DataService);
+        epgService = TestBed.inject(EpgService);
 
         mockStore = TestBed.inject(MockStore);
         mockStore.setState({
@@ -150,13 +173,19 @@ describe('EpgListComponent', () => {
     }); */
 
     it('should handle an empty epg programs object', () => {
-        const payload = {} as unknown as EpgData;
-        component.handleEpgData({ payload });
+        const emptyPrograms: EpgProgram[] = [];
+        (epgService.currentEpgPrograms$ as BehaviorSubject<EpgProgram[]>).next(
+            emptyPrograms
+        );
+        component.handleEpgData(emptyPrograms);
         fixture.detectChanges();
-        expect(component.timeNow).toBeFalsy();
-        expect(component.dateToday).toBeFalsy();
+        expect(component.timeNow).toBeTruthy();
+        expect(component.dateToday).toBeTruthy();
         expect(component.channel).toBeNull();
-        expect(component.items).toHaveLength(0);
+        // Use async pipe or subscribe to test the Observable
+        component.items$.subscribe((items) => {
+            expect(items).toHaveLength(0);
+        });
     });
 
     it('should remove ipc listeners on destroy', () => {

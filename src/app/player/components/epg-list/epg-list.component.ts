@@ -105,7 +105,6 @@ export class EpgListComponent {
     ngOnInit(): void {
         this.timeshiftUntil$ = this.store.select(selectActive).pipe(
             map((active) => {
-                console.log(active);
                 this.channel = {
                     id: active?.tvg?.id,
                     name: active?.name,
