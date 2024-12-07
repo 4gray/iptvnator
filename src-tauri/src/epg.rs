@@ -233,3 +233,109 @@ pub async fn get_programs_by_channel(
 
     Ok(programs)
 }
+
+pub async fn get_epg_by_range(
+    start_time: String,
+    end_time: String,
+    skip: usize,
+    limit: usize,
+    playlist_channel_names: Vec<String>,
+) -> Result<Vec<EpgChannelWithPrograms>, String> {
+    println!("EPG Request - skip: {}, limit: {}", skip, limit);
+    println!("Channel names count: {}", playlist_channel_names.len());
+
+    match EPG_DATA.get() {
+        Some(epg_data) => {
+            let guard = epg_data.lock().map_err(|e| e.to_string())?;
+            let store = guard.as_ref().ok_or("EPG data not initialized")?;
+
+            let mut result = Vec::new();
+
+            // Parse time range
+            let start = DateTime::parse_from_str(&start_time, "%Y%m%d%H%M%S %z")
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc);
+            let end = DateTime::parse_from_str(&end_time, "%Y%m%d%H%M%S %z")
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc);
+
+            // First collect all channels with their programs
+            let mut all_channels_data = Vec::new();
+
+            // Collect all unique channel IDs across all sources that match playlist channel names
+            for source in &store.sources {
+                for (channel_id, programs) in &source.programs {
+                    if let Some(first_program) = programs.first() {
+                        let channel_name = first_program.channel.trim();
+                        if playlist_channel_names.iter().any(|name| name.trim() == channel_name) {
+                            // Check if we already have this channel
+                            if !all_channels_data.iter().any(|(id, _)| id == channel_id) {
+                                let mut channel_programs = Vec::new();
+                                let mut channel_icon = None;
+
+                                // Collect programs from all sources for this channel
+                                for source in &store.sources {
+                                    if let Some(progs) = source.programs.get(channel_id) {
+                                        let filtered_programs: Vec<Program> = progs
+                                            .iter()
+                                            .filter(|p| p.start <= end && p.stop >= start)
+                                            .cloned()
+                                            .collect();
+
+                                        if channel_icon.is_none() {
+                                            if let Some(prog) = filtered_programs.first() {
+                                                channel_icon = prog.icon.clone();
+                                            }
+                                        }
+
+                                        channel_programs.extend(filtered_programs);
+                                    }
+                                }
+
+                                if !channel_programs.is_empty() {
+                                    // Sort programs by start time
+                                    channel_programs.sort_by(|a, b| a.start.cmp(&b.start));
+                                    all_channels_data.push((channel_id.clone(), (channel_name.to_string(), channel_icon, channel_programs)));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Sort channels by name for consistent ordering
+            all_channels_data.sort_by(|a, b| a.1.0.cmp(&b.1.0));
+
+            println!("Total matching channels found: {}", all_channels_data.len());
+
+            // Now apply pagination to the full list of channels
+            let start_idx = skip.min(all_channels_data.len());
+            let end_idx = (skip + limit).min(all_channels_data.len());
+            let paginated_data = &all_channels_data[start_idx..end_idx];
+
+            println!("Returning channels from index {} to {}", start_idx, end_idx);
+
+            // Convert to final format
+            for (channel_id, (channel_name, channel_icon, channel_programs)) in paginated_data {
+                result.push(EpgChannelWithPrograms {
+                    id: channel_id.to_string(),
+                    name: channel_name.clone(),
+                    icon: channel_icon.clone(),
+                    programs: channel_programs.clone(),
+                });
+            }
+
+            println!("Returning {} channels", result.len());
+            Ok(result)
+        }
+        None => Err("EPG data not initialized".to_string()),
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct EpgChannelWithPrograms {
+    pub id: String,
+    pub name: String,
+    pub icon: Option<String>,
+    pub programs: Vec<Program>,
+}
