@@ -266,20 +266,42 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     /**
      * Opens the overlay with multi EPG view
      */
-    openMultiEpgView() {
-        this.overlayRef = this.overlay.create();
+    openMultiEpgView(): void {
+        const positionStrategy = this.overlay
+            .position()
+            .global()
+            .centerHorizontally()
+            .centerVertically();
+
+        this.overlayRef = this.overlay.create({
+            hasBackdrop: true,
+            positionStrategy,
+            width: '100%',
+            height: '100%',
+        });
+
         const injector = Injector.create({
             providers: [
-                { provide: COMPONENT_OVERLAY_REF, useValue: this.overlayRef },
+                {
+                    provide: COMPONENT_OVERLAY_REF,
+                    useValue: this.overlayRef,
+                },
             ],
         });
-        const componentPortal = new ComponentPortal(
+
+        const portal = new ComponentPortal(
             MultiEpgContainerComponent,
-            undefined,
+            null,
             injector
         );
-        this.overlayRef.addPanelClass('epg-overlay');
-        this.overlayRef.attach(componentPortal);
+
+        const componentRef = this.overlayRef.attach(portal);
+        componentRef.instance.playlistChannels =
+            this.store.select(selectChannels);
+
+        this.overlayRef.backdropClick().subscribe(() => {
+            this.overlayRef.dispose();
+        });
     }
 
     openUrl(url: string) {
