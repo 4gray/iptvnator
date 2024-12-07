@@ -40,6 +40,10 @@
         "updater:default",
         "dialog:default",
         "process:default",
-        "core:window:allow-set-fullscreen"
+        "core:window:allow-set-fullscreen",
+        "core:webview:allow-webview-show",
+        "core:webview:allow-create-webview-window",
+        "sql:default",
+        "sql:allow-execute"
     ]
 }

@@ -36,6 +36,7 @@ chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.11", features = ["json", "gzip"] }
 flate2 = "1.0"
 quick-xml = { version = "0.31", features = ["serialize"] }
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

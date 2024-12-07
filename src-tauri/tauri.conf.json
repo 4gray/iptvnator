@@ -15,6 +15,9 @@
             "endpoints": [
                 "https://github.com/4gray/iptvnator/releases/latest/download/latest.json"
             ]
+        },
+        "sql": {
+            "preload": ["sqlite:database.db"]
         }
     },
     "app": {
