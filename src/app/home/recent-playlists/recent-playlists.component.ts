@@ -6,11 +6,14 @@ import {
 import { AsyncPipe, NgFor, NgIf } from '@angular/common';
 import {
     Component,
+    ElementRef,
     EventEmitter,
+    HostListener,
     Input,
     NgZone,
     OnDestroy,
     Output,
+    ViewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -67,6 +70,8 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
     ],
 })
 export class RecentPlaylistsComponent implements OnDestroy {
+    @ViewChild('searchQuery') searchQueryInput!: ElementRef<HTMLInputElement>;
+
     searchQuery = new BehaviorSubject('');
 
     playlists$ = combineLatest([
@@ -265,5 +270,14 @@ export class RecentPlaylistsComponent implements OnDestroy {
 
     onSearchQueryUpdate(searchQuery: string) {
         this.searchQuery.next(searchQuery);
+    }
+
+    @HostListener('window:keydown.control.f', ['$event'])
+    @HostListener('window:keydown.meta.f', ['$event'])
+    onSearchHotkey(event: KeyboardEvent) {
+        // Prevent default browser search behavior
+        event.preventDefault();
+        event.stopPropagation();
+        this.searchQueryInput?.nativeElement?.focus();
     }
 }
