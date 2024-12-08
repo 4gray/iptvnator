@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { Params } from '@angular/router';
 import { invoke } from '@tauri-apps/api/core';
 import { fetch } from '@tauri-apps/plugin-http';
 import { parse } from 'iptv-playlist-parser';
@@ -37,7 +38,6 @@ export class TauriService extends DataService {
                 payload as { url: string; params: Record<string, string> }
             );
         } else if (type === 'STALKER_REQUEST') {
-            console.log('STALKER_REQUEST');
             this.fetchStalkerData(
                 payload as {
                     url: string;
@@ -83,7 +83,6 @@ export class TauriService extends DataService {
         params: Record<string, string>;
     }) {
         try {
-            console.log(payload);
             const url = new URL(payload.url);
 
             Object.entries(payload.params).forEach(([key, value]) => {
@@ -104,7 +103,6 @@ export class TauriService extends DataService {
             }
 
             const result = await response.json();
-            console.log(result);
             window.postMessage({
                 type: 'STALKER_RESPONSE',
                 payload: result,
@@ -202,5 +200,22 @@ export class TauriService extends DataService {
 
     getAppEnvironment(): string {
         return 'tauri';
+    }
+
+    async fetchData(url: string, queryParams: Params) {
+        const urlObject = new URL(url);
+        Object.entries(queryParams).forEach(([key, value]) => {
+            urlObject.searchParams.append(key, value);
+        });
+        const response = await fetch(urlObject.toString());
+        if (!response.ok) {
+            throw new Error(
+                `Error: ${response.statusText} (Status: ${response.status})`
+            );
+        }
+
+        console.log(url, queryParams);
+        const result = await response.json();
+        return result;
     }
 }

@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Params } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -235,5 +236,9 @@ export class PwaService extends DataService {
 
     getAppEnvironment(): string {
         return 'pwa';
+    }
+
+    fetchData(url: string, queryParams: Params) {
+        // not implemented
     }
 }
