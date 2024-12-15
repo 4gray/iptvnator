@@ -10,6 +10,8 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { getExtensionFromUrl } from '../../../../shared/playlist.utils';
+import { ArtPlayerComponent } from '../../player/components/art-player/art-player.component';
+import { DPlayerComponent } from '../../player/components/d-player/d-player.component';
 import { HtmlVideoPlayerComponent } from '../../player/components/html-video-player/html-video-player.component';
 import { VjsPlayerComponent } from '../../player/components/vjs-player/vjs-player.component';
 import { Settings, VideoPlayer } from '../../settings/settings.interface';
@@ -20,7 +22,13 @@ import { STORE_KEY } from '../../shared/enums/store-keys.enum';
     selector: 'app-web-player-view',
     templateUrl: './web-player-view.component.html',
     styleUrls: ['./web-player-view.component.scss'],
-    imports: [HtmlVideoPlayerComponent, NgIf, VjsPlayerComponent],
+    imports: [
+        HtmlVideoPlayerComponent,
+        NgIf,
+        VjsPlayerComponent,
+        DPlayerComponent,
+        ArtPlayerComponent,
+    ],
     encapsulation: ViewEncapsulation.None,
 })
 export class WebPlayerViewComponent {
