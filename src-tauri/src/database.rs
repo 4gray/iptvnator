@@ -16,6 +16,8 @@ pub fn get_migrations() -> Vec<Migration> {
                 last_updated DATETIME,
                 type TEXT NOT NULL CHECK (type IN ('xtream', 'stalker', 'm3u-file', 'm3u-text', 'm3u-url')),
                 userAgent TEXT,
+                origin TEXT,
+                referrer TEXT,
                 filePath TEXT,
                 autoRefresh BOOLEAN DEFAULT 0,
                 macAddress TEXT,
