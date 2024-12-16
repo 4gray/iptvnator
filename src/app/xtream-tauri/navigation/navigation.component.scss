@@ -1,0 +1,28 @@
+:host {
+    padding: 10px;
+    display: block;
+    height: 100%;
+}
+
+.mat-nav-list {
+    padding-top: 0;
+}
+
+.active {
+    transition: all 0.2s ease;
+    background: rgba(63, 81, 181, 0.12);
+    color: #3f51b5;
+    border-left: 4px solid #3f51b5;
+
+    mat-icon {
+        color: #3f51b5;
+    }
+}
+
+mat-divider {
+    margin: 8px 0;
+}
+
+mat-icon {
+    margin-right: 8px;
+}

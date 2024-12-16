@@ -1,0 +1,47 @@
+@let items = recentItems();
+<div class="recent-container">
+    <div class="header">
+        <h2>Recently Viewed</h2>
+        @if (items.length) {
+            <button mat-button color="warn" (click)="clearHistory()">
+                <mat-icon>delete</mat-icon>
+                Clear History
+            </button>
+        }
+    </div>
+
+    @if (items.length) {
+        <div class="items-grid">
+            @for (item of items; track $index) {
+                <mat-card class="item-card" (click)="openItem(item)">
+                    <img
+                        [src]="
+                            item.poster_url ||
+                            './assets/images/default-poster.png'
+                        "
+                        (error)="
+                            $event.target.src =
+                                './assets/images/default-poster.png'
+                        "
+                        [alt]="item.title"
+                        class="poster"
+                    />
+                    <div class="item-info">
+                        <h3>{{ item.title }}</h3>
+                        <p [class]="item.type" class="type-badge">
+                            {{ item.type | titlecase }}
+                        </p>
+                        <p class="viewed-at">
+                            {{ item.viewed_at | date: 'd MMMM, y, hh:mm' }}
+                        </p>
+                    </div>
+                </mat-card>
+            }
+        </div>
+    } @else {
+        <div class="no-items">
+            <mat-icon>history</mat-icon>
+            <p>No recently viewed items</p>
+        </div>
+    }
+</div>

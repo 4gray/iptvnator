@@ -3,15 +3,13 @@ import { ActivatedRoute } from '@angular/router';
 import {
     patchState,
     signalStore,
-    watchState,
     withComputed,
-    withHooks,
     withMethods,
     withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Store } from '@ngrx/store';
-import { from, lastValueFrom, pipe, switchMap, tap } from 'rxjs';
+import { EMPTY, from, lastValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { XtreamCategory } from '../../../shared/xtream-category.interface';
 import { XtreamCodeActions } from '../../../shared/xtream-code-actions';
 import { XtreamLiveStream } from '../../../shared/xtream-live-stream.interface';
@@ -45,6 +43,7 @@ type XtreamState = {
     currentPlaylist: any | null;
     isFavorite: boolean;
     epgItems: EpgItem[];
+    hideExternalInfoDialog: boolean;
 };
 
 const initialState: XtreamState = {
@@ -59,7 +58,7 @@ const initialState: XtreamState = {
     vodStreams: [],
     serialStreams: [],
     page: 1,
-    limit: 20,
+    limit: Number(localStorage.getItem('xtream-page-size') ?? 25),
     selectedCategoryId: null,
     searchResults: [],
     selectedContentType: 'vod',
@@ -68,6 +67,8 @@ const initialState: XtreamState = {
     currentPlaylist: null,
     isFavorite: false,
     epgItems: [],
+    hideExternalInfoDialog:
+        localStorage.getItem('hideExternalInfoDialog') === 'true',
 };
 
 interface XCategoryFromDb {
@@ -312,7 +313,7 @@ export const XtreamStore = signalStore(
                             return [
                                 categoryId,
                                 title,
-                                stream.rating || '',
+                                stream.rating || stream.rating_imdb || '',
                                 type === 'series'
                                     ? stream.last_modified || ''
                                     : stream.added || '',
@@ -394,13 +395,16 @@ export const XtreamStore = signalStore(
                 type: 'live' | 'movie' | 'series'
             ) => {
                 const playlistId = route.snapshot.params.id;
-
                 console.log('Getting local content...');
                 const db = await dbService.getConnection();
                 return await db.select(
-                    `SELECT c.* FROM content c 
-                     JOIN categories cat ON c.category_id = cat.id 
-                     WHERE cat.playlist_id = ? AND c.type = ?`,
+                    `SELECT 
+                        c.id, c.category_id, c.title, c.rating, 
+                        c.added, c.poster_url, c.xtream_id, c.type
+                    FROM content c 
+                    INNER JOIN categories cat ON c.category_id = cat.id 
+                    WHERE cat.playlist_id = ? AND c.type = ?
+                    ORDER BY c.added DESC`,
                     [playlistId, type]
                 );
             };
@@ -438,7 +442,7 @@ export const XtreamStore = signalStore(
                                 store.currentPlaylist()
                             );
                             const remoteData = await dataService.fetchData(
-                                `${store.currentPlaylist().api_url}/player_api.php`,
+                                `${store.currentPlaylist().serverUrl}/player_api.php`,
                                 queryParams
                             );
 
@@ -513,7 +517,7 @@ export const XtreamStore = signalStore(
                             }
 
                             const remoteData = await dataService.fetchData(
-                                `${store.currentPlaylist().api_url}/player_api.php`,
+                                `${store.currentPlaylist().serverUrl}/player_api.php`,
                                 queryParams
                             );
 
@@ -557,30 +561,10 @@ export const XtreamStore = signalStore(
 
                 patchState(store, { searchResults: results });
             };
-
-            /* const fetchXtreamPlaylist = rxMethod<void>(
-                pipe(() => {
-                    const playlistId = route.snapshot.params.id;
-                    return from(dbService.getConnection()).pipe(
-                        switchMap((db) =>
-                            from(
-                                db.select(
-                                    'SELECT * FROM playlists WHERE id = ?',
-                                    [playlistId]
-                                )
-                            )
-                        ),
-                        tap((res) => {
-                            console.log('Fetched playlist:', res);
-                            if (res[0])
-                                patchState(store, { currentPlaylist: res[0] });
-                        })
-                    );
-                })
-            ); */
             const fetchXtreamPlaylist = rxMethod<void>(
                 pipe(() => {
                     const playlistId = route.snapshot.params.id;
+                    if (!playlistId) return EMPTY;
                     return from(dbService.getConnection()).pipe(
                         switchMap((db) =>
                             from(
@@ -606,7 +590,7 @@ export const XtreamStore = signalStore(
                                     const db = await dbService.getConnection();
                                     // Insert into DB
                                     await db.execute(
-                                        'INSERT INTO playlists (id, name, api_url, username, password, type) VALUES (?, ?, ?, ?, ?, ?)',
+                                        'INSERT INTO playlists (id, name, serverUrl, username, password, type) VALUES (?, ?, ?, ?, ?, ?)',
                                         [
                                             playlist._id,
                                             playlist.title,
@@ -619,7 +603,7 @@ export const XtreamStore = signalStore(
                                     patchState(store, {
                                         currentPlaylist: {
                                             ...playlist,
-                                            api_url: playlist.serverUrl,
+                                            serverUrl: playlist.serverUrl,
                                             id: playlist._id,
                                             name: playlist.title,
                                         },
@@ -734,7 +718,7 @@ export const XtreamStore = signalStore(
                 const currentPlaylist = store.currentPlaylist();
 
                 const password = currentPlaylist?.password;
-                const url = `${currentPlaylist?.api_url}/player_api.php`;
+                const url = `${currentPlaylist?.serverUrl}/player_api.php`;
                 const username = currentPlaylist?.username;
                 console.log('Fetching VOD details...', password, url, username);
 
@@ -757,7 +741,7 @@ export const XtreamStore = signalStore(
                 const currentPlaylist = store.currentPlaylist();
 
                 const password = currentPlaylist?.password;
-                const url = `${currentPlaylist?.api_url}/player_api.php`;
+                const url = `${currentPlaylist?.serverUrl}/player_api.php`;
                 const username = currentPlaylist?.username;
                 console.log(
                     'Fetching Series details...',
@@ -786,80 +770,51 @@ export const XtreamStore = signalStore(
                 try {
                     console.log('Starting content initialization...');
 
-                    // Categories
                     console.log('Fetching live categories...');
-                    const liveCategories: any = await lastValueFrom(
+                    await lastValueFrom(
                         fetchCategories(
                             XtreamCodeActions.GetLiveCategories,
                             'liveCategories',
                             'live'
                         )
                     );
-                    console.log(
-                        'Live categories loaded:',
-                        liveCategories?.length
-                    );
-
-                    console.log('Fetching VOD categories...');
-                    const vodCategories: any = await lastValueFrom(
+                    await lastValueFrom(
                         fetchCategories(
                             XtreamCodeActions.GetVodCategories,
                             'vodCategories',
                             'movies'
                         )
                     );
-                    console.log(
-                        'VOD categories loaded:',
-                        vodCategories?.length
-                    );
-
-                    console.log('Fetching serial categories...');
-                    const serialCategories: any = await lastValueFrom(
+                    await lastValueFrom(
                         fetchCategories(
                             XtreamCodeActions.GetSeriesCategories,
                             'serialCategories',
                             'series'
                         )
                     );
-                    console.log(
-                        'Serial categories loaded:',
-                        serialCategories?.length
-                    );
 
-                    // Streams
-                    console.log('Fetching live streams...');
-                    const liveStreams: any = await lastValueFrom(
+                    console.log('Fetching content...');
+                    await lastValueFrom(
                         fetchStreams(
                             XtreamCodeActions.GetLiveStreams,
                             'liveStreams',
                             'live'
                         )
                     );
-                    console.log('Live streams loaded:', liveStreams?.length);
-
-                    console.log('Fetching VOD streams...');
-                    const vodStreams: any = await lastValueFrom(
+                    await lastValueFrom(
                         fetchStreams(
                             XtreamCodeActions.GetVodStreams,
                             'vodStreams',
                             'movie'
                         )
                     );
-                    console.log('VOD streams loaded:', vodStreams?.length);
-
-                    console.log('Fetching serial streams...');
-                    const serialStreams: any = await lastValueFrom(
+                    await lastValueFrom(
                         fetchStreams(
                             XtreamCodeActions.GetSeries,
                             'serialStreams',
                             'series'
                         )
                     );
-                    console.log(
-                        'Serial streams loaded:',
-                        serialStreams?.length
-                    );
-
                     console.log('Content initialization completed');
                 } catch (error) {
                     console.error(
@@ -888,13 +843,21 @@ export const XtreamStore = signalStore(
                 getVodDetails,
                 getSerialDetails,
                 initializeContent,
+                updatePlaylist(playlist: any) {
+                    patchState(store, {
+                        currentPlaylist: {
+                            ...store.currentPlaylist(),
+                            playlist,
+                        },
+                    });
+                },
                 resetSearchResults() {
                     patchState(store, { searchResults: [] });
                 },
                 async loadEpg() {
                     console.log('Loading EPG...');
                     const remoteData = await dataService.fetchData(
-                        `${store.currentPlaylist().api_url}/player_api.php`,
+                        `${store.currentPlaylist().serverUrl}/player_api.php`,
                         {
                             action: 'get_short_epg',
                             username: store.currentPlaylist().username,
@@ -934,8 +897,18 @@ export const XtreamStore = signalStore(
 
                     if (!item || !playlist) return;
 
-                    const contentId =
-                        item.movie_data?.stream_id || item.series_id;
+                    const db = await dbService.getConnection();
+                    const content: any = await db.select(
+                        'SELECT id FROM content WHERE xtream_id = ?',
+                        [item.movie_data?.stream_id || item.series_id]
+                    );
+
+                    if (!content || content.length === 0) {
+                        console.error('Content not found in database');
+                        return;
+                    }
+
+                    const contentId = content[0].id;
                     const isFavorite = await favoritesService.isFavorite(
                         contentId,
                         playlist.id
@@ -950,9 +923,6 @@ export const XtreamStore = signalStore(
                         await favoritesService.addToFavorites({
                             content_id: contentId,
                             playlist_id: playlist.id,
-                            type: store.selectedContentType(),
-                            title: item.name || item.title,
-                            stream_icon: item.stream_icon || item.cover,
                         });
                     }
 
@@ -968,21 +938,39 @@ export const XtreamStore = signalStore(
                         return;
                     }
 
+                    const db = await dbService.getConnection();
+                    const content: any = await db.select(
+                        'SELECT id FROM content WHERE xtream_id = ?',
+                        [item.xtream_id]
+                    );
+
+                    if (!content || content.length === 0) {
+                        patchState(store, { isFavorite: false });
+                        return;
+                    }
+
                     const isFavorite = await favoritesService.isFavorite(
-                        item.xtream_id || item.xtream_id,
+                        content[0].id,
                         playlist.id
                     );
 
                     patchState(store, { isFavorite });
                 },
+                setHideExternalInfoDialog(hideExternalInfoDialog: boolean) {
+                    localStorage.setItem(
+                        'hideExternalInfoDialog',
+                        store.hideExternalInfoDialog.toString()
+                    );
+                    patchState(store, { hideExternalInfoDialog });
+                },
             };
         }
-    ),
-    withHooks((store) => ({
+    )
+    /* withHooks((store) => ({
         onInit() {
             watchState(store, (state) => {
                 console.log('[watchState] xtream state', state);
             });
         },
-    }))
+    })) */
 );

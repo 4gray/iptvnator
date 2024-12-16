@@ -1,0 +1,121 @@
+.search-page {
+    padding: 20px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.search-container {
+    flex-shrink: 0;
+
+    .search-field {
+        width: 100%;
+        max-width: 600px;
+    }
+
+    .type-filters {
+        margin-top: 1rem;
+        mat-checkbox {
+            margin-right: 1rem;
+        }
+    }
+
+    .results-count {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+    }
+}
+
+.results-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 1rem;
+
+    .results-grid {
+        display: grid;
+        grid-template-columns: repeat(
+            auto-fill,
+            minmax(200px, 1fr)
+        );
+        gap: 1rem;
+        padding-bottom: 1rem;
+
+        mat-card {
+            cursor: pointer;
+            .poster,
+            .poster-placeholder {
+                border-radius: 13px;
+                width: 100%;
+                aspect-ratio: 2/3;
+                object-fit: cover;
+                margin-bottom: 0.5rem;
+            }
+            .poster-placeholder {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                mat-icon {
+                    font-size: 48px;
+                    width: 48px;
+                    height: 48px;
+                }
+            }
+            h3 {
+                margin: 0.5rem 0;
+                font-size: 1rem;
+                font-weight: normal;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            p {
+                font-size: 0.8rem;
+                color: rgba(0, 0, 0, 0.6);
+                margin: 0.5rem 0;
+            }
+            .type-badge {
+                display: inline-block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                font-size: 0.8rem;
+                text-transform: uppercase;
+                &.live {
+                    background: #e53935;
+                    color: white;
+                }
+                &.movie {
+                    background: #1e88e5;
+                    color: white;
+                }
+                &.series {
+                    background: #43a047;
+                    color: white;
+                }
+            }
+        }
+    }
+}
+
+.no-items {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+
+    mat-icon {
+        font-size: 48px;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 1rem;
+    }
+
+    p {
+        font-size: 1.1rem;
+        margin: 0;
+    }
+}
