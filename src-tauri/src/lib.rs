@@ -27,7 +27,9 @@ pub fn run() {
             commands::epg::get_channel_programs,
             commands::epg::get_epg_by_range,
             commands::media::open_in_mpv,
-            commands::media::open_in_vlc
+            commands::media::open_in_vlc,
+            commands::media::get_active_mpv_processes,
+            commands::media::close_mpv_process
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
