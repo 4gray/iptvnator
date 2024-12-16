@@ -125,22 +125,13 @@ pub async fn close_mpv_process<R: Runtime>(
     process_id: u32,
     app_handle: tauri::AppHandle<R>,
 ) -> Result<(), String> {
+    #[cfg(windows)]
+    return Err("Process termination is not supported on Windows".to_string());
     if let Some(process) = MPV_PROCESSES.lock().unwrap().remove(&process_id) {
         #[cfg(unix)]
         {
             unsafe {
                 libc::kill(process_id as i32, libc::SIGTERM);
-            }
-        }
-
-        #[cfg(windows)]
-        {
-            unsafe {
-                let handle = OpenProcess(PROCESS_TERMINATE, 0, process_id);
-                if !handle.is_null() {
-                    TerminateProcess(handle, 1);
-                    CloseHandle(handle);
-                }
             }
         }
 
