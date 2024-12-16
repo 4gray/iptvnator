@@ -5,6 +5,8 @@ import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
+import { isTauri } from '@tauri-apps/api/core';
+import Database from '@tauri-apps/plugin-sql';
 import {
     combineLatestWith,
     firstValueFrom,
@@ -19,6 +21,7 @@ import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
 } from '../../../shared/ipc-commands';
+import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
 import { PlaylistsService } from '../services/playlists.service';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
@@ -222,13 +225,33 @@ export class PlaylistEffects {
                 switchMap((action) =>
                     this.playlistsService.addPlaylist(action.playlist)
                 ),
-                tap((playlist) => {
-                    if (playlist.serverUrl) {
+                map((playlist: Playlist) => {
+                    if (playlist.serverUrl && !isTauri()) {
                         this.router.navigate(['/xtreams/', playlist._id]);
                     } else if (playlist.macAddress) {
                         this.router.navigate(['portals', playlist._id]);
                     } else {
                         this.router.navigate(['/playlists/', playlist._id]);
+                    }
+                    return playlist;
+                }),
+                map(async (playlist) => {
+                    if (playlist.serverUrl && isTauri()) {
+                        const db = await Database.load('sqlite:database.db');
+                        const result = await db.execute(
+                            `INSERT INTO playlists (id, name, serverUrl, username, password, type)
+                        VALUES (?, ?, ?, ?, ?, ?)`,
+                            [
+                                playlist._id.toString(),
+                                playlist.title || '',
+                                playlist.serverUrl || '',
+                                playlist.username || '',
+                                playlist.password || '',
+                                'xtream',
+                            ]
+                        );
+                        console.log('inserted item', result);
+                        this.router.navigate(['/xtreams/', playlist._id]);
                     }
                 })
             );
@@ -240,9 +263,13 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylistMeta),
-                switchMap((action) =>
-                    this.playlistsService.updatePlaylistMeta(action.playlist)
-                )
+                switchMap((action) => {
+                    // TODO update playlist in sqlite db
+
+                    return this.playlistsService.updatePlaylistMeta(
+                        action.playlist
+                    );
+                })
             );
         },
         { dispatch: false }
