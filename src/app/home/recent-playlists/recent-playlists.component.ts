@@ -31,6 +31,7 @@ import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../../shared/constants';
 import { IpcCommand } from '../../../../shared/ipc-command.class';
 import { Playlist } from '../../../../shared/playlist.interface';
 import { DataService } from '../../services/data.service';
+import { DatabaseService } from '../../services/database.service';
 import * as PlaylistActions from '../../state/actions';
 import {
     selectActiveTypeFilters,
@@ -142,6 +143,7 @@ export class RecentPlaylistsComponent implements OnDestroy {
     ];
 
     constructor(
+        private databaseService: DatabaseService,
         private dialog: MatDialog,
         private dialogService: DialogService,
         private electronService: DataService,
@@ -229,7 +231,8 @@ export class RecentPlaylistsComponent implements OnDestroy {
      * Removes the provided playlist from the database
      * @param playlistId playlist id to remove
      */
-    removePlaylist(playlistId: string): void {
+    removePlaylist(playlistId: string) {
+        this.databaseService.deletePlaylist(playlistId);
         this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
     }
 
