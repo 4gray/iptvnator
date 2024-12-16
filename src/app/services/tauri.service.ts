@@ -49,6 +49,8 @@ export class TauriService extends DataService {
             return invoke('open_in_mpv', {
                 url: (payload as any).url,
                 path: (payload as any).mpvPlayerPath || '',
+                title: (payload as any).title ?? '',
+                thumbnail: (payload as any).thumbnail ?? '',
             }).catch((error) => {
                 window.postMessage({
                     type: ERROR,
