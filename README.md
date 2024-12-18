@@ -57,6 +57,10 @@ The application is a cross-platform, open-source project built with Electron (cu
 Download the latest version of the application for macOS, Windows, and Linux from the [release page](https://github.com/4gray/iptvnator/releases).
 
 Alternatively, you can install the application using one of the following package managers:
+### Homebrew
+```shell
+$ brew install iptvnator
+```
 
 ### Snap
 
