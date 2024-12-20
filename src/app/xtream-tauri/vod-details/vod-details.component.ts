@@ -6,20 +6,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import {
-    OPEN_MPV_PLAYER,
-    OPEN_VLC_PLAYER,
-} from '../../../../shared/ipc-commands';
 import { XtreamVodDetails } from '../../../../shared/xtream-vod-details.interface';
 import { DataService } from '../../services/data.service';
+import { PlayerService } from '../../services/player.service';
 import { SettingsStore } from '../../services/settings-store.service';
-import { VideoPlayer } from '../../settings/settings.interface';
-import { ExternalPlayerInfoDialogComponent } from '../../shared/components/external-player-info-dialog/external-player-info-dialog.component';
 import { selectActivePlaylist } from '../../state/selectors';
-import {
-    PlayerDialogComponent,
-    PlayerDialogData,
-} from '../player-dialog/player-dialog.component';
 import { XtreamStore } from '../xtream.store';
 import { SafePipe } from './safe.pipe';
 
@@ -42,10 +33,12 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
     private route = inject(ActivatedRoute);
     private store = inject(Store);
     private readonly xtreamStore = inject(XtreamStore);
+    private playerService = inject(PlayerService);
 
     readonly settings = this.settingsStore.getSettings();
-    readonly selectedContentType = this.xtreamStore.selectedContentType();
-    readonly hideExternalInfoDialog = this.xtreamStore.hideExternalInfoDialog;
+    private readonly selectedContentType = this.xtreamStore.selectedContentType;
+    private readonly hideExternalInfoDialog =
+        this.xtreamStore.hideExternalInfoDialog;
 
     readonly isFavorite = this.xtreamStore.isFavorite;
     readonly selectedItem = this.xtreamStore.selectedItem;
@@ -64,7 +57,7 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
     }
 
     playVod(vodItem: XtreamVodDetails) {
-        this.addToRecentlyViewed(vodItem);
+        this.addToRecentlyViewed();
         const currentPlaylist = this.store.selectSignal(selectActivePlaylist);
         const { serverUrl, username, password } = currentPlaylist();
         const streamUrl = `${serverUrl}/movie/${username}/${password}/${vodItem.movie_data.stream_id}.${vodItem.movie_data.container_extension}`;
@@ -77,47 +70,22 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
     }
 
     openPlayer(streamUrl: string, title: string, thumbnail: string) {
-        const player = this.settings()?.player ?? VideoPlayer.VideoJs;
-        if (player === VideoPlayer.MPV) {
-            if (!this.hideExternalInfoDialog())
-                this.dialog.open(ExternalPlayerInfoDialogComponent);
-            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
-                url: streamUrl,
-                mpvPlayerPath: this.settings()?.mpvPlayerPath,
-                title,
-                thumbnail,
-            });
-        } else if (player === VideoPlayer.VLC) {
-            if (!this.hideExternalInfoDialog())
-                this.dialog.open(ExternalPlayerInfoDialogComponent);
-            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
-                url: streamUrl,
-                vlcPlayerPath: this.settings()?.vlcPlayerPath,
-            });
-        } else {
-            if (this.selectedContentType !== 'live') {
-                this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
-                    PlayerDialogComponent,
-                    {
-                        data: { streamUrl, title },
-                        width: '80%',
-                        maxWidth: '1200px',
-                        maxHeight: '90vh',
-                    }
-                );
-            }
-        }
+        this.playerService.openPlayer(
+            streamUrl,
+            title,
+            thumbnail,
+            this.hideExternalInfoDialog(),
+            this.selectedContentType() === 'live'
+        );
     }
 
     toggleFavorite() {
         this.xtreamStore.toggleFavorite();
     }
 
-    private addToRecentlyViewed(vodItem: any) {
+    private addToRecentlyViewed() {
         this.xtreamStore.addRecentItem({
-            contentId:
-                this.route.snapshot.params
-                    .vodId /* vodItem.movie_data.stream_id */,
+            contentId: this.route.snapshot.params.vodId,
             playlist: this.xtreamStore.currentPlaylist,
         });
     }
