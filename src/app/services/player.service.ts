@@ -17,7 +17,6 @@ export class PlayerService {
     private dialog = inject(MatDialog);
     private dataService = inject(DataService);
     private settingsStore = inject(SettingsStore);
-    private settings = this.settingsStore.getSettings();
 
     openPlayer(
         streamUrl: string,
@@ -26,7 +25,7 @@ export class PlayerService {
         hideExternalInfoDialog = false,
         isLiveContent = false
     ) {
-        const player = this.settings()?.player ?? VideoPlayer.VideoJs;
+        const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
 
         if (player === VideoPlayer.MPV) {
             if (!hideExternalInfoDialog) {
@@ -34,7 +33,7 @@ export class PlayerService {
             }
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
-                mpvPlayerPath: this.settings()?.mpvPlayerPath,
+                mpvPlayerPath: this.settingsStore.mpvPlayerPath(),
                 title,
                 thumbnail,
             });
@@ -44,7 +43,7 @@ export class PlayerService {
             }
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
-                vlcPlayerPath: this.settings()?.vlcPlayerPath,
+                vlcPlayerPath: this.settingsStore.vlcPlayerPath(),
             });
         } else if (!isLiveContent) {
             this.dialog.open<PlayerDialogComponent, PlayerDialogData>(

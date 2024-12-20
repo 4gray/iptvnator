@@ -31,8 +31,6 @@ import { VodDetailsComponent } from './vod-details/vod-details.component';
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Router } from '@angular/router';
-import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import {
@@ -40,7 +38,6 @@ import {
     XtreamSerieEpisode,
 } from '../../../shared/xtream-serie-details.interface';
 import { LiveStreamLayoutComponent } from '../portals/live-stream-layout/live-stream-layout.component';
-import { DialogService } from '../services/dialog.service';
 import { PlaylistsService } from '../services/playlists.service';
 import { SettingsStore } from '../services/settings-store.service';
 import { VideoPlayer } from '../settings/settings.interface';
@@ -115,18 +112,15 @@ type LayoutView =
     ],
 })
 export class XtreamMainContainerComponent implements OnInit {
-    dataService = inject(DataService);
-    dialog = inject(MatDialog);
-    dialogService = inject(DialogService);
-    ngZone = inject(NgZone);
-    playlistService = inject(PlaylistsService);
-    portalStore = inject(PortalStore);
-    router = inject(Router);
-    settingsStore = inject(SettingsStore);
-    snackBar = inject(MatSnackBar);
-    storage = inject(StorageMap);
-    store = inject(Store);
-    translate = inject(TranslateService);
+    private readonly dataService = inject(DataService);
+    private readonly dialog = inject(MatDialog);
+    private readonly ngZone = inject(NgZone);
+    private readonly playlistService = inject(PlaylistsService);
+    private readonly portalStore = inject(PortalStore);
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly store = inject(Store);
+    private readonly translate = inject(TranslateService);
 
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
     navigationContentTypes: ContentTypeNavigationItem[] = [
@@ -156,7 +150,7 @@ export class XtreamMainContainerComponent implements OnInit {
     selectedContentType = ContentType.VODS;
     currentLayout: LayoutView = 'category';
     vodDetails!: XtreamVodDetails | XtreamSerieDetails;
-    settings = this.settingsStore.getSettings();
+    settings = this.settingsStore;
     isLoading = true;
     searchPhrase = this.portalStore.searchPhrase();
     contentId: number;
@@ -344,20 +338,20 @@ export class XtreamMainContainerComponent implements OnInit {
 
     openPlayer(streamUrl: string, title: string) {
         this.streamUrl = streamUrl;
-        this.player = this.settings()?.player ?? VideoPlayer.VideoJs;
+        this.player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
         if (this.player === VideoPlayer.MPV) {
             if (!this.hideExternalInfoDialog())
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
-                mpvPlayerPath: this.settings()?.mpvPlayerPath,
+                mpvPlayerPath: this.settingsStore.mpvPlayerPath(),
             });
         } else if (this.player === VideoPlayer.VLC) {
             if (!this.hideExternalInfoDialog())
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
-                vlcPlayerPath: this.settings()?.vlcPlayerPath,
+                vlcPlayerPath: this.settingsStore.vlcPlayerPath(),
             });
         } else {
             if (this.selectedContentType !== ContentType.ITV) {
@@ -382,7 +376,7 @@ export class XtreamMainContainerComponent implements OnInit {
 
     playEpisode(episode: XtreamSerieEpisode) {
         const { serverUrl, username, password } = this.currentPlaylist();
-        const player = this.settings().player;
+        const player = this.settingsStore.player();
         const streamUrl = `${serverUrl}/series/${username}/${password}/${episode.id}.${episode.container_extension}`;
         if (player === VideoPlayer.MPV) {
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, { url: streamUrl });

@@ -9,6 +9,7 @@ import {
     OnDestroy,
     OnInit,
     effect,
+    inject,
 } from '@angular/core';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -133,6 +134,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     volume = 1;
 
+    private settingsStore = inject(SettingsStore);
+
     constructor(
         private activatedRoute: ActivatedRoute,
         private dataService: DataService,
@@ -142,8 +145,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         private router: Router,
         private snackBar: MatSnackBar,
         private storage: StorageMap,
-        private store: Store,
-        private settingsStore: SettingsStore
+        private store: Store
     ) {
         // Initialize volume from localStorage in constructor
         const savedVolume = localStorage.getItem('volume');

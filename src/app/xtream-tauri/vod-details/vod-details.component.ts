@@ -1,13 +1,11 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamVodDetails } from '../../../../shared/xtream-vod-details.interface';
-import { DataService } from '../../services/data.service';
 import { PlayerService } from '../../services/player.service';
 import { SettingsStore } from '../../services/settings-store.service';
 import { selectActivePlaylist } from '../../state/selectors';
@@ -27,15 +25,13 @@ import { SafePipe } from './safe.pipe';
     ],
 })
 export class VodDetailsComponent implements OnInit, OnDestroy {
-    private dataService = inject(DataService);
-    private dialog = inject(MatDialog);
     private settingsStore = inject(SettingsStore);
     private route = inject(ActivatedRoute);
     private store = inject(Store);
     private readonly xtreamStore = inject(XtreamStore);
     private playerService = inject(PlayerService);
 
-    readonly settings = this.settingsStore.getSettings();
+    readonly theme = this.settingsStore.theme;
     private readonly selectedContentType = this.xtreamStore.selectedContentType;
     private readonly hideExternalInfoDialog =
         this.xtreamStore.hideExternalInfoDialog;

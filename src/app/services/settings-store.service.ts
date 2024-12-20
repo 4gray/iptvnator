@@ -1,5 +1,13 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { computed, inject } from '@angular/core';
+import {
+    patchState,
+    signalStore,
+    withComputed,
+    withMethods,
+    withState,
+} from '@ngrx/signals';
 import { StorageMap } from '@ngx-pwa/local-storage';
+import { firstValueFrom } from 'rxjs';
 import { Language } from '../settings/language.enum';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
 import { Theme } from '../settings/theme.enum';
@@ -17,35 +25,44 @@ const DEFAULT_SETTINGS: Settings = {
     epgUrl: [],
 };
 
-@Injectable({
-    providedIn: 'root',
-})
-export class SettingsStore {
-    private settings = signal<Settings>(DEFAULT_SETTINGS);
+export const SettingsStore = signalStore(
+    { providedIn: 'root' },
+    withState<Settings>(DEFAULT_SETTINGS),
+    withComputed((store) => ({
+        player: computed(() => store.player()),
+        showCaptions: computed(() => store.showCaptions()),
+        theme: computed(() => store.theme()),
+    })),
+    withMethods((store, storage = inject(StorageMap)) => ({
+        async loadSettings() {
+            const stored = await firstValueFrom(
+                storage.get(STORE_KEY.Settings)
+            );
+            if (stored) {
+                patchState(store, {
+                    ...DEFAULT_SETTINGS,
+                    ...(stored as Settings),
+                });
+            }
+        },
 
-    // Computed values for commonly used settings
-    readonly player = computed(() => this.settings().player);
-    readonly showCaptions = computed(() => this.settings().showCaptions);
-    readonly theme = computed(() => this.settings().theme);
+        async updateSettings(settings: Partial<Settings>) {
+            patchState(store, settings);
+            await firstValueFrom(storage.set(STORE_KEY.Settings, settings));
+        },
 
-    constructor(private storage: StorageMap) {
-        this.loadSettings();
-    }
-
-    async loadSettings() {
-        const stored = await this.storage.get(STORE_KEY.Settings).toPromise();
-        if (stored) {
-            this.settings.set({ ...DEFAULT_SETTINGS, ...(stored as Settings) });
-        }
-    }
-
-    async updateSettings(settings: Partial<Settings>) {
-        const newSettings = { ...this.settings(), ...settings };
-        this.settings.set(newSettings);
-        await this.storage.set(STORE_KEY.Settings, newSettings).toPromise();
-    }
-
-    getSettings() {
-        return this.settings;
-    }
-}
+        getSettings() {
+            return {
+                player: store.player(),
+                language: store.language(),
+                showCaptions: store.showCaptions(),
+                theme: store.theme(),
+                mpvPlayerPath: store.mpvPlayerPath(),
+                vlcPlayerPath: store.vlcPlayerPath(),
+                remoteControl: store.remoteControl(),
+                remoteControlPort: store.remoteControlPort(),
+                epgUrl: store.epgUrl(),
+            };
+        },
+    }))
+);

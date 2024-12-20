@@ -106,13 +106,13 @@ export class LiveStreamLayoutComponent implements OnInit {
 
     openPlayer(streamUrl: string, title: string, thumbnail: string) {
         this.streamUrl = streamUrl;
-        this.player = this.settings()?.player ?? VideoPlayer.VideoJs;
+        this.player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
         if (this.player === VideoPlayer.MPV) {
             if (!this.hideExternalInfoDialog())
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
-                mpvPlayerPath: this.settings()?.mpvPlayerPath,
+                mpvPlayerPath: this.settingsStore.mpvPlayerPath(),
                 title,
                 thumbnail,
             });
@@ -121,7 +121,7 @@ export class LiveStreamLayoutComponent implements OnInit {
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
-                vlcPlayerPath: this.settings()?.vlcPlayerPath,
+                vlcPlayerPath: this.settingsStore.vlcPlayerPath(),
             });
         } else {
             if (this.selectedContentType() !== 'live') {

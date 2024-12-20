@@ -1,6 +1,13 @@
 /* eslint-disable @typescript-eslint/no-base-to-string */
 import { CommonModule } from '@angular/common';
-import { Component, Inject, Input, OnInit, Optional } from '@angular/core';
+import {
+    Component,
+    inject,
+    Inject,
+    Input,
+    OnInit,
+    Optional,
+} from '@angular/core';
 import {
     FormArray,
     FormBuilder,
@@ -136,6 +143,8 @@ export class SettingsComponent implements OnInit {
     /** Form array with epg sources */
     epgUrl = this.settingsForm.get('epgUrl') as FormArray;
 
+    private settingsStore = inject(SettingsStore);
+
     /**
      * Creates an instance of SettingsComponent and injects
      * required dependencies into the component
@@ -152,7 +161,6 @@ export class SettingsComponent implements OnInit {
         private store: Store,
         private translate: TranslateService,
         private matDialog: MatDialog,
-        private settingsStore: SettingsStore,
         @Optional() @Inject(MAT_DIALOG_DATA) data?: { isDialog: boolean }
     ) {
         this.isDialog = data?.isDialog ?? false;
@@ -172,7 +180,7 @@ export class SettingsComponent implements OnInit {
      */
     async setSettings() {
         await this.settingsStore.loadSettings();
-        const currentSettings = this.settingsStore.getSettings()();
+        const currentSettings = this.settingsStore.getSettings();
         this.settingsForm.patchValue(currentSettings);
 
         if (this.isTauri && currentSettings.epgUrl) {
