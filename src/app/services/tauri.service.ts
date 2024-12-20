@@ -51,6 +51,9 @@ export class TauriService extends DataService {
                 path: (payload as any).mpvPlayerPath || '',
                 title: (payload as any).title ?? '',
                 thumbnail: (payload as any).thumbnail ?? '',
+                userAgent: (payload as any).http?.['user-agent'] ?? '',
+                referer: (payload as any).http?.referrer ?? '',
+                origin: (payload as any).http?.origin ?? '',
             }).catch((error) => {
                 window.postMessage({
                     type: ERROR,
