@@ -29,6 +29,9 @@ pub async fn open_in_mpv<R: Runtime>(
     path: String,
     title: String,
     thumbnail: Option<String>,
+    user_agent: Option<String>,
+    referer: Option<String>,
+    origin: Option<String>,
     app_handle: tauri::AppHandle<R>,
 ) -> Result<u32, String> {
     info!("Custom MVP path: {}", path);
@@ -68,11 +71,43 @@ pub async fn open_in_mpv<R: Runtime>(
             .as_secs()
     );
 
-    let child = Command::new(mpv_path)
-        .arg(format!("--input-ipc-server={}", ipc_socket))
-        .arg(&url)
-        .spawn()
-        .map_err(|e| e.to_string())?;
+    let mut command = Command::new(mpv_path.clone());
+    command.arg(format!("--input-ipc-server={}", ipc_socket));
+    
+    // Add headers if they are provided
+    if let Some(ua) = user_agent {
+        if !ua.is_empty() {
+            command.arg(format!("--user-agent={}", ua));
+        }
+    }
+
+    if let Some(ref_url) = referer {
+        if !ref_url.is_empty() {
+            command.arg(format!("--referrer={}", ref_url));
+        }
+    }
+
+    if let Some(origin_url) = origin {
+        if !origin_url.is_empty() {
+            command.arg(format!("--http-header-fields=Origin: {}", origin_url));
+        }
+    }
+
+    command.arg(&url);
+
+    // Log the complete command line
+    let command_str = format!(
+        "{} {}",
+        mpv_path,
+        command
+            .get_args()
+            .map(|arg| arg.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    info!("Complete MPV command: {}", command_str);
+
+    let child = command.spawn().map_err(|e| e.to_string())?;
 
     let process_id = child.id();
 
@@ -187,3 +222,4 @@ pub async fn open_in_vlc<R: Runtime>(
 
     Ok(())
 }
+
