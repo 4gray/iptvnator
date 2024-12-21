@@ -167,15 +167,10 @@ export class NavigationBarComponent implements OnChanges {
     }
 
     openSettings(): void {
-        this.dialog
-            .open(SettingsComponent, {
-                width: '1000px',
-                height: '90%',
-                data: { isDialog: true },
-            })
-            .afterClosed()
-            .subscribe(() => {
-                this.settingsStore.loadSettings();
-            });
+        this.dialog.open(SettingsComponent, {
+            width: '1000px',
+            height: '90%',
+            data: { isDialog: true },
+        });
     }
 }

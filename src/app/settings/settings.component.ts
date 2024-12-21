@@ -178,8 +178,7 @@ export class SettingsComponent implements OnInit {
     /**
      * Sets saved settings from the indexed db store
      */
-    async setSettings() {
-        await this.settingsStore.loadSettings();
+    setSettings() {
         const currentSettings = this.settingsStore.getSettings();
         this.settingsForm.patchValue(currentSettings);
 

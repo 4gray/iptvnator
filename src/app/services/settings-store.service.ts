@@ -1,8 +1,8 @@
-import { computed, inject } from '@angular/core';
+import { inject } from '@angular/core';
 import {
     patchState,
     signalStore,
-    withComputed,
+    withHooks,
     withMethods,
     withState,
 } from '@ngrx/signals';
@@ -28,11 +28,6 @@ const DEFAULT_SETTINGS: Settings = {
 export const SettingsStore = signalStore(
     { providedIn: 'root' },
     withState<Settings>(DEFAULT_SETTINGS),
-    withComputed((store) => ({
-        player: computed(() => store.player()),
-        showCaptions: computed(() => store.showCaptions()),
-        theme: computed(() => store.theme()),
-    })),
     withMethods((store, storage = inject(StorageMap)) => ({
         async loadSettings() {
             const stored = await firstValueFrom(
@@ -64,5 +59,10 @@ export const SettingsStore = signalStore(
                 epgUrl: store.epgUrl(),
             };
         },
-    }))
+    })),
+    withHooks({
+        onInit(store) {
+            store.loadSettings();
+        },
+    })
 );
