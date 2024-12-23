@@ -176,6 +176,20 @@ export const XtreamStore = signalStore(
 
                 return Math.ceil(totalItems / store.limit());
             }),
+            selectItemsFromSelectedCategory: computed(() => {
+                const categoryId = store.selectedCategoryId();
+                const categoryType = store.selectedContentType();
+                const content =
+                    categoryType === 'live'
+                        ? store.liveStreams()
+                        : categoryType === 'vod'
+                          ? store.vodStreams()
+                          : store.serialStreams();
+
+                return content.filter(
+                    (item) => item.category_id === categoryId
+                );
+            }),
         };
     }),
     withMethods(
@@ -692,11 +706,13 @@ export const XtreamStore = signalStore(
 
             const setPage = (page: number) => patchState(store, { page });
             const setLimit = (limit: number) => patchState(store, { limit });
-            const setSelectedCategory = (categoryId: number) =>
+            const setSelectedCategory = (categoryId: number) => {
+                console.log(categoryId);
                 patchState(store, {
                     selectedCategoryId: Number(categoryId),
                     page: 1,
                 });
+            };
             const setSelectedContentType = (type: 'live' | 'vod' | 'series') =>
                 patchState(store, {
                     selectedContentType: type,
@@ -898,9 +914,11 @@ export const XtreamStore = signalStore(
                     if (!item || !playlist) return;
 
                     const db = await dbService.getConnection();
+                    const xtreamId = item.stream_id || item.series_id;
+
                     const content: any = await db.select(
                         'SELECT id FROM content WHERE xtream_id = ?',
-                        [item.movie_data?.stream_id || item.series_id]
+                        [xtreamId]
                     );
 
                     if (!content || content.length === 0) {
@@ -910,7 +928,7 @@ export const XtreamStore = signalStore(
 
                     const contentId = content[0].id;
                     const isFavorite = await favoritesService.isFavorite(
-                        contentId,
+                        xtreamId,
                         playlist.id
                     );
 
@@ -938,19 +956,15 @@ export const XtreamStore = signalStore(
                         return;
                     }
 
-                    const db = await dbService.getConnection();
-                    const content: any = await db.select(
-                        'SELECT id FROM content WHERE xtream_id = ?',
-                        [item.xtream_id]
-                    );
+                    const xtreamId = item.stream_id || item.series_id;
 
-                    if (!content || content.length === 0) {
+                    if (!xtreamId) {
                         patchState(store, { isFavorite: false });
                         return;
                     }
 
                     const isFavorite = await favoritesService.isFavorite(
-                        content[0].id,
+                        xtreamId,
                         playlist.id
                     );
 
@@ -966,11 +980,4 @@ export const XtreamStore = signalStore(
             };
         }
     )
-    /* withHooks((store) => ({
-        onInit() {
-            watchState(store, (state) => {
-                console.log('[watchState] xtream state', state);
-            });
-        },
-    })) */
 );
