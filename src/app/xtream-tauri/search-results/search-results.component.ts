@@ -1,4 +1,10 @@
-import { Component, inject } from '@angular/core';
+import {
+    AfterViewInit,
+    Component,
+    ElementRef,
+    inject,
+    ViewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -23,7 +29,8 @@ import { XtreamStore } from '../xtream.store';
     templateUrl: './search-results.component.html',
     styleUrls: ['./search-results.component.scss'],
 })
-export class SearchResultsComponent {
+export class SearchResultsComponent implements AfterViewInit {
+    @ViewChild('searchInput') searchInput!: ElementRef;
     readonly xtreamStore = inject(XtreamStore);
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
@@ -33,6 +40,13 @@ export class SearchResultsComponent {
         movie: true,
         series: true,
     };
+
+    ngAfterViewInit() {
+        this.xtreamStore.setSelectedContentType(undefined);
+        setTimeout(() => {
+            this.searchInput.nativeElement.focus();
+        });
+    }
 
     onSearch() {
         if (this.searchTerm.length >= 3) {
@@ -50,12 +64,12 @@ export class SearchResultsComponent {
         this.xtreamStore.setSelectedContentType(type);
 
         if (item.type === 'live') {
-            this.router.navigate(['..', 'live'], {
+            this.router.navigate(['..', type, item.category_id], {
                 relativeTo: this.activatedRoute,
             });
         } else {
             this.router.navigate(
-                ['..', item.category_id, type, item.xtream_id],
+                ['..', type, item.category_id, item.xtream_id],
                 {
                     relativeTo: this.activatedRoute,
                 }
