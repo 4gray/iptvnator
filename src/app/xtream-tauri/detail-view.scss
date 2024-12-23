@@ -53,13 +53,13 @@
 .image {
     grid-area: image;
     margin: 0;
-    border-radius: 5px;
+    border-radius: 12px;
     max-width: 100%;
 
     img {
         width: 100%;
         height: auto;
-        border-radius: 5px;
+        border-radius: 12px;
         object-fit: cover;
     }
 
@@ -67,7 +67,7 @@
         width: 100%;
         aspect-ratio: 2/3;
         background-color: #999;
-        border-radius: 5px;
+        border-radius: 12px;
 
         &::after {
             content: 'No cover';
