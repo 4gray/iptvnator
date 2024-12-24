@@ -1,46 +1,23 @@
-@if (xtreamStore.isImporting()) {
-    <app-loading-overlay
-        [current]="xtreamStore.getImportCount()"
-        [total]="xtreamStore.itemsToImport()"
-    />
-}
-
-<div class="xtream-container">
-    <div class="sidebar navigation-sidebar">
-        <app-navigation />
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2>Categories</h2>
     </div>
+    <app-category-view (categoryClicked)="categoryClicked($event)" />
+</div>
 
-    @if (
-        xtreamStore.selectedContentType() === 'vod' ||
-        xtreamStore.selectedContentType() === 'series'
-    ) {
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <h2>Categories</h2>
-            </div>
-            <app-category-view (categoryClicked)="categoryClicked($event)" />
-        </div>
-    }
-
-    <div class="main-content">
-        @if (
-            xtreamStore.selectedContentType() === 'vod' ||
-            xtreamStore.selectedContentType() === 'series'
-        ) {
-            <div class="content-header">
-                <h2>
-                    @if (xtreamStore.selectedItem()) {
-                        <button mat-icon-button (click)="historyBack()">
-                            <mat-icon>chevron_left</mat-icon>
-                        </button>
-                    }
-                    {{ getContentLabel() }}
-                </h2>
-            </div>
-        }
-        <div class="scrollable-content">
-            <router-outlet />
-        </div>
-        <app-mpv-player-bar />
+<div class="main-content">
+    <div class="content-header">
+        <h2>
+            @if (xtreamStore.selectedItem()) {
+                <button mat-icon-button (click)="historyBack()">
+                    <mat-icon>chevron_left</mat-icon>
+                </button>
+            }
+            {{ getContentLabel() }}
+        </h2>
     </div>
+    <div class="scrollable-content">
+        <router-outlet />
+    </div>
+    <app-mpv-player-bar />
 </div>

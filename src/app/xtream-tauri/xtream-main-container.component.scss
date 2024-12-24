@@ -1,37 +1,9 @@
 :host {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;  // Changed from column to row
     overflow: hidden;
     height: 100%;
-}
-
-.xtream-container {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-    min-height: 0; // Important for proper flex behavior
-}
-
-.sidebar {
-    width: 300px;
-    border-right: 1px solid #333;
-    display: flex;
-    flex-direction: column;
-    
-    .sidebar-header {
-        padding: 16px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-        
-        h2 {
-            margin: 0;
-            font-size: 1.2rem;
-            font-weight: 500;
-        }
-    }
-}
-
-.navigation-sidebar {
-    width: 200px;
+    width: 100%;  // Added to ensure full width
 }
 
 .main-content {
@@ -39,23 +11,23 @@
     display: flex;
     flex-direction: column;
     min-height: 0; // Important for proper flex behavior
+}
 
-    .content-header {
-        padding: 16px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+.content-header {
+    padding: 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 
-        h2 {
-            margin: 0;
-            font-size: 1.2rem;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+    h2 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
+}
 
-    .scrollable-content {
-        flex: 1;
-        overflow-y: auto;
-    }
+.scrollable-content {
+    flex: 1;
+    overflow-y: auto;
 }
