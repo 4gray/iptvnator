@@ -1,9 +1,9 @@
 import { DatePipe } from '@angular/common';
 import { Component, Input, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatIconModule } from '@angular/material/icon';
+import { MatDivider } from '@angular/material/divider';
+import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { TranslateModule } from '@ngx-translate/core';
 import { EpgItemDescriptionComponent } from '../../player/components/epg-list/epg-item-description/epg-item-description.component';
@@ -15,11 +15,21 @@ import { EpgItem } from '../../xtream/epg-item.interface';
     templateUrl: './epg-view.component.html',
     imports: [
         DatePipe,
-        MatButtonModule,
-        MatDividerModule,
-        MatIconModule,
+        MatIconButton,
+        MatDivider,
+        MatIcon,
         MatListModule,
         TranslateModule,
+    ],
+    styles: [
+        `
+            .epg-title {
+                margin: 0;
+                font-size: 1.2rem;
+                font-weight: 500;
+                padding: 16px;
+            }
+        `,
     ],
 })
 export class EpgViewComponent {
