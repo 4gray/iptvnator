@@ -9,5 +9,6 @@
         "revealOn": "run",
         "revealWithFocus": "none",
         "clearOnRun": "none"
-    }
+    },
+    "testing.automaticallyOpenTestResults": "neverOpen"
 }
