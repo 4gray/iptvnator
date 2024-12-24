@@ -4,19 +4,19 @@
     </div>
 
     <mat-tab-group>
-        <mat-tab label="Live TV">
+        <mat-tab label="Live TV ({{ liveCount }})">
             <ng-container
                 *ngTemplateOutlet="itemsGrid; context: { type: 'live' }"
             >
             </ng-container>
         </mat-tab>
-        <mat-tab label="Movies">
+        <mat-tab label="Movies ({{ moviesCount }})">
             <ng-container
                 *ngTemplateOutlet="itemsGrid; context: { type: 'movie' }"
             >
             </ng-container>
         </mat-tab>
-        <mat-tab label="Series">
+        <mat-tab label="Series ({{ seriesCount }})">
             <ng-container
                 *ngTemplateOutlet="itemsGrid; context: { type: 'series' }"
             >

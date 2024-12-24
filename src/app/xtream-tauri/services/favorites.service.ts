@@ -37,8 +37,9 @@ export class FavoritesService {
         const db = await this.dbService.getConnection();
         const result = await db.select<any[]>(
             `SELECT COUNT(*) as count 
-             FROM favorites 
-             WHERE content_id = ? AND playlist_id = ?`,
+             FROM favorites f
+             JOIN content c ON f.content_id = c.id
+             WHERE c.xtream_id = ? AND f.playlist_id = ?`,
             [contentId, playlistId]
         );
         return result[0].count > 0;
