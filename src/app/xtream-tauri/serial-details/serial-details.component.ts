@@ -41,8 +41,11 @@ export class SerialDetailsComponent {
                 ...currentSerial,
                 series_id: serialId,
             });
-            // Move checkFavoriteStatus after setting the selected item
-            this.xtreamStore.checkFavoriteStatus();
+
+            this.xtreamStore.checkFavoriteStatus(
+                serialId,
+                this.xtreamStore.currentPlaylist().id
+            );
         });
     }
 
@@ -73,6 +76,9 @@ export class SerialDetailsComponent {
     }
 
     toggleFavorite() {
-        this.xtreamStore.toggleFavorite();
+        this.xtreamStore.toggleFavorite(
+            this.route.snapshot.params.serialId,
+            this.xtreamStore.currentPlaylist().id
+        );
     }
 }

@@ -44,12 +44,14 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
         this.xtreamStore.getVodDetails(vodId).then((currentVod) => {
             this.xtreamStore.setSelectedCategory(Number(categoryId));
             this.xtreamStore.setSelectedItem({
-                ...currentVod.movie_data,
-                info: currentVod.info,
+                ...currentVod,
                 stream_id: vodId,
             });
             // Check favorite status after setting selected item
-            this.xtreamStore.checkFavoriteStatus();
+            this.xtreamStore.checkFavoriteStatus(
+                vodId,
+                this.xtreamStore.currentPlaylist().id
+            );
         });
     }
 
@@ -81,7 +83,10 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
     }
 
     toggleFavorite() {
-        this.xtreamStore.toggleFavorite();
+        this.xtreamStore.toggleFavorite(
+            this.route.snapshot.params.vodId,
+            this.xtreamStore.currentPlaylist().id
+        );
     }
 
     private addToRecentlyViewed() {
