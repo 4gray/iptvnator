@@ -1,5 +1,34 @@
 import { Injectable } from '@angular/core';
 import Database from '@tauri-apps/plugin-sql';
+import { PlaylistMeta } from '../shared/playlist-meta.type';
+
+export interface XCategoryFromDb {
+    id: number;
+    name: string;
+    playlist_id: string;
+    type: 'movies' | 'live' | 'series';
+    xtream_id: number;
+}
+
+export interface XtreamContent {
+    id: number;
+    category_id: number;
+    title: string;
+    rating: string;
+    added: string;
+    poster_url: string;
+    xtream_id: number;
+    type: string;
+}
+
+export interface XtreamPlaylist {
+    id: string;
+    name: string;
+    serverUrl: string;
+    username: string;
+    password: string;
+    type: string;
+}
 
 @Injectable({
     providedIn: 'root',
@@ -127,5 +156,216 @@ export class DatabaseService {
             console.error('Error updating playlist details:', error);
             return false;
         }
+    }
+
+    async hasXtreamCategories(
+        playlistId: string,
+        type: 'live' | 'movies' | 'series'
+    ): Promise<boolean> {
+        const db = await this.getConnection();
+        const result = await db.select<XCategoryFromDb[]>(
+            'SELECT * FROM categories WHERE playlist_id = ? AND type = ?',
+            [playlistId, type]
+        );
+        return result.length > 0;
+    }
+
+    async getXtreamCategories(
+        playlistId: string,
+        type: 'live' | 'movies' | 'series'
+    ): Promise<XCategoryFromDb[]> {
+        const db = await this.getConnection();
+        return await db.select<XCategoryFromDb[]>(
+            'SELECT * FROM categories WHERE playlist_id = ? AND type = ?',
+            [playlistId, type]
+        );
+    }
+
+    async saveXtreamCategories(
+        playlistId: string,
+        categories: any[],
+        type: 'live' | 'movies' | 'series'
+    ): Promise<void> {
+        const db = await this.getConnection();
+        for (const category of categories) {
+            await db.execute(
+                'INSERT INTO categories (playlist_id, name, type, xtream_id) VALUES (?, ?, ?, ?)',
+                [playlistId, category.category_name, type, category.category_id]
+            );
+        }
+    }
+
+    async hasXtreamContent(
+        playlistId: string,
+        type: 'live' | 'movie' | 'series'
+    ): Promise<boolean> {
+        const db = await this.getConnection();
+        const result = await db.select(
+            `SELECT c.* FROM content c 
+             JOIN categories cat ON c.category_id = cat.id 
+             WHERE cat.playlist_id = ? AND c.type = ?
+             ORDER BY c.added`,
+            [playlistId, type]
+        );
+        return (result as any[]).length > 0;
+    }
+
+    async getXtreamContent(
+        playlistId: string,
+        type: 'live' | 'movie' | 'series'
+    ): Promise<XtreamContent[]> {
+        const db = await this.getConnection();
+        return await db.select(
+            `SELECT 
+                c.id, c.category_id, c.title, c.rating, 
+                c.added, c.poster_url, c.xtream_id, c.type
+            FROM content c 
+            INNER JOIN categories cat ON c.category_id = cat.id 
+            WHERE cat.playlist_id = ? AND c.type = ?
+            ORDER BY c.added DESC`,
+            [playlistId, type]
+        );
+    }
+
+    async saveXtreamContent(
+        playlistId: string,
+        streams: any[],
+        type: 'live' | 'movie' | 'series',
+        onProgress?: (count: number) => void
+    ): Promise<number> {
+        const db = await this.getConnection();
+        const dbType =
+            type === 'series' ? 'series' : type === 'movie' ? 'movies' : 'live';
+
+        const categories = await db.select<{ id: number; xtream_id: number }[]>(
+            'SELECT id, xtream_id FROM categories WHERE playlist_id = ? AND type = ?',
+            [playlistId, dbType]
+        );
+
+        const categoryMap = new Map(
+            categories.map((c) => [parseInt(c.xtream_id.toString()), c.id])
+        );
+
+        const bulkInsertData = this.prepareBulkInsertData(
+            streams,
+            type,
+            categoryMap
+        );
+        return await this.executeBulkInsert(db, bulkInsertData, onProgress);
+    }
+
+    async searchXtreamContent(
+        playlistId: string,
+        searchTerm: string,
+        types: string[]
+    ): Promise<XtreamContent[]> {
+        const db = await this.getConnection();
+        const placeholders = types.map(() => '?').join(',');
+        return await db.select(
+            `SELECT c.* FROM content c 
+             JOIN categories cat ON c.category_id = cat.id 
+             WHERE (c.title LIKE ?)
+             AND cat.playlist_id = ?
+             AND c.type IN (${placeholders})
+             LIMIT 50`,
+            [`%${searchTerm}%`, playlistId, ...types]
+        );
+    }
+
+    async getPlaylistById(playlistId: string): Promise<XtreamPlaylist | null> {
+        const db = await this.getConnection();
+        const results = await db.select<XtreamPlaylist[]>(
+            'SELECT * FROM playlists WHERE id = ?',
+            [playlistId]
+        );
+        return results[0] || null;
+    }
+
+    async createPlaylist(playlist: PlaylistMeta): Promise<void> {
+        const db = await this.getConnection();
+        await db.execute(
+            'INSERT INTO playlists (id, name, serverUrl, username, password, type) VALUES (?, ?, ?, ?, ?, ?)',
+            [
+                playlist._id,
+                playlist.title,
+                playlist.serverUrl,
+                playlist.username,
+                playlist.password,
+                'xtream',
+            ]
+        );
+    }
+
+    private prepareBulkInsertData(
+        streams: any[],
+        type: string,
+        categoryMap: Map<number, number>
+    ): any[] {
+        return streams
+            .map((stream) => {
+                const streamCategoryId =
+                    type === 'series'
+                        ? parseInt(stream.category_id || '0')
+                        : parseInt(stream.category_id);
+
+                const categoryId = categoryMap.get(streamCategoryId);
+                if (!categoryId) return null;
+
+                const title =
+                    type === 'series'
+                        ? stream.title ||
+                          stream.name ||
+                          `Unknown Series ${stream.series_id}`
+                        : stream.name ||
+                          stream.title ||
+                          `Unknown Stream ${stream.stream_id}`;
+
+                return [
+                    categoryId,
+                    title,
+                    stream.rating || stream.rating_imdb || '',
+                    type === 'series'
+                        ? stream.last_modified || ''
+                        : stream.added || '',
+                    stream.stream_icon || stream.poster || stream.cover || '',
+                    type === 'series'
+                        ? parseInt(stream.series_id || '0')
+                        : parseInt(stream.stream_id || '0'),
+                    type,
+                ];
+            })
+            .filter((data) => data !== null);
+    }
+
+    private async executeBulkInsert(
+        db: Database,
+        data: any[],
+        onProgress?: (count: number) => void
+    ): Promise<number> {
+        const CHUNK_SIZE = 100;
+        let totalInserted = 0;
+
+        for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+            const chunk = data.slice(i, i + CHUNK_SIZE);
+            const placeholders = chunk
+                .map(() => '(?, ?, ?, ?, ?, ?, ?)')
+                .join(', ');
+            const query = `
+                INSERT INTO content (
+                    category_id, title, rating, added,
+                    poster_url, xtream_id, type
+                ) VALUES ${placeholders}
+            `;
+
+            try {
+                await db.execute(query, chunk.flat());
+                totalInserted += chunk.length;
+                onProgress?.(totalInserted);
+            } catch (err) {
+                console.error('Error in bulk insert chunk:', err);
+            }
+        }
+
+        return totalInserted;
     }
 }

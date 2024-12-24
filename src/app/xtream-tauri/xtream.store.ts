@@ -10,41 +10,13 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { EMPTY, from, lastValueFrom, pipe, switchMap, tap } from 'rxjs';
-import { XtreamCategory } from '../../../shared/xtream-category.interface';
 import { XtreamCodeActions } from '../../../shared/xtream-code-actions';
-import { XtreamLiveStream } from '../../../shared/xtream-live-stream.interface';
-import { XtreamSerieItem } from '../../../shared/xtream-serie-item.interface';
-import { XtreamVodStream } from '../../../shared/xtream-vod-stream.interface';
 import { DataService } from '../services/data.service';
 import { DatabaseService } from '../services/database.service';
 import { selectActivePlaylist } from '../state/selectors';
-import { EpgItem } from '../xtream/epg-item.interface';
-import { FavoritesService } from './services/favorites.service';
+import { withFavorites } from './with-favorites.feature';
 import { withRecentItems } from './with-recent-items';
-
-type XtreamState = {
-    isLoadingCategories: boolean;
-    isLoadingContent: boolean;
-    isImporting: boolean;
-    liveCategories: XtreamCategory[];
-    vodCategories: XtreamCategory[];
-    serialCategories: XtreamCategory[];
-    liveStreams: XtreamLiveStream[];
-    vodStreams: XtreamVodStream[];
-    serialStreams: XtreamSerieItem[];
-    page: number;
-    limit: number;
-    selectedCategoryId: number | null;
-    searchResults: any[];
-    selectedContentType: 'live' | 'vod' | 'series';
-    selectedItem: any | null;
-    importCount: number;
-    itemsToImport: number;
-    currentPlaylist: any | null;
-    isFavorite: boolean;
-    epgItems: EpgItem[];
-    hideExternalInfoDialog: boolean;
-};
+import { XtreamState } from './xtream-state';
 
 const initialState: XtreamState = {
     isLoadingCategories: false,
@@ -65,19 +37,10 @@ const initialState: XtreamState = {
     selectedItem: null,
     importCount: 0,
     currentPlaylist: null,
-    isFavorite: false,
     epgItems: [],
     hideExternalInfoDialog:
         localStorage.getItem('hideExternalInfoDialog') === 'true',
 };
-
-interface XCategoryFromDb {
-    id: number;
-    name: string;
-    playlist_id: string; // uuid
-    type: 'movies' | 'live' | 'series';
-    xtream_id: number;
-}
 
 /** to decode epg */
 function b64DecodeUnicode(str: string) {
@@ -93,6 +56,7 @@ function b64DecodeUnicode(str: string) {
 export const XtreamStore = signalStore(
     withState(initialState),
     withRecentItems(),
+    withFavorites(),
     withComputed((store) => {
         return {
             getCategoriesBySelectedType: computed(() => {
@@ -198,231 +162,8 @@ export const XtreamStore = signalStore(
             route = inject(ActivatedRoute),
             dataService = inject(DataService),
             dbService = inject(DatabaseService),
-            oldStore = inject(Store),
-            favoritesService = inject(FavoritesService)
+            oldStore = inject(Store)
         ) => {
-            const checkLocalData = async (
-                type: 'live' | 'movies' | 'series'
-            ) => {
-                const playlistId = route.snapshot.params.id;
-                console.log('Checking local data...', playlistId, type);
-                const db = await dbService.getConnection();
-                const result = await db.select<XCategoryFromDb[]>(
-                    'SELECT * FROM categories WHERE playlist_id = ? AND type = ?',
-                    [playlistId, type]
-                );
-                console.log(`Local data for ${type}:`, result);
-                return result.length > 0;
-            };
-
-            const saveCategoriesToDb = async (
-                categories: XtreamCategory[],
-                type: 'live' | 'movies' | 'series'
-            ) => {
-                const playlistId = route.snapshot.params.id;
-                const db = await dbService.getConnection();
-                for (const category of categories) {
-                    await db.execute(
-                        'INSERT INTO categories (playlist_id, name, type, xtream_id) VALUES (?, ?, ?, ?)',
-                        [
-                            playlistId,
-                            category.category_name,
-                            type,
-                            category.category_id,
-                        ]
-                    );
-                }
-            };
-
-            const getLocalCategories = async (
-                type: 'live' | 'movies' | 'series'
-            ) => {
-                const playlistId = route.snapshot.params.id;
-
-                const db = await dbService.getConnection();
-                return await db.select(
-                    'SELECT * FROM categories WHERE playlist_id = ? AND type = ?',
-                    [playlistId, type]
-                );
-            };
-
-            const checkLocalContent = async (
-                type: 'live' | 'movie' | 'series'
-            ) => {
-                const playlistId = route.snapshot.params.id;
-                console.log('Checking local content...');
-                const db = await dbService.getConnection();
-                const result = await db.select(
-                    `SELECT c.* FROM content c 
-                     JOIN categories cat ON c.category_id = cat.id 
-                     WHERE cat.playlist_id = ? AND c.type = ?
-                     ORDER BY c.added`,
-                    [playlistId, type]
-                );
-                return (result as any[]).length > 0;
-            };
-
-            const saveContentToDb = async (
-                streams: any[],
-                type: 'live' | 'movie' | 'series'
-            ) => {
-                const playlistId = route.snapshot.params.id;
-
-                console.log('Saving content to db...', {
-                    playlistId,
-                    streamCount: streams.length,
-                    type,
-                    sampleStream: streams[0],
-                });
-
-                patchState(store, {
-                    itemsToImport: store.itemsToImport() + streams.length,
-                });
-
-                try {
-                    const db = await dbService.getConnection();
-                    const dbType =
-                        type === 'series'
-                            ? 'series'
-                            : type === 'movie'
-                              ? 'movies'
-                              : 'live';
-
-                    const categories: any[] = await db.select(
-                        'SELECT id, xtream_id FROM categories WHERE playlist_id = ? AND type = ?',
-                        [playlistId, dbType]
-                    );
-
-                    console.log('Found categories in DB:', {
-                        type: dbType,
-                        count: categories.length,
-                        categories: categories,
-                    });
-
-                    const categoryMap = new Map(
-                        categories.map((c) => [parseInt(c.xtream_id), c.id])
-                    );
-
-                    // Prepare bulk insert data
-                    const bulkInsertData = streams
-                        .map((stream) => {
-                            const streamCategoryId =
-                                type === 'series'
-                                    ? parseInt(stream.category_id || '0')
-                                    : parseInt(stream.category_id);
-
-                            const categoryId =
-                                categoryMap.get(streamCategoryId);
-                            if (!categoryId) return null;
-
-                            const title =
-                                type === 'series'
-                                    ? stream.title ||
-                                      stream.name ||
-                                      `Unknown Series ${stream.series_id}`
-                                    : stream.name ||
-                                      stream.title ||
-                                      `Unknown Stream ${stream.stream_id}`;
-
-                            return [
-                                categoryId,
-                                title,
-                                stream.rating || stream.rating_imdb || '',
-                                type === 'series'
-                                    ? stream.last_modified || ''
-                                    : stream.added || '',
-                                stream.stream_icon ||
-                                    stream.poster ||
-                                    stream.cover ||
-                                    '',
-                                type === 'series'
-                                    ? parseInt(stream.series_id || '0')
-                                    : parseInt(stream.stream_id || '0'),
-                                type,
-                            ];
-                        })
-                        .filter((data) => data !== null);
-
-                    if (bulkInsertData.length > 0) {
-                        // Process in chunks to avoid SQLite variable limit
-                        // Each row has 7 variables, so we'll insert 100 rows at a time (700 variables)
-                        const CHUNK_SIZE = 100;
-                        const chunks = [];
-
-                        for (
-                            let i = 0;
-                            i < bulkInsertData.length;
-                            i += CHUNK_SIZE
-                        ) {
-                            chunks.push(
-                                bulkInsertData.slice(i, i + CHUNK_SIZE)
-                            );
-                        }
-
-                        let totalInserted = 0;
-
-                        for (const chunk of chunks) {
-                            try {
-                                // Construct the bulk insert query for this chunk
-                                const placeholders = chunk
-                                    .map(() => '(?, ?, ?, ?, ?, ?, ?)')
-                                    .join(', ');
-
-                                const query = `
-                                    INSERT INTO content (
-                                        category_id, title, rating, added,
-                                        poster_url, xtream_id, type
-                                    ) VALUES ${placeholders}
-                                `;
-
-                                // Flatten the chunk array for the bulk insert
-                                const flattenedValues = chunk.flat();
-
-                                await db.execute(query, flattenedValues);
-                                totalInserted += chunk.length;
-
-                                console.log(
-                                    `Successfully inserted chunk of ${chunk.length} streams. Total: ${totalInserted}/${bulkInsertData.length}`
-                                );
-                            } catch (err) {
-                                console.error(
-                                    'Error in bulk insert chunk:',
-                                    err
-                                );
-                            }
-                        }
-
-                        patchState(store, {
-                            importCount: store.importCount() + totalInserted,
-                        });
-
-                        console.log(
-                            `Completed bulk insert: ${totalInserted} of ${bulkInsertData.length} streams inserted`
-                        );
-                    }
-                } catch (err) {
-                    console.error('Error in saveContentToDb:', err);
-                }
-            };
-
-            const getLocalContent = async (
-                type: 'live' | 'movie' | 'series'
-            ) => {
-                const playlistId = route.snapshot.params.id;
-                console.log('Getting local content...');
-                const db = await dbService.getConnection();
-                return await db.select(
-                    `SELECT 
-                        c.id, c.category_id, c.title, c.rating, 
-                        c.added, c.poster_url, c.xtream_id, c.type
-                    FROM content c 
-                    INNER JOIN categories cat ON c.category_id = cat.id 
-                    WHERE cat.playlist_id = ? AND c.type = ?
-                    ORDER BY c.added DESC`,
-                    [playlistId, type]
-                );
-            };
-
             const fetchCategories = (
                 action: XtreamCodeActions,
                 stateKey: keyof Pick<
@@ -439,51 +180,45 @@ export const XtreamStore = signalStore(
                     password: store.currentPlaylist().password,
                 };
 
-                return from(checkLocalData(type)).pipe(
+                return from(
+                    dbService.hasXtreamCategories(
+                        route.snapshot.params.id,
+                        type
+                    )
+                ).pipe(
                     switchMap(async (exists) => {
                         try {
                             if (exists) {
                                 const localData =
-                                    await getLocalCategories(type);
+                                    await dbService.getXtreamCategories(
+                                        route.snapshot.params.id,
+                                        type
+                                    );
                                 patchState(store, {
                                     [stateKey]: localData,
                                     isLoadingCategories: false,
                                 });
                                 return localData;
                             }
-                            console.log(
-                                'Fetching remote categories:',
-                                store.currentPlaylist()
-                            );
+
                             const remoteData = await dataService.fetchData(
                                 `${store.currentPlaylist().serverUrl}/player_api.php`,
                                 queryParams
                             );
 
                             if (remoteData && Array.isArray(remoteData)) {
-                                console.log(
-                                    `Got remote ${type} categories:`,
-                                    remoteData.length
+                                await dbService.saveXtreamCategories(
+                                    route.snapshot.params.id,
+                                    remoteData,
+                                    type
                                 );
-                                await saveCategoriesToDb(remoteData, type);
-                            } else {
-                                console.error(
-                                    'Invalid remote data received:',
-                                    remoteData
-                                );
-                                patchState(store, {
-                                    isLoadingCategories: false,
-                                });
-                                return [];
                             }
 
-                            const localData: any =
-                                await getLocalCategories(type);
-                            console.log(
-                                `Loaded ${type} categories from DB:`,
-                                localData.length
-                            );
-
+                            const localData =
+                                await dbService.getXtreamCategories(
+                                    route.snapshot.params.id,
+                                    type
+                                );
                             patchState(store, {
                                 [stateKey]: localData,
                                 isLoadingCategories: false,
@@ -518,11 +253,17 @@ export const XtreamStore = signalStore(
                     password: store.currentPlaylist().password,
                 };
 
-                return from(checkLocalContent(type)).pipe(
+                return from(
+                    dbService.hasXtreamContent(route.snapshot.params.id, type)
+                ).pipe(
                     switchMap(async (exists) => {
                         try {
                             if (exists) {
-                                const localData = await getLocalContent(type);
+                                const localData =
+                                    await dbService.getXtreamContent(
+                                        route.snapshot.params.id,
+                                        type
+                                    );
                                 patchState(store, {
                                     [stateKey]: localData,
                                     isLoadingContent: false,
@@ -536,11 +277,28 @@ export const XtreamStore = signalStore(
                             );
 
                             if (remoteData && Array.isArray(remoteData)) {
-                                await saveContentToDb(remoteData, type);
+                                patchState(store, {
+                                    itemsToImport:
+                                        store.itemsToImport() +
+                                        remoteData.length,
+                                });
+                                const insertedCount =
+                                    await dbService.saveXtreamContent(
+                                        route.snapshot.params.id,
+                                        remoteData,
+                                        type,
+                                        (count) =>
+                                            patchState(store, {
+                                                importCount: count,
+                                            })
+                                    );
+                                console.log(`Inserted ${insertedCount} items`);
                             }
 
-                            const localData = await getLocalContent(type);
-
+                            const localData = await dbService.getXtreamContent(
+                                route.snapshot.params.id,
+                                type
+                            );
                             patchState(store, {
                                 [stateKey]: localData,
                                 isLoadingContent: false,
@@ -560,60 +318,31 @@ export const XtreamStore = signalStore(
                 searchTerm: string,
                 types: string[]
             ) => {
-                const db = await dbService.getConnection();
-                const placeholders = types.map(() => '?').join(',');
-                const playlistId = route.snapshot.params.id;
-                const results: any[] = await db.select(
-                    `SELECT c.* FROM content c 
-                     JOIN categories cat ON c.category_id = cat.id 
-                     WHERE (c.title LIKE ?)
-                     AND cat.playlist_id = ?
-                     AND c.type IN (${placeholders})
-                     LIMIT 50`,
-                    [`%${searchTerm}%`, playlistId, ...types]
+                const results = await dbService.searchXtreamContent(
+                    route.snapshot.params.id,
+                    searchTerm,
+                    types
                 );
-
                 patchState(store, { searchResults: results });
             };
+
             const fetchXtreamPlaylist = rxMethod<void>(
                 pipe(() => {
                     const playlistId = route.snapshot.params.id;
                     if (!playlistId) return EMPTY;
-                    return from(dbService.getConnection()).pipe(
-                        switchMap((db) =>
-                            from(
-                                db.select(
-                                    'SELECT * FROM playlists WHERE id = ?',
-                                    [playlistId]
-                                )
-                            )
-                        ),
-                        switchMap(async (res) => {
-                            if (res[0]) {
-                                patchState(store, { currentPlaylist: res[0] });
+                    return from(dbService.getPlaylistById(playlistId)).pipe(
+                        switchMap(async (playlist) => {
+                            if (playlist) {
+                                patchState(store, {
+                                    currentPlaylist: playlist,
+                                });
                             } else {
                                 const playlist =
                                     oldStore.selectSignal(
                                         selectActivePlaylist
                                     )();
-                                console.log(
-                                    'Fetched playlist from default store:',
-                                    playlist
-                                );
                                 if (playlist) {
-                                    const db = await dbService.getConnection();
-                                    // Insert into DB
-                                    await db.execute(
-                                        'INSERT INTO playlists (id, name, serverUrl, username, password, type) VALUES (?, ?, ?, ?, ?, ?)',
-                                        [
-                                            playlist._id,
-                                            playlist.title,
-                                            playlist.serverUrl,
-                                            playlist.username,
-                                            playlist.password,
-                                            'xtream',
-                                        ]
-                                    );
+                                    await dbService.createPlaylist(playlist);
                                     patchState(store, {
                                         currentPlaylist: {
                                             ...playlist,
@@ -906,69 +635,6 @@ export const XtreamStore = signalStore(
                         });
                         return [];
                     }
-                },
-                async toggleFavorite() {
-                    const item = store.selectedItem();
-                    const playlist = store.currentPlaylist();
-
-                    if (!item || !playlist) return;
-
-                    const db = await dbService.getConnection();
-                    const xtreamId = item.stream_id || item.series_id;
-
-                    const content: any = await db.select(
-                        'SELECT id FROM content WHERE xtream_id = ?',
-                        [xtreamId]
-                    );
-
-                    if (!content || content.length === 0) {
-                        console.error('Content not found in database');
-                        return;
-                    }
-
-                    const contentId = content[0].id;
-                    const isFavorite = await favoritesService.isFavorite(
-                        xtreamId,
-                        playlist.id
-                    );
-
-                    if (isFavorite) {
-                        await favoritesService.removeFromFavorites(
-                            contentId,
-                            playlist.id
-                        );
-                    } else {
-                        await favoritesService.addToFavorites({
-                            content_id: contentId,
-                            playlist_id: playlist.id,
-                        });
-                    }
-
-                    patchState(store, { isFavorite: !isFavorite });
-                },
-
-                async checkFavoriteStatus() {
-                    const item = store.selectedItem();
-                    const playlist = store.currentPlaylist();
-
-                    if (!item || !playlist) {
-                        patchState(store, { isFavorite: false });
-                        return;
-                    }
-
-                    const xtreamId = item.stream_id || item.series_id;
-
-                    if (!xtreamId) {
-                        patchState(store, { isFavorite: false });
-                        return;
-                    }
-
-                    const isFavorite = await favoritesService.isFavorite(
-                        xtreamId,
-                        playlist.id
-                    );
-
-                    patchState(store, { isFavorite });
                 },
                 setHideExternalInfoDialog(hideExternalInfoDialog: boolean) {
                     localStorage.setItem(
