@@ -70,14 +70,9 @@
         <mat-icon matListItemIcon>favorite</mat-icon>
         <span matListItemTitle>Favorites</span>
     </a>
+</mat-nav-list>
 
-    <mat-divider />
-
-    <a mat-list-item (click)="openSettings()">
-        <mat-icon matListItemIcon>settings</mat-icon>
-        <span matListItemTitle>{{ 'MENU.SETTINGS' | translate }}</span>
-    </a>
-
+<mat-nav-list class="navigation-bottom">
     <a mat-list-item (click)="openAccountInfo()">
         <mat-icon matListItemIcon>account_circle</mat-icon>
         <span matListItemTitle>Account Info</span>
@@ -86,5 +81,10 @@
     <a mat-list-item (click)="openPlaylistInfo()">
         <mat-icon matListItemIcon>info</mat-icon>
         <span matListItemTitle>Playlist Info</span>
+    </a>
+
+    <a mat-list-item (click)="openSettings()">
+        <mat-icon matListItemIcon>settings</mat-icon>
+        <span matListItemTitle>{{ 'MENU.SETTINGS' | translate }}</span>
     </a>
 </mat-nav-list>

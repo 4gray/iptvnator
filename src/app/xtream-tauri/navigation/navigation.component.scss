@@ -1,11 +1,17 @@
 :host {
     padding: 10px;
-    display: block;
+    display: flex;
+    flex-direction: column;
     height: 100%;
 }
 
 .mat-nav-list {
     padding-top: 0;
+}
+
+.navigation-bottom {
+    margin-top: auto;
+    padding-bottom: 16px;
 }
 
 .active {
