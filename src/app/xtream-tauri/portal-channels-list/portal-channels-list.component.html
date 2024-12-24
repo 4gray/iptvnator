@@ -1,0 +1,54 @@
+<div class="search-panel">
+    <mat-form-field class="search-bar" subscriptSizing="dynamic">
+        <mat-icon matPrefix>search</mat-icon>
+        <input
+            matInput
+            spellcheck="false"
+            type="search"
+            [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
+            [(ngModel)]="searchString"
+        />
+    </mat-form-field>
+</div>
+
+<mat-nav-list>
+    <cdk-virtual-scroll-viewport
+        [itemSize]="48"
+        class="scroll-viewport-portals"
+    >
+        <mat-list-item
+            *cdkVirtualFor="
+                let item of channels() | filterBy: searchString() : 'title';
+                trackBy: trackBy;
+                templateCacheSize: 0
+            "
+            (click)="playClicked.emit(item)"
+            [activated]="
+                xtreamStore.selectedItem()?.xtream_id === item.xtream_id
+            "
+        >
+            <img
+                matListItemAvatar
+                class="stream-icon"
+                [src]="item.poster_url"
+                (error)="
+                    $event.target.src = './assets/images/default-poster.png'
+                "
+            />
+            <div class="title" matListItemTitle>
+                {{ item.title }}
+            </div>
+            <button
+                mat-icon-button
+                matListItemMeta
+                (click)="toggleFavorite($event, item)"
+            >
+                <mat-icon>
+                    {{
+                        favorites.get(item.xtream_id) ? 'star' : 'star_outline'
+                    }}
+                </mat-icon>
+            </button>
+        </mat-list-item>
+    </cdk-virtual-scroll-viewport>
+</mat-nav-list>

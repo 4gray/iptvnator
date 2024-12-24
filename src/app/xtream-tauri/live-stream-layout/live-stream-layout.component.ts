@@ -1,37 +1,24 @@
-import { ScrollingModule } from '@angular/cdk/scrolling';
-import { NgIf } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
     inject,
     OnInit,
-    signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
+import { ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
-import {
-    OPEN_MPV_PLAYER,
-    OPEN_VLC_PLAYER,
-} from '../../../../shared/ipc-commands';
-import { XtreamItem } from '../../../../shared/xtream-item.interface';
+import { XtreamCategory } from '../../../../shared/xtream-category.interface';
 import { EpgViewComponent } from '../../portals/epg-view/epg-view.component';
 import { WebPlayerViewComponent } from '../../portals/web-player-view/web-player-view.component';
-import { DataService } from '../../services/data.service';
-import { DatabaseService } from '../../services/database.service'; // Add this import
+import { PlayerService } from '../../services/player.service';
 import { SettingsStore } from '../../services/settings-store.service';
-import { VideoPlayer } from '../../settings/settings.interface';
-import { ExternalPlayerInfoDialogComponent } from '../../shared/components/external-player-info-dialog/external-player-info-dialog.component';
-import { FilterPipe } from '../../shared/pipes/filter.pipe';
-import {
-    PlayerDialogComponent,
-    PlayerDialogData,
-} from '../player-dialog/player-dialog.component';
+import { CategoryViewComponent } from '../category-view/category-view.component';
+import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../xtream.store';
 
@@ -39,46 +26,37 @@ import { XtreamStore } from '../xtream.store';
     standalone: true,
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
-    styleUrls: ['./live-stream-layout.component.scss'],
+    styleUrls: ['./live-stream-layout.component.scss', '../sidebar.scss'],
     imports: [
+        CategoryViewComponent,
         EpgViewComponent,
-        FilterPipe,
         FormsModule,
-        MatIconButton,
-        MatListModule,
-        MatIcon,
-        MatInputModule,
         MatFormFieldModule,
-        NgIf,
-        ScrollingModule,
-        WebPlayerViewComponent,
+        MatIcon,
+        MatIconButton,
+        MatInputModule,
+        MatListModule,
+        PortalChannelsListComponent,
         TranslateModule,
+        WebPlayerViewComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LiveStreamLayoutComponent implements OnInit {
-    private settingsStore = inject(SettingsStore);
-    private dialog = inject(MatDialog);
-    private dataService = inject(DataService);
     private favoritesService = inject(FavoritesService);
-    private dbService = inject(DatabaseService); // Add this injection
-
-    private readonly settings = this.settingsStore.getSettings();
-    readonly xtreamStore = inject(XtreamStore);
-    readonly channels = this.xtreamStore.liveStreams;
+    private playerService = inject(PlayerService);
+    private readonly xtreamStore = inject(XtreamStore);
+    private readonly settingsStore = inject(SettingsStore);
     readonly epgItems = this.xtreamStore.epgItems;
+    readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
     private readonly hideExternalInfoDialog =
         this.xtreamStore.hideExternalInfoDialog;
     private readonly selectedContentType = this.xtreamStore.selectedContentType;
+    private readonly route = inject(ActivatedRoute);
 
-    player: VideoPlayer = VideoPlayer.VideoJs;
+    player = this.settingsStore.player;
     streamUrl: string;
-    searchString = signal<string>('');
     favorites = new Map<number, boolean>();
-
-    trackBy(_index: number, item: XtreamItem) {
-        return item.xtream_id;
-    }
 
     ngOnInit() {
         const playlist = this.xtreamStore.currentPlaylist();
@@ -92,6 +70,10 @@ export class LiveStreamLayoutComponent implements OnInit {
                     });
                 });
         }
+
+        const { categoryId } = this.route.firstChild.snapshot.params;
+        if (categoryId)
+            this.xtreamStore.setSelectedCategory(Number(categoryId));
     }
 
     playLive(item: any) {
@@ -106,76 +88,22 @@ export class LiveStreamLayoutComponent implements OnInit {
 
     openPlayer(streamUrl: string, title: string, thumbnail: string) {
         this.streamUrl = streamUrl;
-        this.player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
-        if (this.player === VideoPlayer.MPV) {
-            if (!this.hideExternalInfoDialog())
-                this.dialog.open(ExternalPlayerInfoDialogComponent);
-            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
-                url: streamUrl,
-                mpvPlayerPath: this.settingsStore.mpvPlayerPath(),
-                title,
-                thumbnail,
-            });
-        } else if (this.player === VideoPlayer.VLC) {
-            if (!this.hideExternalInfoDialog())
-                this.dialog.open(ExternalPlayerInfoDialogComponent);
-            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
-                url: streamUrl,
-                vlcPlayerPath: this.settingsStore.vlcPlayerPath(),
-            });
-        } else {
-            if (this.selectedContentType() !== 'live') {
-                this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
-                    PlayerDialogComponent,
-                    {
-                        data: { streamUrl, title },
-                        width: '80%',
-                    }
-                );
-            }
-        }
+        this.playerService.openPlayer(
+            streamUrl,
+            title,
+            thumbnail,
+            this.hideExternalInfoDialog(),
+            this.selectedContentType() === 'live'
+        );
     }
 
-    async toggleFavorite(event: Event, item: any): Promise<void> {
-        event.stopPropagation();
-        const playlist = this.xtreamStore.currentPlaylist();
+    selectCategory(category: XtreamCategory) {
+        const categoryId = (category as any).category_id ?? category.id;
+        console.log('Selected category:', categoryId);
+        this.xtreamStore.setSelectedCategory(categoryId);
+    }
 
-        // Update UI state immediately
-        const currentFavoriteState =
-            this.favorites.get(item.xtream_id) || false;
-        this.favorites.set(item.xtream_id, !currentFavoriteState);
-
-        try {
-            const db = await this.dbService.getConnection();
-            const content: any = await db.select(
-                'SELECT id FROM content WHERE xtream_id = ?',
-                [item.xtream_id]
-            );
-
-            if (!content || content.length === 0) {
-                console.error('Content not found in database');
-                // Revert UI state on error
-                this.favorites.set(item.xtream_id, currentFavoriteState);
-                return;
-            }
-
-            const contentId = content[0].id;
-
-            if (!currentFavoriteState) {
-                await this.favoritesService.addToFavorites({
-                    content_id: contentId,
-                    playlist_id: playlist.id,
-                });
-            } else {
-                await this.favoritesService.removeFromFavorites(
-                    contentId,
-                    playlist.id
-                );
-            }
-        } catch (error) {
-            console.error('Error toggling favorite:', error);
-            // Revert UI state on error
-            this.favorites.set(item.xtream_id, currentFavoriteState);
-        }
+    backToCategories() {
+        this.xtreamStore.setSelectedCategory(null);
     }
 }

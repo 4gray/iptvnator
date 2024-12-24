@@ -1,0 +1,58 @@
+@use '@angular/material' as mat;
+
+mat-nav-list {
+    width: 100%;
+    overflow: hidden;
+    display: block;
+}
+
+mat-list-item {
+    width: 280px !important;
+}
+
+.scroll-viewport-portals {
+    min-height: calc(100vh - 114px) !important;
+    width: 100%;
+}
+
+.title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100%); // Account for avatar and favorite button
+    min-width: 0;
+    flex: 1;
+}
+
+mat-list-item {
+    width: 325px;
+    min-width: 0; // Prevents flex items from overflowing
+    box-sizing: border-box;
+    
+    ::ng-deep .mdc-list-item__content {
+        overflow: hidden;
+        flex: 1;
+    }
+}
+
+.search-bar {
+    width: 90%;
+    @include mat.form-field-density(-5);
+}
+
+.search-panel {
+    display: flex;
+    justify-content: center;
+}
+
+::ng-deep {
+    .search-bar {
+        div {
+            border-radius: 20px;
+        }
+    }
+    
+    div[matformfieldlineripple] {
+        display: none;
+    }
+}
