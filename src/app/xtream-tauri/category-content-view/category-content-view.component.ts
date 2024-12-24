@@ -42,11 +42,8 @@ export class CategoryContentViewComponent {
     onItemClick(item: any) {
         console.log(item);
         this.xtreamStore.setSelectedItem(item);
-        this.router.navigate(
-            [this.xtreamStore.selectedContentType(), item.xtream_id],
-            {
-                relativeTo: this.activatedRoute,
-            }
-        );
+        this.router.navigate([item.xtream_id], {
+            relativeTo: this.activatedRoute,
+        });
     }
 }

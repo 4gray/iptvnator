@@ -1,6 +1,11 @@
 <h3>Seasons and Episodes</h3>
 @if (selectedSeason) {
-    <button mat-button class="back-button" (click)="selectedSeason = undefined">
+    <button
+        mat-button
+        class="back-button"
+        class="back-to-seasons"
+        (click)="selectedSeason = undefined"
+    >
         <mat-icon>arrow_back</mat-icon>
         <span>Back to seasons</span>
     </button>

@@ -1,9 +1,3 @@
-:host {
-    margin: 10px;
-    display: block;
-    padding: 20px 0;
-}
-
 .seasons-container {
     width: 100%;
     display: flex;
@@ -36,4 +30,8 @@
     .episode-cover {
         width: 100%;
     }
+}
+
+.back-to-seasons {
+    margin-bottom: 5px;
 }

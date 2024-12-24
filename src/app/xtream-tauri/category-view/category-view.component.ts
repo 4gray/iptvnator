@@ -26,7 +26,7 @@ import { XtreamStore } from '../xtream.store';
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './category-view.component.html',
-    styleUrl: './category-view.component.scss',
+    styleUrls: ['./category-view.component.scss'],
 })
 export class CategoryViewComponent {
     @Output() categoryClicked = new EventEmitter<XtreamCategory>();
@@ -36,7 +36,8 @@ export class CategoryViewComponent {
 
     ngOnInit(): void {
         const { categoryId } = this.route.snapshot.params;
-        this.xtreamStore.setSelectedCategory(Number(categoryId));
+        if (categoryId)
+            this.xtreamStore.setSelectedCategory(Number(categoryId));
     }
 
     isSelected(item: XtreamCategory): boolean {

@@ -1,19 +1,13 @@
-import { NgIf } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamSerieEpisode } from '../../../../shared/xtream-serie-details.interface';
-import { DataService } from '../../services/data.service';
 import { PlayerService } from '../../services/player.service';
 import { SettingsStore } from '../../services/settings-store.service';
-import {
-    selectActivePlaylist,
-    selectCurrentPlaylist,
-} from '../../state/selectors';
+import { selectActivePlaylist } from '../../state/selectors';
 import { SeasonContainerComponent } from '../season-container/season-container.component';
 import { XtreamStore } from '../xtream.store';
 
@@ -22,23 +16,14 @@ import { XtreamStore } from '../xtream.store';
     templateUrl: './serial-details.component.html',
     styleUrls: ['../detail-view.scss'],
     standalone: true,
-    imports: [
-        MatButton,
-        MatIcon,
-        NgIf,
-        SeasonContainerComponent,
-        TranslateModule,
-    ],
+    imports: [MatButton, MatIcon, SeasonContainerComponent, TranslateModule],
 })
 export class SerialDetailsComponent {
-    private dataService = inject(DataService);
-    private dialog = inject(MatDialog);
     private readonly store = inject(Store);
-    readonly currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
     private readonly route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
-    private playerService = inject(PlayerService);
+    private readonly playerService = inject(PlayerService);
 
     readonly selectedItem = this.xtreamStore.selectedItem;
     readonly settings = this.settingsStore.getSettings();
@@ -56,8 +41,9 @@ export class SerialDetailsComponent {
                 ...currentSerial,
                 series_id: serialId,
             });
+            // Move checkFavoriteStatus after setting the selected item
+            this.xtreamStore.checkFavoriteStatus();
         });
-        this.xtreamStore.checkFavoriteStatus();
     }
 
     playEpisode(episode: XtreamSerieEpisode) {

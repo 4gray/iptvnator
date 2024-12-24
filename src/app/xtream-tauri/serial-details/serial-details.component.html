@@ -1,5 +1,5 @@
 @let item = selectedItem();
-@if (item) {
+@if (item?.info) {
     <div
         class="container"
         [style.background]="
@@ -27,34 +27,48 @@
                     {{ item.info.plot }}
                 </label>
             }
-            <label *ngIf="item.info?.releaseDate">
-                <div class="label">
-                    {{ 'XTREAM.RELEASE_DATE' | translate }}:
+            @if (item.info?.releaseDate) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.RELEASE_DATE' | translate }}:
+                    </div>
+                    {{ item.info.releaseDate }}
+                </label>
+            }
+            @if (item.info?.genre) {
+                <label>
+                    <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
+                    {{ item.info.genre }}
+                </label>
+            }
+            @if (item.info?.rating) {
+                <label>
+                    <div class="label">{{ 'XTREAM.RATING' | translate }}:</div>
+                    {{ item.info?.rating }}
+                </label>
+            }
+            @if (item.info?.cast) {
+                <div>
+                    <div class="label">{{ 'XTREAM.CAST' | translate }}:</div>
+                    {{ item.info.cast }}
                 </div>
-                {{ item.info.releaseDate }}
-            </label>
-            <label *ngIf="item.info?.genre">
-                <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
-                {{ item.info.genre }}
-            </label>
-            <label *ngIf="item.info?.rating">
-                <div class="label">{{ 'XTREAM.RATING' | translate }}:</div>
-                {{ item.info?.rating }}
-            </label>
-            <div *ngIf="item.info?.cast">
-                <div class="label">{{ 'XTREAM.CAST' | translate }}:</div>
-                {{ item.info.cast }}
-            </div>
-            <label *ngIf="item.info?.director">
-                <div class="label">{{ 'XTREAM.DIRECTOR' | translate }}:</div>
-                {{ item.info.director }}
-            </label>
-            <label *ngIf="item.info?.episode_run_time">
-                <div class="label">
-                    {{ 'XTREAM.EPISODE_RUN_TIME' | translate }}:
-                </div>
-                {{ item.info.episode_run_time }}
-            </label>
+            }
+            @if (item.info?.director) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.DIRECTOR' | translate }}:
+                    </div>
+                    {{ item.info.director }}
+                </label>
+            }
+            @if (item.info?.episode_run_time) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.EPISODE_RUN_TIME' | translate }}:
+                    </div>
+                    {{ item.info.episode_run_time }}
+                </label>
+            }
             <div class="action-buttons">
                 @if (!isFavorite()) {
                     <button

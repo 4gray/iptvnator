@@ -6,7 +6,9 @@
                 @if (i.poster_url) {
                     <img
                         class="stream-icon"
-                        [ngSrc]="i.poster_url"
+                        [ngSrc]="
+                            i.poster_url ?? './assets/images/default-poster.png'
+                        "
                         fill
                         priority
                         placeholder
@@ -15,6 +17,11 @@
                             $event.target.src =
                                 './assets/images/default-poster.png'
                         "
+                    />
+                } @else {
+                    <img
+                        class="stream-icon"
+                        src="./assets/images/default-poster.png"
                     />
                 }
                 @let rating = $any(item).rating;

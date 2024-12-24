@@ -33,7 +33,7 @@ export class RecentlyViewedComponent {
         const type = item.type === 'movie' ? 'vod' : item.type;
         this.xtreamStore.setSelectedContentType(type);
 
-        this.router.navigate(['..', item.category_id, type, item.xtream_id], {
+        this.router.navigate(['..', type, item.category_id, item.xtream_id], {
             relativeTo: this.activatedRoute,
         });
     }

@@ -1,4 +1,6 @@
 @let items = xtreamStore.getCategoriesBySelectedType();
+@let contentType = xtreamStore.selectedContentType();
+@let selectedCategory = xtreamStore.selectedCategoryId();
 
 @if (items?.length > 0) {
     <mat-nav-list>
