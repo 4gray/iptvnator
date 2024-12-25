@@ -114,19 +114,28 @@ export class MultiEpgContainerComponent
         requestAnimationFrame(() => {
             const container = document.getElementById('epg-container');
             if (container) {
-                container.scrollTo(scrollPosition < 1000 ? 0 : scrollPosition - 150, 0);
+                container.scrollTo(
+                    scrollPosition < 1000 ? 0 : scrollPosition - 150,
+                    0
+                );
             }
         });
     }
 
     private initializeVisibleChannels(): void {
         if (this.epgContainer) {
-            const containerHeight = this.epgContainer.nativeElement.offsetHeight;
-            const calculatedVisibleChannels = Math.floor((containerHeight - this.barHeight) / this.barHeight);
-            
-            this.visibleChannels = Math.max(10, Math.min(calculatedVisibleChannels, 20));
+            const containerHeight =
+                this.epgContainer.nativeElement.offsetHeight;
+            const calculatedVisibleChannels = Math.floor(
+                (containerHeight - this.barHeight) / this.barHeight
+            );
+
+            this.visibleChannels = Math.max(
+                10,
+                Math.min(calculatedVisibleChannels, 20)
+            );
             this.channelsUpperRange = this.visibleChannels;
-            
+
             console.log('Container height:', containerHeight);
             console.log('Calculated visible channels:', this.visibleChannels);
         }
@@ -153,8 +162,11 @@ export class MultiEpgContainerComponent
 
         try {
             const channelNames = this._playlistChannels
-                .map((channel) => channel.name?.trim() ?? '')
-                .filter((name) => name !== ''); 
+                .map(
+                    (channel) =>
+                        channel.tvg?.id?.trim() ?? channel.name?.trim() ?? ''
+                )
+                .filter((name) => name !== '');
 
             console.log('Requesting EPG data:');
             console.log('- Skip:', this.channelsLowerRange);
@@ -176,7 +188,7 @@ export class MultiEpgContainerComponent
 
                 // Update isLastPage based on the number of channels received
                 this.isLastPage = response.length < this.visibleChannels;
-                
+
                 this.cdr.detectChanges();
             }
         } catch (error) {
@@ -185,24 +197,20 @@ export class MultiEpgContainerComponent
     }
 
     nextChannels(): void {
-        console.log('Next channels clicked');
-        console.log('Current range:', this.channelsLowerRange, 'to', this.channelsUpperRange);
-        
         this.channelsLowerRange += this.visibleChannels;
-        this.channelsUpperRange = this.channelsLowerRange + this.visibleChannels;
-        
-        console.log('New range:', this.channelsLowerRange, 'to', this.channelsUpperRange);
+        this.channelsUpperRange =
+            this.channelsLowerRange + this.visibleChannels;
+
         this.requestPrograms();
     }
 
     previousChannels(): void {
-        console.log('Previous channels clicked');
-        console.log('Current range:', this.channelsLowerRange, 'to', this.channelsUpperRange);
-        
-        this.channelsLowerRange = Math.max(0, this.channelsLowerRange - this.visibleChannels);
-        this.channelsUpperRange = this.channelsLowerRange + this.visibleChannels;
-        
-        console.log('New range:', this.channelsLowerRange, 'to', this.channelsUpperRange);
+        this.channelsLowerRange = Math.max(
+            0,
+            this.channelsLowerRange - this.visibleChannels
+        );
+        this.channelsUpperRange =
+            this.channelsLowerRange + this.visibleChannels;
         this.requestPrograms();
     }
 

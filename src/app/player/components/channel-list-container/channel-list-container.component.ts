@@ -134,7 +134,7 @@ export class ChannelListContainerComponent {
         this.selected = channel;
         this.store.dispatch(PlaylistActions.setActiveChannel({ channel }));
 
-        const epgChannelId = channel?.tvg?.id || channel?.name;
+        const epgChannelId = channel?.tvg?.id?.trim() || channel?.name.trim();
 
         if (epgChannelId) {
             this.epgService.getChannelPrograms(epgChannelId);
