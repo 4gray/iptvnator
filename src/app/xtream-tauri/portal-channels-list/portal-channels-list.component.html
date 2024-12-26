@@ -22,6 +22,7 @@
                 trackBy: trackBy;
                 templateCacheSize: 0
             "
+            templateCacheSize="200"
             (click)="playClicked.emit(item)"
             [activated]="
                 xtreamStore.selectedItem()?.xtream_id === item.xtream_id
@@ -30,13 +31,51 @@
             <img
                 matListItemAvatar
                 class="stream-icon"
-                [src]="item.poster_url"
+                [src]="item.stream_icon ?? item.poster_url"
                 (error)="
                     $event.target.src = './assets/images/default-poster.png'
                 "
             />
-            <div class="title" matListItemTitle>
-                {{ item.title }}
+            <div matListItemTitle class="channel-info">
+                <div class="title">{{ item.title }}</div>
+                @if (currentPrograms.get(item.xtream_id)) {
+                    <div class="program-info">
+                        <div class="current-program">
+                            {{ currentPrograms.get(item.xtream_id) }}
+                        </div>
+                        @if (currentProgramsProgress.has(item.xtream_id)) {
+                            <div class="progress-container">
+                                <span>{{
+                                    programTimings.get(item.xtream_id)?.start
+                                        | date: 'HH:mm'
+                                }}</span>
+                                <div class="progress-bar">
+                                    <div
+                                        class="progress"
+                                        [style.width.%]="
+                                            currentProgramsProgress.get(
+                                                item.xtream_id
+                                            )
+                                        "
+                                    ></div>
+                                </div>
+                                <span>{{
+                                    programTimings.get(item.xtream_id)?.end
+                                        | date: 'HH:mm'
+                                }}</span>
+                            </div>
+                        }
+                    </div>
+                } @else {
+                    <div class="program-info no-epg-placeholder">
+                        <div class="placeholder-bar"></div>
+                        <div class="progress-container">
+                            <span>--:--</span>
+                            <div class="progress-bar"></div>
+                            <span>--:--</span>
+                        </div>
+                    </div>
+                }
             </div>
             <button
                 mat-icon-button
