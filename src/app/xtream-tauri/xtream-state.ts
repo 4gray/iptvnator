@@ -6,6 +6,17 @@ import { EpgItem } from '../xtream/epg-item.interface';
 
 export type ContentType = 'live' | 'vod' | 'series';
 
+export type PortalStatusType =
+    | 'active'
+    | 'inactive'
+    | 'expired'
+    | 'unavailable';
+
+export interface XtreamPortalStatus {
+    status: 'active' | 'inactive' | 'expired' | 'unavailable';
+    message?: string;
+}
+
 export interface XtreamState {
     isLoadingCategories: boolean;
     isLoadingContent: boolean;
@@ -27,4 +38,5 @@ export interface XtreamState {
     currentPlaylist: any | null;
     epgItems: EpgItem[];
     hideExternalInfoDialog: boolean;
+    portalStatus: PortalStatusType;
 }
