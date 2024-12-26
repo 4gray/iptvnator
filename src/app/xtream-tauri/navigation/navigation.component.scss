@@ -10,6 +10,7 @@
 }
 
 .navigation-bottom {
+    border-top: 1px solid #333;
     margin-top: auto;
     padding-bottom: 16px;
 }
@@ -173,6 +174,24 @@ mat-icon {
     }
 }
 
-.navigation-bottom {
-    padding-bottom: 16px;
+
+.nav-section {
+    margin: 10px 0;
+    padding: 5px 0;
+
+    .nav-group-label {
+        padding: 0 16px 0;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .mat-nav-list {
+        padding: 0;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        overflow: hidden;
+    }
 }
