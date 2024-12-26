@@ -1,7 +1,9 @@
 import { Component, inject } from '@angular/core';
+import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
@@ -16,10 +18,12 @@ import { XtreamStore } from '../xtream.store';
     standalone: true,
     imports: [
         MatListModule,
-        MatIconModule,
+        MatIcon,
+        MatIconButton,
         RouterLink,
         RouterLinkActive,
         TranslateModule,
+        MatTooltipModule,
     ],
     templateUrl: './navigation.component.html',
     styleUrl: './navigation.component.scss',
@@ -29,8 +33,40 @@ export class NavigationComponent {
     private readonly store = inject(Store);
     readonly xtreamStore = inject(XtreamStore);
 
-    private readonly currentPlaylist =
-        this.store.selectSignal(selectActivePlaylist);
+    // Make currentPlaylist public so template can access it
+    readonly currentPlaylist = this.store.selectSignal(selectActivePlaylist);
+
+    ngOnInit() {
+        this.xtreamStore.checkPortalStatus();
+    }
+
+    getStatusColor(): string {
+        const status = this.xtreamStore.portalStatus();
+        switch (status) {
+            case 'active':
+                return 'status-active';
+            case 'inactive':
+                return 'status-inactive';
+            case 'expired':
+                return 'status-expired';
+            default:
+                return 'status-unavailable';
+        }
+    }
+
+    getStatusIcon(): string {
+        const status = this.xtreamStore.portalStatus();
+        switch (status) {
+            case 'active':
+                return 'check_circle';
+            case 'inactive':
+                return 'cancel';
+            case 'expired':
+                return 'warning';
+            default:
+                return 'error';
+        }
+    }
 
     openAccountInfo() {
         this.dialog.open(AccountInfoComponent, {

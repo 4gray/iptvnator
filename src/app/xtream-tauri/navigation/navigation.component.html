@@ -1,5 +1,48 @@
+<div class="portal-status-container" [class]="getStatusColor()">
+    <div class="portal-status-wrapper">
+        <div class="portal-header">
+            <div class="portal-icon" [class]="getStatusColor()">
+                <mat-icon>{{ getStatusIcon() }}</mat-icon>
+            </div>
+        </div>
+        <div class="portal-info">
+            <span class="portal-name">{{
+                currentPlaylist()?.title || 'Unknown Portal'
+            }}</span>
+            <span class="portal-label">{{ xtreamStore.portalStatus() }}</span>
+        </div>
+        <div class="portal-actions">
+            <button
+                mat-icon-button
+                class="action-button"
+                routerLink="/"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: true }"
+                matTooltip="Home"
+            >
+                <mat-icon>home</mat-icon>
+            </button>
+            <button
+                mat-icon-button
+                class="action-button"
+                (click)="openAccountInfo()"
+                matTooltip="Account Info"
+            >
+                <mat-icon>person</mat-icon>
+            </button>
+            <button
+                mat-icon-button
+                class="action-button"
+                (click)="openPlaylistInfo()"
+                matTooltip="Playlist Info"
+            >
+                <mat-icon>playlist_play</mat-icon>
+            </button>
+        </div>
+    </div>
+</div>
 <mat-nav-list>
-    <a
+    <!-- <a
         mat-list-item
         routerLink="/"
         routerLinkActive="active"
@@ -7,7 +50,7 @@
     >
         <mat-icon matListItemIcon>home</mat-icon>
         <span matListItemTitle>Home</span>
-    </a>
+    </a> -->
 
     <a
         mat-list-item
@@ -73,16 +116,6 @@
 </mat-nav-list>
 
 <mat-nav-list class="navigation-bottom">
-    <a mat-list-item (click)="openAccountInfo()">
-        <mat-icon matListItemIcon>account_circle</mat-icon>
-        <span matListItemTitle>Account Info</span>
-    </a>
-
-    <a mat-list-item (click)="openPlaylistInfo()">
-        <mat-icon matListItemIcon>info</mat-icon>
-        <span matListItemTitle>Playlist Info</span>
-    </a>
-
     <a mat-list-item (click)="openSettings()">
         <mat-icon matListItemIcon>settings</mat-icon>
         <span matListItemTitle>{{ 'MENU.SETTINGS' | translate }}</span>
