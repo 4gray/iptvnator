@@ -705,6 +705,7 @@ export const XtreamStore = signalStore(
                             username: store.currentPlaylist().username,
                             password: store.currentPlaylist().password,
                             stream_id: store.selectedItem().xtream_id,
+                            limit: 10,
                         }
                     );
 
@@ -730,6 +731,37 @@ export const XtreamStore = signalStore(
                         patchState(store, {
                             epgItems: [],
                         });
+                        return [];
+                    }
+                },
+                async loadChannelEpg(streamId: number) {
+                    try {
+                        const response = await dataService.fetchData(
+                            `${store.currentPlaylist().serverUrl}/player_api.php`,
+                            {
+                                action: 'get_short_epg',
+                                username: store.currentPlaylist().username,
+                                password: store.currentPlaylist().password,
+                                stream_id: streamId,
+                                limit: 1,
+                            }
+                        );
+
+                        if (
+                            response?.epg_listings &&
+                            Array.isArray(response.epg_listings)
+                        ) {
+                            return response.epg_listings.map((item) => ({
+                                ...item,
+                                title: b64DecodeUnicode(item.title).trim(),
+                                description: b64DecodeUnicode(
+                                    item.description
+                                ).trim(),
+                            }));
+                        }
+                        return [];
+                    } catch (error) {
+                        console.error('Error loading channel EPG:', error);
                         return [];
                     }
                 },
