@@ -80,14 +80,19 @@ export const withRecentItems = function () {
                         const db = await dbService.getConnection();
 
                         const content: any = await db.select(
-                            'SELECT id FROM content WHERE xtream_id = ?',
-                            [contentId]
+                            'SELECT content.id FROM content ' +
+                                'INNER JOIN categories ON content.category_id = categories.id ' +
+                                'WHERE content.xtream_id = ? AND categories.playlist_id = ?',
+                            [contentId, playlist().id]
                         );
 
                         if (content && content.length > 0) {
                             // Check if item already exists in recently_viewed
                             const existing: any = await db.select(
-                                'SELECT id FROM recently_viewed WHERE content_id = ? AND playlist_id = ?',
+                                'SELECT recently_viewed.id FROM recently_viewed ' +
+                                    'INNER JOIN content ON recently_viewed.content_id = content.id ' +
+                                    'INNER JOIN categories ON content.category_id = categories.id ' +
+                                    'WHERE content.id = ? AND categories.playlist_id = ?',
                                 [content[0].id, playlist().id]
                             );
 
