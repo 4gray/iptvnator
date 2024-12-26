@@ -176,7 +176,7 @@ export class DatabaseService {
     ): Promise<XCategoryFromDb[]> {
         const db = await this.getConnection();
         return await db.select<XCategoryFromDb[]>(
-            'SELECT * FROM categories WHERE playlist_id = ? AND type = ?',
+            'SELECT * FROM categories WHERE playlist_id = ? AND type = ? ORDER BY name COLLATE NOCASE',
             [playlistId, type]
         );
     }
