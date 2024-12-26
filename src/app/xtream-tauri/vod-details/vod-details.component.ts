@@ -41,18 +41,11 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
 
     ngOnInit(): void {
         const { categoryId, vodId } = this.route.snapshot.params;
-        this.xtreamStore.getVodDetails(vodId).then((currentVod) => {
-            this.xtreamStore.setSelectedCategory(Number(categoryId));
-            this.xtreamStore.setSelectedItem({
-                ...currentVod,
-                stream_id: vodId,
-            });
-            // Check favorite status after setting selected item
-            this.xtreamStore.checkFavoriteStatus(
-                vodId,
-                this.xtreamStore.currentPlaylist().id
-            );
-        });
+        this.xtreamStore.fetchVodDetailsWithMetadata({ vodId, categoryId });
+        this.xtreamStore.checkFavoriteStatus(
+            vodId,
+            this.xtreamStore.currentPlaylist().id
+        );
     }
 
     ngOnDestroy() {

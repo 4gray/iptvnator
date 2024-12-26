@@ -9,11 +9,23 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Store } from '@ngrx/store';
-import { EMPTY, from, lastValueFrom, pipe, switchMap, tap } from 'rxjs';
+import {
+    catchError,
+    combineLatestWith,
+    EMPTY,
+    from,
+    lastValueFrom,
+    pipe,
+    switchMap,
+    tap,
+} from 'rxjs';
 import { XtreamCodeActions } from '../../../shared/xtream-code-actions';
+import { XtreamSerieDetails } from '../../../shared/xtream-serie-details.interface';
+import { XtreamVodDetails } from '../../../shared/xtream-vod-details.interface';
 import { DataService } from '../services/data.service';
 import { DatabaseService } from '../services/database.service';
 import { selectActivePlaylist } from '../state/selectors';
+import { XtreamAccountInfo } from './account-info/account-info.interface';
 import { withFavorites } from './with-favorites.feature';
 import { withRecentItems } from './with-recent-items';
 import { XtreamState } from './xtream-state';
@@ -40,6 +52,7 @@ const initialState: XtreamState = {
     epgItems: [],
     hideExternalInfoDialog:
         localStorage.getItem('hideExternalInfoDialog') === 'true',
+    portalStatus: 'unavailable',
 };
 
 /** to decode epg */
@@ -436,7 +449,6 @@ export const XtreamStore = signalStore(
             const setPage = (page: number) => patchState(store, { page });
             const setLimit = (limit: number) => patchState(store, { limit });
             const setSelectedCategory = (categoryId: number) => {
-                console.log(categoryId);
                 patchState(store, {
                     selectedCategoryId: Number(categoryId),
                     page: 1,
@@ -459,56 +471,77 @@ export const XtreamStore = signalStore(
                     )
                 )
             );
-            const getVodDetails = async (vodId: string) => {
-                const currentPlaylist = store.currentPlaylist();
+            const fetchVodDetailsWithMetadata = rxMethod<{
+                vodId: string;
+                categoryId: number;
+            }>(
+                pipe(
+                    combineLatestWith(oldStore.select(selectActivePlaylist)),
+                    switchMap(([{ vodId, categoryId }, playlist]) => {
+                        if (!playlist) return EMPTY;
 
-                const password = currentPlaylist?.password;
-                const url = `${currentPlaylist?.serverUrl}/player_api.php`;
-                const username = currentPlaylist?.username;
-                console.log('Fetching VOD details...', password, url, username);
+                        return from(
+                            dataService.fetchData(
+                                `${playlist.serverUrl}/player_api.php`,
+                                {
+                                    action: XtreamCodeActions.GetVodInfo,
+                                    username: playlist.username,
+                                    password: playlist.password,
+                                    vod_id: vodId,
+                                }
+                            )
+                        ).pipe(
+                            tap((currentVod: XtreamVodDetails) => {
+                                patchState(store, {
+                                    selectedCategoryId: Number(categoryId),
+                                });
+                                patchState(store, {
+                                    selectedItem: {
+                                        ...currentVod,
+                                        stream_id: vodId,
+                                    },
+                                });
+                            })
+                        );
+                    })
+                )
+            );
 
-                const queryParams = {
-                    action: XtreamCodeActions.GetVodInfo,
-                    username,
-                    password,
-                    vod_id: vodId,
-                };
+            const fetchSerialDetailsWithMetadata = rxMethod<{
+                serialId: string;
+                categoryId: number;
+            }>(
+                pipe(
+                    combineLatestWith(oldStore.select(selectActivePlaylist)),
+                    switchMap(([{ serialId, categoryId }, playlist]) => {
+                        if (!playlist) return EMPTY;
 
-                const remoteData = await dataService.fetchData(
-                    url,
-                    queryParams
-                );
-
-                return remoteData;
-            };
-
-            const getSerialDetails = async (serialId: string) => {
-                const currentPlaylist = store.currentPlaylist();
-
-                const password = currentPlaylist?.password;
-                const url = `${currentPlaylist?.serverUrl}/player_api.php`;
-                const username = currentPlaylist?.username;
-                console.log(
-                    'Fetching Series details...',
-                    password,
-                    url,
-                    username
-                );
-
-                const queryParams = {
-                    action: XtreamCodeActions.GetSeriesInfo,
-                    username,
-                    password,
-                    series_id: serialId,
-                };
-
-                const remoteData = await dataService.fetchData(
-                    url,
-                    queryParams
-                );
-
-                return remoteData;
-            };
+                        return from(
+                            dataService.fetchData(
+                                `${playlist.serverUrl}/player_api.php`,
+                                {
+                                    action: XtreamCodeActions.GetSeriesInfo,
+                                    username: playlist.username,
+                                    password: playlist.password,
+                                    series_id: serialId,
+                                }
+                            )
+                        ).pipe(
+                            tap((currentSerial: XtreamSerieDetails) => {
+                                patchState(store, {
+                                    selectedCategoryId: Number(categoryId),
+                                });
+                                patchState(store, {
+                                    selectedItem: {
+                                        ...currentSerial,
+                                        series_id: serialId,
+                                    },
+                                });
+                            })
+                        );
+                    })
+                )
+            );
 
             const initializeContent = async () => {
                 patchState(store, { isImporting: true });
@@ -571,6 +604,70 @@ export const XtreamStore = signalStore(
                 }
             };
 
+            const checkPortalStatus = rxMethod<void>(
+                pipe(
+                    combineLatestWith(oldStore.select(selectActivePlaylist)),
+                    switchMap(([_, playlist]) => {
+                        if (!playlist) return EMPTY;
+
+                        return from(
+                            dataService.fetchData(
+                                `${playlist.serverUrl}/player_api.php`,
+                                {
+                                    username: playlist.username,
+                                    password: playlist.password,
+                                    action: 'get_account_info',
+                                }
+                            )
+                        ).pipe(
+                            tap((response: XtreamAccountInfo) => {
+                                console.log(
+                                    'Portal status response:',
+                                    response
+                                );
+
+                                if (!response?.user_info?.status) {
+                                    patchState(store, {
+                                        portalStatus: 'unavailable',
+                                    });
+                                    return;
+                                }
+
+                                if (response.user_info.status === 'Active') {
+                                    const expDate = new Date(
+                                        parseInt(response.user_info.exp_date) *
+                                            1000
+                                    );
+                                    if (expDate < new Date()) {
+                                        patchState(store, {
+                                            portalStatus: 'expired',
+                                        });
+                                    } else {
+                                        patchState(store, {
+                                            portalStatus: 'active',
+                                        });
+                                    }
+                                } else {
+                                    patchState(store, {
+                                        portalStatus: 'inactive',
+                                    });
+                                }
+                            }),
+                            catchError((error) => {
+                                console.error(
+                                    'Error checking portal status:',
+                                    error
+                                );
+                                patchState(store, {
+                                    portalStatus: 'unavailable',
+                                });
+                                return EMPTY;
+                            })
+                        );
+                    })
+                )
+            );
+
             return {
                 fetchXtreamPlaylist,
                 fetchLiveCategories,
@@ -585,8 +682,8 @@ export const XtreamStore = signalStore(
                 setSelectedContentType,
                 setSelectedItem,
                 searchContent: searchContentMethod,
-                getVodDetails,
-                getSerialDetails,
+                fetchVodDetailsWithMetadata,
+                fetchSerialDetailsWithMetadata,
                 initializeContent,
                 updatePlaylist(playlist: any) {
                     patchState(store, {
@@ -643,6 +740,7 @@ export const XtreamStore = signalStore(
                     );
                     patchState(store, { hideExternalInfoDialog });
                 },
+                checkPortalStatus,
             };
         }
     )

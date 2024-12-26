@@ -35,18 +35,14 @@ export class SerialDetailsComponent {
 
     ngOnInit(): void {
         const { categoryId, serialId } = this.route.snapshot.params;
-        this.xtreamStore.getSerialDetails(serialId).then((currentSerial) => {
-            this.xtreamStore.setSelectedCategory(Number(categoryId));
-            this.xtreamStore.setSelectedItem({
-                ...currentSerial,
-                series_id: serialId,
-            });
-
-            this.xtreamStore.checkFavoriteStatus(
-                serialId,
-                this.xtreamStore.currentPlaylist().id
-            );
+        this.xtreamStore.fetchSerialDetailsWithMetadata({
+            serialId,
+            categoryId,
         });
+        this.xtreamStore.checkFavoriteStatus(
+            serialId,
+            this.xtreamStore.currentPlaylist().id
+        );
     }
 
     playEpisode(episode: XtreamSerieEpisode) {
