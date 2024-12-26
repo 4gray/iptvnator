@@ -131,6 +131,18 @@ export const withRecentItems = function () {
                     })
                 )
             ),
+            removeRecentItem: rxMethod<{ itemId: number; playlistId: string }>(
+                pipe(
+                    switchMap(async ({ itemId, playlistId }) => {
+                        const db = await dbService.getConnection();
+                        await db.execute(
+                            `DELETE FROM recently_viewed WHERE id = ? AND playlist_id = ?`,
+                            [itemId, playlistId]
+                        );
+                        return store.loadRecentItems({ id: playlistId });
+                    })
+                )
+            ),
         }))
     );
 };

@@ -37,4 +37,12 @@ export class RecentlyViewedComponent {
             relativeTo: this.activatedRoute,
         });
     }
+
+    removeItem(event: Event, itemId: number) {
+        event.stopPropagation();
+        this.xtreamStore.removeRecentItem({
+            itemId,
+            playlistId: this.currentPlaylist().id
+        });
+    }
 }

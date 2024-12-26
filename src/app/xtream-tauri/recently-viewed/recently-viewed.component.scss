@@ -26,9 +26,26 @@
 .item-card {
     cursor: pointer;
     transition: transform 0.2s;
+    position: relative;
 
     &:hover {
         transform: scale(1.02);
+    }
+
+    .remove-button {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        z-index: 1;
+        background: rgba(0, 0, 0, 0.5);
+        
+        &:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        mat-icon {
+            color: white;
+        }
     }
 }
 

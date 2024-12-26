@@ -14,6 +14,13 @@
         <div class="items-grid">
             @for (item of items; track $index) {
                 <mat-card class="item-card" (click)="openItem(item)">
+                    <button
+                        mat-icon-button
+                        class="remove-button"
+                        (click)="removeItem($event, item.id)"
+                    >
+                        <mat-icon>close</mat-icon>
+                    </button>
                     <img
                         [src]="
                             item.poster_url ||
