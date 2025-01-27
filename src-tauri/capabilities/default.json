@@ -44,6 +44,7 @@
         "core:webview:allow-webview-show",
         "core:webview:allow-create-webview-window",
         "sql:default",
-        "sql:allow-execute"
+        "sql:allow-execute",
+        "fs:allow-write-file"
     ]
 }
