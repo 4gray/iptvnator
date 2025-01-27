@@ -81,6 +81,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 .sendIpcEvent(CHANNEL_SET_USER_AGENT, {
                     userAgent: channel.http?.['user-agent'] ?? '',
                     referer: channel.http?.referrer ?? '',
+                    origin: channel.http?.origin ?? '',
                 })
                 .then(() => {
                     if (

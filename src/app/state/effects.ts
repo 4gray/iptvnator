@@ -32,7 +32,6 @@ import {
     selectActivePlaylistId,
     selectChannels,
     selectFavorites,
-    selectIsEpgAvailable,
 } from './selectors';
 
 @Injectable({ providedIn: 'any' })
@@ -47,7 +46,14 @@ export class PlaylistEffects {
                 ),
                 switchMap(([, favorites, playlistId]) =>
                     this.playlistsService.updateFavorites(playlistId, favorites)
-                )
+                ),
+                tap(() => {
+                    this.snackBar.open(
+                        this.translate.instant('CHANNELS.FAVORITES_UPDATED'),
+                        null,
+                        { duration: 2000 }
+                    );
+                })
             );
         },
         { dispatch: false }
@@ -112,18 +118,16 @@ export class PlaylistEffects {
     setActiveChannel$ = createEffect(() => {
         return this.actions$.pipe(
             ofType(PlaylistActions.setActiveChannel),
-            combineLatestWith(this.store.select(selectIsEpgAvailable)),
-            map(([action, isEpgAvailable]) => {
+            map((action) => {
                 const { channel } = action;
-                if (isEpgAvailable) {
-                    this.dataService.sendIpcEvent(EPG_GET_PROGRAM, {
-                        channel,
-                    });
-                }
+                this.dataService.sendIpcEvent(EPG_GET_PROGRAM, {
+                    channel,
+                });
                 if (channel.http['user-agent']) {
                     this.dataService.sendIpcEvent(CHANNEL_SET_USER_AGENT, {
                         referer: channel.http.referrer,
                         userAgent: channel.http['user-agent'],
+                        origin: channel.http.origin,
                     });
                 }
 
@@ -137,6 +141,10 @@ export class PlaylistEffects {
                         ) {
                             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                                 url: channel.url,
+                                mpvPlayerPath: settings?.mpvPlayerPath,
+                                referer: channel.http.referrer,
+                                userAgent: channel.http['user-agent'],
+                                origin: channel.http.origin,
                             });
                         } else if (
                             settings &&
@@ -146,6 +154,7 @@ export class PlaylistEffects {
                         )
                             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                                 url: channel.url,
+                                vlcPlayerPath: settings?.vlcPlayerPath,
                             });
                     }
                 );

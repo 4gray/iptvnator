@@ -46,14 +46,15 @@ export class TauriService extends DataService {
                 }
             );
         } else if (type === 'OPEN_MPV_PLAYER') {
+            const data = payload as any;
             return invoke('open_in_mpv', {
-                url: (payload as any).url,
-                path: (payload as any).mpvPlayerPath || '',
-                title: (payload as any).title ?? '',
-                thumbnail: (payload as any).thumbnail ?? '',
-                userAgent: (payload as any).http?.['user-agent'] ?? '',
-                referer: (payload as any).http?.referrer ?? '',
-                origin: (payload as any).http?.origin ?? '',
+                url: data.url,
+                path: data.mpvPlayerPath || '',
+                title: data.title ?? '',
+                thumbnail: data.thumbnail ?? '',
+                userAgent: data['user-agent'] ?? undefined,
+                referer: data.referer ?? undefined,
+                origin: data.origin ?? undefined,
             }).catch((error) => {
                 window.postMessage({
                     type: ERROR,
@@ -62,9 +63,13 @@ export class TauriService extends DataService {
                 throw error;
             });
         } else if (type === 'OPEN_VLC_PLAYER') {
+            const data = payload as any;
             return invoke('open_in_vlc', {
-                url: (payload as any).url,
-                path: (payload as any).vlcPlayerPath || '',
+                url: data.url,
+                path: data.vlcPlayerPath || '',
+                userAgent: data['user-agent'] ?? undefined,
+                referer: data.referer ?? undefined,
+                origin: data.origin ?? undefined,
             }).catch((error) => {
                 window.postMessage({
                     type: ERROR,
