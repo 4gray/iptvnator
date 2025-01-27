@@ -143,6 +143,28 @@ export const withRecentItems = function () {
                     })
                 )
             ),
+            async loadGlobalRecentItems() {
+                try {
+                    const items = await dbService.getGlobalRecentlyViewed();
+                    patchState(store, {
+                        recentItems: items || [],
+                    });
+                } catch (error) {
+                    console.error('Error loading global recent items:', error);
+                    patchState(store, { recentItems: [] });
+                }
+            },
+            async clearGlobalRecentlyViewed() {
+                try {
+                    await dbService.clearGlobalRecentlyViewed();
+                    patchState(store, { recentItems: [] });
+                } catch (error) {
+                    console.error(
+                        'Error clearing global recently viewed:',
+                        error
+                    );
+                }
+            },
         }))
     );
 };

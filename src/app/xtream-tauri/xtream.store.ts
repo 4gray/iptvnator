@@ -53,6 +53,7 @@ const initialState: XtreamState = {
     hideExternalInfoDialog:
         localStorage.getItem('hideExternalInfoDialog') === 'true',
     portalStatus: 'unavailable',
+    globalSearchResults: [],
 };
 
 /** to decode epg */
@@ -67,108 +68,105 @@ function b64DecodeUnicode(str: string) {
 }
 
 export const XtreamStore = signalStore(
+    { providedIn: 'root' },
     withState(initialState),
     withRecentItems(),
     withFavorites(),
-    withComputed((store) => {
-        return {
-            getCategoriesBySelectedType: computed(() => {
-                const type = store.selectedContentType();
-                return type === 'live'
-                    ? store.liveCategories()
-                    : type === 'vod'
-                      ? store.vodCategories()
-                      : store.serialCategories();
-            }),
-            getSelectedCategory: computed(() => {
-                const categoryId = store.selectedCategoryId();
-                return [
-                    ...store.vodCategories(),
-                    ...store.liveCategories(),
-                    ...store.serialCategories(),
-                ].find((c) => c.id === categoryId);
-            }),
-            getImportCount: computed(() => store.importCount()),
-            getSelectedItemById: computed(() => {
-                const categoryType = store.selectedContentType();
-                const content =
-                    categoryType === 'live'
-                        ? store.liveStreams()
-                        : categoryType === 'vod'
-                          ? store.vodStreams()
-                          : store.serialStreams();
+    withComputed((store) => ({
+        getCategoriesBySelectedType: computed(() => {
+            const type = store.selectedContentType();
+            return type === 'live'
+                ? store.liveCategories()
+                : type === 'vod'
+                  ? store.vodCategories()
+                  : store.serialCategories();
+        }),
+        getSelectedCategory: computed(() => {
+            const categoryId = store.selectedCategoryId();
+            return [
+                ...store.vodCategories(),
+                ...store.liveCategories(),
+                ...store.serialCategories(),
+            ].find((c) => c.id === categoryId);
+        }),
+        getImportCount: computed(() => store.importCount()),
+        getSelectedItemById: computed(() => {
+            const categoryType = store.selectedContentType();
+            const content =
+                categoryType === 'live'
+                    ? store.liveStreams()
+                    : categoryType === 'vod'
+                      ? store.vodStreams()
+                      : store.serialStreams();
 
-                if (!store.selectedItem()) return null;
+            if (!store.selectedItem()) return null;
 
-                return content.find(
-                    (item) =>
-                        (item as any).stream_id ===
-                            store.selectedItem().stream_id ||
-                        (item as any).id === store.selectedItem().id
-                );
-            }),
-            getPaginatedContent: computed(() => {
-                const startIndex = (store.page() - 1) * store.limit();
-                const endIndex = startIndex + store.limit();
-                const categoryId = store.selectedCategoryId();
+            return content.find(
+                (item) =>
+                    (item as any).stream_id ===
+                        store.selectedItem().stream_id ||
+                    (item as any).id === store.selectedItem().id
+            );
+        }),
+        getPaginatedContent: computed(() => {
+            const startIndex = (store.page() - 1) * store.limit();
+            const endIndex = startIndex + store.limit();
+            const categoryId = store.selectedCategoryId();
 
-                if (!categoryId) {
-                    return [];
-                }
+            if (!categoryId) {
+                return [];
+            }
 
-                const categoryType = store.selectedContentType();
-                const content =
-                    categoryType === 'live'
-                        ? store.liveStreams()
-                        : categoryType === 'vod'
-                          ? store.vodStreams()
-                          : store.serialStreams();
+            const categoryType = store.selectedContentType();
+            const content =
+                categoryType === 'live'
+                    ? store.liveStreams()
+                    : categoryType === 'vod'
+                      ? store.vodStreams()
+                      : store.serialStreams();
 
-                return content
-                    .filter((item) => item.category_id === categoryId)
-                    .slice(startIndex, endIndex);
-            }),
-            getTotalPages: computed(() => {
-                const categoryId = store.selectedCategoryId();
-                if (!categoryId) return 0;
+            return content
+                .filter((item) => item.category_id === categoryId)
+                .slice(startIndex, endIndex);
+        }),
+        getTotalPages: computed(() => {
+            const categoryId = store.selectedCategoryId();
+            if (!categoryId) return 0;
 
-                const categoryType = store.selectedContentType();
-                const totalItems =
-                    categoryType === 'live'
-                        ? store
-                              .liveStreams()
-                              .filter(
-                                  (i) => Number((i as any).id) === categoryId
-                              ).length
-                        : categoryType === 'vod'
-                          ? store
-                                .vodStreams()
-                                .filter(
-                                    (i) => Number(i.category_id) === categoryId
-                                ).length
-                          : store
-                                .serialStreams()
-                                .filter((i) => i.category_id === categoryId)
-                                .length;
+            const categoryType = store.selectedContentType();
+            const totalItems =
+                categoryType === 'live'
+                    ? store
+                          .liveStreams()
+                          .filter((i) => Number((i as any).id) === categoryId)
+                          .length
+                    : categoryType === 'vod'
+                      ? store
+                            .vodStreams()
+                            .filter((i) => Number(i.category_id) === categoryId)
+                            .length
+                      : store
+                            .serialStreams()
+                            .filter((i) => i.category_id === categoryId).length;
 
-                return Math.ceil(totalItems / store.limit());
-            }),
-            selectItemsFromSelectedCategory: computed(() => {
-                const categoryId = store.selectedCategoryId();
-                const categoryType = store.selectedContentType();
-                const content =
-                    categoryType === 'live'
-                        ? store.liveStreams()
-                        : categoryType === 'vod'
-                          ? store.vodStreams()
-                          : store.serialStreams();
+            return Math.ceil(totalItems / store.limit());
+        }),
+        selectItemsFromSelectedCategory: computed(() => {
+            const categoryId = store.selectedCategoryId();
+            const categoryType = store.selectedContentType();
+            const content =
+                categoryType === 'live'
+                    ? store.liveStreams()
+                    : categoryType === 'vod'
+                      ? store.vodStreams()
+                      : store.serialStreams();
 
-                return content.filter(
-                    (item) => item.category_id === categoryId
-                );
-            }),
-        };
-    }),
+            return content.filter((item) => item.category_id === categoryId);
+        }),
+        globalRecentItems: computed(() => {
+            return store.recentItems(); // Remove the filter since we're getting global items directly from DB
+        }),
+    })),
     withMethods(
         (
             store,
@@ -329,14 +327,18 @@ export const XtreamStore = signalStore(
 
             const searchContent = async (
                 searchTerm: string,
-                types: string[]
+                types: string[],
+                route = inject(ActivatedRoute),
+                dbService = inject(DatabaseService)
             ) => {
+                if (!route.snapshot.params.id) return;
+
                 const results = await dbService.searchXtreamContent(
                     route.snapshot.params.id,
                     searchTerm,
                     types
                 );
-                patchState(store, { searchResults: results });
+                return results;
             };
 
             const fetchXtreamPlaylist = rxMethod<void>(
@@ -467,7 +469,13 @@ export const XtreamStore = signalStore(
             }>(
                 pipe(
                     switchMap(({ term, types }) =>
-                        from(searchContent(term, types))
+                        from(searchContent(term, types, route, dbService)).pipe(
+                            tap((results) => {
+                                patchState(store, {
+                                    searchResults: results || [],
+                                });
+                            })
+                        )
                     )
                 )
             );
@@ -694,7 +702,10 @@ export const XtreamStore = signalStore(
                     });
                 },
                 resetSearchResults() {
-                    patchState(store, { searchResults: [] });
+                    patchState(store, {
+                        searchResults: [],
+                        globalSearchResults: [],
+                    });
                 },
                 async loadEpg() {
                     console.log('Loading EPG...');
@@ -773,6 +784,12 @@ export const XtreamStore = signalStore(
                     patchState(store, { hideExternalInfoDialog });
                 },
                 checkPortalStatus,
+                setGlobalSearchResults(results: any[]) {
+                    patchState(store, {
+                        searchResults: results,
+                        globalSearchResults: results,
+                    });
+                },
             };
         }
     )

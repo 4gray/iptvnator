@@ -30,6 +30,17 @@ export interface XtreamPlaylist {
     type: string;
 }
 
+export interface GlobalSearchResult extends XtreamContent {
+    playlist_id: string;
+    playlist_name: string;
+}
+
+export interface GlobalRecentItem extends XtreamContent {
+    playlist_id: string;
+    playlist_name: string;
+    viewed_at: string;
+}
+
 @Injectable({
     providedIn: 'root',
 })
@@ -270,6 +281,96 @@ export class DatabaseService {
              LIMIT 50`,
             [`%${searchTerm}%`, playlistId, ...types]
         );
+    }
+
+    async globalSearchContent(
+        searchTerm: string,
+        types: string[]
+    ): Promise<GlobalSearchResult[]> {
+        const db = await this.getConnection();
+        const placeholders = types.map(() => '?').join(',');
+
+        // Use a materialized subquery for better performance
+        return await db.select(
+            `
+            WITH filtered_content AS (
+                SELECT 
+                    c.id,
+                    c.category_id,
+                    c.title,
+                    c.rating,
+                    c.added,
+                    c.poster_url,
+                    c.xtream_id,
+                    c.type,
+                    cat.playlist_id,
+                    p.name as playlist_name
+                FROM content c 
+                INNER JOIN categories cat ON c.category_id = cat.id 
+                INNER JOIN playlists p ON cat.playlist_id = p.id
+                WHERE c.type IN (${placeholders})
+            )
+            SELECT * FROM filtered_content
+            WHERE LOWER(title) LIKE LOWER(?)
+            ORDER BY title
+            LIMIT 50
+        `,
+            [...types, `%${searchTerm}%`]
+        );
+    }
+
+    async getGlobalRecentlyViewed(): Promise<GlobalRecentItem[]> {
+        try {
+            console.log('Starting getGlobalRecentlyViewed query...');
+            const db = await this.getConnection();
+            console.log('Got database connection');
+
+            // Check if table exists
+            const tableCheck = await db.select(`
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='recently_viewed'
+            `);
+            console.log('Tables check:', tableCheck);
+
+            const items = await db.select<GlobalRecentItem[]>(`
+                SELECT 
+                    c.id,
+                    c.category_id,
+                    c.title,
+                    c.rating,
+                    c.added,
+                    c.poster_url,
+                    c.xtream_id,
+                    c.type,
+                    cat.playlist_id,
+                    p.name as playlist_name,
+                    rv.viewed_at
+                FROM recently_viewed rv
+                INNER JOIN content c ON rv.content_id = c.id
+                INNER JOIN categories cat ON c.category_id = cat.id
+                INNER JOIN playlists p ON cat.playlist_id = p.id
+                ORDER BY rv.viewed_at DESC
+                LIMIT 100
+            `);
+
+            console.log('Query executed, items found:', items?.length);
+            console.log('First few items:', items?.slice(0, 3));
+
+            return items || [];
+        } catch (error) {
+            console.error('Detailed error in getGlobalRecentlyViewed:', error);
+            throw error; // Let's throw the error to see it in the component
+        }
+    }
+
+    async clearGlobalRecentlyViewed(): Promise<void> {
+        try {
+            const db = await this.getConnection();
+            await db.execute('DELETE FROM recently_viewed');
+        } catch (error) {
+            console.error('Error clearing global recently viewed:', error);
+            throw error;
+        }
     }
 
     async getPlaylistById(playlistId: string): Promise<XtreamPlaylist | null> {
