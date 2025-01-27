@@ -15,6 +15,12 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
 }
 
 .items-grid {
@@ -104,5 +110,54 @@
     &.series {
         background: #43a047;
         color: white;
+    }
+}
+
+.playlist-section {
+    .section-title {
+        margin: 0 0 1.5rem;
+        font-size: 1.2rem;
+        font-weight: normal;
+        color: var(--text-color-secondary);
+        padding: 0 8px;
+    }
+}
+
+.playlist-group {
+    margin-bottom: 2rem;
+
+    .playlist-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 1rem 0;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+        font-size: 1.1rem;
+        font-weight: 500;
+
+        mat-icon {
+            opacity: 0.7;
+        }
+
+        .item-count {
+            margin-left: auto;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+    }
+}
+
+:host-context(.global-search-overlay) {
+    .recent-container {
+        background: var(--background);
+        height: 100vh;
+    }
+
+    .playlist-group {
+        .playlist-title {
+            background: var(--surface);
+        }
     }
 }
