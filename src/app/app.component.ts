@@ -1,4 +1,5 @@
 import { Component, NgZone } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -30,6 +31,8 @@ import { Settings } from './settings/settings.interface';
 import { Theme } from './settings/theme.enum';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
 import * as PlaylistActions from './state/actions';
+import { RecentlyViewedComponent } from './xtream-tauri/recently-viewed/recently-viewed.component';
+import { SearchResultsComponent } from './xtream-tauri/search-results/search-results.component';
 
 @Component({
     selector: 'app-root',
@@ -62,6 +65,7 @@ export class AppComponent {
 
     constructor(
         private dataService: DataService,
+        private dialog: MatDialog,
         private epgService: EpgService,
         private ngZone: NgZone,
         private playlistService: PlaylistsService,
@@ -91,6 +95,17 @@ export class AppComponent {
                 });
             }
         }
+        document.addEventListener('keydown', (event) => {
+            if (event.ctrlKey || event.metaKey) {
+                if (event.key === 'f') {
+                    event.preventDefault();
+                    this.openGlobalSearch();
+                } else if (event.key === 'r') {
+                    event.preventDefault();
+                    this.openGlobalRecent();
+                }
+            }
+        });
     }
 
     ngOnInit() {
@@ -284,6 +299,28 @@ export class AppComponent {
             null,
             { duration: 4000 }
         );
+    }
+
+    openGlobalSearch(): void {
+        this.dialog.open(SearchResultsComponent, {
+            width: '100%',
+            height: '100%',
+            maxWidth: '100%',
+            panelClass: 'global-search-overlay',
+            data: { isGlobalSearch: true },
+        });
+    }
+
+    openGlobalRecent(): void {
+        this.dialog.open(RecentlyViewedComponent, {
+            width: '100%',
+            height: '100%',
+            maxWidth: '100%',
+            panelClass: 'global-search-overlay',
+            data: { isGlobal: true },
+            hasBackdrop: true,
+            disableClose: false,
+        });
     }
 
     /**
