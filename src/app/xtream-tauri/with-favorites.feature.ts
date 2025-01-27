@@ -20,6 +20,7 @@ export const withFavorites = function () {
                 favoritesService = inject(FavoritesService)
             ) => ({
                 async toggleFavorite(xtreamId: number, playlistId: string) {
+                    let result = false;
                     if (!xtreamId || !playlistId) return;
 
                     const db = await dbService.getConnection();
@@ -47,14 +48,17 @@ export const withFavorites = function () {
                             contentId,
                             playlistId
                         );
+                        result = false;
                     } else {
                         await favoritesService.addToFavorites({
                             content_id: contentId,
                             playlist_id: playlistId,
                         });
+                        result = true;
                     }
 
                     patchState(store, { isFavorite: !isFavorite });
+                    return result;
                 },
 
                 async checkFavoriteStatus(

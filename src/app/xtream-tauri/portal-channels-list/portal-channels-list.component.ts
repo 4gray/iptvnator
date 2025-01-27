@@ -25,7 +25,6 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamCategory } from '../../../../shared/xtream-category.interface';
 import { XtreamItem } from '../../../../shared/xtream-item.interface';
-import { DatabaseService } from '../../services/database.service';
 import { FilterPipe } from '../../shared/pipes/filter.pipe';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../xtream.store';
@@ -37,7 +36,6 @@ interface EpgProgram {
     end: string;
     start_timestamp: string;
     stop_timestamp: string;
-    // ...other properties
 }
 
 @Component({
@@ -65,7 +63,6 @@ export class PortalChannelsListComponent implements AfterViewInit {
 
     readonly xtreamStore = inject(XtreamStore);
     private readonly favoritesService = inject(FavoritesService);
-    private readonly dbService = inject(DatabaseService);
     private readonly route = inject(ActivatedRoute);
     readonly channels = this.xtreamStore.selectItemsFromSelectedCategory;
 
@@ -180,46 +177,20 @@ export class PortalChannelsListComponent implements AfterViewInit {
         return selectedCategory !== null && selectedCategory === itemId;
     }
 
-    async toggleFavorite(event: Event, item: any): Promise<void> {
+    toggleFavorite(event: Event, item: any) {
         event.stopPropagation();
-        const playlist = this.xtreamStore.currentPlaylist();
-
-        // Update UI state immediately
-        const currentFavoriteState =
-            this.favorites.get(item.xtream_id) || false;
-        this.favorites.set(item.xtream_id, !currentFavoriteState);
-
-        try {
-            const db = await this.dbService.getConnection();
-            const content: any = await db.select(
-                'SELECT id FROM content WHERE xtream_id = ?',
-                [item.xtream_id]
-            );
-
-            if (!content || content.length === 0) {
-                console.error('Content not found in database');
-                // Revert UI state on error
-                this.favorites.set(item.xtream_id, currentFavoriteState);
-                return;
-            }
-
-            const contentId = content[0].id;
-
-            if (!currentFavoriteState) {
-                await this.favoritesService.addToFavorites({
-                    content_id: contentId,
-                    playlist_id: playlist.id,
-                });
-            } else {
-                await this.favoritesService.removeFromFavorites(
-                    contentId,
-                    playlist.id
-                );
-            }
-        } catch (error) {
-            console.error('Error toggling favorite:', error);
-            // Revert UI state on error
-            this.favorites.set(item.xtream_id, currentFavoriteState);
-        }
+        this.xtreamStore
+            .toggleFavorite(
+                item.xtream_id,
+                this.xtreamStore.currentPlaylist().id
+            )
+            .then((result: boolean) => {
+                if (result) {
+                    this.favorites.set(item.xtream_id, true);
+                } else {
+                    this.favorites.delete(item.xtream_id);
+                }
+                this.cdr.detectChanges();
+            });
     }
 }
