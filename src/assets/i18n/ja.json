@@ -1,0 +1,300 @@
+{
+  "CLOSE": "閉じる",
+  "PLAYLISTS": "プレイリスト",
+  "HOME": {
+    "TITLE": "IPTVnator",
+    "SUBTITLE": "リストからプレイリストを選択するか、新しいプレイリストを追加してください",
+    "TABS": {
+        "RECENTLY_ADDED": "最近追加したプレイリスト",
+        "FILE_UPLOAD": "ファイルアップロード",
+        "URL_UPLOAD": "URLから追加",
+        "TEXT_IMPORT": "テキストからインポート",
+        "XTREME_IMPORT": "Xtremeコードを追加",
+        "STALKER_PORTAL_IMPORT": "Stalkerポータルを追加"
+    },
+    "PLAYLISTS": {
+        "NO_PLAYLISTS": "プレイリストが追加されていません",
+        "ADD_FIRST": "最初のプレイリストを追加してください",
+        "ADDED_VIA_URL": "URLからアップロード。URL:",
+        "ADDED_VIA_FILE": "ファイルからアップロード",
+        "XTREAM_PLAYLIST": "Xtremeプレイリスト",
+        "STALKER_PORTAL": "Stalkerポータル",
+        "CHANNELS": "チャンネル",
+        "ADDED": "追加済み",
+        "SHOW_DETAILS": "プレイリストの詳細を表示",
+        "REMOVE": "プレイリストを削除",
+        "SEARCH_PLAYLISTS": "タイトルでプレイリストを検索",
+        "INFO_DIALOG": {
+            "PLAYLIST_DETAILS": "プレイリストの詳細",
+            "TITLE": "タイトル",
+            "FROM_URL": "URLから追加",
+            "IMPORT_DATE": "インポート日",
+            "CHANNELS": "チャンネル数",
+            "CLOSE": "閉じる",
+            "SAVE": "保存",
+            "USER_AGENT": "ユーザーエージェント",
+            "ORIGINAL_FILENAME": "元のファイル名",
+            "FILE_PATH": "ファイルパス",
+            "UPDATE_FAILED": "最後のプレイリスト更新に失敗しました",
+            "AUTO_UPDATE": "自動更新",
+            "AUTO_UPDATE_DESCRIPTION": "自動更新機能が有効な場合、アプリ起動時にプレイリストが自動的に更新されます。",
+            "CUSTOM_USER_AGENT": "一部のIPTVプロバイダーでは、プレイリストを再生するために特定のユーザーエージェントが必要です。",
+            "EXPORT_PLAYLIST": "プレイリストをm3uとしてエクスポート",
+            "SERVER_URL": "サーバーURL",
+            "USERNAME": "ユーザー名",
+            "PASSWORD": "パスワード",
+            "MAC_ADDRESS": "MACアドレス"
+        },
+        "REMOVE_DIALOG": {
+            "TITLE": "プレイリストを削除",
+            "MESSAGE": "このプレイリストを完全に削除してもよろしいですか？"
+        },
+        "UPDATED": "更新済み",
+        "REFRESH": "プレイリストを更新",
+        "GLOBAL_FAVORITES": "グローバルお気に入り",
+        "GLOBAL_FAVORITES_DESCRIPTION": "全プレイリストのお気に入りを集約した自動生成プレイリスト",
+        "MY_PLAYLISTS": "マイプレイリスト",
+        "MY_PLAYLISTS_SUBTITLE": "利用可能な全プレイリスト",
+        "PLAYLIST_UPDATE_SUCCESS": "成功！プレイリストが正常に更新されました。"
+    },
+    "FILE_UPLOAD": {
+        "DRAG_DROP": "ここにファイルをドラッグ＆ドロップ",
+        "OR": "または",
+        "CHOOSE_PLAYLIST": "プレイリストを選択",
+        "REJECTED": "ファイルが拒否されました。サポートされていないファイル形式です：{{filename}}"
+    },
+    "URL_UPLOAD": {
+        "PLAYLIST_URL": "プレイリストURL (m3u, m3u8)",
+        "ADD_PLAYLIST": "プレイリストを追加",
+        "CORS_NOTE": "注意：CORSの問題を回避するため、現時点ではパブリックCORSプロキシサービスを使用しています。機密データを含むプレイリストをアップロードする場合は、ファイルからインポートする方が安全です。"
+    },
+    "TEXT_IMPORT": {
+        "LABEL": "m3u(8)プレイリストをテキストとして挿入",
+        "BUTTON_LABEL": "インポート"
+    },
+    "XTREAM_PLAYLIST": {
+        "TITLE": "プレイリストタイトル",
+        "SERVER_URL": "サーバーURL",
+        "USERNAME": "ユーザー名",
+        "PASSWORD": "パスワード",
+        "ADD": "追加",
+        "TEST_CREDENTIALS": "認証情報をテスト",
+        "URL_VALIDATION_ERROR": "プロトコルを含む有効なURLである必要があります（例：http://example.com または https://example.com:4324）"
+    },
+    "STALKER_PORTAL": {
+        "TITLE": "タイトル",
+        "MAC_ADDRESS": "MACアドレス",
+        "SERVER_URL": "サーバーURL",
+        "URL_VALIDATION_ERROR": "プロトコルを含む有効なURLである必要があります（例：http://example.com/c または https://example.com/stalker_portal/c）",
+        "ADD": "追加"
+    },
+    "FILTER_BY_NAME": "名前でフィルター",
+    "FILTER_BY_TYPE": "種類でフィルター",
+    "IMPORTED_AS_TEXT": "テキストとしてインポート",
+    "PARSING_ERROR": "エラー：解析に失敗しました。有効なプレイリストではありません："
+  },
+  "SETTINGS": {
+    "TITLE": "設定 / IPTVnator",
+    "SUBTITLE": "アプリケーションの設定を変更",
+    "DESCRIPTION": "以下のオプションを調整し、変更を保存ボタンで確定してください",
+    "EPG_URL_LABEL": "EPG URL (*.xml または *.xml.gz)",
+    "EPG_URL_PLACEHOLDER": "URLを入力",
+    "REFRESH_EPG": "EPGを更新",
+    "VIDEO_PLAYER_LABEL": "ビデオプレーヤー",
+    "VIDEO_PLAYER_PLACEHOLDER": "オプションを選択",
+    "VERSION": "バージョン",
+    "SAVE_CHANGES": "変更を保存",
+    "BACK_TO_HOME": "戻る",
+    "NEW_VERSION_AVAILABLE": "新しいバージョンが利用可能です",
+    "LATEST_VERSION": "最新バージョンを使用中です",
+    "LANGUAGE": "言語",
+    "SETTINGS_SAVED": "成功！設定が保存されました。",
+    "THEME": "視覚テーマ",
+    "SHOW_CAPTIONS": "字幕を表示",
+    "ADD_EPG_SOURCE": "EPGソースを追加",
+    "EPG_URL_ERROR": "有効なURLではありません",
+    "VIDEO_PLAYER_DESCRIPTION": "デフォルトのビデオプレーヤーを選択",
+    "LANGUAGE_DESCRIPTION": "アプリケーションの言語を選択",
+    "THEME_DESCRIPTION": "アプリケーションの視覚テーマを選択",
+    "SHOW_CAPTIONS_DESCRIPTION": "デフォルトで字幕を表示/非表示",
+    "VERSION_DESCRIPTION": "アプリケーションの現在のバージョン",
+    "EPG_NOTE": "現在、EPGはIPTVnatorのelectronベース版でのみ利用可能です。",
+    "EPG_NOTE_URL_TEXT": "こちらをチェック",
+    "IMPORT_EXPORT_DATA": "プレイリストのインポート/エクスポート",
+    "IMPORT_EXPORT_DATA_DESCRIPTION": "アプリケーション内で使用されているJSONフォーマットでプレイリストをエクスポートまたはインポート。",
+    "IMPORT_DATA": "インポート",
+    "EXPORT_DATA": "エクスポート",
+    "REMOVE_ALL": "プレイリストを削除",
+    "REMOVE_ALL_BUTTON": "削除",
+    "REMOVE_ALL_DESCRIPTION": "アプリケーションから既存のプレイリストをすべて削除します。",
+    "REMOVE_DIALOG": {
+        "TITLE": "すべてのプレイリストを削除",
+        "MESSAGE": "アプリケーションからすべてのプレイリストを削除してもよろしいですか？"
+    },
+    "IMPORT_ERROR": "インポートエラー。別のファイルで試してください。",
+    "PLAYLISTS_REMOVED": "すべてのプレイリストが削除されました。",
+    "MPV_PLAYER_PATH_LABEL": "mpvのパス",
+    "MPV_PLAYER_PATH_DESCRIPTION": "システム内のmpvプレーヤーのパスを設定します。$PATHで見つかったものの代わりに、指定されたmpvバイナリのパスを使用します。",
+    "MPV_PLAYER_PATH": "mpvプレーヤーのパス",
+    "VLC_PLAYER_PATH_LABEL": "VLCのパス",
+    "VLC_PLAYER_PATH_DESCRIPTION": "システム内のVLCプレーヤーのパスを設定します。システムのデフォルトパスの代わりに、指定されたVLCバイナリのパスを使用します。",
+    "VLC_PLAYER_PATH": "VLCプレーヤーのパス",
+    "REMOTE_CONTROL": "リモートコントロール",
+    "REMOTE_CONTROL_DESCRIPTION": "アプリケーションのリモートコントロールを有効にします。",
+    "REMOTE_CONTROL_PORT": "リモートコントロールポート",
+    "REMOTE_CONTROL_PORT_DESCRIPTION": "アプリケーションのリモートコントロールに使用されるポート。デフォルトではポート3000が使用されます。"
+  },
+  "THEMES": {
+    "DARK_THEME": "ダークテーマ",
+    "LIGHT_THEME": "ライトテーマ"
+  },
+  "CHANNELS": {
+    "SEARCH_CHANNEL": "チャンネルを検索",
+    "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "アップロードまたは他のプレイリストを選択",
+    "ALL_CHANNELS": "すべてのチャンネル",
+    "GROUPS": "グループ",
+    "UNGROUPED": "グループなし",
+    "UNNAMED_CHANNEL": "名前のないチャンネル",
+    "FAVORITES": "お気に入り",
+    "NO_FAVORITES": "まだお気に入りがありません",
+    "USE_STAR_TO_FAVORITE": "'スター'アイコンを使用してチャンネルをお気に入りに追加してください。",
+    "REMOVE_FAVORITE": "お気に入りから削除",
+    "FAVORITES_UPDATED": "お気に入りが更新されました！",
+    "SORT_BY": "並び替え",
+    "SORT_BY_DATE": "追加日で並び替え（新しい順）",
+    "SORT_BY_RATING": "評価で並び替え",
+    "SORT_BY_NAME": "名前で並び替え（A-Z）"
+  },
+  "TOP_MENU": {
+    "OPEN_CHANNELS_LIST": "チャンネルリストを開く",
+    "TOGGLE_FAVORITE_FLAG": "お気に入りフラグを切り替え",
+    "OPEN_EPG_LIST": "EPGリストを開く",
+    "OPEN_MULTI_EPG": "マルチEPGビューを開く"
+  },
+  "EPG": {
+    "TITLE": "電子番組表",
+    "NEXT_DAY": "翌日",
+    "PREVIOUS_DAY": "前日",
+    "LIVE_NOW": "現在放送中",
+    "LIVE_STREAM": "ライブストリーム",
+    "TIMESHIFT_AVAILABLE": "タイムシフトが利用可能です。クリックして再生",
+    "EPG_NOT_AVAILABLE_DATE": "申し訳ありません。選択した日付のEPGは利用できません",
+    "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "申し訳ありません。このチャンネルのEPGは利用できません。",
+    "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "アプリの設定でEPGリストのURLを追加/変更してください。",
+    "FETCH_EPG": "EPGデータを取得中...",
+    "ERROR": "申し訳ありません。EPGを読み込めませんでした。",
+    "DOWNLOAD_SUCCESS": "EPGが正常にダウンロードされました。",
+    "PROGRAM_DIALOG": {
+        "PROGRAM_DETAILS": "番組の詳細",
+        "TITLE": "タイトル",
+        "CATEGORY": "カテゴリー",
+        "PARENTAL_RATING_SYSTEM": "テレビ番組レーティングシステム",
+        "DESCRIPTION": "説明",
+        "LANGUAGE": "言語",
+        "SHOW_PROGRAM_DETAILS": "この番組の詳細を表示"
+    },
+    "FETCH_SUCCESS": "EPGの取得に成功しました"
+  },
+  "LANGUAGES": {
+    "ENGLISH": "英語",
+    "KOREAN": "韓国語",
+    "RUSSIAN": "ロシア語",
+    "GERMAN": "ドイツ語",
+    "SPANISH": "スペイン語",
+    "CHINESE": "中国語（簡体字）",
+    "TRADITIONAL_CHINESE": "中国語（繁体字）",
+    "FRENCH": "フランス語",
+    "ITALIAN": "イタリア語",
+    "TURKISH": "トルコ語",
+    "JAPANESE": "日本語"
+  },
+  "YES": "はい",
+  "NO": "いいえ",
+  "MENU": {
+    "OPEN": "メニューを開く",
+    "SUPPORT_ARIA": "GitHubでIPTVnatorをサポート",
+    "SETTINGS": "設定",
+    "SETTINGS_ARIA": "設定を開く",
+    "BUG_REPORT": "バグを報告",
+    "WHAT_IS_NEW": "新着情報",
+    "ABOUT": "アプリについて",
+    "ABOUT_ARIA": "アプリケーションについて",
+    "SUPPORT_PROJECT": "プロジェクトをサポート"
+  },
+  "ABOUT": {
+    "TITLE": "IPTVnatorについて",
+    "DESCRIPTION": "m3uやm3u8プレイリストのサポート、お気に入り、TV番組表、TVアーカイブ/キャッチアップなど、複数の機能を備えたクロスプラットフォームのIPTVプレーヤーアプリケーション。",
+    "VERSION": "バージョン",
+    "GITHUB_TOOLTIP": "GitHub上のITPVnatorリポジトリ",
+    "BUY_ME_A_COFFEE_TOOLTIP": "コーヒーを奢る",
+    "TWITTER_TOOLTIP": "Twitterでシェア"
+  },
+  "UPDATE_AVAILABLE": "アップデートが利用可能",
+  "REFRESH": "更新",
+  "XTREAM": {
+    "PLAY": "再生",
+    "NAME": "名前",
+    "RELEASE_DATE": "公開日",
+    "GENRE": "ジャンル",
+    "COUNTRY": "国",
+    "ACTORS": "出演者",
+    "DIRECTOR": "監督",
+    "DURATION": "時間",
+    "CAST": "キャスト",
+    "EPISODE_RUN_TIME": "エピソード再生時間",
+    "RATING": "評価",
+    "IMDB_RATING": "IMDb評価",
+    "KINOPOISK_RATING": "Kinopoisk評価",
+    "DESCRIPTION": "説明",
+    "YEAR": "年",
+    "AGE": "年齢",
+    "YOUTUBE_TRAILER": "YouTubeトレーラー",
+    "EPISODE": "エピソード"
+  },
+  "PORTALS": {
+    "ALL_CATEGORIES": "すべてのカテゴリー",
+    "MY_FAVORITES": "お気に入り",
+    "ADD_TO_FAVORITES": "お気に入りに追加",
+    "REMOVE_FROM_FAVORITES": "お気に入りから削除",
+    "REMOVED_FROM_FAVORITES": "お気に入りから削除されました",
+    "ADDED_TO_FAVORITES": "お気に入りに追加されました",
+    "ERROR_VIEW": {
+    "ACCOUNT_EXPIRED": {
+      "TITLE": "アカウントの有効期限が切れています",
+      "DESCRIPTION": "このアカウントの有効期限が切れています。プレイリスト設定で認証情報を確認するか、削除してください。"
+    },
+    "UNAUTHORIZED": {
+      "TITLE": "未認証",
+      "DESCRIPTION": "プレイリスト設定で認証情報を確認するか、削除してください。"
+    },
+    "NOT_FOUND": {
+      "TITLE": "ポータルが見つかりません",
+      "DESCRIPTION": "プレイリスト設定で認証情報とポータルURLを確認するか、削除してください。"
+    },
+    "EMPTY_CATEGORY": {
+      "TITLE": "空のカテゴリー",
+      "DESCRIPTION": "このカテゴリーにはコンテンツがありません。別のカテゴリーを選択するかコンテンツタイプを変更してください"
+    },
+    "UNKNOWN_ERROR": {
+      "TITLE": "問題が発生しました",
+      "DESCRIPTION": "不明なエラー。後でもう一度お試しください"
+    },
+    "PLAYLIST_SETTINGS": "プレイリスト設定",
+    "HOME": "ホーム",
+    "DELETE": "削除"
+    },
+    "EMPTY_LIST_VIEW": {
+        "NO_SEARCH_RESULTS": "何も見つかりませんでした。検索リクエストを変更してみてください"
+    },
+    "STREAM_URL_COPIED": "ストリームURLがクリップボードにコピーされました",
+    "COPY_STREAM_URL": "ストリームURLをコピー"
+  },
+  "INFORMATION": "情報",
+  "REMOTE_CONTROL": {
+    "TITLE": "リモートコントロール",
+    "UP_CHANNEL": "チャンネルアップ",
+    "DOWN_CHANNEL": "チャンネルダウン",
+    "HEADER": "IPTVNatorリモートコントロール",
+    "FOOTER": "IPTVNatorリモートコントロール"
+  }
+}
