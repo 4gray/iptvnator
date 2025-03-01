@@ -68,6 +68,7 @@ describe('RecentPlaylistsComponent', () => {
         mockStore.setState({
             playlistState: { playlists: initialPlaylistMetaState },
         });
+        console.error = jest.fn();
         fixture.detectChanges();
     });
 

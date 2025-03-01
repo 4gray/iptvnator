@@ -79,7 +79,13 @@ describe('ChannelListContainerComponent', () => {
 
         // set channels
         const channels = MOCKED_PLAYLIST.playlist.items.map((element) =>
-            createChannel(element)
+            createChannel({
+                ...element,
+                http: {
+                    ...element.http,
+                    origin: '' // Add the missing 'origin' property
+                }
+            })
         );
 
         mockStore.setState({
