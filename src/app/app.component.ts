@@ -95,17 +95,19 @@ export class AppComponent {
                 });
             }
         }
-        document.addEventListener('keydown', (event) => {
-            if (event.ctrlKey || event.metaKey) {
-                if (event.key === 'f') {
-                    event.preventDefault();
-                    this.openGlobalSearch();
-                } else if (event.key === 'r') {
-                    event.preventDefault();
-                    this.openGlobalRecent();
+        if (isTauri()) {
+            document.addEventListener('keydown', (event) => {
+                if (event.ctrlKey || event.metaKey) {
+                    if (event.key === 'f') {
+                        event.preventDefault();
+                        this.openGlobalSearch();
+                    } else if (event.key === 'r') {
+                        event.preventDefault();
+                        this.openGlobalRecent();
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     ngOnInit() {
