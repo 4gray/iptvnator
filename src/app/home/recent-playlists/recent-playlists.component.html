@@ -12,15 +12,13 @@
     /></mat-form-field>
     @defer {
         <mat-nav-list
-            cdkDropList
-            (cdkDropListDropped)="drop($event, playlists)"
             *ngIf="playlists$ | async as playlists"
             class="playlists-list"
         >
             <mat-list-item
                 *ngIf="playlists.length === 0; else playlistsTemplate"
             >
-                <mat-icon class="favorites-icon" matListItemIcon
+                <mat-icon matListItemIcon
                     >search</mat-icon
                 >
                 <div matListItemTitle>

@@ -33,7 +33,7 @@ mat-list-item {
 
 ::ng-deep {
     @media only screen and (max-width: 480px) {
-        .main-container {
+        .main-container {  
             .favorites-icon,
             .upload-type-icon,
             .refresh-btn,
@@ -51,12 +51,6 @@ mat-list-item {
 
 .action-buttons {
     align-self: center !important;
-}
-
-@media (max-width: 599px) {
-    .drag-icon {
-        display: none;
-    }
 }
 
 .icon-container {
@@ -88,4 +82,11 @@ mat-list-item {
 
 .status-unavailable {
     background-color: #444444;
+}
+
+@media only screen and (max-width: 480px) {
+    .upload-type-icon,
+    .icon-container {
+        display: none;
+    }
 }

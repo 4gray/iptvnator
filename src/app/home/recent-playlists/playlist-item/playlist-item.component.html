@@ -1,7 +1,4 @@
-<mat-list-item cdkDrag (click)="playlistClicked.emit(item._id)">
-    <mat-icon matListItemIcon cdkDragHandle class="drag-icon"
-        >drag_indicator</mat-icon
-    >
+<mat-list-item (click)="playlistClicked.emit(item._id)">
     <mat-icon
         matListItemIcon
         class="upload-type-icon"

@@ -1,8 +1,4 @@
-import {
-    CdkDragDrop,
-    DragDropModule,
-    moveItemInArray,
-} from '@angular/cdk/drag-drop';
+import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { AsyncPipe, NgFor, NgIf } from '@angular/common';
 import {
     Component,
@@ -57,7 +53,6 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
     styleUrls: ['./recent-playlists.component.scss'],
     imports: [
         AsyncPipe,
-        DragDropModule,
         MatButtonModule,
         MatDividerModule,
         MatIconModule,
