@@ -28,6 +28,7 @@ import { IpcCommand } from '../../../../shared/ipc-command.class';
 import { Playlist } from '../../../../shared/playlist.interface';
 import { DataService } from '../../services/data.service';
 import { DatabaseService } from '../../services/database.service';
+import { SortService } from '../../services/sort.service';
 import * as PlaylistActions from '../../state/actions';
 import {
     selectActiveTypeFilters,
@@ -73,11 +74,11 @@ export class RecentPlaylistsComponent implements OnDestroy {
     playlists$ = combineLatest([
         this.store.select(selectAllPlaylistsMeta),
         this.searchQuery,
-        // eslint-disable-next-line @ngrx/avoid-combining-selectors
         this.store.select(selectActiveTypeFilters),
+        this.sortService.getSortOptions(),
     ]).pipe(
-        map(([playlists, searchQuery, filters]) =>
-            playlists
+        map(([playlists, searchQuery, filters, sortOptions]) => {
+            const filteredPlaylists = playlists
                 .filter((item) => {
                     const isStalkerFilter =
                         item.macAddress && filters.includes('stalker');
@@ -101,9 +102,14 @@ export class RecentPlaylistsComponent implements OnDestroy {
                 })
                 .filter((item) =>
                     item.title.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                .sort((a, b) => a.position - b.position)
-        )
+                );
+
+            // Apply sorting using the SortService
+            return this.sortService.sortPlaylists(
+                filteredPlaylists,
+                sortOptions
+            );
+        })
     );
 
     allPlaylistsLoaded = this.store.selectSignal(selectPlaylistsLoadingFlag);
@@ -138,15 +144,16 @@ export class RecentPlaylistsComponent implements OnDestroy {
     ];
 
     constructor(
-        private databaseService: DatabaseService,
-        private dialog: MatDialog,
-        private dialogService: DialogService,
-        private electronService: DataService,
-        private ngZone: NgZone,
-        private router: Router,
-        private snackBar: MatSnackBar,
+        private readonly databaseService: DatabaseService,
+        private readonly dialog: MatDialog,
+        private readonly dialogService: DialogService,
+        private readonly electronService: DataService,
+        private readonly ngZone: NgZone,
+        private readonly router: Router,
+        private readonly snackBar: MatSnackBar,
+        private readonly sortService: SortService,
         private readonly store: Store,
-        private translate: TranslateService
+        private readonly translate: TranslateService
     ) {}
 
     ngOnInit(): void {

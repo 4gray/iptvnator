@@ -16,6 +16,7 @@ import { open } from '@tauri-apps/plugin-shell';
 import { NgxWhatsNewModule } from 'ngx-whats-new';
 import { HomeComponent } from '../../../home/home.component';
 import { DataService } from '../../../services/data.service';
+import { SortBy, SortOrder, SortService } from '../../../services/sort.service';
 import { WhatsNewService } from '../../../services/whats-new.service';
 import { setSelectedFilters } from '../../../state/actions';
 import { selectActiveTypeFilters } from '../../../state/selectors';
@@ -91,13 +92,18 @@ export class HeaderComponent implements OnInit {
 
     selectedTypeFilters = this.store.selectSignal(selectActiveTypeFilters);
 
+    SortBy = SortBy;
+    SortOrder = SortOrder;
+    currentSortOptions: { by: SortBy; order: SortOrder };
+
     constructor(
         private activatedRoute: ActivatedRoute,
         private dialog: MatDialog,
         private dataService: DataService,
         private router: Router,
         private store: Store,
-        private whatsNewService: WhatsNewService
+        private whatsNewService: WhatsNewService,
+        private sortService: SortService
     ) {
         effect(() => {
             if (this.selectedTypeFilters) {
@@ -106,6 +112,10 @@ export class HeaderComponent implements OnInit {
                     return type;
                 });
             }
+        });
+
+        this.sortService.getSortOptions().subscribe((options) => {
+            this.currentSortOptions = options;
         });
     }
 
@@ -172,6 +182,17 @@ export class HeaderComponent implements OnInit {
                     .filter((f) => f.checked)
                     .map((f) => f.id),
             })
+        );
+    }
+
+    setSortOptions(by: SortBy, order: SortOrder): void {
+        this.sortService.setSortOptions({ by, order });
+    }
+
+    isSortActive(by: SortBy, order: SortOrder): boolean {
+        return (
+            this.currentSortOptions?.by === by &&
+            this.currentSortOptions?.order === order
         );
     }
 }

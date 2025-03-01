@@ -37,9 +37,6 @@ export class PlaylistsService {
                 data.map(({ playlist, items, header, ...rest }) => ({
                     ...rest,
                 }))
-            ),
-            map((playlists) =>
-                playlists.sort((a, b) => a.position - b.position)
             )
         );
     }
