@@ -1,5 +1,4 @@
 import { Component, inject } from '@angular/core';
-import { Store } from '@ngrx/store';
 import { CategoryViewComponent } from './category-view/category-view.component';
 
 import { MatIconButton } from '@angular/material/button';
@@ -26,8 +25,6 @@ import { XtreamStore } from './xtream.store';
 })
 export class XtreamMainContainerComponent {
     readonly xtreamStore = inject(XtreamStore);
-
-    private store = inject(Store);
 
     constructor(
         private router: Router,
