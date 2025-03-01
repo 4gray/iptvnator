@@ -34,7 +34,7 @@ export class TauriService extends DataService {
         } else if (type === 'PLAYLIST_UPDATE') {
             console.log('PLAYLIST_UPDATE');
         } else if (type === 'XTREAM_REQUEST') {
-            this.forwardXtreamRequest(
+            return await this.forwardXtreamRequest(
                 payload as { url: string; params: Record<string, string> }
             );
         } else if (type === 'STALKER_REQUEST') {
@@ -174,6 +174,7 @@ export class TauriService extends DataService {
         url: string;
         params: Record<string, string>;
     }) {
+        let result: any;
         const url = new URL(`${payload.url}/player_api.php`);
         Object.entries(payload.params).forEach(([key, value]) => {
             url.searchParams.append(key, value);
@@ -183,18 +184,21 @@ export class TauriService extends DataService {
 
         const responseBody = await response.json();
         if (!responseBody) {
-            window.postMessage({
+            result = {
                 type: ERROR,
                 status: response.status,
                 message: responseBody.message ?? 'Unknown error',
-            });
+            };
+            window.postMessage(result);
         } else {
-            window.postMessage({
+            result = {
                 type: XTREAM_RESPONSE,
                 payload: responseBody,
                 action: payload.params.action,
-            });
+            };
+            window.postMessage(result);
         }
+        return result;
     }
 
     removeAllListeners(type: string): void {

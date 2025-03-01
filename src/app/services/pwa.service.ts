@@ -5,7 +5,7 @@ import { Params } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { catchError, EMPTY, throwError } from 'rxjs';
+import { catchError, firstValueFrom, throwError } from 'rxjs';
 import {
     ERROR,
     PLAYLIST_PARSE_BY_URL,
@@ -63,13 +63,13 @@ export class PwaService extends DataService {
      * @param type ipc command type
      * @param payload payload
      */
-    sendIpcEvent(type: string, payload?: unknown): void {
+    sendIpcEvent(type: string, payload?: unknown) {
         if (type === PLAYLIST_PARSE_BY_URL) {
             this.fetchFromUrl(payload);
         } else if (type === PLAYLIST_UPDATE) {
             this.refreshPlaylist(payload);
         } else if (type === XTREAM_REQUEST) {
-            this.forwardXtreamRequest(
+            return this.forwardXtreamRequest(
                 payload as { url: string; params: Record<string, string> }
             );
         } else if (type === STALKER_REQUEST) {
@@ -151,7 +151,7 @@ export class PwaService extends DataService {
         return message;
     }
 
-    forwardXtreamRequest(payload: {
+    async forwardXtreamRequest(payload: {
         url: string;
         params: Record<string, string>;
         macAddress?: string;
@@ -163,39 +163,44 @@ export class PwaService extends DataService {
                   },
               }
             : {};
-        return this.http
-            .get(`${this.corsProxyUrl}/xtream`, {
-                params: {
-                    url: payload.url,
-                    ...payload.params,
-                },
-                ...headers,
-            })
-            .pipe(
-                catchError((response) => {
-                    window.postMessage({
-                        type: ERROR,
-                        status: response.error.status,
-                        message: response.error.message ?? 'Unknown error',
-                    });
-                    return EMPTY;
+        try {
+            let result: any;
+            const response = await firstValueFrom(
+                this.http.get(`${this.corsProxyUrl}/xtream`, {
+                    params: {
+                        url: payload.url,
+                        ...payload.params,
+                    },
+                    ...headers,
                 })
-            )
-            .subscribe((response) => {
-                if (!(response as any).payload) {
-                    window.postMessage({
-                        type: ERROR,
-                        status: (response as any).status,
-                        message: (response as any).message ?? 'Unknown error',
-                    });
-                } else {
-                    window.postMessage({
-                        type: XTREAM_RESPONSE,
-                        payload: (response as any).payload,
-                        action: payload.params.action,
-                    });
-                }
+            );
+
+            if (!(response as any).payload) {
+                if (payload.params.action === 'get_account_info') return;
+
+                result = {
+                    type: ERROR,
+                    status: (response as any).status,
+                    message: (response as any).message ?? 'Unknown error',
+                };
+                window.postMessage(result);
+            } else {
+                result = {
+                    type: XTREAM_RESPONSE,
+                    payload: (response as any).payload,
+                    action: payload.params.action,
+                };
+                window.postMessage(result);
+            }
+            return result;
+        } catch (error: any) {
+            if (payload.params.action === 'get_account_info') return;
+            window.postMessage({
+                type: ERROR,
+                status: error.error?.status,
+                message: error.error?.message ?? 'Unknown error',
             });
+        }
     }
 
     forwardStalkerRequest(payload: {
