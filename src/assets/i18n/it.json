@@ -90,6 +90,14 @@
     },
     "FILTER_BY_NAME": "Filtra per nome",
     "FILTER_BY_TYPE": "Filtra per tipo",
+    "SORT_PLAYLISTS": "Ordina playlist",
+    "SORT_BY": "Ordina per",
+    "SORT_OPTIONS": {
+      "NAME_ASC": "Nome (A-Z)",
+      "NAME_DESC": "Nome (Z-A)",
+      "NEWEST": "Data aggiunta (prima più recenti)",
+      "OLDEST": "Data aggiunta (prima più vecchi)"
+    },
     "IMPORTED_AS_TEXT": "Importato come testo",
     "PARSING_ERROR": "Errore: analisi fallita, non è una playlist valida:"
   },
