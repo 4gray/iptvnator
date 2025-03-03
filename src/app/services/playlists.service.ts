@@ -228,7 +228,6 @@ export class PlaylistsService {
     ) {
         try {
             const parsedPlaylist = parse(playlist);
-            console.log(parsedPlaylist);
             return createPlaylistObject(
                 title,
                 parsedPlaylist,

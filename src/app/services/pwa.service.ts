@@ -80,6 +80,8 @@ export class PwaService extends DataService {
                     params: Record<string, string>;
                 }
             );
+        } else {
+            return Promise.resolve();
         }
     }
 
