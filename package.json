@@ -37,8 +37,8 @@
   "dependencies": {
     "@angular-builders/jest": "17.0.0",
     "@angular/animations": "19.2.0",
-    "@angular/cdk": "18.2.1",
-    "@angular/material": "18.2.1",
+    "@angular/cdk": "19.2.1",
+    "@angular/material": "19.2.1",
     "@ngrx/component-store": "18.0.2",
     "@ngrx/effects": "18.0.2",
     "@ngrx/entity": "18.0.2",
