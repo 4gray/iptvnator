@@ -56,7 +56,6 @@ import { Theme } from './theme.enum';
 @Component({
     templateUrl: './settings.component.html',
     styleUrls: ['./settings.component.scss'],
-    standalone: true,
     imports: [
         CommonModule,
         FormsModule,
@@ -71,7 +70,7 @@ import { Theme } from './theme.enum';
         ReactiveFormsModule,
         TranslateModule,
         MatDialogModule,
-    ],
+    ]
 })
 export class SettingsComponent implements OnInit {
     @Input() isDialog = false;

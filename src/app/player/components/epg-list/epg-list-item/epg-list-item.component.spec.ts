@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
-import * as moment from 'moment';
+import moment from 'moment';
 import { MockModule, MockPipe } from 'ng-mocks';
 import { MomentDatePipe } from './../../../../shared/pipes/moment-date.pipe';
 import { EpgProgram } from './../../../models/epg-program.model';
@@ -69,7 +69,7 @@ describe('EpgListItemComponent', () => {
                 MockModule(MatListModule),
                 MockModule(MatIconModule),
                 MockModule(MatTooltipModule),
-                MockModule(TranslateModule),
+                TranslateModule.forRoot(),
             ],
         }).compileComponents();
     }));

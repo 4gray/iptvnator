@@ -33,7 +33,6 @@ export interface EpgData {
 const DATE_FORMAT = 'YYYY-MM-DD';
 
 @Component({
-    standalone: true,
     imports: [
         AsyncPipe,
         EpgListItemComponent,
@@ -48,7 +47,7 @@ const DATE_FORMAT = 'YYYY-MM-DD';
     ],
     selector: 'app-epg-list',
     templateUrl: './epg-list.component.html',
-    styleUrls: ['./epg-list.component.scss'],
+    styleUrls: ['./epg-list.component.scss']
 })
 export class EpgListComponent {
     /** Channel info in EPG format */

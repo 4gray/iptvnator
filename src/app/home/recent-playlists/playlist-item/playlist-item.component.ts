@@ -8,7 +8,6 @@ import {
     inject,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDivider } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -20,14 +19,12 @@ import {
 import { PlaylistMeta } from '../../../shared/playlist-meta.type';
 
 @Component({
-    standalone: true,
     selector: 'app-playlist-item',
     templateUrl: './playlist-item.component.html',
     styleUrls: ['./playlist-item.component.scss'],
     imports: [
         DatePipe,
         MatButtonModule,
-        MatDivider,
         MatIconModule,
         MatListModule,
         MatTooltipModule,

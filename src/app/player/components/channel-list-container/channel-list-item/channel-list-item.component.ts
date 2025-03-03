@@ -9,7 +9,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 
 @Component({
-    standalone: true,
     selector: 'app-channel-list-item',
     styleUrls: ['./channel-list-item.component.scss'],
     template: `<mat-list-item
@@ -58,7 +57,7 @@ import { TranslateModule } from '@ngx-translate/core';
         MatListModule,
         MatTooltipModule,
         TranslateModule,
-    ],
+    ]
 })
 export class ChannelListItemComponent {
     @Input() isDraggable = false;

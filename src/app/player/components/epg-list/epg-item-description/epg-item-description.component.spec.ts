@@ -15,7 +15,7 @@ describe('EpgItemDescriptionComponent', () => {
             imports: [
                 EpgItemDescriptionComponent,
                 MockModule(MatDialogModule),
-                MockModule(TranslateModule),
+                TranslateModule.forRoot(),
             ],
             providers: [
                 {

@@ -13,7 +13,6 @@ import { XtreamStore } from './xtream.store';
     selector: 'app-xtream-main-container',
     templateUrl: './xtream-main-container.component.html',
     styleUrls: ['./xtream-main-container.component.scss', './sidebar.scss'],
-    standalone: true,
     imports: [
         CategoryViewComponent,
         TranslateModule,
@@ -21,7 +20,7 @@ import { XtreamStore } from './xtream.store';
         MpvPlayerBarComponent,
         MatIcon,
         MatIconButton,
-    ],
+    ]
 })
 export class XtreamMainContainerComponent {
     readonly xtreamStore = inject(XtreamStore);

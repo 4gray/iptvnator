@@ -17,7 +17,6 @@ import { DataService } from '../../services/data.service';
 import { addPlaylist } from '../../state/actions';
 
 @Component({
-    standalone: true,
     imports: [
         FormsModule,
         ReactiveFormsModule,
@@ -40,7 +39,7 @@ import { addPlaylist } from '../../state/actions';
                 width: 100%;
             }
         `,
-    ],
+    ]
 })
 export class StalkerPortalImportComponent {
     @Output() addClicked = new EventEmitter<void>();

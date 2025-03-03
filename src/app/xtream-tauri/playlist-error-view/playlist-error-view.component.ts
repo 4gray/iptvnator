@@ -12,11 +12,10 @@ import * as PlaylistActions from '../../state/actions';
 import { selectCurrentPlaylist } from '../../state/selectors';
 
 @Component({
-    standalone: true,
     selector: 'app-playlist-error-view',
     templateUrl: './playlist-error-view.component.html',
     styleUrls: ['./playlist-error-view.component.scss'],
-    imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule],
+    imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule]
 })
 export class PlaylistErrorViewComponent {
     private databaseService = inject(DatabaseService);

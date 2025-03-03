@@ -20,7 +20,6 @@ import { SafePipe } from './safe.pipe';
     selector: 'app-vod-details',
     templateUrl: './vod-details.component.html',
     styleUrls: ['../detail-view.scss'],
-    standalone: true,
     imports: [
         MatButtonModule,
         MatIcon,
@@ -29,7 +28,7 @@ import { SafePipe } from './safe.pipe';
         SafePipe,
         TranslateModule,
         MatProgressSpinnerModule,
-    ],
+    ]
 })
 export class VodDetailsComponent implements OnInit {
     @Input({ required: true }) item: XtreamVodDetails;

@@ -7,7 +7,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
@@ -114,13 +114,11 @@ describe('EpgListComponent', () => {
         };
 
         TestBed.configureTestingModule({
-            declarations: [
+            imports: [
                 EpgListComponent,
                 MockPipe(MomentDatePipe),
-                MockPipe(TranslatePipe),
+                TranslateModule.forRoot(),
                 MockComponent(EpgListItemComponent),
-            ],
-            imports: [
                 MockModule(MatIconModule),
                 MockModule(MatTooltipModule),
                 MockModule(MatListModule),

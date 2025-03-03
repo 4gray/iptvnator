@@ -21,7 +21,6 @@ import { parsePlaylist } from '../../../state/actions';
 export type PlaylistType = 'xtream' | 'url' | 'text' | 'file' | 'stalker';
 
 @Component({
-    standalone: true,
     imports: [
         MatButtonModule,
         MatDialogModule,
@@ -33,7 +32,7 @@ export type PlaylistType = 'xtream' | 'url' | 'text' | 'file' | 'stalker';
         UrlUploadComponent,
     ],
     selector: 'app-add-playlist',
-    templateUrl: './add-playlist-dialog.component.html',
+    templateUrl: './add-playlist-dialog.component.html'
 })
 export class AddPlaylistDialogComponent {
     playlistType!: PlaylistType;

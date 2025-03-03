@@ -9,11 +9,10 @@ import { parsePlaylist } from '../../state/actions';
 import { DragDropFileUploadDirective } from './drag-drop-file-upload.directive';
 
 @Component({
-    standalone: true,
     imports: [DragDropFileUploadDirective, MatIconModule, TranslateModule],
     selector: 'app-file-upload',
     templateUrl: './file-upload.component.html',
-    styleUrls: ['./file-upload.component.scss'],
+    styleUrls: ['./file-upload.component.scss']
 })
 export class FileUploadComponent {
     @Output() fileSelected = new EventEmitter<{

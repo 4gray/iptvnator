@@ -21,7 +21,6 @@ import {
 import { addPlaylist } from '../../state/actions';
 
 @Component({
-    standalone: true,
     imports: [
         FormsModule,
         ReactiveFormsModule,
@@ -73,7 +72,7 @@ import { addPlaylist } from '../../state/actions';
                 justify-content: space-between;
             }
         `,
-    ],
+    ]
 })
 export class XtreamCodeImportComponent {
     @Output() addClicked = new EventEmitter<void>();

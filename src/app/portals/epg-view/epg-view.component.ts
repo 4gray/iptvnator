@@ -9,11 +9,10 @@ import { EpgItemDescriptionComponent } from '../../player/components/epg-list/ep
 import { EpgItem } from '../../xtream/epg-item.interface';
 
 @Component({
-    standalone: true,
     selector: 'app-epg-view',
     templateUrl: './epg-view.component.html',
     imports: [DatePipe, MatIconButton, MatIcon, MatListModule, TranslateModule],
-    styleUrls: ['./epg-view.component.scss'],
+    styleUrls: ['./epg-view.component.scss']
 })
 export class EpgViewComponent {
     @Input() epgItems: EpgItem[];

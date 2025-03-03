@@ -18,15 +18,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { provideMockStore } from '@ngrx/store/testing';
-import {
-    TranslateModule,
-    TranslatePipe,
-    TranslateService,
-} from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     MockComponent,
     MockModule,
-    MockPipe,
     MockProvider,
     MockProviders,
 } from 'ng-mocks';
@@ -39,6 +34,7 @@ import { Theme } from './theme.enum';
 
 import { signal } from '@angular/core';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { NgxWhatsNewModule } from 'ngx-whats-new';
 import { of } from 'rxjs';
 import { SETTINGS_UPDATE } from '../../../shared/ipc-commands';
 import { DialogService } from '../services/dialog.service';
@@ -100,14 +96,8 @@ describe('SettingsComponent', () => {
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
-            declarations: [
-                SettingsComponent,
-                MockComponent(HeaderComponent),
-                MockPipe(TranslatePipe),
-            ],
             providers: [
                 UntypedFormBuilder,
-                MockProvider(TranslateService),
                 { provide: SettingsStore, useClass: MockSettingsStore },
                 MockProvider(EpgService),
                 MockProvider(DialogService),
@@ -122,6 +112,8 @@ describe('SettingsComponent', () => {
                 MockProviders(NgxIndexedDBService, PlaylistsService),
             ],
             imports: [
+                SettingsComponent,
+                MockComponent(HeaderComponent),
                 HttpClientTestingModule,
                 FormsModule,
                 MockModule(MatSelectModule),
@@ -134,7 +126,8 @@ describe('SettingsComponent', () => {
                 MockModule(MatFormFieldModule),
                 MockModule(MatCheckboxModule),
                 MockModule(MatDividerModule),
-                MockModule(TranslateModule),
+                TranslateModule.forRoot(),
+                NgxWhatsNewModule,
             ],
         }).compileComponents();
     }));

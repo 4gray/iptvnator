@@ -16,7 +16,6 @@ import { XtreamStore } from '../xtream.store';
 
 @Component({
     selector: 'app-category-view',
-    standalone: true,
     imports: [
         MatCardModule,
         MatListModule,
@@ -26,7 +25,7 @@ import { XtreamStore } from '../xtream.store';
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './category-view.component.html',
-    styleUrls: ['./category-view.component.scss'],
+    styleUrls: ['./category-view.component.scss']
 })
 export class CategoryViewComponent {
     @Output() categoryClicked = new EventEmitter<XtreamCategory>();

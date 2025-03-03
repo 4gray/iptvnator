@@ -37,6 +37,7 @@ import { SearchResultsComponent } from './xtream-tauri/search-results/search-res
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
+    standalone: false
 })
 export class AppComponent {
     /** Visibility flag of the "what is new" modal dialog */

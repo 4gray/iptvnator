@@ -8,7 +8,6 @@ import { TranslateModule } from '@ngx-translate/core';
 import { PortalStore } from '../../../xtream/portal.store';
 
 @Component({
-    standalone: true,
     template: `
         <h2 mat-dialog-title>{{ 'INFORMATION' | translate }}</h2>
         <mat-dialog-content class="mat-typography">
@@ -66,7 +65,7 @@ import { PortalStore } from '../../../xtream/portal.store';
         MatIconModule,
         RouterLink,
         TranslateModule,
-    ],
+    ]
 })
 export class ExternalPlayerInfoDialogComponent {
     portalStore = inject(PortalStore);

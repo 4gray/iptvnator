@@ -5,7 +5,6 @@ import { TranslateModule } from '@ngx-translate/core';
 import { ConfirmDialogData } from './confirm-dialog-data.interface';
 @Component({
     imports: [MatButtonModule, MatDialogModule, TranslateModule],
-    standalone: true,
     template: `
         <h2 mat-dialog-title>
             {{ dialogData.title }}
@@ -21,7 +20,7 @@ import { ConfirmDialogData } from './confirm-dialog-data.interface';
                 {{ dialogData?.confirmLabel || 'YES' | translate }}
             </button>
         </mat-dialog-actions>
-    `,
+    `
 })
 export class ConfirmDialogComponent {
     /** Contains meta information to show in the dialog */

@@ -9,7 +9,6 @@ import { PortalStore } from '../portal.store';
 
 @Component({
     selector: 'app-category-view',
-    standalone: true,
     template: `
         @if (items?.length > 0) {
             @for (
@@ -60,7 +59,7 @@ import { PortalStore } from '../portal.store';
         MatIconModule,
         PlaylistErrorViewComponent,
         TranslateModule,
-    ],
+    ]
 })
 export class CategoryViewComponent {
     @Input({ required: true }) items: XtreamCategory[];

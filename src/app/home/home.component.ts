@@ -12,7 +12,6 @@ import { addPlaylist } from '../state/actions';
 import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
 
 @Component({
-    standalone: true,
     selector: 'app-home',
     templateUrl: './home.component.html',
     styleUrls: ['./home.component.scss'],
@@ -22,7 +21,7 @@ import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.co
         NgIf,
         RecentPlaylistsComponent,
         TranslateModule,
-    ],
+    ]
 })
 export class HomeComponent {
     /** Loading spinner state */

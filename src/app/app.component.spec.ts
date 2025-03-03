@@ -10,9 +10,9 @@ import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { MockModule, MockPipe, MockProviders } from 'ng-mocks';
+import { MockComponent, MockModule, MockPipe, MockProviders } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { NgxWhatsNewModule } from 'ngx-whats-new';
+import { NgxWhatsNewComponent } from 'ngx-whats-new';
 import { of } from 'rxjs';
 import { AppComponent } from './app.component';
 import { DataService } from './services/data.service';
@@ -56,7 +56,7 @@ describe('AppComponent', () => {
             ],
             imports: [
                 MockModule(MatSnackBarModule),
-                MockModule(NgxWhatsNewModule),
+                MockComponent(NgxWhatsNewComponent),
                 RouterTestingModule,
                 HttpClientTestingModule,
             ],

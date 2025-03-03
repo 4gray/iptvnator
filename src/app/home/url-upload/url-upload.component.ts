@@ -13,7 +13,6 @@ import { TranslateModule } from '@ngx-translate/core';
 import { DataService } from '../../services/data.service';
 
 @Component({
-    standalone: true,
     selector: 'app-url-upload',
     templateUrl: './url-upload.component.html',
     imports: [
@@ -23,7 +22,7 @@ import { DataService } from '../../services/data.service';
         NgIf,
         ReactiveFormsModule,
         TranslateModule,
-    ],
+    ]
 })
 export class UrlUploadComponent implements OnInit {
     /** Emits url string to the parent component on form submit */

@@ -6,11 +6,10 @@ import { TranslateModule } from '@ngx-translate/core';
 import { EpgProgram } from './../../../models/epg-program.model';
 
 @Component({
-    standalone: true,
     selector: 'app-epg-item-description',
     templateUrl: './epg-item-description.component.html',
     styleUrls: ['./epg-item-description.component.scss'],
-    imports: [MatButtonModule, MatDialogModule, NgIf, TranslateModule],
+    imports: [MatButtonModule, MatDialogModule, NgIf, TranslateModule]
 })
 export class EpgItemDescriptionComponent {
     /** EPG program object */

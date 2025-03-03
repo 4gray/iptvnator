@@ -8,11 +8,10 @@ import { EpgProgram } from '../../../models/epg-program.model';
 import { EpgItemDescriptionComponent } from './../epg-item-description/epg-item-description.component';
 
 @Component({
-    standalone: true,
     imports: [MomentDatePipe, MatIconModule, MatTooltipModule, TranslateModule],
     selector: 'app-epg-list-item',
     templateUrl: './epg-list-item.component.html',
-    styleUrls: ['./epg-list-item.component.scss'],
+    styleUrls: ['./epg-list-item.component.scss']
 })
 export class EpgListItemComponent {
     /** EPG Program to render */

@@ -16,7 +16,6 @@ import { XtreamStore } from '../xtream.store';
 
 @Component({
     selector: 'app-favorites',
-    standalone: true,
     imports: [
         AsyncPipe,
         DatePipe,
@@ -29,7 +28,7 @@ import { XtreamStore } from '../xtream.store';
         TranslateModule,
     ],
     templateUrl: './favorites.component.html',
-    styleUrl: './favorites.component.scss',
+    styleUrl: './favorites.component.scss'
 })
 export class FavoritesComponent implements OnInit {
     private favoritesService = inject(FavoritesService);

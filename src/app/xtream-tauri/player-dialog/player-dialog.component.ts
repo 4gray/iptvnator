@@ -16,7 +16,6 @@ export interface PlayerDialogData {
 
 @Component({
     templateUrl: './player-dialog.component.html',
-    standalone: true,
     imports: [
         ClipboardModule,
         MatButtonModule,
@@ -28,7 +27,7 @@ export interface PlayerDialogData {
         WebPlayerViewComponent,
     ],
     styleUrl: './player-dialog.component.scss',
-    encapsulation: ViewEncapsulation.None,
+    encapsulation: ViewEncapsulation.None
 })
 export class PlayerDialogComponent {
     title: string;

@@ -1,5 +1,4 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
-import { NgIf } from '@angular/common';
 import { Component, Inject, ViewEncapsulation } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -17,7 +16,6 @@ export interface PlayerDialogData {
 
 @Component({
     templateUrl: './player-dialog.component.html',
-    standalone: true,
     imports: [
         ClipboardModule,
         MatButtonModule,
@@ -25,7 +23,6 @@ export interface PlayerDialogData {
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
-        NgIf,
         TranslateModule,
         WebPlayerViewComponent,
     ],

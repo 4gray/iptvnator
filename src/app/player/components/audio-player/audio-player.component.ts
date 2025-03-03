@@ -1,4 +1,4 @@
-import { NgClass, NgIf, NgOptimizedImage } from '@angular/common';
+import { NgIf } from '@angular/common';
 import {
     Component,
     ElementRef,
@@ -16,7 +16,6 @@ import { setAdjacentChannelAsActive } from '../../../state/actions';
 
 @Component({
     selector: 'app-audio-player',
-    standalone: true,
     template: `
         <div id="audio-player">
             <div class="radio-logo">
@@ -81,9 +80,7 @@ import { setAdjacentChannelAsActive } from '../../../state/actions';
         MatIconModule,
         MatButtonModule,
         NgIf,
-        NgClass,
         FormsModule,
-        NgOptimizedImage,
     ],
 })
 export class AudioPlayerComponent implements OnChanges {

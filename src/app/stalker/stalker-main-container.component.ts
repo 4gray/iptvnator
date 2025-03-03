@@ -50,7 +50,6 @@ import { StalkerSeriesViewComponent } from './stalker-series-view/stalker-series
     selector: 'app-stalker-main-container',
     templateUrl: './stalker-main-container.component.html',
     styleUrl: './stalker-main-container.component.scss',
-    standalone: true,
     imports: [
         AsyncPipe,
         CategoryContentViewComponent,
@@ -62,7 +61,7 @@ import { StalkerSeriesViewComponent } from './stalker-series-view/stalker-series
         StalkerSeriesViewComponent,
         TranslateModule,
         VodDetailsComponent,
-    ],
+    ]
 })
 export class StalkerMainContainerComponent implements OnInit {
     breadcrumbs: Breadcrumb[] = [];

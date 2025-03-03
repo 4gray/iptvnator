@@ -12,7 +12,6 @@ import { XtreamStore } from '../xtream.store';
     selector: 'app-category-content-view',
     templateUrl: './category-content-view.component.html',
     styleUrls: ['./category-content-view.component.scss'],
-    standalone: true,
     imports: [
         MatCardModule,
         MatIcon,
@@ -20,7 +19,7 @@ import { XtreamStore } from '../xtream.store';
         MatTooltip,
         NgOptimizedImage,
         TranslateModule,
-    ],
+    ]
 })
 export class CategoryContentViewComponent {
     private readonly activatedRoute = inject(ActivatedRoute);

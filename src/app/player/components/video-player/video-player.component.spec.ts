@@ -8,8 +8,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslatePipe } from '@ngx-translate/core';
-import { MockComponent, MockModule, MockPipe, MockProviders } from 'ng-mocks';
+import { TranslateModule } from '@ngx-translate/core';
+import { MockComponent, MockModule, MockProviders } from 'ng-mocks';
 import { DataService } from '../../../services/data.service';
 import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { VideoPlayer } from '../../../settings/settings.interface';
@@ -24,6 +24,7 @@ import { CommonModule } from '@angular/common';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { Observable, of } from 'rxjs';
 import { PlaylistsService } from '../../../services/playlists.service';
 import { initialState } from '../../../state/state';
@@ -40,17 +41,6 @@ describe('VideoPlayerComponent', () => {
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
-            declarations: [
-                MockComponent(EpgListComponent),
-                MockComponent(HtmlVideoPlayerComponent),
-                MockComponent(VjsPlayerComponent),
-                MockComponent(VideoPlayerComponent),
-                MockComponent(ChannelListContainerComponent),
-                MockComponent(InfoOverlayComponent),
-                VideoPlayerComponent,
-                MockPipe(TranslatePipe),
-                CommonModule,
-            ],
             providers: [
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
                 { provide: DataService, useClass: ElectronServiceStub },
@@ -70,12 +60,22 @@ describe('VideoPlayerComponent', () => {
                 MockProviders(NgxIndexedDBService, PlaylistsService),
             ],
             imports: [
+                MockComponent(EpgListComponent),
+                MockComponent(HtmlVideoPlayerComponent),
+                MockComponent(VjsPlayerComponent),
+                MockComponent(VideoPlayerComponent),
+                MockComponent(ChannelListContainerComponent),
+                MockComponent(InfoOverlayComponent),
+                VideoPlayerComponent,
+                CommonModule,
+                TranslateModule.forRoot(),
                 MockModule(MatSidenavModule),
                 MockModule(MatIconModule),
                 MockModule(MatToolbarModule),
                 MockModule(MatTooltipModule),
                 MockModule(RouterTestingModule),
                 MockModule(MatDividerModule),
+                MockComponent(NgxSkeletonLoaderComponent),
             ],
         }).compileComponents();
     }));

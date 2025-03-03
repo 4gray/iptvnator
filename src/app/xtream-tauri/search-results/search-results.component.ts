@@ -34,7 +34,6 @@ interface SearchResultsData {
 
 @Component({
     selector: 'app-search-results',
-    standalone: true,
     imports: [
         MatIconButton,
         MatCardModule,
@@ -48,7 +47,7 @@ interface SearchResultsData {
     ],
     providers: [],
     templateUrl: './search-results.component.html',
-    styleUrls: ['./search-results.component.scss'],
+    styleUrls: ['./search-results.component.scss']
 })
 export class SearchResultsComponent implements AfterViewInit, OnDestroy {
     @ViewChild('searchInput') searchInput!: ElementRef;

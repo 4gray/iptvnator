@@ -10,14 +10,13 @@ import { XtreamStore } from '../xtream.store';
 @Component({
     templateUrl: './xtream-shell.component.html',
     styleUrls: ['./xtream-shell.component.scss'],
-    standalone: true,
     imports: [
         LoadingOverlayComponent,
         NavigationComponent,
         RouterOutlet,
         TranslateModule,
     ],
-    providers: [XtreamStore],
+    providers: [XtreamStore]
 })
 export class XtreamShellComponent {
     private readonly route = inject(ActivatedRoute);

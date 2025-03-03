@@ -8,10 +8,9 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from '../../services/playlists.service';
 
 @Component({
-    standalone: true,
     selector: 'app-favorites-button',
     templateUrl: './favorites-button.component.html',
-    imports: [MatButtonModule, MatIconModule, NgIf, TranslateModule],
+    imports: [MatButtonModule, MatIconModule, NgIf, TranslateModule]
 })
 export class FavoritesButtonComponent implements OnInit {
     private playlistService = inject(PlaylistsService);

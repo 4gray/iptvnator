@@ -45,8 +45,7 @@ import { XtreamStore } from '../../../xtream-tauri/xtream.store';
         CommonModule,
         ReactiveFormsModule,
         MatDialogModule,
-    ],
-    standalone: true,
+    ]
 })
 export class PlaylistInfoComponent {
     isTauri = isTauri();

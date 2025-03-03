@@ -7,7 +7,7 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { TranslateModule } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockProvider } from 'ng-mocks';
 import { Observable } from 'rxjs';
 import { DataService } from '../services/data.service';
@@ -24,13 +24,13 @@ describe('HomeComponent', () => {
 
     beforeEach(() => {
         TestBed.configureTestingModule({
-            declarations: [HomeComponent],
             imports: [
+                HomeComponent,
                 CommonModule,
                 MockComponent(RecentPlaylistsComponent),
                 MockModule(MatProgressBarModule),
                 MockModule(MatSnackBarModule),
-                MockModule(TranslateModule),
+                TranslateModule.forRoot(),
                 MockModule(RouterModule),
                 MockModule(MatDialogModule),
             ],
@@ -38,7 +38,6 @@ describe('HomeComponent', () => {
                 MockProvider(ActivatedRoute, {
                     snapshot: { component: '' } as any,
                 }),
-                MockProvider(TranslateService),
                 MockProvider(MatSnackBar),
                 { provide: DataService, useClass: ElectronServiceStub },
                 provideMockStore(),

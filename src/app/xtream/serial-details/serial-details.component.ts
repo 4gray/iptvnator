@@ -1,4 +1,4 @@
-import { JsonPipe, NgIf } from '@angular/common';
+import { NgIf } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -11,21 +11,17 @@ import {
 } from '../../../../shared/xtream-serie-details.interface';
 import { PlaylistsService } from '../../services/playlists.service';
 import { selectCurrentPlaylist } from '../../state/selectors';
-import { PlayerDialogComponent } from '../player-dialog/player-dialog.component';
 import { SeasonContainerComponent } from '../season-container/season-container.component';
 
 @Component({
     selector: 'app-serial-details',
     templateUrl: './serial-details.component.html',
     styleUrls: ['../detail-view.scss'],
-    standalone: true,
     imports: [
-        JsonPipe,
         MatButtonModule,
         MatIconModule,
         NgIf,
         SeasonContainerComponent,
-        PlayerDialogComponent,
         TranslateModule,
     ],
 })

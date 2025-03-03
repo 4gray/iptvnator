@@ -14,7 +14,6 @@ import { Channel } from '../../../../../shared/channel.interface';
 
 @Component({
     selector: 'app-art-player',
-    standalone: true,
     imports: [CommonModule],
     template: `<div #artplayer class="artplayer-container"></div>`,
     styles: [
@@ -29,7 +28,7 @@ import { Channel } from '../../../../../shared/channel.interface';
                 height: 100%;
             }
         `,
-    ],
+    ]
 })
 export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     @Input() channel: Channel;

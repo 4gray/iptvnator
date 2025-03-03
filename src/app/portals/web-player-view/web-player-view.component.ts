@@ -18,7 +18,6 @@ import { Settings, VideoPlayer } from '../../settings/settings.interface';
 import { STORE_KEY } from '../../shared/enums/store-keys.enum';
 
 @Component({
-    standalone: true,
     selector: 'app-web-player-view',
     templateUrl: './web-player-view.component.html',
     styleUrls: ['./web-player-view.component.scss'],
@@ -29,7 +28,7 @@ import { STORE_KEY } from '../../shared/enums/store-keys.enum';
         DPlayerComponent,
         ArtPlayerComponent,
     ],
-    encapsulation: ViewEncapsulation.None,
+    encapsulation: ViewEncapsulation.None
 })
 export class WebPlayerViewComponent {
     storage = inject(StorageMap);

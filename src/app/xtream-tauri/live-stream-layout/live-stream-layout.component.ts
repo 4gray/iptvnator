@@ -23,7 +23,6 @@ import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../xtream.store';
 
 @Component({
-    standalone: true,
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
     styleUrls: ['./live-stream-layout.component.scss', '../sidebar.scss'],
@@ -40,7 +39,7 @@ import { XtreamStore } from '../xtream.store';
         TranslateModule,
         WebPlayerViewComponent,
     ],
-    changeDetection: ChangeDetectionStrategy.OnPush,
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LiveStreamLayoutComponent implements OnInit {
     private favoritesService = inject(FavoritesService);

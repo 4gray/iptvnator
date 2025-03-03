@@ -1,4 +1,4 @@
-import { NgFor, NgIf, NgOptimizedImage } from '@angular/common';
+import { NgIf, NgOptimizedImage } from '@angular/common';
 import { Component, Signal, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
@@ -28,13 +28,11 @@ function extractNumericValue(str: string) {
     selector: 'app-stalker-series-view',
     templateUrl: './stalker-series-view.component.html',
     styleUrls: ['../../xtream/detail-view.scss'],
-    standalone: true,
     imports: [
         FavoritesButtonComponent,
         MatButtonModule,
         MatDividerModule,
         NgIf,
-        NgFor,
         NgOptimizedImage,
         TranslateModule,
     ],

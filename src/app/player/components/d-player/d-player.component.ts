@@ -13,7 +13,6 @@ import { Channel } from '../../../../../shared/channel.interface';
 
 @Component({
     selector: 'app-d-player',
-    standalone: true,
     imports: [CommonModule],
     template: `<div #dplayer class="dplayer-container"></div>`,
     styles: [
@@ -23,7 +22,7 @@ import { Channel } from '../../../../../shared/channel.interface';
                 height: calc(100vh - 64px);
             }
         `,
-    ],
+    ]
 })
 export class DPlayerComponent implements OnInit, OnDestroy, OnChanges {
     @Input() channel: Channel;

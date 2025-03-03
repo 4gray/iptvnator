@@ -15,7 +15,6 @@ import { selectPlaylistTitle } from '../../../../state/selectors';
 import { SidebarView } from '../video-player.component';
 import { ChannelListContainerComponent } from './../../channel-list-container/channel-list-container.component';
 @Component({
-    standalone: true,
     selector: 'app-sidebar',
     templateUrl: './sidebar.component.html',
     styleUrls: ['./sidebar.component.scss'],
@@ -30,7 +29,7 @@ import { ChannelListContainerComponent } from './../../channel-list-container/ch
         RecentPlaylistsComponent,
         TranslateModule,
         RouterLink,
-    ],
+    ]
 })
 export class SidebarComponent {
     @Input() channels: Channel[] = [];

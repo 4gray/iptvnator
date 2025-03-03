@@ -1,4 +1,4 @@
-import { AsyncPipe, NgFor, NgIf } from '@angular/common';
+import { NgFor, NgIf } from '@angular/common';
 import {
     Component,
     EventEmitter,
@@ -43,7 +43,6 @@ import { PortalStore } from '../portal.store';
     selector: 'app-navigation-bar',
     templateUrl: './navigation-bar.component.html',
     styleUrls: ['./navigation-bar.component.scss'],
-    standalone: true,
     imports: [
         FormsModule,
         MatButtonModule,
@@ -58,7 +57,6 @@ import { PortalStore } from '../portal.store';
         MatMenuModule,
         MatCheckboxModule,
         MatTooltipModule,
-        AsyncPipe,
     ],
 })
 export class NavigationBarComponent implements OnChanges {

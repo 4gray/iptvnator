@@ -36,7 +36,6 @@ import {
 import { ChannelListItemComponent } from './channel-list-item/channel-list-item.component';
 
 @Component({
-    standalone: true,
     selector: 'app-channel-list-container',
     templateUrl: './channel-list-container.component.html',
     styleUrls: ['./channel-list-container.component.scss'],
@@ -56,7 +55,7 @@ import { ChannelListItemComponent } from './channel-list-item/channel-list-item.
         ScrollingModule,
         TitleCasePipe,
         TranslateModule,
-    ],
+    ]
 })
 export class ChannelListContainerComponent {
     /**

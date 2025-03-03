@@ -11,7 +11,7 @@ import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockProvider } from 'ng-mocks';
-import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
+import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { Observable } from 'rxjs';
 import { PLAYLIST_UPDATE } from '../../../../shared/ipc-commands';
 import { DataService } from '../../services/data.service';
@@ -33,19 +33,17 @@ describe('RecentPlaylistsComponent', () => {
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
-            declarations: [
-                MockComponent(PlaylistItemComponent),
-                RecentPlaylistsComponent,
-            ],
             imports: [
+                RecentPlaylistsComponent,
+                MockComponent(PlaylistItemComponent),
                 MockModule(MatDialogModule),
                 MockModule(MatDividerModule),
                 MockModule(MatListModule),
                 MockModule(MatIconModule),
                 MockModule(MatInputModule),
                 MockModule(MatTooltipModule),
-                MockModule(NgxSkeletonLoaderModule),
-                MockModule(TranslateModule),
+                MockComponent(NgxSkeletonLoaderComponent),
+                TranslateModule.forRoot(),
             ],
             providers: [
                 { provide: DataService, useClass: ElectronServiceStub },

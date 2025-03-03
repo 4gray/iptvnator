@@ -4,7 +4,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 
 @Component({
-    standalone: true,
     imports: [MatIconModule, TranslateModule],
     template: `
         <div mat-dialog-content>
@@ -58,7 +57,7 @@ import { TranslateModule } from '@ngx-translate/core';
                 font-size: 32px;
             }
         `,
-    ],
+    ]
 })
 export class AboutDialogComponent {
     constructor(@Inject(MAT_DIALOG_DATA) public appVersion: string) {}

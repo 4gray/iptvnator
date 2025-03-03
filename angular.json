@@ -19,11 +19,12 @@
             },
             "architect": {
                 "build": {
-                    "builder": "@angular-devkit/build-angular:browser-esbuild",
+                    "builder": "@angular/build:application",
                     "options": {
-                        "outputPath": "dist",
+                        "outputPath": {
+                          "base": "dist"
+                        },
                         "index": "src/index.html",
-                        "main": "src/main.ts",
                         "tsConfig": "src/tsconfig.app.json",
                         "polyfills": ["zone.js"],
                         "assets": [
@@ -36,9 +37,9 @@
                             "./node_modules/video.js/dist/video-js.css"
                         ],
                         "scripts": [],
-                        "serviceWorker": true,
-                        "ngswConfigPath": "ngsw-config.json",
-                        "webWorkerTsConfig": "tsconfig.worker.json"
+                        "serviceWorker": "ngsw-config.json",
+                        "webWorkerTsConfig": "tsconfig.worker.json",
+                        "browser": "src/main.ts"
                     },
                     "configurations": {
                         "dev": {
@@ -48,8 +49,6 @@
                             "namedChunks": false,
                             "aot": true,
                             "extractLicenses": true,
-                            "vendorChunk": false,
-                            "buildOptimizer": true,
                             "fileReplacements": [
                                 {
                                     "replace": "src/environments/environment.ts",
@@ -64,8 +63,6 @@
                             "namedChunks": false,
                             "aot": true,
                             "extractLicenses": true,
-                            "vendorChunk": false,
-                            "buildOptimizer": true,
                             "fileReplacements": [
                                 {
                                     "replace": "src/environments/environment.ts",
@@ -80,8 +77,6 @@
                             "namedChunks": false,
                             "aot": true,
                             "extractLicenses": true,
-                            "vendorChunk": false,
-                            "buildOptimizer": true,
                             "fileReplacements": [
                                 {
                                     "replace": "src/environments/environment.ts",
@@ -92,7 +87,7 @@
                     }
                 },
                 "serve": {
-                    "builder": "@angular-devkit/build-angular:dev-server",
+                    "builder": "@angular/build:dev-server",
                     "options": {
                         "buildTarget": "iptvnator:build"
                     },
@@ -109,7 +104,7 @@
                     }
                 },
                 "extract-i18n": {
-                    "builder": "@angular-devkit/build-angular:extract-i18n",
+                    "builder": "@angular/build:extract-i18n",
                     "options": {
                         "buildTarget": "iptvnator:build"
                     }

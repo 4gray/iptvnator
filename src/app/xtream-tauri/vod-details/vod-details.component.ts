@@ -15,14 +15,13 @@ import { SafePipe } from './safe.pipe';
 @Component({
     templateUrl: './vod-details.component.html',
     styleUrls: ['../detail-view.scss'],
-    standalone: true,
     imports: [
         MatButton,
         MatIcon,
         SafePipe,
         TranslateModule,
         MatProgressSpinnerModule,
-    ],
+    ]
 })
 export class VodDetailsComponent implements OnInit, OnDestroy {
     private settingsStore = inject(SettingsStore);

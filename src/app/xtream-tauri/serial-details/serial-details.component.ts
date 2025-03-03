@@ -15,8 +15,7 @@ import { XtreamStore } from '../xtream.store';
     selector: 'app-serial-details',
     templateUrl: './serial-details.component.html',
     styleUrls: ['../detail-view.scss'],
-    standalone: true,
-    imports: [MatButton, MatIcon, SeasonContainerComponent, TranslateModule],
+    imports: [MatButton, MatIcon, SeasonContainerComponent, TranslateModule]
 })
 export class SerialDetailsComponent {
     private readonly store = inject(Store);

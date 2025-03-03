@@ -40,7 +40,6 @@ interface EpgProgram {
 
 @Component({
     selector: 'app-portal-channels-list',
-    standalone: true,
     templateUrl: './portal-channels-list.component.html',
     styleUrls: ['./portal-channels-list.component.scss'],
     imports: [
@@ -56,7 +55,7 @@ interface EpgProgram {
         MatInputModule,
         TranslateModule,
         MatTooltipModule,
-    ],
+    ]
 })
 export class PortalChannelsListComponent implements AfterViewInit {
     @Output() playClicked = new EventEmitter<any>();

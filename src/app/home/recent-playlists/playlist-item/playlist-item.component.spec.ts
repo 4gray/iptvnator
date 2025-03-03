@@ -4,8 +4,8 @@ import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule } from 'ng-mocks';
-import { PlaylistItemComponent } from './playlist-item.component';
 import { DataService } from '../../../services/data.service';
+import { PlaylistItemComponent } from './playlist-item.component';
 
 describe('PlaylistItemComponent', () => {
     let component: PlaylistItemComponent;
@@ -13,12 +13,12 @@ describe('PlaylistItemComponent', () => {
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
-            declarations: [PlaylistItemComponent],
             imports: [
+                PlaylistItemComponent,
                 MockModule(MatIconModule),
                 MockModule(MatListModule),
                 MockModule(MatTooltipModule),
-                MockModule(TranslateModule),
+                TranslateModule.forRoot(),
             ],
             providers: [DataService],
         }).compileComponents();

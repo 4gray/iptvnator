@@ -93,7 +93,6 @@ type LayoutView =
     selector: 'app-xtream-main-container',
     templateUrl: './xtream-main-container.component.html',
     styleUrls: ['./xtream-main-container.component.scss'],
-    standalone: true,
     imports: [
         MatButtonToggleModule,
         CategoryViewComponent,
@@ -109,7 +108,7 @@ type LayoutView =
         PlaylistErrorViewComponent,
         TranslateModule,
         LiveStreamLayoutComponent,
-    ],
+    ]
 })
 export class XtreamMainContainerComponent implements OnInit {
     private readonly dataService = inject(DataService);

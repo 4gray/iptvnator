@@ -9,11 +9,10 @@ import {
 } from '../../services/mpv-player.service';
 
 @Component({
-    standalone: true,
     imports: [CommonModule, MatIconModule, MatButtonModule],
     selector: 'app-mpv-player-bar',
     templateUrl: './mpv-player-bar.component.html',
-    styleUrls: ['./mpv-player-bar.component.scss'],
+    styleUrls: ['./mpv-player-bar.component.scss']
 })
 export class MpvPlayerBarComponent {
     activeProcesses$: Observable<MpvProcess[]>;

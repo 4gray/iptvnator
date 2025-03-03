@@ -1,5 +1,6 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { TranslateModule } from '@ngx-translate/core';
 import { MockComponent, MockModule } from 'ng-mocks';
 import { EMPTY } from 'rxjs';
 import { ConfirmDialogData } from '../shared/components/confirm-dialog/confirm-dialog-data.interface';
@@ -11,8 +12,9 @@ describe('Service: Dialog', () => {
         TestBed.configureTestingModule({
             providers: [DialogService, MatDialog],
             imports: [
-                MockModule(MatDialogModule),
                 MockComponent(ConfirmDialogComponent),
+                MockModule(MatDialogModule),
+                TranslateModule.forRoot(),
             ],
         });
     });

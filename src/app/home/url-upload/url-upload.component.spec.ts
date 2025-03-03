@@ -4,8 +4,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatInputModule } from '@angular/material/input';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
-import { MockModule, MockPipe } from 'ng-mocks';
+import { TranslateModule } from '@ngx-translate/core';
+import { MockModule } from 'ng-mocks';
 import { DataService } from '../../services/data.service';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
 import { UrlUploadComponent } from './url-upload.component';
@@ -16,13 +16,13 @@ describe('UrlUploadComponent', () => {
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
-            declarations: [UrlUploadComponent, MockPipe(TranslatePipe)],
             imports: [
+                UrlUploadComponent,
                 MockModule(MatInputModule),
                 MockModule(MatCardModule),
-                MockModule(TranslateModule),
                 MockModule(FormsModule),
                 MockModule(ReactiveFormsModule),
+                TranslateModule.forRoot(),
                 NoopAnimationsModule,
             ],
             providers: [

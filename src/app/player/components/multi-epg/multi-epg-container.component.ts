@@ -39,7 +39,6 @@ interface EnrichedChannel extends EpgChannel {
 }
 
 @Component({
-    standalone: true,
     imports: [
         CommonModule,
         MatButtonModule,
@@ -51,7 +50,7 @@ interface EnrichedChannel extends EpgChannel {
     selector: 'app-multi-epg-container',
     templateUrl: './multi-epg-container.component.html',
     styleUrls: ['./multi-epg-container.component.scss'],
-    changeDetection: ChangeDetectionStrategy.OnPush,
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MultiEpgContainerComponent
     implements OnInit, AfterViewInit, OnDestroy

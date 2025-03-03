@@ -14,7 +14,6 @@ import { PortalStore } from '../portal.store';
     selector: 'app-category-content-view',
     templateUrl: './category-content-view.component.html',
     styleUrls: ['./category-content-view.component.scss'],
-    standalone: true,
     imports: [
         FilterPipe,
         SortPipe,
@@ -24,7 +23,7 @@ import { PortalStore } from '../portal.store';
         NgOptimizedImage,
         PlaylistErrorViewComponent,
         TranslateModule,
-    ],
+    ]
 })
 export class CategoryContentViewComponent {
     @Input({ required: true }) items: XtreamItem[];

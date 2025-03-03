@@ -12,7 +12,6 @@ import { XtreamAccountInfo } from './account-info.interface';
 
 @Component({
     selector: 'app-account-info',
-    standalone: true,
     imports: [
         CommonModule,
         MatButton,
@@ -138,7 +137,7 @@ import { XtreamAccountInfo } from './account-info.interface';
             </button>
         </mat-dialog-actions>
     `,
-    styleUrl: './account-info.component.scss',
+    styleUrl: './account-info.component.scss'
 })
 export class AccountInfoComponent {
     accountInfo: XtreamAccountInfo;

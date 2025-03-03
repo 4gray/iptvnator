@@ -21,7 +21,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
+import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../../shared/constants';
 import { IpcCommand } from '../../../../shared/ipc-command.class';
@@ -48,7 +48,6 @@ import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
 
 @Component({
-    standalone: true,
     selector: 'app-recent-playlists',
     templateUrl: './recent-playlists.component.html',
     styleUrls: ['./recent-playlists.component.scss'],
@@ -61,7 +60,7 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
         MatListModule,
         NgFor,
         NgIf,
-        NgxSkeletonLoaderModule,
+        NgxSkeletonLoaderComponent,
         PlaylistItemComponent,
         TranslateModule,
     ],

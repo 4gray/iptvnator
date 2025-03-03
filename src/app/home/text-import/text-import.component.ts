@@ -10,7 +10,6 @@ import { MatInputModule } from '@angular/material/input';
 import { TranslateModule } from '@ngx-translate/core';
 
 @Component({
-    standalone: true,
     selector: 'app-text-import',
     templateUrl: './text-import.component.html',
     styleUrls: ['./text-import.component.scss'],
@@ -19,7 +18,7 @@ import { TranslateModule } from '@ngx-translate/core';
         MatInputModule,
         ReactiveFormsModule,
         TranslateModule,
-    ],
+    ]
 })
 export class TextImportComponent {
     @Output() textAdded = new EventEmitter<string>();

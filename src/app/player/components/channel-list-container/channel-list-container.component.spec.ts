@@ -14,7 +14,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { TranslateModule } from '@ngx-translate/core';
 import { MockModule, MockPipes, MockProviders } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { Observable } from 'rxjs';
@@ -57,7 +57,7 @@ describe('ChannelListContainerComponent', () => {
                 MockModule(MatSnackBarModule),
                 MockModule(MatTooltipModule),
                 MockModule(ScrollingModule),
-                MockModule(TranslateModule),
+                TranslateModule.forRoot(),
                 NoopAnimationsModule,
                 RouterTestingModule,
             ],
@@ -65,7 +65,7 @@ describe('ChannelListContainerComponent', () => {
                 { provide: DataService, useClass: ElectronServiceStub },
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
                 MockPipes(FilterPipe),
-                MockProviders(NgxIndexedDBService, TranslateService),
+                MockProviders(NgxIndexedDBService),
                 provideMockActions(actions$),
                 provideMockStore(),
             ],
@@ -83,8 +83,8 @@ describe('ChannelListContainerComponent', () => {
                 ...element,
                 http: {
                     ...element.http,
-                    origin: '' // Add the missing 'origin' property
-                }
+                    origin: '', // Add the missing 'origin' property
+                },
             })
         );
 

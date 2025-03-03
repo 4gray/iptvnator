@@ -22,7 +22,6 @@ import { EpgViewComponent } from '../epg-view/epg-view.component';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
 
 @Component({
-    standalone: true,
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
     styleUrls: ['./live-stream-layout.component.scss'],
@@ -39,7 +38,7 @@ import { WebPlayerViewComponent } from '../web-player-view/web-player-view.compo
         WebPlayerViewComponent,
         TranslateModule,
     ],
-    changeDetection: ChangeDetectionStrategy.OnPush,
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LiveStreamLayoutComponent {
     @Input({ required: true }) channels: XtreamItem[];

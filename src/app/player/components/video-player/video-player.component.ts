@@ -55,7 +55,6 @@ export const COMPONENT_OVERLAY_REF = new InjectionToken(
 );
 
 @Component({
-    standalone: true,
     imports: [
         AsyncPipe,
         AudioPlayerComponent,
@@ -72,7 +71,7 @@ export const COMPONENT_OVERLAY_REF = new InjectionToken(
         ArtPlayerComponent,
     ],
     templateUrl: './video-player.component.html',
-    styleUrls: ['./video-player.component.scss'],
+    styleUrls: ['./video-player.component.scss']
 })
 export class VideoPlayerComponent implements OnInit, OnDestroy {
     /** Active selected channel */
