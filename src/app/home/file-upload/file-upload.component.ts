@@ -1,7 +1,7 @@
 import { Component, EventEmitter, inject, Output } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { readTextFile } from '@tauri-apps/plugin-fs';
@@ -9,10 +9,10 @@ import { parsePlaylist } from '../../state/actions';
 import { DragDropFileUploadDirective } from './drag-drop-file-upload.directive';
 
 @Component({
-    imports: [DragDropFileUploadDirective, MatIconModule, TranslateModule],
+    imports: [DragDropFileUploadDirective, MatIconModule, TranslatePipe],
     selector: 'app-file-upload',
     templateUrl: './file-upload.component.html',
-    styleUrls: ['./file-upload.component.scss']
+    styleUrls: ['./file-upload.component.scss'],
 })
 export class FileUploadComponent {
     @Output() fileSelected = new EventEmitter<{

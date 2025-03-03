@@ -6,7 +6,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { Channel } from '../../../../../../shared/channel.interface';
 import { SettingsComponent } from '../../../../settings/settings.component';
 import { updateFavorites } from '../../../../state/actions';
@@ -25,11 +25,11 @@ import {
         MatIconButton,
         MatToolbarModule,
         MatTooltip,
-        TranslateModule,
+        TranslatePipe,
     ],
     selector: 'app-toolbar',
     templateUrl: './toolbar.component.html',
-    styleUrls: ['./toolbar.component.scss']
+    styleUrls: ['./toolbar.component.scss'],
 })
 export class ToolbarComponent {
     @Input() activeChannel!: Channel;

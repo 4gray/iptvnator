@@ -15,7 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { isTauri } from '@tauri-apps/api/core';
 import { firstValueFrom } from 'rxjs';
 import { Playlist } from '../../../../../shared/playlist.interface';
@@ -37,15 +37,15 @@ import { XtreamStore } from '../../../xtream-tauri/xtream.store';
     ],
     providers: [DatePipe, XtreamStore],
     imports: [
-        TranslateModule,
+        CommonModule,
         MatButtonModule,
+        MatCheckboxModule,
+        MatDialogModule,
         MatIconModule,
         MatInputModule,
-        MatCheckboxModule,
-        CommonModule,
         ReactiveFormsModule,
-        MatDialogModule,
-    ]
+        TranslatePipe,
+    ],
 })
 export class PlaylistInfoComponent {
     isTauri = isTauri();

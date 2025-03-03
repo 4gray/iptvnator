@@ -6,7 +6,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
     selector: 'app-channel-list-item',
@@ -56,8 +56,8 @@ import { TranslateModule } from '@ngx-translate/core';
         MatIconModule,
         MatListModule,
         MatTooltipModule,
-        TranslateModule,
-    ]
+        TranslatePipe,
+    ],
 })
 export class ChannelListItemComponent {
     @Input() isDraggable = false;

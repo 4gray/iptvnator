@@ -20,7 +20,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../../shared/constants';
@@ -62,7 +62,7 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
         NgIf,
         NgxSkeletonLoaderComponent,
         PlaylistItemComponent,
-        TranslateModule,
+        TranslatePipe,
     ],
 })
 export class RecentPlaylistsComponent implements OnDestroy {

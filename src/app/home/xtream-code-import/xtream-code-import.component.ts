@@ -11,7 +11,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { v4 as uuid } from 'uuid';
 import { Playlist } from '../../../../shared/playlist.interface';
 import {
@@ -23,12 +23,12 @@ import { addPlaylist } from '../../state/actions';
 @Component({
     imports: [
         FormsModule,
-        ReactiveFormsModule,
+        MatButton,
         MatFormFieldModule,
         MatIcon,
         MatInputModule,
-        MatButton,
-        TranslateModule,
+        ReactiveFormsModule,
+        TranslatePipe,
     ],
     selector: 'app-xtream-code-import',
     templateUrl: './xtream-code-import.component.html',
@@ -72,7 +72,7 @@ import { addPlaylist } from '../../state/actions';
                 justify-content: space-between;
             }
         `,
-    ]
+    ],
 })
 export class XtreamCodeImportComponent {
     @Output() addClicked = new EventEmitter<void>();

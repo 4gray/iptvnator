@@ -11,7 +11,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     PortalStatus,
     PortalStatusService,
@@ -29,7 +29,7 @@ import { PlaylistMeta } from '../../../shared/playlist-meta.type';
         MatListModule,
         MatTooltipModule,
         NgIf,
-        TranslateModule,
+        TranslatePipe,
     ],
 })
 export class PlaylistItemComponent implements OnInit {

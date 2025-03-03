@@ -6,7 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { Channel } from '../../../../../../shared/channel.interface';
 import { RecentPlaylistsComponent } from '../../../../home/recent-playlists/recent-playlists.component';
 import { DataService } from '../../../../services/data.service';
@@ -27,9 +27,9 @@ import { ChannelListContainerComponent } from './../../channel-list-container/ch
         MatTooltipModule,
         NgIf,
         RecentPlaylistsComponent,
-        TranslateModule,
+        TranslatePipe,
         RouterLink,
-    ]
+    ],
 })
 export class SidebarComponent {
     @Input() channels: Channel[] = [];

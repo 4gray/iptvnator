@@ -7,7 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import moment from 'moment';
 import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -43,11 +43,11 @@ const DATE_FORMAT = 'YYYY-MM-DD';
         MatListModule,
         MatTooltipModule,
         MomentDatePipe,
-        TranslateModule,
+        TranslatePipe,
     ],
     selector: 'app-epg-list',
     templateUrl: './epg-list.component.html',
-    styleUrls: ['./epg-list.component.scss']
+    styleUrls: ['./epg-list.component.scss'],
 })
 export class EpgListComponent {
     /** Channel info in EPG format */

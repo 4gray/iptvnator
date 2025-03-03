@@ -10,7 +10,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { v4 as uuid } from 'uuid';
 import { Playlist } from '../../../../shared/playlist.interface';
 import { DataService } from '../../services/data.service';
@@ -19,11 +19,11 @@ import { addPlaylist } from '../../state/actions';
 @Component({
     imports: [
         FormsModule,
-        ReactiveFormsModule,
+        MatButtonModule,
         MatFormFieldModule,
         MatInputModule,
-        MatButtonModule,
-        TranslateModule,
+        ReactiveFormsModule,
+        TranslatePipe,
     ],
     selector: 'app-stalker-portal-import',
     templateUrl: './stalker-portal-import.component.html',
@@ -39,7 +39,7 @@ import { addPlaylist } from '../../state/actions';
                 width: 100%;
             }
         `,
-    ]
+    ],
 })
 export class StalkerPortalImportComponent {
     @Output() addClicked = new EventEmitter<void>();

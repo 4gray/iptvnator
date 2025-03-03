@@ -9,7 +9,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatInputModule } from '@angular/material/input';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { DataService } from '../../services/data.service';
 
 @Component({
@@ -21,8 +21,8 @@ import { DataService } from '../../services/data.service';
         MatInputModule,
         NgIf,
         ReactiveFormsModule,
-        TranslateModule,
-    ]
+        TranslatePipe,
+    ],
 })
 export class UrlUploadComponent implements OnInit {
     /** Emits url string to the parent component on form submit */

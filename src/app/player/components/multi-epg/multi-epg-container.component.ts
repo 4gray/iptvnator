@@ -14,9 +14,9 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslateModule } from '@ngx-translate/core';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
+import { TranslatePipe } from '@ngx-translate/core';
 import { invoke } from '@tauri-apps/api/core';
 import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
 import { BehaviorSubject, Observable } from 'rxjs';
@@ -42,15 +42,15 @@ interface EnrichedChannel extends EpgChannel {
     imports: [
         CommonModule,
         MatButtonModule,
-        MatIconModule,
-        MatTooltipModule,
+        MatIcon,
+        MatTooltip,
         MomentDatePipe,
-        TranslateModule,
+        TranslatePipe,
     ],
     selector: 'app-multi-epg-container',
     templateUrl: './multi-epg-container.component.html',
     styleUrls: ['./multi-epg-container.component.scss'],
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MultiEpgContainerComponent
     implements OnInit, AfterViewInit, OnDestroy

@@ -3,7 +3,7 @@ import { Component, NgZone } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ERROR, PLAYLIST_PARSE_RESPONSE } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
@@ -20,8 +20,8 @@ import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.co
         MatProgressBarModule,
         NgIf,
         RecentPlaylistsComponent,
-        TranslateModule,
-    ]
+        TranslatePipe,
+    ],
 })
 export class HomeComponent {
     /** Loading spinner state */

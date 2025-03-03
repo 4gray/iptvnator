@@ -22,7 +22,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { Store } from '@ngrx/store';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as _ from 'lodash';
 import { map, skipWhile } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
@@ -54,8 +54,8 @@ import { ChannelListItemComponent } from './channel-list-item/channel-list-item.
         MatTabsModule,
         ScrollingModule,
         TitleCasePipe,
-        TranslateModule,
-    ]
+        TranslatePipe,
+    ],
 })
 export class ChannelListContainerComponent {
     /**
@@ -119,10 +119,10 @@ export class ChannelListContainerComponent {
     );
 
     constructor(
+        private readonly epgService: EpgService,
+        private readonly snackBar: MatSnackBar,
         private readonly store: Store,
-        private snackBar: MatSnackBar,
-        private translateService: TranslateService,
-        private epgService: EpgService
+        private readonly translateService: TranslateService
     ) {}
 
     /**

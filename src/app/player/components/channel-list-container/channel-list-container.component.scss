@@ -16,7 +16,10 @@
 
 .search-bar {
     @include mat.form-field-density(-5);
-    width: 96%;
+    
+    & {
+        width: 96%;
+    }
 }
 
 mat-nav-list {
