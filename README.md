@@ -13,7 +13,7 @@
 
 **IPTVnator** is a video player application that provides support for IPTV playlist playback (m3u, m3u8). The application allows users to import playlists using remote URLs or by uploading files from the local file system. Additionally, it supports EPG information in XMLTV format which can be provided via URL.
 
-The application is a cross-platform, open-source project built with Electron (currently migrating to Tauri) and Angular.
+The application is a cross-platform, open-source project built with ~~Electron~~ Tauri and Angular.
 
 ⚠️ Note: IPTVnator does not provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
 
@@ -21,43 +21,45 @@ The application is a cross-platform, open-source project built with Electron (cu
 
 ## Features
 
-- M3u and M3u8 playlist support 📺
-- Xtream Code (XC) and Stalker portal (STB) support
-- External player support - MPV, VLC
-- Add playlists from the file system or remote URLs 📂
-- Automatic playlist updates on application startup
-- Channel search functionality 🔍
-- EPG support (TV Guide) with detailed information
-- TV archive/catchup/timeshift functionality
-- Group-based channel list
-- Favorite channels management
-- Global favorites aggregated from all playlists
-- HTML video player with HLS.js support or Video.js-based player
-- Internationalization with support for 8 languages (English, Russian, German, Korean, Spanish, Chinese, French, Italian)
-- Custom "User Agent" header configuration for playlists
-- Light and Dark themes
-- Docker version available for self-hosting
+-   M3u and M3u8 playlist support 📺
+-   Xtream Code (XC) and Stalker portal (STB) support
+-   External player support - MPV, VLC
+-   Add playlists from the file system or remote URLs 📂
+-   Automatic playlist updates on application startup
+-   Channel search functionality 🔍
+-   EPG support (TV Guide) with detailed information
+-   TV archive/catchup/timeshift functionality
+-   Group-based channel list
+-   Favorite channels management
+-   Global favorites aggregated from all playlists
+-   HTML video player with HLS.js support or Video.js-based player
+-   Internationalization with support for 8 languages (English, Russian, German, Korean, Spanish, Chinese, French, Italian)
+-   Custom "User Agent" header configuration for playlists
+-   Light and Dark themes
+-   Docker version available for self-hosting
 
 ## Screenshots:
 
-| Welcome screen: Playlists overview                           | Main player interface with channels sidebar and video player                |
-| :----------------------------------------------------------: | :-------------------------------------------------------: |
-| ![Welcome screen: Playlists overview](./playlists.png)       | ![Sidebar with channel and video player](./iptv-main.png) |
-| Welcome screen: Add playlist via file upload                | Welcome screen: Add playlist via URL                      |
-| ![Welcome screen: Add playlist via file upload](./iptv-upload.png) | ![Welcome screen: Add playlist via URL](./upload-via-url.png)             |
-| EPG Sidebar: TV guide on the right side                | General application settings
-| ![EPG: TV guide on the right side](./iptv-epg.png) | ![General app settings](./iptv-settings.png) |
-| Playlist settings                |
-| ![Playlist settings](./iptv-playlist-settings.png) |  |
+|                 Welcome screen: Playlists overview                 | Main player interface with channels sidebar and video player  |
+| :----------------------------------------------------------------: | :-----------------------------------------------------------: |
+|       ![Welcome screen: Playlists overview](./playlists.png)       |   ![Sidebar with channel and video player](./iptv-main.png)   |
+|            Welcome screen: Add playlist via file upload            |             Welcome screen: Add playlist via URL              |
+| ![Welcome screen: Add playlist via file upload](./iptv-upload.png) | ![Welcome screen: Add playlist via URL](./upload-via-url.png) |
+|              EPG Sidebar: TV guide on the right side               |                 General application settings                  |
+|         ![EPG: TV guide on the right side](./iptv-epg.png)         |         ![General app settings](./iptv-settings.png)          |
+|                         Playlist settings                          |
+|         ![Playlist settings](./iptv-playlist-settings.png)         |                                                               |
 
-*Note: First version of the application which was developed as a PWA is available in an extra git branch.*
+_Note: First version of the application which was developed as a PWA is available in an extra git branch._
 
 ## Download
 
 Download the latest version of the application for macOS, Windows, and Linux from the [release page](https://github.com/4gray/iptvnator/releases).
 
 Alternatively, you can install the application using one of the following package managers:
+
 ### Homebrew
+
 ```shell
 $ brew install iptvnator
 ```
@@ -71,6 +73,7 @@ $ sudo snap install iptvnator
 ### Arch
 
 Also available as an Arch PKG, [iptvnator-bin](https://aur.archlinux.org/packages/iptvnator-bin/), in the AUR (using your favourite AUR-helper, .e.g. `yay`)
+
 ```shell
 $ yay -S iptvnator-bin
 ```
@@ -91,32 +94,36 @@ sudo emerge iptvnator-bin
 
 ## How to Build and Develop
 
-Requirements: 
-* Node.js with npm
-* Rust (required for tauri)
+Requirements:
+
+-   Node.js with npm
+-   Rust (required for tauri)
 
 1. Clone this repository and install project dependencies:
-   ```
-   $ npm install
-   ```
+
+    ```
+    $ npm install
+    ```
 
 2. Start the application:
-   ```
-   $ npm run tauri dev
-   ```
+    ```
+    $ npm run tauri dev
+    ```
 
 This will open the Tauri version in a separate window, while the PWA version will be available at http://localhost:4200.
 
 To run only the Angular app without Tauri, use:
 
-  ```
-  $ npm run serve
-  ```
+```
+$ npm run serve
+```
 
 ## Disclaimer
 
 **IPTVnator doesn't provide any playlists or other digital content.**
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+
 [![All Contributors](https://img.shields.io/badge/all_contributors-13-orange.svg?style=flat-square)](#contributors)
+
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
