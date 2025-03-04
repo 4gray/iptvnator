@@ -3,7 +3,7 @@ name: 'Tauri Release'
 on:
   push:
     branches:
-      - electron
+      - master
 
 jobs:
   publish-tauri:
