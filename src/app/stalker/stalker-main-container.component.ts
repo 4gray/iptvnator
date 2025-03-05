@@ -370,31 +370,36 @@ export class StalkerMainContainerComponent implements OnInit {
     }
 
     openPlayer(streamUrl: string) {
-        const player = this.settings()?.player ?? VideoPlayer.VideoJs;
-        if (player === VideoPlayer.MPV) {
-            if (!this.hideExternalInfoDialog())
-                this.dialog.open(ExternalPlayerInfoDialogComponent);
-            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
-                url: streamUrl,
-            });
-        } else if (player === VideoPlayer.VLC) {
-            if (!this.hideExternalInfoDialog())
-                this.dialog.open(ExternalPlayerInfoDialogComponent);
-            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
-                url: streamUrl,
-            });
-        } else {
-            this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
-                PlayerDialogComponent,
-                {
-                    data: {
-                        streamUrl,
-                        title: this.itvTitle,
-                    },
-                    width: '80%',
-                }
-            );
-        }
+        // Get fresh settings directly from storage instead of using signal
+        this.storage.get(STORE_KEY.Settings).subscribe((settings: Settings) => {
+            const player = settings?.player ?? VideoPlayer.VideoJs;
+            if (player === VideoPlayer.MPV) {
+                if (!this.hideExternalInfoDialog())
+                    this.dialog.open(ExternalPlayerInfoDialogComponent);
+                this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+                    url: streamUrl,
+                    mpvPlayerPath: settings?.mpvPlayerPath,
+                });
+            } else if (player === VideoPlayer.VLC) {
+                if (!this.hideExternalInfoDialog())
+                    this.dialog.open(ExternalPlayerInfoDialogComponent);
+                this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
+                    url: streamUrl,
+                    vlcPlayerPath: settings?.vlcPlayerPath,
+                });
+            } else {
+                this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
+                    PlayerDialogComponent,
+                    {
+                        data: {
+                            streamUrl,
+                            title: this.itvTitle,
+                        },
+                        width: '80%',
+                    }
+                );
+            }
+        });
     }
 
     categoryClicked(item: { category_name: string; category_id: string }) {

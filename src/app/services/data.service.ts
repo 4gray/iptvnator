@@ -1,19 +1,22 @@
-import { ipcRenderer } from 'electron';
+import { Params } from '@angular/router';
+
 export abstract class DataService {
     get isElectron(): boolean {
         return !!(window && window.process && (window.process as any).type);
     }
     get remote() {
-        return this.isElectron ? window.require('@electron/remote') : null;
+        return null;
     }
-    get ipcRenderer(): typeof ipcRenderer {
-        return this.isElectron ? window.require('electron').ipcRenderer : null;
+    get ipcRenderer() {
+        return null;
     }
     abstract getAppVersion(): string;
-    abstract sendIpcEvent(type: string, payload?: unknown): void;
+    abstract sendIpcEvent(type: string, payload?: unknown);
     abstract removeAllListeners(type: string): void;
+    abstract fetchData(url: string, queryParams: Params): any;
     abstract listenOn(
         command: string,
         callback: (...args: any[]) => void
     ): void;
+    abstract getAppEnvironment(): string;
 }

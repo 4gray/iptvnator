@@ -1,0 +1,17 @@
+.sidebar {
+    width: 300px;
+    border-right: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    
+    .sidebar-header {
+        padding: 16px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+        
+        h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+    }
+}

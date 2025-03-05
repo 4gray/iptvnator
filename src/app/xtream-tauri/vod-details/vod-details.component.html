@@ -1,0 +1,139 @@
+@let item = selectedItem();
+@if (item && item.info) {
+    <div
+        class="container"
+        [style.background]="
+            item?.info?.backdrop_path && item?.info?.backdrop_path.length > 0
+                ? theme() === 'DARK_THEME'
+                    ? 'linear-gradient(to top, rgba(29,29,29,1) 0%, rgba(0,0,0,0.5) 100%), url(' +
+                      item?.info?.backdrop_path[0] +
+                      ') repeat-x'
+                    : 'linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.5) 100%), url(' +
+                      item?.info?.backdrop_path[0] +
+                      ') repeat-x'
+                : 'none'
+        "
+    >
+        <div class="image">
+            @if (item.info?.movie_image) {
+                <img
+                    [src]="item.info?.movie_image"
+                    (error)="
+                        $event.target.src = './assets/images/default-poster.png'
+                    "
+                />
+            } @else {
+                <img src="./assets/images/default-poster.png" />
+            }
+        </div>
+        <div class="details">
+            <h2>{{ item?.info?.name || item?.movie_data?.name }}</h2>
+            @if (item?.info?.description || item?.info?.plot) {
+                <label>
+                    {{ item?.info?.description || item?.info?.plot }}
+                </label>
+            }
+            @if (item?.info?.releasedate) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.RELEASE_DATE' | translate }}:
+                    </div>
+                    {{ item?.info?.releasedate }}
+                </label>
+            }
+            @if (item?.info?.genre) {
+                <label>
+                    <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
+                    {{ item?.info?.genre }}
+                </label>
+            }
+            @if (item?.info?.country) {
+                <label>
+                    <div class="label">{{ 'XTREAM.COUNTRY' | translate }}:</div>
+                    {{ item?.info?.country }}
+                </label>
+            }
+            @if (item?.info?.actors || item?.info?.cast) {
+                <div>
+                    <div class="label">{{ 'XTREAM.ACTORS' | translate }}:</div>
+                    {{ item?.info?.actors || item?.info?.cast }}
+                </div>
+            }
+            @if (item?.info?.director) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.DIRECTOR' | translate }}:
+                    </div>
+                    {{ item?.info?.director }}
+                </label>
+            }
+            @if (item?.info?.duration) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.DURATION' | translate }}:
+                    </div>
+                    {{ item?.info?.duration }}
+                </label>
+            }
+            @if (item?.info?.rating_imdb) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.IMDB_RATING' | translate }}:
+                    </div>
+                    {{ item?.info?.rating_imdb }}
+                </label>
+            }
+            @if (item?.info?.rating_kinopoisk) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.KINOPOISK_RATING' | translate }}:
+                    </div>
+                    {{ item?.info?.rating_kinopoisk }}
+                </label>
+            }
+            <div class="action-buttons">
+                <button mat-flat-button color="accent" (click)="playVod(item)">
+                    <mat-icon>play_arrow</mat-icon>
+                    {{ 'XTREAM.PLAY' | translate }}</button
+                >&nbsp;
+                @if (!isFavorite()) {
+                    <button
+                        mat-stroked-button
+                        color="accent"
+                        (click)="toggleFavorite()"
+                    >
+                        <mat-icon>star_outline</mat-icon>
+                        {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
+                    </button>
+                } @else {
+                    <button
+                        mat-stroked-button
+                        color="accent"
+                        (click)="toggleFavorite()"
+                    >
+                        <mat-icon>star</mat-icon>
+                        {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+    @if (item?.info?.youtube_trailer) {
+        <div class="youtube-trailer">
+            <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
+            <iframe
+                width="100%"
+                height="450"
+                [src]="
+                    'https://www.youtube.com/embed/' +
+                        item.info?.youtube_trailer | safe
+                "
+                title="YouTube video player"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allowfullscreen
+            ></iframe>
+        </div>
+    }
+}

@@ -1,0 +1,37 @@
+@let isEmbeddedPlayer = player() === 'videojs' || player() === 'html5';
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        @if (selectedCategoryId()) {
+            <button mat-icon-button (click)="backToCategories()">
+                <mat-icon>chevron_left</mat-icon>
+            </button>
+            <h2>Channels</h2>
+        } @else {
+            <h2>Categories</h2>
+        }
+    </div>
+    @if (selectedCategoryId()) {
+        <app-portal-channels-list (playClicked)="playLive($event)" />
+    } @else {
+        <app-category-view (categoryClicked)="selectCategory($event)" />
+    }
+</div>
+<div class="content-container">
+    @if (streamUrl) {
+        @if (isEmbeddedPlayer) {
+            <div class="video-player">
+                <app-web-player-view [streamUrl]="streamUrl" />
+            </div>
+        }
+        <div class="epg">
+            <div class="epg-content">
+                @if (epgItems().length > 0) {
+                    <app-epg-view [epgItems]="epgItems()" />
+                }
+            </div>
+        </div>
+    } @else {
+        <div class="no-channel-selected">Select a category and channel</div>
+    }
+</div>

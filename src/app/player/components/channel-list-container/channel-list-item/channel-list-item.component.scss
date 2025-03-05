@@ -6,6 +6,17 @@
     -webkit-box-orient: vertical;
     font-size: 0.9em;
     max-width: 290px;
+    transition: color 0.2s ease;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+
+    &:hover {
+        overflow: visible;
+        text-overflow: clip;
+        animation: marquee 6s linear infinite;
+    }
+    
 }
 
 .active {

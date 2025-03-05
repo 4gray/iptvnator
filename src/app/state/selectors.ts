@@ -101,6 +101,16 @@ export const selectCurrentPlaylist = createSelector(
     }
 );
 
+export const selectActivePlaylist = createSelector(
+    selectPlaylistsMetaState,
+    (state) => {
+        if (state.entities && state.selectedId !== '') {
+            return state.entities[state.selectedId];
+        }
+        return null;
+    }
+);
+
 export const selectFavorites = createSelector(
     selectPlaylistsMetaState,
     fromPlaylistMetaState.getPlaylistMetaEntities,

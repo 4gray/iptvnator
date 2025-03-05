@@ -4,37 +4,39 @@
   <img src="https://raw.githubusercontent.com/4gray/iptvnator/electron/src/assets/icons/favicon.256x256.png" alt="IPTVnator icon" title="Free IPTV player application" />
 </p>
 <p align="center">
-  <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/release/4gray/iptvnator.svg?style=for-the-badge&logo=github" alt="Release"></a> <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/4gray/iptvnator/ci.yaml?style=for-the-badge"> <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/downloads/4gray/iptvnator/total?style=for-the-badge&logo=github" alt="Releases"></a> <a href="https://codecov.io/gh/4gray/iptvnator"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/4gray/iptvnator?style=for-the-badge"></a> <a href="https://t.me/iptvnator"><img src="https://img.shields.io/badge/telegram-iptvnator-blue?logo=telegram&style=for-the-badge" alt="Telegram"></a>
+  <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/release/4gray/iptvnator.svg?style=for-the-badge&logo=github" alt="Release"></a> 
+  <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/v/release/4gray/iptvnator?include_prereleases&label=pre-release&logo=github&style=for-the-badge" /></a>
+ <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/4gray/iptvnator/build-and-test.yaml?style=for-the-badge&logo=github"> <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/downloads/4gray/iptvnator/total?style=for-the-badge&logo=github" alt="Releases"></a> <a href="https://codecov.io/gh/4gray/iptvnator"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/4gray/iptvnator?style=for-the-badge"></a> <a href="https://t.me/iptvnator"><img src="https://img.shields.io/badge/telegram-iptvnator-blue?logo=telegram&style=for-the-badge" alt="Telegram"></a> <a href="https://bsky.app/profile/iptvnator.bsky.social"><img src="https://img.shields.io/badge/bluesky-iptvnator-darkblue?logo=bluesky&style=for-the-badge" alt="Bluesky"></a>
 </p>
 
 <a href="https://t.me/iptvnator">Telegram channel for discussions</a>
 
-**IPTVnator** is a video player application that provides support for the playback of IPTV playlists (m3u, m3u8). The application allows to import playlists by using remote URLs or per file upload from the file system. Additionally there is a support of EPG information XMLTV-based which can be provided by URL.
+**IPTVnator** is a video player application that provides support for IPTV playlist playback (m3u, m3u8). The application allows users to import playlists using remote URLs or by uploading files from the local file system. Additionally, it supports EPG information in XMLTV format which can be provided via URL.
 
-The application is a cross-platform and open source project based on Electron and Angular.
+The application is a cross-platform, open-source project built with Electron (currently migrating to Tauri) and Angular.
 
-⚠️ Note: IPTVnator doesn't provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
+⚠️ Note: IPTVnator does not provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
 
 ![IPTVnator: Channels list, player and epg list](./iptv-dark-theme.png)
 
 ## Features
 
-- M3u and M3u8 playlists support 📺
+- M3u and M3u8 playlist support 📺
 - Xtream Code (XC) and Stalker portal (STB) support
-- External player support - mvp, VLC
-- Add playlists from file system or from remote URL 📂
-- Playlists auto-update feature on app startup
-- Search for channels 🔍
-- EPG support (TV Guide) with detailed info
-- TV archive/catchup/timeshift
-- Group-based channels list
-- Save channels as favorites
+- External player support - MPV, VLC
+- Add playlists from the file system or remote URLs 📂
+- Automatic playlist updates on application startup
+- Channel search functionality 🔍
+- EPG support (TV Guide) with detailed information
+- TV archive/catchup/timeshift functionality
+- Group-based channel list
+- Favorite channels management
 - Global favorites aggregated from all playlists
-- HTML video player with hls.js support or Video.js based player
-- Internalization, currently 8 languages are supported (en, ru, de, ko, es, zh, fr, it)
-- Set custom "User Agent" header for a playlist
-- Light and Dark theme
-- Version for self-hosted docker is available
+- HTML video player with HLS.js support or Video.js-based player
+- Internationalization with support for 8 languages (English, Russian, German, Korean, Spanish, Chinese, French, Italian)
+- Custom "User Agent" header configuration for playlists
+- Light and Dark themes
+- Docker version available for self-hosting
 
 ## Screenshots:
 
@@ -52,78 +54,68 @@ The application is a cross-platform and open source project based on Electron an
 
 ## Download
 
-Download the latest version of the application for macOS, Windows and Linux from the [release page](https://github.com/4gray/iptvnator/releases).
+Download the latest version of the application for macOS, Windows, and Linux from the [release page](https://github.com/4gray/iptvnator/releases).
 
-**IPTVnator** is also available as a snap package:
-
+Alternatively, you can install the application using one of the following package managers:
+### Homebrew
+```shell
+$ brew install iptvnator
 ```
+
+### Snap
+
+```shell
 $ sudo snap install iptvnator
 ```
 
+### Arch
+
 Also available as an Arch PKG, [iptvnator-bin](https://aur.archlinux.org/packages/iptvnator-bin/), in the AUR (using your favourite AUR-helper, .e.g. `yay`)
-```
+```shell
 $ yay -S iptvnator-bin
+```
+
+### Gentoo
+
+You can install IPTVnator from the [gentoo-zh overlay](https://github.com/microcai/gentoo-zh)
+
+```shell
+sudo eselect repository enable gentoo-zh
+sudo emerge --sync gentoo-zh
+sudo emerge iptvnator-bin
 ```
 
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/iptvnator)
 
 <a href="https://github.com/sponsors/4gray" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-green.png" alt="Buy Me A Coffee" width="185"></a>
 
-## How to build
+## How to Build and Develop
 
-Requirements: node.js with npm.
+Requirements: 
+* Node.js with npm
+* Rust (required for tauri)
 
-1. Clone this repository and install all project dependencies with:
+1. Clone this repository and install project dependencies:
    ```
    $ npm install
    ```
 
-2. To build the application on your local machine use one of the following commands:
+2. Start the application:
    ```
-   # linux
-   $ npm run electron:build:linux
-   ```
-
-   ```
-   #mac
-   $ npm run electron:build:mac
+   $ npm run tauri dev
    ```
 
-   ```
-   # windows
-   $ npm run electron:build:windows
-   ```
+This will open the Tauri version in a separate window, while the PWA version will be available at http://localhost:4200.
 
-This command will produce the distributable assets in the `release` folder based on the configuration from electron-builder which is stored in `electron-builder.json` and `package.json`. Check the [API description of electron-builder](https://www.electron.build/) and adapt the configuration if you need some special configuration for you environment.
-
-*Note: Don’t expect that you can build app for all platforms on one platform. [Read details](https://www.electron.build/multi-platform-build)*
-
-## Development
-
-The first thing to do is to install all the necessary dependencies:
+To run only the Angular app without Tauri, use:
 
   ```
-  $ npm install
+  $ npm run serve
   ```
-
-To develop an application in PWA and Electron mode, you need to run the application with a command:
-
-  ```
-  $ npm run start
-  ```
-
-The Electron version of the application will open in a separate window, and the PWA version will be available in the browser at http://localhost:4200.
-
-If you want to run only the angular app without electron, in this case you can use the command:
-
-  ```
-  $ npm run ng:serve
-  ```
-
 
 ## Disclaimer
 
-IPTVnator doesn't provide any playlists or other digital content.
+**IPTVnator doesn't provide any playlists or other digital content.**
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-13-orange.svg?style=flat-square)](#contributors)

@@ -16,23 +16,25 @@
         >
             <mat-icon>add</mat-icon>
         </button>
-        <!-- <button
-        mat-icon-button
-        [matTooltip]="'HOME.FILTER_BY_NAME' | translate"
-        data-test-id="filter-playlist-by-name"
-    >
-        <mat-icon>search</mat-icon>
-    </button> -->
+        <!-- Sort button -->
+        <button
+            mat-icon-button
+            [matMenuTriggerFor]="sortMenu"
+            [matTooltip]="'HOME.SORT_PLAYLISTS' | translate"
+            data-test-id="sort-playlists"
+        >
+            <mat-icon>sort</mat-icon>
+        </button>
         <button
             mat-icon-button
             [matMenuTriggerFor]="filterPlaylistMenu"
             [matTooltip]="'HOME.FILTER_BY_TYPE' | translate"
             data-test-id="filter-playlist-by-type"
         >
-            <mat-icon>filter_list</mat-icon>
+            <mat-icon>filter_alt</mat-icon>
         </button>
         <button
-            *ngIf="isElectron; else pwaMenu"
+            *ngIf="isElectron || isTauri; else pwaMenu"
             mat-icon-button
             (click)="openSettings()"
             [matTooltip]="'MENU.SETTINGS' | translate"
@@ -41,12 +43,84 @@
             <mat-icon>settings</mat-icon>
         </button>
 
+        <!-- Sort menu -->
+        <mat-menu #sortMenu="matMenu">
+            <div
+                class="dropdown-menu-header"
+                (click)="$event.stopPropagation()"
+            >
+                {{ 'HOME.SORT_BY' | translate }}
+            </div>
+            <button
+                mat-menu-item
+                (click)="setSortOptions(SortBy.NAME, SortOrder.ASC)"
+                [class.active-sort]="isSortActive(SortBy.NAME, SortOrder.ASC)"
+            >
+                <mat-icon>sort_by_alpha</mat-icon>
+                <span>{{ 'HOME.SORT_OPTIONS.NAME_ASC' | translate }}</span>
+                <mat-icon
+                    *ngIf="isSortActive(SortBy.NAME, SortOrder.ASC)"
+                    class="check-icon"
+                    >check</mat-icon
+                >
+            </button>
+            <button
+                mat-menu-item
+                (click)="setSortOptions(SortBy.NAME, SortOrder.DESC)"
+                [class.active-sort]="isSortActive(SortBy.NAME, SortOrder.DESC)"
+            >
+                <mat-icon>sort_by_alpha</mat-icon>
+                <span>{{ 'HOME.SORT_OPTIONS.NAME_DESC' | translate }}</span>
+                <mat-icon
+                    *ngIf="isSortActive(SortBy.NAME, SortOrder.DESC)"
+                    class="check-icon"
+                    >check</mat-icon
+                >
+            </button>
+            <mat-divider></mat-divider>
+            <button
+                mat-menu-item
+                (click)="setSortOptions(SortBy.DATE_ADDED, SortOrder.DESC)"
+                [class.active-sort]="
+                    isSortActive(SortBy.DATE_ADDED, SortOrder.DESC)
+                "
+            >
+                <mat-icon>date_range</mat-icon>
+                <span>{{ 'HOME.SORT_OPTIONS.NEWEST' | translate }}</span>
+                <mat-icon
+                    *ngIf="isSortActive(SortBy.DATE_ADDED, SortOrder.DESC)"
+                    class="check-icon"
+                    >check</mat-icon
+                >
+            </button>
+            <button
+                mat-menu-item
+                (click)="setSortOptions(SortBy.DATE_ADDED, SortOrder.ASC)"
+                [class.active-sort]="
+                    isSortActive(SortBy.DATE_ADDED, SortOrder.ASC)
+                "
+            >
+                <mat-icon>date_range</mat-icon>
+                <span>{{ 'HOME.SORT_OPTIONS.OLDEST' | translate }}</span>
+                <mat-icon
+                    *ngIf="isSortActive(SortBy.DATE_ADDED, SortOrder.ASC)"
+                    class="check-icon"
+                    >check</mat-icon
+                >
+            </button>
+        </mat-menu>
+
         <mat-menu #filterPlaylistMenu="matMenu">
             <section
                 (click)="$event.stopPropagation()"
                 class="filter-container"
             >
-                <h4>{{ 'HOME.FILTER_BY_TYPE' | translate }}:</h4>
+                <div
+                    class="dropdown-menu-header"
+                    (click)="$event.stopPropagation()"
+                >
+                    {{ 'HOME.FILTER_BY_TYPE' | translate }}
+                </div>
                 @for (type of playlistTypes; track $index) {
                     <p>
                         <mat-checkbox
@@ -115,6 +189,7 @@
         mat-icon-button
         [matMenuTriggerFor]="menu"
         [attr.aria-label]="'MENU.OPEN' | translate"
+        data-test-id="pwa-menu"
     >
         <mat-icon>menu</mat-icon>
     </button>
@@ -124,6 +199,7 @@
                 mat-menu-item
                 [attr.aria-label]="'MENU.SETTINGS_ARIA' | translate"
                 (click)="openSettings()"
+                data-test-id="pwa-open-settings"
             >
                 <mat-icon>settings</mat-icon>
                 <span>{{ 'MENU.SETTINGS' | translate }}</span>

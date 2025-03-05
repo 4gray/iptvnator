@@ -90,6 +90,14 @@
     },
     "FILTER_BY_NAME": "Filtra per nome",
     "FILTER_BY_TYPE": "Filtra per tipo",
+    "SORT_PLAYLISTS": "Ordina playlist",
+    "SORT_BY": "Ordina per",
+    "SORT_OPTIONS": {
+      "NAME_ASC": "Nome (A-Z)",
+      "NAME_DESC": "Nome (Z-A)",
+      "NEWEST": "Data aggiunta (prima più recenti)",
+      "OLDEST": "Data aggiunta (prima più vecchi)"
+    },
     "IMPORTED_AS_TEXT": "Importato come testo",
     "PARSING_ERROR": "Errore: analisi fallita, non è una playlist valida:"
   },
@@ -104,7 +112,7 @@
     "VIDEO_PLAYER_PLACEHOLDER": "Seleziona una opzione",
     "VERSION": "Versione",
     "SAVE_CHANGES": "Salva modifiche",
-    "BACK_TO_HOME": "Torna a Home",
+    "BACK_TO_HOME": "Indietro",
     "NEW_VERSION_AVAILABLE": "È disponibile una nuova versione",
     "LATEST_VERSION": "Questa versione è aggiornata",
     "LANGUAGE": "Lingua",
@@ -126,7 +134,7 @@
     "EXPORT_DATA": "Esporta",
     "REMOVE_ALL": "Rimuovi playlist",
     "REMOVE_ALL_BUTTON": "Rimuovi",
-    "REMOVE_ALL_DESCRIPTION": "Rimuoverà tutte le playlist esistenti nell'applicazione.",
+    "REMOVE_ALL_DESCRIPTION": "Verranno rimosse tutte le playlist esistenti nell'applicazione.",
     "REMOVE_DIALOG": {
       "TITLE": "Rimuovi tutte le playlist",
       "MESSAGE": "Sei sicuro di voler rimuovere tutte le playlist dall'applicazione?"
@@ -204,7 +212,8 @@
     "TRADITIONAL_CHINESE": "繁體中文",
     "FRENCH": "Français",
     "ITALIAN": "Italiano",
-    "TURKISH": "Türkçe"
+    "TURKISH": "Türkçe",
+    "JAPANESE": "日本語"
   },
   "YES": "Sì",
   "NO": "No",

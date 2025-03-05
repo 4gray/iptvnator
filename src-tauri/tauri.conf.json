@@ -1,0 +1,119 @@
+{
+    "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+    "productName": "iptvnator",
+    "version": "1.0.0-5",
+    "identifier": "com.4gray.dev",
+    "build": {
+        "frontendDist": "../dist",
+        "devUrl": "http://localhost:4200",
+        "beforeDevCommand": "npm run serve",
+        "beforeBuildCommand": "npm run build:prod"
+    },
+    "plugins": {
+        "updater": {
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyRTRBNzlCMkE5QkI0MjgKUldRb3RKc3FtNmZra3BmeDVKYmtLd3RUNnZkUHdDbmM0TkpHQ25hZzhoS1FZcFRqaTl2eXRScU0K",
+            "endpoints": [
+                "https://github.com/4gray/iptvnator/releases/latest/download/latest.json"
+            ]
+        },
+        "sql": {
+            "preload": ["sqlite:database.db"]
+        }
+    },
+    "app": {
+        "windows": [
+            {
+                "title": "IPTVnator",
+                "width": 800,
+                "height": 600,
+                "resizable": true,
+                "fullscreen": false,
+                "titleBarStyle": "Transparent"
+            }
+        ],
+        "macOSPrivateApi": true,
+        "security": {
+            "csp": {
+                "default-src": [
+                    "'self'",
+                    "data:",
+                    "tauri:",
+                    "asset:",
+                    "blob:",
+                    "https:",
+                    "http:",
+                    "'unsafe-eval'",
+                    "'unsafe-inline'"
+                ],
+                "img-src": [
+                    "'self'",
+                    "data:",
+                    "asset:",
+                    "https:",
+                    "http:",
+                    "blob:"
+                ],
+                "media-src": ["'self'", "https:", "http:", "blob:", "data:"],
+                "script-src": [
+                    "'self'",
+                    "'unsafe-inline'",
+                    "'unsafe-eval'",
+                    "tauri:",
+                    "asset:"
+                ],
+                "style-src": [
+                    "'self'",
+                    "'unsafe-inline'",
+                    "https:",
+                    "http:",
+                    "https://fonts.googleapis.com"
+                ],
+                "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
+                "connect-src": [
+                    "'self'",
+                    "https:",
+                    "http:",
+                    "ws:",
+                    "wss:",
+                    "data:",
+                    "tauri:"
+                ],
+                "frame-src": ["'self'", "https:", "http:", "blob:", "data:"],
+                "worker-src": ["'self'", "blob:", "data:"]
+            }
+        }
+    },
+    "bundle": {
+        "createUpdaterArtifacts": true,
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ],
+        "macOS": {
+            "entitlements": null,
+            "exceptionDomain": "*",
+            "frameworks": [],
+            "providerShortName": null,
+            "signingIdentity": "-"
+        },
+        "linux": {
+            "appimage": {
+                "bundleMediaFramework": true,
+                "files": {}
+            },
+            "deb": {
+                "files": {}
+            },
+            "rpm": {
+                "epoch": 0,
+                "files": {},
+                "release": "1"
+            }
+        }
+    }
+}

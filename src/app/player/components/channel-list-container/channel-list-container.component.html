@@ -13,13 +13,15 @@
                         matInput
                         class="full-width"
                         type="search"
+                        spellcheck="false"
+                        autocomplete="off"
                         #search
                         [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
                         [(ngModel)]="searchTerm.name"
                     />
                 </mat-form-field>
             </div>
-            <mat-nav-list style="overflow: hidden">
+            <mat-nav-list id="all-channels">
                 <cdk-virtual-scroll-viewport
                     itemSize="50"
                     class="scroll-viewport"
@@ -55,100 +57,105 @@
             </ng-template>
             <mat-nav-list id="groups-list">
                 <mat-accordion multi>
-                    <ng-container
-                        *ngFor="let groups of groupedChannels | keyvalue"
-                    >
-                        <mat-expansion-panel>
-                            <mat-expansion-panel-header
-                                *ngIf="groups.value.length > 0"
-                            >
-                                {{
-                                    groups.key ||
-                                        ('CHANNELS.UNGROUPED' | translate)
-                                        | titlecase
-                                }}
-                                ({{ groups.value.length }})
-                            </mat-expansion-panel-header>
-                            <ng-template matExpansionPanelContent>
-                                <ng-container
-                                    *ngFor="
-                                        let channel of groups.value;
-                                        index as i;
-                                        trackBy: trackByFn
-                                    "
-                                >
-                                    <app-channel-list-item
-                                        [name]="
-                                            i +
-                                            1 +
-                                            '. ' +
-                                            (channel?.name ||
-                                                'CHANNELS.UNNAMED_CHANNEL'
-                                                | translate)
+                    @for (groups of groupedChannels | keyvalue; track $index) {
+                        @if (groups.value.length > 0) {
+                            <mat-expansion-panel>
+                                <mat-expansion-panel-header>
+                                    {{
+                                        groups.key ||
+                                            ('CHANNELS.UNGROUPED' | translate)
+                                            | titlecase
+                                    }}
+                                    ({{ groups.value.length }})
+                                </mat-expansion-panel-header>
+
+                                <ng-template matExpansionPanelContent>
+                                    <ng-container
+                                        *ngFor="
+                                            let channel of groups.value;
+                                            index as i;
+                                            trackBy: trackByFn
                                         "
-                                        [logo]="channel?.tvg?.logo"
-                                        (clicked)="selectChannel(channel)"
-                                        [selected]="selected?.id === channel.id"
-                                    ></app-channel-list-item>
-                                </ng-container>
-                            </ng-template>
-                        </mat-expansion-panel>
-                    </ng-container>
+                                    >
+                                        <app-channel-list-item
+                                            [name]="
+                                                i +
+                                                1 +
+                                                '. ' +
+                                                (channel?.name ||
+                                                    'CHANNELS.UNNAMED_CHANNEL'
+                                                    | translate)
+                                            "
+                                            [logo]="channel?.tvg?.logo"
+                                            (clicked)="selectChannel(channel)"
+                                            [selected]="
+                                                selected?.id === channel.id
+                                            "
+                                        ></app-channel-list-item>
+                                    </ng-container>
+                                </ng-template>
+                            </mat-expansion-panel>
+                        }
+                    }
                 </mat-accordion>
             </mat-nav-list>
         </mat-tab>
 
-        <mat-tab *ngIf="(playlistId$ | async) !== 'GLOBAL_FAVORITES'">
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">star</mat-icon>
-                <div class="tab-title">
-                    {{ 'CHANNELS.FAVORITES' | translate }}
-                </div>
-            </ng-template>
-            <mat-nav-list
-                cdkDropList
-                *ngIf="favorites$ | async as favorites"
-                (cdkDropListDropped)="drop($event, favorites)"
-                id="favorites-list"
-            >
-                <ng-container *ngIf="favorites.length > 0; else noFavorites">
-                    <app-channel-list-item
-                        *ngFor="
-                            let channel of favorites;
-                            index as i;
-                            trackBy: trackByFn
-                        "
-                        [name]="
-                            i +
-                            1 +
-                            '. ' +
-                            (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
-                                | translate)
-                        "
-                        [isDraggable]="true"
-                        [logo]="channel?.tvg?.logo"
-                        (clicked)="selectChannel(channel)"
-                        [selected]="selected?.id === channel?.id"
-                        [showFavoriteButton]="true"
-                        (favoriteToggled)="
-                            toggleFavoriteChannel(channel, $event)
-                        "
-                    ></app-channel-list-item>
-                </ng-container>
-                <ng-template #noFavorites>
-                    <mat-list-item
-                        ><strong>{{
-                            'CHANNELS.NO_FAVORITES' | translate
-                        }}</strong></mat-list-item
-                    >
-                    <mat-list-item>
-                        {{
-                            'CHANNELS.USE_STAR_TO_FAVORITE' | translate
-                        }}</mat-list-item
-                    >
+        @let showFavorites = (playlistId$ | async) !== 'GLOBAL_FAVORITES';
+        @if (showFavorites) {
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">star</mat-icon>
+                    <div class="tab-title">
+                        {{ 'CHANNELS.FAVORITES' | translate }}
+                    </div>
                 </ng-template>
-            </mat-nav-list>
-        </mat-tab>
+                @let favorites = favorites$ | async;
+                @if (favorites) {
+                    <mat-nav-list
+                        cdkDropList
+                        (cdkDropListDropped)="drop($event, favorites)"
+                        id="favorites-list"
+                    >
+                        @if (favorites.length > 0) {
+                            <app-channel-list-item
+                                *ngFor="
+                                    let channel of favorites;
+                                    index as i;
+                                    trackBy: trackByFn
+                                "
+                                [name]="
+                                    i +
+                                    1 +
+                                    '. ' +
+                                    (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
+                                        | translate)
+                                "
+                                [isDraggable]="true"
+                                [logo]="channel?.tvg?.logo"
+                                (clicked)="selectChannel(channel)"
+                                [selected]="selected?.id === channel?.id"
+                                [showFavoriteButton]="true"
+                                (favoriteToggled)="
+                                    toggleFavoriteChannel(channel, $event)
+                                "
+                            />
+                        } @else {
+                            <mat-list-item
+                                ><strong>{{
+                                    'CHANNELS.NO_FAVORITES' | translate
+                                }}</strong></mat-list-item
+                            >
+                            <mat-list-item>
+                                {{
+                                    'CHANNELS.USE_STAR_TO_FAVORITE' | translate
+                                }}</mat-list-item
+                            >
+                        }
+                    </mat-nav-list>
+                }
+            </mat-tab>
+        }
     </mat-tab-group>
 } @else {
     No channels there

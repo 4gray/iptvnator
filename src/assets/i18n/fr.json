@@ -179,7 +179,8 @@
     "CHINESE": "简体中文",
     "TRADITIONAL_CHINESE": "繁體中文",
     "ITALIAN": "Italiano",
-    "TURKISH": "Türkçe"
+    "TURKISH": "Türkçe",
+    "JAPANESE": "日本語"
   },
   "YES": "Oui",
   "NO": "Non",

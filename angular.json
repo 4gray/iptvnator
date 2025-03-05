@@ -59,7 +59,7 @@
                         },
                         "web": {
                             "optimization": true,
-                            "outputHashing": "all",
+                            "outputHashing": "none",
                             "sourceMap": false,
                             "namedChunks": false,
                             "aot": true,
@@ -74,8 +74,8 @@
                             ]
                         },
                         "production": {
-                            "optimization": true,
-                            "outputHashing": "all",
+                            "optimization": false,
+                            "outputHashing": "none",
                             "sourceMap": false,
                             "namedChunks": false,
                             "aot": true,

@@ -1,7 +1,4 @@
-<mat-list-item cdkDrag (click)="playlistClicked.emit(item._id)">
-    <mat-icon matListItemIcon cdkDragHandle class="drag-icon"
-        >drag_indicator</mat-icon
-    >
+<mat-list-item (click)="playlistClicked.emit(item._id)">
     <mat-icon
         matListItemIcon
         class="upload-type-icon"
@@ -18,13 +15,18 @@
         [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
         >folder</mat-icon
     >
-    <mat-icon
-        matListItemIcon
-        class="upload-type-icon"
-        *ngIf="item?.serverUrl"
-        [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
-        >public</mat-icon
-    >
+    <div class="icon-container" *ngIf="item?.serverUrl" matListItemIcon>
+        <mat-icon
+            class="upload-type-icon"
+            [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
+            >public</mat-icon
+        >
+        <span
+            class="status-dot"
+            [class]="getStatusClass()"
+            [matTooltip]="'Portal status: ' + portalStatus"
+        ></span>
+    </div>
     <mat-icon
         matListItemIcon
         class="upload-type-icon"
@@ -32,7 +34,9 @@
         [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
         >dashboard</mat-icon
     >
-    <div matListItemTitle>{{ item.title || item.filename }}</div>
+    <div matListItemTitle>
+        {{ item.title || item.filename }}
+    </div>
     <div matListItemLine class="meta">
         <ng-container
             *ngIf="!item.serverUrl && !item.portalUrl; else xtreamPlaylist"

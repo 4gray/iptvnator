@@ -1,16 +1,19 @@
 import { Component, NgZone } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { isTauri } from '@tauri-apps/api/core';
+import { ask } from '@tauri-apps/plugin-dialog';
+import { relaunch } from '@tauri-apps/plugin-process';
+import { check } from '@tauri-apps/plugin-updater';
 import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
 import { firstValueFrom } from 'rxjs';
 import * as semver from 'semver';
 import { IpcCommand } from '../../shared/ipc-command.class';
 import {
     AUTO_UPDATE_PLAYLISTS,
-    EPG_ERROR,
-    EPG_FETCH_DONE,
     ERROR,
     OPEN_FILE,
     SETTINGS_UPDATE,
@@ -28,9 +31,9 @@ import { Settings } from './settings/settings.interface';
 import { Theme } from './settings/theme.enum';
 import { STORE_KEY } from './shared/enums/store-keys.enum';
 import * as PlaylistActions from './state/actions';
-/**
- * AppComponent
- */
+import { RecentlyViewedComponent } from './xtream-tauri/recently-viewed/recently-viewed.component';
+import { SearchResultsComponent } from './xtream-tauri/search-results/search-results.component';
+
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
@@ -49,8 +52,6 @@ export class AppComponent {
     commandsList = [
         new IpcCommand(VIEW_ADD_PLAYLIST, () => this.navigateToRoute('/')),
         new IpcCommand(VIEW_SETTINGS, () => this.navigateToRoute('/settings')),
-        new IpcCommand(EPG_FETCH_DONE, () => this.epgService.onEpgFetchDone()),
-        new IpcCommand(EPG_ERROR, () => this.epgService.onEpgError()),
         new IpcCommand(SHOW_WHATS_NEW, () => this.showWhatsNewDialog()),
         new IpcCommand(ERROR, (response: { message: string; status: number }) =>
             this.showErrorAsNotification(response)
@@ -63,7 +64,8 @@ export class AppComponent {
     listeners = [];
 
     constructor(
-        private electronService: DataService,
+        private dataService: DataService,
+        private dialog: MatDialog,
         private epgService: EpgService,
         private ngZone: NgZone,
         private playlistService: PlaylistsService,
@@ -75,23 +77,36 @@ export class AppComponent {
         private whatsNewService: WhatsNewService
     ) {
         if (
-            ((this.electronService.isElectron &&
-                this.electronService?.remote?.process.platform === 'linux') ||
-                this.electronService?.remote?.process.platform === 'win32') &&
-            this.electronService.remote.process.argv.length > 2
+            ((this.dataService.isElectron &&
+                this.dataService?.remote?.process.platform === 'linux') ||
+                this.dataService?.remote?.process.platform === 'win32') &&
+            this.dataService.remote.process.argv.length > 2
         ) {
-            const filePath = this.electronService.remote.process.argv.find(
+            const filePath = this.dataService.remote.process.argv.find(
                 (filepath) =>
                     filepath.endsWith('.m3u') || filepath.endsWith('.m3u8')
             );
             if (filePath) {
                 const filePathsArray = filePath.split('/');
                 const fileName = filePathsArray[filePathsArray.length - 1];
-                this.electronService.sendIpcEvent(OPEN_FILE, {
+                this.dataService.sendIpcEvent(OPEN_FILE, {
                     filePath,
                     fileName,
                 });
             }
+        }
+        if (isTauri()) {
+            document.addEventListener('keydown', (event) => {
+                if (event.ctrlKey || event.metaKey) {
+                    if (event.key === 'f') {
+                        event.preventDefault();
+                        this.openGlobalSearch();
+                    } else if (event.key === 'r') {
+                        event.preventDefault();
+                        this.openGlobalRecent();
+                    }
+                }
+            });
         }
     }
 
@@ -104,15 +119,58 @@ export class AppComponent {
         this.handleWhatsNewDialog();
 
         this.triggerAutoUpdateMechanism();
+        this.checkForUpdates();
+    }
+
+    async checkForUpdates() {
+        if (isTauri()) {
+            const update = await check();
+            if (update?.available) {
+                console.log(
+                    `found update ${update.version} from ${update.date} with notes ${update.body}`
+                );
+                let downloaded = 0;
+                let contentLength = 0;
+
+                const wantsUpdate = await ask(
+                    `New version ${update.version} is available. Do you want to update now?`
+                );
+
+                if (wantsUpdate) {
+                    await update.downloadAndInstall((event) => {
+                        switch (event.event) {
+                            case 'Started':
+                                contentLength = event.data.contentLength;
+                                console.log(
+                                    `started downloading ${event.data.contentLength} bytes`
+                                );
+                                break;
+                            case 'Progress':
+                                downloaded += event.data.chunkLength;
+                                console.log(
+                                    `downloaded ${downloaded} from ${contentLength}`
+                                );
+                                break;
+                            case 'Finished':
+                                console.log('download finished');
+                                break;
+                        }
+                    });
+
+                    console.log('update installed');
+                    await relaunch();
+                }
+            }
+        }
     }
 
     async triggerAutoUpdateMechanism() {
-        if (this.electronService.isElectron) {
+        if (this.dataService.isElectron) {
             const playlistForAutoUpdate = await firstValueFrom(
                 this.playlistService.getPlaylistsForAutoUpdate()
             );
             if (playlistForAutoUpdate && playlistForAutoUpdate.length > 0)
-                this.electronService.sendIpcEvent(
+                this.dataService.sendIpcEvent(
                     AUTO_UPDATE_PLAYLISTS,
                     playlistForAutoUpdate
                 );
@@ -124,8 +182,8 @@ export class AppComponent {
      */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
-            if (this.electronService.isElectron) {
-                this.electronService.listenOn(command.id, () =>
+            if (this.dataService.isElectron) {
+                this.dataService.listenOn(command.id, () =>
                     this.ngZone.run((data) => command.callback(data))
                 );
             } else {
@@ -134,7 +192,7 @@ export class AppComponent {
                         command.callback(response.data);
                     }
                 };
-                this.electronService.listenOn(command.id, cb);
+                this.dataService.listenOn(command.id, cb);
                 this.listeners.push(cb);
             }
         });
@@ -149,11 +207,12 @@ export class AppComponent {
             .getValueFromLocalStorage(STORE_KEY.Settings)
             .subscribe((settings: Settings) => {
                 if (settings && Object.keys(settings).length > 0) {
-                    this.electronService.sendIpcEvent(SETTINGS_UPDATE, settings);
+                    this.dataService.sendIpcEvent(SETTINGS_UPDATE, settings);
                     this.translate.use(settings.language ?? this.DEFAULT_LANG);
                     if (
                         settings.epgUrl?.length > 0 &&
-                        settings.epgUrl?.some((u) => u !== '')
+                        settings.epgUrl?.some((u) => u !== '') &&
+                        isTauri()
                     ) {
                         this.epgService.fetchEpg(settings.epgUrl);
                     }
@@ -188,7 +247,7 @@ export class AppComponent {
      * Checks the actual version of the application and shows the "what is new" dialog if the updated version was detected
      */
     handleWhatsNewDialog(): void {
-        const actualVersion = this.electronService.getAppVersion();
+        const actualVersion = this.dataService.getAppVersion();
         this.settingsService
             .getValueFromLocalStorage(STORE_KEY.Version)
             .subscribe((version: string) => {
@@ -231,7 +290,7 @@ export class AppComponent {
      */
     showWhatsNewDialog(): void {
         this.modals = this.whatsNewService.getModalsByVersion(
-            this.electronService.getAppVersion()
+            this.dataService.getAppVersion()
         );
         this.setDialogVisibility(true);
     }
@@ -246,13 +305,35 @@ export class AppComponent {
         );
     }
 
+    openGlobalSearch(): void {
+        this.dialog.open(SearchResultsComponent, {
+            width: '100%',
+            height: '100%',
+            maxWidth: '100%',
+            panelClass: 'global-search-overlay',
+            data: { isGlobalSearch: true },
+        });
+    }
+
+    openGlobalRecent(): void {
+        this.dialog.open(RecentlyViewedComponent, {
+            width: '100%',
+            height: '100%',
+            maxWidth: '100%',
+            panelClass: 'global-search-overlay',
+            data: { isGlobal: true },
+            hasBackdrop: true,
+            disableClose: false,
+        });
+    }
+
     /**
      * Removes all ipc command listeners on component destroy
      */
     ngOnDestroy(): void {
-        if (this.electronService.isElectron) {
+        if (this.dataService.isElectron) {
             this.commandsList.forEach((command) =>
-                this.electronService.removeAllListeners(command.id)
+                this.dataService.removeAllListeners(command.id)
             );
         } else {
             this.listeners.forEach((listener) =>

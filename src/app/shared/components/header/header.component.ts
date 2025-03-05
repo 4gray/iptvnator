@@ -12,9 +12,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
+import { open } from '@tauri-apps/plugin-shell';
 import { NgxWhatsNewModule } from 'ngx-whats-new';
 import { HomeComponent } from '../../../home/home.component';
 import { DataService } from '../../../services/data.service';
+import { SortBy, SortOrder, SortService } from '../../../services/sort.service';
 import { WhatsNewService } from '../../../services/whats-new.service';
 import { setSelectedFilters } from '../../../state/actions';
 import { selectActiveTypeFilters } from '../../../state/selectors';
@@ -56,6 +58,9 @@ export class HeaderComponent implements OnInit {
     /** Environment flag */
     isElectron = this.dataService.isElectron;
 
+    /** Environment flag for Tauri */
+    isTauri = this.dataService.getAppEnvironment() === 'tauri';
+
     /** Visibility flag of the "what is new" modal dialog */
     isDialogVisible$ = this.whatsNewService.dialogState$;
 
@@ -87,13 +92,18 @@ export class HeaderComponent implements OnInit {
 
     selectedTypeFilters = this.store.selectSignal(selectActiveTypeFilters);
 
+    SortBy = SortBy;
+    SortOrder = SortOrder;
+    currentSortOptions: { by: SortBy; order: SortOrder };
+
     constructor(
         private activatedRoute: ActivatedRoute,
         private dialog: MatDialog,
         private dataService: DataService,
         private router: Router,
         private store: Store,
-        private whatsNewService: WhatsNewService
+        private whatsNewService: WhatsNewService,
+        private sortService: SortService
     ) {
         effect(() => {
             if (this.selectedTypeFilters) {
@@ -102,6 +112,10 @@ export class HeaderComponent implements OnInit {
                     return type;
                 });
             }
+        });
+
+        this.sortService.getSortOptions().subscribe((options) => {
+            this.currentSortOptions = options;
         });
     }
 
@@ -121,8 +135,12 @@ export class HeaderComponent implements OnInit {
      * Opens the provided URL string in new browser window
      * @param url url to open
      */
-    openUrl(url: string): void {
-        window.open(url, '_blank');
+    async openUrl(url: string): Promise<void> {
+        if (this.isTauri) {
+            await open(url);
+        } else {
+            window.open(url, '_blank');
+        }
     }
 
     /**
@@ -164,6 +182,17 @@ export class HeaderComponent implements OnInit {
                     .filter((f) => f.checked)
                     .map((f) => f.id),
             })
+        );
+    }
+
+    setSortOptions(by: SortBy, order: SortOrder): void {
+        this.sortService.setSortOptions({ by, order });
+    }
+
+    isSortActive(by: SortBy, order: SortOrder): boolean {
+        return (
+            this.currentSortOptions?.by === by &&
+            this.currentSortOptions?.order === order
         );
     }
 }

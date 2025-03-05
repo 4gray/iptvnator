@@ -38,15 +38,34 @@
                             },
                         ],
                     }"
+                    [volume]="volume"
                     [class.hide-captions]="!playerSettings.showCaptions"
-                ></app-vjs-player>
+                />
 
                 <!-- default html player component -->
                 <app-html-video-player
                     *ngIf="playerSettings.player === 'html5'"
                     [channel]="activeChannel"
+                    [volume]="volume"
                     [showCaptions]="playerSettings.showCaptions"
                 />
+
+                <!-- Add DPlayer component -->
+                <app-d-player
+                    *ngIf="playerSettings.player === 'dplayer'"
+                    [channel]="activeChannel"
+                    [volume]="volume"
+                    [showCaptions]="playerSettings.showCaptions"
+                />
+
+                <!-- Add ArtPlayer component -->
+                <app-art-player
+                    *ngIf="playerSettings.player === 'artplayer'"
+                    [channel]="activeChannel"
+                    [volume]="volume"
+                    [showCaptions]="playerSettings.showCaptions"
+                />
+
                 <div
                     class="custom-player"
                     *ngIf="playerSettings.player === 'mpv'"
@@ -82,12 +101,12 @@
                 <app-info-overlay
                     [channel]="activeChannel"
                     [epgProgram]="epgProgram$ | async"
-                ></app-info-overlay>
+                />
             </ng-template>
         </ng-container>
     </mat-drawer-content>
     <!-- right sidebar content -->
     <mat-drawer position="end" #drawerRight mode="side" disableClose>
-        <app-epg-list *ngIf="isElectron"></app-epg-list>
+        <app-epg-list *ngIf="isTauri" />
     </mat-drawer>
 </mat-drawer-container>

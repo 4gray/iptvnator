@@ -1,0 +1,118 @@
+<div class="portal-status-container" [class]="getStatusColor()">
+    <div class="portal-status-wrapper">
+        <div class="portal-header">
+            <div class="portal-icon" [class]="getStatusColor()">
+                <mat-icon>{{ getStatusIcon() }}</mat-icon>
+            </div>
+        </div>
+        <div class="portal-info">
+            <span class="portal-name">{{
+                currentPlaylist()?.title || 'Unknown Portal'
+            }}</span>
+            <span class="portal-label">{{ xtreamStore.portalStatus() }}</span>
+        </div>
+        <div class="portal-actions">
+            <button
+                mat-icon-button
+                class="action-button"
+                routerLink="/"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: true }"
+                matTooltip="Home"
+            >
+                <mat-icon>home</mat-icon>
+            </button>
+            <button
+                mat-icon-button
+                class="action-button"
+                (click)="openAccountInfo()"
+                matTooltip="Account Info"
+            >
+                <mat-icon>person</mat-icon>
+            </button>
+            <button
+                mat-icon-button
+                class="action-button"
+                (click)="openPlaylistInfo()"
+                matTooltip="Playlist Info"
+            >
+                <mat-icon>playlist_play</mat-icon>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="nav-section">
+    <div class="nav-group-label">Main</div>
+    <mat-nav-list>
+        <a
+            mat-list-item
+            (click)="xtreamStore.setSelectedContentType('vod')"
+            routerLink="./vod"
+            [class.active]="isContentTypeActive('vod')"
+        >
+            <mat-icon matListItemIcon>movie</mat-icon>
+            <span matListItemTitle>Movies</span>
+        </a>
+        <a
+            mat-list-item
+            (click)="xtreamStore.setSelectedContentType('live')"
+            routerLink="./live"
+            [class.active]="isContentTypeActive('live')"
+        >
+            <mat-icon matListItemIcon>live_tv</mat-icon>
+            <span matListItemTitle>Live TV</span>
+        </a>
+        <a
+            mat-list-item
+            routerLink="./series"
+            (click)="xtreamStore.setSelectedContentType('series')"
+            [class.active]="isContentTypeActive('series')"
+        >
+            <mat-icon matListItemIcon>tv</mat-icon>
+            <span matListItemTitle>TV Series</span>
+        </a>
+    </mat-nav-list>
+</div>
+
+<div class="nav-section">
+    <div class="nav-group-label">Library</div>
+    <mat-nav-list>
+        <a
+            mat-list-item
+            routerLink="./search"
+            routerLinkActive="active"
+            (click)="xtreamStore.setSelectedContentType(undefined)"
+        >
+            <mat-icon matListItemIcon>search</mat-icon>
+            <span matListItemTitle>Search</span>
+        </a>
+        <a
+            mat-list-item
+            routerLink="./recent"
+            routerLinkActive="active"
+            (click)="xtreamStore.setSelectedContentType(undefined)"
+        >
+            <mat-icon matListItemIcon>history</mat-icon>
+            <span matListItemTitle>Recent</span>
+        </a>
+        <a
+            mat-list-item
+            routerLink="./favorites"
+            routerLinkActive="active"
+            (click)="xtreamStore.setSelectedContentType(undefined)"
+        >
+            <mat-icon matListItemIcon>favorite</mat-icon>
+            <span matListItemTitle>Favorites</span>
+        </a>
+    </mat-nav-list>
+</div>
+
+<div class="navigation-bottom">
+    <mat-nav-list>
+        <a mat-list-item (click)="openSettings()">
+            <mat-icon matListItemIcon>settings</mat-icon>
+            <span matListItemTitle>{{ 'MENU.SETTINGS' | translate }}</span>
+        </a>
+    </mat-nav-list>
+</div>

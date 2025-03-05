@@ -1,0 +1,23 @@
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2>Categories</h2>
+    </div>
+    <app-category-view (categoryClicked)="categoryClicked($event)" />
+</div>
+
+<div class="main-content">
+    <div class="content-header">
+        <h2>
+            @if (xtreamStore.selectedItem()) {
+                <button mat-icon-button (click)="historyBack()">
+                    <mat-icon>chevron_left</mat-icon>
+                </button>
+            }
+            {{ getContentLabel() }}
+        </h2>
+    </div>
+    <div class="scrollable-content">
+        <router-outlet />
+    </div>
+    <app-mpv-player-bar />
+</div>

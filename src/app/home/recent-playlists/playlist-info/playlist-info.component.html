@@ -66,7 +66,7 @@
             }}</mat-label>
             <input matInput formControlName="count" />
         </mat-form-field>
-        <mat-form-field class="full-width mb-10" *ngIf="isElectron">
+        <mat-form-field class="full-width mb-10" *ngIf="isTauri">
             <mat-label>{{
                 'HOME.PLAYLISTS.INFO_DIALOG.USER_AGENT' | translate
             }}</mat-label>
@@ -84,7 +84,7 @@
                 {{ 'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED' | translate }}
             </mat-hint>
         </mat-form-field>
-        <ng-container *ngIf="isElectron && (playlist.url || playlist.filePath)">
+        <ng-container *ngIf="isTauri && (playlist.url || playlist.filePath)">
             <mat-checkbox class="full-width" formControlName="autoRefresh">
                 {{ 'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE' | translate }}
             </mat-checkbox>
@@ -100,13 +100,15 @@
         <button
             mat-flat-button
             color="accent"
+            type="button"
             (click)="exportPlaylist()"
             *ngIf="!playlist.serverUrl && !playlist.portalUrl"
         >
+            <mat-icon>download</mat-icon>
             {{ 'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_PLAYLIST' | translate }}
         </button>
-        <div class="spacer"></div>
-        <button mat-button mat-dialog-close cdkFocusInitial color="accent">
+        <span class="spacer"></span>
+        <button mat-button mat-dialog-close>
             {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
         </button>
         <button

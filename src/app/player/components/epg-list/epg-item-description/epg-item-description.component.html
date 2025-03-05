@@ -6,7 +6,7 @@
         <div class="subheading-2">
             {{ 'EPG.PROGRAM_DIALOG.TITLE' | translate }}
         </div>
-        <p data-test="title">{{ epgProgram.title[0].value }}</p>
+        <p data-test="title">{{ epgProgram.title }}</p>
         <div class="subheading-2" *ngIf="epgProgram.title[0].lang">
             {{ 'EPG.PROGRAM_DIALOG.LANGUAGE' | translate }}
         </div>
@@ -16,13 +16,13 @@
         <div class="subheading-2">
             {{ 'EPG.PROGRAM_DIALOG.CATEGORY' | translate }}
         </div>
-        <p data-test="category">{{ epgProgram.category[0].value }}</p>
+        <p data-test="category">{{ epgProgram.category }}</p>
     </ng-container>
     <ng-container *ngIf="epgProgram?.desc?.length > 0">
         <div class="subheading-2">
             {{ 'EPG.PROGRAM_DIALOG.DESCRIPTION' | translate }}
         </div>
-        <p data-test="desc">{{ epgProgram.desc[0].value }}</p>
+        <p data-test="desc">{{ epgProgram.desc }}</p>
     </ng-container>
     <ng-container *ngIf="epgProgram?.rating?.length > 0">
         <div class="subheading-2">

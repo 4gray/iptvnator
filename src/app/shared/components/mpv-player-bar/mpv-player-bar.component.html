@@ -1,0 +1,51 @@
+<div class="mpv-player-bar" *ngIf="(activeProcesses$ | async)?.length">
+    @for (process of activeProcesses$ | async; track process.id) {
+        <div class="player-item">
+            <div class="player-media">
+                @if (process.thumbnail) {
+                    <img
+                        [src]="process.thumbnail"
+                        [alt]="process.title"
+                        class="media-thumbnail"
+                        (error)="
+                            $event.target.src =
+                                './assets/images/default-poster.png'
+                        "
+                    />
+                } @else {
+                    <div class="media-thumbnail-placeholder">
+                        <mat-icon>live_tv</mat-icon>
+                    </div>
+                }
+                <div class="media-info">
+                    <span class="media-title">{{ process.title }}</span>
+                    <span class="media-url">{{ process.url }}</span>
+                </div>
+            </div>
+
+            <div class="player-controls">
+                <!-- <button
+                    mat-icon-button
+                    (click)="pauseStream(process.id)"
+                    title="Pause"
+                >
+                    <mat-icon>pause</mat-icon>
+                </button>
+                <button
+                    mat-icon-button
+                    (click)="playStream(process.id)"
+                    title="Play"
+                >
+                    <mat-icon>play_arrow</mat-icon>
+                </button> -->
+                <button
+                    mat-icon-button
+                    (click)="closeStream(process.id)"
+                    title="Close"
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+        </div>
+    }
+</div>

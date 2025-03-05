@@ -1,0 +1,32 @@
+.expired-account {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+
+    img {
+        filter: invert(80%);
+    }
+}
+
+.icon {
+    font-size: 64px;
+    height: 64px;
+    width: 64px;
+}
+
+.empty-category-img {
+    max-width: 300px
+}
+
+::ng-deep {
+    .dark-theme {
+        .expired-account {
+            img {
+                filter: invert(10%) !important;
+            }
+        }
+    }
+}

@@ -1,5 +1,8 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+import { isTauri } from '@tauri-apps/api/core';
+import { xtreamRoutes } from './xtream-tauri/xtream.routes';
+import { AppConfig } from '../environments/environment';
 
 const routes: Routes = [
     {
@@ -9,18 +12,24 @@ const routes: Routes = [
     },
     {
         path: 'playlists',
-        loadChildren: () =>
-            import('./player/player.module').then((m) => m.PlayerModule),
+        loadComponent: () =>
+            import(
+                './player/components/video-player/video-player.component'
+            ).then((c) => c.VideoPlayerComponent),
     },
     {
         path: 'iptv',
-        loadChildren: () =>
-            import('./player/player.module').then((m) => m.PlayerModule),
+        loadComponent: () =>
+            import(
+                './player/components/video-player/video-player.component'
+            ).then((c) => c.VideoPlayerComponent),
     },
     {
         path: 'playlists/:id',
-        loadChildren: () =>
-            import('./player/player.module').then((m) => m.PlayerModule),
+        loadComponent: () =>
+            import(
+                './player/components/video-player/video-player.component'
+            ).then((c) => c.VideoPlayerComponent),
     },
     {
         path: 'settings',
@@ -29,13 +38,17 @@ const routes: Routes = [
                 (c) => c.SettingsComponent
             ),
     },
-    {
-        path: 'xtreams/:id',
-        loadComponent: () =>
-            import('./xtream/xtream-main-container.component').then(
-                (c) => c.XtreamMainContainerComponent
-            ),
-    },
+    ...(isTauri()
+        ? xtreamRoutes
+        : [
+              {
+                  path: 'xtreams/:id',
+                  loadComponent: () =>
+                      import('./xtream/xtream-main-container.component').then(
+                          (c) => c.XtreamMainContainerComponent
+                      ),
+              },
+          ]),
     {
         path: 'portals/:id',
         loadComponent: () =>
@@ -50,7 +63,11 @@ const routes: Routes = [
 ];
 
 @NgModule({
-    imports: [RouterModule.forRoot(routes, {})],
+    imports: [
+        RouterModule.forRoot(routes, {
+            enableTracing: !AppConfig.production,
+        }),
+    ],
     exports: [RouterModule],
 })
 export class AppRoutingModule {}

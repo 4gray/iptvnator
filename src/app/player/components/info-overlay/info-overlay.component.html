@@ -1,35 +1,36 @@
-<div
-    class="channel-overlay"
-    *ngIf="channel && epgProgram"
-    [class.visible]="isVisible"
-    [class.hidden]="!isVisible"
->
-    <div class="channel-logo">
-        <img
-            [src]="epgProgram?.icon[0] || channel?.tvg?.logo"
-            width="68"
-            onerror="this.style.display='none'"
-        />
-    </div>
-    <div class="content">
-        <div class="program-name">
-            {{ epgProgram?.title[0]?.value }} | {{ channel.name }}
+@if (channel && epgProgram) {
+    <div
+        class="channel-overlay"
+        [class.visible]="isVisible"
+        [class.hidden]="!isVisible"
+    >
+        <div class="channel-logo">
+            <img
+                [src]="epgProgram?.icon || channel?.tvg?.logo"
+                width="68"
+                onerror="this.style.display='none'"
+            />
         </div>
-        <div class="program-description">
-            {{ epgProgram?.desc[0]?.value }}
-        </div>
-        <div class="program-progress">
-            <div
-                class="program-finished"
-                [ngStyle]="{
-                    width: (finishedDuration * 100) / generalDuration + '%'
-                }"
-            ></div>
-            <div class="duration">
-                {{ start | momentDate: 'YYYYMMDDHHmm ZZ':'HH:mm' }}
-                -
-                {{ stop | momentDate: 'YYYYMMDDHHmm ZZ':'HH:mm' }}
+        <div class="content">
+            <div class="program-name">
+                {{ epgProgram?.title }} | {{ channel.name }}
+            </div>
+            <div class="program-description">
+                {{ epgProgram?.desc }}
+            </div>
+            <div class="program-progress">
+                <div
+                    class="program-finished"
+                    [ngStyle]="{
+                        width: (finishedDuration * 100) / generalDuration + '%',
+                    }"
+                ></div>
+                <div class="duration">
+                    {{ start | momentDate: 'YYYYMMDDHHmm ZZ' : 'HH:mm' }}
+                    -
+                    {{ stop | momentDate: 'YYYYMMDDHHmm ZZ' : 'HH:mm' }}
+                </div>
             </div>
         </div>
     </div>
-</div>
+}

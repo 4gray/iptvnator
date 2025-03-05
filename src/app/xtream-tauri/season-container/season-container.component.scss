@@ -1,0 +1,37 @@
+.seasons-container {
+    width: 100%;
+    display: flex;
+    flex-flow: wrap;
+    gap: 10px;
+}
+
+.season-item,
+.episode-item {
+    min-height: 100px;
+    justify-content: center;
+    width: 150px;
+    cursor: pointer;
+    display: block;
+}
+
+.episode-item {
+    mat-card-content {
+        padding: 0;
+    }
+
+    mat-card-title {
+        padding: 10px;
+    }
+
+    .episode-title {
+        padding: 5px;
+    }
+
+    .episode-cover {
+        width: 100%;
+    }
+}
+
+.back-to-seasons {
+    margin-bottom: 5px;
+}

@@ -1,18 +1,5 @@
-import {
-    AsyncPipe,
-    KeyValuePipe,
-    NgFor,
-    NgIf,
-    NgSwitch,
-} from '@angular/common';
-import {
-    Component,
-    NgZone,
-    OnInit,
-    Signal,
-    effect,
-    inject,
-} from '@angular/core';
+import { AsyncPipe } from '@angular/common';
+import { Component, NgZone, OnInit, effect, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
@@ -21,10 +8,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { IpcCommand } from '../../../shared/ipc-command.class';
 import {
-    REMOTE_CONTROL_CHANGE_CHANNEL,
     ERROR,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
+    REMOTE_CONTROL_CHANGE_CHANNEL,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
 } from '../../../shared/ipc-commands';
@@ -42,11 +29,8 @@ import { EpgItem } from './epg-item.interface';
 import { NavigationBarComponent } from './navigation-bar/navigation-bar.component';
 import { VodDetailsComponent } from './vod-details/vod-details.component';
 
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Router, RouterLink } from '@angular/router';
-import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import {
@@ -54,11 +38,10 @@ import {
     XtreamSerieEpisode,
 } from '../../../shared/xtream-serie-details.interface';
 import { LiveStreamLayoutComponent } from '../portals/live-stream-layout/live-stream-layout.component';
-import { DialogService } from '../services/dialog.service';
 import { PlaylistsService } from '../services/playlists.service';
-import { Settings, VideoPlayer } from '../settings/settings.interface';
+import { SettingsStore } from '../services/settings-store.service';
+import { VideoPlayer } from '../settings/settings.interface';
 import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
-import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { Breadcrumb, PortalActions } from './breadcrumb.interface';
 import { ContentTypeNavigationItem } from './content-type-navigation-item.interface';
@@ -112,12 +95,8 @@ type LayoutView =
     styleUrls: ['./xtream-main-container.component.scss'],
     standalone: true,
     imports: [
-        KeyValuePipe,
         MatButtonToggleModule,
-        NgFor,
-        NgIf,
         CategoryViewComponent,
-        NgSwitch,
         MatButtonModule,
         MatCardModule,
         MatIconModule,
@@ -125,28 +104,23 @@ type LayoutView =
         VodDetailsComponent,
         CategoryContentViewComponent,
         SerialDetailsComponent,
-        PlayerDialogComponent,
         MatProgressSpinnerModule,
         AsyncPipe,
-        ExternalPlayerInfoDialogComponent,
-        RouterLink,
         PlaylistErrorViewComponent,
         TranslateModule,
         LiveStreamLayoutComponent,
     ],
 })
 export class XtreamMainContainerComponent implements OnInit {
-    dataService = inject(DataService);
-    dialog = inject(MatDialog);
-    dialogService = inject(DialogService);
-    ngZone = inject(NgZone);
-    playlistService = inject(PlaylistsService);
-    portalStore = inject(PortalStore);
-    router = inject(Router);
-    snackBar = inject(MatSnackBar);
-    storage = inject(StorageMap);
-    store = inject(Store);
-    translate = inject(TranslateService);
+    private readonly dataService = inject(DataService);
+    private readonly dialog = inject(MatDialog);
+    private readonly ngZone = inject(NgZone);
+    private readonly playlistService = inject(PlaylistsService);
+    private readonly portalStore = inject(PortalStore);
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly store = inject(Store);
+    private readonly translate = inject(TranslateService);
 
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
     navigationContentTypes: ContentTypeNavigationItem[] = [
@@ -176,9 +150,7 @@ export class XtreamMainContainerComponent implements OnInit {
     selectedContentType = ContentType.VODS;
     currentLayout: LayoutView = 'category';
     vodDetails!: XtreamVodDetails | XtreamSerieDetails;
-    settings = toSignal(
-        this.storage.get(STORE_KEY.Settings)
-    ) as Signal<Settings>;
+    settings = this.settingsStore;
     isLoading = true;
     searchPhrase = this.portalStore.searchPhrase();
     contentId: number;
@@ -195,9 +167,12 @@ export class XtreamMainContainerComponent implements OnInit {
         new IpcCommand(ERROR, (response: { message: string; status: number }) =>
             this.showErrorAsNotification(response)
         ),
-        new IpcCommand(REMOTE_CONTROL_CHANGE_CHANNEL, (response: { type: 'up' | 'down' }) => {
-            this.remoteControlChangeChannel(response.type);
-        })
+        new IpcCommand(
+            REMOTE_CONTROL_CHANGE_CHANNEL,
+            (response: { type: 'up' | 'down' }) => {
+                this.remoteControlChangeChannel(response.type);
+            }
+        ),
     ];
 
     constructor() {
@@ -207,16 +182,16 @@ export class XtreamMainContainerComponent implements OnInit {
                 this.favorites$ = this.playlistService.getPortalFavorites(
                     this.currentPlaylist()._id
                 );
-                this.favoritesLiveStream$ = this.playlistService.getPortalLiveStreamFavorites(
-                    this.currentPlaylist()._id
-                );
+                this.favoritesLiveStream$ =
+                    this.playlistService.getPortalLiveStreamFavorites(
+                        this.currentPlaylist()._id
+                    );
             }
         });
     }
 
     ngOnInit() {
         this.setInitialBreadcrumb();
-
         this.commandsList.forEach((command) => {
             if (this.dataService.isElectron) {
                 this.dataService.listenOn(command.id, (_event, response) =>
@@ -274,6 +249,7 @@ export class XtreamMainContainerComponent implements OnInit {
                 this.currentLayout = 'serie-details';
                 this.vodDetails = response.payload as XtreamSerieDetails;
                 break;
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
             case 'get_short_epg':
                 this.epgItems = (
                     (response.payload as any).epg_listings as EpgItem[]
@@ -362,18 +338,20 @@ export class XtreamMainContainerComponent implements OnInit {
 
     openPlayer(streamUrl: string, title: string) {
         this.streamUrl = streamUrl;
-        this.player = this.settings()?.player ?? VideoPlayer.VideoJs;
+        this.player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
         if (this.player === VideoPlayer.MPV) {
             if (!this.hideExternalInfoDialog())
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
+                mpvPlayerPath: this.settingsStore.mpvPlayerPath(),
             });
         } else if (this.player === VideoPlayer.VLC) {
             if (!this.hideExternalInfoDialog())
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
+                vlcPlayerPath: this.settingsStore.vlcPlayerPath(),
             });
         } else {
             if (this.selectedContentType !== ContentType.ITV) {
@@ -398,7 +376,7 @@ export class XtreamMainContainerComponent implements OnInit {
 
     playEpisode(episode: XtreamSerieEpisode) {
         const { serverUrl, username, password } = this.currentPlaylist();
-        const player = this.settings().player;
+        const player = this.settingsStore.player();
         const streamUrl = `${serverUrl}/series/${username}/${password}/${episode.id}.${episode.container_extension}`;
         if (player === VideoPlayer.MPV) {
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, { url: streamUrl });
@@ -548,7 +526,10 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     remoteControlChangeChannel(type: 'up' | 'down') {
-        if (this.currentLayout === 'category_content' && this.activeLiveStream) {
+        if (
+            this.currentLayout === 'category_content' &&
+            this.activeLiveStream
+        ) {
             let nextItem;
             const index = this.activeLiveStream.num - 1;
             if (type === 'up') {

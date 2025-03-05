@@ -9,4 +9,6 @@ export interface XtreamItem {
     custom_sid: string;
     direct_source: string;
     rating_imdb?: string;
+    xtream_id?: number;
+    type?: 'movie' | 'series' | 'live';
 }

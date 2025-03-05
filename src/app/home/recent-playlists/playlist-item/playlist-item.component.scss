@@ -33,7 +33,7 @@ mat-list-item {
 
 ::ng-deep {
     @media only screen and (max-width: 480px) {
-        .main-container {
+        .main-container {  
             .favorites-icon,
             .upload-type-icon,
             .refresh-btn,
@@ -53,8 +53,40 @@ mat-list-item {
     align-self: center !important;
 }
 
-@media (max-width: 599px) {
-    .drag-icon {
+.icon-container {
+    position: relative;
+    display: inline-flex;
+}
+
+.status-dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    right: 0;
+    bottom: 0;
+    border: 1px solid var(--background-color, #fff);
+}
+
+.status-active {
+    background-color: #4caf50;
+}
+
+.status-inactive {
+    background-color: #f44336;
+}
+
+.status-expired {
+    background-color: #ff9800;
+}
+
+.status-unavailable {
+    background-color: #444444;
+}
+
+@media only screen and (max-width: 480px) {
+    .upload-type-icon,
+    .icon-container {
         display: none;
     }
 }

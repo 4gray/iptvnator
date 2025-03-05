@@ -1,0 +1,32 @@
+:host {
+    height: 100%;
+    overflow-y: auto;
+    padding: 0 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.category-item {
+    cursor: pointer;
+    width: auto;
+    transition: all 0.2s ease;
+
+    &.selected {
+        background-color: rgba(63, 81, 181, 0.1);
+        border-left: 4px solid #3f51b5;
+        margin-left: 4px;
+    }
+}
+
+mat-card-content {
+    overflow-wrap: break-word;
+    padding: 12px;
+}
+
+@media (max-width: 800px) {
+    .category-item {
+        width: 100%;
+        margin: 4px;
+    }
+}

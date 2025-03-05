@@ -78,6 +78,10 @@ export class StalkerPortalImportComponent {
             return url.replace('/c', '/portal.php');
         }
 
+        if (url.endsWith('/c/')) {
+            return url.replace('/c/', '/portal.php');
+        }
+
         // if the url ends with "/stalker_portal" it should be extended to "/stalker_portal/server/load.php"
         if (url.endsWith('/stalker_portal')) {
             return url.replace(

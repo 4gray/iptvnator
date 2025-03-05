@@ -1,0 +1,99 @@
+@let item = selectedItem();
+@if (item?.info) {
+    <div
+        class="container"
+        [style.background]="
+            item.info?.backdrop_path && item.info.backdrop_path.length > 0
+                ? 'linear-gradient(to top, rgba(29,29,29,1) 0%, rgba(0,0,0,0.5) 100%), url(' +
+                  item.info.backdrop_path[0] +
+                  ') repeat-x'
+                : 'none'
+        "
+    >
+        <div class="image">
+            @if (item.info?.cover) {
+                <img
+                    [src]="item.info.cover"
+                    (error)="
+                        $event.target.src = './assets/images/default-poster.png'
+                    "
+                />
+            }
+        </div>
+        <div class="details">
+            <h2>{{ item.info?.name }}</h2>
+            @if (item.info?.plot) {
+                <label>
+                    {{ item.info.plot }}
+                </label>
+            }
+            @if (item.info?.releaseDate) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.RELEASE_DATE' | translate }}:
+                    </div>
+                    {{ item.info.releaseDate }}
+                </label>
+            }
+            @if (item.info?.genre) {
+                <label>
+                    <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
+                    {{ item.info.genre }}
+                </label>
+            }
+            @if (item.info?.rating) {
+                <label>
+                    <div class="label">{{ 'XTREAM.RATING' | translate }}:</div>
+                    {{ item.info?.rating }}
+                </label>
+            }
+            @if (item.info?.cast) {
+                <div>
+                    <div class="label">{{ 'XTREAM.CAST' | translate }}:</div>
+                    {{ item.info.cast }}
+                </div>
+            }
+            @if (item.info?.director) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.DIRECTOR' | translate }}:
+                    </div>
+                    {{ item.info.director }}
+                </label>
+            }
+            @if (item.info?.episode_run_time) {
+                <label>
+                    <div class="label">
+                        {{ 'XTREAM.EPISODE_RUN_TIME' | translate }}:
+                    </div>
+                    {{ item.info.episode_run_time }}
+                </label>
+            }
+            <div class="action-buttons">
+                @if (!isFavorite()) {
+                    <button
+                        mat-stroked-button
+                        color="accent"
+                        (click)="toggleFavorite()"
+                    >
+                        <mat-icon>star_outline</mat-icon>
+                        {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
+                    </button>
+                } @else {
+                    <button
+                        mat-flat-button
+                        color="accent"
+                        (click)="toggleFavorite()"
+                    >
+                        <mat-icon>star</mat-icon>
+                        {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
+                    </button>
+                }
+            </div>
+        </div>
+        <app-season-container
+            [seasons]="item.episodes"
+            (episodeClicked)="playEpisode($event)"
+        />
+    </div>
+}

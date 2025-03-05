@@ -6,6 +6,7 @@
         <app-file-upload
             (fileRejected)="rejectFile($event)"
             (fileSelected)="handlePlaylist($event)"
+            (closeDialog)="closeDialog()"
         />
     } @else if (playlistType === 'url') {
         <app-url-upload (urlAdded)="sendPlaylistsUrl($event)" />

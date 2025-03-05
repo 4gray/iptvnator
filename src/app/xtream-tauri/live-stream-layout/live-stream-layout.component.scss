@@ -1,0 +1,56 @@
+@use '@angular/material' as mat;
+
+:host {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    height: 100%;
+    width: 100%; 
+}
+
+.sidebar {
+    width: 300px;
+    min-width: 300px;
+    border-right: 1px solid #111;
+}
+
+.content-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.video-player {
+    flex: 1;
+    height: 50%;
+}
+
+.epg {
+    flex: 1;
+    height: 50%;
+    overflow: hidden;
+}
+
+.epg-content {
+    height: 100%;
+    overflow-y: auto;
+    padding-bottom: 20px;
+}
+
+.sidebar-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    
+    button {
+        @include mat.form-field-density(-5);
+    }
+}
+
+.no-channel-selected {
+    padding: 16px;
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+}

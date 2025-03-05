@@ -1,15 +1,19 @@
-<app-header
-    [title]="'SETTINGS.TITLE' | translate"
-    [subtitle]="
-        ('SETTINGS.SUBTITLE' | translate) +
-        '. ' +
-        ('SETTINGS.DESCRIPTION' | translate)
-    "
-></app-header>
+@if (!isDialog) {
+    <app-header
+        [title]="'SETTINGS.TITLE' | translate"
+        [subtitle]="
+            ('SETTINGS.SUBTITLE' | translate) +
+            '. ' +
+            ('SETTINGS.DESCRIPTION' | translate)
+        "
+    />
+} @else {
+    <h2 mat-dialog-title>{{ 'SETTINGS.TITLE' | translate }}</h2>
+}
 
 <div class="settings-container" data-test-id="settings-container">
     <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" novalidate>
-        <ng-container formArrayName="epgUrl" *ngIf="isElectron">
+        <ng-container formArrayName="epgUrl" *ngIf="isTauri">
             <div class="row">
                 <div class="column">
                     {{ 'SETTINGS.EPG_URL_LABEL' | translate }}
@@ -66,7 +70,7 @@
                     </button>
                 </div>
             </div>
-            <mat-divider></mat-divider>
+            <mat-divider />
         </ng-container>
         <div class="row">
             <div class="column">
@@ -92,47 +96,53 @@
                 </mat-form-field>
             </div>
         </div>
-        <mat-divider></mat-divider>
-        <div class="row" *ngIf="settingsForm.value.player === 'mpv'">
-            <div class="column">
-                {{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}
-                <p>{{ 'SETTINGS.MPV_PLAYER_PATH_DESCRIPTION' | translate }}</p>
+        @if (settingsForm.value.player === 'mpv') {
+            <div class="row">
+                <div class="column">
+                    {{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}
+                    <p>
+                        {{ 'SETTINGS.MPV_PLAYER_PATH_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="column">
+                    <mat-form-field appearance="outline">
+                        <mat-label for="mpvPlayerPath">{{
+                            'SETTINGS.MPV_PLAYER_PATH' | translate
+                        }}</mat-label>
+                        <input
+                            matInput
+                            type="text"
+                            id="mpvPlayerPath"
+                            formControlName="mpvPlayerPath"
+                        />
+                    </mat-form-field>
+                </div>
             </div>
-            <div class="column">
-                <mat-form-field appearance="outline">
-                    <mat-label for="mpvPlayerPath">{{
-                        'SETTINGS.MPV_PLAYER_PATH' | translate
-                    }}</mat-label>
-                    <input
-                        matInput
-                        type="text"
-                        id="mpvPlayerPath"
-                        formControlName="mpvPlayerPath"
-                    />
-                </mat-form-field>
+        }
+        @if (settingsForm.value.player === 'vlc') {
+            <div class="row">
+                <div class="column">
+                    {{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}
+                    <p>
+                        {{ 'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="column">
+                    <mat-form-field appearance="outline">
+                        <mat-label for="vlcPlayerPath">{{
+                            'SETTINGS.VLC_PLAYER_PATH' | translate
+                        }}</mat-label>
+                        <input
+                            matInput
+                            type="text"
+                            id="vlcPlayerPath"
+                            formControlName="vlcPlayerPath"
+                        />
+                    </mat-form-field>
+                </div>
             </div>
-            <mat-divider></mat-divider>
-        </div>
-        <div class="row" *ngIf="settingsForm.value.player === 'vlc'">
-            <div class="column">
-                {{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}
-                <p>{{ 'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION' | translate }}</p>
-            </div>
-            <div class="column">
-                <mat-form-field appearance="outline">
-                    <mat-label for="vlcPlayerPath">{{
-                        'SETTINGS.VLC_PLAYER_PATH' | translate
-                    }}</mat-label>
-                    <input
-                        matInput
-                        type="text"
-                        id="vlcPlayerPath"
-                        formControlName="vlcPlayerPath"
-                    />
-                </mat-form-field>
-            </div>
-            <mat-divider></mat-divider>
-        </div>
+        }
+        <mat-divider />
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.LANGUAGE' | translate }}
@@ -159,7 +169,7 @@
                 </mat-form-field>
             </div>
         </div>
-        <mat-divider></mat-divider>
+        <mat-divider />
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.THEME' | translate }}
@@ -186,7 +196,7 @@
                 </mat-form-field>
             </div>
         </div>
-        <mat-divider></mat-divider>
+        <mat-divider />
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.SHOW_CAPTIONS' | translate }}
@@ -199,37 +209,50 @@
                 ></mat-checkbox>
             </div>
         </div>
-        <mat-divider></mat-divider>
-        <div class="row">
-            <div class="column">
-                {{ 'SETTINGS.REMOTE_CONTROL' | translate }}
-                <p>{{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}</p>
+        <!-- not ported to tauri yet
+        @if (isPwa || isTauri) {
+            <mat-divider />
+            <div class="row">
+                <div class="column">
+                    {{ 'SETTINGS.REMOTE_CONTROL' | translate }}
+                    <p>
+                        {{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="column" style="margin-right: 10px">
+                    <mat-checkbox
+                        class="column"
+                        formControlName="remoteControl"
+                    ></mat-checkbox>
+                </div>
             </div>
-            <div class="column" style="margin-right: 10px">
-                <mat-checkbox
-                    class="column"
-                    formControlName="remoteControl"
-                ></mat-checkbox>
+        }
+        -->
+        @if (settingsForm.value.remoteControl === true) {
+            <mat-divider />
+            <div class="row">
+                <div class="column">
+                    {{ 'SETTINGS.REMOTE_CONTROL_PORT' | translate }}
+                    <p>
+                        {{
+                            'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="column" style="margin-right: 10px">
+                    <mat-form-field appearance="outline" class="full-width">
+                        <input
+                            matInput
+                            type="text"
+                            id="remoteControlPort"
+                            formControlName="remoteControlPort"
+                        />
+                    </mat-form-field>
+                </div>
             </div>
-        </div>
-        <mat-divider></mat-divider>
-        <div class="row" *ngIf="settingsForm.value.remoteControl === true">
-            <div class="column">
-                {{ 'SETTINGS.REMOTE_CONTROL_PORT' | translate }}
-                <p>{{ 'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION' | translate }}</p>
-            </div>
-            <div class="column" style="margin-right: 10px">
-                <mat-form-field appearance="outline" class="full-width">
-                    <input
-                        matInput
-                        type="text"
-                        id="remoteControlPort"
-                        formControlName="remoteControlPort"
-                    />
-                </mat-form-field>
-            </div>
-        </div>
-        <mat-divider></mat-divider>
+        }
+        <mat-divider />
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.VERSION' | translate }}
@@ -240,7 +263,7 @@
                 {{ updateMessage }}
             </div>
         </div>
-        <mat-divider></mat-divider>
+        <mat-divider />
         <div class="row">
             <div class="column">
                 {{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}
@@ -294,14 +317,16 @@
             </div>
         </div>
 
-        <div class="row" *ngIf="!isElectron">
-            {{ 'SETTINGS.EPG_NOTE' | translate }}
-            &nbsp;<a href="https://github.com/4gray/iptvnator/releases">{{
-                'SETTINGS.EPG_NOTE_URL_TEXT' | translate
-            }}</a>
-        </div>
+        @if (isPwa) {
+            <div class="row">
+                {{ 'SETTINGS.EPG_NOTE' | translate }}
+                &nbsp;<a href="https://github.com/4gray/iptvnator/releases">{{
+                    'SETTINGS.EPG_NOTE_URL_TEXT' | translate
+                }}</a>
+            </div>
+        }
 
-        <mat-divider></mat-divider>
+        <mat-divider />
         <div class="action-buttons" align="end">
             <button
                 mat-button

@@ -1,0 +1,33 @@
+<div class="expired-account">
+    @if (viewType === 'ERROR') {
+        <img src="./assets/images/broken-tv.svg" />
+    } @else if (viewType === 'EMPTY_CATEGORY') {
+        <img
+            class="empty-category-img"
+            src="./assets/images/empty-category.svg"
+        />
+    } @else if (viewType === 'NO_SEARCH_RESULTS') {
+        <mat-icon class="icon">search</mat-icon>
+    }
+    <div>
+        <h3>{{ title }}</h3>
+        {{ description }}
+    </div>
+
+    @if (showActionButtons) {
+        <div>
+            <button mat-stroked-button routerLink="/">
+                <mat-icon>home</mat-icon>
+                {{ 'PORTALS.ERROR_VIEW.HOME' | translate }}
+            </button>
+            <button mat-stroked-button (click)="openPlaylistDetails()">
+                <mat-icon>settings</mat-icon>
+                {{ 'PORTALS.ERROR_VIEW.PLAYLIST_SETTINGS' | translate }}
+            </button>
+            <button mat-stroked-button color="warn" (click)="removeClicked()">
+                <mat-icon>delete</mat-icon>
+                {{ 'PORTALS.ERROR_VIEW.DELETE' | translate }}
+            </button>
+        </div>
+    }
+</div>

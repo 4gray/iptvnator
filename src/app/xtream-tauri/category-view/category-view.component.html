@@ -1,0 +1,38 @@
+@let items = xtreamStore.getCategoriesBySelectedType();
+@let contentType = xtreamStore.selectedContentType();
+@let selectedCategory = xtreamStore.selectedCategoryId();
+
+@if (items?.length > 0) {
+    <mat-nav-list>
+        @for (item of items; track $index) {
+            <mat-list-item
+                class="category-item"
+                [class.selected]="isSelected(item)"
+                (click)="categoryClicked.emit(item)"
+            >
+                {{
+                    item.category_name || $any(item).name || 'No category name'
+                }}
+            </mat-list-item>
+        }
+        @if (!items?.length) {
+            <app-playlist-error-view
+                title="No results"
+                [description]="
+                    'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate
+                "
+                [showActionButtons]="false"
+                [viewType]="'NO_SEARCH_RESULTS'"
+            />
+        }
+    </mat-nav-list>
+} @else {
+    <app-playlist-error-view
+        [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"
+        [description]="
+            'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION' | translate
+        "
+        [showActionButtons]="false"
+        [viewType]="'EMPTY_CATEGORY'"
+    />
+}

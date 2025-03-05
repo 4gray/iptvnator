@@ -25,4 +25,8 @@ export class ElectronServiceStub {
     sendIpcEvent() {}
 
     listenOn() {}
+
+    getAppEnvironment() {
+        return 'electron';
+    }
 }

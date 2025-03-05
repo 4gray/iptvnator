@@ -1,83 +1,86 @@
-<ng-container *ngIf="channel; else noEpg">
-    <!-- channel info panel -->
-    <div id="channel-header" color="primary">
-        <div class="channel-info">
-            <div class="channel-icon">
-                <img *ngIf="channel?.icon" [src]="channel.icon" width="48" />
-            </div>
-            <div class="channel-details">
-                <div class="channel-name">
-                    {{ channel?.name[0]?.value }}
-                </div>
-                <div class="program-name">
-                    {{
-                        playingNow
-                            ? playingNow.title[0]?.value
-                            : ('EPG.LIVE_STREAM' | translate)
-                    }}
-                </div>
-            </div>
+@let items = filteredItems$ | async;
+@let timeshiftUntil = timeshiftUntil$ | async;
+
+<!-- channel info panel -->
+<div id="channel-header" color="primary">
+    <div class="channel-info">
+        <div class="channel-icon">
+            @if (channel?.icon) {
+                <img [src]="channel.icon" width="48" />
+            }
         </div>
-        <mat-divider></mat-divider>
-        <div id="date-navigator">
-            <button
-                class="previous-day"
-                mat-icon-button
-                (click)="changeDate('prev')"
-                [matTooltip]="'EPG.PREVIOUS_DAY' | translate"
-            >
-                <mat-icon>chevron_left</mat-icon>
-            </button>
-            <span class="selected-date">
-                {{ dateToday | momentDate: 'YYYYMMDD' : 'MMMM Do, dddd' }}</span
-            >
-            <button
-                class="next-day"
-                mat-icon-button
-                (click)="changeDate('next')"
-                [matTooltip]="'EPG.NEXT_DAY' | translate"
-            >
-                <mat-icon>chevron_right</mat-icon>
-            </button>
+        <div class="channel-details">
+            <div class="channel-name">
+                {{ channel?.name }}
+            </div>
+            <div class="program-name">
+                {{
+                    playingNow
+                        ? playingNow.title
+                        : ('EPG.LIVE_STREAM' | translate)
+                }}
+            </div>
         </div>
     </div>
-    <mat-divider></mat-divider>
+    <mat-divider />
+    <div id="date-navigator">
+        <button
+            class="previous-day"
+            mat-icon-button
+            (click)="changeDate('prev')"
+            [matTooltip]="'EPG.PREVIOUS_DAY' | translate"
+        >
+            <mat-icon>chevron_left</mat-icon>
+        </button>
+        <span class="selected-date">
+            {{ dateToday | momentDate: 'YYYY-MM-DD' : 'MMMM Do, dddd' }}</span
+        >
+        <button
+            class="next-day"
+            mat-icon-button
+            (click)="changeDate('next')"
+            [matTooltip]="'EPG.NEXT_DAY' | translate"
+        >
+            <mat-icon>chevron_right</mat-icon>
+        </button>
+    </div>
+</div>
+<mat-divider />
 
+@if (timeshiftUntil) {
     <!-- program list -->
     <mat-selection-list
         id="program-list"
         [multiple]="false"
         hideSingleSelectionIndicator="true"
-        *ngIf="timeshiftUntil$ | async as timeshiftUntil"
     >
-        <ng-container *ngIf="items?.length > 0; else epgNotAvailable">
-            <ng-container *ngFor="let item of items">
-                <mat-list-option
-                    *ngIf="
-                        item.start < timeshiftUntil || item.start >= timeNow;
-                        else timeshiftItem
-                    "
-                >
-                    <div matListItemLine>
-                        <app-epg-list-item
-                            [timeshiftUntil]="timeshiftUntil"
-                            [timeNow]="timeNow"
-                            [item]="item"
-                        ></app-epg-list-item>
-                    </div>
-                    <p matListItemLine>{{ item?.title[0]?.value }}</p>
-                </mat-list-option>
-                <ng-template #timeshiftItem>
+        @if (items?.length > 0) {
+            @for (program of items; track program) {
+                @if (
+                    program.start < timeshiftUntil || program.start >= timeNow
+                ) {
+                    <mat-list-option>
+                        <div matListItemLine>
+                            <app-epg-list-item
+                                [timeshiftUntil]="timeshiftUntil"
+                                [timeNow]="timeNow"
+                                [item]="program"
+                            />
+                        </div>
+                        <p matListItemLine>{{ program?.title }}</p>
+                    </mat-list-option>
+                } @else {
                     <mat-list-option
-                        [value]="item"
+                        [value]="program"
                         [class.active]="
-                            timeNow >= item.start && timeNow <= item.stop
+                            timeNow >= program.start && timeNow <= program.stop
                         "
                         (click)="
                             setEpgProgram(
-                                item,
-                                timeNow >= item.start && timeNow <= item.stop,
-                                item.start > timeshiftUntil
+                                program,
+                                timeNow >= program.start &&
+                                    timeNow <= program.stop,
+                                program.start > timeshiftUntil
                             )
                         "
                     >
@@ -85,31 +88,18 @@
                             <app-epg-list-item
                                 [timeshiftUntil]="timeshiftUntil"
                                 [timeNow]="timeNow"
-                                [item]="item"
-                            ></app-epg-list-item>
+                                [item]="program"
+                            />
                         </div>
-                        <p
-                            matListItemLine
-                            [innerHTML]="item?.title[0]?.value"
-                        ></p>
+                        <p matListItemLine [innerHTML]="program.title"></p>
                     </mat-list-option>
-                </ng-template>
-                <mat-divider></mat-divider>
-            </ng-container>
-        </ng-container>
-        <ng-template #epgNotAvailable>
+                }
+                <mat-divider />
+            }
+        } @else {
             <p class="epg-not-available">
                 {{ 'EPG.EPG_NOT_AVAILABLE_DATE' | translate }}
             </p>
-        </ng-template>
+        }
     </mat-selection-list>
-</ng-container>
-
-<ng-template #noEpg>
-    <mat-list>
-        <mat-list-item>
-            {{ 'EPG.EPG_NOT_AVAILABLE_CHANNEL_TITLE' | translate }}<br />
-            {{ 'EPG.EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION' | translate }}
-        </mat-list-item>
-    </mat-list>
-</ng-template>
+}

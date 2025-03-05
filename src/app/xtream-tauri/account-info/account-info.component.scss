@@ -1,0 +1,86 @@
+.account-info-card {
+    margin: 16px;
+    max-width: 1200px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.info-section {
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.info-section h3 {
+    margin-bottom: 16px;
+    padding-left: 16px;
+    font-size: 1.1em;
+    border-bottom: 1px solid #333;
+    padding-bottom: 8px;
+}
+
+mat-list-item {
+    height: auto !important;
+    margin-bottom: 8px;
+    padding: 8px 16px;
+}
+
+strong {
+    margin-right: 8px;
+    min-width: 140px;
+    display: inline-block;
+}
+
+.active {
+    color: #4caf50;
+    font-weight: 500;
+}
+
+.trial {
+    color: #ff9800;
+    font-weight: 500;
+}
+
+.formats {
+    color: #2196f3;
+}
+
+.ports {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.ports span {
+    padding: 4px 8px;
+    background: #2196f3;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.welcome-message {
+    border: 1px solid #333;
+    padding: 16px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    text-align: center;
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+    .account-info-card {
+        margin: 8px;
+    }
+    .ports {
+        flex-direction: column;
+        gap: 8px;
+    }
+}

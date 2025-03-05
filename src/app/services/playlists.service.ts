@@ -37,9 +37,6 @@ export class PlaylistsService {
                 data.map(({ playlist, items, header, ...rest }) => ({
                     ...rest,
                 }))
-            ),
-            map((playlists) =>
-                playlists.sort((a, b) => a.position - b.position)
             )
         );
     }
@@ -143,20 +140,34 @@ export class PlaylistsService {
 
     getPortalFavorites(portalId: string) {
         return this.dbService
-            .getByID<{ favorites: Partial<XtreamItem>[] }>(
-                DbStores.Playlists,
-                portalId
-            )
-            .pipe(map((item) => item.favorites.filter(itm => itm && itm.stream_type && itm.stream_type !== 'live') ?? []));
+            .getByID<{
+                favorites: Partial<XtreamItem>[];
+            }>(DbStores.Playlists, portalId)
+            .pipe(
+                map((item) => {
+                    if (!item || !item.favorites) return [];
+                    return item.favorites.filter(
+                        (itm) =>
+                            itm && itm.stream_type && itm.stream_type !== 'live'
+                    );
+                })
+            );
     }
 
     getPortalLiveStreamFavorites(portalId: string) {
         return this.dbService
-            .getByID<{ favorites: Partial<XtreamItem>[] }>(
-                DbStores.Playlists,
-                portalId
-            )
-            .pipe(map((item) => item.favorites.filter(itm => itm && itm.stream_type && itm.stream_type === 'live') ?? []));
+            .getByID<{
+                favorites: Partial<XtreamItem>[];
+            }>(DbStores.Playlists, portalId)
+            .pipe(
+                map((item) => {
+                    if (!item || !item.favorites) return [];
+                    return item.favorites.filter(
+                        (itm) =>
+                            itm && itm.stream_type && itm.stream_type === 'live'
+                    );
+                })
+            );
     }
 
     addPortalFavorite(portalId: string, item: any) {
@@ -217,6 +228,7 @@ export class PlaylistsService {
     ) {
         try {
             const parsedPlaylist = parse(playlist);
+            console.log(parsedPlaylist);
             return createPlaylistObject(
                 title,
                 parsedPlaylist,

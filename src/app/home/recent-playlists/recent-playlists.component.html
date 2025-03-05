@@ -5,20 +5,20 @@
             matInput
             #searchQuery
             type="search"
+            spellcheck="false"
+            autocomplete="off"
             [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"
             (input)="onSearchQueryUpdate(searchQuery.value)"
     /></mat-form-field>
     @defer {
         <mat-nav-list
-            cdkDropList
-            (cdkDropListDropped)="drop($event, playlists)"
             *ngIf="playlists$ | async as playlists"
             class="playlists-list"
         >
             <mat-list-item
                 *ngIf="playlists.length === 0; else playlistsTemplate"
             >
-                <mat-icon class="favorites-icon" matListItemIcon
+                <mat-icon matListItemIcon
                     >search</mat-icon
                 >
                 <div matListItemTitle>
@@ -58,28 +58,6 @@
                     (refreshClicked)="refreshPlaylist($event)"
                     (removeClicked)="removeClicked($event)"
                 />
-
-                <div *ngIf="isMigrationPossible" id="migration-container">
-                    <p>{{ migrationMessage }}</p>
-                    <button
-                        mat-button
-                        (click)="migratePlaylists()"
-                        class="migration-btn"
-                        color="accent"
-                    >
-                        <mat-icon>playlist_add</mat-icon>
-                        Migrate playlists</button
-                    >&nbsp;
-                    <button
-                        mat-button
-                        (click)="deleteMigratedPlaylists()"
-                        class="migration-btn"
-                        color="accent"
-                    >
-                        <mat-icon>delete</mat-icon>
-                        {{ 'SETTINGS.REMOVE_DIALOG.TITLE' | translate }}
-                    </button>
-                </div>
             </ng-template>
         </mat-nav-list>
     } @placeholder {

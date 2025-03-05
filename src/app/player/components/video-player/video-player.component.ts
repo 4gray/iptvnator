@@ -1,5 +1,6 @@
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
+import { AsyncPipe, CommonModule } from '@angular/common';
 import {
     Component,
     InjectionToken,
@@ -7,9 +8,12 @@ import {
     NgZone,
     OnDestroy,
     OnInit,
+    effect,
+    inject,
 } from '@angular/core';
+import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
@@ -23,6 +27,7 @@ import {
 import { Playlist } from '../../../../../shared/playlist.interface';
 import { DataService } from '../../../services/data.service';
 import { PlaylistsService } from '../../../services/playlists.service';
+import { SettingsStore } from '../../../services/settings-store.service';
 import { Settings, VideoPlayer } from '../../../settings/settings.interface';
 import { STORE_KEY } from '../../../shared/enums/store-keys.enum';
 import * as PlaylistActions from '../../../state/actions';
@@ -31,7 +36,16 @@ import {
     selectChannels,
     selectCurrentEpgProgram,
 } from '../../../state/selectors';
+import { ArtPlayerComponent } from '../art-player/art-player.component';
+import { AudioPlayerComponent } from '../audio-player/audio-player.component';
+import { DPlayerComponent } from '../d-player/d-player.component';
+import { EpgListComponent } from '../epg-list/epg-list.component';
+import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
+import { InfoOverlayComponent } from '../info-overlay/info-overlay.component';
 import { MultiEpgContainerComponent } from '../multi-epg/multi-epg-container.component';
+import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
+import { SidebarComponent } from './sidebar/sidebar.component';
+import { ToolbarComponent } from './toolbar/toolbar.component';
 
 /** Possible sidebar view options */
 export type SidebarView = 'CHANNELS' | 'PLAYLISTS';
@@ -41,6 +55,22 @@ export const COMPONENT_OVERLAY_REF = new InjectionToken(
 );
 
 @Component({
+    standalone: true,
+    imports: [
+        AsyncPipe,
+        AudioPlayerComponent,
+        InfoOverlayComponent,
+        CommonModule,
+        EpgListComponent,
+        HtmlVideoPlayerComponent,
+        MatSidenavModule,
+        RouterLink,
+        SidebarComponent,
+        ToolbarComponent,
+        VjsPlayerComponent,
+        DPlayerComponent,
+        ArtPlayerComponent,
+    ],
     templateUrl: './video-player.component.html',
     styleUrls: ['./video-player.component.scss'],
 })
@@ -95,12 +125,16 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     listeners = [];
 
-    isElectron = this.dataService.isElectron;
+    isTauri = this.dataService.getAppEnvironment() === 'tauri';
 
     sidebarView: SidebarView = 'CHANNELS';
 
     /** EPG overlay reference */
     overlayRef: OverlayRef;
+
+    volume = 1;
+
+    private settingsStore = inject(SettingsStore);
 
     constructor(
         private activatedRoute: ActivatedRoute,
@@ -112,7 +146,21 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         private snackBar: MatSnackBar,
         private storage: StorageMap,
         private store: Store
-    ) {}
+    ) {
+        // Initialize volume from localStorage in constructor
+        const savedVolume = localStorage.getItem('volume');
+        if (savedVolume !== null) {
+            this.volume = Number(savedVolume);
+        }
+
+        // React to settings changes
+        effect(() => {
+            this.playerSettings = {
+                player: this.settingsStore.player(),
+                showCaptions: this.settingsStore.showCaptions(),
+            };
+        });
+    }
 
     /**
      * Sets video player and subscribes to channel list from the store
@@ -137,9 +185,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                                 CHANNEL_SET_USER_AGENT,
                                 playlist.userAgent
                                     ? {
-                                        referer: 'localhost',
-                                        userAgent: playlist.userAgent,
-                                    }
+                                          referer: 'localhost',
+                                          userAgent: playlist.userAgent,
+                                      }
                                     : {}
                             );
 
@@ -179,7 +227,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
      */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
-            if (this.isElectron) {
+            if (this.isTauri) {
                 this.dataService.listenOn(command.id, (event, response) =>
                     this.ngZone.run(() => command.execute(response))
                 );
@@ -205,12 +253,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                     player: settings.player || VideoPlayer.VideoJs,
                     showCaptions: settings.showCaptions || false,
                 };
+                // Don't override volume from settings storage anymore
+                // as we're using localStorage for volume persistence
             }
         });
     }
 
     ngOnDestroy() {
-        if (this.isElectron) {
+        if (this.isTauri) {
             this.dataService.removeAllListeners(PLAYLIST_PARSE_RESPONSE);
         } else {
             this.listeners.forEach((listener) =>
@@ -222,20 +272,42 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     /**
      * Opens the overlay with multi EPG view
      */
-    openMultiEpgView() {
-        this.overlayRef = this.overlay.create();
+    openMultiEpgView(): void {
+        const positionStrategy = this.overlay
+            .position()
+            .global()
+            .centerHorizontally()
+            .centerVertically();
+
+        this.overlayRef = this.overlay.create({
+            hasBackdrop: true,
+            positionStrategy,
+            width: '100%',
+            height: '100%',
+        });
+
         const injector = Injector.create({
             providers: [
-                { provide: COMPONENT_OVERLAY_REF, useValue: this.overlayRef },
+                {
+                    provide: COMPONENT_OVERLAY_REF,
+                    useValue: this.overlayRef,
+                },
             ],
         });
-        const componentPortal = new ComponentPortal(
+
+        const portal = new ComponentPortal(
             MultiEpgContainerComponent,
-            undefined,
+            null,
             injector
         );
-        this.overlayRef.addPanelClass('epg-overlay');
-        this.overlayRef.attach(componentPortal);
+
+        const componentRef = this.overlayRef.attach(portal);
+        componentRef.instance.playlistChannels =
+            this.store.select(selectChannels);
+
+        this.overlayRef.backdropClick().subscribe(() => {
+            this.overlayRef.dispose();
+        });
     }
 
     openUrl(url: string) {

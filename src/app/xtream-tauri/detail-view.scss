@@ -1,0 +1,140 @@
+:host {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+
+.details {
+    h2 {
+        word-wrap: break-word;
+        margin-top: 0;
+    }
+}
+
+.container {
+    display: grid;
+    grid-gap: 20px;
+    grid-template-columns: minmax(250px, 30%) minmax(300px, 1fr);
+    grid-template-areas: 
+        "image details"
+        "seasons seasons";
+    padding: 20px;
+    max-width: 100%;
+    box-sizing: border-box;
+    height: auto;
+    min-height: calc(100vh - 73px);
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background-size: cover;
+        z-index: -1;
+        background-repeat: no-repeat;
+    }
+}
+
+.seasons {
+    padding: 20px;
+
+    .episodes {
+        margin-bottom: 10px;
+
+        button {
+            margin-top: 5px;
+        }
+    }
+}
+
+.image {
+    grid-area: image;
+    margin: 0;
+    border-radius: 12px;
+    max-width: 100%;
+
+    img {
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+        object-fit: cover;
+    }
+
+    .placeholder-cover {
+        width: 100%;
+        aspect-ratio: 2/3;
+        background-color: #999;
+        border-radius: 12px;
+
+        &::after {
+            content: 'No cover';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    }
+}
+
+app-season-container {
+    grid-area: seasons;
+    width: 100%;
+}
+
+@media (max-width: 800px) {
+    .container {
+        grid-template-columns: 1fr;
+        grid-template-areas: 
+            "image"
+            "details"
+            "seasons";
+        padding: 10px;
+    }
+
+    .image,
+    .details {
+        width: 100%;
+        flex: 1 1 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+
+        img {
+            max-height: 500px;
+            object-fit: contain;
+            border-radius: 0;
+        }
+    }
+
+    .details {
+        padding: 0 10px;
+    }
+
+    .youtube-trailer {
+        width: 100% !important;
+    }
+}
+
+.label {
+    font-weight: 100;
+    font-size: 0.9em;
+    padding: 5px 0;
+    text-decoration: underline;
+    opacity: 0.6;
+}
+
+.action-buttons {
+    margin-top: 10px;
+}
+
+.youtube-trailer {
+    display: flex;
+    flex-wrap: wrap;
+    align-self: center;
+    width: 100%;
+    max-width: 650px;
+    margin: 0 auto;
+}

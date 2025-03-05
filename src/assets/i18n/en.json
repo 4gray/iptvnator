@@ -90,6 +90,14 @@
     },
     "FILTER_BY_NAME": "Filter by name",
     "FILTER_BY_TYPE": "Filter by type",
+    "SORT_PLAYLISTS": "Sort playlists",
+    "SORT_BY": "Sort by",
+    "SORT_OPTIONS": {
+      "NAME_ASC": "Name (A-Z)",
+      "NAME_DESC": "Name (Z-A)",
+      "NEWEST": "Date added (Newest first)",
+      "OLDEST": "Date added (Oldest first)"
+    },
     "IMPORTED_AS_TEXT": "Imported as text",
     "PARSING_ERROR": "Error: Parsing failed, not a valid playlist:"
   },
@@ -104,7 +112,7 @@
     "VIDEO_PLAYER_PLACEHOLDER": "Select an option",
     "VERSION": "Version",
     "SAVE_CHANGES": "Save changes",
-    "BACK_TO_HOME": "Back to home",
+    "BACK_TO_HOME": "Back",
     "NEW_VERSION_AVAILABLE": "There is a new version available",
     "LATEST_VERSION": "You are using the latest version",
     "LANGUAGE": "Language",
@@ -124,7 +132,7 @@
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
     "IMPORT_DATA": "Import",
     "EXPORT_DATA": "Export",
-    "REMOVE_ALL": "Remove playlist",
+    "REMOVE_ALL": "Remove playlists",
     "REMOVE_ALL_BUTTON": "Remove",
     "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
     "REMOVE_DIALOG": {
@@ -192,7 +200,8 @@
       "DESCRIPTION": "Description",
       "LANGUAGE": "Language",
       "SHOW_PROGRAM_DETAILS": "Show details about this program"
-    }
+    },
+    "FETCH_SUCCESS": "EPG was fetched successfully"
   },
   "LANGUAGES": {
     "ENGLISH": "English",
@@ -204,7 +213,8 @@
     "TRADITIONAL_CHINESE": "繁體中文",
     "FRENCH": "Français",
     "ITALIAN": "Italiano",
-    "TURKISH": "Türkçe"
+    "TURKISH": "Türkçe",
+    "JAPANESE": "日本語"
   },
   "YES": "Yes",
   "NO": "No",
