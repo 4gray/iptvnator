@@ -37,7 +37,7 @@ export class FileUploadComponent {
 
     async openDialog(fileField: HTMLInputElement) {
         if (isTauri()) {
-            await open({
+            const path = await open({
                 multiple: false,
                 directory: false,
                 filters: [
@@ -46,19 +46,18 @@ export class FileUploadComponent {
                         extensions: ['m3u', 'm3u8'],
                     },
                 ],
-            }).then(async (path) => {
-                const title = path.split('/').pop();
-                const fileContent = await readTextFile(path);
-                this.store.dispatch(
-                    parsePlaylist({
-                        uploadType: 'FILE',
-                        playlist: fileContent,
-                        title,
-                        path,
-                    })
-                );
-                this.closeDialog.emit();
             });
+            const title = path.split('/').pop();
+            const fileContent = await readTextFile(path);
+            this.store.dispatch(
+                parsePlaylist({
+                    uploadType: 'FILE',
+                    playlist: fileContent,
+                    title,
+                    path,
+                })
+            );
+            this.closeDialog.emit();
         } else {
             fileField.click();
         }
