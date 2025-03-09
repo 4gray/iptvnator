@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Params } from '@angular/router';
 import { invoke } from '@tauri-apps/api/core';
+import { readTextFile } from '@tauri-apps/plugin-fs';
 import { fetch } from '@tauri-apps/plugin-http';
 import { parse } from 'iptv-playlist-parser';
 import {
@@ -8,6 +9,8 @@ import {
     ERROR,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
+    PLAYLIST_UPDATE,
+    PLAYLIST_UPDATE_RESPONSE,
     XTREAM_RESPONSE,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
@@ -31,8 +34,31 @@ export class TauriService extends DataService {
     async sendIpcEvent(type: string, payload?: unknown) {
         if (type === PLAYLIST_PARSE_BY_URL) {
             this.fetchFromUrl(payload);
-        } else if (type === 'PLAYLIST_UPDATE') {
-            console.log('PLAYLIST_UPDATE');
+        } else if (type === PLAYLIST_UPDATE) {
+            const data = payload as {
+                id: string;
+                filePath: string;
+                title: string;
+            };
+            const playlist = await readTextFile(data.filePath);
+            const parsedPlaylist = parse(playlist);
+            const playlistObject = createPlaylistObject(
+                data.title,
+                parsedPlaylist,
+                data.filePath,
+                'FILE'
+            );
+
+            window.postMessage({
+                type: PLAYLIST_UPDATE_RESPONSE,
+                payload: {
+                    message: 'Success! The playlist was successfully updated',
+                    playlist: {
+                        ...playlistObject,
+                        _id: data.id,
+                    },
+                },
+            });
         } else if (type === 'XTREAM_REQUEST') {
             return await this.forwardXtreamRequest(
                 payload as { url: string; params: Record<string, string> }

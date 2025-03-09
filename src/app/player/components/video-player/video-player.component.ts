@@ -71,7 +71,7 @@ export const COMPONENT_OVERLAY_REF = new InjectionToken(
         ArtPlayerComponent,
     ],
     templateUrl: './video-player.component.html',
-    styleUrls: ['./video-player.component.scss']
+    styleUrl: './video-player.component.scss',
 })
 export class VideoPlayerComponent implements OnInit, OnDestroy {
     /** Active selected channel */
@@ -208,6 +208,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     /**
      * Opens a playlist provided as a url param
      * e.g. iptvnat.or?url=http://...
+     * @pwaOnly
      */
     getPlaylistUrlAsParam() {
         const URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
@@ -221,9 +222,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
     }
 
-    /**
-     * Set electrons main process listeners
-     */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
             if (this.isTauri) {
@@ -252,20 +250,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                     player: settings.player || VideoPlayer.VideoJs,
                     showCaptions: settings.showCaptions || false,
                 };
-                // Don't override volume from settings storage anymore
-                // as we're using localStorage for volume persistence
             }
         });
     }
 
     ngOnDestroy() {
-        if (this.isTauri) {
-            this.dataService.removeAllListeners(PLAYLIST_PARSE_RESPONSE);
-        } else {
-            this.listeners.forEach((listener) =>
-                window.removeEventListener('message', listener)
-            );
-        }
+        this.listeners.forEach((listener) =>
+            window.removeEventListener('message', listener)
+        );
     }
 
     /**

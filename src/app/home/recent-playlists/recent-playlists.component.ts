@@ -6,7 +6,6 @@ import {
     EventEmitter,
     HostListener,
     Input,
-    NgZone,
     OnDestroy,
     Output,
     ViewChild,
@@ -24,7 +23,6 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../../shared/constants';
-import { IpcCommand } from '../../../../shared/ipc-command.class';
 import { Playlist } from '../../../../shared/playlist.interface';
 import { DataService } from '../../services/data.service';
 import { DatabaseService } from '../../services/database.service';
@@ -118,36 +116,41 @@ export class RecentPlaylistsComponent implements OnDestroy {
 
     /** IPC Renderer commands list with callbacks */
     commandsList = [
-        new IpcCommand(
-            PLAYLIST_UPDATE_RESPONSE,
-            (response: { message: string; playlist: Playlist }) => {
-                this.snackBar.open(response.message, null, { duration: 2000 });
+        {
+            id: PLAYLIST_UPDATE_RESPONSE,
+            execute: (response: {
+                payload: { message: string; playlist: Playlist };
+            }) => {
+                this.snackBar.open(response.payload.message, null, {
+                    duration: 2000,
+                });
                 this.store.dispatch(
                     PlaylistActions.updatePlaylist({
-                        playlistId: response.playlist._id,
-                        playlist: response.playlist,
+                        playlistId: response.payload.playlist._id,
+                        playlist: response.payload.playlist,
                     })
                 );
-            }
-        ),
-        new IpcCommand(
-            AUTO_UPDATE_PLAYLISTS_RESPONSE,
-            (playlists: Playlist[]) => {
+            },
+        },
+        {
+            id: AUTO_UPDATE_PLAYLISTS_RESPONSE,
+            execute: (playlists: Playlist[]) => {
                 this.store.dispatch(
                     PlaylistActions.updateManyPlaylists({
                         playlists,
                     })
                 );
-            }
-        ),
+            },
+        },
     ];
+
+    listeners = [];
 
     constructor(
         private readonly databaseService: DatabaseService,
         private readonly dialog: MatDialog,
         private readonly dialogService: DialogService,
-        private readonly electronService: DataService,
-        private readonly ngZone: NgZone,
+        private readonly dataService: DataService,
         private readonly router: Router,
         private readonly snackBar: MatSnackBar,
         private readonly sortService: SortService,
@@ -159,16 +162,15 @@ export class RecentPlaylistsComponent implements OnDestroy {
         this.setRendererListeners();
     }
 
-    /**
-     * Set electrons main process listeners
-     */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
-            if (this.electronService.isElectron) {
-                this.electronService.listenOn(command.id, (event, response) =>
-                    this.ngZone.run(() => command.callback(response))
-                );
-            }
+            const cb = (response) => {
+                if (response.data.type === command.id) {
+                    command.execute(response.data);
+                }
+            };
+            this.dataService.listenOn(command.id, cb);
+            this.listeners.push(cb);
         });
     }
 
@@ -241,8 +243,8 @@ export class RecentPlaylistsComponent implements OnDestroy {
      * Sends an IPC event with the playlist details to the main process to trigger the refresh operation
      * @param item playlist to update
      */
-    refreshPlaylist(item: PlaylistMeta): void {
-        this.electronService.sendIpcEvent(PLAYLIST_UPDATE, {
+    refreshPlaylist(item: PlaylistMeta) {
+        this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
             id: item._id,
             title: item.title,
             ...(item.url ? { url: item.url } : { filePath: item.filePath }),
@@ -250,22 +252,20 @@ export class RecentPlaylistsComponent implements OnDestroy {
     }
 
     migratePlaylists() {
-        this.electronService.sendIpcEvent(MIGRATE_PLAYLISTS);
+        this.dataService.sendIpcEvent(MIGRATE_PLAYLISTS);
     }
 
     deleteMigratedPlaylists() {
-        this.electronService.sendIpcEvent(DELETE_ALL_PLAYLISTS);
+        this.dataService.sendIpcEvent(DELETE_ALL_PLAYLISTS);
     }
 
     /**
      * Removes command listeners on component destroy
      */
     ngOnDestroy(): void {
-        if (this.electronService.isElectron) {
-            this.commandsList.forEach((command) =>
-                this.electronService.removeAllListeners(command.id)
-            );
-        }
+        this.listeners.forEach((listener) => {
+            window.removeEventListener('message', listener);
+        });
     }
 
     trackByFn(_index: number, item: PlaylistMeta) {

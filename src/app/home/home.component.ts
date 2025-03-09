@@ -42,7 +42,6 @@ export class HomeComponent {
         {
             id: ERROR,
             execute: (error: { message: string; status: string }) => {
-                //this.isLoading = false;
                 this.showNotification('Error: ' + error.message);
             },
         },
@@ -64,19 +63,19 @@ export class HomeComponent {
      */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
-            if (this.dataService.isElectron) {
+            /* if (this.dataService.isElectron) {
                 this.dataService.listenOn(command.id, (event, response) =>
                     this.ngZone.run(() => command.execute(response))
                 );
-            } else {
-                const cb = (response) => {
-                    if (response.data.type === command.id) {
-                        command.execute(response.data);
-                    }
-                };
-                this.dataService.listenOn(command.id, cb);
-                this.listeners.push(cb);
-            }
+            } else { */
+            const cb = (response) => {
+                if (response.data.type === command.id) {
+                    command.execute(response.data);
+                }
+            };
+            this.dataService.listenOn(command.id, cb);
+            this.listeners.push(cb);
+            /* } */
         });
     }
 

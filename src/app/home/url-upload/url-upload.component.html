@@ -7,9 +7,11 @@
             formControlName="playlistUrl"
         />
     </mat-form-field>
-    <p *ngIf="!isElectron">
-        {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
-    </p>
+    @if (!isTauri) {
+        <p>
+            {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
+        </p>
+    }
     <button
         class="add-button"
         mat-flat-button
