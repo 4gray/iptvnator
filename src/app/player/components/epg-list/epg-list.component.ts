@@ -1,10 +1,20 @@
-import { Component, NgZone } from '@angular/core';
+import { AsyncPipe } from '@angular/common';
+import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
+import { TranslateModule } from '@ngx-translate/core';
 import moment from 'moment';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { EPG_GET_PROGRAM_DONE } from '../../../../../shared/ipc-commands';
 import { DataService } from '../../../services/data.service';
+import { EpgService } from '../../../services/epg.service';
+import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
 import {
     resetActiveEpgProgram,
     setActiveEpgProgram,
@@ -13,16 +23,29 @@ import {
 import { selectActive } from '../../../state/selectors';
 import { EpgChannel } from '../../models/epg-channel.model';
 import { EpgProgram } from '../../models/epg-program.model';
+import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 
 export interface EpgData {
     channel: EpgChannel;
     items: EpgProgram[];
 }
 
-const DATE_FORMAT = 'YYYYMMDD';
-const DATE_TIME_FORMAT = 'YYYYMMDDHHmm ZZ';
+const DATE_FORMAT = 'YYYY-MM-DD';
 
 @Component({
+    standalone: true,
+    imports: [
+        AsyncPipe,
+        EpgListItemComponent,
+        FormsModule,
+        MatButtonModule,
+        MatDividerModule,
+        MatIconModule,
+        MatListModule,
+        MatTooltipModule,
+        MomentDatePipe,
+        TranslateModule,
+    ],
     selector: 'app-epg-list',
     templateUrl: './epg-list.component.html',
     styleUrls: ['./epg-list.component.scss'],
@@ -35,7 +58,7 @@ export class EpgListComponent {
     dateToday: string;
 
     /** Array with EPG programs */
-    items: EpgProgram[] = [];
+    items$ = this.epgService.currentEpgPrograms$;
 
     /** Object with epg programs for the active channel */
     programs: {
@@ -54,61 +77,64 @@ export class EpgListComponent {
     /** Timeshift availability date, based on tvg-rec value from the channel */
     timeshiftUntil$: Observable<string>;
 
-    /**
-     * Creates an instance of EpgListComponent
-     * @param store
-     * @param electronService
-     * @param ngZone
-     */
+    private readonly selectedDate$ = new BehaviorSubject<string>(
+        moment().format(DATE_FORMAT)
+    );
+
+    /** Filtered EPG programs based on selected date */
+    filteredItems$ = combineLatest([this.items$, this.selectedDate$]).pipe(
+        map(([items, selectedDate]) =>
+            items
+                .filter(
+                    (item) =>
+                        moment(item.start).format('YYYY-MM-DD') === selectedDate
+                )
+                .sort((a, b) => moment(a.start).diff(moment(b.start)))
+        )
+    );
+
     constructor(
         private readonly store: Store,
-        private electronService: DataService,
-        private ngZone: NgZone
-    ) {
-        this.electronService.listenOn(
-            EPG_GET_PROGRAM_DONE,
-            (event, response) => {
-                this.ngZone.run(() => this.handleEpgData(response));
-            }
-        );
-    }
+        private dataService: DataService,
+        private readonly epgService: EpgService
+    ) {}
 
     /**
      * Subscribe for values from the store on component init
      */
     ngOnInit(): void {
         this.timeshiftUntil$ = this.store.select(selectActive).pipe(
-            // eslint-disable-next-line @ngrx/avoid-mapping-selectors
             map((active) => {
+                this.channel = {
+                    id: active?.tvg?.id,
+                    name: active?.name,
+                    url: [active?.url],
+                    icon: [active?.tvg?.logo],
+                };
                 return (
                     active?.tvg?.rec ||
                     active?.timeshift ||
                     active?.catchup?.days
                 );
             }),
-            map((value) =>
-                moment(Date.now())
-                    .subtract(value, 'days')
-                    .format(DATE_TIME_FORMAT)
-            )
+            map((value) => moment().subtract(value, 'days').toISOString())
         );
+
+        this.items$.subscribe((programs) => this.handleEpgData(programs));
+        this.dateToday = moment().format(DATE_FORMAT);
+        this.selectedDate$.next(this.dateToday);
     }
 
     /**
      * Handles incoming epg programs for the active channel from the main process
      * @param programs
      */
-    handleEpgData(programs: { payload: EpgData }): void {
-        if (programs?.payload?.items?.length > 0) {
-            this.programs = programs;
-            this.timeNow = moment(Date.now()).format(DATE_TIME_FORMAT);
-            this.dateToday = moment(Date.now()).format(DATE_FORMAT);
-            this.channel = programs.payload?.channel;
-            this.items = this.selectPrograms(programs);
-
+    handleEpgData(programs: EpgProgram[]): void {
+        this.timeNow = new Date().toISOString();
+        this.dateToday = moment().format(DATE_FORMAT);
+        if (programs.length > 0) {
             this.setPlayingNow();
         } else {
-            this.items = [];
             this.channel = null;
             this.store.dispatch(setCurrentEpgProgram(undefined));
         }
@@ -116,23 +142,20 @@ export class EpgListComponent {
 
     /**
      * Selects the program based on the active date
-     * @param programs object with all available epg programs for the active channel
      */
     selectPrograms(programs: { payload: EpgData }): EpgProgram[] {
+        const selectedDate = moment(this.dateToday).format('YYYY-MM-DD');
         return programs.payload?.items
-            .filter((item) => item.start.includes(this.dateToday.toString()))
+            .filter(
+                (item) =>
+                    moment(item.start).format('YYYY-MM-DD') === selectedDate
+            )
             .map((program) => ({
                 ...program,
-                start: moment(program.start, DATE_TIME_FORMAT).format(
-                    DATE_TIME_FORMAT
-                ),
-                stop: moment(program.stop, DATE_TIME_FORMAT).format(
-                    DATE_TIME_FORMAT
-                ),
+                start: program.start, // Keep ISO format
+                stop: program.stop, // Keep ISO format
             }))
-            .sort((a, b) => {
-                return a.start.localeCompare(b.start);
-            });
+            .sort((a, b) => moment(a.start).diff(moment(b.start)));
     }
 
     /**
@@ -140,28 +163,37 @@ export class EpgListComponent {
      * @param direction direction to switch
      */
     changeDate(direction: 'next' | 'prev'): void {
-        let dateToSwitch;
-        if (direction === 'next') {
-            dateToSwitch = moment(this.dateToday, DATE_FORMAT)
-                .add(1, 'days')
-                .format(DATE_FORMAT);
-        } else if (direction === 'prev') {
-            dateToSwitch = moment(this.dateToday, DATE_FORMAT)
-                .subtract(1, 'days')
-                .format(DATE_FORMAT);
-        }
-        this.dateToday = dateToSwitch;
-        this.items = this.selectPrograms(this.programs);
+        const newDate = moment(this.selectedDate$.value)
+            [direction === 'next' ? 'add' : 'subtract'](1, 'days')
+            .format(DATE_FORMAT);
+
+        this.dateToday = newDate;
+        this.selectedDate$.next(newDate);
     }
 
     /**
      * Sets the playing now variable based on the current time
      */
     setPlayingNow(): void {
-        this.playingNow = this.items.find(
-            (item) => this.timeNow >= item.start && this.timeNow <= item.stop
-        );
-        this.store.dispatch(setCurrentEpgProgram({ program: this.playingNow }));
+        this.items$
+            .pipe(
+                map((items) =>
+                    items.find((item) => {
+                        const now = new Date().toISOString();
+                        const start = new Date(item.start).toISOString();
+                        const stop = new Date(item.stop).toISOString();
+                        return now >= start && now <= stop;
+                    })
+                )
+            )
+            .subscribe((playingNow) => {
+                this.playingNow = playingNow;
+                if (playingNow) {
+                    this.store.dispatch(
+                        setCurrentEpgProgram({ program: playingNow })
+                    );
+                }
+            });
     }
 
     /**
@@ -188,6 +220,6 @@ export class EpgListComponent {
      * Removes all ipc renderer listeners after destroy
      */
     ngOnDestroy(): void {
-        this.electronService.removeAllListeners(EPG_GET_PROGRAM_DONE);
+        this.dataService.removeAllListeners(EPG_GET_PROGRAM_DONE);
     }
 }

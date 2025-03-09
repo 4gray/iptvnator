@@ -5,12 +5,14 @@ services:
     ports:
       - "7333:3000"
     environment:
-      - CLIENT_URL=http://localhost:4333 #this one should match with the address and port in frontend CLIENT_URL env
+      - CLIENT_URL=http://localhost:4333 
+      # this one should match with the address and port in frontend CLIENT_URL env
       
   frontend: 
     image: 4gray/iptvnator:latest
     ports:
       - "4333:80"
     environment:
-      - BACKEND_URL=http://192.168.172.67:7333 # this one should match with the address of the backend service
+      - BACKEND_URL=http://localhost:7333 
+      # this one should match with the address of the backend service
       

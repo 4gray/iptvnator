@@ -6,11 +6,14 @@ import {
 import { AsyncPipe, NgFor, NgIf } from '@angular/common';
 import {
     Component,
+    ElementRef,
     EventEmitter,
+    HostListener,
     Input,
     NgZone,
     OnDestroy,
     Output,
+    ViewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -28,6 +31,7 @@ import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../../shared/constants';
 import { IpcCommand } from '../../../../shared/ipc-command.class';
 import { Playlist } from '../../../../shared/playlist.interface';
 import { DataService } from '../../services/data.service';
+import { DatabaseService } from '../../services/database.service';
 import * as PlaylistActions from '../../state/actions';
 import {
     selectActiveTypeFilters,
@@ -37,10 +41,7 @@ import {
 import {
     AUTO_UPDATE_PLAYLISTS_RESPONSE,
     DELETE_ALL_PLAYLISTS,
-    IS_PLAYLISTS_MIGRATION_POSSIBLE,
-    IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE,
     MIGRATE_PLAYLISTS,
-    MIGRATE_PLAYLISTS_RESPONSE,
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
 } from './../../../../shared/ipc-commands';
@@ -70,6 +71,8 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
     ],
 })
 export class RecentPlaylistsComponent implements OnDestroy {
+    @ViewChild('searchQuery') searchQueryInput!: ElementRef<HTMLInputElement>;
+
     searchQuery = new BehaviorSubject('');
 
     playlists$ = combineLatest([
@@ -128,28 +131,6 @@ export class RecentPlaylistsComponent implements OnDestroy {
             }
         ),
         new IpcCommand(
-            IS_PLAYLISTS_MIGRATION_POSSIBLE_RESPONSE,
-            (response: { result: boolean; message: string }) => {
-                this.isMigrationPossible = response.result;
-                this.migrationMessage = response.message || '';
-            }
-        ),
-        new IpcCommand(
-            MIGRATE_PLAYLISTS_RESPONSE,
-            (response: { payload: Playlist[] }) => {
-                this.store.dispatch(
-                    PlaylistActions.addManyPlaylists({
-                        playlists: response.payload,
-                    })
-                );
-                this.snackBar.open(
-                    `${response.payload.length} playlists were successfully migrated`,
-                    null,
-                    { duration: 2000 }
-                );
-            }
-        ),
-        new IpcCommand(
             AUTO_UPDATE_PLAYLISTS_RESPONSE,
             (playlists: Playlist[]) => {
                 this.store.dispatch(
@@ -161,10 +142,8 @@ export class RecentPlaylistsComponent implements OnDestroy {
         ),
     ];
 
-    isMigrationPossible = false;
-    migrationMessage = '';
-
     constructor(
+        private databaseService: DatabaseService,
         private dialog: MatDialog,
         private dialogService: DialogService,
         private electronService: DataService,
@@ -177,9 +156,6 @@ export class RecentPlaylistsComponent implements OnDestroy {
 
     ngOnInit(): void {
         this.setRendererListeners();
-        if (this.electronService.isElectron) {
-            this.electronService.sendIpcEvent(IS_PLAYLISTS_MIGRATION_POSSIBLE);
-        }
     }
 
     /**
@@ -255,7 +231,8 @@ export class RecentPlaylistsComponent implements OnDestroy {
      * Removes the provided playlist from the database
      * @param playlistId playlist id to remove
      */
-    removePlaylist(playlistId: string): void {
+    removePlaylist(playlistId: string) {
+        this.databaseService.deletePlaylist(playlistId);
         this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
     }
 
@@ -296,5 +273,14 @@ export class RecentPlaylistsComponent implements OnDestroy {
 
     onSearchQueryUpdate(searchQuery: string) {
         this.searchQuery.next(searchQuery);
+    }
+
+    @HostListener('window:keydown.control.f', ['$event'])
+    @HostListener('window:keydown.meta.f', ['$event'])
+    onSearchHotkey(event: KeyboardEvent) {
+        // Prevent default browser search behavior
+        event.preventDefault();
+        event.stopPropagation();
+        this.searchQueryInput?.nativeElement?.focus();
     }
 }

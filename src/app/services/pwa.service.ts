@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
-import { ApplicationRef, inject, Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Params } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -19,23 +20,21 @@ import { Playlist } from '../../../shared/playlist.interface';
 import { AppConfig } from '../../environments/environment';
 import * as PlaylistActions from '../state/actions';
 import { DataService } from './data.service';
-import { PlaylistsService } from './playlists.service';
 
 @Injectable({
     providedIn: 'root',
 })
 export class PwaService extends DataService {
-    appRef = inject(ApplicationRef);
-    playlistService = inject(PlaylistsService);
-    snackBar = inject(MatSnackBar);
-    store = inject(Store);
-    swUpdate = inject(SwUpdate);
-    translateService = inject(TranslateService);
+    private readonly http = inject(HttpClient);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly store = inject(Store);
+    private readonly swUpdate = inject(SwUpdate);
+    private readonly translateService = inject(TranslateService);
 
     /** Proxy URL to avoid CORS issues */
     corsProxyUrl = AppConfig.BACKEND_URL;
 
-    constructor(private http: HttpClient) {
+    constructor() {
         super();
         console.log('PWA service initialized...');
     }
@@ -233,5 +232,13 @@ export class PwaService extends DataService {
 
     listenOn(_command: string, callback: (...args: any[]) => void): void {
         window.addEventListener('message', callback);
+    }
+
+    getAppEnvironment(): string {
+        return 'pwa';
+    }
+
+    fetchData(url: string, queryParams: Params) {
+        // not implemented
     }
 }

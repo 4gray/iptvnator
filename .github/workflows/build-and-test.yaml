@@ -1,0 +1,89 @@
+name: 'Build and Test'
+
+on:
+    push:
+        branches:
+            - electron
+    pull_request:
+        branches:
+            - electron
+
+jobs:
+    build-and-test:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Use Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+            - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
+            - run: npm ci
+            - run: npm test -- --coverage
+            - run: bash <(curl -s https://codecov.io/bash)
+            - run: npm run build:prod
+              env:
+                  CI: true
+    e2e-tests:
+        runs-on: ${{ matrix.os }}
+
+        strategy:
+            matrix:
+                os: [macos-latest]
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Use Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+            - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
+            - run: npm ci
+            #  env:
+            #      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+            - run: npm run build:prod
+            - run: npx playwright install --with-deps
+            #- run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" -- npm run e2e:ci
+            #  if: matrix.os == 'ubuntu-latest'
+            #  env:
+            #    e2e: true
+            - run: npm run e2e:ci
+              env:
+                  e2e: true
+    # release:
+    #     needs: [build-and-test]
+    #     runs-on: ${{ matrix.os }}
+
+    #     strategy:
+    #         matrix:
+    #             os: [macos-latest, ubuntu-latest, windows-latest]
+
+    #     steps:
+    #         - name: Check out Git repository
+    #           uses: actions/checkout@v4
+
+    #         - name: Install Node.js, NPM and Yarn
+    #           uses: actions/setup-node@v4
+    #           with:
+    #               node-version: '20'
+
+    #         - name: Build Electron app
+    #           uses: samuelmeuli/action-electron-builder@v1
+    #           with:
+    #               # GitHub token, automatically provided to the action
+    #               # (No need to define this secret in the repo settings)
+    #               github_token: ${{ secrets.github_token }}
+
+    #               # If the commit is tagged with a version (e.g. "v1.0.0"),
+    #               # release the app after building
+    #               release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    #         #- name: Archive production artifacts
+    #         #  uses: actions/upload-artifact@v3
+    #         #  with:
+    #         #      name: dev-release
+    #         #      path: ./release/**

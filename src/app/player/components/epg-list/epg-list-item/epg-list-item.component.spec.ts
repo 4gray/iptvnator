@@ -4,7 +4,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule } from '@ngx-translate/core';
 import * as moment from 'moment';
 import { MockModule, MockPipe } from 'ng-mocks';
 import { MomentDatePipe } from './../../../../shared/pipes/moment-date.pipe';
@@ -61,23 +61,18 @@ describe('EpgListItemComponent', () => {
     let fixture: ComponentFixture<EpgListItemComponent>;
     let dialog: MatDialog;
 
-    beforeEach(
-        waitForAsync(() => {
-            TestBed.configureTestingModule({
-                declarations: [
-                    EpgListItemComponent,
-                    MockPipe(MomentDatePipe),
-                    MockPipe(TranslatePipe),
-                ],
-                imports: [
-                    MockModule(MatDialogModule),
-                    MockModule(MatListModule),
-                    MockModule(MatIconModule),
-                    MockModule(MatTooltipModule),
-                ],
-            }).compileComponents();
-        })
-    );
+    beforeEach(waitForAsync(() => {
+        TestBed.configureTestingModule({
+            declarations: [EpgListItemComponent, MockPipe(MomentDatePipe)],
+            imports: [
+                MockModule(MatDialogModule),
+                MockModule(MatListModule),
+                MockModule(MatIconModule),
+                MockModule(MatTooltipModule),
+                MockModule(TranslateModule),
+            ],
+        }).compileComponents();
+    }));
 
     beforeEach(() => {
         fixture = TestBed.createComponent(EpgListItemComponent);

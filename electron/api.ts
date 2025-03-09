@@ -187,7 +187,7 @@ export class Api {
                             args.userAgent || 'localhost',
                             args.referer || 'localhost'
                         );
-                    } 
+                    }
                 }
             )
             .on(IS_PLAYLISTS_MIGRATION_POSSIBLE, (event) => {
@@ -297,7 +297,7 @@ export class Api {
             .on(SETTINGS_UPDATE, (_event, arg) => {
                 this.settings = arg;
                 this.server.updateSettings();
-            }) ;
+            });
 
         // listeners for EPG events
         ipcMain
@@ -420,7 +420,7 @@ export class Api {
         // Remove trailing slash from referer if it exists
         let originURL: string;
         if (referer?.endsWith('/')) {
-        originURL= referer.slice(0, -1);
+            originURL = referer.slice(0, -1);
         }
 
         session.defaultSession.webRequest.onBeforeSendHeaders(
@@ -636,5 +636,4 @@ export class Api {
             }
         });
     }
-
 }

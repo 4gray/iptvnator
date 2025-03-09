@@ -7,30 +7,39 @@
     >
         <mat-icon>menu</mat-icon>
     </button>
-    <button
-        *ngIf="(playlistId$ | async) !== 'GLOBAL_FAVORITES'"
-        mat-icon-button
-        (click)="addToFavorites(activeChannel)"
-        [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
-    >
-        <mat-icon>
-            {{
-                (favorites$ | async).includes(activeChannel?.id)
-                    ? 'star'
-                    : 'star_outline'
-            }}</mat-icon
-        >
-    </button>
-    {{ activeChannel?.name }}
-    <div class="spacer"></div>
-    <ng-container *ngIf="isEpgAvailable$ | async">
+    @if ((playlistId$ | async) !== 'GLOBAL_FAVORITES') {
         <button
             mat-icon-button
-            (click)="multiEpgClicked.emit()"
-            [matTooltip]="'TOP_MENU.OPEN_MULTI_EPG' | translate"
+            (click)="updateFavoriteStatus(activeChannel)"
+            [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
         >
-            <mat-icon>view_list</mat-icon>
+            <mat-icon>
+                {{
+                    (favorites$ | async).includes(activeChannel?.id)
+                        ? 'star'
+                        : 'star_outline'
+                }}</mat-icon
+            >
         </button>
+    }
+    {{ activeChannel?.name }}
+    <div class="spacer"></div>
+    <button
+        mat-icon-button
+        (click)="openSettings()"
+        [matTooltip]="'MENU.SETTINGS' | translate"
+    >
+        <mat-icon>settings</mat-icon>
+    </button>
+    <button
+        mat-icon-button
+        (click)="multiEpgClicked.emit()"
+        [matTooltip]="'TOP_MENU.OPEN_MULTI_EPG' | translate"
+    >
+        <mat-icon>view_list</mat-icon>
+    </button>
+    @let isEpgAvailable = isEpgAvailable$ | async;
+    @if (isEpgAvailable) {
         <button
             mat-button
             (click)="toggleRightDrawerClicked.emit()"
@@ -38,5 +47,5 @@
         >
             EPG
         </button>
-    </ng-container>
+    }
 </mat-toolbar>

@@ -1,0 +1,189 @@
+@use '@angular/material' as mat;
+
+mat-nav-list {
+    width: 100%;
+    overflow: hidden;
+    display: block;
+}
+
+mat-list-item {
+    width: 280px !important;
+}
+
+.scroll-viewport-portals {
+    min-height: calc(100vh - 114px) !important;
+    width: 100%;
+    padding: 4px 0;
+}
+
+.title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100%); // Account for avatar and favorite button
+    min-width: 0;
+    flex: 1;
+}
+
+mat-list-item {
+    width: 325px;
+    min-width: 0; // Prevents flex items from overflowing
+    box-sizing: border-box;
+    height: 80px !important;
+    transition: background-color 0.2s ease;
+    border-radius: 4px;
+    margin: 2px 8px;
+    
+    ::ng-deep .mdc-list-item__content {
+        overflow: hidden;
+        flex: 1;
+    }
+
+    &:hover {
+        z-index: 1;
+        background-color: rgba(255, 255, 255, 0.1);
+        .channel-info {
+            .title {
+                color: #1db954;
+            }
+        }
+    }
+
+    &.mat-mdc-list-item-active {
+        background-color: rgba(29, 185, 84, 0.2); 
+        .channel-info .title {
+            color: #1db954;
+        }
+    }
+}
+
+.search-bar {
+    width: 90%;
+    @include mat.form-field-density(-5);
+}
+
+.search-panel {
+    display: flex;
+    justify-content: center;
+}
+
+::ng-deep {
+    .search-bar {
+        div {
+            border-radius: 20px;
+        }
+    }
+    
+    div[matformfieldlineripple] {
+        display: none;
+    }
+}
+
+.stream-icon {
+    background: none;
+    border-radius: 4px;
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    margin-right: 16px;
+}
+
+.channel-info {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 4px;
+    
+    .title {
+        font-weight: 600; // Slightly bolder
+        font-size: 14px;
+        transition: color 0.2s ease;
+        width: 100%;
+        position: relative;
+        overflow: hidden;
+
+        &:hover {
+            overflow: visible;
+            text-overflow: clip;
+            animation: marquee 6s linear infinite;
+        }
+    }
+    
+    .current-program {
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+        margin-top: 2px;
+        
+        &:hover {
+            overflow: visible;
+            text-overflow: clip;
+            animation: marquee 6s linear infinite;
+        }
+    }
+
+    .program-info {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .progress-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        opacity: .6;
+        padding: 0 2px;
+        
+        .progress-bar {
+            flex: 1;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            opacity: .6;
+            border-radius: 2px;
+            overflow: hidden;
+            
+            .progress {
+                height: 100%;
+                background: #1db954;
+                transition: width 1s linear;
+            }
+        }
+    }
+
+    .no-epg-placeholder {
+        opacity: 0.7;
+        .placeholder-bar {
+            height: 10px;
+            width: 60%;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin: 4px 0;
+        }
+
+        .progress-container {
+            opacity: 0.5;
+            
+            .progress-bar {
+                background: rgba(255, 255, 255, 0.05);
+            }
+        }
+    }
+}
+
+@keyframes marquee {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(calc(-100%));
+    }
+}
+
+// Override Material styles to allow animation
+::ng-deep .mdc-list-item__primary-text {
+    overflow: visible !important;
+}

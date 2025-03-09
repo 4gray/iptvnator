@@ -1,0 +1,50 @@
+@if (selectedCategory()) {
+    <div class="grid">
+        @for (item of paginatedContent(); track $index) {
+            @let i = $any(item);
+            <mat-card (click)="onItemClick(item)">
+                @if (i.poster_url) {
+                    <img
+                        class="stream-icon"
+                        [ngSrc]="
+                            i.poster_url ?? './assets/images/default-poster.png'
+                        "
+                        fill
+                        priority
+                        placeholder
+                        placeholder="data:image/png;base64,iVBORw0K..."
+                        (error)="
+                            $event.target.src =
+                                './assets/images/default-poster.png'
+                        "
+                    />
+                } @else {
+                    <img
+                        class="stream-icon"
+                        src="./assets/images/default-poster.png"
+                    />
+                }
+                @let rating = $any(item).rating;
+                @if (rating) {
+                    <div
+                        class="rating"
+                        [matTooltip]="'XTREAM.IMDB_RATING' | translate"
+                    >
+                        <mat-icon>star</mat-icon>{{ rating }}
+                    </div>
+                }
+                <mat-card-actions>
+                    <div class="title">{{ i.title || 'No name' }}</div>
+                </mat-card-actions>
+            </mat-card>
+        }
+    </div>
+
+    <mat-paginator
+        [length]="totalPages() * limit()"
+        [pageSize]="limit()"
+        [pageSizeOptions]="pageSizeOptions"
+        (page)="onPageChange($event)"
+        aria-label="Select page"
+    />
+}

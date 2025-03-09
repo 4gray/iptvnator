@@ -1,0 +1,11 @@
+@if (isImporting()) {
+    <app-loading-overlay
+        [current]="getImportCount()"
+        [total]="itemsToImport()"
+    />
+}
+
+<div class="xtream-container">
+    <app-navigation class="navigation-sidebar" />
+    <router-outlet />
+</div>

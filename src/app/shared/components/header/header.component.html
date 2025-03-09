@@ -32,7 +32,7 @@
             <mat-icon>filter_list</mat-icon>
         </button>
         <button
-            *ngIf="isElectron; else pwaMenu"
+            *ngIf="isElectron || isTauri; else pwaMenu"
             mat-icon-button
             (click)="openSettings()"
             [matTooltip]="'MENU.SETTINGS' | translate"
@@ -115,6 +115,7 @@
         mat-icon-button
         [matMenuTriggerFor]="menu"
         [attr.aria-label]="'MENU.OPEN' | translate"
+        data-test-id="pwa-menu"
     >
         <mat-icon>menu</mat-icon>
     </button>
@@ -124,6 +125,7 @@
                 mat-menu-item
                 [attr.aria-label]="'MENU.SETTINGS_ARIA' | translate"
                 (click)="openSettings()"
+                data-test-id="pwa-open-settings"
             >
                 <mat-icon>settings</mat-icon>
                 <span>{{ 'MENU.SETTINGS' | translate }}</span>

@@ -1,0 +1,186 @@
+<div class="search-page">
+    <div class="header">
+        <h2>Search</h2>
+        @if (isGlobalSearch) {
+            <button mat-icon-button (click)="dialogRef.close()">
+                <mat-icon>close</mat-icon>
+            </button>
+        }
+    </div>
+    <div class="search-container">
+        <mat-form-field appearance="outline" class="search-field">
+            <mat-label>Search content</mat-label>
+            <input
+                #searchInput
+                matInput
+                spellcheck="false"
+                autofocus
+                [(ngModel)]="searchTerm"
+                (ngModelChange)="onSearch()"
+            />
+            <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+
+        <div class="type-filters">
+            <mat-checkbox
+                [(ngModel)]="filters.live"
+                (ngModelChange)="onSearch()"
+            >
+                Live TV
+            </mat-checkbox>
+            <mat-checkbox
+                [(ngModel)]="filters.movie"
+                (ngModelChange)="onSearch()"
+            >
+                Movies
+            </mat-checkbox>
+            <mat-checkbox
+                [(ngModel)]="filters.series"
+                (ngModelChange)="onSearch()"
+            >
+                Series
+            </mat-checkbox>
+        </div>
+
+        @if (!isGlobalSearch && xtreamStore.searchResults().length > 0) {
+            <div class="results-count">
+                Found {{ xtreamStore.searchResults().length }} results
+            </div>
+        }
+    </div>
+
+    <div class="results-container">
+        @if (xtreamStore.searchResults().length > 0) {
+            @if (isGlobalSearch) {
+                <!-- Global Search Results -->
+                <div class="playlist-section">
+                    <h2 class="section-title">
+                        Found {{ xtreamStore.searchResults().length }} items
+                        across
+                        {{ (getGroupedResults() | keyvalue).length }} playlists
+                    </h2>
+                    @for (
+                        group of getGroupedResults() | keyvalue;
+                        track group.key
+                    ) {
+                        <div class="playlist-group">
+                            <h3 class="playlist-title">
+                                <mat-icon>playlist_play</mat-icon>
+                                {{ group.key }}
+                                <span class="item-count"
+                                    >({{
+                                        $any(group).value.length
+                                    }}
+                                    items)</span
+                                >
+                            </h3>
+                            <div class="results-grid">
+                                @for (
+                                    item of $any(group).value;
+                                    track item.id
+                                ) {
+                                    <mat-card (click)="selectItem(item)">
+                                        <mat-card-content>
+                                            @if (item.poster_url) {
+                                                <img
+                                                    [src]="item.poster_url"
+                                                    [alt]="item.title"
+                                                    (error)="
+                                                        $event.target.src =
+                                                            './assets/images/default-poster.png'
+                                                    "
+                                                    class="poster"
+                                                />
+                                            }
+                                            @if (!item.poster_url) {
+                                                <div class="poster-placeholder">
+                                                    <mat-icon>movie</mat-icon>
+                                                </div>
+                                            }
+                                            <h3>{{ item.title }}</h3>
+                                            <p>{{ item.description }}</p>
+                                            <div
+                                                class="type-badge"
+                                                [class]="item.type"
+                                            >
+                                                {{ item.type }}
+                                            </div>
+                                            @if (
+                                                item.playlist_id &&
+                                                isGlobalSearch
+                                            ) {
+                                                <div class="playlist-badge">
+                                                    {{ item.playlist_name }}
+                                                </div>
+                                            }
+                                            @if (
+                                                isGlobalSearch &&
+                                                item.playlist_name
+                                            ) {
+                                                <div class="playlist-badge">
+                                                    <mat-icon
+                                                        >playlist_play</mat-icon
+                                                    >
+                                                    <span>{{
+                                                        item.playlist_name
+                                                    }}</span>
+                                                </div>
+                                            }
+                                        </mat-card-content>
+                                    </mat-card>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            } @else {
+                <!-- Playlist-level Search Results -->
+                <div class="results-grid">
+                    @for (item of xtreamStore.searchResults(); track item.id) {
+                        <mat-card (click)="selectItem(item)">
+                            <mat-card-content>
+                                @if (item.poster_url) {
+                                    <img
+                                        [src]="item.poster_url"
+                                        [alt]="item.title"
+                                        (error)="
+                                            $event.target.src =
+                                                './assets/images/default-poster.png'
+                                        "
+                                        class="poster"
+                                    />
+                                }
+                                @if (!item.poster_url) {
+                                    <div class="poster-placeholder">
+                                        <mat-icon>movie</mat-icon>
+                                    </div>
+                                }
+                                <h3>{{ item.title }}</h3>
+                                <p>{{ item.description }}</p>
+                                <div class="type-badge" [class]="item.type">
+                                    {{ item.type }}
+                                </div>
+                                @if (item.playlist_id && isGlobalSearch) {
+                                    <div class="playlist-badge">
+                                        {{ item.playlist_name }}
+                                    </div>
+                                }
+                                @if (isGlobalSearch && item.playlist_name) {
+                                    <div class="playlist-badge">
+                                        <mat-icon>playlist_play</mat-icon>
+                                        <span>{{ item.playlist_name }}</span>
+                                    </div>
+                                }
+                            </mat-card-content>
+                        </mat-card>
+                    }
+                </div>
+            }
+        } @else if (searchTerm && searchTerm.length >= 3) {
+            <div class="no-items">
+                <mat-icon>search_off</mat-icon>
+                <p>No results found for "{{ searchTerm }}"</p>
+            </div>
+        }
+    </div>
+</div>

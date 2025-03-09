@@ -1,0 +1,75 @@
+<div class="favorites-container">
+    <div class="header">
+        <h2>{{ 'CHANNELS.FAVORITES' | translate }}</h2>
+    </div>
+
+    <mat-tab-group>
+        <mat-tab label="Live TV ({{ liveCount }})">
+            <ng-container
+                *ngTemplateOutlet="itemsGrid; context: { type: 'live' }"
+            >
+            </ng-container>
+        </mat-tab>
+        <mat-tab label="Movies ({{ moviesCount }})">
+            <ng-container
+                *ngTemplateOutlet="itemsGrid; context: { type: 'movie' }"
+            >
+            </ng-container>
+        </mat-tab>
+        <mat-tab label="Series ({{ seriesCount }})">
+            <ng-container
+                *ngTemplateOutlet="itemsGrid; context: { type: 'series' }"
+            >
+            </ng-container>
+        </mat-tab>
+    </mat-tab-group>
+
+    <ng-template #itemsGrid let-type="type">
+        @if ((favorites$ | async | filterByType: type).length) {
+            <div class="items-grid">
+                @for (
+                    item of favorites$ | async | filterByType: type;
+                    track $any(item).id
+                ) {
+                    <mat-card class="item-card" (click)="openItem(item)">
+                        <img
+                            [src]="
+                                item.poster_url ||
+                                'assets/default-' + type + '.png'
+                            "
+                            (error)="
+                                $event.target.src =
+                                    './assets/images/default-poster.png'
+                            "
+                            [alt]="item.title"
+                            class="item-image"
+                        />
+                        <mat-card-content>
+                            <h3>{{ item.title }}</h3>
+                            <p class="added-date">
+                                Added:
+                                {{ item.added_at | date: 'd MMMM, y, hh:mm' }}
+                            </p>
+                        </mat-card-content>
+                        <button
+                            mat-icon-button
+                            color="warn"
+                            class="favorite-button"
+                            (click)="
+                                $event.stopPropagation();
+                                removeFromFavorites(item)
+                            "
+                        >
+                            <mat-icon>favorite</mat-icon>
+                        </button>
+                    </mat-card>
+                }
+            </div>
+        } @else {
+            <div class="no-items">
+                <mat-icon>favorite_border</mat-icon>
+                <p>No favorite {{ type }} items</p>
+            </div>
+        }
+    </ng-template>
+</div>

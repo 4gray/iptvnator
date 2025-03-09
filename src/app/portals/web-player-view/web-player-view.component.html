@@ -2,4 +2,8 @@
     <app-vjs-player [options]="vjsOptions" />
 } @else if (player === 'html5') {
     <app-html-video-player *ngIf="player === 'html5'" [channel]="channel" />
+} @else if (player === 'dplayer') {
+    <app-d-player [channel]="channel" [volume]="1" [showCaptions]="false" />
+} @else if (player === 'artplayer') {
+    <app-art-player [channel]="channel" [volume]="1" [showCaptions]="false" />
 }

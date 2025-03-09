@@ -1,0 +1,124 @@
+@let items = recentItems();
+<div class="recent-container">
+    <div class="header">
+        <h2>Recently Viewed</h2>
+        <div class="header-actions">
+            @if (recentItems()?.length) {
+                <button mat-button color="warn" (click)="clearHistory()">
+                    <mat-icon>delete</mat-icon>
+                    Clear History
+                </button>
+            }
+            @if (isGlobal) {
+                <button mat-icon-button (click)="dialogRef.close()">
+                    <mat-icon>close</mat-icon>
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (recentItems()?.length) {
+        @if (isGlobal) {
+            <div class="playlist-section">
+                <h2 class="section-title">
+                    Found {{ recentItems().length }} items across
+                    {{ (getGroupedItems() | keyvalue).length }} playlists
+                </h2>
+                @for (group of getGroupedItems() | keyvalue; track group.key) {
+                    <div class="playlist-group">
+                        <h3 class="playlist-title">
+                            <mat-icon>playlist_play</mat-icon>
+                            {{ group.key }}
+                            <span class="item-count"
+                                >({{ $any(group).value.length }} items)</span
+                            >
+                        </h3>
+                        <div class="items-grid">
+                            @for (item of $any(group).value; track item.id) {
+                                <mat-card
+                                    class="item-card"
+                                    (click)="openItem(item)"
+                                >
+                                    <button
+                                        mat-icon-button
+                                        class="remove-button"
+                                        (click)="removeItem($event, item.id)"
+                                    >
+                                        <mat-icon>close</mat-icon>
+                                    </button>
+                                    <img
+                                        [src]="
+                                            item.poster_url ||
+                                            './assets/images/default-poster.png'
+                                        "
+                                        (error)="
+                                            $event.target.src =
+                                                './assets/images/default-poster.png'
+                                        "
+                                        [alt]="item.title"
+                                        class="poster"
+                                    />
+                                    <div class="item-info">
+                                        <h3>{{ item.title }}</h3>
+                                        <p
+                                            [class]="item.type"
+                                            class="type-badge"
+                                        >
+                                            {{ item.type | titlecase }}
+                                        </p>
+                                        <p class="viewed-at">
+                                            {{
+                                                item.viewed_at
+                                                    | date: 'd MMMM, y, HH:mm'
+                                            }}
+                                        </p>
+                                    </div>
+                                </mat-card>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        } @else {
+            <div class="items-grid">
+                @for (item of recentItems(); track item.id) {
+                    <mat-card class="item-card" (click)="openItem(item)">
+                        <button
+                            mat-icon-button
+                            class="remove-button"
+                            (click)="removeItem($event, item.id)"
+                        >
+                            <mat-icon>close</mat-icon>
+                        </button>
+                        <img
+                            [src]="
+                                item.poster_url ||
+                                './assets/images/default-poster.png'
+                            "
+                            (error)="
+                                $event.target.src =
+                                    './assets/images/default-poster.png'
+                            "
+                            [alt]="item.title"
+                            class="poster"
+                        />
+                        <div class="item-info">
+                            <h3>{{ item.title }}</h3>
+                            <p [class]="item.type" class="type-badge">
+                                {{ item.type | titlecase }}
+                            </p>
+                            <p class="viewed-at">
+                                {{ item.viewed_at | date: 'd MMMM, y, hh:mm' }}
+                            </p>
+                        </div>
+                    </mat-card>
+                }
+            </div>
+        }
+    } @else {
+        <div class="no-items">
+            <mat-icon>history</mat-icon>
+            <p>No recently viewed items</p>
+        </div>
+    }
+</div>

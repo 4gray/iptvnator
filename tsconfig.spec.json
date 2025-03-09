@@ -3,7 +3,7 @@
     "compilerOptions": {
         "outDir": "../out-tsc/spec",
         "baseUrl": "./",
-        "types": ["jest", "node", "electron"],
+        "types": ["jest", "node"],
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "resolveJsonModule": true

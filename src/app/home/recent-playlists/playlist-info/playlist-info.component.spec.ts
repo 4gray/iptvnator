@@ -10,6 +10,7 @@ import {
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { ActivatedRoute } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
@@ -49,6 +50,9 @@ describe('PlaylistInfoComponent', () => {
                 provideMockActions(actions$),
                 MockProvider(NgxIndexedDBService),
                 MockProvider(TranslateService),
+                MockProvider(ActivatedRoute, {
+                    snapshot: { params: { id: '' } } as any,
+                }),
             ],
         }).compileComponents();
     }));

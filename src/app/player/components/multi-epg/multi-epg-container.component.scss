@@ -28,7 +28,7 @@ rect {
 
 #epg-container {
     width: calc(100vw - 100px);
-    height: calc(100vh - 73px);
+    height: calc(100vh - 42px);
     overflow-x: scroll;
     overflow-y: hidden;
 }
@@ -43,19 +43,73 @@ rect {
     width: 100px;
     flex: none;
     border-right: 2px solid #ccc;
+
+    .channel {
+        cursor: pointer;
+
+        rect {
+            fill: #2d2d2d;
+            stroke: #3d3d3d;
+        }
+
+        &:hover rect {
+            fill: #3d3d3d;
+        }
+    }
+
+    .channel-name {
+        color: white;
+        padding: 4px 8px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    image {
+        object-fit: contain;
+        background: #2d2d2d;
+    }
 }
 
-.channel-name {
+/* .channel-name {
     margin: 0 5px;
     text-align: center;
-}
+} */
 
 #epg-navigation {
     display: flex;
     background-color: white;
-    margin-top: 30px;
     border-bottom: 2px solid #fff;
     align-items: center;
+}
+
+#epg-svg {
+    .program {
+        cursor: pointer;
+
+        rect {
+            fill: #2d2d2d;
+            stroke: #3d3d3d;
+        }
+
+        &:hover rect {
+            fill: #3d3d3d;
+        }
+    }
+
+    .program-title {
+        color: white;
+        padding: 4px 8px;
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        pointer-events: none;
+    }
 }
 
 .today-date {

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { Component, inject, Inject } from '@angular/core';
 import {
     FormControl,
     ReactiveFormsModule,
@@ -13,14 +13,17 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
+import { isTauri } from '@tauri-apps/api/core';
 import { firstValueFrom } from 'rxjs';
 import { Playlist } from '../../../../../shared/playlist.interface';
-import { DataService } from '../../../services/data.service';
+import { DatabaseService } from '../../../services/database.service';
 import { PlaylistsService } from '../../../services/playlists.service';
 import { PlaylistMeta } from '../../../shared/playlist-meta.type';
 import * as PlaylistActions from '../../../state/actions';
+import { XtreamStore } from '../../../xtream-tauri/xtream.store';
 
 @Component({
     selector: 'app-playlist-info',
@@ -32,7 +35,7 @@ import * as PlaylistActions from '../../../state/actions';
             }
         `,
     ],
-    providers: [DatePipe],
+    providers: [DatePipe, XtreamStore],
     imports: [
         TranslateModule,
         MatButtonModule,
@@ -46,30 +49,32 @@ import * as PlaylistActions from '../../../state/actions';
     standalone: true,
 })
 export class PlaylistInfoComponent {
-    /** Flag that returns true if application runs in electron-based environment */
-    isElectron = this.dataService.isElectron;
+    isTauri = isTauri();
 
     /** Playlist object */
-    playlist: Playlist;
+    playlist: Playlist & { id: string };
 
     /** Form group with playlist details */
     playlistDetails: UntypedFormGroup;
+    xtreamStore = inject(XtreamStore);
 
     constructor(
         private datePipe: DatePipe,
         private formBuilder: UntypedFormBuilder,
-        private dataService: DataService,
-        @Inject(MAT_DIALOG_DATA) playlist: Playlist,
-        private playlistService: PlaylistsService,
-        private store: Store
+        private playlistsService: PlaylistsService,
+        @Inject(MAT_DIALOG_DATA) public playlistData: Playlist & { id: string },
+        private store: Store,
+        private databaseService: DatabaseService,
+        private snackBar: MatSnackBar
     ) {
-        this.playlist = playlist;
+        this.playlist = playlistData;
+        this.createForm();
     }
 
     /**
      * Create the form and set initial data on component init
      */
-    ngOnInit(): void {
+    createForm(): void {
         this.playlistDetails = this.formBuilder.group({
             _id: this.playlist._id,
             title: new FormControl(this.playlist.title, Validators.required),
@@ -103,13 +108,58 @@ export class PlaylistInfoComponent {
         });
     }
 
-    saveChanges(playlist: PlaylistMeta): void {
-        this.store.dispatch(PlaylistActions.updatePlaylistMeta({ playlist }));
+    async saveChanges(playlist: PlaylistMeta): Promise<void> {
+        try {
+            // if xtream
+            if (
+                this.playlist &&
+                this.playlist.username &&
+                this.playlist.password &&
+                this.playlist.serverUrl
+            ) {
+                const success =
+                    await this.databaseService.updateXtreamPlaylistDetails({
+                        id: this.playlist._id,
+                        title: playlist.title,
+                        username: playlist.username,
+                        password: playlist.password,
+                        serverUrl: playlist.serverUrl,
+                    });
+
+                if (!success) {
+                    throw new Error('Failed to update playlist in database');
+                }
+
+                // Update the currentPlaylist in XtreamStore
+                this.xtreamStore.updatePlaylist({
+                    name: playlist.title,
+                    username: playlist.username,
+                    password: playlist.password,
+                    serverUrl: playlist.serverUrl,
+                });
+            }
+
+            // Dispatch store action to update UI
+            this.store.dispatch(
+                PlaylistActions.updatePlaylistMeta({ playlist })
+            );
+
+            this.snackBar.open(
+                'Playlist details updated successfully',
+                'Close',
+                { duration: 3000 }
+            );
+        } catch (error) {
+            console.error('Error updating playlist:', error);
+            this.snackBar.open('Error updating playlist details', 'Close', {
+                duration: 3000,
+            });
+        }
     }
 
     async exportPlaylist() {
         const playlistAsString = await firstValueFrom(
-            this.playlistService.getRawPlaylistById(this.playlist._id)
+            this.playlistsService.getRawPlaylistById(this.playlist._id)
         );
         const element = document.createElement('a');
         element.setAttribute(

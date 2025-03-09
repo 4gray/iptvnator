@@ -1,20 +1,31 @@
-<div mat-subheader>{{ 'EPG.TITLE' | translate }}</div>
+<div class="epg-title">{{ 'EPG.TITLE' | translate }}</div>
 <mat-list>
     @for (item of epgItems; track $index) {
-        <mat-list-item [lines]="3">
+        <mat-list-item
+            [lines]="3"
+            [class.current-program]="isCurrentProgram(item)"
+        >
             <div class="title" matListItemTitle>{{ item.title }}</div>
             <div class="description" matListItemLine>
                 {{ item.description }}
             </div>
             <div matListItemLine>
                 {{ item.start | date: 'HH:mm' }} -
-                {{ item.end | date: 'HH:mm (dd.MM.yyyy)' }}
+                {{ item.stop ?? item.end | date: 'HH:mm (dd.MM.yyyy)' }}
             </div>
             <span matListItemMeta>
                 <button mat-icon-button (click)="showDetails(item)">
                     <mat-icon>info</mat-icon>
                 </button>
             </span>
+            @if (isCurrentProgram(item)) {
+                <div class="progress-container">
+                    <div
+                        class="progress"
+                        [style.width.%]="getProgress(item)"
+                    ></div>
+                </div>
+            }
         </mat-list-item>
     }
 

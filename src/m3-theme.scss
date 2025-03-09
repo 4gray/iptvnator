@@ -9,148 +9,23 @@ $my-typography: mat.m2-define-typography-config();
 
 // Note: Color palettes are generated from primary: #ffffff
 $_palettes: (
-  primary: (
-    0: #000000,
-    10: #1a1c1c,
-    20: #2f3131,
-    25: #3a3c3c,
-    30: #454747,
-    35: #515353,
-    40: #5d5f5f,
-    50: #767777,
-    60: #909191,
-    70: #aaabab,
-    80: #c6c6c7,
-    90: #e2e2e2,
-    95: #f0f1f1,
-    98: #f9f9f9,
-    99: #fcfcfc,
-    100: #ffffff,
-  ),
-  secondary: (
-    0: #000000,
-    10: #1b1c1c,
-    20: #303030,
-    25: #3b3b3b,
-    30: #474747,
-    35: #525252,
-    40: #5e5e5e,
-    50: #777777,
-    60: #919090,
-    70: #acabab,
-    80: #c8c6c6,
-    90: #e4e2e2,
-    95: #f2f0f0,
-    98: #fbf9f8,
-    99: #fefcfb,
-    100: #ffffff,
-  ),
-  tertiary: (
-    0: #000000,
-    10: #1a1c1c,
-    20: #2f3131,
-    25: #3a3c3c,
-    30: #454747,
-    35: #515353,
-    40: #5d5f5f,
-    50: #767777,
-    60: #909191,
-    70: #aaabab,
-    80: #c6c6c7,
-    90: #e2e2e2,
-    95: #f0f1f1,
-    98: #f9f9f9,
-    99: #fcfcfc,
-    100: #ffffff,
-  ),
-  neutral: (
-    0: #000000,
-    10: #1b1c1c,
-    20: #313030,
-    25: #3c3b3b,
-    30: #474646,
-    35: #535252,
-    40: #5f5e5e,
-    50: #787776,
-    60: #929090,
-    70: #adabaa,
-    80: #c9c6c5,
-    90: #e5e2e1,
-    95: #f4f0ef,
-    98: #fcf8f8,
-    99: #f6feff,
-    100: #ffffff,
-    4: #0e0e0e,
-    6: #141313,
-    12: #201f1f,
-    17: #2a2a2a,
-    22: #353434,
-    24: #3a3939,
-    87: #ddd9d9,
-    92: #ebe7e7,
-    94: #f1edec,
-    96: #f6f3f2,
-  ),
-  neutral-variant: (
-    0: #000000,
-    10: #181c1d,
-    20: #2d3132,
-    25: #383c3d,
-    30: #444748,
-    35: #4f5354,
-    40: #5b5f60,
-    50: #747878,
-    60: #8e9192,
-    70: #a8acac,
-    80: #c4c7c8,
-    90: #e0e3e3,
-    95: #eef1f2,
-    98: #f7fafa,
-    99: #fafdfd,
-    100: #ffffff,
-  ),
-  error: (
-    0: #000000,
-    10: #410002,
-    20: #690005,
-    25: #7e0007,
-    30: #93000a,
-    35: #a80710,
-    40: #ba1a1a,
-    50: #de3730,
-    60: #ff5449,
-    70: #ff897d,
-    80: #ffb4ab,
-    90: #ffdad6,
-    95: #ffedea,
-    98: #fff8f7,
-    99: #fffbff,
-    100: #ffffff,
-  ),
+  primary: mat.$blue-palette,
+  tertiary: mat.$red-palette,
 );
 
-$_rest: (
-  secondary: map.get($_palettes, secondary),
-  neutral: map.get($_palettes, neutral),
-  neutral-variant: map.get($_palettes,  neutral-variant),
-  error: map.get($_palettes, error),
-);
-$_primary: map.merge(map.get($_palettes, primary), $_rest);
-$_tertiary: map.merge(map.get($_palettes, tertiary), $_rest);
+$_primary: map.get($_palettes, primary);
 
 $light-theme: mat.define-theme((
   color: (
     theme-type: light,
     primary: $_primary,
-    tertiary: $_tertiary,
   ),
 ));
 
 $dark-theme: mat.define-theme((
   color: (
     theme-type: dark,
-    primary: $_tertiary,
-    tertiary: $_tertiary,
+    primary: $_primary,
   ),
 ));
 
@@ -160,16 +35,4 @@ html {
   .dark-theme {
     @include mat.all-component-colors($dark-theme);
   }
-  
-  /* // Apply the dark theme by default
-  @include mat.core-theme($dark-theme);
-  @include mat.button-theme($dark-theme);
-
-  // Apply the light theme only when the user prefers light themes.
-  @media (prefers-color-scheme: light) {
-    // Use the `-color` mixins to only apply color styles without reapplying the same
-    // typography and density styles.
-    @include mat.core-color($light-theme);
-    @include mat.button-color($light-theme);
-  } */
 }

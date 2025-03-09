@@ -36,6 +36,11 @@
                 'CHANNELS.FAVORITES' | translate
             }}</span>
         </button>
+
+        <button mat-button (click)="openSettings()">
+            <mat-icon>settings</mat-icon>
+            <span class="button-label">{{ 'MENU.SETTINGS' | translate }}</span>
+        </button>
     </div>
 </div>
 <div id="sub-panel">
@@ -59,11 +64,7 @@
                 [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
             >
                 <mat-icon>
-                    {{
-                        isFavoriteStream
-                            ? 'star'
-                            : 'star_outline'
-                    }}
+                    {{ isFavoriteStream ? 'star' : 'star_outline' }}
                 </mat-icon>
             </button>
         </div>
@@ -91,9 +92,7 @@
         </div>
     </div>
     <mat-menu #sortPlaylistMenu="matMenu">
-        <section
-            (click)="$event.stopPropagation()"
-        >
+        <section (click)="$event.stopPropagation()">
             <button mat-menu-item (click)="setSortType('date')">
                 <mat-icon>calendar_today</mat-icon>
                 <span>{{ 'CHANNELS.SORT_BY_DATE' | translate }}</span>
