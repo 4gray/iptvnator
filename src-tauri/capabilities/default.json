@@ -46,6 +46,9 @@
         "core:webview:allow-create-webview-window",
         "sql:default",
         "sql:allow-execute",
-        "fs:allow-write-file"
+        "fs:allow-write-file",
+        "fs:read-all",
+        "fs:allow-data-read",
+        "fs:allow-data-read-recursive"
     ]
 }
