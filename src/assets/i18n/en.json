@@ -137,7 +137,8 @@
     "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
     "REMOVE_DIALOG": {
       "TITLE": "Remove all playlists",
-      "MESSAGE": "Are you sure you want to delete all playlist from the application?"
+      "MESSAGE": "Are you sure you want to delete all playlist from the application?",
+      "SUCESS": "Playlist was removed successfully"
     },
     "IMPORT_ERROR": "Import error, please try with another file.",
     "PLAYLISTS_REMOVED": "All playlists were removed.",

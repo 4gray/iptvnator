@@ -226,7 +226,9 @@ export class RecentPlaylistsComponent implements OnDestroy {
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
-            onConfirm: (): void => this.removePlaylist(playlistId),
+            onConfirm: () => {
+                this.removePlaylist(playlistId);
+            },
         });
     }
 
@@ -234,9 +236,18 @@ export class RecentPlaylistsComponent implements OnDestroy {
      * Removes the provided playlist from the database
      * @param playlistId playlist id to remove
      */
-    removePlaylist(playlistId: string) {
-        this.databaseService.deletePlaylist(playlistId);
-        this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
+    async removePlaylist(playlistId: string) {
+        const deleted = await this.databaseService.deletePlaylist(playlistId);
+        if (deleted) {
+            this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
+            this.snackBar.open(
+                this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS'),
+                null,
+                {
+                    duration: 2000,
+                }
+            );
+        }
     }
 
     /**

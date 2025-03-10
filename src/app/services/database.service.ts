@@ -67,30 +67,40 @@ export class DatabaseService {
             await db.execute('BEGIN TRANSACTION');
 
             try {
-                // Delete from recently_viewed table (related to content which is related to playlist)
+                // First, delete favorites related to the playlist to reduce foreign key checks
                 await db.execute(
-                    `
-                    DELETE FROM recently_viewed 
-                    WHERE content_id IN (
-                        SELECT c.id 
-                        FROM content c 
-                        JOIN categories cat ON c.category_id = cat.id 
-                        WHERE cat.playlist_id = ?
-                    )
-                `,
+                    'DELETE FROM favorites WHERE playlist_id = ?',
                     [playlistId]
                 );
 
-                // Delete content related to the playlist's categories
+                // Delete recently_viewed entries directly using playlist_id
                 await db.execute(
-                    `
-                    DELETE FROM content 
-                    WHERE category_id IN (
-                        SELECT id FROM categories WHERE playlist_id = ?
-                    )
-                `,
+                    'DELETE FROM recently_viewed WHERE playlist_id = ?',
                     [playlistId]
                 );
+
+                // Get category IDs first to speed up content deletion (avoids subquery)
+                const categories = await db.select<{ id: number }[]>(
+                    'SELECT id FROM categories WHERE playlist_id = ?',
+                    [playlistId]
+                );
+
+                if (categories.length > 0) {
+                    // Create a list of category IDs for the IN clause
+                    const categoryIds = categories.map((cat) => cat.id);
+
+                    // Delete content in batches if there are many categories
+                    const BATCH_SIZE = 20;
+                    for (let i = 0; i < categoryIds.length; i += BATCH_SIZE) {
+                        const batchIds = categoryIds.slice(i, i + BATCH_SIZE);
+                        const placeholders = batchIds.map(() => '?').join(',');
+
+                        await db.execute(
+                            `DELETE FROM content WHERE category_id IN (${placeholders})`,
+                            batchIds
+                        );
+                    }
+                }
 
                 // Delete categories related to the playlist
                 await db.execute(
@@ -105,9 +115,11 @@ export class DatabaseService {
 
                 // Commit the transaction
                 await db.execute('COMMIT');
+                console.log('Playlist deleted successfully');
                 return true;
             } catch (error) {
                 // If any error occurs, rollback the transaction
+                console.error('Error in transaction, rolling back:', error);
                 await db.execute('ROLLBACK');
                 throw error;
             }

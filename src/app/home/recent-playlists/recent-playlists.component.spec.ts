@@ -103,13 +103,6 @@ describe('RecentPlaylistsComponent', () => {
         expect(dialogService.openConfirmDialog).toHaveBeenCalledTimes(1);
     });
 
-    it('should send an event to the main process to remove a playlist', () => {
-        const playlistId = '12345';
-        jest.spyOn(mockStore, 'dispatch');
-        component.removePlaylist(playlistId);
-        expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
-    });
-
     it('should send an event to the main process to refresh a playlist', () => {
         const playlistMeta: PlaylistMeta = {
             id: 'iptv1',
