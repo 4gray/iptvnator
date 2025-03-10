@@ -1,33 +1,35 @@
-<div id="playlists-navigation">
-    <div class="current-playlist">
-        <div class="left">
-            <button mat-icon-button matTooltip="Back" (click)="goBack()">
-                <mat-icon>arrow_back_ios</mat-icon>
-            </button>
-            <div class="playlist-info">
-                <div class="name">
-                    @if (sidebarView === 'CHANNELS') {
-                        {{ playlistTitle$ | async }}
-                    } @else {
-                        {{ 'HOME.PLAYLISTS.MY_PLAYLISTS' | translate }}
-                    }
-                </div>
-                <div class="channels-count">
-                    {{
-                        sidebarView === 'CHANNELS'
-                            ? channels?.length +
-                              ' ' +
-                              ('HOME.PLAYLISTS.CHANNELS' | translate)
-                            : ('HOME.PLAYLISTS.MY_PLAYLISTS_SUBTITLE'
-                              | translate)
-                    }}
-                </div>
-            </div>
-        </div>
-
+<div class="current-playlist">
+    <div class="left">
         <button
             mat-icon-button
-            *ngIf="sidebarView === 'CHANNELS'"
+            [matTooltip]="'SETTINGS.BACK_TO_HOME' | translate"
+            (click)="goBack()"
+        >
+            <mat-icon>arrow_back_ios</mat-icon>
+        </button>
+        <div class="playlist-info">
+            <div class="name">
+                @if (sidebarView === 'CHANNELS') {
+                    {{ playlistTitle$ | async }}
+                } @else {
+                    {{ 'HOME.PLAYLISTS.MY_PLAYLISTS' | translate }}
+                }
+            </div>
+            <div class="channels-count">
+                {{
+                    sidebarView === 'CHANNELS'
+                        ? channels()?.length +
+                          ' ' +
+                          ('HOME.PLAYLISTS.CHANNELS' | translate)
+                        : ('HOME.PLAYLISTS.MY_PLAYLISTS_SUBTITLE' | translate)
+                }}
+            </div>
+        </div>
+    </div>
+
+    @if (sidebarView === 'CHANNELS') {
+        <button
+            mat-icon-button
             routerLink="/"
             [matTooltip]="
                 'CHANNELS.UPLOAD_OR_SELECT_OTHER_PLAYLIST' | translate
@@ -35,16 +37,14 @@
         >
             <mat-icon>playlist_add</mat-icon>
         </button>
-    </div>
+    }
 </div>
-<!-- <mat-divider /> -->
 @if (sidebarView === 'CHANNELS') {
-    <app-channel-list-container [channelList]="channels" />
+    <app-channel-list-container [channelList]="channels()" />
 } @else {
     <app-recent-playlists
         class="recent-playlists"
         [sidebarMode]="true"
-        [class.electron]="dataService.isElectron"
         (playlistClicked)="selectPlaylist()"
     />
 }

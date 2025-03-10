@@ -1,15 +1,13 @@
-import { AsyncPipe, NgIf } from '@angular/common';
-import { Component, Input } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { AsyncPipe } from '@angular/common';
+import { Component, inject, input } from '@angular/core';
+import { MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Channel } from '../../../../../../shared/channel.interface';
 import { RecentPlaylistsComponent } from '../../../../home/recent-playlists/recent-playlists.component';
-import { DataService } from '../../../../services/data.service';
 import * as PlaylistActions from '../../../../state/actions';
 import { selectPlaylistTitle } from '../../../../state/selectors';
 import { SidebarView } from '../video-player.component';
@@ -21,32 +19,24 @@ import { ChannelListContainerComponent } from './../../channel-list-container/ch
     imports: [
         AsyncPipe,
         ChannelListContainerComponent,
-        MatButtonModule,
-        MatDividerModule,
-        MatIconModule,
-        MatTooltipModule,
-        NgIf,
+        MatIcon,
+        MatIconButton,
+        MatTooltip,
         RecentPlaylistsComponent,
-        TranslatePipe,
         RouterLink,
+        TranslatePipe,
     ],
 })
 export class SidebarComponent {
-    @Input() channels: Channel[] = [];
+    readonly channels = input<Channel[]>([]);
 
-    isElectron = this.dataService.isElectron;
+    private readonly router = inject(Router);
+    private readonly store = inject(Store);
 
-    playlistTitle$ = this.store.select(selectPlaylistTitle);
-
+    readonly playlistTitle$ = this.store.select(selectPlaylistTitle);
     sidebarView: SidebarView = 'CHANNELS';
 
-    constructor(
-        public dataService: DataService,
-        private router: Router,
-        private store: Store
-    ) {}
-
-    goBack(): void {
+    goBack() {
         if (this.sidebarView === 'PLAYLISTS') {
             this.store.dispatch(PlaylistActions.resetActiveChannel());
             this.router.navigate(['/']);
