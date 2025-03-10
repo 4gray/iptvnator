@@ -13,6 +13,7 @@ import { StoreModule } from '@ngrx/store';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
+import { isTauri } from '@tauri-apps/api/core';
 import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { NgxWhatsNewModule } from 'ngx-whats-new';
@@ -31,17 +32,6 @@ import { playlistReducer } from './state/reducers';
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
     return new TranslateHttpLoader(http, './assets/i18n/', '.json');
-}
-
-/**
- * Returns true if the application runs in the electron based environment.
- */
-function isElectron() {
-    return !!(window && window.process && (window.process as any).type);
-}
-
-function isTauri() {
-    return '__TAURI_INTERNALS__' in window || '__TAURI__' in window;
 }
 
 /**
@@ -78,7 +68,7 @@ export function DataFactory() {
             },
         }),
         ServiceWorkerModule.register('ngsw-worker.js', {
-            enabled: AppConfig.production && !isElectron(),
+            enabled: AppConfig.production && !isTauri(),
             registrationStrategy: 'registerWhenStable:30000',
         }),
         StoreModule.forRoot({
