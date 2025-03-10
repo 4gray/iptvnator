@@ -43,7 +43,9 @@
         "SERVER_URL": "Server URL",
         "USERNAME": "Username",
         "PASSWORD": "Password",
-        "MAC_ADDRESS": "Mac Address"
+        "MAC_ADDRESS": "Mac Address",
+        "PLAYLIST_EXPORT_SUCCESS": "Playlist was exported successfully.",
+        "PLAYLIST_EXPORT_ERROR": "Error: Playlist export failed."
       },
       "REMOVE_DIALOG": {
         "TITLE": "Remove playlist",
@@ -55,7 +57,8 @@
       "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
       "MY_PLAYLISTS": "My playlists",
       "MY_PLAYLISTS_SUBTITLE": "all available playlists",
-      "PLAYLIST_UPDATE_SUCCESS": "Success! The playlist was successfully updated."
+      "PLAYLIST_UPDATE_SUCCESS": "Success! The playlist was successfully updated.",
+      "PLAYLIST_UPDATE_ERROR": "Error updating playlist details."
     },
     "FILE_UPLOAD": {
       "DRAG_DROP": "Drag & drop files here",
