@@ -49,7 +49,8 @@
       },
       "REMOVE_DIALOG": {
         "TITLE": "Remove playlist",
-        "MESSAGE": "Are you sure you want to delete this playlist completely?"
+        "MESSAGE": "Are you sure you want to delete this playlist completely?",
+        "SUCCESS": "Playlist was removed successfully"
       },
       "UPDATED": "Updated",
       "REFRESH": "Refresh playlist",
@@ -140,8 +141,7 @@
     "REMOVE_ALL_DESCRIPTION": "It will remove all existing playlists from the application.",
     "REMOVE_DIALOG": {
       "TITLE": "Remove all playlists",
-      "MESSAGE": "Are you sure you want to delete all playlist from the application?",
-      "SUCESS": "Playlist was removed successfully"
+      "MESSAGE": "Are you sure you want to delete all playlist from the application?"
     },
     "IMPORT_ERROR": "Import error, please try with another file.",
     "PLAYLISTS_REMOVED": "All playlists were removed.",
