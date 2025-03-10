@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { Component } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
@@ -37,7 +37,7 @@ import { SearchResultsComponent } from './xtream-tauri/search-results/search-res
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
-    standalone: false
+    standalone: false,
 })
 export class AppComponent {
     /** Visibility flag of the "what is new" modal dialog */
@@ -68,7 +68,6 @@ export class AppComponent {
         private dataService: DataService,
         private dialog: MatDialog,
         private epgService: EpgService,
-        private ngZone: NgZone,
         private playlistService: PlaylistsService,
         private router: Router,
         private store: Store,
@@ -166,7 +165,7 @@ export class AppComponent {
     }
 
     async triggerAutoUpdateMechanism() {
-        if (this.dataService.isElectron) {
+        if (isTauri()) {
             const playlistForAutoUpdate = await firstValueFrom(
                 this.playlistService.getPlaylistsForAutoUpdate()
             );
@@ -183,19 +182,13 @@ export class AppComponent {
      */
     setRendererListeners(): void {
         this.commandsList.forEach((command) => {
-            if (this.dataService.isElectron) {
-                this.dataService.listenOn(command.id, () =>
-                    this.ngZone.run((data) => command.callback(data))
-                );
-            } else {
-                const cb = (response) => {
-                    if (response.data.type === command.id) {
-                        command.callback(response.data);
-                    }
-                };
-                this.dataService.listenOn(command.id, cb);
-                this.listeners.push(cb);
-            }
+            const cb = (response) => {
+                if (response.data.type === command.id) {
+                    command.callback(response.data);
+                }
+            };
+            this.dataService.listenOn(command.id, cb);
+            this.listeners.push(cb);
         });
     }
 

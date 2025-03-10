@@ -5,6 +5,8 @@ import { readTextFile } from '@tauri-apps/plugin-fs';
 import { fetch } from '@tauri-apps/plugin-http';
 import { parse } from 'iptv-playlist-parser';
 import {
+    AUTO_UPDATE_PLAYLISTS,
+    AUTO_UPDATE_PLAYLISTS_RESPONSE,
     EPG_GET_PROGRAM_DONE,
     ERROR,
     PLAYLIST_PARSE_BY_URL,
@@ -107,6 +109,30 @@ export class TauriService extends DataService {
             window.postMessage({
                 type: EPG_GET_PROGRAM_DONE,
                 payload,
+            });
+        } else if (type === AUTO_UPDATE_PLAYLISTS) {
+            const playlists = [];
+            const data = payload as Playlist[];
+
+            for await (const item of data) {
+                if (item.filePath) {
+                    const playlist = await readTextFile(item.filePath);
+                    const parsedPlaylist = parse(playlist);
+                    const playlistObject = createPlaylistObject(
+                        item.title,
+                        parsedPlaylist,
+                        item.filePath,
+                        'FILE'
+                    );
+                    playlists.push({ ...playlistObject, _id: item._id });
+                }
+            }
+            window.postMessage({
+                type: AUTO_UPDATE_PLAYLISTS_RESPONSE,
+                payload: {
+                    message: 'Success! The playlists were successfully updated',
+                    playlists,
+                },
             });
         } else {
             console.log('Unknown type', type);

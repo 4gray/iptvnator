@@ -134,10 +134,12 @@ export class RecentPlaylistsComponent implements OnDestroy {
         },
         {
             id: AUTO_UPDATE_PLAYLISTS_RESPONSE,
-            execute: (playlists: Playlist[]) => {
+            execute: (response: {
+                payload: { message: string; playlists: Playlist[] };
+            }) => {
                 this.store.dispatch(
                     PlaylistActions.updateManyPlaylists({
-                        playlists,
+                        playlists: response.payload.playlists,
                     })
                 );
             },
