@@ -15,8 +15,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { isTauri } from '@tauri-apps/api/core';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { firstValueFrom } from 'rxjs';
 import { Playlist } from '../../../../../shared/playlist.interface';
 import { DatabaseService } from '../../../services/database.service';
@@ -64,7 +66,8 @@ export class PlaylistInfoComponent {
         @Inject(MAT_DIALOG_DATA) public playlistData: Playlist & { id: string },
         private store: Store,
         private databaseService: DatabaseService,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private translate: TranslateService
     ) {
         this.playlist = playlistData;
         this.createForm();
@@ -109,33 +112,14 @@ export class PlaylistInfoComponent {
 
     async saveChanges(playlist: PlaylistMeta): Promise<void> {
         try {
-            // if xtream
-            if (
+            const isXtream =
                 this.playlist &&
                 this.playlist.username &&
                 this.playlist.password &&
-                this.playlist.serverUrl
-            ) {
-                const success =
-                    await this.databaseService.updateXtreamPlaylistDetails({
-                        id: this.playlist._id,
-                        title: playlist.title,
-                        username: playlist.username,
-                        password: playlist.password,
-                        serverUrl: playlist.serverUrl,
-                    });
+                this.playlist.serverUrl;
 
-                if (!success) {
-                    throw new Error('Failed to update playlist in database');
-                }
-
-                // Update the currentPlaylist in XtreamStore
-                this.xtreamStore.updatePlaylist({
-                    name: playlist.title,
-                    username: playlist.username,
-                    password: playlist.password,
-                    serverUrl: playlist.serverUrl,
-                });
+            if (isXtream) {
+                await this.updateXtreamPlaylist(playlist);
             }
 
             // Dispatch store action to update UI
@@ -144,32 +128,99 @@ export class PlaylistInfoComponent {
             );
 
             this.snackBar.open(
-                'Playlist details updated successfully',
-                'Close',
+                this.translate.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
+                ),
+                this.translate.instant('CLOSE'),
                 { duration: 3000 }
             );
         } catch (error) {
             console.error('Error updating playlist:', error);
-            this.snackBar.open('Error updating playlist details', 'Close', {
-                duration: 3000,
-            });
+            this.snackBar.open(
+                this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'),
+                this.translate.instant('CLOSE'),
+                {
+                    duration: 3000,
+                }
+            );
         }
+    }
+
+    async updateXtreamPlaylist(playlist: PlaylistMeta) {
+        const success = await this.databaseService.updateXtreamPlaylistDetails({
+            id: this.playlist._id,
+            title: playlist.title,
+            username: playlist.username,
+            password: playlist.password,
+            serverUrl: playlist.serverUrl,
+        });
+
+        if (!success) {
+            throw new Error('Failed to update playlist in database');
+        }
+
+        this.xtreamStore.updatePlaylist({
+            name: playlist.title,
+            username: playlist.username,
+            password: playlist.password,
+            serverUrl: playlist.serverUrl,
+        });
     }
 
     async exportPlaylist() {
         const playlistAsString = await firstValueFrom(
             this.playlistsService.getRawPlaylistById(this.playlist._id)
         );
-        const element = document.createElement('a');
-        element.setAttribute(
-            'href',
-            'data:text/plain;charset=utf-8,' +
-                encodeURIComponent(playlistAsString)
-        );
-        element.setAttribute('download', this.playlist.title || 'exported.m3u');
-        element.style.display = 'none';
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
+
+        if (this.isTauri) {
+            try {
+                const savePath = await save({
+                    filters: [
+                        {
+                            name: 'Playlist',
+                            extensions: ['m3u8'],
+                        },
+                    ],
+                    defaultPath: `${this.playlist.title || 'exported'}.m3u8`,
+                });
+
+                if (savePath) {
+                    await writeTextFile(savePath, playlistAsString);
+                    this.snackBar.open(
+                        this.translate.instant(
+                            'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_EXPORT_SUCCESS'
+                        ),
+                        this.translate.instant('CLOSE'),
+                        { duration: 3000 }
+                    );
+                }
+            } catch (error) {
+                console.error('Failed to export playlist:', error);
+                this.snackBar.open(
+                    this.translate.instant(
+                        'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_PLAYLIST_FAILED'
+                    ),
+                    this.translate.instant('CLOSE'),
+                    {
+                        duration: 3000,
+                    }
+                );
+            }
+        } else {
+            const element = document.createElement('a');
+            element.setAttribute(
+                'href',
+                'data:text/plain;charset=utf-8,' +
+                    encodeURIComponent(playlistAsString)
+            );
+            element.setAttribute(
+                'download',
+                this.playlist.title || 'exported.m3u'
+            );
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
     }
 }
