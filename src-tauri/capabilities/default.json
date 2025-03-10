@@ -49,6 +49,11 @@
         "fs:allow-write-file",
         "fs:read-all",
         "fs:allow-data-read",
-        "fs:allow-data-read-recursive"
+        "fs:allow-data-read-recursive",
+        "fs:allow-write-text-file",
+        {
+            "identifier": "fs:scope",
+            "allow": ["$APPDATA/**", "$RESOURCE/../**", "**"]
+        }
     ]
 }
