@@ -4,7 +4,7 @@
     "version": "1.0.0-5",
     "identifier": "com.4gray.dev",
     "build": {
-        "frontendDist": "../dist",
+        "frontendDist": "../dist/browser",
         "devUrl": "http://localhost:4200",
         "beforeDevCommand": "npm run serve",
         "beforeBuildCommand": "npm run build:prod"
