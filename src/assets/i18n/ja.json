@@ -196,8 +196,8 @@
     "FETCH_SUCCESS": "EPGの取得に成功しました"
   },
   "LANGUAGES": {
-    "ARABIC": "العربية",
-    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
+    "ARABIC": "アラビア語",
+    "MOROCCAN_ARABIC": "アラビア語（モロッコ方言）",
     "ENGLISH": "英語",
     "KOREAN": "韓国語",
     "RUSSIAN": "ロシア語",
