@@ -170,6 +170,8 @@
     }
   },
   "LANGUAGES": {
+    "ARABIC": "العربية",
+    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
     "ENGLISH": "English",
     "FRENCH": "Français",
     "KOREAN": "한국어",

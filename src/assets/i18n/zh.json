@@ -160,6 +160,8 @@
     }
   },
   "LANGUAGES": {
+    "ARABIC": "العربية",
+    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
     "CHINESE": "简体中文",
     "TRADITIONAL_CHINESE": "繁體中文",
     "ENGLISH": "English",

@@ -196,6 +196,8 @@
     "FETCH_SUCCESS": "EPG verileri başarıyla alındı"
   },
   "LANGUAGES": {
+    "ARABIC": "العربية",
+    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
     "ENGLISH": "İngilizce",
     "KOREAN": "한국어",
     "RUSSIAN": "Русский",
