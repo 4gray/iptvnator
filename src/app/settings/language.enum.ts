@@ -13,4 +13,5 @@ export enum Language {
     ITALIAN = 'it',
     TURKISH = 'tr',
     JAPANESE = 'ja',
+    DUTCH = 'nl',
 }
