@@ -204,6 +204,8 @@
     "FETCH_SUCCESS": "EPG scaricato correttamente"
   },
   "LANGUAGES": {
+    "ARABIC": "العربية",
+    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
     "ENGLISH": "English",
     "KOREAN": "한국어",
     "RUSSIAN": "Русский",

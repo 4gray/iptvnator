@@ -2,6 +2,8 @@
  * Enum with all languages that are available in the application
  */
 export enum Language {
+    ARABIC = 'ar',
+    MOROCCAN_ARABIC = 'ary',
     ENGLISH = 'en',
     KOREAN = 'ko',
     RUSSIAN = 'ru',
