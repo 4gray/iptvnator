@@ -27,6 +27,7 @@ import {
 } from 'ng-mocks';
 import { DataService } from '../services/data.service';
 import { HeaderComponent } from '../shared/components';
+import { StreamFormat } from './stream-format.enum';
 import { Language } from './language.enum';
 import { SettingsComponent } from './settings.component';
 import { VideoPlayer } from './settings.interface';
@@ -56,6 +57,7 @@ export class MockRouter {
 
 const DEFAULT_SETTINGS = {
     player: VideoPlayer.VideoJs,
+    streamFormat: StreamFormat.TsStreamFormat,
     language: Language.ENGLISH,
     showCaptions: false,
     theme: Theme.LightTheme,

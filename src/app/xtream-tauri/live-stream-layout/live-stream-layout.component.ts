@@ -78,7 +78,8 @@ export class LiveStreamLayoutComponent implements OnInit {
     playLive(item: any) {
         const { serverUrl, username, password } =
             this.xtreamStore.currentPlaylist();
-        const streamUrl = `${serverUrl}/live/${username}/${password}/${item.xtream_id}.m3u8`;
+        const streamFormat = this.settingsStore.streamFormat();
+        const streamUrl = `${serverUrl}/live/${username}/${password}/${item.xtream_id}.${streamFormat}`;
         // TODO: offer option to select TS or m3u8
         this.openPlayer(streamUrl, item.title, item.poster_url);
         this.xtreamStore.setSelectedItem(item);

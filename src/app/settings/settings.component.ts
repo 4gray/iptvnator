@@ -49,6 +49,7 @@ import { HeaderComponent } from '../shared/components/header/header.component';
 import * as PlaylistActions from '../state/actions';
 import { selectIsEpgAvailable } from '../state/selectors';
 import { SettingsService } from './../services/settings.service';
+import { StreamFormat } from './stream-format.enum';
 import { Language } from './language.enum';
 import { VideoPlayer } from './settings.interface';
 import { Theme } from './theme.enum';
@@ -76,6 +77,9 @@ export class SettingsComponent implements OnInit {
     @Input() isDialog = false;
     /** List with available languages as enum */
     languageEnum = Language;
+
+    /** List with allowed formats as enum */
+    streamFormatEnum = StreamFormat;
 
     /** Flag that indicates whether the app runs in electron environment */
     isTauri = this.dataService.getAppEnvironment() === 'tauri';
@@ -130,6 +134,7 @@ export class SettingsComponent implements OnInit {
     settingsForm = this.formBuilder.group({
         player: [VideoPlayer.VideoJs],
         ...(this.isTauri ? { epgUrl: new FormArray([]) } : {}),
+        streamFormat: StreamFormat.TsStreamFormat,
         language: Language.ENGLISH,
         showCaptions: false,
         theme: Theme.LightTheme,

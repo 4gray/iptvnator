@@ -70,7 +70,7 @@
                     </button>
                 </div>
             </div>
-            <mat-divider />
+        <mat-divider />
         </ng-container>
         <div class="row">
             <div class="column">
@@ -142,6 +142,31 @@
                 </div>
             </div>
         }
+        <mat-divider />
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.STREAM_FORMAT' | translate }}
+                <p>{{ 'SETTINGS.STREAM_FORMAT_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="column">
+                <mat-form-field appearance="outline">
+                    <mat-label>{{
+                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="streamFormat"
+                        data-test-id="select-stream-format"
+                    >
+                        <mat-option
+                            *ngFor="let streamFormat of streamFormatEnum | keyvalue"
+                            [value]="streamFormat.value"
+                            [attr.data-test-id]="streamFormat.value"
+                            >{{ streamFormat.value }}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        </div>
         <mat-divider />
         <div class="row">
             <div class="column">
