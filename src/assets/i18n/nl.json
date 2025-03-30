@@ -208,20 +208,6 @@
     },
     "FETCH_SUCCESS": "TV-Gids bijgewerkt"
   },
-  "LANGUAGES": {
-    "ENGLISH": "English",
-    "KOREAN": "한국어",
-    "RUSSIAN": "Русский",
-    "GERMAN": "Deutsch",
-    "SPANISH": "Español",
-    "CHINESE": "简体中文",
-    "TRADITIONAL_CHINESE": "繁體中文",
-    "FRENCH": "Français",
-    "ITALIAN": "Italiano",
-    "TURKISH": "Türkçe",
-    "JAPANESE": "日本語",
-    "DUTCH": "Nederlands" 
-  },
   "YES": "Ja",
   "NO": "Nee",
   "MENU": {

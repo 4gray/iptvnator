@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { catchError, map, Observable } from 'rxjs';
+import { catchError, firstValueFrom, map, Observable } from 'rxjs';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { Theme } from './../settings/theme.enum';
 
@@ -9,10 +9,27 @@ import { Theme } from './../settings/theme.enum';
     providedIn: 'root',
 })
 export class SettingsService {
+    private languages: Record<string, string> = {};
+
     constructor(
         private http: HttpClient,
         private storage: StorageMap
     ) {}
+
+    /**
+     * Loading default languages list from JSON file
+     */
+    async loadLanguages(): Promise<void> {
+        try {
+            this.languages = await firstValueFrom(this.http.get<Record<string, string>>('/assets/i18n/languages.json'));
+        } catch (error) {
+            console.error('Loading languages.json failed:', error);
+        }
+    }
+
+    getLanguages(): Record<string, string> {
+        return this.languages;
+    }
 
     /**
      * Changes the visual theme of the application

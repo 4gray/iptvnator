@@ -159,21 +159,6 @@
       "SHOW_PROGRAM_DETAILS": "이 프로그램에 대한 세부 정보 표시"
     }
   },
-  "LANGUAGES": {
-    "ARABIC": "العربية",
-    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
-    "ENGLISH": "English",
-    "KOREAN": "한국어",
-    "RUSSIAN": "Русский",
-    "GERMAN": "Deutsch",
-    "SPANISH": "Español",
-    "CHINESE": "简体中文",
-    "TRADITIONAL_CHINESE": "繁體中文",
-    "FRENCH": "Français",
-    "ITALIAN": "Italiano",
-    "TURKISH": "Türkçe",
-    "JAPANESE": "日本語"
-  },
   "YES": "Yes",
   "NO": "No",
   "MENU": {

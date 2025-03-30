@@ -110,9 +110,12 @@ export class AppComponent {
         }
     }
 
-    ngOnInit() {
+    async ngOnInit() {
         this.store.dispatch(PlaylistActions.loadPlaylists());
         this.translate.setDefaultLang(this.DEFAULT_LANG);
+
+        await this.settingsService.loadLanguages();
+        this.translate.setTranslation('en', { LANGUAGES: this.settingsService.getLanguages() }, true);
 
         this.setRendererListeners();
         this.initSettings();

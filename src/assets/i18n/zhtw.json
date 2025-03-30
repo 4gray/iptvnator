@@ -162,21 +162,6 @@
       "SHOW_PROGRAM_DETAILS": "顯示關於該節目的詳細資訊"
     }
   },
-  "LANGUAGES": {
-    "ARABIC": "العربية",
-    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
-    "CHINESE": "簡體中文",
-    "TRADITIONAL_CHINESE": "繁體中文",
-    "ENGLISH": "English",
-    "KOREAN": "한국어",
-    "RUSSIAN": "Русский",
-    "GERMAN": "Deutsch",
-    "SPANISH": "Español",
-    "FRENCH": "Français",
-    "ITALIAN": "Italiano",
-    "TURKISH": "Türkçe",
-    "JAPANESE": "日本語"
-  },
   "YES": "是",
   "NO": "否",
   "MENU": {

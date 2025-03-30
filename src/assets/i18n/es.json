@@ -170,21 +170,6 @@
       "SHOW_PROGRAM_DETAILS": "Mostrar detalles del programa"
     }
   },
-  "LANGUAGES": {
-    "ARABIC": "العربية",
-    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
-    "ENGLISH": "English",
-    "KOREAN": "한국어",
-    "RUSSIAN": "Русский",
-    "GERMAN": "Deutsch",
-    "SPANISH": "Español",
-    "CHINESE": "简体中文",
-    "TRADITIONAL_CHINESE": "繁體中文",
-    "FRENCH": "Français",
-    "ITALIAN": "Italiano",
-    "TURKISH": "Türkçe",
-    "JAPANESE": "日本語"
-  },
   "YES": "Sí",
   "NO": "No",
   "MENU": {
