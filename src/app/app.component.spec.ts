@@ -87,19 +87,29 @@ describe('AppComponent', () => {
         expect(component.DEFAULT_LANG).toEqual(Language.ENGLISH);
     });
 
-    it('should init component', () => {
-        jest.spyOn(translateService, 'setDefaultLang');
-        jest.spyOn(component, 'setRendererListeners');
-        jest.spyOn(component, 'initSettings');
-        jest.spyOn(component, 'handleWhatsNewDialog');
-        component.ngOnInit();
-        expect(translateService.setDefaultLang).toHaveBeenCalledWith(
-            defaultLanguage
-        );
-        expect(component.setRendererListeners).toHaveBeenCalledTimes(1);
-        expect(component.initSettings).toHaveBeenCalledTimes(1);
-        expect(component.handleWhatsNewDialog).toHaveBeenCalledTimes(1);
-    });
+    it('should init component', async () => {
+      jest.spyOn(translateService, 'setDefaultLang').mockImplementation();
+      jest.spyOn(translateService, 'setTranslation').mockImplementation();
+      jest.spyOn(component, 'setRendererListeners').mockImplementation();
+      jest.spyOn(component, 'initSettings').mockImplementation();
+      jest.spyOn(component, 'handleWhatsNewDialog').mockImplementation();
+      jest.spyOn(settingsService, 'loadLanguages').mockResolvedValue(undefined);
+      jest.spyOn(settingsService, 'getLanguages').mockReturnValue({ en: 'English', ru: 'Русский' });
+
+      await component.ngOnInit();
+
+      expect(settingsService.loadLanguages).toHaveBeenCalledTimes(1);
+      expect(translateService.setTranslation).toHaveBeenCalledWith(
+          'en',
+          { LANGUAGES: settingsService.getLanguages() },
+          true
+      );
+
+      expect(translateService.setDefaultLang).toHaveBeenCalledWith(defaultLanguage);
+      expect(component.setRendererListeners).toHaveBeenCalledTimes(1);
+      expect(component.initSettings).toHaveBeenCalledTimes(1);
+      expect(component.handleWhatsNewDialog).toHaveBeenCalledTimes(1);
+  });
 
     describe('Test ipc listeners and commands', () => {
         it('should set IPC listeners', () => {

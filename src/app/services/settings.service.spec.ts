@@ -1,4 +1,4 @@
-import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { inject, TestBed } from '@angular/core/testing';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { of } from 'rxjs';
@@ -7,11 +7,15 @@ import { STORE_KEY } from '../shared/enums/store-keys.enum';
 import { SettingsService } from './settings.service';
 
 describe('Service: Settings', () => {
+  let httpMock: HttpTestingController;
+
     beforeEach(() => {
         TestBed.configureTestingModule({
             providers: [SettingsService],
             imports: [HttpClientTestingModule],
         });
+
+        httpMock = TestBed.inject(HttpTestingController);
     });
 
     it('should create a service instance', inject(
@@ -76,4 +80,40 @@ describe('Service: Settings', () => {
             }
         ));
     });
+
+    describe('Test language loading and retrieval', () => {
+      jest.setTimeout(10000);
+
+      it('should load languages from JSON', inject(
+          [SettingsService, HttpTestingController],
+          async (service: SettingsService, httpMock: HttpTestingController) => {
+              const mockLanguages = { en: 'English', fr: 'French' };
+
+              const loadLanguagesPromise = service.loadLanguages();
+
+              const req = httpMock.expectOne('/assets/i18n/languages.json');
+              req.flush(mockLanguages);
+
+              await loadLanguagesPromise;
+
+              expect(service.getLanguages()).toEqual(mockLanguages);
+          }
+      ));
+
+      it('should return languages after loading', inject(
+          [SettingsService, HttpTestingController],
+          async (service: SettingsService, httpMock: HttpTestingController) => {
+              const mockLanguages = { en: 'English', fr: 'French' };
+
+              const loadLanguagesPromise = service.loadLanguages();
+
+              const req = httpMock.expectOne('/assets/i18n/languages.json');
+              req.flush(mockLanguages);
+
+              await loadLanguagesPromise;
+
+              expect(service.getLanguages()).toEqual(mockLanguages);
+          }
+      ));
+  });
 });
