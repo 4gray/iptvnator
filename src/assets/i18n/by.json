@@ -1,0 +1,284 @@
+{
+  "CLOSE": "Закрыць",
+  "PLAYLISTS": "Плэйлісты",
+  "HOME": {
+    "TITLE": "IPTVnator",
+    "SUBTITLE": "Выберыце плэйліст са спісу, дадайце новы з камп'ютара або загрузіце па спасылцы",
+    "TABS": {
+      "RECENTLY_ADDED": "Нядаўна дададзеныя плэйлісты",
+      "FILE_UPLOAD": "Загрузіць з камп'ютара",
+      "URL_UPLOAD": "Загрузіць па спасылцы",
+      "TEXT_IMPORT": "Імпартаваць з тэксту",
+      "STALKER_PORTAL_IMPORT": "Дадаць Stalker партал",
+      "XTREME_IMPORT": "Дадаць Xtreme Code"
+    },
+    "PLAYLISTS": {
+      "NO_PLAYLISTS": "Пакуль яшчэ не было дададзена ніводнага плэйліста",
+      "ADD_FIRST": "Вы можаце дадаць плэйлісты з суседніх укладак",
+      "ADDED_VIA_URL": "Быў дададзены па спасылцы:",
+      "ADDED_VIA_FILE": "Быў загружаны з камп'ютара",
+      "CHANNELS": "Каналаў",
+      "ADDED": "Дададзены",
+      "SHOW_DETAILS": "Паказаць інфармацыю аб плэйлісце",
+      "REMOVE": "Выдаліць плэйліст",
+      "SEARCH_PLAYLISTS": "Пошук па назве плэйліста",
+      "INFO_DIALOG": {
+        "PLAYLIST_DETAILS": "Падрабязная інфармацыя аб плэйлісце",
+        "TITLE": "Назва",
+        "FROM_URL": "Дададзены па спасылцы",
+        "IMPORT_DATE": "Дата імпарту",
+        "CHANNELS": "Колькасць каналаў",
+        "CLOSE": "Закрыць",
+        "SAVE": "Захаваць",
+        "USER_AGENT": "User agent",
+        "ORIGINAL_FILENAME": "Імя файла пры загрузцы",
+        "FILE_PATH": "Шлях да файла",
+        "UPDATE_FAILED": "Не ўдалося абнавіць плэйліст",
+        "AUTO_UPDATE": "Аўтаабнаўленне",
+        "AUTO_UPDATE_DESCRIPTION": "Калі актываваная функцыя аўтаабнаўлення, спіс прайгравання будзе абнаўляцца аўтаматычна пры кожным запуску праграмы.",
+        "CUSTOM_USER_AGENT": "Некаторыя IPTV правайдэры патрабуюць указанне пэўнага карыстальніцкага агента (User Agent) для прайгравання свайго плэйліста.",
+        "EXPORT_PLAYLIST": "Экспартаваць плэйліст (m3u)",
+        "PASSWORD": "Пароль",
+        "SERVER_URL": "URL-адрас сервера",
+        "USERNAME": "Імя карыстальніка",
+        "MAC_ADDRESS": "MAC-адрас"
+      },
+      "UPDATED": "Абноўлены",
+      "REFRESH": "Абнавіць плэйліст",
+      "REMOVE_DIALOG": {
+        "MESSAGE": "Вы ўпэўнены, што хочаце выдаліць гэты плэйліст?",
+        "TITLE": "Выдаліць плэйліст"
+      },
+      "GLOBAL_FAVORITES": "Усе фаварыты",
+      "GLOBAL_FAVORITES_DESCRIPTION": "Аўтаматычна згенераваны плэйліст, які ўключае ў сябе фаварыты з усіх плэйлістоў",
+      "MY_PLAYLISTS": "Мае плэйлісты",
+      "MY_PLAYLISTS_SUBTITLE": "Усе наяўныя плэйлісты",
+      "PLAYLIST_UPDATE_SUCCESS": "Плэйліст быў паспяхова абноўлены!",
+      "STALKER_PORTAL": "Stalker партал",
+      "XTREAM_PLAYLIST": "Xtream плэйліст"
+    },
+    "FILE_UPLOAD": {
+      "DRAG_DROP": "Перацягніце файл у гэтую вобласць",
+      "OR": "або",
+      "CHOOSE_PLAYLIST": "выберыце плэйліст",
+      "REJECTED": "На жаль, гэты фармат файлаў не падтрымліваецца {{filename}}."
+    },
+    "URL_UPLOAD": {
+      "PLAYLIST_URL": "Спасылка на плэйліст (*.m3u або *.m3u8)",
+      "ADD_PLAYLIST": "Дадаць плэйліст"
+    },
+    "TEXT_IMPORT": {
+      "LABEL": "Устаўце плэйліст фармату m3u(8) у гэта поле",
+      "BUTTON_LABEL": "Імпартаваць"
+    },
+    "XTREAM_PLAYLIST": {
+      "TITLE": "Назва плэйліста",
+      "SERVER_URL": "Сервер URL",
+      "USERNAME": "Карыстальнік",
+      "PASSWORD": "Пароль",
+      "ADD": "Дадаць",
+      "TEST_CREDENTIALS": "Праверыць",
+      "URL_VALIDATION_ERROR": "Павінен быць сапраўдны URL-адрас з пратаколам (напрыклад, http://example.com або https://example.com:4324)."
+    },
+    "STALKER_PORTAL": {
+      "ADD": "Дадаць",
+      "TITLE": "Назва",
+      "MAC_ADDRESS": "MAC-адрас",
+      "SERVER_URL": "URL сервера",
+      "URL_VALIDATION_ERROR": "Павінен быць сапраўдны URL-адрас з пратаколам (напрыклад, http://example.com/c або https://example.com/stalker_portal/c)."
+    },
+    "FILTER_BY_TYPE": "Фільтраваць па тыпу",
+    "IMPORTED_AS_TEXT": "Імпартавана як тэкст",
+    "FILTER_BY_NAME": "Фільтраваць па імені",
+    "PARSING_ERROR": "Памылка парсінгу, несапраўдны плэйліст:"
+  },
+  "LANGUAGES": {
+    "ARABIC": "العربية",
+    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
+    "ENGLISH": "English",
+    "KOREAN": "한국어",
+    "RUSSIAN": "Русский",
+    "GERMAN": "Deutsch",
+    "SPANISH": "Español",
+    "CHINESE": "简体中文",
+    "TRADITIONAL_CHINESE": "繁體中文",
+    "FRENCH": "Français",
+    "ITALIAN": "Italiano",
+    "TURKISH": "Türkçe",
+    "JAPANESE": "日本語",
+    "DUTCH": "Nederlands",
+    "BELARUSIAN": "Беларуская"
+  },
+  "SETTINGS": {
+    "TITLE": "Налады / IPTVnator",
+    "SUBTITLE": "Тут можна змяніць агульныя налады праграмы",
+    "DESCRIPTION": "Скончыўшы наладу, не забудзьцеся пацвердзіць новыя налады кнопкай 'Захаваць'",
+    "EPG_URL_LABEL": "Спасылка на праграму каналаў (EPG) (*.xml або *.xml.gz)",
+    "EPG_URL_PLACEHOLDER": "Увядзіце спасылку",
+    "REFRESH_EPG": "Абнавіць праграму каналаў (EPG)",
+    "VIDEO_PLAYER_LABEL": "Відэапрайгравальнік",
+    "VIDEO_PLAYER_PLACEHOLDER": "Выберыце са спісу",
+    "VERSION": "Версія праграмы",
+    "SAVE_CHANGES": "Захаваць",
+    "BACK_TO_HOME": "Назад",
+    "NEW_VERSION_AVAILABLE": "Даступная новая версія праграмы",
+    "LATEST_VERSION": "Вы выкарыстоўваеце апошнюю версію праграмы",
+    "LANGUAGE": "Мова",
+    "SETTINGS_SAVED": "Новыя налады былі паспяхова захаваны!",
+    "THEME": "Тэма афармлення",
+    "SHOW_CAPTIONS": "Адлюстроўваць субтытры",
+    "ADD_EPG_SOURCE": "Дадаць крыніцу EPG",
+    "EPG_URL_ERROR": "Уведзенае значэнне не з'яўляецца URL-адрасам.",
+    "VIDEO_PLAYER_DESCRIPTION": "Выбраць стандартны відэапрайгравальнік",
+    "LANGUAGE_DESCRIPTION": "Выбраць мову праграмы",
+    "THEME_DESCRIPTION": "Выбраць візуальную тэму афармлення",
+    "SHOW_CAPTIONS_DESCRIPTION": "Паказаць або схаваць субтытры па змаўчанні.",
+    "VERSION_DESCRIPTION": "Бягучая версія праграмы",
+    "EPG_NOTE": "На гэты момант EPG даступны толькі ў натыўнай версіі IPTVnator.",
+    "EPG_NOTE_URL_TEXT": "Падрабязней тут",
+    "IMPORT_EXPORT_DATA": "Імпарт/экспарт плэйлістоў",
+    "IMPORT_EXPORT_DATA_DESCRIPTION": "Экспарт або імпарт плэйлістоў у фармаце JSON, які выкарыстоўваецца ў праграме.",
+    "IMPORT_DATA": "Імпарт",
+    "EXPORT_DATA": "Экспарт",
+    "REMOVE_ALL": "Выдаліць плэйліст",
+    "REMOVE_ALL_BUTTON": "Выдаліць",
+    "REMOVE_ALL_DESCRIPTION": "Гэта дзеянне выдаліць усе існуючыя плэйлісты з праграмы.",
+    "REMOVE_DIALOG": {
+      "TITLE": "Выдаліць усе плэйлісты",
+      "MESSAGE": "Вы ўпэўнены, што хочаце выдаліць усе плэйлісты з праграмы?"
+    },
+    "IMPORT_ERROR": "Памылка імпарту, калі ласка, паспрабуйце імпартаваць іншы файл.",
+    "PLAYLISTS_REMOVED": "Усе плэйлісты былі выдалены.",
+    "VLC_PLAYER_PATH_LABEL": "Шлях да VLC прайгравальніка",
+    "VLC_PLAYER_PATH": "Шлях да VLC прайгравальніка",
+    "MPV_PLAYER_PATH_LABEL": "Шлях да mpv прайгравальніка",
+    "MPV_PLAYER_PATH": "Шлях да mpv прайгравальніка",
+    "VLC_PLAYER_PATH_DESCRIPTION": "Усталюйце шлях да прайгравальніка VLC у вашай сістэме. \nЁн будзе выкарыстоўваць прадастаўлены шлях да бінарнага файла VLC замест шляху па змаўчанні."
+  },
+  "THEMES": {
+    "DARK_THEME": "Цёмная тэма",
+    "LIGHT_THEME": "Светлая тэма"
+  },
+  "CHANNELS": {
+    "SEARCH_CHANNEL": "Пошук каналаў",
+    "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузіць або выбраць іншы плэйліст",
+    "ALL_CHANNELS": "Усе каналы",
+    "GROUPS": "Групы",
+    "UNGROUPED": "Незагрупаваныя",
+    "UNNAMED_CHANNEL": "Канал без назвы",
+    "FAVORITES": "Выбраныя",
+    "NO_FAVORITES": "Выбраных каналаў пакуль няма",
+    "USE_STAR_TO_FAVORITE": "Выкарыстоўвайце значок зоркі, каб дадаваць каналы ў выбранае",
+    "REMOVE_FAVORITE": "Выдаліць са спісу фаварытаў",
+    "FAVORITES_UPDATED": "Спіс фаварытаў быў абноўлены!"
+  },
+  "TOP_MENU": {
+    "OPEN_CHANNELS_LIST": "Адкрыць спіс каналаў",
+    "TOGGLE_FAVORITE_FLAG": "Выбраны",
+    "OPEN_EPG_LIST": "Адкрыць праграму (EPG)",
+    "OPEN_MULTI_EPG": "Адкрыць мульты-EPG прагляд"
+  },
+  "EPG": {
+    "NEXT_DAY": "Наступны дзень",
+    "PREVIOUS_DAY": "Папярэдні дзень",
+    "LIVE_NOW": "Цяпер",
+    "LIVE_STREAM": "Прамая трансляцыя",
+    "TIMESHIFT_AVAILABLE": "Даступная функцыя архіва (timeshift). Націсніце на перадачу для прайгравання.",
+    "EPG_NOT_AVAILABLE_DATE": "Ой, праграма на гэты дзень, на жаль, адсутнічае.",
+    "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Праграма для гэтага канала недаступная.",
+    "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Паспрабуйце змяніць або абнавіць спасылку на EPG у наладах праграмы.",
+    "FETCH_EPG": "Загружаю праграму ТБ-перадач (EPG)...",
+    "ERROR": "Ой, не ўдалося загрузіць праграму каналаў (EPG)",
+    "DOWNLOAD_SUCCESS": "Праграма каналаў (EPG) была паспяхова загружана.",
+    "PROGRAM_DIALOG": {
+      "PROGRAM_DETAILS": "Падрабязнасці перадачы",
+      "TITLE": "Назва",
+      "CATEGORY": "Катэгорыя",
+      "PARENTAL_RATING_SYSTEM": "Возраснае абмежаванне",
+      "DESCRIPTION": "Апісанне",
+      "LANGUAGE": "Мова",
+      "SHOW_PROGRAM_DETAILS": "Паказаць падрабязнасці"
+    }
+  },
+  "NO": "Не",
+  "YES": "Так",
+  "MENU": {
+    "OPEN": "Адкрыць меню",
+    "SUPPORT_ARIA": "Падтрымаць IPTVnator на GitHub",
+    "SETTINGS": "Налады",
+    "SETTINGS_ARIA": "Адкрыць налады",
+    "BUG_REPORT": "Паведаміць аб памылцы",
+    "WHAT_IS_NEW": "Што новага?",
+    "ABOUT": "Аб праграме",
+    "ABOUT_ARIA": "Аб праграме",
+    "SUPPORT_PROJECT": "Падтрымаць праект"
+  },
+  "ABOUT": {
+    "TITLE": "Аб праграме",
+    "DESCRIPTION": "Кросплатформавая праграма для прайгравання IPTV з мноствам функцый, такіх як падтрымка плэйлістоў m3u і m3u8, фаварыты, ТБ-гід, ТБ-архіў/даганянне і іншае.",
+    "VERSION": "Версія",
+    "GITHUB_TOOLTIP": "Рэпазітар праграмы на GitHub",
+    "BUY_ME_A_COFFEE_TOOLTIP": "Падтрымаць распрацоўшчыка",
+    "TWITTER_TOOLTIP": "Падзяліцца ў Twitter"
+  },
+  "UPDATE_AVAILABLE": "Даступна абнаўленне",
+  "REFRESH": "Абнавіць",
+  "XTREAM": {
+    "RATING": "Рэйтынг",
+    "RELEASE_DATE": "Дата выпуску",
+    "ACTORS": "Акцёры",
+    "PLAY": "Прайграць",
+    "GENRE": "Жанр",
+    "DURATION": "Працягласць",
+    "COUNTRY": "Краіна",
+    "NAME": "Назва",
+    "DIRECTOR": "Рэжысёр",
+    "CAST": "Акцёрскі склад",
+    "EPISODE_RUN_TIME": "Працягласць эпізоду",
+    "AGE": "Узрост",
+    "EPISODE": "Эпізод",
+    "YEAR": "Год",
+    "YOUTUBE_TRAILER": "Трэйлер на YouTube",
+    "DESCRIPTION": "Апісанне",
+    "KINOPOISK_RATING": "Рэйтынг на Кінапоіск",
+    "IMDB_RATING": "Рэйтынг на IMDB"
+  },
+  "PORTALS": {
+    "ALL_CATEGORIES": "Усе катэгорыі",
+    "ADD_TO_FAVORITES": "Дадаць у выбранае",
+    "REMOVE_FROM_FAVORITES": "Выдаліць з выбранага",
+    "MY_FAVORITES": "Выбранае",
+    "COPY_STREAM_URL": "Капіраваць URL-адрас патоку",
+    "ERROR_VIEW": {
+      "DELETE": "Выдаліць",
+      "ACCOUNT_EXPIRED": {
+        "TITLE": "Тэрмін дзеяння ўліковага запісу скончыўся",
+        "DESCRIPTION": "Тэрмін дзеяння гэтага ўліковага запісу скончыўся. \nКалі ласка, праверце ўліковыя дадзеныя ў наладах плэйліста або выдаліце яго."
+      },
+      "HOME": "На галоўную",
+      "EMPTY_CATEGORY": {
+        "TITLE": "Пустая катэгорыя",
+        "DESCRIPTION": "У гэтай катэгорыі няма кантэнту. Выберыце іншую катэгорыю або зменіце тып кантэнту."
+      },
+      "UNAUTHORIZED": {
+        "TITLE": "Несанкцыянаваны",
+        "DESCRIPTION": "Калі ласка, праверце ўліковыя дадзеныя ў наладах плэйліста або выдаліце іх."
+      },
+      "NOT_FOUND": {
+        "TITLE": "Партал не знойдзены"
+      },
+      "UNKNOWN_ERROR": {
+        "TITLE": "Нешта пайшло не так",
+        "DESCRIPTION": "Невядомая памылка. Паўтарыце спробу пазней."
+      },
+      "PLAYLIST_SETTINGS": "Налады плэйліста"
+    },
+    "STREAM_URL_COPIED": "URL-адрас патоку быў скапіяваны ў буфер абмену.",
+    "EMPTY_LIST_VIEW": {
+      "NO_SEARCH_RESULTS": "Нічога не знойдзена, паспрабуйце змяніць пошукавы запыт"
+    },
+    "REMOVED_FROM_FAVORITES": "Выдалена з выбранага",
+    "ADDED_TO_FAVORITES": "Дададзена ў выбранае"
+  },
+  "INFORMATION": "Інфармацыя"
+}

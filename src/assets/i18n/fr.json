@@ -182,7 +182,9 @@
     "TRADITIONAL_CHINESE": "繁體中文",
     "ITALIAN": "Italiano",
     "TURKISH": "Türkçe",
-    "JAPANESE": "日本語"
+    "JAPANESE": "日本語",
+    "DUTCH": "Nederlands",
+    "BELARUSIAN": "Беларуская"
   },
   "YES": "Oui",
   "NO": "Non",

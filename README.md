@@ -4,7 +4,7 @@
   <img src="https://raw.githubusercontent.com/4gray/iptvnator/electron/src/assets/icons/favicon.256x256.png" alt="IPTVnator icon" title="Free IPTV player application" />
 </p>
 <p align="center">
-  <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/release/4gray/iptvnator.svg?style=for-the-badge&logo=github" alt="Release"></a> 
+  <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/release/4gray/iptvnator.svg?style=for-the-badge&logo=github" alt="Release"></a>
   <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/v/release/4gray/iptvnator?include_prereleases&label=pre-release&logo=github&style=for-the-badge" /></a>
  <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/4gray/iptvnator/build-and-test.yaml?style=for-the-badge&logo=github"> <a href="https://github.com/4gray/iptvnator/releases"><img src="https://img.shields.io/github/downloads/4gray/iptvnator/total?style=for-the-badge&logo=github" alt="Releases"></a> <a href="https://codecov.io/gh/4gray/iptvnator"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/4gray/iptvnator?style=for-the-badge"></a> <a href="https://t.me/iptvnator"><img src="https://img.shields.io/badge/telegram-iptvnator-blue?logo=telegram&style=for-the-badge" alt="Telegram"></a> <a href="https://bsky.app/profile/iptvnator.bsky.social"><img src="https://img.shields.io/badge/bluesky-iptvnator-darkblue?logo=bluesky&style=for-the-badge" alt="Bluesky"></a>
 </p>
@@ -33,7 +33,7 @@ The application is a cross-platform, open-source project built with ~~Electron~~
 -   Favorite channels management
 -   Global favorites aggregated from all playlists
 -   HTML video player with HLS.js support or Video.js-based player
--   Internationalization with support for 8 languages (English, Russian, German, Korean, Spanish, Chinese, French, Italian)
+-   Internationalization with support for 15 languages (Arabic, Moroccan arabic, English, Russian, German, Korean, Spanish, Chinese, Traditional chinese, French, Italian, Turkish, Japanese, Dutch, Belarusian)
 -   Custom "User Agent" header configuration for playlists
 -   Light and Dark themes
 -   Docker version available for self-hosting
