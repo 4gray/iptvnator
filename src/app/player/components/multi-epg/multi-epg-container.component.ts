@@ -161,10 +161,7 @@ export class MultiEpgContainerComponent
 
         try {
             const channelNames = this._playlistChannels
-                .map(
-                    (channel) =>
-                        channel.tvg?.id?.trim() ?? channel.name?.trim() ?? ''
-                )
+                .map((channel) => channel.name?.trim() ?? '')
                 .filter((name) => name !== '');
 
             console.log('Requesting EPG data:');
