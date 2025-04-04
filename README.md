@@ -33,7 +33,23 @@ The application is a cross-platform, open-source project built with ~~Electron~~
 -   Favorite channels management
 -   Global favorites aggregated from all playlists
 -   HTML video player with HLS.js support or Video.js-based player
--   Internationalization with support for 15 languages (Arabic, Moroccan arabic, English, Russian, German, Korean, Spanish, Chinese, Traditional chinese, French, Italian, Turkish, Japanese, Dutch, Belarusian)
+-   Internationalization with support for 16 languages:
+    * Arabic
+    * Moroccan arabic
+    * English
+    * Russian
+    * German
+    * Korean
+    * Spanish
+    * Chinese
+    * Traditional chinese
+    * French
+    * Italian
+    * Turkish
+    * Japanese
+    * Dutch
+    * Belarusian
+    * Polish  
 -   Custom "User Agent" header configuration for playlists
 -   Light and Dark themes
 -   Docker version available for self-hosting
