@@ -78,19 +78,44 @@ pub async fn fetch_and_parse_epg(url: String) -> Result<(), Box<dyn std::error::
 async fn fetch_single_epg_source(url: String) -> Result<EpgSource, Box<dyn std::error::Error>> {
     info!("Starting EPG fetch from URL: {}", url);
 
-    // Fetch content
-    let client = reqwest::Client::new();
-    let content = if url.ends_with(".gz") {
-        info!("Fetching and decompressing gzipped EPG data...");
-        let bytes = client.get(&url).send().await?.bytes().await?;
-        let mut decoder = GzDecoder::new(&bytes[..]);
-        let mut string = String::new();
-        decoder.read_to_string(&mut string)?;
-        info!("Successfully decompressed EPG data");
-        string
+    // Get content based on URL type
+    let content = if url.starts_with("file://") {
+        info!("Reading EPG data from local file...");
+        let file_path = url.strip_prefix("file://").unwrap_or(&url);
+        let file_content = std::fs::read_to_string(file_path)
+            .or_else(|_| {
+                // If regular read fails, try reading as gzip
+                if file_path.ends_with(".gz") {
+                    info!("Attempting to decompress local gzipped file...");
+                    let file = std::fs::File::open(file_path)?;
+                    let mut decoder = GzDecoder::new(file);
+                    let mut content = String::new();
+                    decoder.read_to_string(&mut content)?;
+                    Ok(content)
+                } else {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "Failed to read file",
+                    ))
+                }
+            })?;
+        info!("Successfully read local EPG file");
+        file_content
     } else {
-        info!("Fetching EPG data...");
-        client.get(&url).send().await?.text().await?
+        // Fetch content from remote URL
+        let client = reqwest::Client::new();
+        if url.ends_with(".gz") {
+            info!("Fetching and decompressing gzipped EPG data...");
+            let bytes = client.get(&url).send().await?.bytes().await?;
+            let mut decoder = GzDecoder::new(&bytes[..]);
+            let mut string = String::new();
+            decoder.read_to_string(&mut string)?;
+            info!("Successfully decompressed EPG data");
+            string
+        } else {
+            info!("Fetching EPG data...");
+            client.get(&url).send().await?.text().await?
+        }
     };
 
     info!("Parsing EPG XML data...");
