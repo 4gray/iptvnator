@@ -208,7 +208,10 @@
     "FRENCH": "フランス語",
     "ITALIAN": "イタリア語",
     "TURKISH": "トルコ語",
-    "JAPANESE": "日本語"
+    "JAPANESE": "日本語",
+    "DUTCH": "オランダ語",
+    "BELARUSIAN": "ベラルーシ語",
+    "POLISH": "ポーランド語"
   },
   "YES": "はい",
   "NO": "いいえ",

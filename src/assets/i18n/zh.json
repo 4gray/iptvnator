@@ -172,7 +172,10 @@
     "FRENCH": "Français",
     "ITALIAN": "Italiano",
     "TURKISH": "Türkçe",
-    "JAPANESE": "日本語"
+    "JAPANESE": "日本語",
+    "DUTCH": "Nederlands",
+    "BELARUSIAN": "Беларуская",
+    "POLISH": "Polski"
   },
   "YES": "是",
   "NO": "否",
