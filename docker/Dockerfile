@@ -15,8 +15,6 @@ RUN npm ci
 # Copy all required files
 COPY . .
 
-RUN ls -ltr
-
 # Build the application
 RUN npm run build:web
 
