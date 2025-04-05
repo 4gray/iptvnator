@@ -1,8 +1,8 @@
 name: Release
 on:
-  create:
-    tags:
-      - v*
+  push:
+    branches:
+      - electron
   workflow_dispatch:
 jobs:
   package:
