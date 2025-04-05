@@ -6,10 +6,6 @@ RUN apk add --no-cache python3 make g++ git
 # Create app directory
 WORKDIR /usr/src/app
 
-# Swtich to node user
-#RUN chown node:node ./
-#USER node
-
 COPY .npmrc ./
 COPY package*.json ./
 
@@ -19,14 +15,23 @@ RUN npm ci
 # Copy all required files
 COPY . .
 
+RUN ls -ltr
+
 # Build the application
 RUN npm run build:web
 
 # Stage 2 - the production environment
 FROM nginx:stable-alpine
 
-# Copy artifacts and nignx.conf
+# Copy artifacts and nginx.conf
 COPY --from=build /usr/src/app/dist/browser /usr/share/nginx/html
 COPY --from=build /usr/src/app/docker/nginx.conf /etc/nginx/conf.d/default.conf
 
-CMD sed -i "s#http://localhost:3333#$BACKEND_URL#g" /usr/share/nginx/html/main.js && nginx -g 'daemon off;'
+# Copy the entrypoint script
+COPY docker/entrypoint.sh /usr/bin/entrypoint.sh
+
+# Make the script executable
+RUN chmod +x /usr/bin/entrypoint.sh
+
+# Use the script as the entry point
+CMD ["/usr/bin/entrypoint.sh"]
