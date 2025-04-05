@@ -2,7 +2,6 @@ import { DragDropModule } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -13,48 +12,46 @@ import { TranslateModule } from '@ngx-translate/core';
     selector: 'app-channel-list-item',
     styleUrls: ['./channel-list-item.component.scss'],
     template: `<mat-list-item
-            cdkDrag
-            [cdkDragDisabled]="!isDraggable"
-            cdkDragPreviewContainer="parent"
-            [class.active]="selected"
-            (click)="clicked.emit()"
-            data-test-id="channel-item"
+        cdkDrag
+        [cdkDragDisabled]="!isDraggable"
+        cdkDragPreviewContainer="parent"
+        [class.active]="selected"
+        (click)="clicked.emit()"
+        data-test-id="channel-item"
+    >
+        <mat-icon
+            *ngIf="isDraggable"
+            matListItemIcon
+            cdkDragHandle
+            class="drag-icon"
+            >drag_indicator</mat-icon
         >
-            <mat-icon
-                *ngIf="isDraggable"
-                matListItemIcon
-                cdkDragHandle
-                class="drag-icon"
-                >drag_indicator</mat-icon
-            >
-            <img
-                matListItemAvatar
-                class="channel-logo"
-                *ngIf="logo"
-                [src]="logo"
-                width="48"
-                onerror="this.style.display='none'"
-            />
-            <p matListItemTitle class="channel-name">
-                {{ name }}
-            </p>
-            <button
-                *ngIf="showFavoriteButton"
-                mat-icon-button
-                matListItemMeta
-                color="primary"
-                [matTooltip]="'CHANNELS.REMOVE_FAVORITE' | translate"
-                (click)="favoriteToggled.emit($event)"
-            >
-                <mat-icon color="accent">star</mat-icon>
-            </button>
-        </mat-list-item>
-        <!-- <mat-divider /> -->`,
+        <img
+            matListItemAvatar
+            class="channel-logo"
+            *ngIf="logo"
+            [src]="logo"
+            width="48"
+            onerror="this.style.display='none'"
+        />
+        <p matListItemTitle class="channel-name">
+            {{ name }}
+        </p>
+        <button
+            *ngIf="showFavoriteButton"
+            mat-icon-button
+            matListItemMeta
+            color="primary"
+            [matTooltip]="'CHANNELS.REMOVE_FAVORITE' | translate"
+            (click)="favoriteToggled.emit($event)"
+        >
+            <mat-icon color="accent">star</mat-icon>
+        </button>
+    </mat-list-item>`,
     imports: [
         CommonModule,
         DragDropModule,
         MatButtonModule,
-        MatDividerModule,
         MatIconModule,
         MatListModule,
         MatTooltipModule,

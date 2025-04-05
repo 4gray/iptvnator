@@ -1,4 +1,8 @@
-import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import {
+    CdkDragDrop,
+    DragDropModule,
+    moveItemInArray,
+} from '@angular/cdk/drag-drop';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { CommonModule, TitleCasePipe } from '@angular/common';
 import {
@@ -38,6 +42,7 @@ import { ChannelListItemComponent } from './channel-list-item/channel-list-item.
     imports: [
         CommonModule,
         ChannelListItemComponent,
+        DragDropModule,
         MatDividerModule,
         MatExpansionModule,
         MatFormFieldModule,
