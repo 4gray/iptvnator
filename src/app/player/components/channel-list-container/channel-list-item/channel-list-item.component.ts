@@ -1,11 +1,10 @@
 import { DragDropModule } from '@angular/cdk/drag-drop';
-import { CommonModule } from '@angular/common';
+import { NgIf } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
@@ -49,13 +48,12 @@ import { TranslatePipe } from '@ngx-translate/core';
         </button>
     </mat-list-item>`,
     imports: [
-        CommonModule,
         DragDropModule,
-        MatButtonModule,
-        MatDividerModule,
-        MatIconModule,
+        MatIcon,
+        MatIconButton,
         MatListModule,
-        MatTooltipModule,
+        MatTooltip,
+        NgIf,
         TranslatePipe,
     ],
 })
