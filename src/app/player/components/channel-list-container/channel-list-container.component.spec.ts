@@ -24,6 +24,7 @@ import { ElectronServiceStub } from '../../../services/electron.service.stub';
 import { createChannel } from '../../../shared/channel.model';
 import { FilterPipe } from '../../../shared/pipes/filter.pipe';
 import { ChannelListContainerComponent } from './channel-list-container.component';
+import { KeyValue } from '@angular/common';
 
 class MatSnackBarStub {
     open(): void {}
@@ -186,5 +187,49 @@ describe('ChannelListContainerComponent', () => {
             type: expect.stringContaining('favorites'),
         });
         expect(mockStore.dispatch).toHaveBeenCalledTimes(1);
+    });
+
+    describe('groupsComparator', () => {
+        it('should sort numeric groups in correct order', () => {
+            const groups: KeyValue<string, any[]>[] = [
+                { key: '10', value: [] },
+                { key: '2', value: [] },
+                { key: '1', value: [] }
+            ];
+
+            const sorted = [...groups].sort(component.groupsComparator);
+
+            expect(sorted[0].key).toBe('1');
+            expect(sorted[1].key).toBe('2');
+            expect(sorted[2].key).toBe('10');
+        });
+
+        it('should sort mixed text and numeric groups', () => {
+            const groups: KeyValue<string, any[]>[] = [
+                { key: 'Group 10', value: [] },
+                { key: 'Group 2', value: [] },
+                { key: 'Group A', value: [] }
+            ];
+
+            const sorted = [...groups].sort(component.groupsComparator);
+
+            expect(sorted[0].key).toBe('Group 2');
+            expect(sorted[1].key).toBe('Group 10');
+            expect(sorted[2].key).toBe('Group A');
+        });
+
+        it('should fall back to alphabetical sort for non-numeric groups', () => {
+            const groups: KeyValue<string, any[]>[] = [
+                { key: 'C', value: [] },
+                { key: 'A', value: [] },
+                { key: 'B', value: [] }
+            ];
+
+            const sorted = [...groups].sort(component.groupsComparator);
+
+            expect(sorted[0].key).toBe('A');
+            expect(sorted[1].key).toBe('B');
+            expect(sorted[2].key).toBe('C');
+        });
     });
 });
