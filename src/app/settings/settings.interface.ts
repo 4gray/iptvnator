@@ -1,3 +1,4 @@
+import { StreamFormat } from './stream-format.enum';
 import { Language } from './language.enum';
 import { Theme } from './theme.enum';
 
@@ -19,6 +20,7 @@ export enum VideoPlayer {
 export interface Settings {
     player: VideoPlayer;
     epgUrl: string[];
+    streamFormat: StreamFormat;
     language: Language;
     showCaptions: boolean;
     theme: Theme;

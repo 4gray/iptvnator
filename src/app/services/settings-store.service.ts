@@ -8,6 +8,7 @@ import {
 } from '@ngrx/signals';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
+import { StreamFormat } from '../settings/stream-format.enum';
 import { Language } from '../settings/language.enum';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
 import { Theme } from '../settings/theme.enum';
@@ -15,6 +16,7 @@ import { STORE_KEY } from '../shared/enums/store-keys.enum';
 
 const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,
+    streamFormat: StreamFormat.M3u8StreamFormat,
     language: Language.ENGLISH,
     showCaptions: false,
     theme: Theme.LightTheme,
@@ -49,6 +51,7 @@ export const SettingsStore = signalStore(
         getSettings() {
             return {
                 player: store.player(),
+                streamFormat: store.streamFormat(),
                 language: store.language(),
                 showCaptions: store.showCaptions(),
                 theme: store.theme(),
