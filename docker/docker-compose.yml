@@ -5,14 +5,19 @@ services:
     ports:
       - "7333:3000"
     environment:
-      - CLIENT_URL=http://localhost:4333 
-      # this one should match with the address and port in frontend CLIENT_URL env
+      - CLIENT_URL=http://localhost:4333
+      - SECRET_KEY='ciwVzRkhcpoRZ27uzXXozYpdJOxgY1o9ZtJqAAbSx3BEjIr8lxvW7gT36f6uRjRk'
+      - ENABLE_EXTERNAL_DB=false
+    volumes:
+      - ./backend-data:/app/data # Mount user directory for backend
       
   frontend: 
     image: 4gray/iptvnator:latest
     ports:
       - "4333:80"
     environment:
-      - BACKEND_URL=http://localhost:7333 
-      # this one should match with the address of the backend service
-      
+      - BACKEND_URL=http://localhost:7333
+      - SECRET_KEY='ciwVzRkhcpoRZ27uzXXozYpdJOxgY1o9ZtJqAAbSx3BEjIr8lxvW7gT36f6uRjRk'
+      - ENABLE_EXTERNAL_DB=false
+# Use https://it-tools.tech/token-generator for generating ENABLE_EXTERNAL_DB and avoid special characters
+# BACKEND_URL should match with the address of the backend service

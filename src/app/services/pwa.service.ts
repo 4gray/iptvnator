@@ -37,6 +37,10 @@ export class PwaService extends DataService {
     constructor() {
         super();
         console.log('PWA service initialized...');
+        console.log('External enabled: ', AppConfig.ENABLE_EXTERNAL_DB);
+        if (  AppConfig.ENABLE_EXTERNAL_DB) {
+            console.log('Using Secrets: ', AppConfig.SECRET_KEY);
+        }
     }
 
     /** Uses service worker mechanism to check for available application updates */
