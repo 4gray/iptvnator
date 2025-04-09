@@ -123,7 +123,7 @@
     "ADD_EPG_SOURCE": "Aggiungi sorgente EPG",
     "EPG_URL_ERROR": "Il valore non è una URL valida",
     "VIDEO_PLAYER_DESCRIPTION": "Seleziona lettore video predefinito",
-    "STREAM_FORMAT_DESCRIPTION": "Seleziona il formato di streaming predefinito",
+    "STREAM_FORMAT_DESCRIPTION": "Seleziona il formato di streaming predefinito (xtream)",
     "LANGUAGE_DESCRIPTION": "Seleziona la lingua dell'applicazione",
     "THEME_DESCRIPTION": "Seleziona il tema visivo dell'applicazione",
     "SHOW_CAPTIONS_DESCRIPTION": "Visualizza/nascondi i sottotitoli per impostazione predefinita",

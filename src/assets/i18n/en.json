@@ -127,7 +127,7 @@
     "ADD_EPG_SOURCE": "Add EPG source",
     "EPG_URL_ERROR": "The value is not a valid URL",
     "VIDEO_PLAYER_DESCRIPTION": "Select default video player",
-    "STREAM_FORMAT_DESCRIPTION": "Select default stream format",
+    "STREAM_FORMAT_DESCRIPTION": "Select default stream format (xtream)",
     "LANGUAGE_DESCRIPTION": "Select language of the application",
     "THEME_DESCRIPTION": "Select visual theme of the application",
     "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
