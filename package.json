@@ -62,7 +62,7 @@
     "@videojs/http-streaming": "2.15.0",
     "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
     "artplayer": "5.2.1",
-    "axios": "1.6.2",
+    "axios": "1.8.2",
     "date-fns": "2.29.3",
     "dplayer": "1.27.1",
     "epg-parser": "0.1.6",
