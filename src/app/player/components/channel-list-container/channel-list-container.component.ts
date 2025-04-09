@@ -4,7 +4,7 @@ import {
     moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { CommonModule, TitleCasePipe } from '@angular/common';
+import { CommonModule, TitleCasePipe, KeyValue } from '@angular/common';
 import {
     Component,
     ElementRef,
@@ -170,5 +170,16 @@ export class ChannelListContainerComponent {
 
     ngOnDestroy() {
         this.store.dispatch(PlaylistActions.setChannels({ channels: [] }));
+    }
+
+    groupsComparator = (a: KeyValue<string, any[]>, b: KeyValue<string, any[]>): number => {
+        const numA = parseInt(a.key.replace(/\D/g, ''));
+        const numB = parseInt(b.key.replace(/\D/g, ''));
+
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return numA - numB;
+        }
+
+        return a.key.localeCompare(b.key);
     }
 }

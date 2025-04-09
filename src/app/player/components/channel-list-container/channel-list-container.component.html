@@ -57,7 +57,7 @@
             </ng-template>
             <mat-nav-list id="groups-list">
                 <mat-accordion multi>
-                    @for (groups of groupedChannels | keyvalue; track $index) {
+                    @for (groups of groupedChannels | keyvalue: groupsComparator; track $index) {
                         @if (groups.value.length > 0) {
                             <mat-expansion-panel>
                                 <mat-expansion-panel-header>
