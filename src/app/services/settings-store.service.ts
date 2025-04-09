@@ -16,7 +16,7 @@ import { STORE_KEY } from '../shared/enums/store-keys.enum';
 
 const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,
-    streamFormat: StreamFormat.TsStreamFormat,
+    streamFormat: StreamFormat.M3u8StreamFormat,
     language: Language.ENGLISH,
     showCaptions: false,
     theme: Theme.LightTheme,

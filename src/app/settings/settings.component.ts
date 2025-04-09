@@ -71,7 +71,7 @@ import { Theme } from './theme.enum';
         ReactiveFormsModule,
         TranslateModule,
         MatDialogModule,
-    ]
+    ],
 })
 export class SettingsComponent implements OnInit {
     @Input() isDialog = false;
@@ -134,7 +134,7 @@ export class SettingsComponent implements OnInit {
     settingsForm = this.formBuilder.group({
         player: [VideoPlayer.VideoJs],
         ...(this.isTauri ? { epgUrl: new FormArray([]) } : {}),
-        streamFormat: StreamFormat.TsStreamFormat,
+        streamFormat: StreamFormat.M3u8StreamFormat,
         language: Language.ENGLISH,
         showCaptions: false,
         theme: Theme.LightTheme,
