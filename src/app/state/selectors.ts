@@ -101,6 +101,14 @@ export const selectCurrentPlaylist = createSelector(
     }
 );
 
+export const selectPlaylistById = (id: string) =>
+    createSelector(selectPlaylistEntities, (entities) => {
+        if (entities) {
+            return entities[id];
+        }
+        return null;
+    });
+
 export const selectActivePlaylist = createSelector(
     selectPlaylistsMetaState,
     (state) => {
