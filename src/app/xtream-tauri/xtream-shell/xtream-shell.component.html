@@ -6,6 +6,11 @@
 }
 
 <div class="xtream-container">
-    <app-navigation class="navigation-sidebar" />
+    <app-navigation
+        class="navigation-sidebar"
+        [portalStatus]="portalStatus()"
+        (categoryClick)="handleCategoryClick($event)"
+        (pageClicked)="handlePageClick($event)"
+    />
     <router-outlet />
 </div>

@@ -19,7 +19,7 @@ import { XtreamStore } from '../xtream.store';
         MatTooltip,
         NgOptimizedImage,
         TranslateModule,
-    ]
+    ],
 })
 export class CategoryContentViewComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
@@ -39,7 +39,6 @@ export class CategoryContentViewComponent {
     }
 
     onItemClick(item: any) {
-        console.log(item);
         this.xtreamStore.setSelectedItem(item);
         this.router.navigate([item.xtream_id], {
             relativeTo: this.activatedRoute,

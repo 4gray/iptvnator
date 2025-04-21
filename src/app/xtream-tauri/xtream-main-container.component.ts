@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CategoryViewComponent } from './category-view/category-view.component';
 
 import { MatIconButton } from '@angular/material/button';
@@ -20,15 +20,22 @@ import { XtreamStore } from './xtream.store';
         MpvPlayerBarComponent,
         MatIcon,
         MatIconButton,
-    ]
+    ],
 })
-export class XtreamMainContainerComponent {
+export class XtreamMainContainerComponent implements OnInit {
+    readonly router = inject(Router);
+    readonly route = inject(ActivatedRoute);
     readonly xtreamStore = inject(XtreamStore);
 
-    constructor(
-        private router: Router,
-        private route: ActivatedRoute
-    ) {}
+    readonly categories = this.xtreamStore.getCategoriesBySelectedType;
+
+    readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
+
+    ngOnInit(): void {
+        const { categoryId } = this.route.snapshot.params;
+        if (categoryId)
+            this.xtreamStore.setSelectedCategory(Number(categoryId));
+    }
 
     categoryClicked(category: XtreamCategory) {
         const categoryId = (category as any).category_id ?? category.id;

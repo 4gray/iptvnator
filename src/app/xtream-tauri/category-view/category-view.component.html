@@ -1,10 +1,6 @@
-@let items = xtreamStore.getCategoriesBySelectedType();
-@let contentType = xtreamStore.selectedContentType();
-@let selectedCategory = xtreamStore.selectedCategoryId();
-
-@if (items?.length > 0) {
+@if (items()?.length > 0) {
     <mat-nav-list>
-        @for (item of items; track $index) {
+        @for (item of items(); track $index) {
             <mat-list-item
                 class="category-item"
                 [class.selected]="isSelected(item)"
@@ -14,8 +10,7 @@
                     item.category_name || $any(item).name || 'No category name'
                 }}
             </mat-list-item>
-        }
-        @if (!items?.length) {
+        } @empty {
             <app-playlist-error-view
                 title="No results"
                 [description]="

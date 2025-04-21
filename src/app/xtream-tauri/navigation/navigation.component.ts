@@ -1,47 +1,49 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { MatTooltip } from '@angular/material/tooltip';
+import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistInfoComponent } from '../../home/recent-playlists/playlist-info/playlist-info.component';
 import { SettingsComponent } from '../../settings/settings.component';
-import { selectActivePlaylist } from '../../state/selectors';
+import { selectPlaylistById } from '../../state/selectors';
 import { AccountInfoComponent } from '../account-info/account-info.component';
 import { XtreamStore } from '../xtream.store';
 
 @Component({
     selector: 'app-navigation',
     imports: [
-        MatListModule,
         MatIcon,
         MatIconButton,
+        MatListModule,
+        MatTooltip,
         RouterLink,
         RouterLinkActive,
-        TranslateModule,
-        MatTooltipModule,
+        TranslatePipe,
     ],
     templateUrl: './navigation.component.html',
-    styleUrl: './navigation.component.scss'
+    styleUrl: './navigation.component.scss',
 })
 export class NavigationComponent {
+    private readonly activatedRoute = inject(ActivatedRoute);
     private readonly dialog = inject(MatDialog);
     private readonly store = inject(Store);
     readonly xtreamStore = inject(XtreamStore);
 
-    // Make currentPlaylist public so template can access it
-    readonly currentPlaylist = this.store.selectSignal(selectActivePlaylist);
+    readonly portalStatus = input<'active' | 'inactive' | 'expired'>();
 
-    ngOnInit() {
-        this.xtreamStore.checkPortalStatus();
-    }
+    readonly categoryClick = output<'vod' | 'live' | 'series'>();
+    readonly pageClicked = output<'search' | 'recent' | 'favorites'>();
+
+    readonly currentPlaylist = this.store.selectSignal(
+        selectPlaylistById(this.activatedRoute.snapshot.params.id)
+    );
 
     getStatusColor(): string {
-        const status = this.xtreamStore.portalStatus();
-        switch (status) {
+        switch (this.portalStatus()) {
             case 'active':
                 return 'status-active';
             case 'inactive':
@@ -54,8 +56,7 @@ export class NavigationComponent {
     }
 
     getStatusIcon(): string {
-        const status = this.xtreamStore.portalStatus();
-        switch (status) {
+        switch (this.portalStatus()) {
             case 'active':
                 return 'check_circle';
             case 'inactive':

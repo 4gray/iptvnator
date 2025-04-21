@@ -6,15 +6,18 @@
             <button mat-icon-button (click)="backToCategories()">
                 <mat-icon>chevron_left</mat-icon>
             </button>
-            <h2>Channels</h2>
+            <h2>{{ 'HOME.PLAYLISTS.CHANNELS' | translate }}</h2>
         } @else {
-            <h2>Categories</h2>
+            <h2>{{ 'PORTALS.ALL_CATEGORIES' | translate }}</h2>
         }
     </div>
     @if (selectedCategoryId()) {
         <app-portal-channels-list (playClicked)="playLive($event)" />
     } @else {
-        <app-category-view (categoryClicked)="selectCategory($event)" />
+        <app-category-view
+            [items]="categories()"
+            (categoryClicked)="selectCategory($event)"
+        />
     }
 </div>
 <div class="content-container">
@@ -32,6 +35,8 @@
             </div>
         </div>
     } @else {
-        <div class="no-channel-selected">Select a category and channel</div>
+        <div class="no-channel-selected">
+            {{ 'PORTALS.SELECT_CATEGORY' | translate }}
+        </div>
     }
 </div>

@@ -11,7 +11,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { ActivatedRoute } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { XtreamCategory } from '../../../../shared/xtream-category.interface';
 import { EpgViewComponent } from '../../portals/epg-view/epg-view.component';
 import { WebPlayerViewComponent } from '../../portals/web-player-view/web-player-view.component';
@@ -36,16 +36,18 @@ import { XtreamStore } from '../xtream.store';
         MatInputModule,
         MatListModule,
         PortalChannelsListComponent,
-        TranslateModule,
+        TranslatePipe,
         WebPlayerViewComponent,
     ],
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LiveStreamLayoutComponent implements OnInit {
     private favoritesService = inject(FavoritesService);
     private playerService = inject(PlayerService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
+
+    readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly epgItems = this.xtreamStore.epgItems;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
     private readonly hideExternalInfoDialog =
@@ -80,7 +82,6 @@ export class LiveStreamLayoutComponent implements OnInit {
             this.xtreamStore.currentPlaylist();
         const streamFormat = this.settingsStore.streamFormat();
         const streamUrl = `${serverUrl}/live/${username}/${password}/${item.xtream_id}.${streamFormat}`;
-        // TODO: offer option to select TS or m3u8
         this.openPlayer(streamUrl, item.title, item.poster_url);
         this.xtreamStore.setSelectedItem(item);
         this.xtreamStore.loadEpg();
@@ -99,7 +100,6 @@ export class LiveStreamLayoutComponent implements OnInit {
 
     selectCategory(category: XtreamCategory) {
         const categoryId = (category as any).category_id ?? category.id;
-        console.log('Selected category:', categoryId);
         this.xtreamStore.setSelectedCategory(categoryId);
     }
 

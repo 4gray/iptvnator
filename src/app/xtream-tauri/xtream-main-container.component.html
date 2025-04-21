@@ -1,8 +1,12 @@
 <div class="sidebar">
     <div class="sidebar-header">
-        <h2>Categories</h2>
+        <h2>{{ 'PORTALS.ALL_CATEGORIES' | translate }}</h2>
     </div>
-    <app-category-view (categoryClicked)="categoryClicked($event)" />
+    <app-category-view
+        [items]="categories()"
+        [selectedCategoryId]="selectedCategoryId()"
+        (categoryClicked)="categoryClicked($event)"
+    />
 </div>
 
 <div class="main-content">
