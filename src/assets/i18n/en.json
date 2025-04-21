@@ -319,7 +319,8 @@
       "NO_SEARCH_RESULTS": "Nothing found, try to change you search request"
     },
     "STREAM_URL_COPIED": "Stream URL copied to clipboard",
-    "COPY_STREAM_URL": "Copy Stream URL"
+    "COPY_STREAM_URL": "Copy Stream URL",
+    "SELECT_CATEGORY": "Select a category"
   },
   "INFORMATION": "Information",
   "REMOTE_CONTROL": {
