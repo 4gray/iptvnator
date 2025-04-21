@@ -235,6 +235,19 @@
     "EPISODE_RUN_TIME": "Laufzeit der Episode"
   },
   "PORTALS": {
+    "SIDEBAR": {
+      "MAIN": "Allgemein",
+      "MOVIES": "Filme",
+      "LIVE_TV": "Live TV",
+      "SERIES": "Serien",
+      "LIBRARY": "Bibliothek",
+      "SEARCH": "Suche",
+      "RECENT": "Zuletzt angesehen",
+      "FAVORITES": "Favoriten",
+      "HOME": "Startseite",
+      "PLAYLIST_INFO": "Playlist-Info",
+      "ACCOUNT_INFO": "Account-Info"
+    },
     "ALL_CATEGORIES": "Alle Kategorien",
     "ADD_TO_FAVORITES": "Zu den Favoriten hinzufügen",
     "REMOVE_FROM_FAVORITES": "Von Favoriten entfernen",

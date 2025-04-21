@@ -277,6 +277,19 @@
     "REMOVE_FROM_FAVORITES": "Remove from favorites",
     "REMOVED_FROM_FAVORITES": "Removed from favorites",
     "ADDED_TO_FAVORITES": "Added to favorites",
+    "SIDEBAR": {
+      "MAIN": "Main",
+      "MOVIES": "Movies",
+      "LIVE_TV": "Live TV",
+      "SERIES": "Series",
+      "LIBRARY": "Library",
+      "SEARCH": "Search",
+      "RECENT": "Recent",
+      "FAVORITES": "Favorites",
+      "HOME": "Home",
+      "PLAYLIST_INFO": "Playlist info",
+      "ACCOUNT_INFO": "Account info"
+    },
     "ERROR_VIEW": {
       "ACCOUNT_EXPIRED": {
         "TITLE": "Account expired",
