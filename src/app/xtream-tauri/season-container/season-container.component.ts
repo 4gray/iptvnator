@@ -1,5 +1,5 @@
 import { KeyValuePipe } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Output, input } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
@@ -9,10 +9,10 @@ import { XtreamSerieEpisode } from '../../../../shared/xtream-serie-details.inte
     selector: 'app-season-container',
     templateUrl: './season-container.component.html',
     styleUrls: ['./season-container.component.scss'],
-    imports: [KeyValuePipe, MatCardModule, MatIcon, MatButton]
+    imports: [KeyValuePipe, MatCardModule, MatIcon, MatButton],
 })
 export class SeasonContainerComponent {
-    @Input({ required: true }) seasons: Record<string, XtreamSerieEpisode[]>;
+    readonly seasons = input.required<Record<string, XtreamSerieEpisode[]>>();
 
     @Output() episodeClicked = new EventEmitter<any>();
 
@@ -26,7 +26,7 @@ export class SeasonContainerComponent {
         this.selectedSeason = seasonKey;
     }
 
-    selectEpisode(episode: any) {
+    selectEpisode(episode: XtreamSerieEpisode) {
         this.episodeClicked.emit(episode);
     }
 }

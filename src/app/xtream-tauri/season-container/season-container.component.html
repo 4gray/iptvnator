@@ -2,7 +2,6 @@
 @if (selectedSeason) {
     <button
         mat-button
-        class="back-button"
         class="back-to-seasons"
         (click)="selectedSeason = undefined"
     >
@@ -12,13 +11,13 @@
 }
 <div class="seasons-container">
     @if (!selectedSeason) {
-        @for (season of seasons | keyvalue: compareSeasons; track $index) {
+        @for (season of seasons() | keyvalue: compareSeasons; track $index) {
             <mat-card class="season-item" (click)="selectSeason(season.key)">
                 <mat-card-content>Season {{ season.key }}</mat-card-content>
             </mat-card>
         }
     } @else {
-        @for (episode of seasons[selectedSeason]; track $index) {
+        @for (episode of seasons()[selectedSeason]; track $index) {
             <mat-card class="episode-item" (click)="selectEpisode(episode)">
                 @if (episode.info?.movie_image) {
                     <mat-card-content
