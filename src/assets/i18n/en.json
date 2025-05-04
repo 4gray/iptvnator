@@ -311,11 +311,16 @@
         "TITLE": "Something went wrong",
         "DESCRIPTION": "Unknown error, please try again later"
       },
+      "NO_CATEGORY_SELECTED": {
+        "TITLE": "No category selected",
+        "DESCRIPTION": "Please select a category to see the content"
+      },
       "PLAYLIST_SETTINGS": "Playlist Settings",
       "HOME": "Home",
       "DELETE": "Delete"
     },
     "EMPTY_LIST_VIEW": {
+      "TITLE": "No results found",
       "NO_SEARCH_RESULTS": "Nothing found, try to change you search request"
     },
     "STREAM_URL_COPIED": "Stream URL copied to clipboard",
