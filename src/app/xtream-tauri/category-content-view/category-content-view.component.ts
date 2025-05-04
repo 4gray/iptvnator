@@ -5,7 +5,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
+import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { XtreamStore } from '../xtream.store';
 
 @Component({
@@ -18,7 +19,8 @@ import { XtreamStore } from '../xtream.store';
         MatPaginatorModule,
         MatTooltip,
         NgOptimizedImage,
-        TranslateModule,
+        PlaylistErrorViewComponent,
+        TranslatePipe,
     ],
 })
 export class CategoryContentViewComponent {

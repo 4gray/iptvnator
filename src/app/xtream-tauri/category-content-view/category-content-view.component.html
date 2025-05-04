@@ -37,14 +37,34 @@
                     <div class="title">{{ i.title || 'No name' }}</div>
                 </mat-card-actions>
             </mat-card>
+        } @empty {
+            <app-playlist-error-view
+                [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"
+                [description]="
+                    'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION' | translate
+                "
+                [showActionButtons]="false"
+                [viewType]="'EMPTY_CATEGORY'"
+            />
         }
     </div>
 
-    <mat-paginator
-        [length]="totalPages() * limit()"
-        [pageSize]="limit()"
-        [pageSizeOptions]="pageSizeOptions"
-        (page)="onPageChange($event)"
-        aria-label="Select page"
+    @if (paginatedContent().length > 0) {
+        <mat-paginator
+            [length]="totalPages() * limit()"
+            [pageSize]="limit()"
+            [pageSizeOptions]="pageSizeOptions"
+            (page)="onPageChange($event)"
+            aria-label="Select page"
+        />
+    }
+} @else {
+    <app-playlist-error-view
+        [title]="'PORTALS.ERROR_VIEW.NO_CATEGORY_SELECTED.TITLE' | translate"
+        [description]="
+            'PORTALS.ERROR_VIEW.NO_CATEGORY_SELECTED.DESCRIPTION' | translate
+        "
+        [showActionButtons]="false"
+        [viewType]="'EMPTY_CATEGORY'"
     />
 }
