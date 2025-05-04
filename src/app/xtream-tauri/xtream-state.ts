@@ -41,4 +41,5 @@ export interface XtreamState {
     hideExternalInfoDialog: boolean;
     portalStatus: PortalStatusType;
     globalSearchResults: GlobalSearchResult[];
+    streamUrl: string;
 }

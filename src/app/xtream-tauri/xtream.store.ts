@@ -20,10 +20,15 @@ import {
     tap,
 } from 'rxjs';
 import { XtreamCodeActions } from '../../../shared/xtream-code-actions';
-import { XtreamSerieDetails } from '../../../shared/xtream-serie-details.interface';
+import {
+    XtreamSerieDetails,
+    XtreamSerieEpisode,
+} from '../../../shared/xtream-serie-details.interface';
 import { XtreamVodDetails } from '../../../shared/xtream-vod-details.interface';
 import { DataService } from '../services/data.service';
 import { DatabaseService } from '../services/database.service';
+import { PlayerService } from '../services/player.service';
+import { SettingsStore } from '../services/settings-store.service';
 import { selectActivePlaylist } from '../state/selectors';
 import { XtreamAccountInfo } from './account-info/account-info.interface';
 import { withFavorites } from './with-favorites.feature';
@@ -54,6 +59,7 @@ const initialState: XtreamState = {
         localStorage.getItem('hideExternalInfoDialog') === 'true',
     portalStatus: 'unavailable',
     globalSearchResults: [],
+    streamUrl: null,
 };
 
 /** to decode epg */
@@ -173,7 +179,9 @@ export const XtreamStore = signalStore(
             route = inject(ActivatedRoute),
             dataService = inject(DataService),
             dbService = inject(DatabaseService),
-            oldStore = inject(Store)
+            oldStore = inject(Store),
+            settingsStore = inject(SettingsStore),
+            playerService = inject(PlayerService)
         ) => {
             const fetchCategories = (
                 action: XtreamCodeActions,
@@ -789,6 +797,48 @@ export const XtreamStore = signalStore(
                         searchResults: results,
                         globalSearchResults: results,
                     });
+                },
+                constructStreamUrl(item: any) {
+                    const { serverUrl, username, password } =
+                        store.currentPlaylist();
+                    const streamFormat = settingsStore.streamFormat() ?? 'ts';
+                    const streamUrl = `${serverUrl}/live/${username}/${password}/${item.xtream_id}.${streamFormat}`;
+
+                    // Set the selected item and load EPG data in the store
+                    setSelectedItem(item);
+                    this.loadEpg();
+
+                    patchState(store, { streamUrl });
+                    return streamUrl;
+                },
+                constructVodStreamUrl(vodItem: XtreamVodDetails) {
+                    const { serverUrl, username, password } =
+                        store.currentPlaylist();
+                    const streamUrl = `${serverUrl}/movie/${username}/${password}/${vodItem.movie_data.stream_id}.${vodItem.movie_data.container_extension}`;
+
+                    patchState(store, { streamUrl });
+                    return streamUrl;
+                },
+                constructEpisodeStreamUrl(episode: XtreamSerieEpisode) {
+                    const { serverUrl, username, password } =
+                        store.currentPlaylist();
+                    const streamUrl = `${serverUrl}/series/${username}/${password}/${episode.id}.${episode.container_extension}`;
+                    patchState(store, { streamUrl });
+                    return streamUrl;
+                },
+                openPlayer(
+                    streamUrl: string,
+                    title: string,
+                    thumbnail: string = null
+                ) {
+                    playerService.openPlayer(
+                        streamUrl,
+                        title,
+                        thumbnail,
+                        localStorage.getItem('hideExternalInfoDialog') ===
+                            'true',
+                        store.selectedContentType() === 'live'
+                    );
                 },
             };
         }
