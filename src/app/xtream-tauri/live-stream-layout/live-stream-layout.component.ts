@@ -15,7 +15,6 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { XtreamCategory } from '../../../../shared/xtream-category.interface';
 import { EpgViewComponent } from '../../portals/epg-view/epg-view.component';
 import { WebPlayerViewComponent } from '../../portals/web-player-view/web-player-view.component';
-import { PlayerService } from '../../services/player.service';
 import { SettingsStore } from '../../services/settings-store.service';
 import { CategoryViewComponent } from '../category-view/category-view.component';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
@@ -42,20 +41,16 @@ import { XtreamStore } from '../xtream.store';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LiveStreamLayoutComponent implements OnInit {
-    private favoritesService = inject(FavoritesService);
-    private playerService = inject(PlayerService);
+    private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly epgItems = this.xtreamStore.epgItems;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
-    private readonly hideExternalInfoDialog =
-        this.xtreamStore.hideExternalInfoDialog;
-    private readonly selectedContentType = this.xtreamStore.selectedContentType;
     private readonly route = inject(ActivatedRoute);
 
-    player = this.settingsStore.player;
+    readonly player = this.settingsStore.player;
     streamUrl: string;
     favorites = new Map<number, boolean>();
 
@@ -78,24 +73,9 @@ export class LiveStreamLayoutComponent implements OnInit {
     }
 
     playLive(item: any) {
-        const { serverUrl, username, password } =
-            this.xtreamStore.currentPlaylist();
-        const streamFormat = this.settingsStore.streamFormat();
-        const streamUrl = `${serverUrl}/live/${username}/${password}/${item.xtream_id}.${streamFormat}`;
-        this.openPlayer(streamUrl, item.title, item.poster_url);
-        this.xtreamStore.setSelectedItem(item);
-        this.xtreamStore.loadEpg();
-    }
-
-    openPlayer(streamUrl: string, title: string, thumbnail: string) {
+        const streamUrl = this.xtreamStore.constructStreamUrl(item);
         this.streamUrl = streamUrl;
-        this.playerService.openPlayer(
-            streamUrl,
-            title,
-            thumbnail,
-            this.hideExternalInfoDialog(),
-            this.selectedContentType() === 'live'
-        );
+        this.xtreamStore.openPlayer(streamUrl, item.title, item.poster_url);
     }
 
     selectCategory(category: XtreamCategory) {

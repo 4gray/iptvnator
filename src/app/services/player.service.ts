@@ -22,7 +22,7 @@ export class PlayerService {
         streamUrl: string,
         title: string,
         thumbnail?: string,
-        hideExternalInfoDialog = false,
+        hideExternalInfoDialog = true,
         isLiveContent = false
     ) {
         const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
