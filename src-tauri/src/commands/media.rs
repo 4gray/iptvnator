@@ -107,7 +107,19 @@ pub async fn open_in_mpv<R: Runtime>(
     );
     info!("Complete MPV command: {}", command_str);
 
-    let child = command.spawn().map_err(|e| e.to_string())?;
+    // Emit an event before attempting to spawn MPV
+    app_handle.emit("player-launching", "MPV").map_err(|e| e.to_string())?;
+
+    // Try to spawn the MPV process and handle errors
+    let child = match command.spawn() {
+        Ok(child) => child,
+        Err(e) => {
+            let error_msg = format!("Failed to launch MPV: {}", e);
+            info!("{}", error_msg);
+            app_handle.emit("player-error", error_msg.clone()).map_err(|e| e.to_string())?;
+            return Err(error_msg);
+        }
+    };
 
     let process_id = child.id();
 
@@ -116,11 +128,19 @@ pub async fn open_in_mpv<R: Runtime>(
 
     // Spawn a thread to monitor the process
     thread::spawn(move || {
-        let _ = child.wait_with_output(); // Wait for the process to exit
-
+        let status = child.wait_with_output();
+        
         // Process has exited, remove it from our map and notify frontend
         if let Some(process) = MPV_PROCESSES.lock().unwrap().remove(&process_id) {
             let _ = app_handle_clone.emit("mpv-process-removed", process);
+            
+            // If process exited with an error, emit that as well
+            if let Ok(output) = status {
+                if !output.status.success() {
+                    let error_msg = format!("MPV exited with error code: {}", output.status);
+                    let _ = app_handle_clone.emit("player-error", error_msg);
+                }
+            }
         }
     });
 
@@ -146,6 +166,9 @@ pub async fn open_in_mpv<R: Runtime>(
     app_handle
         .emit("mpv-process-added", mpv_process)
         .map_err(|e| e.to_string())?;
+
+    // Emit success event
+    app_handle.emit("player-launched", "MPV").map_err(|e| e.to_string())?;
 
     Ok(process_id)
 }
@@ -185,9 +208,12 @@ pub async fn close_mpv_process<R: Runtime>(
 pub async fn open_in_vlc<R: Runtime>(
     url: String,
     path: String,
-    _app_handle: tauri::AppHandle<R>,
+    user_agent: Option<String>,
+    referer: Option<String>,
+    origin: Option<String>,
+    app_handle: tauri::AppHandle<R>,
 ) -> Result<(), String> {
-    info!("Custom MVP path: {}", path);
+    info!("Custom VLC path: {}", path);
     let vlc_paths = if cfg!(target_os = "windows") {
         vec![
             r"C:\Program Files\VideoLAN\VLC\vlc.exe",
@@ -215,11 +241,48 @@ pub async fn open_in_vlc<R: Runtime>(
 
     info!("Using VLC player path: {}", vlc_path);
 
-    Command::new(vlc_path)
-        .arg(&url)
-        .spawn()
-        .map_err(|e| e.to_string())?;
+    let mut command = Command::new(&vlc_path);
+    command.arg(&url);
+    
+    // Add headers if they are provided
+    if let Some(ua) = user_agent {
+        if !ua.is_empty() {
+            command.arg(format!("--http-user-agent={}", ua));
+        }
+    }
 
-    Ok(())
+    if let Some(ref_url) = referer {
+        if !ref_url.is_empty() {
+            command.arg(format!("--http-referrer={}", ref_url));
+        }
+    }
+
+    // Log the complete command line
+    let command_str = format!(
+        "{} {}",
+        vlc_path,
+        command
+            .get_args()
+            .map(|arg| arg.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    info!("Complete VLC command: {}", command_str);
+
+    // Emit an event before attempting to spawn VLC
+    app_handle.emit("player-launching", "VLC").map_err(|e| e.to_string())?;
+
+    match command.spawn() {
+        Ok(_) => {
+            app_handle.emit("player-launched", "VLC").map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to launch VLC: {}", e);
+            info!("{}", error_msg);
+            app_handle.emit("player-error", error_msg.clone()).map_err(|e| e.to_string())?;
+            Err(error_msg)
+        }
+    }
 }
 
