@@ -19,7 +19,7 @@ import { XtreamStore } from '../xtream.store';
         MatIconButton,
     ],
     templateUrl: './recently-viewed.component.html',
-    styleUrl: './recently-viewed.component.scss'
+    styleUrl: './recently-viewed.component.scss',
 })
 export class RecentlyViewedComponent {
     private xtreamStore = inject(XtreamStore);
@@ -38,6 +38,8 @@ export class RecentlyViewedComponent {
     constructor(
         @Optional() public dialogRef?: MatDialogRef<RecentlyViewedComponent>
     ) {
+        this.xtreamStore.setSelectedContentType(undefined);
+
         if (this.isGlobal) {
             this.loadGlobalItems();
         } else if (this.currentPlaylist()) {

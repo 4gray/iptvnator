@@ -60,7 +60,7 @@ export class FavoritesService {
                     [playlistId]
                 );
             }),
-            map((results) => results as FavoriteItem[])
+            map((results) => results)
         );
     }
 }
