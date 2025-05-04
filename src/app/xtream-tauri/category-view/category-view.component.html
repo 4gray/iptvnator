@@ -12,7 +12,7 @@
             </mat-list-item>
         } @empty {
             <app-playlist-error-view
-                title="No results"
+                [title]="'PORTALS.EMPTY_LIST_VIEW.TITLE' | translate"
                 [description]="
                     'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate
                 "
