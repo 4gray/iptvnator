@@ -10,7 +10,12 @@
 >
     <div class="image">
         @if (item.info?.movie_image) {
-            <img [src]="item.info?.movie_image" />
+            <img
+                [src]="item.info?.movie_image"
+                (error)="
+                    $event.target.src = './assets/images/default-poster.png'
+                "
+            />
         } @else {
             <div class="placeholder-cover"></div>
         }

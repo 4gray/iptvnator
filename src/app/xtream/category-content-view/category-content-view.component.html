@@ -18,6 +18,10 @@
                             priority
                             placeholder
                             placeholder="data:image/png;base64,iVBORw0K..."
+                            (error)="
+                                $event.target.src =
+                                    './assets/images/default-poster.png'
+                            "
                         />
                     }
                     @if (!item.stream_icon && !item.cover && !item.logo) {
