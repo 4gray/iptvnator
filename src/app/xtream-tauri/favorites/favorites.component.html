@@ -1,41 +1,37 @@
-<div class="favorites-container">
-    <div class="header">
-        <h2>{{ 'CHANNELS.FAVORITES' | translate }}</h2>
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2>{{ 'PORTALS.ALL_CATEGORIES' | translate }}</h2>
     </div>
+    <app-category-view
+        [items]="categories()"
+        [selectedCategoryId]="selectedCategoryId()"
+        (categoryClicked)="setCategoryId($event.category_id)"
+    />
+</div>
 
-    <mat-tab-group>
-        <mat-tab label="Live TV ({{ liveCount }})">
-            <ng-container
-                *ngTemplateOutlet="itemsGrid; context: { type: 'live' }"
-            >
-            </ng-container>
-        </mat-tab>
-        <mat-tab label="Movies ({{ moviesCount }})">
-            <ng-container
-                *ngTemplateOutlet="itemsGrid; context: { type: 'movie' }"
-            >
-            </ng-container>
-        </mat-tab>
-        <mat-tab label="Series ({{ seriesCount }})">
-            <ng-container
-                *ngTemplateOutlet="itemsGrid; context: { type: 'series' }"
-            >
-            </ng-container>
-        </mat-tab>
-    </mat-tab-group>
-
-    <ng-template #itemsGrid let-type="type">
-        @if ((favorites$ | async | filterByType: type).length) {
+<div class="main-content">
+    <div class="content-header">
+        <h2>
+            <h2>
+                {{
+                    selectedCategoryId() +
+                        ' ' +
+                        ('CHANNELS.FAVORITES' | translate)
+                }}
+            </h2>
+        </h2>
+    </div>
+    <div class="scrollable-content">
+        @if (favoritesToShow().length) {
             <div class="items-grid">
-                @for (
-                    item of favorites$ | async | filterByType: type;
-                    track $any(item).id
-                ) {
+                @for (item of favoritesToShow(); track item.content_id) {
                     <mat-card class="item-card" (click)="openItem(item)">
                         <img
                             [src]="
                                 item.poster_url ||
-                                'assets/default-' + type + '.png'
+                                'assets/default-' +
+                                    selectedCategoryId() +
+                                    '.png'
                             "
                             (error)="
                                 $event.target.src =
@@ -68,8 +64,9 @@
         } @else {
             <div class="no-items">
                 <mat-icon>favorite_border</mat-icon>
-                <p>No favorite {{ type }} items</p>
+                <p>No favorite {{ selectedCategoryId() }} items</p>
             </div>
         }
-    </ng-template>
+    </div>
+    <app-mpv-player-bar />
 </div>

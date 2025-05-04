@@ -1,15 +1,16 @@
-import { AsyncPipe, DatePipe, NgTemplateOutlet } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
-import { MatTabsModule } from '@angular/material/tabs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
-import { Observable } from 'rxjs';
-import { FilterByTypePipe } from '../../shared/pipes/filter-by-type.pipe';
+import { TranslatePipe } from '@ngx-translate/core';
+import { BehaviorSubject, switchMap } from 'rxjs';
+import { XtreamCategory } from '../../../../shared/xtream-category.interface';
+import { MpvPlayerBarComponent } from '../../shared/components/mpv-player-bar/mpv-player-bar.component';
 import { selectActivePlaylist } from '../../state/selectors';
+import { CategoryViewComponent } from '../category-view/category-view.component';
 import { FavoriteItem } from '../services/favorite-item.interface';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../xtream.store';
@@ -17,18 +18,16 @@ import { XtreamStore } from '../xtream.store';
 @Component({
     selector: 'app-favorites',
     imports: [
-        AsyncPipe,
+        CategoryViewComponent,
         DatePipe,
-        FilterByTypePipe,
         MatCardModule,
         MatIcon,
         MatIconButton,
-        MatTabsModule,
-        NgTemplateOutlet,
-        TranslateModule,
+        MpvPlayerBarComponent,
+        TranslatePipe,
     ],
     templateUrl: './favorites.component.html',
-    styleUrl: './favorites.component.scss'
+    styleUrls: ['./favorites.component.scss', '../sidebar.scss'],
 })
 export class FavoritesComponent implements OnInit {
     private favoritesService = inject(FavoritesService);
@@ -37,27 +36,78 @@ export class FavoritesComponent implements OnInit {
     private store = inject(Store);
     private xtreamStore = inject(XtreamStore);
 
-    favorites$: Observable<FavoriteItem[]>;
-    liveCount = 0;
-    moviesCount = 0;
-    seriesCount = 0;
+    readonly categories = signal<XtreamCategory[]>([]);
+
+    readonly series = signal<FavoriteItem[]>([]);
+    readonly movies = signal<FavoriteItem[]>([]);
+    readonly live = signal<FavoriteItem[]>([]);
+
+    readonly favoritesToShow = signal<FavoriteItem[]>([]);
+    readonly selectedCategoryId = signal<string>('movie');
+
+    private favoritesRefresh$ = new BehaviorSubject<void>(undefined);
 
     ngOnInit() {
+        this.xtreamStore.setSelectedContentType(undefined);
         const playlistId = this.store.selectSignal(selectActivePlaylist)()._id;
-        this.favorites$ = this.favoritesService.getFavorites(playlistId);
+        this.favoritesRefresh$
+            .pipe(
+                switchMap(() => this.favoritesService.getFavorites(playlistId))
+            )
+            .subscribe((items) => {
+                this.movies.set(
+                    items.filter((item) => (item as any).type === 'movie')
+                );
+                this.live.set(items.filter((item) => item.type === 'live'));
+                this.series.set(items.filter((item) => item.type === 'series'));
+                this.initCategories();
+                this.setCategoryContent(this.selectedCategoryId());
+            });
+    }
 
-        // Subscribe to update counts
-        this.favorites$.subscribe((items) => {
-            this.liveCount = items.filter(
-                (item) => item.type === 'live'
-            ).length;
-            this.moviesCount = items.filter(
-                (item) => (item as any).type === 'movie'
-            ).length;
-            this.seriesCount = items.filter(
-                (item) => item.type === 'series'
-            ).length;
-        });
+    initCategories() {
+        this.categories.set([
+            {
+                id: 1,
+                category_id: 'movie',
+                category_name: 'Movies' + ' (' + this.movies().length + ')',
+                parent_id: 0,
+            },
+            {
+                id: 2,
+                category_id: 'live',
+                category_name: 'Live TV' + ' (' + this.live().length + ')',
+                parent_id: 0,
+            },
+            {
+                id: 3,
+                category_id: 'series',
+                category_name: 'Series' + ' (' + this.series().length + ')',
+                parent_id: 0,
+            },
+        ]);
+    }
+
+    setCategoryId(categoryId: string) {
+        this.selectedCategoryId.set(categoryId);
+        this.setCategoryContent(categoryId);
+    }
+
+    setCategoryContent(categoryId: string) {
+        switch (categoryId) {
+            case 'movie':
+                this.favoritesToShow.set(this.movies());
+                break;
+            case 'live':
+                this.favoritesToShow.set(this.live());
+                break;
+            case 'series':
+                this.favoritesToShow.set(this.series());
+                break;
+            default:
+                this.favoritesToShow.set(this.movies());
+                break;
+        }
     }
 
     async removeFromFavorites(item: any) {
@@ -66,17 +116,15 @@ export class FavoritesComponent implements OnInit {
             item.playlist_id
         );
         // Refresh favorites after removal
-        const playlistId = this.store.selectSignal(selectActivePlaylist)()._id;
-        this.favorites$ = this.favoritesService.getFavorites(playlistId);
+        this.favoritesRefresh$.next();
     }
 
     openItem(item: any) {
         const type = item.type === 'movie' ? 'vod' : item.type;
         this.xtreamStore.setSelectedContentType(type);
         if (type === 'live') {
-            this.router.navigate(['..', type, item.category_id], {
-                relativeTo: this.route,
-            });
+            const streamUrl = this.xtreamStore.constructStreamUrl(item);
+            this.xtreamStore.openPlayer(streamUrl, item.title, item.poster_url);
         } else {
             this.router.navigate(
                 ['..', type, item.category_id, item.xtream_id],
