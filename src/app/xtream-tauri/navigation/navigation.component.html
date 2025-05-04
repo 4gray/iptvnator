@@ -85,8 +85,9 @@
     <mat-nav-list>
         <a
             mat-list-item
+            routerLink="./search"
             routerLinkActive="active"
-            (click)="pageClicked.emit('search')"
+            (click)="pageSwitch('search')"
         >
             <mat-icon matListItemIcon>search</mat-icon>
             <span matListItemTitle>{{
@@ -95,8 +96,9 @@
         </a>
         <a
             mat-list-item
+            routerLink="./recent"
             routerLinkActive="active"
-            (click)="pageClicked.emit('recent')"
+            (click)="pageSwitch('recent')"
         >
             <mat-icon matListItemIcon>history</mat-icon>
             <span matListItemTitle>{{
@@ -105,8 +107,9 @@
         </a>
         <a
             mat-list-item
+            routerLink="./favorites"
             routerLinkActive="active"
-            (click)="pageClicked.emit('favorites')"
+            (click)="pageSwitch('favorites')"
         >
             <mat-icon matListItemIcon>favorite</mat-icon>
             <span matListItemTitle>{{

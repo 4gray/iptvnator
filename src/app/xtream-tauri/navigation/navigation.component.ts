@@ -101,4 +101,9 @@ export class NavigationComponent {
             data: this.currentPlaylist(),
         });
     }
+
+    pageSwitch(page: 'search' | 'recent' | 'favorites') {
+        this.pageClicked.emit(page);
+        this.xtreamStore.setSelectedContentType(undefined);
+    }
 }
