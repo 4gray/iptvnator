@@ -62,7 +62,7 @@
     "@videojs/http-streaming": "2.15.0",
     "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
     "artplayer": "5.2.1",
-    "axios": "1.6.2",
+    "axios": "1.8.4",
     "date-fns": "2.29.3",
     "dplayer": "1.27.1",
     "epg-parser": "0.1.6",
@@ -135,12 +135,12 @@
     "playwright": "1.46.1",
     "playwright-core": "1.46.1",
     "prettier": "3.3.3",
-    "semantic-release": "19.0.3",
+    "semantic-release": "24.2.3",
     "ts-jest": "29.2.6",
     "ts-node": "10.9.2",
     "tslib": "2.3.0",
     "typescript": "5.5.4",
-    "wait-on": "6.0.0"
+    "wait-on": "8.0.3"
   },
   "engines": {
     "node": ">=20.0.0"
