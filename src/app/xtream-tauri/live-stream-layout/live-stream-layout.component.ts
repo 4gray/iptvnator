@@ -16,6 +16,7 @@ import { XtreamCategory } from '../../../../shared/xtream-category.interface';
 import { EpgViewComponent } from '../../portals/epg-view/epg-view.component';
 import { WebPlayerViewComponent } from '../../portals/web-player-view/web-player-view.component';
 import { SettingsStore } from '../../services/settings-store.service';
+import { MpvPlayerBarComponent } from '../../shared/components/mpv-player-bar/mpv-player-bar.component';
 import { CategoryViewComponent } from '../category-view/category-view.component';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { FavoritesService } from '../services/favorites.service';
@@ -34,6 +35,7 @@ import { XtreamStore } from '../xtream.store';
         MatIconButton,
         MatInputModule,
         MatListModule,
+        MpvPlayerBarComponent,
         PortalChannelsListComponent,
         TranslatePipe,
         WebPlayerViewComponent,
