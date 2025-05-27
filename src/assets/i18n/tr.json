@@ -198,7 +198,7 @@
   "LANGUAGES": {
     "ARABIC": "العربية",
     "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
-    "ENGLISH": "İngilizce",
+    "ENGLISH": "English",
     "KOREAN": "한국어",
     "RUSSIAN": "Русский",
     "GERMAN": "Deutsch",
@@ -211,7 +211,8 @@
     "JAPANESE": "日本語",
     "DUTCH": "Nederlands",
     "BELARUSIAN": "Беларуская",
-    "POLISH": "Polski"
+    "POLISH": "Polski",
+    "PORTUGUESE": "Português"
   },
   "YES": "Evet",
   "NO": "Hayır",

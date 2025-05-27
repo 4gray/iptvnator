@@ -140,8 +140,8 @@
     "REMOVE_ALL_BUTTON": "حيد",
     "REMOVE_ALL_DESCRIPTION": "غادي يحيد جميع قوائم التشغيل الموجودة من التطبيق.",
     "REMOVE_DIALOG": {
-        "TITLE": "حيد جميع قوائم التشغيل",
-        "MESSAGE": "واش متأكد بغيتي تحيد جميع قوائم التشغيل من التطبيق؟"
+      "TITLE": "حيد جميع قوائم التشغيل",
+      "MESSAGE": "واش متأكد بغيتي تحيد جميع قوائم التشغيل من التطبيق؟"
     },
     "IMPORT_ERROR": "خطأ في الاستيراد، عفاك جرب بملف آخر.",
     "PLAYLISTS_REMOVED": "جميع قوائم التشغيل تحيدو.",
@@ -155,12 +155,12 @@
     "REMOTE_CONTROL_DESCRIPTION": "فعل التحكم عن بعد للتطبيق.",
     "REMOTE_CONTROL_PORT": "منفذ التحكم عن بعد",
     "REMOTE_CONTROL_PORT_DESCRIPTION": "المنفذ اللي كيتستعمل للتحكم عن بعد للتطبيق. المنفذ 3000 كيتستعمل افتراضياً."
-},
-"THEMES": {
+  },
+  "THEMES": {
     "DARK_THEME": "المظهر الداكن",
     "LIGHT_THEME": "المظهر الفاتح"
-},
-"CHANNELS": {
+  },
+  "CHANNELS": {
     "SEARCH_CHANNEL": "قلب على قناة",
     "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "رفع ولا اختار قائمة تشغيل أخرى",
     "ALL_CHANNELS": "جميع القنوات",
@@ -176,14 +176,14 @@
     "SORT_BY_DATE": "رتب بتاريخ الإضافة (الأحدث أولاً)",
     "SORT_BY_RATING": "رتب بالتقييم",
     "SORT_BY_NAME": "رتب بالاسم (أ-ي)"
-},
-"TOP_MENU": {
+  },
+  "TOP_MENU": {
     "OPEN_CHANNELS_LIST": "حل قائمة القنوات",
     "TOGGLE_FAVORITE_FLAG": "بدل علامة المفضلة",
     "OPEN_EPG_LIST": "حل قائمة EPG",
     "OPEN_MULTI_EPG": "حل عرض EPG المتعدد"
-},
-"EPG": {
+  },
+  "EPG": {
     "TITLE": "دليل البرامج الإلكتروني",
     "NEXT_DAY": "اليوم التالي",
     "PREVIOUS_DAY": "اليوم السابق",
@@ -197,34 +197,35 @@
     "ERROR": "أوه، EPG ما قدرش يتشارجا.",
     "DOWNLOAD_SUCCESS": "EPG تشارجا بنجاح.",
     "PROGRAM_DIALOG": {
-        "PROGRAM_DETAILS": "تفاصيل حول البرنامج التلفزيوني",
-        "TITLE": "العنوان",
-        "CATEGORY": "الفئة",
-        "PARENTAL_RATING_SYSTEM": "نظام تقييم المحتوى التلفزيوني",
-        "DESCRIPTION": "الوصف",
-        "LANGUAGE": "اللغة",
-        "SHOW_PROGRAM_DETAILS": "وري تفاصيل حول هاد البرنامج"
+      "PROGRAM_DETAILS": "تفاصيل حول البرنامج التلفزيوني",
+      "TITLE": "العنوان",
+      "CATEGORY": "الفئة",
+      "PARENTAL_RATING_SYSTEM": "نظام تقييم المحتوى التلفزيوني",
+      "DESCRIPTION": "الوصف",
+      "LANGUAGE": "اللغة",
+      "SHOW_PROGRAM_DETAILS": "وري تفاصيل حول هاد البرنامج"
     },
     "FETCH_SUCCESS": "EPG تجلب بنجاح"
-},
-"LANGUAGES": {
+  },
+  "LANGUAGES": {
     "ARABIC": "العربية",
     "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
-    "ENGLISH": "الإنجليزية",
-    "KOREAN": "الكورية",
-    "RUSSIAN": "الروسية",
-    "GERMAN": "الألمانية",
-    "SPANISH": "الإسبانية",
-    "CHINESE": "الصينية المبسطة",
-    "TRADITIONAL_CHINESE": "الصينية التقليدية",
-    "FRENCH": "الفرنسية",
-    "ITALIAN": "الإيطالية",
-    "TURKISH": "التركية",
-    "JAPANESE": "اليابانية",
-    "DUTCH": "الهولندية",
-    "BELARUSIAN": "البيلاروسية",
-    "POLISH": "البولندية"
-     },
+    "ENGLISH": "English",
+    "KOREAN": "한국어",
+    "RUSSIAN": "Русский",
+    "GERMAN": "Deutsch",
+    "SPANISH": "Español",
+    "CHINESE": "简体中文",
+    "TRADITIONAL_CHINESE": "繁體中文",
+    "FRENCH": "Français",
+    "ITALIAN": "Italiano",
+    "TURKISH": "Türkçe",
+    "JAPANESE": "日本語",
+    "DUTCH": "Nederlands",
+    "BELARUSIAN": "Беларуская",
+    "POLISH": "Polski",
+    "PORTUGUESE": "Português"
+  },
   "YES": "آه",
   "NO": "لا",
   "MENU": {

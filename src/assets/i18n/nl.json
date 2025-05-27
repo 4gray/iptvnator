@@ -146,16 +146,15 @@
     "IMPORT_ERROR": "Fout bij importeren, probeer een ander bestand.",
     "PLAYLISTS_REMOVED": "Alle afspeellijsten zijn verwijderd.",
     "MPV_PLAYER_PATH_LABEL": "mpv-bestandspad",
-	"MPV_PLAYER_PATH_DESCRIPTION": "Stel het bestandspad in naar de mpv-speler op je systeem. Dit bestandspad wordt gebruikt in plaats van de standaard mpv-bestand uit $PATH.",
-	"MPV_PLAYER_PATH": "mpv-speler bestandspad",
-	"VLC_PLAYER_PATH_LABEL": "VLC-bestandspad",
-	"VLC_PLAYER_PATH_DESCRIPTION": "Stel het bestandspad in naar de VLC-speler op je systeem. Dit bestandspad wordt gebruikt in plaats van het standaardpad van het systeem.",
-	"VLC_PLAYER_PATH": "VLC-speler bestandspad",
-	"REMOTE_CONTROL": "Afstandsbediening",
-	"REMOTE_CONTROL_DESCRIPTION": "Schakel de afstandsbediening voor de applicatie in.",
-	"REMOTE_CONTROL_PORT": "Afstandsbedieningspoort",
-	"REMOTE_CONTROL_PORT_DESCRIPTION": "Poort voor de afstandsbediening van de applicatie. Standaard wordt poort 3000 gebruikt.",
-
+    "MPV_PLAYER_PATH_DESCRIPTION": "Stel het bestandspad in naar de mpv-speler op je systeem. Dit bestandspad wordt gebruikt in plaats van de standaard mpv-bestand uit $PATH.",
+    "MPV_PLAYER_PATH": "mpv-speler bestandspad",
+    "VLC_PLAYER_PATH_LABEL": "VLC-bestandspad",
+    "VLC_PLAYER_PATH_DESCRIPTION": "Stel het bestandspad in naar de VLC-speler op je systeem. Dit bestandspad wordt gebruikt in plaats van het standaardpad van het systeem.",
+    "VLC_PLAYER_PATH": "VLC-speler bestandspad",
+    "REMOTE_CONTROL": "Afstandsbediening",
+    "REMOTE_CONTROL_DESCRIPTION": "Schakel de afstandsbediening voor de applicatie in.",
+    "REMOTE_CONTROL_PORT": "Afstandsbedieningspoort",
+    "REMOTE_CONTROL_PORT_DESCRIPTION": "Poort voor de afstandsbediening van de applicatie. Standaard wordt poort 3000 gebruikt."
   },
   "THEMES": {
     "DARK_THEME": "Donker thema",
@@ -209,6 +208,8 @@
     "FETCH_SUCCESS": "TV-Gids bijgewerkt"
   },
   "LANGUAGES": {
+    "ARABIC": "العربية",
+    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
     "ENGLISH": "English",
     "KOREAN": "한국어",
     "RUSSIAN": "Русский",
@@ -222,7 +223,8 @@
     "JAPANESE": "日本語",
     "DUTCH": "Nederlands",
     "BELARUSIAN": "Беларуская",
-    "POLISH": "Polski"
+    "POLISH": "Polski",
+    "PORTUGUESE": "Português"
   },
   "YES": "Ja",
   "NO": "Nee",

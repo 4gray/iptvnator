@@ -18,4 +18,5 @@ export enum Language {
     DUTCH = 'nl',
     BELARUSIAN = 'by',
     POLISH = 'pl',
+    PORTUGUESE = 'pt',
 }
