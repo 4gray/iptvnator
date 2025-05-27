@@ -5,88 +5,88 @@
     "TITLE": "IPTVnator",
     "SUBTITLE": "リストからプレイリストを選択するか、新しいプレイリストを追加してください",
     "TABS": {
-        "RECENTLY_ADDED": "最近追加したプレイリスト",
-        "FILE_UPLOAD": "ファイルアップロード",
-        "URL_UPLOAD": "URLから追加",
-        "TEXT_IMPORT": "テキストからインポート",
-        "XTREME_IMPORT": "Xtremeコードを追加",
-        "STALKER_PORTAL_IMPORT": "Stalkerポータルを追加"
+      "RECENTLY_ADDED": "最近追加したプレイリスト",
+      "FILE_UPLOAD": "ファイルアップロード",
+      "URL_UPLOAD": "URLから追加",
+      "TEXT_IMPORT": "テキストからインポート",
+      "XTREME_IMPORT": "Xtremeコードを追加",
+      "STALKER_PORTAL_IMPORT": "Stalkerポータルを追加"
     },
     "PLAYLISTS": {
-        "NO_PLAYLISTS": "プレイリストが追加されていません",
-        "ADD_FIRST": "最初のプレイリストを追加してください",
-        "ADDED_VIA_URL": "URLからアップロード。URL:",
-        "ADDED_VIA_FILE": "ファイルからアップロード",
-        "XTREAM_PLAYLIST": "Xtremeプレイリスト",
-        "STALKER_PORTAL": "Stalkerポータル",
-        "CHANNELS": "チャンネル",
-        "ADDED": "追加済み",
-        "SHOW_DETAILS": "プレイリストの詳細を表示",
-        "REMOVE": "プレイリストを削除",
-        "SEARCH_PLAYLISTS": "タイトルでプレイリストを検索",
-        "INFO_DIALOG": {
-            "PLAYLIST_DETAILS": "プレイリストの詳細",
-            "TITLE": "タイトル",
-            "FROM_URL": "URLから追加",
-            "IMPORT_DATE": "インポート日",
-            "CHANNELS": "チャンネル数",
-            "CLOSE": "閉じる",
-            "SAVE": "保存",
-            "USER_AGENT": "ユーザーエージェント",
-            "ORIGINAL_FILENAME": "元のファイル名",
-            "FILE_PATH": "ファイルパス",
-            "UPDATE_FAILED": "最後のプレイリスト更新に失敗しました",
-            "AUTO_UPDATE": "自動更新",
-            "AUTO_UPDATE_DESCRIPTION": "自動更新機能が有効な場合、アプリ起動時にプレイリストが自動的に更新されます。",
-            "CUSTOM_USER_AGENT": "一部のIPTVプロバイダーでは、プレイリストを再生するために特定のユーザーエージェントが必要です。",
-            "EXPORT_PLAYLIST": "プレイリストをm3uとしてエクスポート",
-            "SERVER_URL": "サーバーURL",
-            "USERNAME": "ユーザー名",
-            "PASSWORD": "パスワード",
-            "MAC_ADDRESS": "MACアドレス"
-        },
-        "REMOVE_DIALOG": {
-            "TITLE": "プレイリストを削除",
-            "MESSAGE": "このプレイリストを完全に削除してもよろしいですか？"
-        },
-        "UPDATED": "更新済み",
-        "REFRESH": "プレイリストを更新",
-        "GLOBAL_FAVORITES": "グローバルお気に入り",
-        "GLOBAL_FAVORITES_DESCRIPTION": "全プレイリストのお気に入りを集約した自動生成プレイリスト",
-        "MY_PLAYLISTS": "マイプレイリスト",
-        "MY_PLAYLISTS_SUBTITLE": "利用可能な全プレイリスト",
-        "PLAYLIST_UPDATE_SUCCESS": "成功！プレイリストが正常に更新されました。"
-    },
-    "FILE_UPLOAD": {
-        "DRAG_DROP": "ここにファイルをドラッグ＆ドロップ",
-        "OR": "または",
-        "CHOOSE_PLAYLIST": "プレイリストを選択",
-        "REJECTED": "ファイルが拒否されました。サポートされていないファイル形式です：{{filename}}"
-    },
-    "URL_UPLOAD": {
-        "PLAYLIST_URL": "プレイリストURL (m3u, m3u8)",
-        "ADD_PLAYLIST": "プレイリストを追加",
-        "CORS_NOTE": "注意：CORSの問題を回避するため、現時点ではパブリックCORSプロキシサービスを使用しています。機密データを含むプレイリストをアップロードする場合は、ファイルからインポートする方が安全です。"
-    },
-    "TEXT_IMPORT": {
-        "LABEL": "m3u(8)プレイリストをテキストとして挿入",
-        "BUTTON_LABEL": "インポート"
-    },
-    "XTREAM_PLAYLIST": {
-        "TITLE": "プレイリストタイトル",
+      "NO_PLAYLISTS": "プレイリストが追加されていません",
+      "ADD_FIRST": "最初のプレイリストを追加してください",
+      "ADDED_VIA_URL": "URLからアップロード。URL:",
+      "ADDED_VIA_FILE": "ファイルからアップロード",
+      "XTREAM_PLAYLIST": "Xtremeプレイリスト",
+      "STALKER_PORTAL": "Stalkerポータル",
+      "CHANNELS": "チャンネル",
+      "ADDED": "追加済み",
+      "SHOW_DETAILS": "プレイリストの詳細を表示",
+      "REMOVE": "プレイリストを削除",
+      "SEARCH_PLAYLISTS": "タイトルでプレイリストを検索",
+      "INFO_DIALOG": {
+        "PLAYLIST_DETAILS": "プレイリストの詳細",
+        "TITLE": "タイトル",
+        "FROM_URL": "URLから追加",
+        "IMPORT_DATE": "インポート日",
+        "CHANNELS": "チャンネル数",
+        "CLOSE": "閉じる",
+        "SAVE": "保存",
+        "USER_AGENT": "ユーザーエージェント",
+        "ORIGINAL_FILENAME": "元のファイル名",
+        "FILE_PATH": "ファイルパス",
+        "UPDATE_FAILED": "最後のプレイリスト更新に失敗しました",
+        "AUTO_UPDATE": "自動更新",
+        "AUTO_UPDATE_DESCRIPTION": "自動更新機能が有効な場合、アプリ起動時にプレイリストが自動的に更新されます。",
+        "CUSTOM_USER_AGENT": "一部のIPTVプロバイダーでは、プレイリストを再生するために特定のユーザーエージェントが必要です。",
+        "EXPORT_PLAYLIST": "プレイリストをm3uとしてエクスポート",
         "SERVER_URL": "サーバーURL",
         "USERNAME": "ユーザー名",
         "PASSWORD": "パスワード",
-        "ADD": "追加",
-        "TEST_CREDENTIALS": "認証情報をテスト",
-        "URL_VALIDATION_ERROR": "プロトコルを含む有効なURLである必要があります（例：http://example.com または https://example.com:4324）"
+        "MAC_ADDRESS": "MACアドレス"
+      },
+      "REMOVE_DIALOG": {
+        "TITLE": "プレイリストを削除",
+        "MESSAGE": "このプレイリストを完全に削除してもよろしいですか？"
+      },
+      "UPDATED": "更新済み",
+      "REFRESH": "プレイリストを更新",
+      "GLOBAL_FAVORITES": "グローバルお気に入り",
+      "GLOBAL_FAVORITES_DESCRIPTION": "全プレイリストのお気に入りを集約した自動生成プレイリスト",
+      "MY_PLAYLISTS": "マイプレイリスト",
+      "MY_PLAYLISTS_SUBTITLE": "利用可能な全プレイリスト",
+      "PLAYLIST_UPDATE_SUCCESS": "成功！プレイリストが正常に更新されました。"
+    },
+    "FILE_UPLOAD": {
+      "DRAG_DROP": "ここにファイルをドラッグ＆ドロップ",
+      "OR": "または",
+      "CHOOSE_PLAYLIST": "プレイリストを選択",
+      "REJECTED": "ファイルが拒否されました。サポートされていないファイル形式です：{{filename}}"
+    },
+    "URL_UPLOAD": {
+      "PLAYLIST_URL": "プレイリストURL (m3u, m3u8)",
+      "ADD_PLAYLIST": "プレイリストを追加",
+      "CORS_NOTE": "注意：CORSの問題を回避するため、現時点ではパブリックCORSプロキシサービスを使用しています。機密データを含むプレイリストをアップロードする場合は、ファイルからインポートする方が安全です。"
+    },
+    "TEXT_IMPORT": {
+      "LABEL": "m3u(8)プレイリストをテキストとして挿入",
+      "BUTTON_LABEL": "インポート"
+    },
+    "XTREAM_PLAYLIST": {
+      "TITLE": "プレイリストタイトル",
+      "SERVER_URL": "サーバーURL",
+      "USERNAME": "ユーザー名",
+      "PASSWORD": "パスワード",
+      "ADD": "追加",
+      "TEST_CREDENTIALS": "認証情報をテスト",
+      "URL_VALIDATION_ERROR": "プロトコルを含む有効なURLである必要があります（例：http://example.com または https://example.com:4324）"
     },
     "STALKER_PORTAL": {
-        "TITLE": "タイトル",
-        "MAC_ADDRESS": "MACアドレス",
-        "SERVER_URL": "サーバーURL",
-        "URL_VALIDATION_ERROR": "プロトコルを含む有効なURLである必要があります（例：http://example.com/c または https://example.com/stalker_portal/c）",
-        "ADD": "追加"
+      "TITLE": "タイトル",
+      "MAC_ADDRESS": "MACアドレス",
+      "SERVER_URL": "サーバーURL",
+      "URL_VALIDATION_ERROR": "プロトコルを含む有効なURLである必要があります（例：http://example.com/c または https://example.com/stalker_portal/c）",
+      "ADD": "追加"
     },
     "FILTER_BY_NAME": "名前でフィルター",
     "FILTER_BY_TYPE": "種類でフィルター",
@@ -128,8 +128,8 @@
     "REMOVE_ALL_BUTTON": "削除",
     "REMOVE_ALL_DESCRIPTION": "アプリケーションから既存のプレイリストをすべて削除します。",
     "REMOVE_DIALOG": {
-        "TITLE": "すべてのプレイリストを削除",
-        "MESSAGE": "アプリケーションからすべてのプレイリストを削除してもよろしいですか？"
+      "TITLE": "すべてのプレイリストを削除",
+      "MESSAGE": "アプリケーションからすべてのプレイリストを削除してもよろしいですか？"
     },
     "IMPORT_ERROR": "インポートエラー。別のファイルで試してください。",
     "PLAYLISTS_REMOVED": "すべてのプレイリストが削除されました。",
@@ -185,33 +185,34 @@
     "ERROR": "申し訳ありません。EPGを読み込めませんでした。",
     "DOWNLOAD_SUCCESS": "EPGが正常にダウンロードされました。",
     "PROGRAM_DIALOG": {
-        "PROGRAM_DETAILS": "番組の詳細",
-        "TITLE": "タイトル",
-        "CATEGORY": "カテゴリー",
-        "PARENTAL_RATING_SYSTEM": "テレビ番組レーティングシステム",
-        "DESCRIPTION": "説明",
-        "LANGUAGE": "言語",
-        "SHOW_PROGRAM_DETAILS": "この番組の詳細を表示"
+      "PROGRAM_DETAILS": "番組の詳細",
+      "TITLE": "タイトル",
+      "CATEGORY": "カテゴリー",
+      "PARENTAL_RATING_SYSTEM": "テレビ番組レーティングシステム",
+      "DESCRIPTION": "説明",
+      "LANGUAGE": "言語",
+      "SHOW_PROGRAM_DETAILS": "この番組の詳細を表示"
     },
     "FETCH_SUCCESS": "EPGの取得に成功しました"
   },
   "LANGUAGES": {
-    "ARABIC": "アラビア語",
-    "MOROCCAN_ARABIC": "アラビア語（モロッコ方言）",
-    "ENGLISH": "英語",
-    "KOREAN": "韓国語",
-    "RUSSIAN": "ロシア語",
-    "GERMAN": "ドイツ語",
-    "SPANISH": "スペイン語",
-    "CHINESE": "中国語（簡体字）",
-    "TRADITIONAL_CHINESE": "中国語（繁体字）",
-    "FRENCH": "フランス語",
-    "ITALIAN": "イタリア語",
-    "TURKISH": "トルコ語",
+    "ARABIC": "العربية",
+    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
+    "ENGLISH": "English",
+    "KOREAN": "한국어",
+    "RUSSIAN": "Русский",
+    "GERMAN": "Deutsch",
+    "SPANISH": "Español",
+    "CHINESE": "简体中文",
+    "TRADITIONAL_CHINESE": "繁體中文",
+    "FRENCH": "Français",
+    "ITALIAN": "Italiano",
+    "TURKISH": "Türkçe",
     "JAPANESE": "日本語",
-    "DUTCH": "オランダ語",
-    "BELARUSIAN": "ベラルーシ語",
-    "POLISH": "ポーランド語"
+    "DUTCH": "Nederlands",
+    "BELARUSIAN": "Беларуская",
+    "POLISH": "Polski",
+    "PORTUGUESE": "Português"
   },
   "YES": "はい",
   "NO": "いいえ",
@@ -264,32 +265,32 @@
     "REMOVED_FROM_FAVORITES": "お気に入りから削除されました",
     "ADDED_TO_FAVORITES": "お気に入りに追加されました",
     "ERROR_VIEW": {
-    "ACCOUNT_EXPIRED": {
-      "TITLE": "アカウントの有効期限が切れています",
-      "DESCRIPTION": "このアカウントの有効期限が切れています。プレイリスト設定で認証情報を確認するか、削除してください。"
-    },
-    "UNAUTHORIZED": {
-      "TITLE": "未認証",
-      "DESCRIPTION": "プレイリスト設定で認証情報を確認するか、削除してください。"
-    },
-    "NOT_FOUND": {
-      "TITLE": "ポータルが見つかりません",
-      "DESCRIPTION": "プレイリスト設定で認証情報とポータルURLを確認するか、削除してください。"
-    },
-    "EMPTY_CATEGORY": {
-      "TITLE": "空のカテゴリー",
-      "DESCRIPTION": "このカテゴリーにはコンテンツがありません。別のカテゴリーを選択するかコンテンツタイプを変更してください"
-    },
-    "UNKNOWN_ERROR": {
-      "TITLE": "問題が発生しました",
-      "DESCRIPTION": "不明なエラー。後でもう一度お試しください"
-    },
-    "PLAYLIST_SETTINGS": "プレイリスト設定",
-    "HOME": "ホーム",
-    "DELETE": "削除"
+      "ACCOUNT_EXPIRED": {
+        "TITLE": "アカウントの有効期限が切れています",
+        "DESCRIPTION": "このアカウントの有効期限が切れています。プレイリスト設定で認証情報を確認するか、削除してください。"
+      },
+      "UNAUTHORIZED": {
+        "TITLE": "未認証",
+        "DESCRIPTION": "プレイリスト設定で認証情報を確認するか、削除してください。"
+      },
+      "NOT_FOUND": {
+        "TITLE": "ポータルが見つかりません",
+        "DESCRIPTION": "プレイリスト設定で認証情報とポータルURLを確認するか、削除してください。"
+      },
+      "EMPTY_CATEGORY": {
+        "TITLE": "空のカテゴリー",
+        "DESCRIPTION": "このカテゴリーにはコンテンツがありません。別のカテゴリーを選択するかコンテンツタイプを変更してください"
+      },
+      "UNKNOWN_ERROR": {
+        "TITLE": "問題が発生しました",
+        "DESCRIPTION": "不明なエラー。後でもう一度お試しください"
+      },
+      "PLAYLIST_SETTINGS": "プレイリスト設定",
+      "HOME": "ホーム",
+      "DELETE": "削除"
     },
     "EMPTY_LIST_VIEW": {
-        "NO_SEARCH_RESULTS": "何も見つかりませんでした。検索リクエストを変更してみてください"
+      "NO_SEARCH_RESULTS": "何も見つかりませんでした。検索リクエストを変更してみてください"
     },
     "STREAM_URL_COPIED": "ストリームURLがクリップボードにコピーされました",
     "COPY_STREAM_URL": "ストリームURLをコピー"
