@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "ruvo-player",
-  "buildCommand": "npm run build:web",
+  "buildCommand": "npm run build:prod",
   "outputDirectory": "dist/browser",
   "installCommand": "npm install",
   "framework": null,
