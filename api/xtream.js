@@ -59,6 +59,7 @@ export default async function handler(req, res) {
     console.log('Response data:', data);
     
     // Return the response in the exact format expected by the frontend
+    // The PWA service checks for response.payload, so we need to wrap it
     res.status(200).json({
       payload: data
     });
