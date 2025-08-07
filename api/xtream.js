@@ -10,9 +10,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { url, username, password, action } = req.query;
+    // Extract all parameters from query
+    const params = req.query;
+    console.log('Received params:', params);
+
+    const { url, username, password, action } = params;
 
     if (!url || !username || !password || !action) {
+      console.log('Missing parameters:', { url: !!url, username: !!username, password: !!password, action: !!action });
       return res.status(400).json({
         status: 'error',
         message: 'Missing required parameters: url, username, password, action'
@@ -21,9 +26,13 @@ export default async function handler(req, res) {
 
     // Construct the Xtream API URL
     const apiUrl = new URL(`${url}/player_api.php`);
-    apiUrl.searchParams.append('username', username);
-    apiUrl.searchParams.append('password', password);
-    apiUrl.searchParams.append('action', action);
+    
+    // Add all parameters to the URL
+    Object.entries(params).forEach(([key, value]) => {
+      if (key !== 'url') { // Don't add the url parameter itself
+        apiUrl.searchParams.append(key, value);
+      }
+    });
 
     console.log('Requesting:', apiUrl.toString());
 
@@ -36,24 +45,27 @@ export default async function handler(req, res) {
       },
     });
 
+    console.log('Response status:', response.status);
+
     if (!response.ok) {
-      return res.status(response.status).json({
+      console.log('Response not OK:', response.status, response.statusText);
+      return res.status(200).json({
         status: 'error',
         message: `IPTV server responded with status ${response.status}`
       });
     }
 
     const data = await response.json();
+    console.log('Response data:', data);
     
-    // Return the response in the expected format
+    // Return the response in the exact format expected by the frontend
     res.status(200).json({
-      payload: data,
-      status: 'success'
+      payload: data
     });
 
   } catch (error) {
     console.error('CORS Proxy Error:', error);
-    res.status(500).json({
+    res.status(200).json({
       status: 'error',
       message: error.message || 'Internal server error'
     });
