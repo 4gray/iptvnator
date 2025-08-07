@@ -1,0 +1,38 @@
+{
+  "name": "ruvo-player",
+  "version": 2,
+  "buildCommand": "npm run build:web",
+  "outputDirectory": "dist/browser",
+  "installCommand": "npm install",
+  "framework": "angular",
+  "routes": [
+    {
+      "src": "/assets/(.*)",
+      "headers": { "cache-control": "s-maxage=31536000" }
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
+      "headers": { "cache-control": "s-maxage=31536000" }
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
+    }
+  ],
+  "functions": {
+    "dist/browser/**": {
+      "includeFiles": "dist/browser/**"
+    }
+  }
+}

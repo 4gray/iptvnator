@@ -7,7 +7,7 @@
     "version": 1,
     "newProjectRoot": "projects",
     "projects": {
-        "iptvnator": {
+        "ruvo-player": {
             "root": "",
             "sourceRoot": "src",
             "projectType": "application",

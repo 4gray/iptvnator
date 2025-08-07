@@ -1,13 +1,15 @@
 {
-    "name": "IPTVnator",
-    "description": "IPTVnator is a tool to watch and manage your IPTV playlists.",
-    "short_name": "IPTVnator",
+    "name": "Ruvo Player",
+    "description": "Ruvo Player is a tool to watch and manage your IPTV playlists.",
+    "short_name": "Ruvo Player",
     "theme_color": "#1b1c1c",
     "background_color": "#1b1c1c",
     "display": "standalone",
     "scope": "./",
     "start_url": "./",
-    "categories": ["video"],
+    "categories": [
+        "video"
+    ],
     "icons": [
         {
             "src": "assets/icons/android-chrome-192x192.png",

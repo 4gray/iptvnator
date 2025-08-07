@@ -1,10 +1,10 @@
 [package]
-name = "IPTVnator"
+name = "Ruvo-Player"
 version = "1.0.0-beta.6"
-description = "IPTVnator"
-authors = ["4gray"]
+description = "Ruvo Player - IPTV player application for Ruvo Play"
+authors = ["Ruvo Play"]
 license = "MIT"
-repository = "https://github.com/4gray/iptvnator"
+repository = "https://github.com/ruvoplay/ruvo-player"
 edition = "2021"
 rust-version = "1.77.2"
 

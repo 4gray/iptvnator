@@ -1,8 +1,8 @@
 {
     "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-    "productName": "iptvnator",
+    "productName": "ruvo-player",
     "version": "1.0.0-6",
-    "identifier": "com.4gray.dev",
+    "identifier": "com.ruvoplay.ruvoplayer",
     "build": {
         "frontendDist": "../dist/browser",
         "devUrl": "http://localhost:4200",
@@ -13,17 +13,19 @@
         "updater": {
             "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyRTRBNzlCMkE5QkI0MjgKUldRb3RKc3FtNmZra3BmeDVKYmtLd3RUNnZkUHdDbmM0TkpHQ25hZzhoS1FZcFRqaTl2eXRScU0K",
             "endpoints": [
-                "https://github.com/4gray/iptvnator/releases/latest/download/latest.json"
+                "https://github.com/ruvoplay/ruvo-player/releases/latest/download/latest.json"
             ]
         },
         "sql": {
-            "preload": ["sqlite:database.db"]
+            "preload": [
+                "sqlite:database.db"
+            ]
         }
     },
     "app": {
         "windows": [
             {
-                "title": "IPTVnator",
+                "title": "Ruvo Player",
                 "width": 800,
                 "height": 600,
                 "resizable": true,
@@ -57,7 +59,14 @@
                     "'unsafe-eval'",
                     "'unsafe-inline'"
                 ],
-                "media-src": ["'self'", "https:", "http:", "blob:", "data:", "file:"],
+                "media-src": [
+                    "'self'",
+                    "https:",
+                    "http:",
+                    "blob:",
+                    "data:",
+                    "file:"
+                ],
                 "script-src": [
                     "'self'",
                     "'unsafe-inline'",
@@ -74,7 +83,11 @@
                     "https://fonts.googleapis.com",
                     "file:"
                 ],
-                "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
+                "font-src": [
+                    "'self'",
+                    "https://fonts.gstatic.com",
+                    "data:"
+                ],
                 "connect-src": [
                     "'self'",
                     "https:",
@@ -84,12 +97,24 @@
                     "data:",
                     "tauri:"
                 ],
-                "frame-src": ["'self'", "https:", "http:", "blob:", "data:"],
-                "worker-src": ["'self'", "blob:", "data:"]
+                "frame-src": [
+                    "'self'",
+                    "https:",
+                    "http:",
+                    "blob:",
+                    "data:"
+                ],
+                "worker-src": [
+                    "'self'",
+                    "blob:",
+                    "data:"
+                ]
             },
             "assetProtocol": {
                 "enable": true,
-                "scope": ["*/**"]
+                "scope": [
+                    "*/**"
+                ]
             }
         }
     },

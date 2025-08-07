@@ -1,11 +1,11 @@
 {
-  "name": "iptvnator",
+  "name": "ruvo-player",
   "version": "1.0.0-beta.6",
-  "description": "IPTV player application.",
-  "homepage": "https://github.com/4gray/iptvnator",
+  "description": "Ruvo Player - IPTV player application for Ruvo Play.",
+  "homepage": "https://github.com/ruvoplay/ruvo-player",
   "author": {
-    "name": "4gray",
-    "email": "fourgray@proton.me"
+    "name": "Ruvo Play",
+    "email": "support@ruvoplay.com"
   },
   "keywords": [
     "angular",
@@ -31,7 +31,7 @@
     "e2e:ci": "npx playwright test --retries 3 --workers=1",
     "version": "conventional-changelog -i CHANGELOG.md -p angular -s -r 0 && git add CHANGELOG.md",
     "lint": "ng lint",
-    "build-pwa": "ng build -c production --base-href /iptvnator --deploy-url /iptvnator/",
+    "build-pwa": "ng build -c production --base-href /ruvo-player --deploy-url /ruvo-player/",
     "tauri": "tauri"
   },
   "dependencies": {
