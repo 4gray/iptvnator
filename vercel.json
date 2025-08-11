@@ -1,18 +1,28 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30
+    },
+    "api/parse.js": {
+      "maxDuration": 30
+    },
+    "api/xtream.js": {
+      "maxDuration": 30
     }
-  ],
+  },
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "src": "/",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/api/parse",
+      "dest": "/api/parse.js"
+    },
+    {
+      "src": "/api/xtream",
+      "dest": "/api/xtream.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
