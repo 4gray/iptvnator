@@ -21,6 +21,7 @@
   "main": "electron/main.js",
   "private": true,
   "scripts": {
+    "build": "ng build -c production",
     "build:dev": "ng build -c dev",
     "build:prod": "ng build -c production",
     "build:web": "ng build -c web",
