@@ -26,4 +26,5 @@
   "env": {
     "NODE_ENV": "production"
   }
+  // Force redeploy - Vercel fix applied
 }
