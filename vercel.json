@@ -31,4 +31,5 @@
       }
     }
   ]
+  // Force redeploy - main branch configuration
 }
