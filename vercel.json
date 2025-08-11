@@ -1,9 +1,6 @@
 {
   "version": 2,
   "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    },
     "api/parse.js": {
       "maxDuration": 30
     },
@@ -13,16 +10,21 @@
   },
   "routes": [
     {
-      "src": "/",
-      "dest": "/api/index.js"
-    },
-    {
       "src": "/api/parse",
       "dest": "/api/parse.js"
     },
     {
       "src": "/api/xtream",
       "dest": "/api/xtream.js"
+    }
+  ],
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ]
 }
