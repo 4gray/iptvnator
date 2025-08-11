@@ -1,49 +1,128 @@
 :host {
     overflow-y: auto;
-    padding: 10px;
+    padding: var(--grid-gap, 20px);
+    height: 100%;
 }
 
 mat-card {
     overflow: hidden;
-    transition: all 0.9s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: all var(--transition-speed, 0.2s) cubic-bezier(0.25, 0.8, 0.25, 1);
     box-shadow: none;
-}
-
-mat-card:hover {
-    box-shadow: 0 14px 28px rgb(0 0 0 / 25%), 0 10px 10px rgb(0 0 0 / 22%);
+    cursor: pointer;
+    position: relative;
+    
+    &:hover,
+    &:focus-visible {
+        box-shadow: 0 14px 28px rgb(0 0 0 / 25%), 0 10px 10px rgb(0 0 0 / 22%);
+        transform: translateY(-4px);
+    }
+    
+    &.focused {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 var(--focus-ring-width, 3px) var(--focus-ring-color, #3f51b5);
+        z-index: 10;
+    }
 }
 
 .grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 30px;
+    display: grid;
+    gap: var(--grid-gap, 20px);
+    grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width, 170px), 1fr));
     justify-content: center;
+    max-width: 100%;
+    
+    // Responsive grid columns
+    @media (min-width: 1920px) {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 30px;
+    }
+    
+    @media (max-width: 1440px) and (min-width: 1200px) {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 25px;
+    }
+    
+    @media (max-width: 1199px) and (min-width: 1024px) {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 20px;
+    }
+    
+    @media (max-width: 1023px) and (min-width: 768px) {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 15px;
+    }
+    
+    @media (max-width: 767px) and (min-width: 480px) {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
+    }
+    
+    @media (max-width: 479px) {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+    }
 
     mat-card {
-        cursor: pointer;
-        width: 170px;
+        width: 100%;
+        min-height: 280px;
+        display: flex;
+        flex-direction: column;
 
         mat-card-content {
             padding: 0;
             margin: 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
         }
 
         .stream-icon {
             width: 100%;
-            position: relative !important;
-            border-radius: 12px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 12px 12px 0 0;
             display: block;
-            background-color: #f0f0f0
+            background-color: #f0f0f0;
+            transition: transform var(--transition-speed, 0.2s) ease;
+            
+            @media (min-width: 1920px) {
+                height: 250px;
+            }
+            
+            @media (max-width: 768px) {
+                height: 150px;
+            }
+            
+            @media (max-width: 480px) {
+                height: 120px;
+            }
         }
 
         .stream-icon-placeholder {
             width: 100%;
             background: #999;
-            max-height: 300px;
-            min-height: 255px;
+            height: 200px;
             display: flex;
             justify-content: center;
             align-items: center;
+            border-radius: 12px 12px 0 0;
+            color: #fff;
+            font-size: 14px;
+            
+            @media (min-width: 1920px) {
+                height: 250px;
+                font-size: 18px;
+            }
+            
+            @media (max-width: 768px) {
+                height: 150px;
+                font-size: 12px;
+            }
+            
+            @media (max-width: 480px) {
+                height: 120px;
+                font-size: 10px;
+            }
 
             &::after {
                 content: 'No cover';
@@ -51,32 +130,200 @@ mat-card:hover {
         }
 
         .title {
-            word-break: break-all;
+            word-break: break-word;
             text-align: center;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;  
             overflow: hidden;
+            padding: 12px;
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.3;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
+            @media (min-width: 1920px) {
+                font-size: 16px;
+                padding: 16px;
+            }
+            
+            @media (max-width: 768px) {
+                font-size: 12px;
+                padding: 8px;
+            }
+            
+            @media (max-width: 480px) {
+                font-size: 11px;
+                padding: 6px;
+            }
+        }
+        
+        mat-card-actions {
+            padding: 0 12px 12px;
+            margin: 0;
+            
+            @media (min-width: 1920px) {
+                padding: 0 16px 16px;
+            }
+            
+            @media (max-width: 768px) {
+                padding: 0 8px 8px;
+            }
+            
+            @media (max-width: 480px) {
+                padding: 0 6px 6px;
+            }
         }
     }
 }
 
 .rating {
     position: absolute;
-    top: 5px;
-    right: 6px;
+    top: 8px;
+    right: 8px;
     background-color: #3bb33b;
     color: #fff;
     font-size: 0.8em;
-    border-radius: 3px;
+    border-radius: 4px;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 0 5px;
+    padding: 4px 8px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 
     mat-icon {
         font-size: 16px;
         height: 18px;
         width: 18px;
+        margin-right: 4px;
+    }
+    
+    @media (min-width: 1920px) {
+        top: 12px;
+        right: 12px;
+        padding: 6px 10px;
+        font-size: 0.9em;
+        
+        mat-icon {
+            font-size: 18px;
+            height: 20px;
+            width: 20px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        top: 6px;
+        right: 6px;
+        padding: 3px 6px;
+        font-size: 0.7em;
+        
+        mat-icon {
+            font-size: 14px;
+            height: 16px;
+            width: 16px;
+        }
+    }
+}
+
+// TV navigation feedback animations
+.tv-navigation-feedback {
+    animation: tvNavigationPulse 0.3s ease-in-out;
+}
+
+.tv-selection-feedback {
+    animation: tvSelectionPulse 0.5s ease-in-out;
+}
+
+@keyframes tvNavigationPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+@keyframes tvSelectionPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1.05); }
+}
+
+// Pagination responsive design
+mat-paginator {
+    margin-top: var(--grid-gap, 20px);
+    
+    @media (max-width: 768px) {
+        margin-top: 15px;
+    }
+    
+    @media (max-width: 480px) {
+        margin-top: 10px;
+    }
+}
+
+// Focus management for TV navigation
+mat-card:focus-visible {
+    outline: var(--focus-ring-width, 3px) solid var(--focus-ring-color, #3f51b5);
+    outline-offset: 4px;
+    transform: scale(1.05);
+}
+
+// Touch-friendly improvements
+@media (hover: none) and (pointer: coarse) {
+    mat-card {
+        min-height: 300px;
+        
+        @media (max-width: 768px) {
+            min-height: 250px;
+        }
+        
+        @media (max-width: 480px) {
+            min-height: 200px;
+        }
+    }
+    
+    .grid {
+        gap: 15px;
+        
+        @media (max-width: 768px) {
+            gap: 10px;
+        }
+        
+        @media (max-width: 480px) {
+            gap: 8px;
+        }
+    }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+    mat-card {
+        border: 2px solid #fff;
+        
+        &:hover,
+        &:focus-visible {
+            border-color: var(--focus-ring-color, #3f51b5);
+        }
+    }
+    
+    .rating {
+        background-color: #000;
+        color: #fff;
+        border: 2px solid #fff;
+    }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+    mat-card,
+    .stream-icon {
+        transition: none;
+    }
+    
+    .tv-navigation-feedback,
+    .tv-selection-feedback {
+        animation: none;
     }
 }

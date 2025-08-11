@@ -10,7 +10,7 @@ export enum DbStores {
 /** Defines db tables and schema */
 export const dbConfig: DBConfig = {
     name: 'iptvnator',
-    version: 1,
+    version: 3,
     objectStoresMeta: [
         {
             store: DbStores.Playlists,

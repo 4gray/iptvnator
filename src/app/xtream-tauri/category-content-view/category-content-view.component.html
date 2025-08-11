@@ -1,27 +1,28 @@
 @if (selectedCategory()) {
-    <div class="grid">
+    <div class="grid" appTvNavigation>
         @for (item of paginatedContent(); track $index) {
             @let i = $any(item);
-            <mat-card (click)="onItemClick(item)">
+            <mat-card 
+                (click)="onItemClick(item)"
+                #contentCard
+                [attr.aria-label]="i.title || 'No name'"
+                [attr.role]="'button'"
+                [attr.tabindex]="0"
+            >
                 @if (i.poster_url) {
                     <img
                         class="stream-icon"
-                        [ngSrc]="
-                            i.poster_url ?? './assets/images/default-poster.png'
-                        "
+                        [ngSrc]="i.poster_url"
                         fill
                         priority
-                        placeholder
-                        placeholder="data:image/png;base64,iVBORw0K..."
-                        (error)="
-                            $event.target.src =
-                                './assets/images/default-poster.png'
-                        "
+                        (error)="$event.target.src = './assets/images/default-poster.png'"
+                        [alt]="i.title || 'Content poster'"
                     />
                 } @else {
                     <img
                         class="stream-icon"
                         src="./assets/images/default-poster.png"
+                        [alt]="i.title || 'Default content poster'"
                     />
                 }
                 @let rating = $any(item).rating;
@@ -29,6 +30,7 @@
                     <div
                         class="rating"
                         [matTooltip]="'XTREAM.IMDB_RATING' | translate"
+                        [attr.aria-label]="'Rating: ' + rating + ' stars'"
                     >
                         <mat-icon>star</mat-icon>{{ rating }}
                     </div>
@@ -53,9 +55,10 @@
         <mat-paginator
             [length]="totalPages() * limit()"
             [pageSize]="limit()"
-            [pageSizeOptions]="pageSizeOptions"
+            [pageSizeOptions]="getResponsivePageSizeOptions()"
             (page)="onPageChange($event)"
             aria-label="Select page"
+            [attr.aria-label]="'Content pagination'"
         />
     }
 } @else {

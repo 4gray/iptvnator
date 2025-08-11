@@ -5,18 +5,17 @@ import { Params } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { catchError, firstValueFrom, throwError } from 'rxjs';
+import { parse } from 'iptv-playlist-parser';
+import { catchError, firstValueFrom, Observable, throwError } from 'rxjs';
 import {
     ERROR,
-    PLAYLIST_PARSE_BY_URL,
-    PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
     STALKER_REQUEST,
     STALKER_RESPONSE,
     XTREAM_REQUEST,
-    XTREAM_RESPONSE,
+    XTREAM_RESPONSE
 } from '../../../shared/ipc-commands';
-import { Playlist } from '../../../shared/playlist.interface';
+import { Playlist, PlaylistUpdateState } from '../../../shared/playlist.interface';
 import { AppConfig } from '../../environments/environment';
 import * as PlaylistActions from '../state/actions';
 import { DataService } from './data.service';
@@ -64,9 +63,7 @@ export class PwaService extends DataService {
      * @param payload payload
      */
     sendIpcEvent(type: string, payload?: unknown) {
-        if (type === PLAYLIST_PARSE_BY_URL) {
-            this.fetchFromUrl(payload);
-        } else if (type === PLAYLIST_UPDATE) {
+        if (type === PLAYLIST_UPDATE) {
             this.refreshPlaylist(payload);
         } else if (type === XTREAM_REQUEST) {
             return this.forwardXtreamRequest(
@@ -114,27 +111,53 @@ export class PwaService extends DataService {
     }
 
     /**
-     * Fetches playlist from the specified url
-     * @param payload playlist payload
+     * Fetch playlist from URL and parse it
      */
-    fetchFromUrl(payload: Partial<Playlist>): void {
-        this.getPlaylistFromUrl(payload.url)
-            .pipe(
-                catchError((error) => {
-                    window.postMessage({
-                        type: ERROR,
-                        message: this.getErrorMessageByStatusCode(error.status),
-                        status: error.status,
-                    });
-                    return throwError(() => error);
-                })
-            )
-            .subscribe((response: any) => {
-                window.postMessage({
-                    type: PLAYLIST_PARSE_RESPONSE,
-                    payload: { ...response, isTemporary: payload.isTemporary },
-                });
+    getPlaylistFromUrl(url: string): Observable<Playlist> {
+        return new Observable(observer => {
+            this.http.get(url, { responseType: 'text' }).subscribe({
+                next: (response: string) => {
+                    try {
+                        const parsedPlaylist = parse(response);
+                        
+                        if (parsedPlaylist.items && parsedPlaylist.items.length > 0) {
+                            const playlist: Playlist = {
+                                _id: Date.now().toString(),
+                                title: 'Imported Playlist',
+                                url: url,
+                                count: parsedPlaylist.items.length,
+                                updateDate: Date.now(),
+                                updateState: PlaylistUpdateState.UPDATED,
+                                playlist: {
+                                    header: parsedPlaylist.header,
+                                    items: parsedPlaylist.items
+                                },
+                                importDate: new Date().toISOString(),
+                                lastUsage: new Date().toISOString(),
+                                favorites: [],
+                                autoRefresh: false,
+                                userAgent: null,
+                                serverUrl: null,
+                                portalUrl: null,
+                                macAddress: null,
+                                username: null,
+                                password: null
+                            };
+                            
+                            observer.next(playlist);
+                            observer.complete();
+                        } else {
+                            observer.error(new Error('No valid playlist items found'));
+                        }
+                    } catch (error) {
+                        observer.error(new Error('Failed to parse playlist'));
+                    }
+                },
+                error: (error) => {
+                    observer.error(error);
+                }
             });
+        });
     }
 
     getErrorMessageByStatusCode(status: number) {
@@ -146,6 +169,15 @@ export class PwaService extends DataService {
             case 413:
                 message =
                     'This file is too big. Use standalone or self-hosted version of the app.';
+                break;
+            case 451:
+                message = 'Access blocked due to legal restrictions. This may be due to geographic location, ISP blocking, or server compliance requirements.';
+                break;
+            case 403:
+                message = 'Access forbidden. Your IP address or location may be blocked by the server.';
+                break;
+            case 429:
+                message = 'Too many requests. Please wait before trying again.';
                 break;
             default:
                 break;
@@ -227,12 +259,6 @@ export class PwaService extends DataService {
             });
     }
 
-    getPlaylistFromUrl(url: string) {
-        return this.http.get(`${this.corsProxyUrl}/parse`, {
-            params: { url },
-        });
-    }
-
     removeAllListeners(): void {
         // not implemented
     }
@@ -245,7 +271,20 @@ export class PwaService extends DataService {
         return 'pwa';
     }
 
-    fetchData(url: string, queryParams: Params) {
-        // not implemented
+    async fetchData(url: string, queryParams: Params) {
+        try {
+            const response = await firstValueFrom(
+                this.http.get(`${this.corsProxyUrl}/xtream`, {
+                    params: {
+                        url: url,
+                        ...queryParams,
+                    },
+                })
+            );
+            return response;
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            throw error;
+        }
     }
 }

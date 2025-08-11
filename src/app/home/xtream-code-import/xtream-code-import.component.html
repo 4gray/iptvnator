@@ -1,38 +1,80 @@
 <form [formGroup]="form">
+    <div class="form-header">
+        <h3>📺 Add IPTV Playlist</h3>
+        <p class="form-subtitle">Enter your IPTV provider credentials to access live TV channels</p>
+    </div>
+
     <mat-form-field class="full-width">
-        <mat-label for="title">{{
-            'HOME.XTREAM_PLAYLIST.TITLE' | translate
-        }}</mat-label>
-        <input matInput type="text" id="title" formControlName="title" />
+        <mat-label for="title">Playlist Name</mat-label>
+        <input 
+            matInput 
+            type="text" 
+            id="title" 
+            formControlName="title" 
+            placeholder="My IPTV Playlist"
+        />
+        <mat-hint>Give your playlist a memorable name</mat-hint>
     </mat-form-field>
+
     <mat-form-field class="full-width" subscriptSizing="dynamic">
-        <mat-label for="serverUrl">{{
-            'HOME.XTREAM_PLAYLIST.SERVER_URL' | translate
-        }}</mat-label>
+        <mat-label for="serverUrl">Server URL</mat-label>
         <input
             matInput
             type="text"
             id="serverUrl"
             formControlName="serverUrl"
             (input)="extractParams(form.value.serverUrl)"
+            placeholder="http://your-server.com or https://your-server.com"
         />
-        <mat-hint>{{
-            'HOME.XTREAM_PLAYLIST.URL_VALIDATION_ERROR' | translate
-        }}</mat-hint>
+        <mat-hint>Enter your IPTV server URL (must include http:// or https://)</mat-hint>
         <mat-error>{{ 'SETTINGS.EPG_URL_ERROR' | translate }}</mat-error>
     </mat-form-field>
+
     <mat-form-field class="full-width">
-        <mat-label for="username">{{
-            'HOME.XTREAM_PLAYLIST.USERNAME' | translate
-        }}</mat-label>
-        <input matInput type="text" id="username" formControlName="username" />
+        <mat-label for="username">Username</mat-label>
+        <input 
+            matInput 
+            type="text" 
+            id="username" 
+            formControlName="username" 
+            placeholder="your_username"
+        />
+        <mat-hint>Your IPTV account username</mat-hint>
     </mat-form-field>
+
     <mat-form-field class="full-width">
-        <mat-label for="password">{{
-            'HOME.XTREAM_PLAYLIST.PASSWORD' | translate
-        }}</mat-label>
-        <input matInput type="text" id="password" formControlName="password" />
+        <mat-label for="password">Password</mat-label>
+        <input 
+            matInput 
+            type="password" 
+            id="password" 
+            formControlName="password" 
+            placeholder="your_password"
+        />
+        <mat-hint>Your IPTV account password</mat-hint>
     </mat-form-field>
+
+    <div class="quick-fill-section">
+        <h4>💡 Quick Fill Examples</h4>
+        <div class="quick-fill-buttons">
+            <button 
+                type="button" 
+                mat-stroked-button 
+                (click)="fillExample('ruvoplay')"
+                class="quick-fill-btn"
+            >
+                Ruvo Play
+            </button>
+            <button 
+                type="button" 
+                mat-stroked-button 
+                (click)="fillExample('iptv')"
+                class="quick-fill-btn"
+            >
+                Generic IPTV
+            </button>
+        </div>
+    </div>
 
     <div class="button-row">
         <button
@@ -40,15 +82,20 @@
             type="button"
             [disabled]="!form.valid || isTestingConnection"
             (click)="testConnection()"
+            class="test-btn"
         >
+            <mat-icon>wifi_tethering</mat-icon>
             {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
         </button>
         <button
-            mat-button
+            mat-raised-button
             type="submit"
-            [disabled]="!form.valid"
+            [disabled]="!form.valid || isTestingConnection"
             (click)="addPlaylist()"
+            color="primary"
+            class="add-btn"
         >
+            <mat-icon>add</mat-icon>
             {{ 'HOME.XTREAM_PLAYLIST.ADD' | translate }}
         </button>
     </div>
@@ -61,4 +108,14 @@
             <span [class]="getStatusClass()">{{ getStatusMessage() }}</span>
         </div>
     }
+
+    <div class="help-section">
+        <h4>❓ Need Help?</h4>
+        <ul>
+            <li>Make sure your server URL includes <code>http://</code> or <code>https://</code></li>
+            <li>Check that your username and password are correct</li>
+            <li>Verify your IPTV subscription is active</li>
+            <li>Try the "Test Connection" button first</li>
+        </ul>
+    </div>
 </form>

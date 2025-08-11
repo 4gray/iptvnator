@@ -1,6 +1,28 @@
 // @import 'themes/';
 @import '@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
 
+// CSS Custom Properties for responsive design
+:root {
+  --grid-gap: 20px;
+  --card-min-width: 200px;
+  --card-max-width: 300px;
+  --sidebar-width: 250px;
+  --header-height: 100px;
+  --focus-ring-color: #3f51b5;
+  --focus-ring-width: 3px;
+  --transition-speed: 0.2s;
+}
+
+// Responsive breakpoints
+$breakpoints: (
+  xs: 480px,
+  sm: 768px,
+  md: 1024px,
+  lg: 1200px,
+  xl: 1440px,
+  tv: 1920px
+);
+
 body,
 html {
     user-select: none;
@@ -8,6 +30,75 @@ html {
     padding: 0;
     height: 100%;
     font-family: Roboto, 'Helvetica Neue', sans-serif;
+    overflow-x: hidden;
+}
+
+// TV and large screen optimizations
+@media (min-width: 1920px) {
+  :root {
+    --grid-gap: 30px;
+    --card-min-width: 250px;
+    --card-max-width: 350px;
+    --sidebar-width: 300px;
+    --header-height: 120px;
+  }
+  
+  body {
+    font-size: 18px;
+  }
+}
+
+// Tablet optimizations
+@media (max-width: 1024px) and (min-width: 769px) {
+  :root {
+    --grid-gap: 15px;
+    --card-min-width: 180px;
+    --card-max-width: 250px;
+    --sidebar-width: 200px;
+  }
+}
+
+// Mobile optimizations
+@media (max-width: 768px) {
+  :root {
+    --grid-gap: 10px;
+    --card-min-width: 150px;
+    --card-max-width: 200px;
+    --sidebar-width: 100%;
+    --header-height: 80px;
+  }
+  
+  body {
+    font-size: 14px;
+  }
+}
+
+// Small mobile optimizations
+@media (max-width: 480px) {
+  :root {
+    --grid-gap: 8px;
+    --card-min-width: 120px;
+    --card-max-width: 160px;
+    --header-height: 60px;
+  }
+  
+  body {
+    font-size: 12px;
+  }
+}
+
+// Landscape orientation optimizations
+@media (orientation: landscape) and (max-height: 600px) {
+  :root {
+    --header-height: 60px;
+  }
+}
+
+// Portrait orientation optimizations
+@media (orientation: portrait) and (max-width: 600px) {
+  :root {
+    --sidebar-width: 100%;
+  }
 }
 
 @media (display-mode: standalone) {
@@ -35,11 +126,162 @@ html {
     opacity: 1 !important;
 }
 
+// Enhanced focus management for TV navigation
 input,
 button,
 textarea,
 :focus {
     outline: none;
+}
+
+// TV-friendly focus styles
+*:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: 2px;
+    border-radius: 4px;
+    transition: outline var(--transition-speed) ease;
+}
+
+// Enhanced focus for interactive elements
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.3);
+}
+
+// Grid navigation system for TV remotes
+.grid-navigation {
+    display: grid;
+    gap: var(--grid-gap);
+    grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width), 1fr));
+    max-width: 100%;
+    
+    @media (min-width: 1920px) {
+        grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width), 1fr));
+    }
+    
+    @media (max-width: 768px) {
+        grid-template-columns: repeat(auto-fit, minmax(var(--card-min-width), 1fr));
+    }
+}
+
+// TV-friendly card styles
+.tv-card {
+    position: relative;
+    transition: all var(--transition-speed) ease;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    
+    &:hover,
+    &:focus-visible {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+    
+    &.focused {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
+        z-index: 10;
+    }
+}
+
+// Responsive sidebar
+.responsive-sidebar {
+    width: var(--sidebar-width);
+    transition: width var(--transition-speed) ease;
+    
+    @media (max-width: 768px) {
+        position: fixed;
+        left: -100%;
+        z-index: 1000;
+        background: #1b1c1c;
+        height: 100vh;
+        
+        &.open {
+            left: 0;
+        }
+    }
+}
+
+// Responsive header
+.responsive-header {
+    height: var(--header-height);
+    transition: height var(--transition-speed) ease;
+}
+
+// Touch-friendly button sizes
+@media (max-width: 768px) {
+    button,
+    [role="button"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    input,
+    select,
+    textarea {
+        min-height: 44px;
+        font-size: 16px; // Prevents zoom on iOS
+    }
+}
+
+// TV remote navigation helpers
+.tv-navigation {
+    .nav-item {
+        transition: all var(--transition-speed) ease;
+        
+        &:focus-visible,
+        &.focused {
+            background: rgba(63, 81, 181, 0.2);
+            transform: scale(1.02);
+        }
+    }
+}
+
+// Responsive typography
+.responsive-text {
+    font-size: clamp(14px, 2.5vw, 24px);
+    line-height: 1.4;
+}
+
+// Responsive spacing
+.responsive-spacing {
+    padding: clamp(10px, 2vw, 30px);
+    margin: clamp(10px, 2vw, 30px);
+}
+
+// Grid system for different screen sizes
+.responsive-grid {
+    display: grid;
+    gap: var(--grid-gap);
+    
+    &.grid-1 { grid-template-columns: 1fr; }
+    &.grid-2 { grid-template-columns: repeat(2, 1fr); }
+    &.grid-3 { grid-template-columns: repeat(3, 1fr); }
+    &.grid-4 { grid-template-columns: repeat(4, 1fr); }
+    &.grid-5 { grid-template-columns: repeat(5, 1fr); }
+    &.grid-6 { grid-template-columns: repeat(6, 1fr); }
+    
+    @media (max-width: 1200px) {
+        &.grid-6 { grid-template-columns: repeat(4, 1fr); }
+        &.grid-5 { grid-template-columns: repeat(4, 1fr); }
+    }
+    
+    @media (max-width: 1024px) {
+        &.grid-6, &.grid-5, &.grid-4 { grid-template-columns: repeat(3, 1fr); }
+    }
+    
+    @media (max-width: 768px) {
+        &.grid-6, &.grid-5, &.grid-4, &.grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media (max-width: 480px) {
+        &.grid-6, &.grid-5, &.grid-4, &.grid-3, &.grid-2 { grid-template-columns: 1fr; }
+    }
 }
 
 /* .dark-theme .mat-expansion-panel,
@@ -129,5 +371,49 @@ textarea,
             min-height: calc(50vh - 159px) !important
         }
     }
+}
 
+// TV-specific optimizations
+@media (min-width: 1920px) {
+    .cet-container {
+        .video-js {
+            height: calc(100vh - 120px) !important;
+        }
+        
+        #video-player {
+            height: calc(100vh - 120px) !important;
+        }
+    }
+}
+
+// Accessibility improvements
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+    :root {
+        --focus-ring-color: #ffffff;
+        --focus-ring-width: 4px;
+    }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

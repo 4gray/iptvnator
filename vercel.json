@@ -1,14 +1,26 @@
 {
   "version": 2,
-  "name": "ruvo-player",
-  "buildCommand": "npm run build:prod",
-  "outputDirectory": "dist/browser",
+  "name": "ruvo-player-api",
+  "buildCommand": "npm install",
+  "outputDirectory": ".",
   "installCommand": "npm install",
   "framework": null,
-  "rewrites": [
+  "functions": {
+    "api/parse.js": {
+      "maxDuration": 30
+    },
+    "api/xtream.js": {
+      "maxDuration": 30
+    }
+  },
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/api/parse",
+      "dest": "/api/parse.js"
+    },
+    {
+      "src": "/api/xtream",
+      "dest": "/api/xtream.js"
     }
   ]
 }

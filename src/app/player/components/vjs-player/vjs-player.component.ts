@@ -37,29 +37,72 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * Instantiate Video.js on component init
      */
     ngOnInit(): void {
-        this.player = videoJs(
-            this.target.nativeElement,
-            {
-                ...this.options,
-                autoplay: true,
-            },
-            () => {
-                console.log(
-                    'Setting VideoJS player initial volume to:',
-                    this.volume
-                );
-                this.player.volume(this.volume);
+        try {
+            this.player = videoJs(
+                this.target.nativeElement,
+                {
+                    ...this.options,
+                    autoplay: true,
+                    muted: false, // Ensure muted is false for better autoplay compatibility
+                },
+                () => {
+                    console.log(
+                        'Setting VideoJS player initial volume to:',
+                        this.volume
+                    );
+                    this.player.volume(this.volume);
 
-                this.player.on('volumechange', () => {
-                    const currentVolume = this.player.volume();
-                    localStorage.setItem('volume', currentVolume.toString());
-                });
-            }
-        );
-        this.player.hlsQualitySelector({
-            displayCurrentQuality: true,
-        });
-        this.player['aspectRatioPanel']();
+                    this.player.on('volumechange', () => {
+                        const currentVolume = this.player.volume();
+                        localStorage.setItem('volume', currentVolume.toString());
+                    });
+
+                    // Force play after initialization
+                    this.player.ready(() => {
+                        setTimeout(() => {
+                            const playPromise = this.player.play();
+                            if (playPromise && typeof playPromise.then === 'function') {
+                                playPromise
+                                    .then(() => {
+                                        console.log('VideoJS autoplay started successfully');
+                                    })
+                                    .catch((error) => {
+                                        console.warn('VideoJS autoplay failed:', error);
+                                        // Retry play after a short delay
+                                        setTimeout(() => {
+                                            this.player.play().catch((retryError) => {
+                                                console.warn('VideoJS retry play failed:', retryError);
+                                            });
+                                        }, 500);
+                                    });
+                            }
+                        }, 100);
+                    });
+
+                    // Initialize aspect ratio panel only after player is ready
+                    try {
+                        if (this.player && typeof this.player['aspectRatioPanel'] === 'function') {
+                            this.player['aspectRatioPanel']();
+                        }
+                    } catch (aspectRatioError) {
+                        console.warn('Aspect ratio panel initialization failed:', aspectRatioError);
+                    }
+
+                    // Initialize HLS quality selector
+                    try {
+                        if (this.player && typeof this.player.hlsQualitySelector === 'function') {
+                            this.player.hlsQualitySelector({
+                                displayCurrentQuality: true,
+                            });
+                        }
+                    } catch (qualitySelectorError) {
+                        console.warn('HLS quality selector initialization failed:', qualitySelectorError);
+                    }
+                }
+            );
+        } catch (error) {
+            console.error('VideoJS player initialization failed:', error);
+        }
     }
 
     /**
@@ -67,15 +110,25 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * @param changes contains changed channel object
      */
     ngOnChanges(changes: SimpleChanges): void {
-        if (changes.options.previousValue) {
-            this.player.src(changes.options.currentValue.sources[0]);
+        if (!this.player) {
+            console.warn('VideoJS player not initialized yet');
+            return;
         }
-        if (changes.volume?.currentValue !== undefined && this.player) {
-            console.log(
-                'Setting VideoJS player volume to:',
-                changes.volume.currentValue
-            );
-            this.player.volume(changes.volume.currentValue);
+
+        try {
+            if (changes.options?.previousValue && changes.options?.currentValue?.sources?.[0]) {
+                this.player.src(changes.options.currentValue.sources[0]);
+            }
+            
+            if (changes.volume?.currentValue !== undefined) {
+                console.log(
+                    'Setting VideoJS player volume to:',
+                    changes.volume.currentValue
+                );
+                this.player.volume(changes.volume.currentValue);
+            }
+        } catch (error) {
+            console.error('Error updating VideoJS player:', error);
         }
     }
 

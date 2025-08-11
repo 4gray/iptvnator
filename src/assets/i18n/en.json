@@ -277,6 +277,14 @@
     "REMOVE_FROM_FAVORITES": "Remove from favorites",
     "REMOVED_FROM_FAVORITES": "Removed from favorites",
     "ADDED_TO_FAVORITES": "Added to favorites",
+    "MOBILE_MENU": "Mobile menu",
+    "TOGGLE_SIDEBAR": "Toggle sidebar",
+    "NOW_PLAYING": "Now Playing",
+    "VIDEO_POPOUT": "Video Popout",
+    "POPOUT_VIDEO": "Popout video",
+    "CLOSE_POPOUT": "Close popout",
+    "EPG": "Electronic Program Guide",
+    "TOGGLE_EPG": "Toggle EPG",
     "SIDEBAR": {
       "MAIN": "Main",
       "MOVIES": "Movies",
@@ -303,6 +311,14 @@
         "TITLE": "Portal not found",
         "DESCRIPTION": "Please check the credentials and portal url in playlist settings or remove it."
       },
+      "ACCESS_BLOCKED": {
+        "TITLE": "Access blocked",
+        "DESCRIPTION": "Access to this content is blocked due to legal restrictions. This may be due to your geographic location, ISP blocking, or server compliance requirements. Try using a VPN or contact your service provider."
+      },
+      "ACCESS_FORBIDDEN": {
+        "TITLE": "Access forbidden",
+        "DESCRIPTION": "Access to this content is forbidden. Your IP address or location may be blocked by the server. Try using a VPN or contact your service provider."
+      },
       "EMPTY_CATEGORY": {
         "TITLE": "Empty category",
         "DESCRIPTION": "This category has no content, please select another category or change the content type"
@@ -325,7 +341,8 @@
     },
     "STREAM_URL_COPIED": "Stream URL copied to clipboard",
     "COPY_STREAM_URL": "Copy Stream URL",
-    "SELECT_CATEGORY": "Select a category"
+    "SELECT_CATEGORY": "Select a category",
+    "SELECT_CATEGORY_DESC": "Choose a category from the sidebar to start watching live TV channels"
   },
   "INFORMATION": "Information",
   "REMOTE_CONTROL": {

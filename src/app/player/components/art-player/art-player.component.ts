@@ -70,6 +70,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             volume: this.volume,
             isLive: isLive,
             autoplay: true,
+            muted: false, // Ensure not muted for better autoplay
             type: this.getVideoType(this.channel.url),
             pip: true,
             autoSize: true,
@@ -102,6 +103,23 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                     };
                 },
             },
+        });
+
+        // Force play after initialization
+        this.player.on('ready', () => {
+            setTimeout(() => {
+                this.player.play().then(() => {
+                    console.log('ArtPlayer autoplay started successfully');
+                }).catch((error) => {
+                    console.warn('ArtPlayer autoplay failed:', error);
+                    // Retry play after a short delay
+                    setTimeout(() => {
+                        this.player.play().catch((retryError) => {
+                            console.warn('ArtPlayer retry play failed:', retryError);
+                        });
+                    }, 500);
+                });
+            }, 100);
         });
     }
 

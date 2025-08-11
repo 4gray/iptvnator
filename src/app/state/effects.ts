@@ -181,17 +181,8 @@ export class PlaylistEffects {
         );
     });
 
-    removePlaylist$ = createEffect(
-        () => {
-            return this.actions$.pipe(
-                ofType(PlaylistActions.removePlaylist),
-                switchMap((action) =>
-                    this.playlistsService.deletePlaylist(action.playlistId)
-                )
-            );
-        },
-        { dispatch: false }
-    );
+    // removePlaylist$ effect removed - deletion is handled directly in components
+    // to avoid conflicts between SQLite (DatabaseService) and IndexedDB (PlaylistsService)
 
     updatePlaylist$ = createEffect(
         () => {

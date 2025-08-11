@@ -1,53 +1,138 @@
 :host {
     background: #1b1c1c;
     color: #fff;
-    display: flex;
+    display: block;
     width: 100%;
-    --mat-toolbar-standard-height: 100px;
+    transition: all var(--transition-speed, 0.2s) ease;
+}
+
+.header-toolbar {
+    background: transparent;
+    padding: 0;
+    min-height: 80px;
+    height: auto;
+    border: none;
+    box-shadow: none;
+}
+
+.header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 12px 20px;
+    gap: 20px;
+    min-height: 80px;
+}
+
+// Logo section with brand text
+.logo-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-width: 80px;
 }
 
 .logo {
-    flex: 1 1 100px;
-
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
     img {
-        height: 100px;
+        height: 48px;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
+        transition: height var(--transition-speed, 0.2s) ease;
     }
 }
 
-.main {
-    place-content: center flex-start;
-    align-self: center;
+// Main content section
+.main-content {
+    display: flex;
     flex-direction: column;
-    box-sizing: border-box;
-    display: flex;
-    flex: 1 1 100%;
-    max-width: 100%;
-
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+    padding: 0 20px;
+    text-align: center;
+    
     .title {
-        font-size: 1em;
-    }
-
-    .subtitle {
-        color: #999;
-        font-size: 0.7em;
-        margin-top: 5px;
-        text-wrap: pretty;
+        font-size: clamp(1.2rem, 3vw, 2rem);
+        font-weight: 500;
+        color: #fff;
+        line-height: 1.2;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
+        max-width: none;
+        width: auto;
     }
 }
 
-.menu {
-    place-content: center;
-    align-self: center;
+// Menu section
+.menu-section {
     display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    min-width: 160px;
+    justify-content: flex-end;
 }
 
-.filter-container {
-    padding: 0 10px;
-}
-
+// Button styling
 .add-playlist-btn {
     background-color: #3f51b5;
     color: #fff;
+    transition: all var(--transition-speed, 0.2s) ease;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &:hover,
+    &:focus-visible {
+        background-color: #303f9f;
+        transform: scale(1.05);
+    }
+    
+    mat-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        line-height: 1;
+    }
+}
+
+// Compact button styling for all menu buttons
+.menu-section button[mat-icon-button] {
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    mat-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        line-height: 1;
+    }
+}
+
+// Menu styling
+.filter-container {
+    padding: 0 10px;
 }
 
 .dropdown-menu-header {
@@ -65,12 +150,235 @@
     margin-left: 8px;
 }
 
-@media (max-width: 599px) {
-    .subtitle {
-        display: none;
+// Responsive design
+@media (min-width: 1920px) {
+    .header-container {
+        padding: 16px 24px;
+        min-height: 100px;
     }
+    
+    .logo img {
+        height: 56px;
+    }
+    
+    .main-content .title {
+        font-size: 2.2rem;
+    }
+    
+    .menu-section {
+        gap: 6px;
+        min-width: 180px;
+    }
+}
 
-    .logo > img {
-        height: 48px;
+@media (max-width: 1024px) and (min-width: 769px) {
+    .header-container {
+        padding: 10px 16px;
+        gap: 16px;
+    }
+    
+    .logo-section {
+        min-width: 80px;
+    }
+    
+    .logo img {
+        height: 44px;
+    }
+    
+    .main-content {
+        padding: 0 16px;
+    }
+    
+    .main-content .title {
+        font-size: 1.6rem;
+    }
+    
+    .menu-section {
+        gap: 4px;
+        min-width: 160px;
+    }
+}
+
+@media (max-width: 768px) {
+    .header-container {
+        padding: 8px 12px;
+        gap: 12px;
+        min-height: 70px;
+    }
+    
+    .logo-section {
+        min-width: 70px;
+    }
+    
+    .logo img {
+        height: 40px;
+    }
+    
+    .main-content {
+        padding: 0 12px;
+    }
+    
+    .main-content .title {
+        font-size: 1.4rem;
+    }
+    
+    .menu-section {
+        gap: 3px;
+        min-width: 140px;
+    }
+    
+    .add-playlist-btn {
+        min-width: 36px;
+        min-height: 36px;
+        width: 36px;
+        height: 36px;
+    }
+    
+    .menu-section button[mat-icon-button] {
+        min-width: 36px;
+        min-height: 36px;
+        width: 36px;
+        height: 36px;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-container {
+        padding: 6px 8px;
+        gap: 8px;
+        min-height: 60px;
+    }
+    
+    .logo-section {
+        min-width: 60px;
+    }
+    
+    .logo img {
+        height: 36px;
+    }
+    
+    .main-content {
+        padding: 0 8px;
+    }
+    
+    .main-content .title {
+        font-size: 1.2rem;
+    }
+    
+    .menu-section {
+        gap: 2px;
+        min-width: 120px;
+    }
+    
+    .add-playlist-btn {
+        min-width: 32px;
+        min-height: 32px;
+        width: 32px;
+        height: 32px;
+    }
+    
+    .menu-section button[mat-icon-button] {
+        min-width: 32px;
+        min-height: 32px;
+        width: 32px;
+        height: 32px;
+    }
+}
+
+// Landscape orientation optimizations
+@media (orientation: landscape) and (max-height: 600px) {
+    .header-container {
+        min-height: 60px;
+        padding: 6px 16px;
+    }
+    
+    .logo img {
+        height: 32px;
+    }
+    
+    .main-content .title {
+        font-size: 1rem;
+        margin-bottom: 2px;
+    }
+    
+    .menu-section {
+        gap: 2px;
+        min-width: 120px;
+    }
+    
+    .add-playlist-btn {
+        min-width: 32px;
+        min-height: 32px;
+        width: 32px;
+        height: 32px;
+    }
+    
+    .menu-section button[mat-icon-button] {
+        min-width: 32px;
+        min-height: 32px;
+        width: 32px;
+        height: 32px;
+    }
+}
+
+// Portrait orientation optimizations
+@media (orientation: portrait) and (max-width: 600px) {
+    .logo-section {
+        min-width: 60px;
+    }
+    
+    .main-content {
+        padding: 0 8px;
+    }
+    
+    .menu-section {
+        min-width: 120px;
+    }
+}
+
+// Focus management improvements for TV navigation
+button:focus-visible,
+[role="button"]:focus-visible {
+    outline: var(--focus-ring-width, 3px) solid var(--focus-ring-color, #3f51b5);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.3);
+    transform: scale(1.02);
+    transition: all var(--transition-speed, 0.2s) ease;
+}
+
+// Touch-friendly improvements
+@media (hover: none) and (pointer: coarse) {
+    button,
+    [role="button"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .menu-section {
+        gap: 8px;
+    }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+    :host {
+        background: #000;
+        border-bottom: 2px solid #fff;
+    }
+    
+    .add-playlist-btn {
+        background-color: #fff;
+        color: #000;
+        border: 2px solid #000;
+    }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+    :host,
+    .logo img,
+    button,
+    .add-playlist-btn {
+        transition: none;
     }
 }

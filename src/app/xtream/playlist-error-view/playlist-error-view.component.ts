@@ -6,6 +6,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistInfoComponent } from '../../home/recent-playlists/playlist-info/playlist-info.component';
+import { DatabaseService } from '../../services/database.service';
 import { DialogService } from '../../services/dialog.service';
 import * as PlaylistActions from '../../state/actions';
 import { selectCurrentPlaylist } from '../../state/selectors';
@@ -17,6 +18,7 @@ import { selectCurrentPlaylist } from '../../state/selectors';
     imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule]
 })
 export class PlaylistErrorViewComponent {
+    private databaseService = inject(DatabaseService);
     dialog = inject(MatDialog);
     dialogService = inject(DialogService);
     router = inject(Router);
@@ -43,13 +45,17 @@ export class PlaylistErrorViewComponent {
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
-            onConfirm: (): void =>
-                this.removePlaylist(this.currentPlaylist()._id),
+            onConfirm: (): void => {
+                this.removePlaylist(this.currentPlaylist()._id);
+            },
         });
     }
 
-    removePlaylist(playlistId: string): void {
-        this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
-        this.router.navigate(['/']);
+    async removePlaylist(playlistId: string): Promise<void> {
+        const deleted = await this.databaseService.deletePlaylist(playlistId);
+        if (deleted) {
+            this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
+            this.router.navigate(['/']);
+        }
     }
 }

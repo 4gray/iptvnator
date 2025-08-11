@@ -5,12 +5,33 @@
     />
 }
 
-<div class="xtream-container">
+<div class="xtream-container" appTvNavigation>
+    <!-- Mobile menu toggle button -->
+    <button 
+        class="mobile-menu-toggle" 
+        (click)="toggleMobileMenu()"
+        [attr.aria-label]="'PORTALS.MOBILE_MENU' | translate"
+        [attr.aria-expanded]="isMobileMenuOpen"
+    >
+        <mat-icon>{{ isMobileMenuOpen ? 'close' : 'menu' }}</mat-icon>
+    </button>
+
+    <!-- Mobile navigation overlay -->
+    <div 
+        class="mobile-nav-overlay" 
+        [class.visible]="isMobileMenuOpen"
+        (click)="closeMobileMenu()"
+    ></div>
+
     <app-navigation
         class="navigation-sidebar"
+        [class.open]="isMobileMenuOpen"
         [portalStatus]="portalStatus()"
         (categoryClick)="handleCategoryClick($event)"
         (pageClicked)="handlePageClick($event)"
     />
-    <router-outlet />
+    
+    <div class="main-content">
+        <router-outlet />
+    </div>
 </div>

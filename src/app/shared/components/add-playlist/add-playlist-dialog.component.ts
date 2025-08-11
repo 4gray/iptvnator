@@ -8,17 +8,14 @@ import {
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { PLAYLIST_PARSE_BY_URL } from '../../../../../shared/ipc-commands';
-import { getFilenameFromUrl } from '../../../../../shared/playlist.utils';
 import { FileUploadComponent } from '../../../home/file-upload/file-upload.component';
 import { StalkerPortalImportComponent } from '../../../home/stalker-portal-import/stalker-portal-import.component';
 import { TextImportComponent } from '../../../home/text-import/text-import.component';
-import { UrlUploadComponent } from '../../../home/url-upload/url-upload.component';
 import { XtreamCodeImportComponent } from '../../../home/xtream-code-import/xtream-code-import.component';
 import { DataService } from '../../../services/data.service';
 import { parsePlaylist } from '../../../state/actions';
 
-export type PlaylistType = 'xtream' | 'url' | 'text' | 'file' | 'stalker';
+export type PlaylistType = 'xtream' | 'text' | 'file' | 'stalker';
 
 @Component({
     imports: [
@@ -29,7 +26,6 @@ export type PlaylistType = 'xtream' | 'url' | 'text' | 'file' | 'stalker';
         XtreamCodeImportComponent,
         StalkerPortalImportComponent,
         TextImportComponent,
-        UrlUploadComponent,
     ],
     selector: 'app-add-playlist',
     templateUrl: './add-playlist-dialog.component.html'
@@ -73,18 +69,6 @@ export class AddPlaylistDialogComponent {
                 filename,
             })
         );
-    }
-
-    /**
-     * Sends url of the playlist to the renderer process
-     * @param playlistUrl url of the added playlist
-     */
-    sendPlaylistsUrl(playlistUrl: string): void {
-        this.dataService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
-            title: getFilenameFromUrl(playlistUrl),
-            url: playlistUrl,
-        });
-        this.closeDialog();
     }
 
     /**

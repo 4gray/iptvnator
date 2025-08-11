@@ -3,6 +3,7 @@
     flex-direction: column;
     overflow: hidden;
     height: 100%;
+    width: 100%;
 }
 
 .xtream-container {
@@ -10,9 +11,192 @@
     flex: 1;
     overflow: hidden;
     min-height: 0; // Important for proper flex behavior
+    position: relative;
 }
 
 .navigation-sidebar {
-    width: 200px;
+    width: var(--sidebar-width, 200px);
     border-right: 1px solid #333;
+    transition: all var(--transition-speed, 0.2s) ease;
+    flex-shrink: 0;
+    
+    @media (max-width: 768px) {
+        position: fixed;
+        left: -100%;
+        top: 0;
+        height: 100vh;
+        width: 100%;
+        z-index: 1000;
+        border-right: none;
+        
+        &.open {
+            left: 0;
+        }
+    }
+}
+
+// Mobile navigation overlay
+.mobile-nav-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    
+    @media (max-width: 768px) {
+        display: block;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--transition-speed, 0.2s) ease;
+        
+        &.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    }
+}
+
+// Mobile menu toggle button
+.mobile-menu-toggle {
+    display: none;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1001;
+    background: #3f51b5;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: all var(--transition-speed, 0.2s) ease;
+    
+    &:hover,
+    &:focus-visible {
+        background: #303f9f;
+        transform: scale(1.1);
+    }
+    
+    mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+    }
+    
+    @media (max-width: 768px) {
+        display: flex;
+    }
+}
+
+// Main content area
+.main-content {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    
+    @media (max-width: 768px) {
+        width: 100%;
+    }
+}
+
+// TV and large screen optimizations
+@media (min-width: 1920px) {
+    .navigation-sidebar {
+        width: 300px;
+    }
+}
+
+// Tablet optimizations
+@media (max-width: 1024px) and (min-width: 769px) {
+    .navigation-sidebar {
+        width: 180px;
+    }
+}
+
+// Mobile optimizations
+@media (max-width: 768px) {
+    .xtream-container {
+        flex-direction: column;
+    }
+    
+    .navigation-sidebar {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+// Small mobile optimizations
+@media (max-width: 480px) {
+    .mobile-menu-toggle {
+        top: 15px;
+        right: 15px;
+        width: 45px;
+        height: 45px;
+        
+        mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+        }
+    }
+}
+
+// Landscape orientation optimizations
+@media (orientation: landscape) and (max-height: 600px) {
+    .mobile-menu-toggle {
+        top: 10px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+        
+        mat-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+        }
+    }
+}
+
+// Focus management for TV navigation
+.navigation-sidebar:focus-visible,
+.main-content:focus-visible {
+    outline: var(--focus-ring-width, 3px) solid var(--focus-ring-color, #3f51b5);
+    outline-offset: 2px;
+}
+
+// Touch-friendly improvements
+@media (hover: none) and (pointer: coarse) {
+    .mobile-menu-toggle {
+        min-width: 50px;
+        min-height: 50px;
+    }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+    .navigation-sidebar {
+        border-right: 2px solid #fff;
+    }
+    
+    .mobile-menu-toggle {
+        background: #fff;
+        color: #000;
+        border: 2px solid #000;
+    }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+    .navigation-sidebar,
+    .mobile-nav-overlay,
+    .mobile-menu-toggle {
+        transition: none;
+    }
 }

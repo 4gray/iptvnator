@@ -8,8 +8,6 @@
             (fileSelected)="handlePlaylist($event)"
             (closeDialog)="closeDialog()"
         />
-    } @else if (playlistType === 'url') {
-        <app-url-upload (urlAdded)="sendPlaylistsUrl($event)" />
     } @else if (playlistType === 'text') {
         <app-text-import (textAdded)="uploadAsText($event)" />
     } @else if (playlistType === 'stalker') {

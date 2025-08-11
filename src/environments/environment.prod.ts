@@ -1,6 +1,8 @@
+import packageJson from '../../package.json';
+
 export const AppConfig = {
     production: true,
     environment: 'PROD',
-    version: require('../../package.json').version,
-    BACKEND_URL: 'https://ruvoplayer.vercel.app/api',
+    version: packageJson.version,
+    BACKEND_URL: 'http://localhost:3333/api',
 };

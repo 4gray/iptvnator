@@ -3,6 +3,22 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    width: var(--sidebar-width, 200px);
+    transition: all var(--transition-speed, 0.2s) ease;
+    background: #1b1c1c;
+    
+    @media (max-width: 768px) {
+        position: fixed;
+        left: -100%;
+        z-index: 1000;
+        height: 100vh;
+        width: 100%;
+        padding: 20px;
+        
+        &.open {
+            left: 0;
+        }
+    }
 }
 
 .mat-nav-list {
@@ -16,13 +32,18 @@
 }
 
 .active {
-    transition: all 0.2s ease;
+    transition: all var(--transition-speed, 0.2s) ease;
     background: rgba(63, 81, 181, 0.12);
     color: #3f51b5;
     border-left: 4px solid #3f51b5;
 
     mat-icon {
         color: #3f51b5;
+    }
+    
+    &:focus-visible {
+        background: rgba(63, 81, 181, 0.2);
+        transform: scale(1.02);
     }
 }
 
@@ -32,6 +53,7 @@ mat-divider {
 
 mat-icon {
     margin-right: 8px;
+    transition: all var(--transition-speed, 0.2s) ease;
 }
 
 .portal-status-container {
@@ -144,17 +166,20 @@ mat-icon {
             justify-content: center;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 8px;
+            transition: all var(--transition-speed, 0.2s) ease;
             
             mat-icon {
                 font-size: 20px;
                 width: 20px;
                 height: 20px;
                 margin: 0;
-                transition: all 0.2s ease;
+                transition: all var(--transition-speed, 0.2s) ease;
             }
 
-            &:hover {
+            &:hover,
+            &:focus-visible {
                 background: rgba(255, 255, 255, 0.15);
+                transform: scale(1.1);
                 
                 mat-icon {
                     transform: scale(1.1);
@@ -171,7 +196,6 @@ mat-icon {
         }
     }
 }
-
 
 .nav-section {
     margin: 10px 0;
@@ -191,5 +215,277 @@ mat-icon {
         background: rgba(255, 255, 255, 0.03);
         border-radius: 8px;
         overflow: hidden;
+    }
+}
+
+// TV and large screen optimizations
+@media (min-width: 1920px) {
+    :host {
+        width: 300px;
+        padding: 15px;
+    }
+    
+    .portal-status-container {
+        min-height: 140px;
+        padding: 20px;
+        
+        .portal-icon {
+            width: 56px;
+            height: 56px;
+            
+            mat-icon {
+                font-size: 32px;
+                width: 32px;
+                height: 32px;
+            }
+        }
+        
+        .portal-info .portal-name {
+            font-size: 18px;
+        }
+        
+        .portal-info .portal-label {
+            font-size: 14px;
+        }
+        
+        .action-button {
+            width: 42px;
+            height: 42px;
+            
+            mat-icon {
+                font-size: 24px;
+                width: 24px;
+                height: 24px;
+            }
+        }
+    }
+    
+    .nav-section .nav-group-label {
+        font-size: 14px;
+        padding: 0 20px 0;
+    }
+}
+
+// Tablet optimizations
+@media (max-width: 1024px) and (min-width: 769px) {
+    :host {
+        width: 180px;
+        padding: 8px;
+    }
+    
+    .portal-status-container {
+        min-height: 100px;
+        padding: 12px;
+        
+        .portal-icon {
+            width: 40px;
+            height: 40px;
+            
+            mat-icon {
+                font-size: 24px;
+                width: 24px;
+                height: 24px;
+            }
+        }
+    }
+}
+
+// Mobile optimizations
+@media (max-width: 768px) {
+    :host {
+        width: 100%;
+        padding: 20px;
+        background: rgba(27, 28, 28, 0.95);
+        backdrop-filter: blur(20px);
+    }
+    
+    .portal-status-container {
+        min-height: 100px;
+        padding: 15px;
+        margin: -20px -20px 0px;
+        
+        .portal-icon {
+            width: 44px;
+            height: 44px;
+            
+            mat-icon {
+                font-size: 26px;
+                width: 26px;
+                height: 26px;
+            }
+        }
+        
+        .portal-info .portal-name {
+            font-size: 15px;
+        }
+        
+        .portal-info .portal-label {
+            font-size: 11px;
+        }
+    }
+    
+    .nav-section {
+        margin: 15px 0;
+        
+        .nav-group-label {
+            font-size: 13px;
+            padding: 0 20px 0;
+        }
+    }
+    
+    // Mobile menu toggle button
+    .mobile-menu-toggle {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1001;
+        background: #3f51b5;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        
+        mat-icon {
+            font-size: 24px;
+            width: 24px;
+            height: 24px;
+        }
+    }
+}
+
+// Small mobile optimizations
+@media (max-width: 480px) {
+    :host {
+        padding: 15px;
+    }
+    
+    .portal-status-container {
+        min-height: 80px;
+        padding: 12px;
+        
+        .portal-icon {
+            width: 36px;
+            height: 36px;
+            
+            mat-icon {
+                font-size: 22px;
+                width: 22px;
+                height: 22px;
+            }
+        }
+        
+        .portal-info .portal-name {
+            font-size: 14px;
+        }
+        
+        .portal-info .portal-label {
+            font-size: 10px;
+        }
+    }
+    
+    .nav-section {
+        margin: 10px 0;
+        
+        .nav-group-label {
+            font-size: 12px;
+            padding: 0 15px 0;
+        }
+    }
+}
+
+// Landscape orientation optimizations
+@media (orientation: landscape) and (max-height: 600px) {
+    :host {
+        padding: 10px;
+    }
+    
+    .portal-status-container {
+        min-height: 80px;
+        padding: 10px;
+        
+        .portal-icon {
+            width: 36px;
+            height: 36px;
+            
+            mat-icon {
+                font-size: 22px;
+                width: 22px;
+                height: 22px;
+            }
+        }
+        
+        .portal-info .portal-name {
+            font-size: 14px;
+        }
+        
+        .portal-info .portal-label {
+            font-size: 10px;
+        }
+    }
+}
+
+// Focus management for TV navigation
+.mat-nav-list a:focus-visible,
+.action-button:focus-visible {
+    outline: var(--focus-ring-width, 3px) solid var(--focus-ring-color, #3f51b5);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.3);
+    transform: scale(1.02);
+}
+
+// Touch-friendly improvements
+@media (hover: none) and (pointer: coarse) {
+    .mat-nav-list a,
+    .action-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .portal-actions .action-button {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+    :host {
+        background: #000;
+        border-right: 2px solid #fff;
+    }
+    
+    .portal-status-container {
+        background: #000;
+        border-bottom: 2px solid #fff;
+    }
+    
+    .active {
+        background: #fff;
+        color: #000;
+        border-left: 4px solid #fff;
+        
+        mat-icon {
+            color: #000;
+        }
+    }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+    :host,
+    .portal-status-container,
+    .active,
+    .action-button,
+    mat-icon {
+        transition: none;
+    }
+    
+    .portal-status-container::before {
+        transition: none;
     }
 }

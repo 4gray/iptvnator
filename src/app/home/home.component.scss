@@ -13,12 +13,35 @@
 }
 
 .recent-playlists {
-    height: calc(100vh - 100px);
+    height: calc(100vh - 80px);
     overflow: auto;
 }
 
-@media only screen and (max-width: 480px) {
+// Responsive height adjustments
+@media (min-width: 1920px) {
+    .recent-playlists {
+        height: calc(100vh - 100px);
+    }
+}
+
+@media (max-width: 768px) {
+    .recent-playlists {
+        height: calc(100vh - 70px);
+    }
+}
+
+@media (max-width: 480px) {
+    .recent-playlists {
+        height: calc(100vh - 60px);
+    }
+    
     .tab-title {
         display: none;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+    .recent-playlists {
+        height: calc(100vh - 60px);
     }
 }

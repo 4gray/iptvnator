@@ -40,6 +40,7 @@ import {
 import { LiveStreamLayoutComponent } from '../portals/live-stream-layout/live-stream-layout.component';
 import { PlaylistsService } from '../services/playlists.service';
 import { SettingsStore } from '../services/settings-store.service';
+import { VideoPreBufferService } from '../services/video-prebuffer.service';
 import { VideoPlayer } from '../settings/settings.interface';
 import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
@@ -120,6 +121,7 @@ export class XtreamMainContainerComponent implements OnInit {
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
+    private readonly preBufferService = inject(VideoPreBufferService);
 
     currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
     navigationContentTypes: ContentTypeNavigationItem[] = [
@@ -282,6 +284,8 @@ export class XtreamMainContainerComponent implements OnInit {
                 window.removeEventListener('message', listener);
             });
         }
+        // Clean up any pre-buffered videos
+        this.preBufferService.cleanupAll();
     }
 
     setInitialBreadcrumb(action = XtreamCodeActions.GetVodCategories) {
@@ -370,6 +374,19 @@ export class XtreamMainContainerComponent implements OnInit {
         this.items = [];
         const streamUrl = `${serverUrl}/movie/${username}/${password}/${vodItem.movie_data.stream_id}.${vodItem.movie_data.container_extension}`;
 
+        // Start pre-buffering the video immediately when play button is clicked
+        this.preBufferService.startPreBuffering(streamUrl).subscribe({
+            next: (preBufferedVideo) => {
+                if (preBufferedVideo?.isReady) {
+                    console.log('Video pre-buffered successfully, opening player');
+                }
+            },
+            error: (error) => {
+                console.warn('Video pre-buffering failed:', error);
+            }
+        });
+
+        // Open the player dialog (this will now use pre-buffered data if available)
         this.openPlayer(streamUrl, vodItem.info.name);
     }
 
@@ -405,6 +422,18 @@ export class XtreamMainContainerComponent implements OnInit {
             this.errorViewInfo = {
                 title: 'PORTALS.ERROR_VIEW.NOT_FOUND.TITLE',
                 message: 'PORTALS.ERROR_VIEW.NOT_FOUND.DESCRIPTION',
+            };
+            this.currentLayout = 'error-view';
+        } else if ('status' in response && response.status === 451) {
+            this.errorViewInfo = {
+                title: 'PORTALS.ERROR_VIEW.ACCESS_BLOCKED.TITLE',
+                message: 'PORTALS.ERROR_VIEW.ACCESS_BLOCKED.DESCRIPTION',
+            };
+            this.currentLayout = 'error-view';
+        } else if ('status' in response && response.status === 403) {
+            this.errorViewInfo = {
+                title: 'PORTALS.ERROR_VIEW.ACCESS_FORBIDDEN.TITLE',
+                message: 'PORTALS.ERROR_VIEW.ACCESS_FORBIDDEN.DESCRIPTION',
             };
             this.currentLayout = 'error-view';
         }

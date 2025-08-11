@@ -89,24 +89,24 @@
                 "serve": {
                     "builder": "@angular/build:dev-server",
                     "options": {
-                        "buildTarget": "iptvnator:build"
+                        "buildTarget": "ruvo-player:build"
                     },
                     "configurations": {
                         "dev": {
-                            "buildTarget": "iptvnator:build:dev"
+                            "buildTarget": "ruvo-player:build:dev"
                         },
                         "web": {
-                            "buildTarget": "iptvnator:build:web"
+                            "buildTarget": "ruvo-player:build:web"
                         },
                         "production": {
-                            "buildTarget": "iptvnator:build:production"
+                            "buildTarget": "ruvo-player:build:production"
                         }
                     }
                 },
                 "extract-i18n": {
                     "builder": "@angular/build:extract-i18n",
                     "options": {
-                        "buildTarget": "iptvnator:build"
+                        "buildTarget": "ruvo-player:build"
                     }
                 },
                 "test": {

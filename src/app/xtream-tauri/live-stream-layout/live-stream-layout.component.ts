@@ -1,8 +1,11 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    effect,
+    HostListener,
     inject,
     OnInit,
+    signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
@@ -54,6 +57,20 @@ export class LiveStreamLayoutComponent implements OnInit {
     streamUrl: string;
     favorites = new Map<number, boolean>();
 
+    // Responsive layout state
+    readonly isMobileLayout = signal(false);
+    readonly isMobileMenuOpen = signal(false);
+    readonly isSidebarCollapsed = signal(false);
+    readonly isVideoPopout = signal(false);
+    readonly isEpgVisible = signal(true);
+
+    constructor() {
+        // Listen for window resize to update layout
+        effect(() => {
+            this.updateLayout();
+        });
+    }
+
     ngOnInit() {
         const playlist = this.xtreamStore.currentPlaylist();
         if (playlist) {
@@ -70,17 +87,131 @@ export class LiveStreamLayoutComponent implements OnInit {
         const { categoryId } = this.route.firstChild.snapshot.params;
         if (categoryId)
             this.xtreamStore.setSelectedCategory(Number(categoryId));
+
+        // Initial layout update
+        this.updateLayout();
+    }
+
+    /**
+     * Update layout based on screen size and orientation
+     */
+    private updateLayout(): void {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const isPortrait = height > width;
+        
+        // Determine if we should use mobile layout
+        const shouldUseMobileLayout = width <= 768 || (isPortrait && width <= 1024);
+        this.isMobileLayout.set(shouldUseMobileLayout);
+        
+        // Auto-close mobile menu on large screens
+        if (!shouldUseMobileLayout && this.isMobileMenuOpen()) {
+            this.closeMobileMenu();
+        }
+    }
+
+    /**
+     * Toggle mobile navigation menu
+     */
+    toggleMobileMenu(): void {
+        this.isMobileMenuOpen.update(open => !open);
+        
+        // Prevent body scroll when menu is open
+        if (this.isMobileMenuOpen()) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+    }
+
+    /**
+     * Close mobile navigation menu
+     */
+    closeMobileMenu(): void {
+        this.isMobileMenuOpen.set(false);
+        document.body.style.overflow = '';
+    }
+
+    /**
+     * Toggle sidebar collapse (desktop only)
+     */
+    toggleSidebar(): void {
+        this.isSidebarCollapsed.update(collapsed => !collapsed);
+    }
+
+    /**
+     * Toggle video popout window
+     */
+    toggleVideoPopout(): void {
+        this.isVideoPopout.update(popout => !popout);
+    }
+
+    /**
+     * Close video popout window
+     */
+    closeVideoPopout(): void {
+        this.isVideoPopout.set(false);
+    }
+
+    /**
+     * Toggle EPG visibility
+     */
+    toggleEpg(): void {
+        this.isEpgVisible.update(visible => !visible);
+    }
+
+    /**
+     * Toggle fullscreen mode
+     */
+    toggleFullscreen(): void {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    /**
+     * Handle escape key to close mobile menu and popout
+     */
+    @HostListener('document:keydown', ['$event'])
+    onKeyDown(event: KeyboardEvent): void {
+        if (event.key === 'Escape') {
+            if (this.isVideoPopout()) {
+                this.closeVideoPopout();
+            } else if (this.isMobileMenuOpen()) {
+                this.closeMobileMenu();
+            }
+        }
+    }
+
+    /**
+     * Handle window resize for responsive behavior
+     */
+    @HostListener('window:resize')
+    onResize(): void {
+        this.updateLayout();
     }
 
     playLive(item: any) {
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
         this.streamUrl = streamUrl;
         this.xtreamStore.openPlayer(streamUrl, item.title, item.poster_url);
+        
+        // Close mobile menu after playing
+        if (this.isMobileMenuOpen()) {
+            this.closeMobileMenu();
+        }
     }
 
     selectCategory(category: XtreamCategory) {
         const categoryId = (category as any).category_id ?? category.id;
         this.xtreamStore.setSelectedCategory(categoryId);
+        
+        // Close mobile menu after category selection
+        if (this.isMobileMenuOpen()) {
+            this.closeMobileMenu();
+        }
     }
 
     backToCategories() {

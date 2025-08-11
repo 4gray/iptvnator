@@ -64,11 +64,29 @@ export class DPlayerComponent implements OnInit, OnDestroy, OnChanges {
             live: isLive,
             volume: this.volume,
             autoplay: true,
+            mutex: false, // Allow multiple players
             video: {
                 url: this.channel.url + (this.channel.epgParams || ''),
                 type: this.getVideoType(this.channel.url),
             },
             logo: this.channel.tvg?.logo,
+        });
+
+        // Force play after initialization
+        this.player.on('loadeddata', () => {
+            setTimeout(() => {
+                this.player.play().then(() => {
+                    console.log('DPlayer autoplay started successfully');
+                }).catch((error) => {
+                    console.warn('DPlayer autoplay failed:', error);
+                    // Retry play after a short delay
+                    setTimeout(() => {
+                        this.player.play().catch((retryError) => {
+                            console.warn('DPlayer retry play failed:', retryError);
+                        });
+                    }, 500);
+                });
+            }, 100);
         });
     }
 

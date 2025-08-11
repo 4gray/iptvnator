@@ -45,14 +45,17 @@ export class PlaylistErrorViewComponent {
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
-            onConfirm: (): void =>
-                this.removePlaylist(this.currentPlaylist()._id),
+            onConfirm: async (): Promise<void> => {
+                await this.removePlaylist(this.currentPlaylist()._id);
+            },
         });
     }
 
-    removePlaylist(playlistId: string): void {
-        this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
-        this.router.navigate(['/']);
-        this.databaseService.deletePlaylist(playlistId);
+    async removePlaylist(playlistId: string): Promise<void> {
+        const deleted = await this.databaseService.deletePlaylist(playlistId);
+        if (deleted) {
+            this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
+            this.router.navigate(['/']);
+        }
     }
 }

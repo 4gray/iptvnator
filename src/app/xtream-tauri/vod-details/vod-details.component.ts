@@ -6,6 +6,7 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamVodDetails } from '../../../../shared/xtream-vod-details.interface';
 import { SettingsStore } from '../../services/settings-store.service';
+import { VideoPreBufferService } from '../../services/video-prebuffer.service';
 import { XtreamStore } from '../xtream.store';
 import { SafePipe } from './safe.pipe';
 
@@ -24,6 +25,7 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
     private settingsStore = inject(SettingsStore);
     private route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly preBufferService = inject(VideoPreBufferService);
 
     readonly theme = this.settingsStore.theme;
     private readonly selectedContentType = this.xtreamStore.selectedContentType;
@@ -42,12 +44,27 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
 
     ngOnDestroy() {
         this.xtreamStore.setSelectedItem(null);
+        // Clean up any pre-buffered videos for this component
+        this.preBufferService.cleanupAll();
     }
 
     playVod(vodItem: XtreamVodDetails) {
         this.addToRecentlyViewed();
         const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
 
+        // Start pre-buffering the video immediately when play button is clicked
+        this.preBufferService.startPreBuffering(streamUrl).subscribe({
+            next: (preBufferedVideo) => {
+                if (preBufferedVideo?.isReady) {
+                    console.log('Video pre-buffered successfully, opening player');
+                }
+            },
+            error: (error) => {
+                console.warn('Video pre-buffering failed:', error);
+            }
+        });
+
+        // Open the player dialog (this will now use pre-buffered data if available)
         this.xtreamStore.openPlayer(
             streamUrl,
             vodItem.info.name ?? vodItem?.movie_data?.name,
