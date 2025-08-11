@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "ruvo-player-api",
+  "name": "ruvo-player-api-v2",
   "buildCommand": "cd api && npm install",
   "outputDirectory": ".",
   "installCommand": "cd api && npm install",
@@ -25,6 +25,15 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  }
-  // Force redeploy - Vercel fix applied
+  },
+  "builds": [
+    {
+      "src": "api/parse.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/xtream.js",
+      "use": "@vercel/node"
+    }
+  ]
 }
