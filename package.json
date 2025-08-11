@@ -28,6 +28,7 @@
     "test": "ng test",
     "test:watch": "ng test --watch",
     "e2e": "npm run build:prod && npx playwright test --ui",
+    "build:vercel": "ng build --configuration production --output-path dist",
     "e2e:ci": "npx playwright test --retries 3 --workers=1",
     "version": "conventional-changelog -i CHANGELOG.md -p angular -s -r 0 && git add CHANGELOG.md",
     "lint": "ng lint",
