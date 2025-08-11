@@ -1,9 +1,9 @@
 {
   "version": 2,
   "name": "ruvo-player-api",
-  "buildCommand": "npm install",
+  "buildCommand": "cd api && npm install",
   "outputDirectory": ".",
-  "installCommand": "npm install",
+  "installCommand": "cd api && npm install",
   "framework": null,
   "functions": {
     "api/parse.js": {
@@ -22,5 +22,8 @@
       "src": "/api/xtream",
       "dest": "/api/xtream.js"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
