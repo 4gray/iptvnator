@@ -5,14 +5,16 @@
   "outputDirectory": ".",
   "installCommand": "cd api && npm install",
   "framework": null,
-  "functions": {
-    "api/parse.js": {
-      "maxDuration": 30
+  "builds": [
+    {
+      "src": "api/parse.js",
+      "use": "@vercel/node"
     },
-    "api/xtream.js": {
-      "maxDuration": 30
+    {
+      "src": "api/xtream.js",
+      "use": "@vercel/node"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/api/parse",
@@ -25,15 +27,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "builds": [
-    {
-      "src": "api/parse.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "api/xtream.js",
-      "use": "@vercel/node"
-    }
-  ]
+  }
 }
