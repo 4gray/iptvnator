@@ -1,7 +1,7 @@
 {
     "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
     "productName": "iptvnator",
-    "version": "1.0.0-6",
+    "version": "1.0.0-7",
     "identifier": "com.4gray.dev",
     "build": {
         "frontendDist": "../dist/browser",
@@ -57,7 +57,14 @@
                     "'unsafe-eval'",
                     "'unsafe-inline'"
                 ],
-                "media-src": ["'self'", "https:", "http:", "blob:", "data:", "file:"],
+                "media-src": [
+                    "'self'",
+                    "https:",
+                    "http:",
+                    "blob:",
+                    "data:",
+                    "file:"
+                ],
                 "script-src": [
                     "'self'",
                     "'unsafe-inline'",

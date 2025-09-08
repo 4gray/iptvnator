@@ -1,6 +1,6 @@
 [package]
 name = "IPTVnator"
-version = "1.0.0-beta.6"
+version = "1.0.0-beta.7"
 description = "IPTVnator"
 authors = ["4gray"]
 license = "MIT"
