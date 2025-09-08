@@ -1,83 +1,48 @@
-import { NgIf } from '@angular/common';
-import { Component, OnInit, inject, input } from '@angular/core';
+import { AsyncPipe } from '@angular/common';
+import { Component, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute } from '@angular/router';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { TranslateModule } from '@ngx-translate/core';
+import { BehaviorSubject, map, switchMap } from 'rxjs';
 import { PlaylistsService } from '../../services/playlists.service';
 
 @Component({
     selector: 'app-favorites-button',
     templateUrl: './favorites-button.component.html',
-    imports: [MatButtonModule, MatIconModule, NgIf, TranslateModule]
+    imports: [AsyncPipe, MatButtonModule, MatIconModule, TranslateModule],
 })
-export class FavoritesButtonComponent implements OnInit {
+export class FavoritesButtonComponent {
     private playlistService = inject(PlaylistsService);
-    private route = inject(ActivatedRoute);
-    private snackBar = inject(MatSnackBar);
-    private translateService = inject(TranslateService);
 
-    portalId = this.route.snapshot.paramMap.get('id');
-    serialMeta = input.required<{
-        movie_id: string;
-        name: string;
-        cover: string;
-    }>();
+    readonly itemId = input.required<string>();
 
-    isFavorite = false;
+    readonly addToFavoritesClicked = output<void>();
+    readonly removeFromFavoritesClicked = output<void>();
 
-    ngOnInit() {
-        this.checkFavoriteStatus();
-    }
+    private readonly favoritesChanged$ = new BehaviorSubject<void>(undefined);
 
-    checkFavoriteStatus() {
-        this.playlistService
-            .getPortalFavorites(this.portalId)
-            .subscribe((favorites) => {
-                this.isFavorite = favorites.some(
-                    (i) => (i as any).movie_id === this.serialMeta().movie_id
-                );
-            });
-    }
-
-    toggleFavorites(isFav: boolean) {
-        if (isFav) this.removeFromFavorites();
-        else this.addToFavorites();
-    }
+    readonly isFavorite$ = this.favoritesChanged$.pipe(
+        switchMap(() => this.playlistService.getPortalFavorites()),
+        map((favorites) =>
+            favorites.some(
+                (i) =>
+                    (i as any).movie_id === this.itemId() ||
+                    (i as any).id === this.itemId()
+            )
+        )
+    );
 
     removeFromFavorites() {
-        this.playlistService
-            .removeFromPortalFavorites(
-                this.portalId,
-                this.serialMeta().movie_id
-            )
-            .subscribe(() => {
-                this.snackBar.open(
-                    this.translateService.instant(
-                        'PORTALS.REMOVED_FROM_FAVORITES'
-                    ),
-                    null,
-                    {
-                        duration: 1000,
-                    }
-                );
-                this.checkFavoriteStatus();
-            });
+        this.removeFromFavoritesClicked.emit();
+        setTimeout(() => {
+            this.favoritesChanged$.next();
+        }, 100);
     }
 
     addToFavorites() {
-        this.playlistService
-            .addPortalFavorite(this.portalId, this.serialMeta())
-            .subscribe(() => {
-                this.snackBar.open(
-                    this.translateService.instant('PORTALS.ADDED_TO_FAVORITES'),
-                    null,
-                    {
-                        duration: 1000,
-                    }
-                );
-                this.checkFavoriteStatus();
-            });
+        this.addToFavoritesClicked.emit();
+        setTimeout(() => {
+            this.favoritesChanged$.next();
+        }, 100);
     }
 }

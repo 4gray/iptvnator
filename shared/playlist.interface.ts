@@ -34,4 +34,5 @@ export interface Playlist {
     password?: string;
     macAddress?: string;
     portalUrl?: string;
+    recentlyViewed?: any[];
 }

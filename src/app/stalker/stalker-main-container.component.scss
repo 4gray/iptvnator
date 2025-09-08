@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 :host {
     display: flex;
     flex-direction: column;
@@ -23,4 +25,21 @@
 
 .category-view {
     gap: 10px;
+}
+
+.sidebar-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    button {
+        @include mat.form-field-density(-5);
+    }
+}
+
+.content-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }

@@ -1,99 +1,120 @@
-<app-navigation-bar
-    [breadcrumbs]="breadcrumbs"
-    [contentType]="selectedContentType"
-    (searchTextChanged)="setSearchPhrase($event)"
-    [clientSideSearch]="currentLayout === 'category_content' ? false : true"
-    [searchVisible]="
-        (currentLayout === 'category' ||
-            currentLayout === 'category_content') &&
-        items?.length > 0
-    "
-    [contentTypeNavigationItems]="navigationContentTypes"
-    [contentType]="selectedContentType"
-    (contentTypeChanged)="getCategories($event)"
-    (breadcrumbClicked)="breadcrumbClicked($event)"
-    (favoritesClicked)="favoriteViewClicked()"
-    [showCategories]="true"
-/>
-
-@if (isLoading) {
-    <div class="loading-wrapper">
-        @if (currentLayout === 'category_content') {
-            <div class="loading-container category-content-view">
-                @for (a of [].constructor(14); track $index) {
-                    <div class="skeleton-item">
-                        <ngx-skeleton-loader
-                            count="1"
-                            [theme]="{ width: '170px', height: '270px' }"
-                        />
-                        <ngx-skeleton-loader
-                            count="1"
-                            [theme]="{ width: '60%', height: '30px' }"
-                        />
-                    </div>
-                }
-            </div>
-        } @else if (currentLayout === 'category') {
-            <div class="loading-container category-view">
-                @for (a of [].constructor(14); track $index) {
-                    <ngx-skeleton-loader
-                        count="1"
-                        [theme]="{ width: '170px', height: '51px' }"
-                    />
-                }
-            </div>
+<div class="sidebar" style="display: flex; flex-direction: column">
+    <div class="sidebar-header">
+        @let isItvCategorySelected =
+            stalkerStore.selectedCategoryId() &&
+            stalkerStore.selectedContentType() === 'itv';
+        @if (isItvCategorySelected) {
+            <button mat-icon-button (click)="backToCategories()">
+                <mat-icon>chevron_left</mat-icon>
+            </button>
+            <h2>{{ selectedCategoryTitle() }}</h2>
+        } @else {
+            <button mat-icon-button disabled>
+                <mat-icon>list</mat-icon>
+            </button>
+            <h2>{{ 'PORTALS.ALL_CATEGORIES' | translate }}</h2>
         }
     </div>
-} @else {
-    @switch (currentLayout) {
-        @case ('category') {
-            <app-category-view
-                (categoryClicked)="categoryClicked($event)"
-                [items]="items"
-            />
-        }
-        @case ('category_content') {
-            <app-category-content-view
-                [items]="items"
-                (itemClicked)="itemClicked($event)"
-            />
-            @if (currentLayout === 'category_content' && length && length > 0) {
-                <mat-paginator
-                    [length]="length"
-                    [pageIndex]="pageIndex"
-                    [pageSize]="pageSize"
-                    (page)="handlePageChange($event)"
-                    aria-label="Select page"
-                />
+    @if (isItvCategorySelected) {
+        <mat-nav-list style="overflow: auto; flex: 1">
+            @for (item of itvChannels(); track $index) {
+                <mat-list-item (click)="createLinkToPlayItv(item)">
+                    <img
+                        matListItemAvatar
+                        class="stream-icon"
+                        [src]="item.logo"
+                        (error)="
+                            $event.target.src =
+                                './assets/images/default-poster.png'
+                        "
+                    />
+                    {{ item.name }}
+                    <button
+                        mat-icon-button
+                        matListItemMeta
+                        (click)="toggleFavorite(item); $event.stopPropagation()"
+                    >
+                        <mat-icon>{{
+                            favorites.get(item.id) ? 'star' : 'star_outline'
+                        }}</mat-icon>
+                    </button>
+                </mat-list-item>
             }
+        </mat-nav-list>
+
+        @if (hasMoreItems() && !isContentLoading()) {
+            <mat-divider />
+            <div>
+                <button
+                    mat-button
+                    (click)="loadMore()"
+                    [disabled]="isLoadingMore()"
+                    style="width: 100%"
+                >
+                    @if (isLoadingMore()) {
+                        Loading page {{ pageIndex() + 1 }}...
+                    } @else {
+                        Load More (Page {{ pageIndex() + 1 }})
+                    }
+                </button>
+            </div>
         }
-        @case ('vod-details') {
-            <app-vod-details
-                [item]="itemDetails"
-                (playClicked)="createLinkToPlayVod(itemDetails.cmd)"
-                (addToFavoritesClicked)="addToFavorites($event)"
-                (removeFromFavoritesClicked)="removeFromFavorites($event)"
+    } @else {
+        @if (isCategoryLoading()) {
+            <ngx-skeleton-loader
+                count="20"
+                [theme]="{
+                    width: '95%',
+                    height: '48px',
+                    borderRadius: '40px',
+                }"
             />
-        }
-        @case ('serial-details') {
-            <app-stalker-series-view
-                [seasons]="seasons"
-                (playEpisode)="createLinkToPlayEpisode($event)"
-            />
-        }
-        @case ('favorites') {
-            <app-category-content-view
-                [items]="favorites$ | async"
-                (itemClicked)="favoriteClicked($event)"
-            />
-        }
-        @case ('not-available') {
+        } @else if (isCategoryFailed()) {
             <app-playlist-error-view
-                [title]="'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.TITLE' | translate"
+                [title]="'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE' | translate"
                 [description]="
-                    'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.DESCRIPTION' | translate
+                    'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION' | translate
                 "
+            />
+        } @else {
+            <app-category-view
+                [items]="categories()"
+                [selectedCategoryId]="stalkerStore.selectedCategoryId()"
+                (categoryClicked)="categoryClicked($event)"
             />
         }
     }
-}
+</div>
+
+<div class="main-content">
+    <div class="content-header">
+        <h2>
+            @if (
+                currentLayout === 'vod-details' ||
+                currentLayout === 'serial-details'
+            ) {
+                <button mat-icon-button (click)="historyBack()">
+                    <mat-icon>chevron_left</mat-icon>
+                </button>
+            }
+
+            @if (!isItvCategorySelected) {
+                <button mat-icon-button disabled>
+                    <mat-icon>category</mat-icon>
+                </button>
+                {{ selectedCategoryTitle() }}
+            }
+
+            @if (!contentItems() && !isContentLoading()) {
+                <h2>
+                    {{ 'PORTALS.SELECT_CATEGORY' | translate }}
+                </h2>
+            }
+        </h2>
+    </div>
+
+    <div class="scrollable-content">
+        <router-outlet />
+    </div>
+    <app-mpv-player-bar />
+</div>

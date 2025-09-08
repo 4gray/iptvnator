@@ -56,6 +56,7 @@ export class StalkerPortalImportComponent {
             Validators.pattern(this.URL_REGEX),
         ]),
         importDate: new FormControl(new Date().toISOString()),
+        userAgent: new FormControl(''),
     });
 
     dataService = inject(DataService);

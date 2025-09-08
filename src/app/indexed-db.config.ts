@@ -49,6 +49,11 @@ export const dbConfig: DBConfig = {
                     options: { unique: false },
                 },
                 {
+                    name: 'recentlyViewed',
+                    keypath: 'recentlyViewed',
+                    options: { unique: false },
+                },
+                {
                     name: 'autoRefresh',
                     keypath: 'autoRefresh',
                     options: { unique: false },

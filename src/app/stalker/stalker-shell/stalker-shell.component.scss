@@ -1,0 +1,18 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+}
+
+.stalker-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.navigation-sidebar {
+    width: 200px;
+    border-right: 1px solid #333;
+}

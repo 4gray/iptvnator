@@ -1,46 +1,44 @@
-import { NgIf, NgOptimizedImage } from '@angular/common';
-import { Component, Signal, input, output } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
-import { TranslateModule } from '@ngx-translate/core';
+import { Component, inject } from '@angular/core';
+import { MatButton } from '@angular/material/button';
+import { MatDivider } from '@angular/material/divider';
+import { TranslatePipe } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../favorites-button/favorites-button.component';
-import { StalkerSeason } from '../models';
-
-function sortByNumericValue(array: StalkerSeason[]): StalkerSeason[] {
-    if (!array) return [];
-    const key = 'name';
-    return array.sort((a, b) => {
-        const numericA = extractNumericValue(a[key]);
-        const numericB = extractNumericValue(b[key]);
-        return numericA - numericB;
-    });
-}
-
-function extractNumericValue(str: string) {
-    const matches = str.match(/\d+/);
-    if (matches) {
-        return parseInt(matches[0], 10);
-    }
-    return 0;
-}
+import { StalkerStore } from '../stalker.store';
 
 @Component({
     selector: 'app-stalker-series-view',
     templateUrl: './stalker-series-view.component.html',
     styleUrls: ['../../xtream/detail-view.scss'],
-    imports: [
-        FavoritesButtonComponent,
-        MatButtonModule,
-        MatDividerModule,
-        NgIf,
-        NgOptimizedImage,
-        TranslateModule,
-    ],
+    imports: [FavoritesButtonComponent, MatButton, MatDivider, TranslatePipe],
 })
 export class StalkerSeriesViewComponent {
-    seasons: Signal<StalkerSeason[]> = input.required({
-        transform: sortByNumericValue,
-    });
+    readonly stalkerStore = inject(StalkerStore);
 
-    playEpisode = output<{ series: string; cmd: string }>();
+    readonly selectedItem = this.stalkerStore.selectedItem;
+    readonly seasonsData = this.stalkerStore.getSerialSeasonsResource;
+
+    playEpisodeClicked(episode: any, cmd: string) {
+        const item = this.selectedItem();
+        this.stalkerStore.createLinkToPlayVod(
+            cmd,
+            item.info.name,
+            item.info.movie_image,
+            episode
+        );
+    }
+
+    addToFavorites(item: any) {
+        this.stalkerStore.addToFavorites({
+            ...item,
+            title: item.info.name,
+            cover: item.info.movie_image,
+            series_id: item.id,
+            added_at: new Date().toISOString(),
+            category_id: 'series',
+        });
+    }
+
+    removeFromFavorites(serialId: string) {
+        this.stalkerStore.removeFromFavorites(serialId);
+    }
 }

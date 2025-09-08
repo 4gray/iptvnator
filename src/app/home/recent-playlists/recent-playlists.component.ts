@@ -211,7 +211,7 @@ export class RecentPlaylistsComponent implements OnDestroy {
         if (playlistMeta.serverUrl) {
             this.router.navigate(['xtreams', playlistMeta._id]);
         } else if (playlistMeta.macAddress) {
-            this.router.navigate(['portals', playlistMeta._id]);
+            this.router.navigate(['stalker', playlistMeta._id]);
         } else {
             this.router.navigate(['playlists', playlistMeta._id]);
             this.playlistClicked.emit(playlistMeta._id);

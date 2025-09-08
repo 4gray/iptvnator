@@ -1,8 +1,8 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { isTauri } from '@tauri-apps/api/core';
+import { stalkerRoutes } from './stalker/stalker.routes';
 import { xtreamRoutes } from './xtream-tauri/xtream.routes';
-import { AppConfig } from '../environments/environment';
 
 const routes: Routes = [
     {
@@ -56,6 +56,7 @@ const routes: Routes = [
                 (c) => c.StalkerMainContainerComponent
             ),
     },
+    ...stalkerRoutes,
     {
         path: '**',
         redirectTo: '',
@@ -64,9 +65,11 @@ const routes: Routes = [
 
 @NgModule({
     imports: [
-        RouterModule.forRoot(routes, {
+        RouterModule.forRoot(
+            routes /* {
             enableTracing: !AppConfig.production,
-        }),
+        } */
+        ),
     ],
     exports: [RouterModule],
 })

@@ -1,0 +1,37 @@
+@if (itemDetails) {
+    <button
+        mat-button
+        (click)="itemDetails = null"
+        [attr.aria-label]="'SETTINGS.BACK_TO_HOME' | translate"
+        class="back-button"
+    >
+        <mat-icon>arrow_back</mat-icon>
+        {{ 'SETTINGS.BACK_TO_HOME' | translate }}
+    </button>
+    @switch (itemDetails.category_id) {
+        @case ('vod') {
+            <app-vod-details
+                [item]="itemDetails.details"
+                (playClicked)="
+                    createLinkToPlayVodItv(
+                        itemDetails.details.cmd,
+                        itemDetails.details.info.name,
+                        itemDetails.details.info.movie_image
+                    )
+                "
+            />
+        }
+        @case ('series') {
+            <app-stalker-series-view />
+        }
+    }
+} @else {
+    <app-favorites-layout
+        [categories]="categories() ?? []"
+        [favorites]="favoritesToShow() ?? []"
+        [selectedCategoryId]="selectedCategoryId()"
+        (categoryClicked)="setCategoryId($event.category_id)"
+        (removeFromFavorites)="removeFromFavorites($event)"
+        (openItem)="openItem($event)"
+    />
+}
