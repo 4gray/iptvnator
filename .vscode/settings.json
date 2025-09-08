@@ -10,5 +10,11 @@
         "revealWithFocus": "none",
         "clearOnRun": "none"
     },
-    "testing.automaticallyOpenTestResults": "neverOpen"
+    "testing.automaticallyOpenTestResults": "neverOpen",
+    "github.copilot.enable": {
+        "*": true,
+        "plaintext": false,
+        "markdown": false,
+        "scminput": false
+    }
 }
