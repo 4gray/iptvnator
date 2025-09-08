@@ -9,6 +9,7 @@ export interface PlaylistState {
     epgAvailable: boolean;
     channels: Channel[]; // TODO: use entity store
     playlists: PlaylistMetaState;
+    currentPlaylistId: string | undefined;
 }
 
 export const initialState: PlaylistState = {
@@ -17,4 +18,5 @@ export const initialState: PlaylistState = {
     epgAvailable: false,
     channels: [],
     playlists: initialPlaylistMetaState,
+    currentPlaylistId: undefined,
 };

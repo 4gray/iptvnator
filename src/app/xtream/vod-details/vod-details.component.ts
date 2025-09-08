@@ -8,10 +8,10 @@ import {
     inject,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIcon, MatIconModule } from '@angular/material/icon';
+import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { XtreamVodDetails } from '../../../../shared/xtream-vod-details.interface';
 import { PlaylistsService } from '../../services/playlists.service';
 import { SafePipe } from './safe.pipe';
@@ -23,12 +23,11 @@ import { SafePipe } from './safe.pipe';
     imports: [
         MatButtonModule,
         MatIcon,
-        NgIf,
-        MatIconModule,
-        SafePipe,
-        TranslateModule,
         MatProgressSpinnerModule,
-    ]
+        NgIf,
+        SafePipe,
+        TranslatePipe,
+    ],
 })
 export class VodDetailsComponent implements OnInit {
     @Input({ required: true }) item: XtreamVodDetails;
@@ -39,7 +38,9 @@ export class VodDetailsComponent implements OnInit {
 
     private playlistService = inject(PlaylistsService);
     private route = inject(ActivatedRoute);
-    private portalId = this.route.snapshot.paramMap.get('id');
+    private portalId =
+        this.route.snapshot.paramMap.get('id') ??
+        this.route.parent.snapshot.params.id;
 
     isFavorite = false;
     isLoading = false;
@@ -52,21 +53,26 @@ export class VodDetailsComponent implements OnInit {
         this.playlistService
             .getPortalFavorites(this.portalId)
             .subscribe((favorites) => {
-                this.isFavorite = favorites.some((i) => {
-                    const hasStreamId =
-                        i?.stream_id !== undefined &&
-                        this.item?.movie_data?.stream_id !== undefined;
-                    const hasId =
-                        (i as any)?.details?.id !== undefined &&
-                        (this.item as any)?.id !== undefined;
+                if (!favorites || favorites.length === 0) {
+                    this.isFavorite = false;
+                } else {
+                    this.isFavorite = favorites.some((i) => {
+                        const hasStreamId =
+                            i?.stream_id !== undefined &&
+                            this.item?.movie_data?.stream_id !== undefined;
+                        const hasId =
+                            (i as any)?.details?.id !== undefined &&
+                            (this.item as any)?.id !== undefined;
 
-                    return (
-                        (hasStreamId &&
-                            i.stream_id === this.item.movie_data.stream_id) ||
-                        (hasId &&
-                            (i as any).details.id === (this.item as any).id)
-                    );
-                });
+                        return (
+                            (hasStreamId &&
+                                i.stream_id ===
+                                    this.item.movie_data.stream_id) ||
+                            (hasId &&
+                                (i as any).details.id === (this.item as any).id)
+                        );
+                    });
+                }
             });
     }
 

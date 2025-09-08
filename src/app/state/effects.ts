@@ -238,7 +238,7 @@ export class PlaylistEffects {
                     if (playlist.serverUrl && !isTauri()) {
                         this.router.navigate(['/xtreams/', playlist._id]);
                     } else if (playlist.macAddress) {
-                        this.router.navigate(['portals', playlist._id]);
+                        this.router.navigate(['stalker', playlist._id]);
                     } else {
                         this.router.navigate(['/playlists/', playlist._id]);
                     }

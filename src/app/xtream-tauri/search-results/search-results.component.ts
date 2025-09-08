@@ -2,11 +2,12 @@ import { KeyValuePipe } from '@angular/common';
 import {
     AfterViewInit,
     Component,
+    effect,
     ElementRef,
     inject,
     Inject,
-    OnDestroy,
     Optional,
+    signal,
     ViewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -22,10 +23,12 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import groupBy from 'lodash/groupBy';
-import { debounceTime, Subject } from 'rxjs';
 import { XtreamItem } from '../../../../shared/xtream-item.interface';
 import { DatabaseService } from '../../services/database.service';
+import { SearchFormComponent } from '../../shared/components/search-form/search-form.component';
+import { SearchResultItemComponent } from '../../shared/components/search-result-item/search-result-item.component';
 import { XtreamStore } from '../xtream.store';
 
 interface SearchResultsData {
@@ -35,47 +38,68 @@ interface SearchResultsData {
 @Component({
     selector: 'app-search-results',
     imports: [
-        MatIconButton,
-        MatCardModule,
-        MatFormFieldModule,
-        MatInputModule,
-        MatIcon,
-        MatCheckboxModule,
         FormsModule,
-        MatDialogModule,
         KeyValuePipe,
+        MatCardModule,
+        MatCheckboxModule,
+        MatDialogModule,
+        MatFormFieldModule,
+        MatIcon,
+        MatIconButton,
+        MatInputModule,
+        SearchFormComponent,
+        SearchResultItemComponent,
+        TranslatePipe,
     ],
-    providers: [],
     templateUrl: './search-results.component.html',
-    styleUrls: ['./search-results.component.scss']
+    styleUrls: ['./search-results.component.scss'],
 })
-export class SearchResultsComponent implements AfterViewInit, OnDestroy {
+export class SearchResultsComponent implements AfterViewInit {
     @ViewChild('searchInput') searchInput!: ElementRef;
     readonly xtreamStore = inject(XtreamStore);
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
-    searchTerm = '';
+    searchTerm = signal('');
     filters = {
         live: true,
         movie: true,
         series: true,
     };
     isGlobalSearch = false;
-    private searchSubject = new Subject<string>();
-    private readonly DEBOUNCE_TIME = 300;
+
+    readonly filterConfig = [
+        {
+            key: 'live',
+            label: 'Live TV',
+            translationKey: 'PORTALS.SIDEBAR.LIVE_TV',
+        },
+        {
+            key: 'movie',
+            label: 'Movies',
+            translationKey: 'PORTALS.SIDEBAR.MOVIES',
+        },
+        {
+            key: 'series',
+            label: 'Series',
+            translationKey: 'PORTALS.SIDEBAR.SERIES',
+        },
+    ];
 
     constructor(
-        @Optional() @Inject(MAT_DIALOG_DATA) private data: SearchResultsData,
+        @Optional() @Inject(MAT_DIALOG_DATA) data: SearchResultsData,
         @Optional() public dialogRef: MatDialogRef<SearchResultsComponent>
     ) {
         this.isGlobalSearch = data?.isGlobalSearch || false;
 
-        this.searchSubject
-            .pipe(debounceTime(this.DEBOUNCE_TIME))
-            .subscribe(() => {
+        effect(() => {
+            this.searchTerm();
+            if (this.searchTerm().length >= 3) {
                 this.executeSearch();
-            });
+            } else {
+                this.xtreamStore.resetSearchResults();
+            }
+        });
     }
 
     ngAfterViewInit() {
@@ -85,24 +109,16 @@ export class SearchResultsComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    onSearch() {
-        if (this.searchTerm.length >= 3) {
-            this.searchSubject.next(this.searchTerm);
-        } else {
-            this.xtreamStore.resetSearchResults();
-        }
-    }
-
     private executeSearch() {
         const types = Object.entries(this.filters)
             .filter(([_, enabled]) => enabled)
             .map(([type]) => type);
 
         if (this.isGlobalSearch) {
-            this.searchGlobal(this.searchTerm, types);
+            this.searchGlobal(this.searchTerm(), types);
         } else {
             this.xtreamStore.searchContent({
-                term: this.searchTerm,
+                term: this.searchTerm(),
                 types,
             });
         }
@@ -121,10 +137,6 @@ export class SearchResultsComponent implements AfterViewInit, OnDestroy {
             console.error('Error in global search:', error);
             this.xtreamStore.resetSearchResults();
         }
-    }
-
-    ngOnDestroy() {
-        this.searchSubject.complete();
     }
 
     selectItem(

@@ -16,9 +16,9 @@
     display: grid;
     grid-gap: 20px;
     grid-template-columns: minmax(250px, 30%) minmax(300px, 1fr);
-    grid-template-areas: 
-        "image details"
-        "seasons seasons";
+    grid-template-areas:
+        'image details'
+        'seasons seasons';
     padding: 20px;
     max-width: 100%;
     box-sizing: border-box;
@@ -61,6 +61,7 @@
         height: auto;
         border-radius: 12px;
         object-fit: cover;
+        max-width: 450px;
     }
 
     .placeholder-cover {
@@ -87,10 +88,10 @@ app-season-container {
 @media (max-width: 800px) {
     .container {
         grid-template-columns: 1fr;
-        grid-template-areas: 
-            "image"
-            "details"
-            "seasons";
+        grid-template-areas:
+            'image'
+            'details'
+            'seasons';
         padding: 10px;
     }
 

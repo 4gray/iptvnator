@@ -22,7 +22,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { XtreamCategory } from '../../../../shared/xtream-category.interface';
 import { XtreamItem } from '../../../../shared/xtream-item.interface';
 import { FilterPipe } from '../../shared/pipes/filter.pipe';
@@ -53,9 +53,9 @@ interface EpgProgram {
         MatIconButton,
         MatListModule,
         MatInputModule,
-        TranslateModule,
+        TranslatePipe,
         MatTooltipModule,
-    ]
+    ],
 })
 export class PortalChannelsListComponent implements AfterViewInit {
     @Output() playClicked = new EventEmitter<any>();

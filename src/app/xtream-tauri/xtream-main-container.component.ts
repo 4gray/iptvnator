@@ -4,7 +4,7 @@ import { CategoryViewComponent } from './category-view/category-view.component';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { XtreamCategory } from '../../../shared/xtream-category.interface';
 import { MpvPlayerBarComponent } from '../shared/components/mpv-player-bar/mpv-player-bar.component';
 import { XtreamStore } from './xtream.store';
@@ -25,6 +25,7 @@ import { XtreamStore } from './xtream.store';
 export class XtreamMainContainerComponent implements OnInit {
     readonly router = inject(Router);
     readonly route = inject(ActivatedRoute);
+    readonly translateService = inject(TranslateService);
     readonly xtreamStore = inject(XtreamStore);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
@@ -51,7 +52,7 @@ export class XtreamMainContainerComponent implements OnInit {
             this.xtreamStore.getSelectedCategory() === null ||
             this.xtreamStore.getSelectedCategory() === undefined
         ) {
-            return 'Select a category';
+            return this.translateService.instant('PORTALS.SELECT_CATEGORY');
         } else {
             const selectedCategory = this.xtreamStore.getSelectedCategory();
             return selectedCategory

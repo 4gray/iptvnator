@@ -1,5 +1,8 @@
 <div class="sidebar">
     <div class="sidebar-header">
+        <button mat-icon-button disabled>
+            <mat-icon>list</mat-icon>
+        </button>
         <h2>{{ 'PORTALS.ALL_CATEGORIES' | translate }}</h2>
     </div>
     <app-category-view
@@ -15,6 +18,10 @@
             @if (xtreamStore.selectedItem()) {
                 <button mat-icon-button (click)="historyBack()">
                     <mat-icon>chevron_left</mat-icon>
+                </button>
+            } @else {
+                <button mat-icon-button disabled>
+                    <mat-icon>category</mat-icon>
                 </button>
             }
             {{ getContentLabel() }}

@@ -11,4 +11,5 @@ export interface XtreamItem {
     rating_imdb?: string;
     xtream_id?: number;
     type?: 'movie' | 'series' | 'live';
+    added_at?: number;
 }

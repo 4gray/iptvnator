@@ -1,31 +1,18 @@
-import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { MatIconButton } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslatePipe } from '@ngx-translate/core';
 import { BehaviorSubject, switchMap } from 'rxjs';
 import { XtreamCategory } from '../../../../shared/xtream-category.interface';
-import { MpvPlayerBarComponent } from '../../shared/components/mpv-player-bar/mpv-player-bar.component';
+import { FavoritesLayoutComponent } from '../../shared/components/favorites-layout/favorites-layout.component';
 import { selectActivePlaylist } from '../../state/selectors';
-import { CategoryViewComponent } from '../category-view/category-view.component';
 import { FavoriteItem } from '../services/favorite-item.interface';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../xtream.store';
 
 @Component({
     selector: 'app-favorites',
-    imports: [
-        CategoryViewComponent,
-        DatePipe,
-        MatCardModule,
-        MatIcon,
-        MatIconButton,
-        MpvPlayerBarComponent,
-        TranslatePipe,
-    ],
+    imports: [FavoritesLayoutComponent, MatCardModule],
     templateUrl: './favorites.component.html',
     styleUrls: ['./favorites.component.scss', '../sidebar.scss'],
 })

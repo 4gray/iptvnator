@@ -46,7 +46,7 @@ const initialState: XtreamState = {
     liveStreams: [],
     vodStreams: [],
     serialStreams: [],
-    page: 1,
+    page: 0,
     limit: Number(localStorage.getItem('xtream-page-size') ?? 25),
     selectedCategoryId: null,
     searchResults: [],
@@ -115,7 +115,7 @@ export const XtreamStore = signalStore(
             );
         }),
         getPaginatedContent: computed(() => {
-            const startIndex = (store.page() - 1) * store.limit();
+            const startIndex = store.page() * store.limit();
             const endIndex = startIndex + store.limit();
             const categoryId = store.selectedCategoryId();
 
@@ -135,6 +135,7 @@ export const XtreamStore = signalStore(
                 .filter((item) => item.category_id === categoryId)
                 .slice(startIndex, endIndex);
         }),
+        isPaginatedContentLoading: computed(() => store.isLoadingContent()),
         getTotalPages: computed(() => {
             const categoryId = store.selectedCategoryId();
             if (!categoryId) return 0;
@@ -461,7 +462,7 @@ export const XtreamStore = signalStore(
             const setSelectedCategory = (categoryId: number) => {
                 patchState(store, {
                     selectedCategoryId: Number(categoryId),
-                    page: 1,
+                    page: 0,
                 });
             };
             const setSelectedContentType = (type: 'live' | 'vod' | 'series') =>
@@ -685,6 +686,7 @@ export const XtreamStore = signalStore(
             );
 
             return {
+                createLinkToPlayVod: () => {},
                 fetchXtreamPlaylist,
                 fetchLiveCategories,
                 fetchVodCategories,
@@ -839,6 +841,12 @@ export const XtreamStore = signalStore(
                             'true',
                         store.selectedContentType() === 'live'
                     );
+                },
+                addToFavorites(item: any) {
+                    console.log('not needed now', item);
+                },
+                removeFromFavorites(favoriteId: string) {
+                    console.log('not needed now', favoriteId);
                 },
             };
         }

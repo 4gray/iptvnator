@@ -1,0 +1,30 @@
+<div class="search-container">
+    <mat-form-field appearance="outline" class="search-field">
+        <mat-label>{{ placeholder }}</mat-label>
+        <input
+            #searchInput
+            matInput
+            spellcheck="false"
+            [ngModel]="searchTerm()"
+            (ngModelChange)="onSearchTermChange()"
+        />
+        <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+
+    @if (filterConfig.length > 0) {
+        <div class="type-filters">
+            @for (filter of filterConfig; track filter.key) {
+                <mat-checkbox
+                    [(ngModel)]="filters[filter.key]"
+                    (ngModelChange)="onFilterChange(filter.key)"
+                >
+                    @if (filter.translationKey) {
+                        {{ filter.translationKey | translate }}
+                    } @else {
+                        {{ filter.label }}
+                    }
+                </mat-checkbox>
+            }
+        </div>
+    }
+</div>

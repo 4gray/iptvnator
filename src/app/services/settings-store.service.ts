@@ -8,9 +8,9 @@ import {
 } from '@ngrx/signals';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
-import { StreamFormat } from '../settings/stream-format.enum';
 import { Language } from '../settings/language.enum';
 import { Settings, VideoPlayer } from '../settings/settings.interface';
+import { StreamFormat } from '../settings/stream-format.enum';
 import { Theme } from '../settings/theme.enum';
 import { STORE_KEY } from '../shared/enums/store-keys.enum';
 
@@ -61,6 +61,17 @@ export const SettingsStore = signalStore(
                 remoteControlPort: store.remoteControlPort(),
                 epgUrl: store.epgUrl(),
             };
+        },
+
+        getPlayer() {
+            return store.player();
+        },
+
+        isEmbeddedPlayer() {
+            return (
+                store.player() === VideoPlayer.VideoJs ||
+                store.player() === VideoPlayer.Html5Player
+            );
         },
     })),
     withHooks({

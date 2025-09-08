@@ -23,6 +23,11 @@ export const selectCurrentEpgProgram = createSelector(
     fromPlaylistState.selectCurrentEpgProgram
 );
 
+export const selectCurrentPlaylistId = createSelector(
+    selectPlaylistState,
+    fromPlaylistState.selectCurrentPlaylistId
+);
+
 export const selectChannels = createSelector(
     selectPlaylistState,
     fromPlaylistState.selectChannels
@@ -68,7 +73,7 @@ export const selectActivePlaylistId = createSelector(
 export const selectPlaylistTitle = createSelector(
     selectPlaylistsMetaState,
     fromPlaylistMetaState.getPlaylistMetaEntities,
-    fromPlaylistState.selectPlaylistId,
+    selectCurrentPlaylistId,
     (data) => {
         if (data.selectedId === GLOBAL_FAVORITES_PLAYLIST_ID) {
             return 'Global favorites';
@@ -93,9 +98,10 @@ export const selectPlaylistEntities = createSelector(
 export const selectCurrentPlaylist = createSelector(
     selectPlaylistEntities,
     selectRouteParam('id'),
-    (entities, id) => {
+    selectCurrentPlaylistId,
+    (entities, id, currentPlaylistId) => {
         if (entities) {
-            return entities[id];
+            return entities[id] || entities[currentPlaylistId];
         }
         return null;
     }

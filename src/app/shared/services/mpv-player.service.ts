@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { BehaviorSubject } from 'rxjs';
 
@@ -20,6 +20,9 @@ export class MpvPlayerService {
     public activeProcesses$ = this.activeProcessesSubject.asObservable();
 
     constructor() {
+        if (!isTauri()) {
+            return;
+        }
         this.initializeEventListeners();
         this.loadActiveProcesses();
     }
@@ -58,20 +61,6 @@ export class MpvPlayerService {
         } catch (error) {
             console.error('Failed to load active MPV processes:', error);
         }
-    }
-
-    async openStream(
-        url: string,
-        title: string,
-        thumbnail?: string,
-        mpvPath: string = ''
-    ): Promise<number> {
-        return await invoke<number>('open_in_mpv', {
-            url,
-            path: mpvPath,
-            title,
-            thumbnail,
-        });
     }
 
     async playStream(processId: number): Promise<void> {

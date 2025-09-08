@@ -1,21 +1,23 @@
 <div class="expired-account">
-    @if (viewType === 'ERROR') {
-        <img src="./assets/images/broken-tv.svg" />
-    } @else if (viewType === 'EMPTY_CATEGORY') {
-        <img
-            style="max-width: 350px"
-            src="./assets/images/empty-category.svg"
-        />
-    } @else if (viewType === 'NO_SEARCH_RESULTS') {
-        <mat-icon class="icon">search</mat-icon>
-    }
+    <div class="image-container">
+        @if (viewType === 'ERROR') {
+            <img src="./assets/images/broken-tv.svg" />
+        } @else if (viewType === 'EMPTY_CATEGORY') {
+            <img
+                style="max-width: 350px"
+                src="./assets/images/empty-category.svg"
+            />
+        } @else if (viewType === 'NO_SEARCH_RESULTS') {
+            <mat-icon class="icon">search</mat-icon>
+        }
+    </div>
     <div>
         <h3>{{ title }}</h3>
         {{ description }}
     </div>
 
     @if (showActionButtons) {
-        <div>
+        <div class="actions">
             <button mat-stroked-button routerLink="/">
                 <mat-icon>home</mat-icon>
                 {{ 'PORTALS.ERROR_VIEW.HOME' | translate }}

@@ -240,6 +240,15 @@ export const playlistReducer = createReducer(
                 },
             };
         }
+    ),
+    on(
+        PlaylistActions.setCurrentPlaylistId,
+        (state, { playlistId }): PlaylistState => {
+            return {
+                ...state,
+                currentPlaylistId: playlistId,
+            };
+        }
     )
 );
 
@@ -254,3 +263,5 @@ export const selectPlaylistId = (state: PlaylistState) =>
     state.playlists?.selectedId;
 export const selectPlaylistsLoadingFlag = (state: PlaylistState) =>
     state.playlists?.allPlaylistsLoaded;
+export const selectCurrentPlaylistId = (state: PlaylistState) =>
+    state.currentPlaylistId;

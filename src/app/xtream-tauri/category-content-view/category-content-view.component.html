@@ -1,61 +1,31 @@
 @if (selectedCategory()) {
-    <div class="grid">
-        @for (item of paginatedContent(); track $index) {
-            @let i = $any(item);
-            <mat-card (click)="onItemClick(item)">
-                @if (i.poster_url) {
-                    <img
-                        class="stream-icon"
-                        [ngSrc]="
-                            i.poster_url ?? './assets/images/default-poster.png'
-                        "
-                        fill
-                        priority
-                        placeholder
-                        placeholder="data:image/png;base64,iVBORw0K..."
-                        (error)="
-                            $event.target.src =
-                                './assets/images/default-poster.png'
-                        "
-                    />
-                } @else {
-                    <img
-                        class="stream-icon"
-                        src="./assets/images/default-poster.png"
-                    />
-                }
-                @let rating = $any(item).rating;
-                @if (rating) {
-                    <div
-                        class="rating"
-                        [matTooltip]="'XTREAM.IMDB_RATING' | translate"
-                    >
-                        <mat-icon>star</mat-icon>{{ rating }}
-                    </div>
-                }
-                <mat-card-actions>
-                    <div class="title">{{ i.title || 'No name' }}</div>
-                </mat-card-actions>
-            </mat-card>
-        } @empty {
-            <app-playlist-error-view
-                [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"
-                [description]="
-                    'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION' | translate
+    @if (isStalker && selectedItem()) {
+        @if (contentType === 'vod') {
+            <app-vod-details
+                [item]="selectedItem()"
+                (playClicked)="
+                    createLinkToPlayVod(
+                        selectedItem().cmd,
+                        selectedItem().info.name,
+                        selectedItem().info.movie_image
+                    )
                 "
-                [showActionButtons]="false"
-                [viewType]="'EMPTY_CATEGORY'"
+                (addToFavoritesClicked)="addToFavorites($event)"
+                (removeFromFavoritesClicked)="removeFromFavorites($event)"
             />
+        } @else if (contentType === 'series') {
+            <app-stalker-series-view />
         }
-    </div>
-
-    @if (paginatedContent().length > 0) {
-        <mat-paginator
-            [length]="totalPages() * limit()"
-            [pageSize]="limit()"
+    } @else {
+        <app-grid-list
+            [isLoading]="isPaginatedContentLoading()"
+            [items]="paginatedContent()"
+            (itemClicked)="onItemClick($event)"
+            [pageIndex]="pageIndex()"
+            [totalPages]="totalPages()"
+            [limit]="limit()"
             [pageSizeOptions]="pageSizeOptions"
-            (page)="onPageChange($event)"
-            aria-label="Select page"
+            (pageChange)="onPageChange($event)"
         />
     }
 } @else {

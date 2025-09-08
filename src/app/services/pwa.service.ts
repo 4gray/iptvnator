@@ -12,7 +12,6 @@ import {
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
     STALKER_REQUEST,
-    STALKER_RESPONSE,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
 } from '../../../shared/ipc-commands';
@@ -73,7 +72,7 @@ export class PwaService extends DataService {
                 payload as { url: string; params: Record<string, string> }
             );
         } else if (type === STALKER_REQUEST) {
-            this.forwardStalkerRequest(
+            return this.forwardStalkerRequest(
                 payload as {
                     url: string;
                     macAddress: string;
@@ -205,26 +204,41 @@ export class PwaService extends DataService {
         }
     }
 
-    forwardStalkerRequest(payload: {
+    async forwardStalkerRequest(payload: {
         url: string;
         params: Record<string, string>;
         macAddress: string;
     }) {
-        return this.http
-            .get(`${this.corsProxyUrl}/stalker`, {
-                params: {
-                    url: payload.url,
-                    ...payload.params,
-                    macAddress: payload.macAddress,
-                },
-            })
-            .subscribe((response) => {
-                window.postMessage({
-                    type: STALKER_RESPONSE,
-                    payload: (response as any).payload,
-                    action: payload.params.action,
-                });
+        try {
+            // Build the query parameters
+            const params = new URLSearchParams({
+                url: payload.url,
+                ...payload.params,
+                macAddress: payload.macAddress,
             });
+
+            // Make the fetch request
+            const response = await fetch(
+                `${this.corsProxyUrl}/stalker?${params.toString()}`
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Error: ${response.statusText} (Status: ${response.status})`
+                );
+            }
+
+            // Parse and return the JSON response
+            return (await response.json()).payload;
+        } catch (err) {
+            console.error('Stalker request error:', err);
+            window.postMessage({
+                type: ERROR,
+                message: err.message ?? 'Error: not found',
+                status: err.status ?? 404,
+            });
+            throw err;
+        }
     }
 
     getPlaylistFromUrl(url: string) {

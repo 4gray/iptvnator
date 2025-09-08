@@ -9,7 +9,11 @@
             <span class="portal-name">{{
                 currentPlaylist()?.title || 'Unknown Portal'
             }}</span>
-            <span class="portal-label">{{ xtreamStore.portalStatus() }}</span>
+            @if (!isStalkerPlaylist()) {
+                <span class="portal-label">{{
+                    xtreamStore.portalStatus()
+                }}</span>
+            }
         </div>
         <div class="portal-actions">
             <button
@@ -22,14 +26,16 @@
             >
                 <mat-icon>home</mat-icon>
             </button>
-            <button
-                mat-icon-button
-                class="action-button"
-                (click)="openAccountInfo()"
-                [matTooltip]="'PORTALS.SIDEBAR.ACCOUNT_INFO' | translate"
-            >
-                <mat-icon>person</mat-icon>
-            </button>
+            @if (!isStalkerPlaylist()) {
+                <button
+                    mat-icon-button
+                    class="action-button"
+                    (click)="openAccountInfo()"
+                    [matTooltip]="'PORTALS.SIDEBAR.ACCOUNT_INFO' | translate"
+                >
+                    <mat-icon>person</mat-icon>
+                </button>
+            }
             <button
                 mat-icon-button
                 class="action-button"
@@ -45,36 +51,16 @@
 <div class="nav-section">
     <div class="nav-group-label">{{ 'PORTALS.SIDEBAR.MAIN' | translate }}</div>
     <mat-nav-list>
-        <a
-            mat-list-item
-            (click)="categoryClick.emit('vod')"
-            [class.active]="isContentTypeActive('vod')"
-        >
-            <mat-icon matListItemIcon>movie</mat-icon>
-            <span matListItemTitle>{{
-                'PORTALS.SIDEBAR.MOVIES' | translate
-            }}</span>
-        </a>
-        <a
-            mat-list-item
-            (click)="categoryClick.emit('live')"
-            [class.active]="isContentTypeActive('live')"
-        >
-            <mat-icon matListItemIcon>live_tv</mat-icon>
-            <span matListItemTitle>{{
-                'PORTALS.SIDEBAR.LIVE_TV' | translate
-            }}</span>
-        </a>
-        <a
-            mat-list-item
-            (click)="categoryClick.emit('series')"
-            [class.active]="isContentTypeActive('series')"
-        >
-            <mat-icon matListItemIcon>tv</mat-icon>
-            <span matListItemTitle>{{
-                'PORTALS.SIDEBAR.SERIES' | translate
-            }}</span>
-        </a>
+        @for (item of navigationItems(); track item.id) {
+            <a
+                mat-list-item
+                [class.active]="isContentTypeActive(item.id)"
+                (click)="categoryClick.emit(item.id)"
+            >
+                <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+                <span matListItemTitle>{{ item.labelKey | translate }}</span>
+            </a>
+        }
     </mat-nav-list>
 </div>
 

@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { parse } from 'iptv-playlist-parser';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { combineLatest, map, switchMap } from 'rxjs';
+import { combineLatest, EMPTY, map, switchMap } from 'rxjs';
 import { Channel } from '../../../shared/channel.interface';
 import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../shared/constants';
 import {
@@ -20,15 +21,21 @@ import { XtreamItem } from '../../../shared/xtream-item.interface';
 import { XtreamSerieItem } from '../../../shared/xtream-serie-item.interface';
 import { DbStores } from '../indexed-db.config';
 import { PlaylistMeta } from '../shared/playlist-meta.type';
+import { selectCurrentPlaylist } from '../state/selectors';
 
 @Injectable({
     providedIn: 'root',
 })
 export class PlaylistsService {
+    private readonly currentPlaylist = this.store.selectSignal(
+        selectCurrentPlaylist
+    );
+
     constructor(
         private dbService: NgxIndexedDBService,
         private snackBar: MatSnackBar,
-        private translateService: TranslateService
+        private translateService: TranslateService,
+        private store: Store
     ) {}
 
     getAllPlaylists() {
@@ -138,7 +145,10 @@ export class PlaylistsService {
             );
     }
 
-    getPortalFavorites(portalId: string) {
+    getPortalFavorites(portalId?: string) {
+        if (!portalId) {
+            portalId = this.currentPlaylist()._id;
+        }
         return this.dbService
             .getByID<{
                 favorites: Partial<XtreamItem>[];
@@ -146,11 +156,18 @@ export class PlaylistsService {
             .pipe(
                 map((item) => {
                     if (!item || !item.favorites) return [];
-                    return item.favorites.filter(
+                    return item.favorites; /* .filter(
                         (itm) =>
                             itm && itm.stream_type && itm.stream_type !== 'live'
-                    );
-                })
+                    ); */
+                }),
+                map((favorites) =>
+                    favorites.sort(
+                        (a, b) =>
+                            new Date(b.added_at).getTime() -
+                            new Date(a.added_at).getTime()
+                    )
+                )
             );
     }
 
@@ -171,6 +188,9 @@ export class PlaylistsService {
     }
 
     addPortalFavorite(portalId: string, item: any) {
+        if (!portalId) {
+            portalId = this.currentPlaylist()._id;
+        }
         return this.getPlaylistById(portalId).pipe(
             switchMap((portal) =>
                 this.dbService.update(DbStores.Playlists, {
@@ -182,6 +202,9 @@ export class PlaylistsService {
     }
 
     removeFromPortalFavorites(portalId: string, favoriteId: number | string) {
+        if (!portalId) {
+            portalId = this.currentPlaylist()._id;
+        }
         return this.getPlaylistById(portalId).pipe(
             switchMap((portal) =>
                 this.dbService.update(DbStores.Playlists, {
@@ -301,5 +324,57 @@ export class PlaylistsService {
 
     removeAll() {
         return this.dbService.clear(DbStores.Playlists);
+    }
+
+    getPortalRecentlyViewed() {
+        const portalId = this.currentPlaylist()._id;
+        return this.dbService
+            .getByID<{
+                recentlyViewed: Partial<XtreamItem>[];
+            }>(DbStores.Playlists, portalId)
+            .pipe(
+                map((item) => {
+                    if (!item || !item.recentlyViewed) return [];
+                    return item.recentlyViewed;
+                }),
+                map((items) =>
+                    items.sort(
+                        (a, b) =>
+                            new Date(b.added_at).getTime() -
+                            new Date(a.added_at).getTime()
+                    )
+                )
+            );
+    }
+
+    addPortalRecentlyViewed(item: { id: string; title: string }) {
+        const portalId = this.currentPlaylist()._id;
+        return this.getPlaylistById(portalId).pipe(
+            switchMap((portal) => {
+                // Check if item already exists in recently viewed
+                if (portal.recentlyViewed?.some((i) => i.id === item.id)) {
+                    return EMPTY;
+                }
+
+                return this.dbService.update(DbStores.Playlists, {
+                    ...portal,
+                    recentlyViewed: [...(portal.recentlyViewed ?? []), item],
+                });
+            })
+        );
+    }
+
+    removeFromPortalRecentlyViewed(id: string | number) {
+        const portalId = this.currentPlaylist()._id;
+        return this.getPlaylistById(portalId).pipe(
+            switchMap((portal) =>
+                this.dbService.update(DbStores.Playlists, {
+                    ...portal,
+                    recentlyViewed: portal.recentlyViewed.filter(
+                        (i) => i.id !== id
+                    ),
+                })
+            )
+        );
     }
 }

@@ -131,3 +131,8 @@ export const setSelectedFilters = createAction(
     `${STORE_KEY} Set selected filters`,
     props<{ selectedFilters: string[] }>()
 );
+
+export const setCurrentPlaylistId = createAction(
+    `${STORE_KEY} Set current playlist id`,
+    props<{ playlistId: string | undefined }>()
+);

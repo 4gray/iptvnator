@@ -20,4 +20,5 @@ export type PlaylistMeta = Pick<
     | 'password'
     | 'macAddress'
     | 'portalUrl'
+    | 'recentlyViewed'
 >;

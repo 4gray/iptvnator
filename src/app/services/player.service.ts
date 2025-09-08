@@ -44,6 +44,8 @@ export class PlayerService {
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
                 vlcPlayerPath: this.settingsStore.vlcPlayerPath(),
+                title,
+                thumbnail,
             });
         } else if (!isLiveContent) {
             this.dialog.open<PlayerDialogComponent, PlayerDialogData>(

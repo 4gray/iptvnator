@@ -1,9 +1,21 @@
+@use '@angular/material' as mat;
+
 :host {
     display: flex;
-    flex-direction: row;  // Changed from column to row
+    flex-direction: row;
     overflow: hidden;
     height: 100%;
-    width: 100%;  // Added to ensure full width
+    width: 100%;
+}
+
+.sidebar-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    button {
+        @include mat.form-field-density(-5);
+    }
 }
 
 .main-content {

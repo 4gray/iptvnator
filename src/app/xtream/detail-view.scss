@@ -14,8 +14,8 @@
 .container {
     display: grid;
     grid-gap: 10px;
-    grid-template-columns: 350px 450px;
-    justify-content: center;
+    grid-template-columns: 320px 1fr;
+    padding: 0 10px;
 
     &::before {
         content: '';
@@ -65,6 +65,7 @@
     max-width: 100%;
     height: auto;
     border-radius: 5px;
+    width: 300px;
 }
 
 @media (max-width: 800px) {

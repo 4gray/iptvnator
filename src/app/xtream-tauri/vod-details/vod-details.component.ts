@@ -26,7 +26,6 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
     private readonly xtreamStore = inject(XtreamStore);
 
     readonly theme = this.settingsStore.theme;
-    private readonly selectedContentType = this.xtreamStore.selectedContentType;
 
     readonly isFavorite = this.xtreamStore.isFavorite;
     readonly selectedItem = this.xtreamStore.selectedItem;

@@ -11,6 +11,21 @@
     }
 }
 
+.image-container {
+    max-width: 400px;
+    height: auto;
+
+    img {
+        width: 100%;
+    }
+}
+
+.actions {
+    button {
+        margin: 5px 0;
+    }
+}
+
 .icon {
     font-size: 64px;
     height: 64px;

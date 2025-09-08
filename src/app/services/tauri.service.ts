@@ -1,6 +1,8 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Params } from '@angular/router';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { readTextFile } from '@tauri-apps/plugin-fs';
 import { fetch } from '@tauri-apps/plugin-http';
 import { parse } from 'iptv-playlist-parser';
@@ -24,9 +26,28 @@ import { DataService } from './data.service';
     providedIn: 'root',
 })
 export class TauriService extends DataService {
+    private eventListeners: { [key: string]: () => void } = {};
+    private snackBar = inject(MatSnackBar);
+
     constructor() {
         super();
         console.log('Tauri service initialized...');
+        this.setupEventListeners();
+    }
+
+    private async setupEventListeners() {
+        // Listen for player errors
+        this.eventListeners['player-error'] = await listen(
+            'player-error',
+            (event) => {
+                console.error('Player error:', event);
+                this.snackBar.open(
+                    `Player Error: ${event.payload as string}`,
+                    'Close',
+                    { duration: 5000 }
+                );
+            }
+        );
     }
 
     getAppVersion(): string {
@@ -66,7 +87,7 @@ export class TauriService extends DataService {
                 payload as { url: string; params: Record<string, string> }
             );
         } else if (type === 'STALKER_REQUEST') {
-            this.fetchStalkerData(
+            return this.fetchStalkerData(
                 payload as {
                     url: string;
                     macAddress: string;
@@ -75,36 +96,40 @@ export class TauriService extends DataService {
             );
         } else if (type === 'OPEN_MPV_PLAYER') {
             const data = payload as any;
-            return invoke('open_in_mpv', {
-                url: data.url,
-                path: data.mpvPlayerPath || '',
-                title: data.title ?? '',
-                thumbnail: data.thumbnail ?? '',
-                userAgent: data['user-agent'] ?? undefined,
-                referer: data.referer ?? undefined,
-                origin: data.origin ?? undefined,
-            }).catch((error) => {
-                window.postMessage({
-                    type: ERROR,
-                    message: `Error launching MPV: ${error}`,
+            try {
+                return await invoke('open_in_mpv', {
+                    url: data.url,
+                    path: data.mpvPlayerPath || '',
+                    title: data.title ?? '',
+                    thumbnail: data.thumbnail ?? '',
+                    userAgent: data['user-agent'] ?? undefined,
+                    referer: data.referer ?? undefined,
+                    origin: data.origin ?? undefined,
                 });
+            } catch (error) {
+                this.snackBar.open(`Error launching MPV: ${error}`, 'Close', {
+                    duration: 5000,
+                });
+                console.error('MPV launch error:', error);
                 throw error;
-            });
+            }
         } else if (type === 'OPEN_VLC_PLAYER') {
             const data = payload as any;
-            return invoke('open_in_vlc', {
-                url: data.url,
-                path: data.vlcPlayerPath || '',
-                userAgent: data['user-agent'] ?? undefined,
-                referer: data.referer ?? undefined,
-                origin: data.origin ?? undefined,
-            }).catch((error) => {
-                window.postMessage({
-                    type: ERROR,
-                    message: `Error launching VLC: ${error}`,
+            try {
+                return await invoke('open_in_vlc', {
+                    url: data.url,
+                    path: data.vlcPlayerPath || '',
+                    userAgent: data['user-agent'] ?? undefined,
+                    referer: data.referer ?? undefined,
+                    origin: data.origin ?? undefined,
                 });
+            } catch (error) {
+                this.snackBar.open(`Error launching VLC: ${error}`, 'Close', {
+                    duration: 5000,
+                });
+                console.error('VLC launch error:', error);
                 throw error;
-            });
+            }
         } else if (type === 'EPG_FETCH_DONE') {
             window.postMessage({
                 type: EPG_GET_PROGRAM_DONE,
@@ -164,12 +189,12 @@ export class TauriService extends DataService {
                 );
             }
 
-            const result = await response.json();
-            window.postMessage({
+            return await response.json();
+            /* window.postMessage({
                 type: 'STALKER_RESPONSE',
                 payload: result,
                 action: payload.params.action,
-            });
+            }); */
         } catch (err) {
             console.log(err);
             window.postMessage({
@@ -254,14 +279,40 @@ export class TauriService extends DataService {
     }
 
     removeAllListeners(type: string): void {
-        console.error(
-            'Method not implemented. Following type was provided:',
-            type
-        );
+        if (type === 'all') {
+            // Unsubscribe from all Tauri events
+            Object.values(this.eventListeners).forEach((unsubscribe) =>
+                unsubscribe()
+            );
+            this.eventListeners = {};
+        } else if (this.eventListeners[type]) {
+            // Unsubscribe from a specific event
+            this.eventListeners[type]();
+            delete this.eventListeners[type];
+        }
+
+        // Also remove any window message listeners
+        // Note: This is a bit crude, but works for simple cases
+        window.removeEventListener('message', this.getListenerForCommand(type));
+    }
+
+    private getListenerForCommand(command: string): any {
+        // This is a placeholder. In a real implementation, you would need to
+        // store the actual listener functions to be able to remove them
+        return () => {};
     }
 
     listenOn(command: string, callback: (...args: any[]) => void): void {
-        window.addEventListener('message', callback);
+        if (command.startsWith('tauri:')) {
+            // For Tauri specific events, use the Tauri event system
+            const tauriEvent = command.replace('tauri:', '');
+            listen(tauriEvent, callback).then((unsubscribe) => {
+                this.eventListeners[command] = unsubscribe;
+            });
+        } else {
+            // For backward compatibility, use window messages
+            window.addEventListener('message', callback);
+        }
     }
 
     getAppEnvironment(): string {

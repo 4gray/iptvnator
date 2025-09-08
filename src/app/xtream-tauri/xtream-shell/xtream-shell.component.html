@@ -9,8 +9,10 @@
     <app-navigation
         class="navigation-sidebar"
         [portalStatus]="portalStatus()"
+        [navigationItems]="mainNavigationItems"
         (categoryClick)="handleCategoryClick($event)"
         (pageClicked)="handlePageClick($event)"
+        [selectedContentType]="xtreamStore.selectedContentType()"
     />
     <router-outlet />
 </div>
