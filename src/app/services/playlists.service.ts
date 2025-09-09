@@ -73,6 +73,7 @@ export class PlaylistsService {
                     count: updatedPlaylist.playlist.items.length,
                     updateDate: Date.now(),
                     updateState: PlaylistUpdateState.UPDATED,
+                    favorites: currentPlaylist.favorites,
                 })
             )
         );

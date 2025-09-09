@@ -15,7 +15,7 @@
         >
             <mat-icon>
                 {{
-                    (favorites$ | async).includes(activeChannel?.id)
+                    (favorites$ | async).includes(activeChannel?.url)
                         ? 'star'
                         : 'star_outline'
                 }}</mat-icon

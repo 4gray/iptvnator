@@ -58,12 +58,12 @@ export const playlistReducer = createReducer(
         const { channel } = action;
         const playlistFavorites =
             state.playlists.entities[state.playlists.selectedId].favorites;
-        if (playlistFavorites.includes(channel.id)) {
+        if (playlistFavorites.includes(channel.url)) {
             favorites = [
-                ...playlistFavorites.filter((id) => id !== channel.id),
+                ...playlistFavorites.filter((url) => url !== channel.url),
             ];
         } else {
-            favorites = [...playlistFavorites, channel.id];
+            favorites = [...playlistFavorites, channel.url];
         }
         return {
             ...state,
@@ -123,9 +123,11 @@ export const playlistReducer = createReducer(
                         ...action.playlist,
                         _id: action.playlistId,
                         updateDate: Date.now(),
-                        favorites: [],
                         count: action.playlist.playlist.items.length,
                         userAgent: action.playlist.userAgent,
+                        favorites:
+                            state.playlists.entities[action.playlistId]
+                                .favorites ?? [],
                     },
                 },
                 state.playlists

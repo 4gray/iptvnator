@@ -4,7 +4,7 @@ import {
     moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { CommonModule, TitleCasePipe, KeyValue } from '@angular/common';
+import { CommonModule, KeyValue, TitleCasePipe } from '@angular/common';
 import {
     Component,
     ElementRef,
@@ -112,7 +112,7 @@ export class ChannelListContainerComponent {
             ) =>
                 favoriteChannelIds.map((favoriteChannelId) =>
                     this.channelList.find(
-                        (channel) => channel.id === favoriteChannelId
+                        (channel) => channel.url === favoriteChannelId
                     )
                 )
         )
@@ -172,7 +172,10 @@ export class ChannelListContainerComponent {
         this.store.dispatch(PlaylistActions.setChannels({ channels: [] }));
     }
 
-    groupsComparator = (a: KeyValue<string, any[]>, b: KeyValue<string, any[]>): number => {
+    groupsComparator = (
+        a: KeyValue<string, any[]>,
+        b: KeyValue<string, any[]>
+    ): number => {
         const numA = parseInt(a.key.replace(/\D/g, ''));
         const numB = parseInt(b.key.replace(/\D/g, ''));
 
@@ -181,5 +184,5 @@ export class ChannelListContainerComponent {
         }
 
         return a.key.localeCompare(b.key);
-    }
+    };
 }
