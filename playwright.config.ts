@@ -13,7 +13,7 @@ export default defineConfig({
     },
     use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'http://localhost:4200',
+        baseURL: 'http://0.0.0.0:4200',
         headless: false,
         screenshot: 'only-on-failure',
         testIdAttribute: 'data-test-id',

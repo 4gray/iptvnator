@@ -9,7 +9,8 @@ services:
       # this one should match with the address and port in frontend CLIENT_URL env
       
   frontend: 
-    image: .
+    build :
+      context: .
     ports:
       - "4333:80"
     environment:
