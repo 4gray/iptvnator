@@ -44,12 +44,10 @@ export class StalkerFavoritesComponent {
     itemDetails: any = null;
 
     readonly allFavorites = rxResource({
-        request: () => ({
+        params: () => ({
             refreshTimestamp: this.refreshTimestamp(),
         }),
-        loader: () => {
-            return this.playlistService.getPortalFavorites();
-        },
+        stream: () => this.playlistService.getPortalFavorites(),
     });
 
     readonly categories = computed(() => [

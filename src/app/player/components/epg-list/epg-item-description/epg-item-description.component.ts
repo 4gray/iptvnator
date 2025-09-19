@@ -1,4 +1,4 @@
-import { NgIf } from '@angular/common';
+
 import { Component, Inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -9,7 +9,7 @@ import { EpgProgram } from './../../../models/epg-program.model';
     selector: 'app-epg-item-description',
     templateUrl: './epg-item-description.component.html',
     styleUrls: ['./epg-item-description.component.scss'],
-    imports: [MatButtonModule, MatDialogModule, NgIf, TranslatePipe],
+    imports: [MatButtonModule, MatDialogModule, TranslatePipe],
 })
 export class EpgItemDescriptionComponent {
     /** EPG program object */

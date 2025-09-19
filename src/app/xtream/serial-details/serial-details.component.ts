@@ -1,4 +1,4 @@
-import { NgIf } from '@angular/common';
+
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -18,12 +18,11 @@ import { SeasonContainerComponent } from '../season-container/season-container.c
     templateUrl: './serial-details.component.html',
     styleUrls: ['../detail-view.scss'],
     imports: [
-        MatButtonModule,
-        MatIconModule,
-        NgIf,
-        SeasonContainerComponent,
-        TranslateModule,
-    ],
+    MatButtonModule,
+    MatIconModule,
+    SeasonContainerComponent,
+    TranslateModule
+],
 })
 export class SerialDetailsComponent {
     @Input({ required: true }) item: XtreamSerieDetails;

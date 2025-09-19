@@ -8,7 +8,6 @@ import { isTauri } from '@tauri-apps/api/core';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { check } from '@tauri-apps/plugin-updater';
-import { ModalWindow } from 'ngx-whats-new/lib/modal-window.interface';
 import { firstValueFrom } from 'rxjs';
 import * as semver from 'semver';
 import { IpcCommand } from '../../shared/ipc-command.class';
@@ -47,7 +46,7 @@ export class AppComponent {
     options = this.whatsNewService.options;
 
     /** Modals to show for the updated version of the application */
-    modals: ModalWindow[] = [];
+    modals: any[] = [];
 
     /** List of ipc commands with function mapping */
     commandsList = [
