@@ -151,7 +151,7 @@ export class MultiEpgContainerComponent
     }
 
     trackByProgram(_: number, program: EnrichedProgram): string {
-        return program.start + program.title;
+        return program.start + program.title.toString();
     }
 
     async requestPrograms(): Promise<void> {

@@ -1,4 +1,4 @@
-import { NgIf } from '@angular/common';
+
 import {
     Component,
     EventEmitter,
@@ -21,13 +21,12 @@ import { SafePipe } from './safe.pipe';
     templateUrl: './vod-details.component.html',
     styleUrls: ['../detail-view.scss'],
     imports: [
-        MatButtonModule,
-        MatIcon,
-        MatProgressSpinnerModule,
-        NgIf,
-        SafePipe,
-        TranslatePipe,
-    ],
+    MatButtonModule,
+    MatIcon,
+    MatProgressSpinnerModule,
+    SafePipe,
+    TranslatePipe
+],
 })
 export class VodDetailsComponent implements OnInit {
     @Input({ required: true }) item: XtreamVodDetails;

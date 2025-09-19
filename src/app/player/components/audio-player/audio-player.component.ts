@@ -1,4 +1,4 @@
-import { NgIf } from '@angular/common';
+
 import {
     Component,
     ElementRef,
@@ -18,70 +18,79 @@ import { setAdjacentChannelAsActive } from '../../../state/actions';
     selector: 'app-audio-player',
     template: `
         <div id="audio-player">
-            <div class="radio-logo">
-                <img [src]="icon" alt="radio icon" />
-            </div>
-            <audio preload="metadata" autoplay #audio>
-                <source [src]="url" />
-            </audio>
-            <div class="controls">
-                <button mat-icon-button (click)="switchChannel('previous')">
-                    <mat-icon>skip_previous</mat-icon>
-                </button>
-
-                <button
-                    class="icon-button-large"
-                    mat-icon-button
-                    (click)="play()"
-                    *ngIf="playState === 'paused'"
+          <div class="radio-logo">
+            <img [src]="icon" alt="radio icon" />
+          </div>
+          <audio preload="metadata" autoplay #audio>
+            <source [src]="url" />
+          </audio>
+          <div class="controls">
+            <button mat-icon-button (click)="switchChannel('previous')">
+              <mat-icon>skip_previous</mat-icon>
+            </button>
+        
+            @if (playState === 'paused') {
+              <button
+                class="icon-button-large"
+                mat-icon-button
+                (click)="play()"
                 >
-                    <mat-icon>play_arrow</mat-icon>
-                </button>
-                <button
-                    class="icon-button-large"
-                    mat-icon-button
-                    (click)="stop()"
-                    *ngIf="playState === 'play'"
+                <mat-icon>play_arrow</mat-icon>
+              </button>
+            }
+            @if (playState === 'play') {
+              <button
+                class="icon-button-large"
+                mat-icon-button
+                (click)="stop()"
                 >
-                    <mat-icon>pause</mat-icon>
-                </button>
-                <button mat-icon-button (click)="switchChannel('next')">
-                    <mat-icon>skip_next</mat-icon>
-                </button>
-            </div>
-            <div class="volume-panel">
-                <div class="playing" *ngIf="playState === 'play'">
-                    <span class="playing-bar playing-bar1"></span>
-                    <span class="playing-bar playing-bar2"></span>
-                    <span class="playing-bar playing-bar3"></span>
-                </div>
-                <div class="playing" *ngIf="playState === 'paused'">
-                    <span class="playing-bar-stopped playing-bar1"></span>
-                    <span class="playing-bar-stopped playing-bar2"></span>
-                    <span class="playing-bar-stopped playing-bar3"></span>
-                </div>
-                <mat-slider min="0" max="1" step="0.1" color="accent">
-                    <input matSliderThumb [(ngModel)]="audio.volume" />
-                </mat-slider>
-                <button mat-icon-button (click)="mute()">
-                    <mat-icon *ngIf="audio.volume > 0 && !audio.muted"
-                        >volume_up</mat-icon
+                <mat-icon>pause</mat-icon>
+              </button>
+            }
+            <button mat-icon-button (click)="switchChannel('next')">
+              <mat-icon>skip_next</mat-icon>
+            </button>
+          </div>
+          <div class="volume-panel">
+            @if (playState === 'play') {
+              <div class="playing">
+                <span class="playing-bar playing-bar1"></span>
+                <span class="playing-bar playing-bar2"></span>
+                <span class="playing-bar playing-bar3"></span>
+              </div>
+            }
+            @if (playState === 'paused') {
+              <div class="playing">
+                <span class="playing-bar-stopped playing-bar1"></span>
+                <span class="playing-bar-stopped playing-bar2"></span>
+                <span class="playing-bar-stopped playing-bar3"></span>
+              </div>
+            }
+            <mat-slider min="0" max="1" step="0.1" color="accent">
+              <input matSliderThumb [(ngModel)]="audio.volume" />
+            </mat-slider>
+            <button mat-icon-button (click)="mute()">
+              @if (audio.volume > 0 && !audio.muted) {
+                <mat-icon
+                  >volume_up</mat-icon
+                  >
+                }
+                @if (audio.volume === 0 || audio.muted) {
+                  <mat-icon
+                    >volume_off</mat-icon
                     >
-                    <mat-icon *ngIf="audio.volume === 0 || audio.muted"
-                        >volume_off</mat-icon
-                    >
+                  }
                 </button>
+              </div>
             </div>
-        </div>
-    `,
+        `,
     styleUrls: ['./audio-player.component.scss'],
     imports: [
-        MatSliderModule,
-        MatIconModule,
-        MatButtonModule,
-        NgIf,
-        FormsModule,
-    ],
+    MatSliderModule,
+    MatIconModule,
+    MatButtonModule,
+    FormsModule
+],
 })
 export class AudioPlayerComponent implements OnChanges {
     @Input() icon: string;

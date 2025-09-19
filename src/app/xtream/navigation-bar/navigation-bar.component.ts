@@ -1,4 +1,4 @@
-import { NgFor, NgIf } from '@angular/common';
+
 import {
     Component,
     EventEmitter,
@@ -44,20 +44,18 @@ import { PortalStore } from '../portal.store';
     templateUrl: './navigation-bar.component.html',
     styleUrls: ['./navigation-bar.component.scss'],
     imports: [
-        FormsModule,
-        MatButtonModule,
-        MatButtonToggleModule,
-        MatIconModule,
-        MatInputModule,
-        MatFormFieldModule,
-        NgFor,
-        NgIf,
-        RouterLink,
-        TranslateModule,
-        MatMenuModule,
-        MatCheckboxModule,
-        MatTooltipModule,
-    ],
+    FormsModule,
+    MatButtonModule,
+    MatButtonToggleModule,
+    MatIconModule,
+    MatInputModule,
+    MatFormFieldModule,
+    RouterLink,
+    TranslateModule,
+    MatMenuModule,
+    MatCheckboxModule,
+    MatTooltipModule
+],
 })
 export class NavigationBarComponent implements OnChanges {
     @Input({ required: true }) breadcrumbs: Breadcrumb[];

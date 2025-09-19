@@ -44,12 +44,10 @@ export class RecentlyViewedComponent {
     itemDetails: any = null;
 
     readonly allFavorites = rxResource({
-        request: () => ({
+        params: () => ({
             refreshTimestamp: this.refreshTimestamp(),
         }),
-        loader: () => {
-            return this.playlistService.getPortalRecentlyViewed();
-        },
+        stream: () => this.playlistService.getPortalRecentlyViewed(),
     });
 
     readonly categories = computed(() => [

@@ -89,13 +89,13 @@ export class StalkerSearchComponent {
     itemDetails = null;
 
     readonly searchResultsResource = resource({
-        request: () => ({
+        params: () => ({
             contentType: this.selectedFilterType(),
             search: this.searchTerm(),
             action: StalkerPortalActions.GetOrderedList,
         }),
-        loader: async ({ request }) => {
-            if (request.search.length < 3) {
+        loader: async ({ params }) => {
+            if (params.search.length < 3) {
                 return [];
             }
             const { portalUrl, macAddress } = this.currentPlaylist();
@@ -106,10 +106,10 @@ export class StalkerSearchComponent {
                     url: portalUrl,
                     macAddress,
                     params: {
-                        action: StalkerContentTypes[request.contentType]
+                        action: StalkerContentTypes[params.contentType]
                             .getContentAction,
-                        type: request.contentType,
-                        search: request.search,
+                        type: params.contentType,
+                        search: params.search,
                         max_page_items: 100,
                     },
                 }
