@@ -257,6 +257,12 @@ pub async fn open_in_vlc<R: Runtime>(
         }
     }
 
+    if let Some(origin_url) = origin {
+        if !origin_url.is_empty() {
+            command.arg(format!("--http-origin={}", origin_url));
+        }
+    }
+
     // Log the complete command line
     let command_str = format!(
         "{} {}",

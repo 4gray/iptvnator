@@ -1,110 +1,119 @@
 <div id="navigation">
-    <button mat-button routerLink="/">
-        <mat-icon>home</mat-icon>
-        <span class="button-label">{{ 'PLAYLISTS' | translate }}</span>
+  <button mat-button routerLink="/">
+    <mat-icon>home</mat-icon>
+    <span class="button-label">{{ 'PLAYLISTS' | translate }}</span>
+  </button>
+
+  @if (showCategories) {
+    <mat-button-toggle-group
+      name="contentType"
+      aria-label="Content Type"
+      [value]="contentType"
+      (change)="changeContentType($event.value)"
+      hideSingleSelectionIndicator
+      >
+      @for (
+        item of contentTypeNavigationItems; track trackByValue($index,
+        item)) {
+        <mat-button-toggle
+          [value]="item.contentType"
+          >
+          <mat-icon class="icon">{{ item.icon }}</mat-icon>
+          <span class="label">{{ item.label }}</span>
+        </mat-button-toggle>
+      }
+    </mat-button-toggle-group>
+  }
+
+  <div>
+    <button mat-button (click)="openPlaylistDetails()">
+      <mat-icon>info</mat-icon>
+      <span class="button-label">{{ 'Info' | translate }}</span>
     </button>
 
-    <mat-button-toggle-group
-        *ngIf="showCategories"
-        name="contentType"
-        aria-label="Content Type"
-        [value]="contentType"
-        (change)="changeContentType($event.value)"
-        hideSingleSelectionIndicator
-    >
-        <mat-button-toggle
-            *ngFor="
-                let item of contentTypeNavigationItems;
-                trackBy: trackByValue
-            "
-            [value]="item.contentType"
-        >
-            <mat-icon class="icon">{{ item.icon }}</mat-icon>
-            <span class="label">{{ item.label }}</span>
-        </mat-button-toggle>
-    </mat-button-toggle-group>
+    <button mat-button (click)="favoritesClicked.emit()">
+      <mat-icon>star</mat-icon>
+      <span class="button-label">{{
+        'CHANNELS.FAVORITES' | translate
+      }}</span>
+    </button>
 
-    <div>
-        <button mat-button (click)="openPlaylistDetails()">
-            <mat-icon>info</mat-icon>
-            <span class="button-label">{{ 'Info' | translate }}</span>
-        </button>
-
-        <button mat-button (click)="favoritesClicked.emit()">
-            <mat-icon>star</mat-icon>
-            <span class="button-label">{{
-                'CHANNELS.FAVORITES' | translate
-            }}</span>
-        </button>
-
-        <button mat-button (click)="openSettings()">
-            <mat-icon>settings</mat-icon>
-            <span class="button-label">{{ 'MENU.SETTINGS' | translate }}</span>
-        </button>
-    </div>
+    <button mat-button (click)="openSettings()">
+      <mat-icon>settings</mat-icon>
+      <span class="button-label">{{ 'MENU.SETTINGS' | translate }}</span>
+    </button>
+  </div>
 </div>
 <div id="sub-panel">
-    <div class="breadcrumbs">
-        <div
-            *ngFor="let item of breadcrumbs; let i = index"
-            (click)="processBreadcrumbClick(item)"
+  <div class="breadcrumbs">
+    @for (item of breadcrumbs; track item; let i = $index) {
+      <div
+        (click)="processBreadcrumbClick(item)"
         >
-            <span>{{ item.title }}</span>
-            <mat-icon *ngIf="i !== breadcrumbs.length - 1"
-                >chevron_right</mat-icon
+        <span>{{ item.title }}</span>
+        @if (i !== breadcrumbs.length - 1) {
+          <mat-icon
+            >chevron_right</mat-icon
             >
+          }
         </div>
+      }
     </div>
     <div class="search-container">
-        <div class="favorite">
-            <button
-                *ngIf="favoriteVisible && activeLiveStream"
-                mat-icon-button
-                (click)="clickFavorites()"
-                [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
+      <div class="favorite">
+        @if (favoriteVisible && activeLiveStream) {
+          <button
+            mat-icon-button
+            (click)="clickFavorites()"
+            [matTooltip]="'TOP_MENU.TOGGLE_FAVORITE_FLAG' | translate"
             >
-                <mat-icon>
-                    {{ isFavoriteStream ? 'star' : 'star_outline' }}
-                </mat-icon>
-            </button>
-        </div>
-        <div class="sort" *ngIf="sortVisible">
-            <button
-                mat-icon-button
-                [matTooltip]="'CHANNELS.SORT_BY' | translate"
-                [matMenuTriggerFor]="sortPlaylistMenu"
-                data-test-id="sort-playlist"
+            <mat-icon>
+              {{ isFavoriteStream ? 'star' : 'star_outline' }}
+            </mat-icon>
+          </button>
+        }
+      </div>
+      @if (sortVisible) {
+        <div class="sort">
+          <button
+            mat-icon-button
+            [matTooltip]="'CHANNELS.SORT_BY' | translate"
+            [matMenuTriggerFor]="sortPlaylistMenu"
+            data-test-id="sort-playlist"
             >
-                <mat-icon>sort</mat-icon>
-            </button>
+            <mat-icon>sort</mat-icon>
+          </button>
         </div>
-        <div class="search" *ngIf="searchVisible">
-            <mat-form-field class="search-input">
-                <mat-icon matPrefix>search</mat-icon>
-                <input
-                    matInput
-                    placeholder="Search by name"
-                    type="search"
-                    [ngModel]="searchPhrase()"
-                    (ngModelChange)="searchPhraseUpdate.next($event)"
-                />
-            </mat-form-field>
+      }
+      @if (searchVisible) {
+        <div class="search">
+          <mat-form-field class="search-input">
+            <mat-icon matPrefix>search</mat-icon>
+            <input
+              matInput
+              placeholder="Search by name"
+              type="search"
+              [ngModel]="searchPhrase()"
+              (ngModelChange)="searchPhraseUpdate.next($event)"
+              />
+          </mat-form-field>
         </div>
+      }
     </div>
     <mat-menu #sortPlaylistMenu="matMenu">
-        <section (click)="$event.stopPropagation()">
-            <button mat-menu-item (click)="setSortType('date')">
-                <mat-icon>calendar_today</mat-icon>
-                <span>{{ 'CHANNELS.SORT_BY_DATE' | translate }}</span>
-            </button>
-            <button mat-menu-item (click)="setSortType('rating')">
-                <mat-icon>star</mat-icon>
-                <span>{{ 'CHANNELS.SORT_BY_RATING' | translate }}</span>
-            </button>
-            <button mat-menu-item (click)="setSortType('alpha')">
-                <mat-icon>sort_by_alpha</mat-icon>
-                <span>{{ 'CHANNELS.SORT_BY_NAME' | translate }}</span>
-            </button>
-        </section>
+      <section (click)="$event.stopPropagation()">
+        <button mat-menu-item (click)="setSortType('date')">
+          <mat-icon>calendar_today</mat-icon>
+          <span>{{ 'CHANNELS.SORT_BY_DATE' | translate }}</span>
+        </button>
+        <button mat-menu-item (click)="setSortType('rating')">
+          <mat-icon>star</mat-icon>
+          <span>{{ 'CHANNELS.SORT_BY_RATING' | translate }}</span>
+        </button>
+        <button mat-menu-item (click)="setSortType('alpha')">
+          <mat-icon>sort_by_alpha</mat-icon>
+          <span>{{ 'CHANNELS.SORT_BY_NAME' | translate }}</span>
+        </button>
+      </section>
     </mat-menu>
-</div>
+  </div>

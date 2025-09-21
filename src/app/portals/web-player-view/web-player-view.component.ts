@@ -1,4 +1,4 @@
-import { NgIf } from '@angular/common';
+
 import {
     Component,
     Signal,
@@ -22,12 +22,11 @@ import { STORE_KEY } from '../../shared/enums/store-keys.enum';
     templateUrl: './web-player-view.component.html',
     styleUrls: ['./web-player-view.component.scss'],
     imports: [
-        HtmlVideoPlayerComponent,
-        NgIf,
-        VjsPlayerComponent,
-        DPlayerComponent,
-        ArtPlayerComponent,
-    ],
+    HtmlVideoPlayerComponent,
+    VjsPlayerComponent,
+    DPlayerComponent,
+    ArtPlayerComponent
+],
     encapsulation: ViewEncapsulation.None
 })
 export class WebPlayerViewComponent {

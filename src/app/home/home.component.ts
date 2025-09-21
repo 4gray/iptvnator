@@ -1,4 +1,4 @@
-import { NgIf } from '@angular/common';
+
 import { Component, NgZone } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -16,12 +16,11 @@ import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.co
     templateUrl: './home.component.html',
     styleUrls: ['./home.component.scss'],
     imports: [
-        HeaderComponent,
-        MatProgressBarModule,
-        NgIf,
-        RecentPlaylistsComponent,
-        TranslatePipe,
-    ],
+    HeaderComponent,
+    MatProgressBarModule,
+    RecentPlaylistsComponent,
+    TranslatePipe
+],
 })
 export class HomeComponent {
     /** Loading spinner state */

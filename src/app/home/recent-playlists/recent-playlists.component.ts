@@ -1,5 +1,5 @@
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { AsyncPipe, NgFor, NgIf } from '@angular/common';
+import { AsyncPipe } from '@angular/common';
 import {
     Component,
     ElementRef,
@@ -56,8 +56,6 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
         MatIconModule,
         MatInputModule,
         MatListModule,
-        NgFor,
-        NgIf,
         NgxSkeletonLoaderComponent,
         PlaylistItemComponent,
         TranslatePipe,
@@ -66,7 +64,9 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
 export class RecentPlaylistsComponent implements OnDestroy {
     @ViewChild('searchQuery') searchQueryInput!: ElementRef<HTMLInputElement>;
 
-    searchQuery = new BehaviorSubject('');
+    readonly searchQuery = new BehaviorSubject('');
+
+    readonly ghostElements = new Array(10);
 
     playlists$ = combineLatest([
         this.store.select(selectAllPlaylistsMeta),

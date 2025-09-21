@@ -108,7 +108,7 @@ type LayoutView =
         PlaylistErrorViewComponent,
         TranslateModule,
         LiveStreamLayoutComponent,
-    ]
+    ],
 })
 export class XtreamMainContainerComponent implements OnInit {
     private readonly dataService = inject(DataService);
@@ -359,6 +359,8 @@ export class XtreamMainContainerComponent implements OnInit {
                     {
                         data: { streamUrl, title },
                         width: '80%',
+                        maxWidth: '1200px',
+                        maxHeight: '90vh',
                     }
                 );
             }
@@ -385,6 +387,8 @@ export class XtreamMainContainerComponent implements OnInit {
             this.dialog.open(PlayerDialogComponent, {
                 data: { streamUrl, player, title: episode.title },
                 width: '80%',
+                maxWidth: '1200px',
+                maxHeight: '90vh',
             });
         }
     }

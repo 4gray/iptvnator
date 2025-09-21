@@ -9,75 +9,69 @@
             autocomplete="off"
             [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"
             (input)="onSearchQueryUpdate(searchQuery.value)"
-    /></mat-form-field>
+        />
+    </mat-form-field>
     @defer {
-        <mat-nav-list
-            *ngIf="playlists$ | async as playlists"
-            class="playlists-list"
-        >
-            <mat-list-item
-                *ngIf="playlists.length === 0; else playlistsTemplate"
-            >
-                <mat-icon matListItemIcon
-                    >search</mat-icon
-                >
-                <div matListItemTitle>
-                    {{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}
-                </div>
-                <div matListItemLine class="meta">
-                    {{ 'HOME.PLAYLISTS.ADD_FIRST' | translate }}
-                </div>
-            </mat-list-item>
-
-            <ng-template #playlistsTemplate>
-                <mat-list-item (click)="getGlobalFavorites()">
-                    <mat-icon class="favorites-icon" matListItemIcon
-                        >star</mat-icon
-                    >
-                    <div matListItemTitle>
-                        {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}
-                    </div>
-                    <div matListItemLine class="meta">
-                        {{
-                            'HOME.PLAYLISTS.GLOBAL_FAVORITES_DESCRIPTION'
-                                | translate
-                        }}
-                    </div>
-                </mat-list-item>
-
-                <app-playlist-item
-                    *ngFor="
-                        let item of playlists;
-                        last as last;
-                        trackBy: trackByFn
-                    "
-                    [item]="item"
-                    [showActions]="!sidebarMode"
-                    (editPlaylistClicked)="openInfoDialog($event)"
-                    (playlistClicked)="getPlaylist(item)"
-                    (refreshClicked)="refreshPlaylist($event)"
-                    (removeClicked)="removeClicked($event)"
-                />
-            </ng-template>
-        </mat-nav-list>
+        @if (playlists$ | async; as playlists) {
+            <mat-nav-list class="playlists-list">
+                @if (playlists.length === 0) {
+                    <mat-list-item>
+                        <mat-icon matListItemIcon>search</mat-icon>
+                        <div matListItemTitle>
+                            {{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}
+                        </div>
+                        <div matListItemLine class="meta">
+                            {{ 'HOME.PLAYLISTS.ADD_FIRST' | translate }}
+                        </div>
+                    </mat-list-item>
+                } @else {
+                    <mat-list-item (click)="getGlobalFavorites()">
+                        <mat-icon class="favorites-icon" matListItemIcon
+                            >star</mat-icon
+                        >
+                        <div matListItemTitle>
+                            {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}
+                        </div>
+                        <div matListItemLine class="meta">
+                            {{
+                                'HOME.PLAYLISTS.GLOBAL_FAVORITES_DESCRIPTION'
+                                    | translate
+                            }}
+                        </div>
+                    </mat-list-item>
+                    @for (item of playlists; track item._id; let last = $last) {
+                        <app-playlist-item
+                            [item]="item"
+                            [showActions]="!sidebarMode"
+                            (editPlaylistClicked)="openInfoDialog($event)"
+                            (playlistClicked)="getPlaylist(item)"
+                            (refreshClicked)="refreshPlaylist($event)"
+                            (removeClicked)="removeClicked($event)"
+                        />
+                    }
+                }
+            </mat-nav-list>
+        }
     } @placeholder {
         <div id="skeleton-container">
-            <div class="skeleton-item" *ngFor="let a of [].constructor(10)">
-                <ngx-skeleton-loader count="1" appearance="circle" />
-                <div class="text">
-                    <ngx-skeleton-loader
-                        count="1"
-                        [theme]="{ width: '30%', height: '20px' }"
-                    />
-                    <ngx-skeleton-loader
-                        count="1"
-                        [theme]="{ width: '50%', height: '10px' }"
-                    />
+            @for (a of ghostElements; track $index) {
+                <div class="skeleton-item">
+                    <ngx-skeleton-loader count="1" appearance="circle" />
+                    <div class="text">
+                        <ngx-skeleton-loader
+                            count="1"
+                            [theme]="{ width: '30%', height: '20px' }"
+                        />
+                        <ngx-skeleton-loader
+                            count="1"
+                            [theme]="{ width: '50%', height: '10px' }"
+                        />
+                    </div>
+                    <div class="actions">
+                        <ngx-skeleton-loader count="2" appearance="circle" />
+                    </div>
                 </div>
-                <div class="actions">
-                    <ngx-skeleton-loader count="2" appearance="circle" />
-                </div>
-            </div>
+            }
         </div>
     }
 }

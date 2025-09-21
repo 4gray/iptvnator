@@ -24,20 +24,20 @@
 @media only screen and (max-width: 599px) {
     .main-container {
         display: flex;
-        flex-direction: column-reverse; 
+        flex-direction: column-reverse;
+        top: unset;
     }
-    
+
     .mat-drawer {
-        height: 50vh; 
-        width: 100%; 
+        height: 50vh;
+        width: 100%;
         position: unset;
     }
-    
+
     .drawer-content {
         height: 50vh;
-        margin-left: 0 !important; 
+        margin-left: 0 !important;
     }
-      
 }
 
 @media (prefers-color-scheme: dark) {

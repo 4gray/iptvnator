@@ -109,3 +109,15 @@
     transform: scale(2);
     margin: 0 20px;
 }
+
+@media only screen and (max-width: 599px) {
+    .radio-logo {
+        height: 200px;
+        width: 200px;
+
+        img {
+            max-width: 200px;
+            max-height: 200px;
+        }
+    }
+}
