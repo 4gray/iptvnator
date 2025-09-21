@@ -1,10 +1,9 @@
-import { CommonModule } from '@angular/common';
 import { Component, input } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 @Component({
     selector: 'app-loading-overlay',
-    imports: [MatProgressBarModule, CommonModule],
+    imports: [MatProgressBarModule],
     template: `
         <div class="overlay">
             <div class="progress-container">
@@ -47,7 +46,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
                 }
             }
         `,
-    ]
+    ],
 })
 export class LoadingOverlayComponent {
     current = input(0);

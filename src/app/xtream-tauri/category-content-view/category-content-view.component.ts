@@ -37,7 +37,7 @@ export class CategoryContentViewComponent implements OnInit {
 
     readonly limit = this.store.limit;
     readonly pageIndex = this.store.page;
-    readonly pageSizeOptions = [5, 10, 25, 50, 100];
+    readonly pageSizeOptions = this.isStalker ? [14] : [10, 25, 50, 100];
     readonly selectedCategory = this.store.getSelectedCategory;
     readonly paginatedContent = this.store.getPaginatedContent;
     readonly isPaginatedContentLoading = this.store.isPaginatedContentLoading;

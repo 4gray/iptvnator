@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import {
     Component,
     ElementRef,
@@ -13,7 +13,7 @@ import { Channel } from '../../../../../shared/channel.interface';
 
 @Component({
     selector: 'app-d-player',
-    imports: [CommonModule],
+    imports: [],
     template: `<div #dplayer class="dplayer-container"></div>`,
     styles: [
         `

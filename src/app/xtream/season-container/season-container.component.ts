@@ -1,4 +1,4 @@
-import { KeyValuePipe, NgFor, NgIf } from '@angular/common';
+import { KeyValuePipe } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { XtreamSerieEpisode } from '../../../../shared/xtream-serie-details.interface';
@@ -7,7 +7,7 @@ import { XtreamSerieEpisode } from '../../../../shared/xtream-serie-details.inte
     selector: 'app-season-container',
     templateUrl: './season-container.component.html',
     styleUrls: ['./season-container.component.scss'],
-    imports: [KeyValuePipe, NgFor, MatCardModule, NgIf],
+    imports: [KeyValuePipe, MatCardModule],
 })
 export class SeasonContainerComponent {
     @Input({ required: true }) seasons: Record<string, XtreamSerieEpisode[]>;

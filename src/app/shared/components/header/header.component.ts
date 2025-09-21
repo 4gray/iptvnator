@@ -1,4 +1,4 @@
-import { AsyncPipe, NgIf } from '@angular/common';
+import { AsyncPipe } from '@angular/common';
 import { Component, Input, OnInit, effect } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -39,7 +39,6 @@ import {
         MatMenuModule,
         MatToolbarModule,
         MatTooltipModule,
-        NgIf,
         FormsModule,
         NgxWhatsNewModule,
         ReactiveFormsModule,

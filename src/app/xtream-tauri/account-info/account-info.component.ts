@@ -1,34 +1,24 @@
-import { CommonModule } from '@angular/common';
 import { Component, Inject, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { DataService } from '../../services/data.service';
 import { selectActivePlaylist } from '../../state/selectors';
 import { XtreamAccountInfo } from './account-info.interface';
 
 @Component({
     selector: 'app-account-info',
-    imports: [
-        CommonModule,
-        MatButton,
-        MatDialogModule,
-        MatCardModule,
-        MatListModule,
-        TranslateModule,
-    ],
+    imports: [MatButton, MatDialogModule, MatListModule, TranslatePipe],
     template: `
         <h2 mat-dialog-title>Account Information</h2>
         <mat-dialog-content class="mat-typography">
-            <div
-                *ngIf="accountInfo?.user_info?.message"
-                class="welcome-message"
-            >
-                {{ accountInfo?.user_info?.message }}
-            </div>
+            @if (accountInfo?.user_info?.message) {
+                <div class="welcome-message">
+                    {{ accountInfo?.user_info?.message }}
+                </div>
+            }
             <div class="info-grid">
                 <div class="info-section">
                     <h3>User Information</h3>
@@ -137,7 +127,7 @@ import { XtreamAccountInfo } from './account-info.interface';
             </button>
         </mat-dialog-actions>
     `,
-    styleUrl: './account-info.component.scss'
+    styleUrl: './account-info.component.scss',
 })
 export class AccountInfoComponent {
     accountInfo: XtreamAccountInfo;

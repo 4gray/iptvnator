@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import {
     Component,
     ElementRef,
@@ -14,7 +14,7 @@ import { Channel } from '../../../../../shared/channel.interface';
 
 @Component({
     selector: 'app-art-player',
-    imports: [CommonModule],
+    imports: [],
     template: `<div #artplayer class="artplayer-container"></div>`,
     styles: [
         `

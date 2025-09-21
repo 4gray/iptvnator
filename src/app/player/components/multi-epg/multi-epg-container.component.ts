@@ -134,9 +134,6 @@ export class MultiEpgContainerComponent
                 Math.min(calculatedVisibleChannels, 20)
             );
             this.channelsUpperRange = this.visibleChannels;
-
-            console.log('Container height:', containerHeight);
-            console.log('Calculated visible channels:', this.visibleChannels);
         }
     }
 
@@ -151,7 +148,7 @@ export class MultiEpgContainerComponent
     }
 
     trackByProgram(_: number, program: EnrichedProgram): string {
-        return program.start + program.title;
+        return `${program.start}|${program?.title?.toString() ?? ''}`;
     }
 
     async requestPrograms(): Promise<void> {

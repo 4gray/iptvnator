@@ -85,15 +85,15 @@ export const StalkerStore = signalStore(
     withState(initialState),
     withProps((store, dataService = inject(DataService)) => ({
         getCategoryResource: resource({
-            request: () => ({
+            params: () => ({
                 contentType: store.selectedContentType(),
                 action: StalkerPortalActions.GetCategories,
                 currentPlaylist: store.currentPlaylist(),
             }),
-            loader: async ({ request }) => {
-                if (request.currentPlaylist === undefined) return;
+            loader: async ({ params }) => {
+                if (params.currentPlaylist === undefined) return;
 
-                switch (request.contentType) {
+                switch (params.contentType) {
                     case 'itv':
                         if (store.itvCategories().length > 0) {
                             return store.itvCategories();
@@ -111,7 +111,7 @@ export const StalkerStore = signalStore(
                         break;
                 }
 
-                const { portalUrl, macAddress } = request.currentPlaylist;
+                const { portalUrl, macAddress } = params.currentPlaylist;
 
                 const response = await dataService.sendIpcEvent(
                     STALKER_REQUEST,
@@ -119,9 +119,9 @@ export const StalkerStore = signalStore(
                         url: portalUrl,
                         macAddress,
                         params: {
-                            action: StalkerContentTypes[request.contentType]
+                            action: StalkerContentTypes[params.contentType]
                                 .getCategoryAction,
-                            type: request.contentType,
+                            type: params.contentType,
                         },
                     }
                 );
@@ -135,7 +135,7 @@ export const StalkerStore = signalStore(
                             a.category_name.localeCompare(b.category_name)
                         );
                     patchState(store, {
-                        [`${request.contentType}Categories`]: categories,
+                        [`${params.contentType}Categories`]: categories,
                     });
                     return categories;
                 } else {
@@ -146,34 +146,32 @@ export const StalkerStore = signalStore(
             },
         }),
         getContentResource: resource({
-            request: () => ({
+            params: () => ({
                 contentType: store.selectedContentType(),
                 category: store.selectedCategoryId(),
                 action: StalkerPortalActions.GetOrderedList,
                 search: store.searchPhrase(),
                 pageIndex: store.page() + 1,
             }),
-            loader: async ({ request }) => {
+            loader: async ({ params }) => {
                 if (
-                    !request.category ||
-                    request.category === null ||
-                    request.category === ''
+                    !params.category ||
+                    params.category === null ||
+                    params.category === ''
                 ) {
                     return Promise.resolve(undefined);
                 }
 
                 const currentPlaylist = store.currentPlaylist;
-                const params = {
-                    action: StalkerContentTypes[request.contentType]
+                const queryParams = {
+                    action: StalkerContentTypes[params.contentType]
                         .getContentAction,
-                    type: request.contentType,
-                    category: request.category ?? '',
-                    genre: request.category ?? '',
+                    type: params.contentType,
+                    category: params.category ?? '',
+                    genre: params.category ?? '',
                     sortby: 'added',
-                    ...(request.search !== ''
-                        ? { search: request.search }
-                        : {}),
-                    p: request.pageIndex,
+                    ...(params.search !== '' ? { search: params.search } : {}),
+                    p: params.pageIndex,
                 };
 
                 const response = await dataService.sendIpcEvent(
@@ -181,7 +179,7 @@ export const StalkerStore = signalStore(
                     {
                         url: currentPlaylist().portalUrl,
                         macAddress: currentPlaylist().macAddress,
-                        params,
+                        params: queryParams,
                     }
                 );
 
@@ -195,7 +193,7 @@ export const StalkerStore = signalStore(
 
                     if (store.selectedContentType() === 'itv') {
                         // Check if we're loading the first page or loading more
-                        if (request.pageIndex === 1) {
+                        if (params.pageIndex === 1) {
                             patchState(store, { itvChannels: newItems });
                         } else {
                             patchState(store, {
@@ -223,22 +221,22 @@ export const StalkerStore = signalStore(
             },
         }),
         serialSeasonsResource: resource({
-            request: () => ({
+            params: () => ({
                 itemId: store.selectedSerialId(),
             }),
-            loader: async ({ request }) => {
+            loader: async ({ params }) => {
                 const { portalUrl, macAddress } = store.currentPlaylist();
-                const params = {
+                const queryParams = {
                     action: StalkerContentTypes.series.getContentAction,
                     type: 'series',
-                    movie_id: request.itemId,
+                    movie_id: params.itemId,
                 };
                 const response = await dataService.sendIpcEvent(
                     STALKER_REQUEST,
                     {
                         url: portalUrl,
                         macAddress,
-                        params,
+                        params: queryParams,
                     }
                 );
                 return sortByNumericValue(response.js.data);

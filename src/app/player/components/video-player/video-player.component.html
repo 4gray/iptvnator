@@ -10,7 +10,7 @@
         }
     </mat-drawer>
     <mat-drawer-content class="drawer-content">
-        <ng-container *ngIf="activeChannel$ | async as activeChannel">
+        @if (activeChannel$ | async; as activeChannel) {
             <!-- toolbar with drawer icon -->
             <app-toolbar
                 (toggleLeftDrawerClicked)="drawer.toggle()"
@@ -18,95 +18,94 @@
                 (multiEpgClicked)="openMultiEpgView()"
                 [activeChannel]="activeChannel"
             />
-
-            <app-audio-player
-                *ngIf="activeChannel.radio === 'true'; else videoPlayer"
-                [url]="activeChannel.url"
-                [icon]="activeChannel?.tvg?.logo"
-            />
-            <ng-template #videoPlayer>
+            @if (activeChannel.radio === 'true') {
+                <app-audio-player
+                    [url]="activeChannel.url"
+                    [icon]="activeChannel?.tvg?.logo"
+                />
+            } @else {
                 <!-- video.js player -->
-                <app-vjs-player
-                    *ngIf="playerSettings.player === 'videojs'"
-                    [options]="{
-                        sources: [
-                            {
-                                src:
-                                    activeChannel?.url +
-                                    activeChannel?.epgParams,
-                                type: 'application/x-mpegURL',
-                            },
-                        ],
-                    }"
-                    [volume]="volume"
-                    [class.hide-captions]="!playerSettings.showCaptions"
-                />
-
+                @if (playerSettings.player === 'videojs') {
+                    <app-vjs-player
+                        [options]="{
+                            sources: [
+                                {
+                                    src:
+                                        activeChannel?.url +
+                                        activeChannel?.epgParams,
+                                    type: 'application/x-mpegURL',
+                                },
+                            ],
+                        }"
+                        [volume]="volume"
+                        [class.hide-captions]="!playerSettings.showCaptions"
+                    />
+                }
                 <!-- default html player component -->
-                <app-html-video-player
-                    *ngIf="playerSettings.player === 'html5'"
-                    [channel]="activeChannel"
-                    [volume]="volume"
-                    [showCaptions]="playerSettings.showCaptions"
-                />
-
+                @if (playerSettings.player === 'html5') {
+                    <app-html-video-player
+                        [channel]="activeChannel"
+                        [volume]="volume"
+                        [showCaptions]="playerSettings.showCaptions"
+                    />
+                }
                 <!-- Add DPlayer component -->
-                <app-d-player
-                    *ngIf="playerSettings.player === 'dplayer'"
-                    [channel]="activeChannel"
-                    [volume]="volume"
-                    [showCaptions]="playerSettings.showCaptions"
-                />
-
+                @if (playerSettings.player === 'dplayer') {
+                    <app-d-player
+                        [channel]="activeChannel"
+                        [volume]="volume"
+                        [showCaptions]="playerSettings.showCaptions"
+                    />
+                }
                 <!-- Add ArtPlayer component -->
-                <app-art-player
-                    *ngIf="playerSettings.player === 'artplayer'"
-                    [channel]="activeChannel"
-                    [volume]="volume"
-                    [showCaptions]="playerSettings.showCaptions"
-                />
-
-                <div
-                    class="custom-player"
-                    *ngIf="playerSettings.player === 'mpv'"
-                >
-                    <img src="./assets/images/custom-player.png" />
-                    <p>
-                        The channel is played in a separate window in the MPV
-                        player. (<a
-                            [routerLink]
-                            style="cursor: pointer"
-                            (click)="
-                                openUrl(
-                                    'https://github.com/4gray/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F'
-                                )
-                            "
-                            >Installation instructions</a
-                        >)
-                    </p>
-                </div>
-                <div
-                    class="custom-player"
-                    *ngIf="playerSettings.player === 'vlc'"
-                >
-                    <img src="./assets/images/custom-player.png" />
-                    <p>
-                        The channel is played in a separate window in VLC
-                        player. Please make sure that this player is installed
-                        in your system and the correct path is defined in the
-                        app settings.
-                    </p>
-                </div>
+                @if (playerSettings.player === 'artplayer') {
+                    <app-art-player
+                        [channel]="activeChannel"
+                        [volume]="volume"
+                        [showCaptions]="playerSettings.showCaptions"
+                    />
+                }
+                @if (playerSettings.player === 'mpv') {
+                    <div class="custom-player">
+                        <img src="./assets/images/custom-player.png" />
+                        <p>
+                            The channel is played in a separate window in the
+                            MPV player. (<a
+                                [routerLink]
+                                style="cursor: pointer"
+                                (click)="
+                                    openUrl(
+                                        'https://github.com/4gray/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F'
+                                    )
+                                "
+                                >Installation instructions</a
+                            >)
+                        </p>
+                    </div>
+                }
+                @if (playerSettings.player === 'vlc') {
+                    <div class="custom-player">
+                        <img src="./assets/images/custom-player.png" />
+                        <p>
+                            The channel is played in a separate window in VLC
+                            player. Please make sure that this player is
+                            installed in your system and the correct path is
+                            defined in the app settings.
+                        </p>
+                    </div>
+                }
                 <!-- channel overlay -->
                 <app-info-overlay
                     [channel]="activeChannel"
                     [epgProgram]="epgProgram$ | async"
                 />
-            </ng-template>
-        </ng-container>
+            }
+        }
     </mat-drawer-content>
     <!-- right sidebar content -->
     <mat-drawer position="end" #drawerRight mode="side" disableClose>
-        <app-epg-list *ngIf="isTauri" />
+        @if (isTauri) {
+            <app-epg-list />
+        }
     </mat-drawer>
 </mat-drawer-container>
