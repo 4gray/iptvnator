@@ -49,14 +49,6 @@
                         [showCaptions]="playerSettings.showCaptions"
                     />
                 }
-                <!-- Add DPlayer component -->
-                @if (playerSettings.player === 'dplayer') {
-                    <app-d-player
-                        [channel]="activeChannel"
-                        [volume]="volume"
-                        [showCaptions]="playerSettings.showCaptions"
-                    />
-                }
                 <!-- Add ArtPlayer component -->
                 @if (playerSettings.player === 'artplayer') {
                     <app-art-player
