@@ -18,7 +18,7 @@ import {
     XTREAM_RESPONSE,
 } from '../../../shared/ipc-commands';
 import { Playlist } from '../../../shared/playlist.interface';
-import { createPlaylistObject } from '../../../shared/playlist.utils';
+import { createPlaylistObject, getFilenameFromUrl } from '../../../shared/playlist.utils';
 import { AppConfig } from '../../environments/environment';
 import { DataService } from './data.service';
 
@@ -211,8 +211,16 @@ export class TauriService extends DataService {
             const responseBody = await response.text();
             const parsedPlaylist = parse(responseBody);
 
+            // Extract playlist name from URL, use "Imported from URL" as fallback
+            const extractedName = payload.url && payload.url.length > 1 
+                ? getFilenameFromUrl(payload.url)
+                : '';
+            const playlistName = !extractedName || extractedName === 'Untitled playlist' 
+                ? 'Imported from URL' 
+                : extractedName;
+
             const playlist = createPlaylistObject(
-                'tests',
+                playlistName,
                 parsedPlaylist,
                 payload.url,
                 'URL'
