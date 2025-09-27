@@ -1,5 +1,5 @@
-import { StreamFormat } from './stream-format.enum';
 import { Language } from './language.enum';
+import { StreamFormat } from './stream-format.enum';
 import { Theme } from './theme.enum';
 
 /**
@@ -10,7 +10,6 @@ export enum VideoPlayer {
     Html5Player = 'html5',
     MPV = 'mpv',
     VLC = 'vlc',
-    DPlayer = 'dplayer',
     ArtPlayer = 'artplayer',
 }
 

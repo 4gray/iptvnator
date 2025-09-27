@@ -1,4 +1,3 @@
-
 import {
     Component,
     ElementRef,
@@ -11,6 +10,8 @@ import {
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { Channel } from '../../../../../shared/channel.interface';
+
+Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 
 @Component({
     selector: 'app-art-player',
@@ -28,7 +29,7 @@ import { Channel } from '../../../../../shared/channel.interface';
                 height: 100%;
             }
         `,
-    ]
+    ],
 })
 export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     @Input() channel: Channel;
@@ -62,7 +63,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         const el = this.elementRef.nativeElement.querySelector(
             '.artplayer-container'
         );
-        const isLive = this.channel.url.toLowerCase().includes('m3u8');
+        const isLive = this.channel?.url?.toLowerCase().includes('m3u8');
 
         this.player = new Artplayer({
             container: el,
@@ -72,6 +73,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             autoplay: true,
             type: this.getVideoType(this.channel.url),
             pip: true,
+            autoPlayback: true,
             autoSize: true,
             autoMini: true,
             screenshot: true,
@@ -80,6 +82,11 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             aspectRatio: true,
             fullscreen: true,
             fullscreenWeb: true,
+            playsInline: true,
+            airplay: true,
+            backdrop: true,
+            mutex: true,
+            theme: '#ff0000',
             customType: {
                 m3u8: function (video: HTMLVideoElement, url: string) {
                     if (Hls.isSupported()) {

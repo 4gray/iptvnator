@@ -49,9 +49,9 @@ import { HeaderComponent } from '../shared/components/header/header.component';
 import * as PlaylistActions from '../state/actions';
 import { selectIsEpgAvailable } from '../state/selectors';
 import { SettingsService } from './../services/settings.service';
-import { StreamFormat } from './stream-format.enum';
 import { Language } from './language.enum';
 import { VideoPlayer } from './settings.interface';
+import { StreamFormat } from './stream-format.enum';
 import { Theme } from './theme.enum';
 
 @Component({
@@ -107,14 +107,10 @@ export class SettingsComponent implements OnInit {
             id: VideoPlayer.VideoJs,
             label: 'VideoJs Player',
         },
-        /* {
-            id: VideoPlayer.DPlayer,
-            label: 'DPlayer',
-        },
         {
             id: VideoPlayer.ArtPlayer,
             label: 'ArtPlayer',
-        }, */
+        },
         ...(this.isTauri ? this.osPlayers : []),
     ];
 

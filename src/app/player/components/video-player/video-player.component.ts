@@ -38,7 +38,6 @@ import {
 } from '../../../state/selectors';
 import { ArtPlayerComponent } from '../art-player/art-player.component';
 import { AudioPlayerComponent } from '../audio-player/audio-player.component';
-import { DPlayerComponent } from '../d-player/d-player.component';
 import { EpgListComponent } from '../epg-list/epg-list.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import { InfoOverlayComponent } from '../info-overlay/info-overlay.component';
@@ -67,7 +66,6 @@ export const COMPONENT_OVERLAY_REF = new InjectionToken(
         SidebarComponent,
         ToolbarComponent,
         VjsPlayerComponent,
-        DPlayerComponent,
         ArtPlayerComponent,
     ],
     templateUrl: './video-player.component.html',
