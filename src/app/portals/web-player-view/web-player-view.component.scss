@@ -2,6 +2,11 @@ app-vjs-player > .video-js {
     height: 50vh !important;
 }
 
-app-html-video-player > #video-player { 
+app-html-video-player > #video-player {
     height: 50vh !important;
+}
+
+app-art-player > .artplayer-container {
+    width: 100% !important;
+    height: 300px !important;
 }
