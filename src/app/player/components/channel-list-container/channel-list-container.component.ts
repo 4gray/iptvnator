@@ -163,7 +163,7 @@ export class ChannelListContainerComponent {
         moveItemInArray(favorites, event.previousIndex, event.currentIndex);
         this.store.dispatch(
             PlaylistActions.setFavorites({
-                channelIds: favorites.map((item) => item.id),
+                channelIds: favorites.map((item) => item.url),
             })
         );
     }

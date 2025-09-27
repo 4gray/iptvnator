@@ -57,7 +57,10 @@
             </ng-template>
             <mat-nav-list id="groups-list">
                 <mat-accordion multi>
-                    @for (groups of groupedChannels | keyvalue: groupsComparator; track $index) {
+                    @for (
+                        groups of groupedChannels | keyvalue: groupsComparator;
+                        track $index
+                    ) {
                         @if (groups.value.length > 0) {
                             <mat-expansion-panel>
                                 <mat-expansion-panel-header>
@@ -70,13 +73,11 @@
                                 </mat-expansion-panel-header>
 
                                 <ng-template matExpansionPanelContent>
-                                    <ng-container
-                                        *ngFor="
-                                            let channel of groups.value;
-                                            index as i;
-                                            trackBy: trackByFn
-                                        "
-                                    >
+                                    @for (
+                                        channel of groups.value;
+                                        track trackByFn($index, channel);
+                                        let i = $index
+                                    ) {
                                         <app-channel-list-item
                                             [name]="
                                                 i +
@@ -92,7 +93,7 @@
                                                 selected?.id === channel.id
                                             "
                                         ></app-channel-list-item>
-                                    </ng-container>
+                                    }
                                 </ng-template>
                             </mat-expansion-panel>
                         }
@@ -118,28 +119,30 @@
                         id="favorites-list"
                     >
                         @if (favorites.length > 0) {
-                            <app-channel-list-item
-                                *ngFor="
-                                    let channel of favorites;
-                                    index as i;
-                                    trackBy: trackByFn
-                                "
-                                [name]="
-                                    i +
-                                    1 +
-                                    '. ' +
-                                    (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
-                                        | translate)
-                                "
-                                [isDraggable]="true"
-                                [logo]="channel?.tvg?.logo"
-                                (clicked)="selectChannel(channel)"
-                                [selected]="selected?.id === channel?.id"
-                                [showFavoriteButton]="true"
-                                (favoriteToggled)="
-                                    toggleFavoriteChannel(channel, $event)
-                                "
-                            />
+                            @for (
+                                channel of favorites;
+                                track trackByFn($index, channel);
+                                let i = $index
+                            ) {
+                                <app-channel-list-item
+                                    [name]="
+                                        i +
+                                        1 +
+                                        '. ' +
+                                        (channel?.name ||
+                                            'CHANNELS.UNNAMED_CHANNEL'
+                                            | translate)
+                                    "
+                                    [isDraggable]="true"
+                                    [logo]="channel?.tvg?.logo"
+                                    (clicked)="selectChannel(channel)"
+                                    [selected]="selected?.id === channel?.id"
+                                    [showFavoriteButton]="true"
+                                    (favoriteToggled)="
+                                        toggleFavoriteChannel(channel, $event)
+                                    "
+                                />
+                            }
                         } @else {
                             <mat-list-item
                                 ><strong>{{
