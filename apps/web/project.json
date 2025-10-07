@@ -1,0 +1,99 @@
+{
+    "name": "web",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "projectType": "application",
+    "prefix": "app",
+    "sourceRoot": "apps/web/src",
+    "tags": [],
+    "targets": {
+        "build": {
+            "executor": "@angular/build:application",
+            "outputs": ["{options.outputPath}"],
+            "options": {
+                "outputPath": {
+                    "base": "dist/apps/web",
+                    "browser": ""
+                },
+                "polyfills": ["zone.js"],
+                "tsConfig": "apps/web/tsconfig.app.json",
+                "inlineStyleLanguage": "scss",
+                "assets": [
+                    "apps/web/src/favicon.ico",
+                    "apps/web/src/assets",
+                    "apps/web/src/manifest.webmanifest"
+                ],
+                "styles": [
+                    "apps/web/src/styles.scss",
+                    "apps/web/src/m3-theme.scss",
+                    "./node_modules/video.js/dist/video-js.css"
+                ]
+            },
+            "configurations": {
+                "production": {
+                    "budgets": [
+                        {
+                            "type": "initial",
+                            "maximumWarning": "500kb",
+                            "maximumError": "3mb"
+                        },
+                        {
+                            "type": "anyComponentStyle",
+                            "maximumWarning": "4kb",
+                            "maximumError": "8kb"
+                        }
+                    ],
+                    "outputHashing": "all"
+                },
+                "development": {
+                    "optimization": false,
+                    "extractLicenses": false,
+                    "sourceMap": true
+                }
+            },
+            "defaultConfiguration": "production"
+        },
+        "serve": {
+            "continuous": true,
+            "executor": "@angular/build:dev-server",
+            "configurations": {
+                "production": {
+                    "buildTarget": "web:build:production"
+                },
+                "development": {
+                    "buildTarget": "web:build:development"
+                }
+            },
+            "defaultConfiguration": "development",
+            "options": {
+                "proxyConfig": "apps/web/proxy.conf.json"
+            }
+        },
+        "extract-i18n": {
+            "executor": "@angular/build:extract-i18n",
+            "options": {
+                "buildTarget": "web:build"
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        },
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "apps/web/jest.config.ts",
+                "tsConfig": "apps/web/tsconfig.spec.json"
+            }
+        },
+        "serve-static": {
+            "continuous": true,
+            "executor": "@nx/web:file-server",
+            "options": {
+                "buildTarget": "web:build",
+                "port": 4200,
+                "staticFilePath": "dist/apps/web/browser",
+                "spa": true
+            }
+        }
+    }
+}

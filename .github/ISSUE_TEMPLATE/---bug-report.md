@@ -28,7 +28,8 @@ If applicable, add screenshots to help explain your problem.
 -   PWA or Electron/Tauri application
 -   OS: [e.g. Linux]
 -   Browser [e.g. chrome, safari]
--   Version [e.g. 22]
+-   Version [e.g. 0.16.0]
+-   Feature: [e.g. M3U playlist, Xtream Code, Stalker Portal]
 
 **Additional context**
 Add any other context about the problem here.

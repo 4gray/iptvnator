@@ -1,9 +1,0 @@
-@if (player === 'videojs') {
-    <app-vjs-player [options]="vjsOptions" />
-} @else if (player === 'html5') {
-    <app-html-video-player [channel]="channel" />
-} @else if (player === 'artplayer') {
-    <app-art-player [channel]="channel" [volume]="1" [showCaptions]="false" />
-} @else {
-    <app-vjs-player [options]="vjsOptions" />
-}

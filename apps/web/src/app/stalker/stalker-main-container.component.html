@@ -1,0 +1,121 @@
+<div class="sidebar" style="display: flex; flex-direction: column">
+    <div class="sidebar-header">
+        @let isItvCategorySelected =
+            stalkerStore.selectedCategoryId() &&
+            stalkerStore.selectedContentType() === 'itv';
+        @if (isItvCategorySelected) {
+            <button mat-icon-button (click)="backToCategories()">
+                <mat-icon>chevron_left</mat-icon>
+            </button>
+            <h2>{{ selectedCategoryTitle() }}</h2>
+        } @else {
+            <button mat-icon-button disabled>
+                <mat-icon>list</mat-icon>
+            </button>
+            <h2>{{ 'PORTALS.ALL_CATEGORIES' | translate }}</h2>
+        }
+    </div>
+    @if (isItvCategorySelected) {
+        <mat-nav-list style="overflow: auto; flex: 1">
+            @for (item of itvChannels(); track $index) {
+                <mat-list-item (click)="createLinkToPlayItv(item)">
+                    <img
+                        matListItemAvatar
+                        class="stream-icon"
+                        [src]="item.logo"
+                        (error)="
+                            $event.target.src =
+                                './assets/images/default-poster.png'
+                        "
+                        alt="logo"
+                    />
+                    {{ item.name }}
+                    <button
+                        mat-icon-button
+                        matListItemMeta
+                        (click)="toggleFavorite(item); $event.stopPropagation()"
+                    >
+                        <mat-icon>{{
+                            favorites.get(item.id) ? 'star' : 'star_outline'
+                        }}</mat-icon>
+                    </button>
+                </mat-list-item>
+            }
+        </mat-nav-list>
+
+        @if (hasMoreItems() && !isContentLoading()) {
+            <mat-divider />
+            <div>
+                <button
+                    mat-button
+                    (click)="loadMore()"
+                    [disabled]="isLoadingMore()"
+                    style="width: 100%"
+                >
+                    @if (isLoadingMore()) {
+                        Loading page {{ pageIndex() + 1 }}...
+                    } @else {
+                        Load More (Page {{ pageIndex() + 1 }})
+                    }
+                </button>
+            </div>
+        }
+    } @else {
+        @if (isCategoryLoading()) {
+            <ngx-skeleton-loader
+                count="20"
+                [theme]="{
+                    width: '95%',
+                    height: '48px',
+                    borderRadius: '40px',
+                }"
+            />
+        } @else if (isCategoryFailed()) {
+            <app-playlist-error-view
+                [title]="'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE' | translate"
+                [description]="
+                    'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION' | translate
+                "
+            />
+        } @else {
+            <app-category-view
+                [items]="categories()"
+                [selectedCategoryId]="$any(stalkerStore.selectedCategoryId())"
+                (categoryClicked)="categoryClicked($event)"
+            />
+        }
+    }
+</div>
+
+<div class="main-content">
+    <div class="content-header">
+        <h2>
+            @if (
+                currentLayout === 'vod-details' ||
+                currentLayout === 'serial-details'
+            ) {
+                <button mat-icon-button (click)="historyBack()">
+                    <mat-icon>chevron_left</mat-icon>
+                </button>
+            }
+
+            @if (!isItvCategorySelected) {
+                <button mat-icon-button disabled>
+                    <mat-icon>category</mat-icon>
+                </button>
+                {{ selectedCategoryTitle() }}
+            }
+
+            @if (!contentItems() && !isContentLoading()) {
+                <h2>
+                    {{ 'PORTALS.SELECT_CATEGORY' | translate }}
+                </h2>
+            }
+        </h2>
+    </div>
+
+    <div class="scrollable-content">
+        <router-outlet />
+    </div>
+    <app-mpv-player-bar />
+</div>

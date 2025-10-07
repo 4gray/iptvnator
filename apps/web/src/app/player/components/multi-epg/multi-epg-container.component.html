@@ -1,0 +1,144 @@
+<div id="epg-navigation">
+  <button
+    [matTooltip]="'CLOSE' | translate"
+    mat-button
+    (click)="close()"
+    color="accent"
+    >
+    <mat-icon>close</mat-icon> {{ 'CLOSE' | translate }}
+  </button>
+  <button
+    [matTooltip]="'EPG.PREVIOUS_DAY' | translate"
+    mat-icon-button
+    (click)="switchDay('prev')"
+    >
+    <mat-icon>navigate_before</mat-icon>
+  </button>
+  <button
+    [matTooltip]="'EPG.NEXT_DAY' | translate"
+    mat-icon-button
+    (click)="switchDay('next')"
+    >
+    <mat-icon>navigate_next</mat-icon>
+  </button>
+  <div class="today-date">
+    {{ today | momentDate: 'YYYYMMDD' : 'MMMM Do, dddd' }}
+  </div>
+  <button mat-icon-button (click)="zoomIn()" [disabled]="(hourWidth$ | async) >= 800">
+    <mat-icon>zoom_in</mat-icon>
+  </button>
+  <button mat-icon-button [disabled]="(hourWidth$ | async) <= 50" (click)="zoomOut()">
+    <mat-icon>zoom_out</mat-icon>
+  </button>
+  <div class="navigation-buttons">
+    <button
+      mat-button
+      (click)="previousChannels()"
+      [disabled]="channelsLowerRange === 0"
+      matTooltip="Previous channels"
+      >
+      <mat-icon>keyboard_arrow_up</mat-icon> Previous channels
+    </button>
+    <button
+      mat-button
+      (click)="nextChannels()"
+      [disabled]="isLastPage"
+      matTooltip="Next channels"
+      >
+      <mat-icon>keyboard_arrow_down</mat-icon> Next channels
+    </button>
+  </div>
+</div>
+<div class="parent" #epgContainer>
+  <svg id="channels-column">
+    @for (item of channels$ | async; track $any(item).channel; let i = $index) {
+      <g>
+        <!-- channel name -->
+        <g class="channel">
+          <rect
+            width="100"
+            [attr.height]="barHeight"
+            [attr.y]="barHeight * i + barHeight"
+            stroke="black"
+            />
+          <foreignObject
+            width="100"
+            [attr.height]="barHeight"
+            [attr.y]="barHeight * i + barHeight"
+            >
+            <div class="channel-name">
+              @if (item.icon) {
+                <img
+                  [src]="item.icon"
+                  [alt]="item.name"
+                  style="height: 20px; width: 20px; margin-right: 8px;"
+                  >
+              }
+              <span>{{ item.name }}</span>
+            </div>
+          </foreignObject>
+        </g>
+      </g>
+    }
+  </svg>
+  <div id="epg-container">
+    <svg [attr.width]="(hourWidth$ | async) * 24" height="100%" id="epg-svg">
+      <!-- time headline -->
+      @for (hour of timeHeader; track hour) {
+        <g>
+          <rect
+            [matTooltip]="hour + ':00'"
+            [attr.width]="hourWidth$ | async"
+            [attr.height]="barHeight"
+            [attr.x]="hour * (hourWidth$ | async)"
+            fill="#000"
+          ></rect>
+          <text
+            [attr.x]="hour * (hourWidth$ | async)"
+            y="10"
+            font-size="14"
+            fill="white"
+            transform="translate(20,20)"
+            >
+            {{ hour }}:00
+          </text>
+        </g>
+      }
+
+      <!-- epg channels with programs -->
+      @for (item of channels$ | async; track $any(item).channel; let i = $index) {
+        <g>
+          @for (program of item.programs; track trackByProgram($index, program)) {
+            <g
+              [attr.transform]="'translate(' + program.startPosition + ',' + (barHeight * i + barHeight) + ')'"
+              class="program"
+              (click)="showDescription(program)"
+              >
+              <rect
+                [attr.width]="program.width"
+                [attr.height]="barHeight"
+                [matTooltip]="program.title[0].value"
+              ></rect>
+              <foreignObject
+                [attr.width]="program.width"
+                [attr.height]="barHeight"
+                >
+                <div class="program-title">{{ program.title }}</div>
+              </foreignObject>
+            </g>
+          }
+        </g>
+      }
+
+      <!-- current time line -->
+      <line
+        [attr.x1]="currentTimeLine"
+        y1="0"
+        [attr.x2]="currentTimeLine"
+        [attr.y2]="(channels$ | async)?.length * barHeight + barHeight"
+        stroke="red"
+        stroke-width="2"
+      ></line>
+    </svg>
+  </div>
+</div>
