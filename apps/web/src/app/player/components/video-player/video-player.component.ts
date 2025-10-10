@@ -17,14 +17,13 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
-import { Channel } from '../../../../shared/channel.interface';
+import { Channel, Playlist } from 'shared-interfaces';
 import {
     CHANNEL_SET_USER_AGENT,
     ERROR,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
 } from '../../../../shared/ipc-commands';
-import { Playlist } from '../../../../shared/playlist.interface';
 import { DataService } from '../../../services/data.service';
 import { PlaylistsService } from '../../../services/playlists.service';
 import { SettingsStore } from '../../../services/settings-store.service';

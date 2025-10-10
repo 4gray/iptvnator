@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { getExtensionFromUrl } from '../../../shared/playlist.utils';
+import { getExtensionFromUrl } from 'm3u-utils';
 import { ArtPlayerComponent } from '../../player/components/art-player/art-player.component';
 import { HtmlVideoPlayerComponent } from '../../player/components/html-video-player/html-video-player.component';
 import { VjsPlayerComponent } from '../../player/components/vjs-player/vjs-player.component';

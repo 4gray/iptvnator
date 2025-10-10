@@ -1,14 +1,4 @@
-/* SystemJS module definition */
-declare const nodeModule: NodeModule;
-interface NodeModule {
-    id: string;
-}
-interface Window {
-    process: any;
-    require: any;
-}
-
-/* export interface ParsedPlaylist {
+export interface ParsedPlaylist {
     header: {
         attrs: {
             'x-tvg-url': string;
@@ -37,4 +27,3 @@ export interface ParsedPlaylistItem {
     url: string;
     raw: string;
 }
- */

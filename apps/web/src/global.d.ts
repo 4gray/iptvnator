@@ -1,4 +1,5 @@
 import 'jest-extended';
+import { Playlist } from 'shared-interfaces';
 
 declare module 'video.js' {
     export interface VideoJsPlayer {
@@ -11,6 +12,7 @@ declare global {
         electron: {
             getAppVersion: () => Promise<string>;
             platform: string;
+            fetchPlaylistByUrl: (url: string) => Promise<Playlist>;
         };
     }
 }

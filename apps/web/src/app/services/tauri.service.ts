@@ -6,6 +6,9 @@ import { listen } from '@tauri-apps/api/event';
 import { readTextFile } from '@tauri-apps/plugin-fs';
 import { fetch } from '@tauri-apps/plugin-http';
 import { parse } from 'iptv-playlist-parser';
+import { createPlaylistObject } from 'm3u-utils';
+import { Playlist } from 'shared-interfaces';
+import { AppConfig } from '../../environments/environment';
 import {
     AUTO_UPDATE_PLAYLISTS,
     AUTO_UPDATE_PLAYLISTS_RESPONSE,
@@ -17,9 +20,6 @@ import {
     PLAYLIST_UPDATE_RESPONSE,
     XTREAM_RESPONSE,
 } from '../../shared/ipc-commands';
-import { Playlist } from '../../shared/playlist.interface';
-import { createPlaylistObject, getFilenameFromUrl } from '../../shared/playlist.utils';
-import { AppConfig } from '../../environments/environment';
 import { DataService } from './data.service';
 
 @Injectable({
@@ -37,7 +37,7 @@ export class TauriService extends DataService {
 
     private async setupEventListeners() {
         // Listen for player errors
-        this.eventListeners['player-error'] = await listen(
+        /* this.eventListeners['player-error'] = await listen(
             'player-error',
             (event) => {
                 console.error('Player error:', event);
@@ -47,7 +47,7 @@ export class TauriService extends DataService {
                     { duration: 5000 }
                 );
             }
-        );
+        ); */
     }
 
     getAppVersion(): string {
@@ -206,18 +206,26 @@ export class TauriService extends DataService {
     }
 
     async fetchFromUrl(payload: Partial<Playlist>) {
-        try {
+        window.electron.fetchPlaylistByUrl(payload.url).then((result) => {
+            window.postMessage({
+                type: PLAYLIST_PARSE_RESPONSE,
+                payload: { ...result, isTemporary: payload.isTemporary },
+            });
+        });
+        /* try {
             const response = await fetch(payload.url);
             const responseBody = await response.text();
             const parsedPlaylist = parse(responseBody);
 
             // Extract playlist name from URL, use "Imported from URL" as fallback
-            const extractedName = payload.url && payload.url.length > 1 
-                ? getFilenameFromUrl(payload.url)
-                : '';
-            const playlistName = !extractedName || extractedName === 'Untitled playlist' 
-                ? 'Imported from URL' 
-                : extractedName;
+            const extractedName =
+                payload.url && payload.url.length > 1
+                    ? getFilenameFromUrl(payload.url)
+                    : '';
+            const playlistName =
+                !extractedName || extractedName === 'Untitled playlist'
+                    ? 'Imported from URL'
+                    : extractedName;
 
             const playlist = createPlaylistObject(
                 playlistName,
@@ -236,7 +244,7 @@ export class TauriService extends DataService {
                 message: this.getErrorMessageByStatusCode(error.status),
                 status: error.status,
             });
-        }
+        } */
     }
 
     getErrorMessageByStatusCode(status: number) {

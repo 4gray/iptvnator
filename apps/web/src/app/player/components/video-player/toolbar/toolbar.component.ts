@@ -1,5 +1,5 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
@@ -7,7 +7,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { Channel } from '../../../../../shared/channel.interface';
+import { Channel } from 'shared-interfaces';
 import { SettingsComponent } from '../../../../settings/settings.component';
 import { updateFavorites } from '../../../../state/actions';
 import {
@@ -37,14 +37,12 @@ export class ToolbarComponent {
     @Output() toggleLeftDrawerClicked = new EventEmitter<void>();
     @Output() toggleRightDrawerClicked = new EventEmitter<void>();
 
+    private readonly dialog = inject(MatDialog);
+    private readonly store = inject(Store);
+
     readonly favorites$ = this.store.select(selectFavorites);
     readonly isEpgAvailable$ = this.store.select(selectIsEpgAvailable);
     readonly playlistId$ = this.store.select(selectActivePlaylistId);
-
-    constructor(
-        private readonly dialog: MatDialog,
-        private readonly store: Store
-    ) {}
 
     updateFavoriteStatus(channel: Channel) {
         this.store.dispatch(updateFavorites({ channel }));

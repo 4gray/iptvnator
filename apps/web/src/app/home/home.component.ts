@@ -1,11 +1,10 @@
-
-import { Component, NgZone } from '@angular/core';
+import { Component, inject, OnDestroy } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { Playlist } from 'shared-interfaces';
 import { ERROR, PLAYLIST_PARSE_RESPONSE } from '../../shared/ipc-commands';
-import { Playlist } from '../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
 import { HeaderComponent } from '../shared/components/header/header.component';
 import { addPlaylist } from '../state/actions';
@@ -16,13 +15,17 @@ import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.co
     templateUrl: './home.component.html',
     styleUrls: ['./home.component.scss'],
     imports: [
-    HeaderComponent,
-    MatProgressBarModule,
-    RecentPlaylistsComponent,
-    TranslatePipe
-],
+        HeaderComponent,
+        MatProgressBarModule,
+        RecentPlaylistsComponent,
+        TranslatePipe,
+    ],
 })
-export class HomeComponent {
+export class HomeComponent implements OnDestroy {
+    private dataService = inject(DataService);
+    private snackBar = inject(MatSnackBar);
+    private readonly store = inject(Store);
+
     /** Loading spinner state */
     isLoading = false;
 
@@ -48,12 +51,7 @@ export class HomeComponent {
 
     listeners = [];
 
-    constructor(
-        private dataService: DataService,
-        private ngZone: NgZone,
-        private snackBar: MatSnackBar,
-        private readonly store: Store
-    ) {
+    constructor() {
         this.setRendererListeners();
     }
 

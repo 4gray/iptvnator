@@ -1,7 +1,7 @@
 import { NgStyle } from '@angular/common';
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import moment from 'moment';
-import { Channel } from '../../../../shared/channel.interface';
+import { Channel } from 'shared-interfaces';
 import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
 import { EpgProgram } from '../../models/epg-program.model';
 
@@ -9,7 +9,7 @@ import { EpgProgram } from '../../models/epg-program.model';
     imports: [MomentDatePipe, NgStyle],
     selector: 'app-info-overlay',
     templateUrl: './info-overlay.component.html',
-    styleUrls: ['./info-overlay.component.scss']
+    styleUrls: ['./info-overlay.component.scss'],
 })
 export class InfoOverlayComponent implements OnChanges {
     /** Active channel */

@@ -1,4 +1,4 @@
-import { Channel } from '../../shared/channel.interface';
+import { Channel } from 'shared-interfaces';
 
 /**
  * Creates new channel object based on the given fields

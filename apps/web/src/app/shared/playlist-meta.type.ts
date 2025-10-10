@@ -1,4 +1,4 @@
-import { Playlist } from '../../shared/playlist.interface';
+import { Playlist } from 'shared-interfaces';
 
 export type PlaylistMeta = Pick<
     Playlist,

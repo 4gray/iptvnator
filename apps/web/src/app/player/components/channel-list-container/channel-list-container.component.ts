@@ -9,6 +9,7 @@ import {
     Component,
     ElementRef,
     HostListener,
+    inject,
     Input,
     ViewChild,
 } from '@angular/core';
@@ -25,7 +26,7 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as _ from 'lodash';
 import { map, skipWhile } from 'rxjs';
-import { Channel } from '../../../../shared/channel.interface';
+import { Channel } from 'shared-interfaces';
 import { EpgService } from '../../../services/epg.service';
 import { FilterPipe } from '../../../shared/pipes/filter.pipe';
 import * as PlaylistActions from '../../../state/actions';
@@ -58,6 +59,11 @@ import { ChannelListItemComponent } from './channel-list-item/channel-list-item.
     ],
 })
 export class ChannelListContainerComponent {
+    private readonly epgService = inject(EpgService);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly store = inject(Store);
+    private readonly translateService = inject(TranslateService);
+
     /**
      * Channels array
      * Create local copy of the store for local manipulations without updates in the store
@@ -67,7 +73,7 @@ export class ChannelListContainerComponent {
         return this._channelList;
     }
 
-    @Input('channelList')
+    @Input()
     set channelList(value: Channel[]) {
         this._channelList = value;
         this.groupedChannels = _.default.groupBy(value, 'group.title');
@@ -117,13 +123,6 @@ export class ChannelListContainerComponent {
                 )
         )
     );
-
-    constructor(
-        private readonly epgService: EpgService,
-        private readonly snackBar: MatSnackBar,
-        private readonly store: Store,
-        private readonly translateService: TranslateService
-    ) {}
 
     /**
      * Sets clicked channel as selected and emits them to the parent component

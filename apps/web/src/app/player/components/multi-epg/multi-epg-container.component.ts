@@ -20,7 +20,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { invoke } from '@tauri-apps/api/core';
 import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { Channel } from '../../../../shared/channel.interface';
+import { Channel } from 'shared-interfaces';
 import { MomentDatePipe } from '../../../shared/pipes/moment-date.pipe';
 import { EpgChannel } from '../../models/epg-channel.model';
 import { EpgProgram } from '../../models/epg-program.model';

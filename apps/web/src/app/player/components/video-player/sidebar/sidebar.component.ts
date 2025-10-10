@@ -6,7 +6,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { Channel } from '../../../../../shared/channel.interface';
+import { Channel } from 'shared-interfaces';
 import { RecentPlaylistsComponent } from '../../../../home/recent-playlists/recent-playlists.component';
 import * as PlaylistActions from '../../../../state/actions';
 import { selectPlaylistTitle } from '../../../../state/selectors';

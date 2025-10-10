@@ -8,8 +8,8 @@ import {
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { getFilenameFromUrl } from 'm3u-utils';
 import { PLAYLIST_PARSE_BY_URL } from '../../../../shared/ipc-commands';
-import { getFilenameFromUrl } from '../../../../shared/playlist.utils';
 import { FileUploadComponent } from '../../../home/file-upload/file-upload.component';
 import { StalkerPortalImportComponent } from '../../../home/stalker-portal-import/stalker-portal-import.component';
 import { TextImportComponent } from '../../../home/text-import/text-import.component';
@@ -32,7 +32,7 @@ export type PlaylistType = 'xtream' | 'url' | 'text' | 'file' | 'stalker';
         UrlUploadComponent,
     ],
     selector: 'app-add-playlist',
-    templateUrl: './add-playlist-dialog.component.html'
+    templateUrl: './add-playlist-dialog.component.html',
 })
 export class AddPlaylistDialogComponent {
     playlistType!: PlaylistType;

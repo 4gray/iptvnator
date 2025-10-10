@@ -34,12 +34,12 @@ import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import * as semver from 'semver';
+import { Playlist } from 'shared-interfaces';
 import {
     SET_MPV_PLAYER_PATH,
     SET_VLC_PLAYER_PATH,
     SETTINGS_UPDATE,
 } from '../../shared/ipc-commands';
-import { Playlist } from '../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
 import { DialogService } from '../services/dialog.service';
 import { EpgService } from '../services/epg.service';

@@ -15,13 +15,13 @@ import {
     tap,
     withLatestFrom,
 } from 'rxjs';
+import { Playlist } from 'shared-interfaces';
 import {
     CHANNEL_SET_USER_AGENT,
     EPG_GET_PROGRAM,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
 } from '../../shared/ipc-commands';
-import { Playlist } from '../../shared/playlist.interface';
 import { DataService } from '../services/data.service';
 import { PlaylistsService } from '../services/playlists.service';
 import { Settings, VideoPlayer } from '../settings/settings.interface';

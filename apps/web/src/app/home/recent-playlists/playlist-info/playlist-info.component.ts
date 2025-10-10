@@ -20,7 +20,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { firstValueFrom } from 'rxjs';
-import { Playlist } from '../../../../shared/playlist.interface';
+import { Playlist } from 'shared-interfaces';
 import { DatabaseService } from '../../../services/database.service';
 import { PlaylistsService } from '../../../services/playlists.service';
 import { PlaylistMeta } from '../../../shared/playlist-meta.type';

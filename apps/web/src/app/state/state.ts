@@ -1,4 +1,4 @@
-import { Channel } from '../../shared/channel.interface';
+import { Channel } from 'shared-interfaces';
 import { initialPlaylistMetaState, PlaylistMetaState } from './playlists.state';
 
 import { EpgProgram } from '../player/models/epg-program.model';

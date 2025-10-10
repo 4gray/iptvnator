@@ -1,5 +1,5 @@
 import { createFeatureSelector, createSelector } from '@ngrx/store';
-import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../shared/constants';
+import { GLOBAL_FAVORITES_PLAYLIST_ID } from 'shared-interfaces';
 import * as fromPlaylistMetaState from './playlists.state';
 import * as fromPlaylistState from './reducers';
 import { selectRouteParam } from './router.selectors';

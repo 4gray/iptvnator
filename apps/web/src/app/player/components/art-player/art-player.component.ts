@@ -1,6 +1,7 @@
 import {
     Component,
     ElementRef,
+    inject,
     Input,
     OnChanges,
     OnDestroy,
@@ -9,7 +10,7 @@ import {
 } from '@angular/core';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
-import { Channel } from '../../../../shared/channel.interface';
+import { Channel } from 'shared-interfaces';
 
 Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 
@@ -38,7 +39,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
 
     private player: Artplayer;
 
-    constructor(private elementRef: ElementRef) {}
+    private readonly elementRef = inject(ElementRef);
 
     ngOnInit(): void {
         this.initPlayer();

@@ -7,10 +7,10 @@
             formControlName="playlistUrl"
         />
     </mat-form-field>
-    @if (!isTauri) {
-        <p>
-            {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
-        </p>
+    @if (!isDesktop) {
+    <p>
+        {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
+    </p>
     }
     <button
         class="add-button"
