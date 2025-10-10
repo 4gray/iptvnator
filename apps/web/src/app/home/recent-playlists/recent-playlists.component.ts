@@ -4,7 +4,6 @@ import {
     Component,
     ElementRef,
     EventEmitter,
-    HostListener,
     Input,
     OnDestroy,
     OnInit,
@@ -23,8 +22,7 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
-import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../../shared/constants';
-import { Playlist } from '../../../shared/playlist.interface';
+import { GLOBAL_FAVORITES_PLAYLIST_ID, Playlist } from 'shared-interfaces';
 import { DataService } from '../../services/data.service';
 import { DatabaseService } from '../../services/database.service';
 import { SortService } from '../../services/sort.service';

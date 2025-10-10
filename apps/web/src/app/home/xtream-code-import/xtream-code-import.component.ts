@@ -12,8 +12,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { Playlist } from 'shared-interfaces';
 import { v4 as uuid } from 'uuid';
-import { Playlist } from '../../../shared/playlist.interface';
 import {
     PortalStatus,
     PortalStatusService,
@@ -102,7 +102,9 @@ export class XtreamCodeImportComponent {
         this.isTestingConnection = true;
         const serverUrlAsString = this.form.value.serverUrl as string;
         const url = new URL(serverUrlAsString);
-        const serverUrl = `${url.protocol}//${url.hostname}${url.port ? ':' + url.port : ''}`;
+        const serverUrl = `${url.protocol}//${url.hostname}${
+            url.port ? ':' + url.port : ''
+        }`;
 
         try {
             this.connectionStatus =
@@ -134,7 +136,9 @@ export class XtreamCodeImportComponent {
     addPlaylist() {
         const serverUrlAsString = this.form.value.serverUrl as string;
         const url = new URL(serverUrlAsString);
-        const serverUrl = `${url.protocol}//${url.hostname}${url.port ? ':' + url.port : ''}`;
+        const serverUrl = `${url.protocol}//${url.hostname}${
+            url.port ? ':' + url.port : ''
+        }`;
         this.store.dispatch(
             addPlaylist({
                 playlist: {

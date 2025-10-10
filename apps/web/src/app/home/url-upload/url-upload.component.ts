@@ -8,7 +8,6 @@ import {
 import { MatButton } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
-import { isTauri } from '@tauri-apps/api/core';
 
 @Component({
     selector: 'app-url-upload',
@@ -22,7 +21,7 @@ export class UrlUploadComponent implements OnInit {
     @Output() urlAdded: EventEmitter<string> = new EventEmitter();
 
     form: FormGroup;
-    isTauri = isTauri();
+    readonly isDesktop = window.electron;
 
     ngOnInit() {
         const urlRegex = '(https?://.*?)';

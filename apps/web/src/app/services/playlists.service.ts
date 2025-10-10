@@ -4,19 +4,19 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { parse } from 'iptv-playlist-parser';
-import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { combineLatest, EMPTY, map, switchMap } from 'rxjs';
-import { Channel } from '../../shared/channel.interface';
-import { GLOBAL_FAVORITES_PLAYLIST_ID } from '../../shared/constants';
-import {
-    Playlist,
-    PlaylistUpdateState,
-} from '../../shared/playlist.interface';
 import {
     aggregateFavoriteChannels,
     createFavoritesPlaylist,
     createPlaylistObject,
-} from '../../shared/playlist.utils';
+} from 'm3u-utils';
+import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { combineLatest, EMPTY, map, switchMap } from 'rxjs';
+import {
+    Channel,
+    GLOBAL_FAVORITES_PLAYLIST_ID,
+    Playlist,
+    PlaylistUpdateState,
+} from 'shared-interfaces';
 import { XtreamItem } from '../../shared/xtream-item.interface';
 import { XtreamSerieItem } from '../../shared/xtream-serie-item.interface';
 import { DbStores } from '../indexed-db.config';

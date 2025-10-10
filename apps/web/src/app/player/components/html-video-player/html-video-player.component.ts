@@ -1,6 +1,7 @@
 import {
     Component,
     ElementRef,
+    inject,
     Input,
     OnChanges,
     OnDestroy,
@@ -9,9 +10,9 @@ import {
     ViewChild,
 } from '@angular/core';
 import Hls from 'hls.js';
-import { Channel } from '../../../../shared/channel.interface';
+import { getExtensionFromUrl } from 'm3u-utils';
+import { Channel } from 'shared-interfaces';
 import { CHANNEL_SET_USER_AGENT } from '../../../../shared/ipc-commands';
-import { getExtensionFromUrl } from '../../../../shared/playlist.utils';
 import { DataService } from '../../../services/data.service';
 
 /**
@@ -26,12 +27,9 @@ import { DataService } from '../../../services/data.service';
 export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     /** Channel to play  */
     @Input() channel: Channel;
-    dataService: DataService; // Declare the dataService property
     @Input() volume = 1;
 
-    constructor(dataService: DataService) {
-        this.dataService = dataService; // Inject the DataService
-    }
+    private readonly dataService = inject(DataService);
 
     /** Video player DOM element */
     @ViewChild('videoPlayer', { static: true })

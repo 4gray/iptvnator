@@ -6,6 +6,8 @@ import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { catchError, firstValueFrom, throwError } from 'rxjs';
+import { Playlist } from 'shared-interfaces';
+import { AppConfig } from '../../environments/environment';
 import {
     ERROR,
     PLAYLIST_PARSE_BY_URL,
@@ -15,8 +17,6 @@ import {
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
 } from '../../shared/ipc-commands';
-import { Playlist } from '../../shared/playlist.interface';
-import { AppConfig } from '../../environments/environment';
 import * as PlaylistActions from '../state/actions';
 import { DataService } from './data.service';
 

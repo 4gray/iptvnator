@@ -11,8 +11,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { Playlist } from 'shared-interfaces';
 import { v4 as uuid } from 'uuid';
-import { Playlist } from '../../../shared/playlist.interface';
 import { DataService } from '../../services/data.service';
 import { addPlaylist } from '../../state/actions';
 

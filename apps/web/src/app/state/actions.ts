@@ -1,6 +1,5 @@
 import { createAction, props } from '@ngrx/store';
-import { Channel } from '../../shared/channel.interface';
-import { Playlist } from '../../shared/playlist.interface';
+import { Channel, Playlist } from 'shared-interfaces';
 import { EpgProgram } from '../player/models/epg-program.model';
 import { PlaylistMeta } from '../shared/playlist-meta.type';
 

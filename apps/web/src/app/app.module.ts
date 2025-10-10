@@ -38,7 +38,7 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
  * Conditionally imports the necessary service based on the current environment
  */
 export function DataFactory() {
-    if (isTauri()) {
+    if (window.electron) {
         return new TauriService();
     }
     return new PwaService();
