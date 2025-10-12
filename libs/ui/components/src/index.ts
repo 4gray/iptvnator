@@ -1,6 +1,7 @@
 export * from './lib/art-player/art-player.component';
 export * from './lib/audio-player/audio-player.component';
 export * from './lib/channel-list-container/channel-list-container.component';
+export * from './lib/confirm-dialog/confirm-dialog.component';
 export * from './lib/epg-list/epg-item-description/epg-item-description.component';
 export * from './lib/epg-list/epg-list-item/epg-list-item.component';
 export * from './lib/epg-list/epg-list.component';

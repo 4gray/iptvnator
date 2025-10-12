@@ -1,7 +1,7 @@
 import { KeyValuePipe } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
-import { XtreamSerieEpisode } from '../../../shared/xtream-serie-details.interface';
+import { XtreamSerieEpisode } from 'shared-interfaces';
 
 @Component({
     selector: 'app-season-container',

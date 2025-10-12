@@ -12,7 +12,10 @@ declare global {
         electron: {
             getAppVersion: () => Promise<string>;
             platform: string;
-            fetchPlaylistByUrl: (url: string) => Promise<Playlist>;
+            fetchPlaylistByUrl: (
+                url: string,
+                title?: string
+            ) => Promise<Playlist>;
             updatePlaylistFromFilePath: (
                 filePath: string,
                 title: string

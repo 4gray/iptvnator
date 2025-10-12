@@ -1,5 +1,6 @@
 import { computed, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { DatabaseService, DataService } from '@iptvnator/services';
 import {
     patchState,
     signalStore,
@@ -20,15 +21,13 @@ import {
     switchMap,
     tap,
 } from 'rxjs';
-import { Playlist } from 'shared-interfaces';
-import { DataService } from '../../../../../libs/services/src/lib/data.service';
-import { DatabaseService } from '../../../../../libs/services/src/lib/database.service';
-import { XtreamCodeActions } from '../../shared/xtream-code-actions';
 import {
+    Playlist,
+    XtreamCodeActions,
     XtreamSerieDetails,
     XtreamSerieEpisode,
-} from '../../shared/xtream-serie-details.interface';
-import { XtreamVodDetails } from '../../shared/xtream-vod-details.interface';
+    XtreamVodDetails,
+} from 'shared-interfaces';
 import { PlayerService } from '../services/player.service';
 import { SettingsStore } from '../services/settings-store.service';
 import { XtreamAccountInfo } from './account-info/account-info.interface';
@@ -85,8 +84,8 @@ export const XtreamStore = signalStore(
             return type === 'live'
                 ? store.liveCategories()
                 : type === 'vod'
-                  ? store.vodCategories()
-                  : store.serialCategories();
+                ? store.vodCategories()
+                : store.serialCategories();
         }),
         getSelectedCategory: computed(() => {
             const categoryId = store.selectedCategoryId();
@@ -103,8 +102,8 @@ export const XtreamStore = signalStore(
                 categoryType === 'live'
                     ? store.liveStreams()
                     : categoryType === 'vod'
-                      ? store.vodStreams()
-                      : store.serialStreams();
+                    ? store.vodStreams()
+                    : store.serialStreams();
 
             if (!store.selectedItem()) return null;
 
@@ -129,8 +128,8 @@ export const XtreamStore = signalStore(
                 categoryType === 'live'
                     ? store.liveStreams()
                     : categoryType === 'vod'
-                      ? store.vodStreams()
-                      : store.serialStreams();
+                    ? store.vodStreams()
+                    : store.serialStreams();
 
             return content
                 .filter((item) => item.category_id === categoryId)
@@ -149,13 +148,13 @@ export const XtreamStore = signalStore(
                           .filter((i) => Number((i as any).id) === categoryId)
                           .length
                     : categoryType === 'vod'
-                      ? store
-                            .vodStreams()
-                            .filter((i) => Number(i.category_id) === categoryId)
-                            .length
-                      : store
-                            .serialStreams()
-                            .filter((i) => i.category_id === categoryId).length;
+                    ? store
+                          .vodStreams()
+                          .filter((i) => Number(i.category_id) === categoryId)
+                          .length
+                    : store
+                          .serialStreams()
+                          .filter((i) => i.category_id === categoryId).length;
 
             return Math.ceil(totalItems / store.limit());
         }),
@@ -166,8 +165,8 @@ export const XtreamStore = signalStore(
                 categoryType === 'live'
                     ? store.liveStreams()
                     : categoryType === 'vod'
-                      ? store.vodStreams()
-                      : store.serialStreams();
+                    ? store.vodStreams()
+                    : store.serialStreams();
 
             return content.filter((item) => item.category_id === categoryId);
         }),
@@ -223,7 +222,9 @@ export const XtreamStore = signalStore(
                             }
 
                             const remoteData = await dataService.fetchData(
-                                `${store.currentPlaylist().serverUrl}/player_api.php`,
+                                `${
+                                    store.currentPlaylist().serverUrl
+                                }/player_api.php`,
                                 queryParams
                             );
 
@@ -293,7 +294,9 @@ export const XtreamStore = signalStore(
                             }
 
                             const remoteData = await dataService.fetchData(
-                                `${store.currentPlaylist().serverUrl}/player_api.php`,
+                                `${
+                                    store.currentPlaylist().serverUrl
+                                }/player_api.php`,
                                 queryParams
                             );
 
@@ -758,7 +761,9 @@ export const XtreamStore = signalStore(
                 async loadChannelEpg(streamId: number) {
                     try {
                         const response = await dataService.fetchData(
-                            `${store.currentPlaylist().serverUrl}/player_api.php`,
+                            `${
+                                store.currentPlaylist().serverUrl
+                            }/player_api.php`,
                             {
                                 action: 'get_short_epg',
                                 username: store.currentPlaylist().username,

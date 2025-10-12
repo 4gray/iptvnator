@@ -4,7 +4,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
-import { XtreamVodDetails } from '../../../shared/xtream-vod-details.interface';
+import { XtreamVodDetails } from 'shared-interfaces';
 import { SettingsStore } from '../../services/settings-store.service';
 import { XtreamStore } from '../xtream.store';
 import { SafePipe } from './safe.pipe';

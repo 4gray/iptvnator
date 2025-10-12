@@ -1,8 +1,16 @@
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
-import { ConfirmDialogData } from './confirm-dialog-data.interface';
+
+export interface ConfirmDialogData {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm: () => void;
+}
+
 @Component({
     imports: [MatButtonModule, MatDialogModule, TranslateModule],
     template: `
@@ -14,19 +22,19 @@ import { ConfirmDialogData } from './confirm-dialog-data.interface';
         </mat-dialog-content>
         <mat-dialog-actions align="end">
             <button mat-button mat-dialog-close cdkFocusInitial color="accent">
-                {{ dialogData?.cancelLabel || 'NO' | translate }}
+                {{ dialogData.cancelLabel || 'NO' | translate }}
             </button>
             <button mat-flat-button [mat-dialog-close]="true" color="accent">
-                {{ dialogData?.confirmLabel || 'YES' | translate }}
+                {{ dialogData.confirmLabel || 'YES' | translate }}
             </button>
         </mat-dialog-actions>
-    `
+    `,
 })
 export class ConfirmDialogComponent {
-    /** Contains meta information to show in the dialog */
-    dialogData!: ConfirmDialogData;
+    readonly dialogData!: ConfirmDialogData;
+    readonly data = inject<ConfirmDialogData>(MAT_DIALOG_DATA);
 
-    constructor(@Inject(MAT_DIALOG_DATA) data: ConfirmDialogData) {
-        this.dialogData = data;
+    constructor() {
+        this.dialogData = this.data;
     }
 }

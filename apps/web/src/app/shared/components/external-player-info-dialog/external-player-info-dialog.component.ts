@@ -65,10 +65,11 @@ import { PortalStore } from '../../../xtream/portal.store';
         MatIconModule,
         RouterLink,
         TranslateModule,
-    ]
+    ],
 })
 export class ExternalPlayerInfoDialogComponent {
-    portalStore = inject(PortalStore);
+    readonly portalStore = inject(PortalStore);
+
     openUrl(url: string) {
         window.open(url, '_blank');
     }

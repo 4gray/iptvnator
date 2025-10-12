@@ -1,5 +1,6 @@
 import { computed, inject, resource, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { DataService, PlaylistsService } from '@iptvnator/services';
 import {
     patchState,
     signalStore,
@@ -9,10 +10,11 @@ import {
     withState,
 } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
-import { PlaylistMeta, STALKER_REQUEST } from 'shared-interfaces';
-import { DataService } from '../../../../../libs/services/src/lib/data.service';
-import { PlaylistsService } from '../../../../../libs/services/src/lib/playlists.service';
-import { StalkerPortalActions } from '../../shared/stalker-portal-actions.enum';
+import {
+    PlaylistMeta,
+    STALKER_REQUEST,
+    StalkerPortalActions,
+} from 'shared-interfaces';
 import { PlayerService } from '../services/player.service';
 import { ContentType } from '../xtream/content-type.enum';
 import { StalkerSeason } from './models/stalker-season.interface';

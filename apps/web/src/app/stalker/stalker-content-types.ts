@@ -1,4 +1,4 @@
-import { StalkerPortalActions } from '../../shared/stalker-portal-actions.enum';
+import { StalkerPortalActions } from 'shared-interfaces';
 
 export const StalkerContentTypes = {
     stb: {

@@ -14,7 +14,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { DataService } from '@iptvnator/services';
+import { DataService, PlaylistsService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { selectCurrentPlaylist } from 'm3u-state';
@@ -30,18 +30,15 @@ import {
     VideoPlayer,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
-} from 'shared-interfaces';
-import { LiveStreamLayoutComponent } from 'shared-portals';
-import { PlaylistsService } from '../../../../../libs/services/src/lib/playlists.service';
-import { XtreamCategory } from '../../shared/xtream-category.interface';
-import { XtreamCodeActions } from '../../shared/xtream-code-actions';
-import { XtreamLiveStream } from '../../shared/xtream-live-stream.interface';
-import { XtreamResponse } from '../../shared/xtream-response.interface';
-import {
+    XtreamCategory,
+    XtreamCodeActions,
+    XtreamLiveStream,
+    XtreamResponse,
     XtreamSerieDetails,
     XtreamSerieEpisode,
-} from '../../shared/xtream-serie-details.interface';
-import { XtreamVodDetails } from '../../shared/xtream-vod-details.interface';
+    XtreamVodDetails,
+} from 'shared-interfaces';
+import { LiveStreamLayoutComponent } from 'shared-portals';
 import { SettingsStore } from '../services/settings-store.service';
 import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';

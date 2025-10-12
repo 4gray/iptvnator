@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Params } from '@angular/router';
+import { DataService } from '@iptvnator/services';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { readTextFile } from '@tauri-apps/plugin-fs';
@@ -19,7 +20,6 @@ import {
     PLAYLIST_UPDATE_RESPONSE,
     XTREAM_RESPONSE,
 } from 'shared-interfaces';
-import { DataService } from '../../../../../libs/services/src/lib/data.service';
 import { AppConfig } from '../../environments/environment';
 
 @Injectable({
@@ -58,11 +58,11 @@ export class TauriService extends DataService {
         if (type === PLAYLIST_PARSE_BY_URL) {
             this.fetchM3uPlaylistFromUrl(payload);
         } else if (type === PLAYLIST_UPDATE) {
-            // TODO: update playlist from URL?
             this.updateM3uPlaylistFromFile(
                 payload as {
                     id: string;
-                    filePath: string;
+                    filePath?: string;
+                    url?: string;
                     title: string;
                 }
             );
@@ -201,24 +201,42 @@ export class TauriService extends DataService {
 
     private async updateM3uPlaylistFromFile(data: {
         id: string;
-        filePath: string;
+        url?: string;
+        filePath?: string;
         title: string;
     }) {
-        window.electron
-            .updatePlaylistFromFilePath(data.filePath, data.title)
-            .then((playlistObject) => {
-                window.postMessage({
-                    type: PLAYLIST_UPDATE_RESPONSE,
-                    payload: {
-                        message:
-                            'Success! The playlist was successfully updated',
-                        playlist: {
-                            ...playlistObject,
-                            _id: data.id,
-                        },
+        let methodToCall = null;
+        if (data.url && !data.filePath) {
+            // fetch from url
+            methodToCall = window.electron.fetchPlaylistByUrl(
+                data.url,
+                data.title
+            );
+        } else if (data.filePath && !data.url) {
+            // update from file path
+            methodToCall = window.electron.updatePlaylistFromFilePath(
+                data.filePath,
+                data.title
+            );
+        } else {
+            console.error(
+                'Either url or filePath must be provided, but not both.'
+            );
+            return;
+        }
+
+        methodToCall.then((playlistObject) => {
+            window.postMessage({
+                type: PLAYLIST_UPDATE_RESPONSE,
+                payload: {
+                    message: 'Success! The playlist was successfully updated',
+                    playlist: {
+                        ...playlistObject,
+                        _id: data.id,
                     },
-                });
+                },
             });
+        });
     }
 
     /* private getErrorMessageByStatusCode(status: number) {

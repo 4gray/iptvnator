@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { selectActivePlaylist } from 'm3u-state';
 import { BehaviorSubject, switchMap } from 'rxjs';
-import { XtreamCategory } from '../../../shared/xtream-category.interface';
+import { XtreamCategory } from 'shared-interfaces';
 import { FavoritesLayoutComponent } from '../../shared/components/favorites-layout/favorites-layout.component';
 import { FavoriteItem } from '../services/favorite-item.interface';
 import { FavoritesService } from '../services/favorites.service';

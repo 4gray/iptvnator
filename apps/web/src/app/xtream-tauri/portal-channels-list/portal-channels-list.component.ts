@@ -24,8 +24,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { FilterPipe } from '@iptvnator/pipes';
 import { TranslatePipe } from '@ngx-translate/core';
-import { XtreamItem } from '../../../../../../libs/shared/interfaces/src/lib/xtream-item.interface';
-import { XtreamCategory } from '../../../shared/xtream-category.interface';
+import { XtreamCategory, XtreamItem } from 'shared-interfaces';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../xtream.store';
 

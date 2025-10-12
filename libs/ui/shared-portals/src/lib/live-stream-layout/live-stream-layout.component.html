@@ -26,11 +26,13 @@
                     <mat-list-option
                         *cdkVirtualFor="
                             let item of channels
-                                | filterBy: searchString() : 'name';
+                                | filterBy : searchString() : 'name';
                             trackBy: trackBy;
                             templateCacheSize: 0
                         "
-                        [selected]="item.stream_id === activeLiveStream?.stream_id"
+                        [selected]="
+                            item.stream_id === activeLiveStream?.stream_id
+                        "
                         [value]="item"
                         (click)="itemClicked.emit(item)"
                     >
@@ -39,6 +41,7 @@
                             class="stream-icon"
                             *ngIf="item.stream_icon"
                             [src]="item.stream_icon"
+                            alt="channel icon"
                         />
                         <div class="title" matListItemTitle>
                             {{ item.name }}
@@ -48,20 +51,17 @@
             </mat-selection-list>
         </div>
     </div>
-    @if (player === 'videojs' || player === 'html5') {
-        @if (streamUrl) {
-            <div class="video-player">
-                <app-web-player-view [streamUrl]="streamUrl" />
-            </div>
-        }
-    }
-    @if (streamUrl) {
-        <div class="epg">
-            <div class="epg-content">
-                <app-epg-view [epgItems]="epgItems" />
-            </div>
+    @if (player === 'videojs' || player === 'html5') { @if (streamUrl) {
+    <div class="video-player">
+        <app-web-player-view [streamUrl]="streamUrl" />
+    </div>
+    } } @if (streamUrl) {
+    <div class="epg">
+        <div class="epg-content">
+            <app-epg-view [epgItems]="epgItems" />
         </div>
+    </div>
     } @else {
-        <div class="no-channel-selected">Please select a channel</div>
+    <div class="no-channel-selected">Please select a channel</div>
     }
 </div>

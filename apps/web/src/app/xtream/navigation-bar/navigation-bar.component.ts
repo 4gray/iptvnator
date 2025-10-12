@@ -29,7 +29,7 @@ import {
     distinctUntilChanged,
     map,
 } from 'rxjs';
-import { XtreamLiveStream } from '../../../shared/xtream-live-stream.interface';
+import { XtreamLiveStream } from 'shared-interfaces';
 import { SettingsComponent } from '../../settings/settings.component';
 
 import { SettingsStore } from '../../services/settings-store.service';
