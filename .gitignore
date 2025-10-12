@@ -1,64 +1,65 @@
-# See http://help.github.com/ignore-files/ for more about ignoring files.
+# See http://help.github.com/ignore-files/ for more about ignoring files. 
 
-# compiled output
-/dist
-/build
-/tmp
-/out-tsc
-/app-builds
-/release
+#compiled output 
+/dist 
+/build 
+/tmp 
+/out-tsc 
+/app-builds 
+/release 
 /e2e/tracing
-/e2e/screenshots
-/test-results
-api.js
-epg-worker.js
-main.js
-menu.js
+/e2e/screenshots 
+/test-results 
+api.js 
+epg-worker.js 
+main.js 
+menu.js 
 src/**/*.js
-!src/karma.conf.js
-*.js.map
-data.db
-preload.js
-shared/*.js
-playwright-report
+!src/karma.conf.js 
+*.js.map 
+data.db 
+preload.js 
+shared/*.js 
+playwright-report 
 .nx
-server.js
+server.js 
 
-# dependencies
-/node_modules
+# dependencies 
+/node_modules 
 
-# IDEs and editors
-/.idea
+# IDEs and editors 
+/.idea 
 .project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
+.classpath 
+.c9/ 
+*.launch 
+.settings/ 
+*.sublime-workspace 
 
-# IDE - VSCode
+# IDE - VSCode 
 .vscode/*
-.vscode/settings.json
-!.vscode/tasks.json
+.vscode/settings.json 
+!.vscode/tasks.json 
 !.vscode/launch.json
-!.vscode/extensions.json
+!.vscode/extensions.json 
 
-# misc
-/.sass-cache
-/connect.lock
+# misc 
+/.sass-cache 
+/connect.lock 
 /coverage
-/libpeerconnection.log
-npm-debug.log
-testem.log
-/typings
-.angular/*
+/libpeerconnection.log 
+npm-debug.log 
+testem.log 
+/typings 
+.angular/* 
 
 # e2e
-/e2e/*.js
-!/e2e/protractor.conf.js
-/e2e/*.map
-/e2e/db
+/e2e/*.js 
+!/e2e/protractor.conf.js 
+/e2e/*.map 
+/e2e/db 
 
-# System Files
+# System Files 
 .DS_Store
-Thumbs.db
+Thumbs.db 
+.angular

@@ -11,8 +11,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { PlaylistsService } from '../../../../../../libs/services/src/lib/playlists.service';
 import { XtreamVodDetails } from '../../../shared/xtream-vod-details.interface';
-import { PlaylistsService } from '../../services/playlists.service';
 import { SafePipe } from './safe.pipe';
 
 @Component({

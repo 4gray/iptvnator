@@ -7,20 +7,20 @@ import { readTextFile } from '@tauri-apps/plugin-fs';
 import { fetch } from '@tauri-apps/plugin-http';
 import { parse } from 'iptv-playlist-parser';
 import { createPlaylistObject } from 'm3u-utils';
-import { Playlist } from 'shared-interfaces';
-import { AppConfig } from '../../environments/environment';
 import {
     AUTO_UPDATE_PLAYLISTS,
     AUTO_UPDATE_PLAYLISTS_RESPONSE,
     EPG_GET_PROGRAM_DONE,
     ERROR,
+    Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
     PLAYLIST_UPDATE_RESPONSE,
     XTREAM_RESPONSE,
-} from '../../shared/ipc-commands';
-import { DataService } from './data.service';
+} from 'shared-interfaces';
+import { DataService } from '../../../../../libs/services/src/lib/data.service';
+import { AppConfig } from '../../environments/environment';
 
 @Injectable({
     providedIn: 'root',
@@ -56,32 +56,16 @@ export class TauriService extends DataService {
 
     async sendIpcEvent(type: string, payload?: unknown) {
         if (type === PLAYLIST_PARSE_BY_URL) {
-            this.fetchFromUrl(payload);
+            this.fetchM3uPlaylistFromUrl(payload);
         } else if (type === PLAYLIST_UPDATE) {
-            const data = payload as {
-                id: string;
-                filePath: string;
-                title: string;
-            };
-            const playlist = await readTextFile(data.filePath);
-            const parsedPlaylist = parse(playlist);
-            const playlistObject = createPlaylistObject(
-                data.title,
-                parsedPlaylist,
-                data.filePath,
-                'FILE'
+            // TODO: update playlist from URL?
+            this.updateM3uPlaylistFromFile(
+                payload as {
+                    id: string;
+                    filePath: string;
+                    title: string;
+                }
             );
-
-            window.postMessage({
-                type: PLAYLIST_UPDATE_RESPONSE,
-                payload: {
-                    message: 'Success! The playlist was successfully updated',
-                    playlist: {
-                        ...playlistObject,
-                        _id: data.id,
-                    },
-                },
-            });
         } else if (type === 'XTREAM_REQUEST') {
             return await this.forwardXtreamRequest(
                 payload as { url: string; params: Record<string, string> }
@@ -164,7 +148,7 @@ export class TauriService extends DataService {
         }
     }
 
-    async fetchStalkerData(payload: {
+    private async fetchStalkerData(payload: {
         url: string;
         macAddress: string;
         params: Record<string, string>;
@@ -205,49 +189,39 @@ export class TauriService extends DataService {
         }
     }
 
-    async fetchFromUrl(payload: Partial<Playlist>) {
+    private async fetchM3uPlaylistFromUrl(payload: Partial<Playlist>) {
         window.electron.fetchPlaylistByUrl(payload.url).then((result) => {
+            // TODO: call store and decide and store where to store based on the isTemporary flag etc
             window.postMessage({
                 type: PLAYLIST_PARSE_RESPONSE,
                 payload: { ...result, isTemporary: payload.isTemporary },
             });
         });
-        /* try {
-            const response = await fetch(payload.url);
-            const responseBody = await response.text();
-            const parsedPlaylist = parse(responseBody);
-
-            // Extract playlist name from URL, use "Imported from URL" as fallback
-            const extractedName =
-                payload.url && payload.url.length > 1
-                    ? getFilenameFromUrl(payload.url)
-                    : '';
-            const playlistName =
-                !extractedName || extractedName === 'Untitled playlist'
-                    ? 'Imported from URL'
-                    : extractedName;
-
-            const playlist = createPlaylistObject(
-                playlistName,
-                parsedPlaylist,
-                payload.url,
-                'URL'
-            );
-
-            window.postMessage({
-                type: PLAYLIST_PARSE_RESPONSE,
-                payload: { ...playlist, isTemporary: payload.isTemporary },
-            });
-        } catch (error) {
-            window.postMessage({
-                type: ERROR,
-                message: this.getErrorMessageByStatusCode(error.status),
-                status: error.status,
-            });
-        } */
     }
 
-    getErrorMessageByStatusCode(status: number) {
+    private async updateM3uPlaylistFromFile(data: {
+        id: string;
+        filePath: string;
+        title: string;
+    }) {
+        window.electron
+            .updatePlaylistFromFilePath(data.filePath, data.title)
+            .then((playlistObject) => {
+                window.postMessage({
+                    type: PLAYLIST_UPDATE_RESPONSE,
+                    payload: {
+                        message:
+                            'Success! The playlist was successfully updated',
+                        playlist: {
+                            ...playlistObject,
+                            _id: data.id,
+                        },
+                    },
+                });
+            });
+    }
+
+    /* private getErrorMessageByStatusCode(status: number) {
         let message = 'Something went wrong';
         switch (status) {
             case 0:
@@ -261,9 +235,9 @@ export class TauriService extends DataService {
                 break;
         }
         return message;
-    }
+    } */
 
-    async forwardXtreamRequest(payload: {
+    private async forwardXtreamRequest(payload: {
         url: string;
         params: Record<string, string>;
     }) {
@@ -347,7 +321,6 @@ export class TauriService extends DataService {
             );
         }
 
-        console.log(url, queryParams);
         const result = await response.json();
         return result;
     }

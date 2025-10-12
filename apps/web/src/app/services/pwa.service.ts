@@ -5,20 +5,20 @@ import { Params } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import * as PlaylistActions from 'm3u-state';
 import { catchError, firstValueFrom, throwError } from 'rxjs';
-import { Playlist } from 'shared-interfaces';
-import { AppConfig } from '../../environments/environment';
 import {
     ERROR,
+    Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
     STALKER_REQUEST,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
-} from '../../shared/ipc-commands';
-import * as PlaylistActions from '../state/actions';
-import { DataService } from './data.service';
+} from 'shared-interfaces';
+import { DataService } from '../../../../../libs/services/src/lib/data.service';
+import { AppConfig } from '../../environments/environment';
 
 @Injectable({
     providedIn: 'root',

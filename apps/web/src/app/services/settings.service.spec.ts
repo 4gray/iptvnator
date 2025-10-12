@@ -2,8 +2,8 @@ import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { inject, TestBed } from '@angular/core/testing';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { of } from 'rxjs';
-import { Theme } from '../settings/theme.enum';
-import { STORE_KEY } from '../shared/enums/store-keys.enum';
+import { STORE_KEY } from '../../../../../libs/shared/interfaces/src/lib/store-keys.enum';
+import { Theme } from '../../../../../libs/shared/interfaces/src/lib/theme.enum';
 import { SettingsService } from './settings.service';
 
 describe('Service: Settings', () => {

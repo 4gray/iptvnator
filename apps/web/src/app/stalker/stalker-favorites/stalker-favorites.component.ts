@@ -3,7 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { PlaylistsService } from '../../services/playlists.service';
+import { PlaylistsService } from '../../../../../../libs/services/src/lib/playlists.service';
 import { FavoritesLayoutComponent } from '../../shared/components/favorites-layout/favorites-layout.component';
 import { VodDetailsComponent } from '../../xtream/vod-details/vod-details.component';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
@@ -47,7 +47,10 @@ export class StalkerFavoritesComponent {
         params: () => ({
             refreshTimestamp: this.refreshTimestamp(),
         }),
-        stream: () => this.playlistService.getPortalFavorites(),
+        stream: () =>
+            this.playlistService.getPortalFavorites(
+                this.stalkerStore.currentPlaylist()?._id
+            ),
     });
 
     readonly categories = computed(() => [

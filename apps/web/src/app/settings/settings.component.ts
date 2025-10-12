@@ -32,27 +32,27 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import * as PlaylistActions from 'm3u-state';
+import { selectIsEpgAvailable } from 'm3u-state';
 import { take } from 'rxjs';
 import * as semver from 'semver';
-import { Playlist } from 'shared-interfaces';
 import {
+    Language,
+    Playlist,
     SET_MPV_PLAYER_PATH,
     SET_VLC_PLAYER_PATH,
     SETTINGS_UPDATE,
-} from '../../shared/ipc-commands';
-import { DataService } from '../services/data.service';
-import { DialogService } from '../services/dialog.service';
-import { EpgService } from '../services/epg.service';
-import { PlaylistsService } from '../services/playlists.service';
+    StreamFormat,
+    Theme,
+    VideoPlayer,
+} from 'shared-interfaces';
+import { DataService } from '../../../../../libs/services/src/lib/data.service';
+import { DialogService } from '../../../../../libs/services/src/lib/dialog.service';
+import { EpgService } from '../../../../../libs/services/src/lib/epg.service';
+import { PlaylistsService } from '../../../../../libs/services/src/lib/playlists.service';
 import { SettingsStore } from '../services/settings-store.service';
 import { HeaderComponent } from '../shared/components/header/header.component';
-import * as PlaylistActions from '../state/actions';
-import { selectIsEpgAvailable } from '../state/selectors';
 import { SettingsService } from './../services/settings.service';
-import { Language } from './language.enum';
-import { VideoPlayer } from './settings.interface';
-import { StreamFormat } from './stream-format.enum';
-import { Theme } from './theme.enum';
 
 @Component({
     templateUrl: './settings.component.html',
@@ -74,6 +74,18 @@ import { Theme } from './theme.enum';
     ],
 })
 export class SettingsComponent implements OnInit {
+    private dialogService = inject(DialogService);
+    public dataService = inject(DataService);
+    private epgService = inject(EpgService);
+    private formBuilder = inject(FormBuilder);
+    private playlistsService = inject(PlaylistsService);
+    private router = inject(Router);
+    private settingsService = inject(SettingsService);
+    private snackBar = inject(MatSnackBar);
+    private store = inject(Store);
+    private translate = inject(TranslateService);
+    private matDialog = inject(MatDialog);
+
     @Input() isDialog = false;
     /** List with available languages as enum */
     readonly languageEnum = Language;
@@ -82,7 +94,7 @@ export class SettingsComponent implements OnInit {
     readonly streamFormatEnum = StreamFormat;
 
     /** Flag that indicates whether the app runs in electron environment */
-    readonly isTauri = this.dataService.getAppEnvironment() === 'tauri';
+    readonly isDesktop = !!window.electron;
 
     isPwa = this.dataService.getAppEnvironment() === 'pwa';
 
@@ -111,7 +123,7 @@ export class SettingsComponent implements OnInit {
             id: VideoPlayer.ArtPlayer,
             label: 'ArtPlayer',
         },
-        ...(this.isTauri ? this.osPlayers : []),
+        ...(this.isDesktop ? this.osPlayers : []),
     ];
 
     /** Current version of the app */
@@ -129,7 +141,7 @@ export class SettingsComponent implements OnInit {
     /** Settings form object */
     settingsForm = this.formBuilder.group({
         player: [VideoPlayer.VideoJs],
-        ...(this.isTauri ? { epgUrl: new FormArray([]) } : {}),
+        ...(this.isDesktop ? { epgUrl: new FormArray([]) } : {}),
         streamFormat: StreamFormat.M3u8StreamFormat,
         language: Language.ENGLISH,
         showCaptions: false,
@@ -145,22 +157,7 @@ export class SettingsComponent implements OnInit {
 
     private settingsStore = inject(SettingsStore);
 
-    /**
-     * Creates an instance of SettingsComponent and injects
-     * required dependencies into the component
-     */
     constructor(
-        private dialogService: DialogService,
-        public dataService: DataService,
-        private epgService: EpgService,
-        private formBuilder: FormBuilder,
-        private playlistsService: PlaylistsService,
-        private router: Router,
-        private settingsService: SettingsService,
-        private snackBar: MatSnackBar,
-        private store: Store,
-        private translate: TranslateService,
-        private matDialog: MatDialog,
         @Optional() @Inject(MAT_DIALOG_DATA) data?: { isDialog: boolean }
     ) {
         this.isDialog = data?.isDialog ?? false;
@@ -182,7 +179,7 @@ export class SettingsComponent implements OnInit {
         const currentSettings = this.settingsStore.getSettings();
         this.settingsForm.patchValue(currentSettings);
 
-        if (this.isTauri && currentSettings.epgUrl) {
+        if (this.isDesktop && currentSettings.epgUrl) {
             this.setEpgUrls(currentSettings.epgUrl);
         }
     }
@@ -282,7 +279,7 @@ export class SettingsComponent implements OnInit {
      */
     applyChangedSettings(): void {
         this.settingsForm.markAsPristine();
-        if (this.isTauri) {
+        if (this.isDesktop) {
             let epgUrls = this.settingsForm.value.epgUrl;
             if (epgUrls) {
                 if (!Array.isArray(epgUrls)) {

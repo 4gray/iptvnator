@@ -3,19 +3,19 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
+import { DatabaseService, DialogService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { PlaylistInfoComponent } from '../../home/recent-playlists/playlist-info/playlist-info.component';
-import { DatabaseService } from '../../services/database.service';
-import { DialogService } from '../../services/dialog.service';
-import * as PlaylistActions from '../../state/actions';
-import { selectCurrentPlaylist } from '../../state/selectors';
+import { PlaylistInfoComponent } from 'components';
+import * as PlaylistActions from 'm3u-state';
+import { selectCurrentPlaylist } from 'm3u-state';
+import { Playlist } from 'shared-interfaces';
 
 @Component({
     selector: 'app-playlist-error-view',
     templateUrl: './playlist-error-view.component.html',
     styleUrls: ['./playlist-error-view.component.scss'],
-    imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule]
+    imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule],
 })
 export class PlaylistErrorViewComponent {
     private databaseService = inject(DatabaseService);
@@ -46,7 +46,7 @@ export class PlaylistErrorViewComponent {
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
             onConfirm: (): void =>
-                this.removePlaylist(this.currentPlaylist()._id),
+                this.removePlaylist((this.currentPlaylist() as Playlist)._id),
         });
     }
 

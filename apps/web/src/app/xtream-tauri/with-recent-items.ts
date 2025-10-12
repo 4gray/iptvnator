@@ -7,7 +7,7 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap, tap } from 'rxjs';
-import { DatabaseService } from '../services/database.service';
+import { DatabaseService } from '../../../../../libs/services/src/lib/database.service';
 
 export interface RecentlyViewedItem {
     id: number;

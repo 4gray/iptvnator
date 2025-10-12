@@ -6,7 +6,7 @@ import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule } from 'ng-mocks';
-import { DataService } from '../../services/data.service';
+import { DataService } from '../../../../../../libs/services/src/lib/data.service';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
 import { UrlUploadComponent } from './url-upload.component';
 

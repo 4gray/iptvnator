@@ -1,14 +1,13 @@
 import { Component, inject, OnDestroy } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { DataService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { Playlist } from 'shared-interfaces';
-import { ERROR, PLAYLIST_PARSE_RESPONSE } from '../../shared/ipc-commands';
-import { DataService } from '../services/data.service';
+import { addPlaylist } from 'm3u-state';
+import { ERROR, Playlist, PLAYLIST_PARSE_RESPONSE } from 'shared-interfaces';
+import { RecentPlaylistsComponent } from '../../../../../libs/ui/components/src/lib/recent-playlists/recent-playlists.component';
 import { HeaderComponent } from '../shared/components/header/header.component';
-import { addPlaylist } from '../state/actions';
-import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
 
 @Component({
     selector: 'app-home',

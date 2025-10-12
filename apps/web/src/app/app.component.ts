@@ -4,25 +4,23 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import * as semver from 'semver';
-import { IpcCommand } from '../shared/ipc-command.class';
+/* import * as semver from 'semver'; */
+import * as PlaylistActions from 'm3u-state';
 import {
     ERROR,
+    IpcCommand,
+    Language,
     OPEN_FILE,
+    Settings,
     SETTINGS_UPDATE,
-    SHOW_WHATS_NEW,
+    STORE_KEY,
+    Theme,
     VIEW_ADD_PLAYLIST,
     VIEW_SETTINGS,
-} from '../shared/ipc-commands';
-import { DataService } from './services/data.service';
-import { EpgService } from './services/epg.service';
+} from 'shared-interfaces';
+import { DataService } from '../../../../libs/services/src/lib/data.service';
+import { EpgService } from '../../../../libs/services/src/lib/epg.service';
 import { SettingsService } from './services/settings.service';
-import { WhatsNewService } from './services/whats-new.service';
-import { Language } from './settings/language.enum';
-import { Settings } from './settings/settings.interface';
-import { Theme } from './settings/theme.enum';
-import { STORE_KEY } from './shared/enums/store-keys.enum';
-import * as PlaylistActions from './state/actions';
 import { RecentlyViewedComponent } from './xtream-tauri/recently-viewed/recently-viewed.component';
 import { SearchResultsComponent } from './xtream-tauri/search-results/search-results.component';
 
@@ -40,22 +38,11 @@ export class AppComponent implements OnInit, OnDestroy {
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
     private settingsService = inject(SettingsService);
-    private whatsNewService = inject(WhatsNewService);
-
-    /** Visibility flag of the "what is new" modal dialog */
-    readonly isDialogVisible$ = this.whatsNewService.dialogState$;
-
-    /** Dialog options */
-    readonly options = this.whatsNewService.options;
-
-    /** Modals to show for the updated version of the application */
-    modals: any[] = [];
 
     /** List of ipc commands with function mapping */
     private readonly commandsList = [
         new IpcCommand(VIEW_ADD_PLAYLIST, () => this.navigateToRoute('/')),
         new IpcCommand(VIEW_SETTINGS, () => this.navigateToRoute('/settings')),
-        new IpcCommand(SHOW_WHATS_NEW, () => this.showWhatsNewDialog()),
         new IpcCommand(ERROR, (response: { message: string; status: number }) =>
             this.showErrorAsNotification(response)
         ),
@@ -107,7 +94,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
         this.setRendererListeners();
         this.initSettings();
-        this.handleWhatsNewDialog();
+        /* this.handleWhatsNewDialog(); */
     }
 
     /**
@@ -173,36 +160,17 @@ export class AppComponent implements OnInit, OnDestroy {
     /**
      * Checks the actual version of the application and shows the "what is new" dialog if the updated version was detected
      */
-    handleWhatsNewDialog(): void {
+    /* handleWhatsNewDialog(): void {
         const actualVersion = this.dataService.getAppVersion();
         this.settingsService
             .getValueFromLocalStorage(STORE_KEY.Version)
-            .subscribe((version: string) => {
-                const isNewVersion = semver.gt(
-                    actualVersion,
-                    version || '0.0.0'
-                );
-                if (!version || isNewVersion) {
-                    this.modals =
-                        this.whatsNewService.getModalsByVersion(actualVersion);
-                    this.setDialogVisibility(true);
-                }
+            .subscribe(() => {
                 this.settingsService.setValueToLocalStorage(
                     STORE_KEY.Version,
                     actualVersion
                 );
             });
-    }
-
-    /**
-     * Sets the visibility flag of the modal window
-     * @param visible show/hide window flag
-     */
-    setDialogVisibility(visible: boolean): void {
-        if (this.modals.length > 0) {
-            this.whatsNewService.changeDialogVisibleState(visible);
-        }
-    }
+    } */
 
     /**
      * Navigate to the specified route
@@ -210,16 +178,6 @@ export class AppComponent implements OnInit, OnDestroy {
      */
     navigateToRoute(route: string) {
         this.router.navigateByUrl(route);
-    }
-
-    /**
-     * Shows the "what is new" dialog
-     */
-    showWhatsNewDialog(): void {
-        this.modals = this.whatsNewService.getModalsByVersion(
-            this.dataService.getAppVersion()
-        );
-        this.setDialogVisibility(true);
     }
 
     showErrorAsNotification(response: { message: string; status: number }) {

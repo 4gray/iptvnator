@@ -1,9 +1,9 @@
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { Component, inject, input, output } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { FilterPipe } from '@iptvnator/pipes';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamCategory } from '../../../shared/xtream-category.interface';
-import { FilterPipe } from '../../shared/pipes/filter.pipe';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../portal.store';
 
@@ -12,7 +12,7 @@ import { PortalStore } from '../portal.store';
     template: `
         @if (items?.length > 0) {
             @for (
-                item of items | filterBy: searchPhrase() : 'category_name';
+                item of items() | filterBy: searchPhrase() : 'category_name';
                 track $index
             ) {
                 <mat-card
@@ -30,7 +30,7 @@ import { PortalStore } from '../portal.store';
                 </mat-card>
             }
             @if (
-                !(items | filterBy: searchPhrase() : 'category_name')?.length
+                !(items() | filterBy: searchPhrase() : 'category_name')?.length
             ) {
                 <app-playlist-error-view
                     title="No results"
@@ -59,13 +59,13 @@ import { PortalStore } from '../portal.store';
         MatIconModule,
         PlaylistErrorViewComponent,
         TranslateModule,
-    ]
+    ],
 })
 export class CategoryViewComponent {
-    @Input({ required: true }) items: XtreamCategory[];
+    readonly items = input.required<XtreamCategory[]>();
 
-    @Output() categoryClicked = new EventEmitter<XtreamCategory>();
+    readonly categoryClicked = output<XtreamCategory>();
 
-    portalStore = inject(PortalStore);
-    searchPhrase = this.portalStore.searchPhrase;
+    private readonly portalStore = inject(PortalStore);
+    readonly searchPhrase = this.portalStore.searchPhrase;
 }

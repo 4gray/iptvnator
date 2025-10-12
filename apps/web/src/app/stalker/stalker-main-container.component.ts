@@ -7,7 +7,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
-import { PlaylistsService } from '../services/playlists.service';
+import { PlaylistsService } from '../../../../../libs/services/src/lib/playlists.service';
 import { MpvPlayerBarComponent } from '../shared/components/mpv-player-bar/mpv-player-bar.component';
 import { CategoryViewComponent } from '../xtream-tauri/category-view/category-view.component';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
@@ -164,11 +164,13 @@ export class StalkerMainContainerComponent {
             }
         });
 
-        this.playlistService.getPortalFavorites().subscribe((favorites) => {
-            favorites.forEach((fav: any) => {
-                this.favorites.set(fav.id, true);
+        this.playlistService
+            .getPortalFavorites(this.stalkerStore.currentPlaylist()?._id)
+            .subscribe((favorites) => {
+                favorites.forEach((fav: any) => {
+                    this.favorites.set(fav.id, true);
+                });
             });
-        });
     }
 
     handshake() {

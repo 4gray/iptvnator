@@ -2,9 +2,10 @@ import { AsyncPipe } from '@angular/common';
 import { Component, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { PlaylistsService } from '@iptvnator/services';
 import { TranslateModule } from '@ngx-translate/core';
 import { BehaviorSubject, map, switchMap } from 'rxjs';
-import { PlaylistsService } from '../../services/playlists.service';
+import { StalkerStore } from '../stalker.store';
 
 @Component({
     selector: 'app-favorites-button',
@@ -13,6 +14,7 @@ import { PlaylistsService } from '../../services/playlists.service';
 })
 export class FavoritesButtonComponent {
     private playlistService = inject(PlaylistsService);
+    private stalkerStore = inject(StalkerStore);
 
     readonly itemId = input.required<string>();
 
@@ -22,7 +24,11 @@ export class FavoritesButtonComponent {
     private readonly favoritesChanged$ = new BehaviorSubject<void>(undefined);
 
     readonly isFavorite$ = this.favoritesChanged$.pipe(
-        switchMap(() => this.playlistService.getPortalFavorites()),
+        switchMap(() =>
+            this.playlistService.getPortalFavorites(
+                this.stalkerStore.currentPlaylist()?._id
+            )
+        ),
         map((favorites) =>
             favorites.some(
                 (i) =>

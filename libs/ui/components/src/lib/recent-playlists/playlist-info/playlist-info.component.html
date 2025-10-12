@@ -1,0 +1,152 @@
+<form
+    [formGroup]="playlistDetails"
+    (ngSubmit)="saveChanges(playlistDetails.value)"
+>
+    <h2 mat-dialog-title>
+        {{ 'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_DETAILS' | translate }}
+    </h2>
+    <mat-dialog-content class="mat-typography">
+        <mat-form-field class="full-width">
+            <mat-label>{{
+                'HOME.PLAYLISTS.INFO_DIALOG.TITLE' | translate
+            }}</mat-label>
+            <input formControlName="title" matInput />
+        </mat-form-field>
+        @if (playlist.portalUrl) {
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.SERVER_URL' | translate
+                }}</mat-label>
+                <input matInput formControlName="portalUrl" />
+            </mat-form-field>
+        }
+        @if (playlist.macAddress) {
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.MAC_ADDRESS' | translate
+                }}</mat-label>
+                <input matInput formControlName="macAddress" />
+            </mat-form-field>
+        }
+        @if (playlist.serverUrl) {
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.SERVER_URL' | translate
+                }}</mat-label>
+                <input matInput formControlName="serverUrl" />
+            </mat-form-field>
+        }
+        @if (playlist.username) {
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.USERNAME' | translate
+                }}</mat-label>
+                <input matInput formControlName="username" />
+            </mat-form-field>
+        }
+        @if (playlist.password) {
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.PASSWORD' | translate
+                }}</mat-label>
+                <input matInput formControlName="password" />
+            </mat-form-field>
+        }
+        @if (playlist.url) {
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.FROM_URL' | translate
+                }}</mat-label>
+                <input matInput formControlName="url" />
+            </mat-form-field>
+        }
+        @if (playlist.filename) {
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.ORIGINAL_FILENAME' | translate
+                }}</mat-label>
+                <input matInput formControlName="filename" />
+            </mat-form-field>
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.IMPORT_DATE' | translate
+                }}</mat-label>
+                <input matInput formControlName="importDate" />
+            </mat-form-field>
+        }
+        @if (playlist.count) {
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.CHANNELS' | translate
+                }}</mat-label>
+                <input matInput formControlName="count" />
+            </mat-form-field>
+        }
+        @if (isTauri) {
+            <mat-form-field class="full-width mb-10">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.USER_AGENT' | translate
+                }}</mat-label>
+                <input formControlName="userAgent" matInput />
+                <mat-hint>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.CUSTOM_USER_AGENT' | translate
+                }}</mat-hint>
+            </mat-form-field>
+        }
+        @if (playlist.filePath) {
+            <mat-form-field class="full-width">
+                <mat-label>
+                    {{ 'HOME.PLAYLISTS.INFO_DIALOG.FILE_PATH' | translate }}
+                </mat-label>
+                <input formControlName="filePath" matInput />
+                @if (playlist.updateState === 2) {
+                    <mat-hint>
+                        {{
+                            'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED'
+                                | translate
+                        }}
+                    </mat-hint>
+                }
+            </mat-form-field>
+        }
+        @if (isTauri && (playlist.url || playlist.filePath)) {
+            <ng-container>
+                <mat-checkbox class="full-width" formControlName="autoRefresh">
+                    {{ 'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE' | translate }}
+                </mat-checkbox>
+                <p>
+                    {{
+                        'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </ng-container>
+        }
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+        @if (!playlist.serverUrl && !playlist.portalUrl) {
+            <button
+                mat-flat-button
+                color="accent"
+                type="button"
+                (click)="exportPlaylist()"
+            >
+                <mat-icon>download</mat-icon>
+                {{ 'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_PLAYLIST' | translate }}
+            </button>
+        }
+        <span class="spacer"></span>
+        <button mat-button mat-dialog-close>
+            {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
+        </button>
+        <button
+            mat-flat-button
+            mat-dialog-close
+            color="accent"
+            type="submit"
+            [disabled]="!playlistDetails.valid || playlistDetails.pristine"
+        >
+            {{ 'HOME.PLAYLISTS.INFO_DIALOG.SAVE' | translate }}
+        </button>
+    </mat-dialog-actions>
+</form>

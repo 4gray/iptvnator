@@ -1,13 +1,16 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { OPEN_MPV_PLAYER, OPEN_VLC_PLAYER } from '../../shared/ipc-commands';
-import { VideoPlayer } from '../settings/settings.interface';
+import {
+    OPEN_MPV_PLAYER,
+    OPEN_VLC_PLAYER,
+    VideoPlayer,
+} from 'shared-interfaces';
+import { DataService } from '../../../../../libs/services/src/lib/data.service';
 import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
 import {
     PlayerDialogComponent,
     PlayerDialogData,
 } from '../xtream-tauri/player-dialog/player-dialog.component';
-import { DataService } from './data.service';
 import { SettingsStore } from './settings-store.service';
 
 @Injectable({

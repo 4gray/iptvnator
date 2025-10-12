@@ -25,23 +25,19 @@ import {
     MockProvider,
     MockProviders,
 } from 'ng-mocks';
-import { DataService } from '../services/data.service';
+import { Language, StreamFormat, Theme, VideoPlayer } from 'shared-interfaces';
+import { DataService } from '../../../../../libs/services/src/lib/data.service';
 import { HeaderComponent } from '../shared/components';
-import { StreamFormat } from './stream-format.enum';
-import { Language } from './language.enum';
 import { SettingsComponent } from './settings.component';
-import { VideoPlayer } from './settings.interface';
-import { Theme } from './theme.enum';
 
 import { signal } from '@angular/core';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { NgxWhatsNewModule } from 'ngx-whats-new';
 import { of } from 'rxjs';
-import { SETTINGS_UPDATE } from '../../../shared/ipc-commands';
-import { DialogService } from '../services/dialog.service';
+import { SETTINGS_UPDATE } from 'shared-interfaces';
+import { DialogService } from '../../../../../libs/services/src/lib/dialog.service';
+import { EpgService } from '../../../../../libs/services/src/lib/epg.service';
+import { PlaylistsService } from '../../../../../libs/services/src/lib/playlists.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
-import { EpgService } from '../services/epg.service';
-import { PlaylistsService } from '../services/playlists.service';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
 
@@ -129,7 +125,6 @@ describe('SettingsComponent', () => {
                 MockModule(MatCheckboxModule),
                 MockModule(MatDividerModule),
                 TranslateModule.forRoot(),
-                NgxWhatsNewModule,
             ],
         }).compileComponents();
     }));

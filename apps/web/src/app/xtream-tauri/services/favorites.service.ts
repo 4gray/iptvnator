@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { from, map, mergeMap, Observable } from 'rxjs';
-import { DatabaseService } from '../../services/database.service';
+import { DatabaseService } from '../../../../../../libs/services/src/lib/database.service';
 import { FavoriteItem } from './favorite-item.interface';
 
 @Injectable({

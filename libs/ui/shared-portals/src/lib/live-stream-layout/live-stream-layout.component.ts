@@ -1,0 +1,55 @@
+import { ScrollingModule } from '@angular/cdk/scrolling';
+import { NgIf } from '@angular/common';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    EventEmitter,
+    Input,
+    Output,
+    signal,
+} from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { FilterPipe } from '@iptvnator/pipes';
+import { TranslateModule } from '@ngx-translate/core';
+import { EpgItem, VideoPlayer, XtreamItem } from 'shared-interfaces';
+import { EpgViewComponent } from '../epg-view/epg-view.component';
+import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
+
+@Component({
+    selector: 'app-live-stream-layout',
+    templateUrl: './live-stream-layout.component.html',
+    styleUrls: ['./live-stream-layout.component.scss'],
+    imports: [
+        EpgViewComponent,
+        FilterPipe,
+        FormsModule,
+        MatListModule,
+        MatIconModule,
+        MatInputModule,
+        MatFormFieldModule,
+        NgIf,
+        ScrollingModule,
+        WebPlayerViewComponent,
+        TranslateModule,
+    ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class LiveStreamLayoutComponent {
+    @Input({ required: true }) channels!: XtreamItem[];
+    @Input({ required: true }) player: VideoPlayer = VideoPlayer.VideoJs;
+    @Input() epgItems!: EpgItem[];
+    @Input() streamUrl!: string;
+    @Input() activeLiveStream!: XtreamItem;
+
+    @Output() itemClicked = new EventEmitter<XtreamItem>();
+
+    searchString = signal<string>('');
+
+    trackBy(_index: number, item: XtreamItem) {
+        return item.stream_id;
+    }
+}

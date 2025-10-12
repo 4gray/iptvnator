@@ -1,0 +1,100 @@
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { ActivatedRoute } from '@angular/router';
+import { RouterTestingModule } from '@angular/router/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
+import { TranslateModule } from '@ngx-translate/core';
+import { MockComponent, MockModule, MockProviders } from 'ng-mocks';
+import { ElectronServiceStub } from '../../../../../../apps/web/src/app/services/electron.service.stub';
+import { DataService } from '../../../../../services/src/lib/data.service';
+import { VideoPlayer } from '../../../../../shared/interfaces/src/lib/settings.interface';
+import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
+import { EpgListComponent } from '../epg-list/epg-list.component';
+import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
+import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
+import { InfoOverlayComponent } from './../info-overlay/info-overlay.component';
+import { VideoPlayerComponent } from './video-player.component';
+
+import { CommonModule } from '@angular/common';
+import { Actions } from '@ngrx/effects';
+import { provideMockActions } from '@ngrx/effects/testing';
+import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
+import { Observable, of } from 'rxjs';
+import { initialState } from '../../../../../../apps/web/src/app/state/state';
+import { PlaylistsService } from '../../../../../services/src/lib/playlists.service';
+
+class MatSnackBarStub {
+    open(): void {}
+}
+
+describe('VideoPlayerComponent', () => {
+    let component: VideoPlayerComponent;
+    let fixture: ComponentFixture<VideoPlayerComponent>;
+    let mockStore: MockStore;
+    const actions$ = new Observable<Actions>();
+
+    beforeEach(waitForAsync(() => {
+        TestBed.configureTestingModule({
+            providers: [
+                { provide: MatSnackBar, useClass: MatSnackBarStub },
+                { provide: DataService, useClass: ElectronServiceStub },
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        params: of({ id: '1' }),
+                        snapshot: {
+                            queryParams: {
+                                url: 'https://iptvnator/list.m3u',
+                            },
+                        },
+                    },
+                },
+                provideMockStore(),
+                provideMockActions(actions$),
+                MockProviders(NgxIndexedDBService, PlaylistsService),
+            ],
+            imports: [
+                MockComponent(EpgListComponent),
+                MockComponent(HtmlVideoPlayerComponent),
+                MockComponent(VjsPlayerComponent),
+                MockComponent(VideoPlayerComponent),
+                MockComponent(ChannelListContainerComponent),
+                MockComponent(InfoOverlayComponent),
+                VideoPlayerComponent,
+                CommonModule,
+                TranslateModule.forRoot(),
+                MockModule(MatSidenavModule),
+                MockModule(MatIconModule),
+                MockModule(MatToolbarModule),
+                MockModule(MatTooltipModule),
+                MockModule(RouterTestingModule),
+                MockModule(MatDividerModule),
+                MockComponent(NgxSkeletonLoaderComponent),
+            ],
+        }).compileComponents();
+    }));
+
+    beforeEach(() => {
+        fixture = TestBed.createComponent(VideoPlayerComponent);
+        component = fixture.componentInstance;
+        mockStore = TestBed.inject(MockStore);
+
+        mockStore.setState({
+            playlistState: initialState,
+        });
+        fixture.detectChanges();
+    });
+
+    it('should check default component settings', () => {
+        expect(component.playerSettings).toEqual({
+            player: VideoPlayer.VideoJs,
+            showCaptions: false,
+        });
+    });
+});

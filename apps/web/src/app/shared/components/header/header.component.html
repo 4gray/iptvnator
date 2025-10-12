@@ -1,10 +1,14 @@
 <mat-toolbar>
     <div class="logo">
-        <img src="./assets/icons/icon-tv-256.png" height="100" />
+        <img
+            src="./assets/icons/icon-tv-256.png"
+            height="100"
+            alt="iptvnator logo"
+        />
     </div>
     <div class="main">
-        <div class="title">{{ title }}</div>
-        <div class="subtitle">{{ subtitle }}</div>
+        <div class="title">{{ title() }}</div>
+        <div class="subtitle">{{ subtitle() }}</div>
     </div>
     @if (isHome) {
         <div class="menu">
@@ -34,7 +38,7 @@
             >
                 <mat-icon>filter_alt</mat-icon>
             </button>
-            @if (isElectron || isTauri) {
+            @if (isDesktop) {
                 <button
                     mat-icon-button
                     (click)="openSettings()"
@@ -83,15 +87,7 @@
                         <mat-icon>bug_report</mat-icon>
                         <span>{{ 'MENU.BUG_REPORT' | translate }}</span>
                     </button>
-                    <mat-divider></mat-divider>
-                    <button
-                        mat-menu-item
-                        [attr.aria-label]="'MENU.WHAT_IS_NEW' | translate"
-                        (click)="setDialogVisibility(true)"
-                    >
-                        <mat-icon>new_releases</mat-icon>
-                        <span>{{ 'MENU.WHAT_IS_NEW' | translate }}</span>
-                    </button>
+                    <mat-divider />
                     <button
                         mat-menu-item
                         [attr.aria-label]="'MENU.SUPPORT_PROJECT' | translate"
@@ -235,11 +231,3 @@
         </div>
     }
 </mat-toolbar>
-
-@if (!isElectron && isDialogVisible$ | async) {
-    <ngx-whats-new
-        (closeModal)="setDialogVisibility(false)"
-        [items]="modals"
-        [options]="options"
-    />
-}

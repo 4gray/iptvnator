@@ -1,9 +1,1 @@
-<router-outlet></router-outlet>
-<!-- whats new dialog -->
-@if (isDialogVisible$ | async) {
-  <ngx-whats-new
-    (closeModal)="setDialogVisibility(false)"
-    [items]="modals"
-    [options]="options"
-    />
-}
+<router-outlet />

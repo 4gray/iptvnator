@@ -5,4 +5,7 @@ contextBridge.exposeInMainWorld('electron', {
     platform: process.platform,
     fetchPlaylistByUrl: (url: string) =>
         ipcRenderer.invoke('fetch-playlist-by-url', url),
+    updatePlaylistFromFilePath: (filePath: string, title: string) =>
+        ipcRenderer.invoke('update-playlist-from-file-path', filePath, title),
+    openPlaylistFromFile: () => ipcRenderer.invoke('open-playlist-from-file'),
 });

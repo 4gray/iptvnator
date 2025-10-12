@@ -7,9 +7,10 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistInfoComponent } from '../../home/recent-playlists/playlist-info/playlist-info.component';
+import { PlaylistInfoComponent } from 'components';
+import { selectPlaylistById } from 'm3u-state';
+import { Playlist } from 'shared-interfaces';
 import { SettingsComponent } from '../../settings/settings.component';
-import { selectPlaylistById } from '../../state/selectors';
 import { AccountInfoComponent } from '../account-info/account-info.component';
 import { XtreamStore } from '../xtream.store';
 import { NavigationItem } from './navigation.interface';
@@ -45,7 +46,7 @@ export class NavigationComponent {
     );
 
     readonly isStalkerPlaylist = computed(
-        () => this.currentPlaylist().macAddress
+        () => (this.currentPlaylist() as Playlist).macAddress
     );
 
     readonly navigationItems = input<NavigationItem[]>();

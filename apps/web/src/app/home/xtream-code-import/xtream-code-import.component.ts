@@ -12,13 +12,13 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { addPlaylist } from 'm3u-state';
 import { Playlist } from 'shared-interfaces';
 import { v4 as uuid } from 'uuid';
 import {
     PortalStatus,
     PortalStatusService,
-} from '../../services/portal-status.service';
-import { addPlaylist } from '../../state/actions';
+} from '../../../../../../libs/services/src/lib/portal-status.service';
 
 @Component({
     imports: [

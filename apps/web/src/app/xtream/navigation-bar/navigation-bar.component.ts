@@ -1,4 +1,3 @@
-
 import {
     Component,
     EventEmitter,
@@ -21,6 +20,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
+import { PlaylistInfoComponent } from 'components';
+import { selectCurrentPlaylist } from 'm3u-state';
 import {
     Observable,
     Subject,
@@ -29,9 +30,7 @@ import {
     map,
 } from 'rxjs';
 import { XtreamLiveStream } from '../../../shared/xtream-live-stream.interface';
-import { PlaylistInfoComponent } from '../../home/recent-playlists/playlist-info/playlist-info.component';
 import { SettingsComponent } from '../../settings/settings.component';
-import { selectCurrentPlaylist } from '../../state/selectors';
 
 import { SettingsStore } from '../../services/settings-store.service';
 import { Breadcrumb } from '../breadcrumb.interface';
@@ -44,18 +43,18 @@ import { PortalStore } from '../portal.store';
     templateUrl: './navigation-bar.component.html',
     styleUrls: ['./navigation-bar.component.scss'],
     imports: [
-    FormsModule,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatIconModule,
-    MatInputModule,
-    MatFormFieldModule,
-    RouterLink,
-    TranslateModule,
-    MatMenuModule,
-    MatCheckboxModule,
-    MatTooltipModule
-],
+        FormsModule,
+        MatButtonModule,
+        MatButtonToggleModule,
+        MatIconModule,
+        MatInputModule,
+        MatFormFieldModule,
+        RouterLink,
+        TranslateModule,
+        MatMenuModule,
+        MatCheckboxModule,
+        MatTooltipModule,
+    ],
 })
 export class NavigationBarComponent implements OnChanges {
     @Input({ required: true }) breadcrumbs: Breadcrumb[];

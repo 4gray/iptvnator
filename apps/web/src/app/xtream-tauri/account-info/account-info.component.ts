@@ -4,8 +4,8 @@ import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { DataService } from '../../services/data.service';
-import { selectActivePlaylist } from '../../state/selectors';
+import { selectActivePlaylist } from 'm3u-state';
+import { DataService } from '../../../../../../libs/services/src/lib/data.service';
 import { XtreamAccountInfo } from './account-info.interface';
 
 @Component({
@@ -159,7 +159,6 @@ export class AccountInfoComponent {
 
     async setAccountInfo() {
         const playlist = this.currentPlaylist();
-        console.log(playlist);
         if (!playlist) return;
 
         try {

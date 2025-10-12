@@ -2,7 +2,7 @@ import { Component, effect, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import * as PlaylistActions from '../../state/actions';
+import * as PlaylistActions from 'm3u-state';
 import { LoadingOverlayComponent } from '../loading-overlay/loading-overlay.component';
 import { NavigationComponent } from '../navigation/navigation.component';
 import { NavigationItem } from '../navigation/navigation.interface';

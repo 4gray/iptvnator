@@ -3,10 +3,9 @@ import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { FilterPipe, SortPipe } from '@iptvnator/pipes';
 import { TranslateModule } from '@ngx-translate/core';
-import { XtreamItem } from '../../../shared/xtream-item.interface';
-import { FilterPipe } from '../../shared/pipes/filter.pipe';
-import { SortPipe } from '../../shared/pipes/sort.pipe';
+import { XtreamItem } from '../../../../../../libs/shared/interfaces/src/lib/xtream-item.interface';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../portal.store';
 
@@ -23,7 +22,7 @@ import { PortalStore } from '../portal.store';
         NgOptimizedImage,
         PlaylistErrorViewComponent,
         TranslateModule,
-    ]
+    ],
 })
 export class CategoryContentViewComponent {
     @Input({ required: true }) items: XtreamItem[];

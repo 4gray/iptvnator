@@ -1,9 +1,9 @@
+import { GlobalSearchResult } from '../../../../../libs/services/src/lib/database.service';
+import { EpgItem } from '../../../../../libs/shared/interfaces/src/lib/epg-item.interface';
+import { XtreamSerieItem } from '../../../../../libs/shared/interfaces/src/lib/xtream-serie-item.interface';
 import { XtreamCategory } from '../../shared/xtream-category.interface';
 import { XtreamLiveStream } from '../../shared/xtream-live-stream.interface';
-import { XtreamSerieItem } from '../../shared/xtream-serie-item.interface';
 import { XtreamVodStream } from '../../shared/xtream-vod-stream.interface';
-import { GlobalSearchResult } from '../services/database.service';
-import { EpgItem } from '../xtream/epg-item.interface';
 
 export type ContentType = 'live' | 'vod' | 'series';
 

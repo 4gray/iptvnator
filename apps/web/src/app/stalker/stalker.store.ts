@@ -9,12 +9,11 @@ import {
     withState,
 } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
-import { STALKER_REQUEST } from '../../shared/ipc-commands';
+import { PlaylistMeta, STALKER_REQUEST } from 'shared-interfaces';
+import { DataService } from '../../../../../libs/services/src/lib/data.service';
+import { PlaylistsService } from '../../../../../libs/services/src/lib/playlists.service';
 import { StalkerPortalActions } from '../../shared/stalker-portal-actions.enum';
-import { DataService } from '../services/data.service';
 import { PlayerService } from '../services/player.service';
-import { PlaylistsService } from '../services/playlists.service';
-import { PlaylistMeta } from '../shared/playlist-meta.type';
 import { ContentType } from '../xtream/content-type.enum';
 import { StalkerSeason } from './models/stalker-season.interface';
 import { StalkerContentTypes } from './stalker-content-types';
@@ -483,7 +482,7 @@ export const StalkerStore = signalStore(
             addToRecentlyViewed(item: any) {
                 console.log('Adding to recently viewed', item);
                 playlistService
-                    .addPortalRecentlyViewed({
+                    .addPortalRecentlyViewed(this.currentPlaylist()?._id, {
                         ...item,
                         category_id: store.selectedContentType(),
                         added_at: Date.now(),
@@ -492,7 +491,10 @@ export const StalkerStore = signalStore(
             },
             removeFromRecentlyViewed(itemId: number) {
                 playlistService
-                    .removeFromPortalRecentlyViewed(itemId)
+                    .removeFromPortalRecentlyViewed(
+                        this.currentPlaylist()?._id,
+                        itemId
+                    )
                     .subscribe();
             },
         })

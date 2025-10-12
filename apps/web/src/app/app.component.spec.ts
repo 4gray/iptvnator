@@ -14,16 +14,16 @@ import { MockComponent, MockModule, MockPipe, MockProviders } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { NgxWhatsNewComponent } from 'ngx-whats-new';
 import { of } from 'rxjs';
+import { DataService } from '../../../../libs/services/src/lib/data.service';
+import { PlaylistsService } from '../../../../libs/services/src/lib/playlists.service';
+import { Language } from '../../../../libs/shared/interfaces/src/lib/language.enum';
+import { STORE_KEY } from '../../../../libs/shared/interfaces/src/lib/store-keys.enum';
+import { Theme } from '../../../../libs/shared/interfaces/src/lib/theme.enum';
 import { AppComponent } from './app.component';
-import { DataService } from './services/data.service';
 import { ElectronServiceStub } from './services/electron.service.stub';
-import { PlaylistsService } from './services/playlists.service';
 import { SettingsService } from './services/settings.service';
 import { WhatsNewService } from './services/whats-new.service';
 import { WhatsNewServiceStub } from './services/whats-new.service.stub';
-import { Language } from './settings/language.enum';
-import { Theme } from './settings/theme.enum';
-import { STORE_KEY } from './shared/enums/store-keys.enum';
 
 jest.spyOn(global.console, 'error').mockImplementation(() => {});
 

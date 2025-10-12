@@ -10,10 +10,10 @@ import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockProvider } from 'ng-mocks';
 import { Observable } from 'rxjs';
-import { DataService } from '../services/data.service';
+import { DataService } from '../../../../../libs/services/src/lib/data.service';
+import { RecentPlaylistsComponent } from '../../../../../libs/ui/components/src/lib/recent-playlists/recent-playlists.component';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { HomeComponent } from './home.component';
-import { RecentPlaylistsComponent } from './recent-playlists/recent-playlists.component';
 
 describe('HomeComponent', () => {
     let component: HomeComponent;

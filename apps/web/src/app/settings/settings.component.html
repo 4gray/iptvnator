@@ -1,6 +1,6 @@
 @if (!isDialog) {
-  <app-header
-    [title]="'SETTINGS.TITLE' | translate"
+    <app-header
+        [title]="'SETTINGS.TITLE' | translate"
         [subtitle]="
             ('SETTINGS.SUBTITLE' | translate) +
             '. ' +
@@ -8,241 +8,253 @@
         "
     />
 } @else {
-  <h2 mat-dialog-title>{{ 'SETTINGS.TITLE' | translate }}</h2>
+    <h2 mat-dialog-title>{{ 'SETTINGS.TITLE' | translate }}</h2>
 }
 
 <div class="settings-container" data-test-id="settings-container">
-  <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" novalidate>
-    @if (isTauri) {
-      <ng-container formArrayName="epgUrl">
+    <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" novalidate>
+        @if (isDesktop) {
+            <ng-container formArrayName="epgUrl">
+                <div class="row">
+                    <div class="column">
+                        {{ 'SETTINGS.EPG_URL_LABEL' | translate }}
+                        <p>Add single or multiple URLs as EPG sources</p>
+                    </div>
+                    <div class="column">
+                        @for (_ of epgUrl.controls; track _; let i = $index) {
+                            <div style="display: flex">
+                                <mat-form-field
+                                    appearance="outline"
+                                    class="full-width"
+                                >
+                                    <mat-label>{{
+                                        'SETTINGS.EPG_URL_PLACEHOLDER'
+                                            | translate
+                                    }}</mat-label>
+                                    <input
+                                        matInput
+                                        type="url"
+                                        [formControlName]="i"
+                                        #epgField
+                                    />
+                                    <mat-error>{{
+                                        'SETTINGS.EPG_URL_ERROR' | translate
+                                    }}</mat-error>
+                                </mat-form-field>
+                                <button
+                                    matLine
+                                    mat-icon-button
+                                    color="accent"
+                                    [matTooltip]="
+                                        'SETTINGS.REFRESH_EPG' | translate
+                                    "
+                                    type="button"
+                                    [disabled]="epgField.value === ''"
+                                    (click)="refreshEpg(epgUrl.value[i])"
+                                >
+                                    <mat-icon>refresh</mat-icon>
+                                </button>
+                                <button
+                                    mat-icon-button
+                                    matLine
+                                    color="accent"
+                                    [matTooltip]="
+                                        'SETTINGS.REFRESH_EPG' | translate
+                                    "
+                                    type="button"
+                                    (click)="removeEpgSource(i)"
+                                >
+                                    <mat-icon>remove</mat-icon>
+                                </button>
+                            </div>
+                        }
+                        <button
+                            mat-button
+                            color="accent"
+                            type="button"
+                            (click)="addEpgSource()"
+                        >
+                            {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
+                        </button>
+                    </div>
+                </div>
+                <mat-divider />
+            </ng-container>
+        }
         <div class="row">
-          <div class="column">
-            {{ 'SETTINGS.EPG_URL_LABEL' | translate }}
-            <p>Add single or multiple URLs as EPG sources</p>
-          </div>
-          <div class="column">
-            @for (_ of epgUrl.controls; track _; let i = $index) {
-              <div
-                style="display: flex"
-                >
-                <mat-form-field appearance="outline" class="full-width">
-                  <mat-label>{{
-                    'SETTINGS.EPG_URL_PLACEHOLDER' | translate
-                  }}</mat-label>
-                  <input
-                    matInput
-                    type="url"
-                    [formControlName]="i"
-                    #epgField
-                    />
-                  <mat-error>{{
-                    'SETTINGS.EPG_URL_ERROR' | translate
-                  }}</mat-error>
+            <div class="column">
+                {{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}
+                <p>{{ 'SETTINGS.VIDEO_PLAYER_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="column">
+                <mat-form-field appearance="outline">
+                    <mat-label>{{
+                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="player"
+                        data-test-id="select-video-player"
+                    >
+                        @for (player of players; track player) {
+                            <mat-option
+                                [value]="player.id"
+                                [attr.data-test-id]="player.id"
+                                >{{ player.label }}
+                            </mat-option>
+                        }
+                    </mat-select>
                 </mat-form-field>
-                <button
-                  matLine
-                  mat-icon-button
-                  color="accent"
-                  [matTooltip]="'SETTINGS.REFRESH_EPG' | translate"
-                  type="button"
-                  [disabled]="epgField.value === ''"
-                  (click)="refreshEpg(epgUrl.value[i])"
-                  >
-                  <mat-icon>refresh</mat-icon>
-                </button>
-                <button
-                  mat-icon-button
-                  matLine
-                  color="accent"
-                  [matTooltip]="'SETTINGS.REFRESH_EPG' | translate"
-                  type="button"
-                  (click)="removeEpgSource(i)"
-                  >
-                  <mat-icon>remove</mat-icon>
-                </button>
-              </div>
-            }
-            <button
-              mat-button
-              color="accent"
-              type="button"
-              (click)="addEpgSource()"
-              >
-              {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
-            </button>
-          </div>
+            </div>
         </div>
+        @if (settingsForm.value.player === 'mpv') {
+            <div class="row">
+                <div class="column">
+                    {{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}
+                    <p>
+                        {{ 'SETTINGS.MPV_PLAYER_PATH_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="column">
+                    <mat-form-field appearance="outline">
+                        <mat-label for="mpvPlayerPath">{{
+                            'SETTINGS.MPV_PLAYER_PATH' | translate
+                        }}</mat-label>
+                        <input
+                            matInput
+                            type="text"
+                            id="mpvPlayerPath"
+                            formControlName="mpvPlayerPath"
+                        />
+                    </mat-form-field>
+                </div>
+            </div>
+        }
+        @if (settingsForm.value.player === 'vlc') {
+            <div class="row">
+                <div class="column">
+                    {{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}
+                    <p>
+                        {{ 'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="column">
+                    <mat-form-field appearance="outline">
+                        <mat-label for="vlcPlayerPath">{{
+                            'SETTINGS.VLC_PLAYER_PATH' | translate
+                        }}</mat-label>
+                        <input
+                            matInput
+                            type="text"
+                            id="vlcPlayerPath"
+                            formControlName="vlcPlayerPath"
+                        />
+                    </mat-form-field>
+                </div>
+            </div>
+        }
         <mat-divider />
-      </ng-container>
-    }
-    <div class="row">
-      <div class="column">
-        {{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}
-        <p>{{ 'SETTINGS.VIDEO_PLAYER_DESCRIPTION' | translate }}</p>
-      </div>
-      <div class="column">
-        <mat-form-field appearance="outline">
-          <mat-label>{{
-            'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-          }}</mat-label>
-          <mat-select
-            formControlName="player"
-            data-test-id="select-video-player"
-            >
-            @for (player of players; track player) {
-              <mat-option
-                [value]="player.id"
-                [attr.data-test-id]="player.id"
-                >{{ player.label }}
-              </mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-      </div>
-    </div>
-    @if (settingsForm.value.player === 'mpv') {
-      <div class="row">
-        <div class="column">
-          {{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}
-          <p>
-            {{ 'SETTINGS.MPV_PLAYER_PATH_DESCRIPTION' | translate }}
-          </p>
-        </div>
-        <div class="column">
-          <mat-form-field appearance="outline">
-            <mat-label for="mpvPlayerPath">{{
-              'SETTINGS.MPV_PLAYER_PATH' | translate
-            }}</mat-label>
-            <input
-              matInput
-              type="text"
-              id="mpvPlayerPath"
-              formControlName="mpvPlayerPath"
-              />
-          </mat-form-field>
-        </div>
-      </div>
-    }
-    @if (settingsForm.value.player === 'vlc') {
-      <div class="row">
-        <div class="column">
-          {{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}
-          <p>
-            {{ 'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION' | translate }}
-          </p>
-        </div>
-        <div class="column">
-          <mat-form-field appearance="outline">
-            <mat-label for="vlcPlayerPath">{{
-              'SETTINGS.VLC_PLAYER_PATH' | translate
-            }}</mat-label>
-            <input
-              matInput
-              type="text"
-              id="vlcPlayerPath"
-              formControlName="vlcPlayerPath"
-              />
-          </mat-form-field>
-        </div>
-      </div>
-    }
-    <mat-divider />
-    <div class="row">
-      <div class="column">
-        {{ 'SETTINGS.STREAM_FORMAT' | translate }}
-        <p>{{ 'SETTINGS.STREAM_FORMAT_DESCRIPTION' | translate }}</p>
-      </div>
-      <div class="column">
-        <mat-form-field appearance="outline">
-          <mat-label>{{
-            'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-          }}</mat-label>
-          <mat-select
-            formControlName="streamFormat"
-            data-test-id="select-stream-format"
-            >
-            @for (streamFormat of streamFormatEnum | keyvalue; track streamFormat) {
-              <mat-option
-                [value]="streamFormat.value"
-                [attr.data-test-id]="streamFormat.value"
-                >{{ streamFormat.value }}
-              </mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-      </div>
-    </div>
-    <mat-divider />
-    <div class="row">
-      <div class="column">
-        {{ 'SETTINGS.LANGUAGE' | translate }}
-        <p>{{ 'SETTINGS.LANGUAGE_DESCRIPTION' | translate }}</p>
-      </div>
-      <div class="column">
-        <mat-form-field appearance="outline">
-          <mat-label>{{
-            'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-          }}</mat-label>
-          <mat-select
-            formControlName="language"
-            data-test-id="select-language"
-            >
-            @for (language of languageEnum | keyvalue; track language) {
-              <mat-option
-                [value]="language.value"
-                [attr.data-test-id]="language.value"
-                >{{
-                'LANGUAGES.' + language.key | translate
-                }}</mat-option
-                >
-              }
-            </mat-select>
-          </mat-form-field>
-        </div>
-      </div>
-      <mat-divider />
-      <div class="row">
-        <div class="column">
-          {{ 'SETTINGS.THEME' | translate }}
-          <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
-        </div>
-        <div class="column">
-          <mat-form-field appearance="outline">
-            <mat-label>{{
-              'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-            }}</mat-label>
-            <mat-select
-              formControlName="theme"
-              data-test-id="select-theme"
-              >
-              @for (theme of themeEnum | keyvalue; track theme) {
-                <mat-option
-                  [value]="theme.value"
-                  [attr.data-test-id]="theme.value"
-                  >{{
-                  'THEMES.' + theme.value | translate
-                  }}</mat-option
-                  >
-                }
-              </mat-select>
-            </mat-form-field>
-          </div>
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.STREAM_FORMAT' | translate }}
+                <p>{{ 'SETTINGS.STREAM_FORMAT_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="column">
+                <mat-form-field appearance="outline">
+                    <mat-label>{{
+                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="streamFormat"
+                        data-test-id="select-stream-format"
+                    >
+                        @for (
+                            streamFormat of streamFormatEnum | keyvalue;
+                            track streamFormat
+                        ) {
+                            <mat-option
+                                [value]="streamFormat.value"
+                                [attr.data-test-id]="streamFormat.value"
+                                >{{ streamFormat.value }}
+                            </mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+            </div>
         </div>
         <mat-divider />
         <div class="row">
-          <div class="column">
-            {{ 'SETTINGS.SHOW_CAPTIONS' | translate }}
-            <p>{{ 'SETTINGS.SHOW_CAPTIONS_DESCRIPTION' | translate }}</p>
-          </div>
-          <div class="column" style="margin-right: 10px">
-            <mat-checkbox
-              class="column"
-              formControlName="showCaptions"
-            ></mat-checkbox>
-          </div>
+            <div class="column">
+                {{ 'SETTINGS.LANGUAGE' | translate }}
+                <p>{{ 'SETTINGS.LANGUAGE_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="column">
+                <mat-form-field appearance="outline">
+                    <mat-label>{{
+                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="language"
+                        data-test-id="select-language"
+                    >
+                        @for (
+                            language of languageEnum | keyvalue;
+                            track language
+                        ) {
+                            <mat-option
+                                [value]="language.value"
+                                [attr.data-test-id]="language.value"
+                                >{{
+                                    'LANGUAGES.' + language.key | translate
+                                }}</mat-option
+                            >
+                        }
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        </div>
+        <mat-divider />
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.THEME' | translate }}
+                <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="column">
+                <mat-form-field appearance="outline">
+                    <mat-label>{{
+                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="theme"
+                        data-test-id="select-theme"
+                    >
+                        @for (theme of themeEnum | keyvalue; track theme) {
+                            <mat-option
+                                [value]="theme.value"
+                                [attr.data-test-id]="theme.value"
+                                >{{
+                                    'THEMES.' + theme.value | translate
+                                }}</mat-option
+                            >
+                        }
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        </div>
+        <mat-divider />
+        <div class="row">
+            <div class="column">
+                {{ 'SETTINGS.SHOW_CAPTIONS' | translate }}
+                <p>{{ 'SETTINGS.SHOW_CAPTIONS_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="column margin-right">
+                <mat-checkbox
+                    class="column"
+                    formControlName="showCaptions"
+                ></mat-checkbox>
+            </div>
         </div>
         <!-- not ported to tauri yet
-        @if (isPwa || isTauri) {
+        @if (isPwa || isDesktop) {
           <mat-divider />
           <div class="row">
             <div class="column">
@@ -251,7 +263,7 @@
                 {{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}
               </p>
             </div>
-            <div class="column" style="margin-right: 10px">
+            <div class="column margin-right">
               <mat-checkbox
                 class="column"
                 formControlName="remoteControl"
@@ -261,125 +273,125 @@
         }
         -->
         @if (settingsForm.value.remoteControl === true) {
-          <mat-divider />
-          <div class="row">
-            <div class="column">
-              {{ 'SETTINGS.REMOTE_CONTROL_PORT' | translate }}
-              <p>
-                {{
-                'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION'
-                | translate
-                }}
-              </p>
+            <mat-divider />
+            <div class="row">
+                <div class="column">
+                    {{ 'SETTINGS.REMOTE_CONTROL_PORT' | translate }}
+                    <p>
+                        {{
+                            'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="column margin-right">
+                    <mat-form-field appearance="outline" class="full-width">
+                        <input
+                            matInput
+                            type="text"
+                            id="remoteControlPort"
+                            formControlName="remoteControlPort"
+                        />
+                    </mat-form-field>
+                </div>
             </div>
-            <div class="column" style="margin-right: 10px">
-              <mat-form-field appearance="outline" class="full-width">
-                <input
-                  matInput
-                  type="text"
-                  id="remoteControlPort"
-                  formControlName="remoteControlPort"
-                  />
-              </mat-form-field>
-            </div>
-          </div>
         }
         <mat-divider />
         <div class="row">
-          <div class="column">
-            {{ 'SETTINGS.VERSION' | translate }}
-            <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
-          </div>
-          <div class="column">
-            {{ version }} <br />
-            {{ updateMessage }}
-          </div>
+            <div class="column">
+                {{ 'SETTINGS.VERSION' | translate }}
+                <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="column">
+                {{ version }} <br />
+                {{ updateMessage }}
+            </div>
         </div>
         <mat-divider />
         <div class="row">
-          <div class="column">
-            {{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}
-            <p>
-              {{ 'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION' | translate }}
-            </p>
-          </div>
-          <div class="column">
-            <button
-              mat-button
+            <div class="column">
+                {{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}
+                <p>
+                    {{ 'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="column">
+                <button
+                    mat-button
                     (click)="
                         $event.preventDefault();
                         $event.stopPropagation();
                         importData()
                     "
-              >
-              {{ 'SETTINGS.IMPORT_DATA' | translate }}
-            </button>
-            <button
-              mat-button
+                >
+                    {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                </button>
+                <button
+                    mat-button
                     (click)="
                         $event.preventDefault();
                         $event.stopPropagation();
                         exportData()
                     "
-              >
-              {{ 'SETTINGS.EXPORT_DATA' | translate }}
-            </button>
-          </div>
+                >
+                    {{ 'SETTINGS.EXPORT_DATA' | translate }}
+                </button>
+            </div>
         </div>
 
         <div class="row">
-          <div class="column">
-            {{ 'SETTINGS.REMOVE_ALL' | translate }}
-            <p>
-              {{ 'SETTINGS.REMOVE_ALL_DESCRIPTION' | translate }}
-            </p>
-          </div>
-          <div class="column">
-            <button
-              mat-button
+            <div class="column">
+                {{ 'SETTINGS.REMOVE_ALL' | translate }}
+                <p>
+                    {{ 'SETTINGS.REMOVE_ALL_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="column">
+                <button
+                    mat-button
                     (click)="
                         $event.preventDefault();
                         $event.stopPropagation();
                         removeAll()
                     "
-              color="warn"
-              >
-              {{ 'SETTINGS.REMOVE_ALL_BUTTON' | translate }}
-            </button>
-          </div>
+                    color="warn"
+                >
+                    {{ 'SETTINGS.REMOVE_ALL_BUTTON' | translate }}
+                </button>
+            </div>
         </div>
 
         @if (isPwa) {
-          <div class="row">
-            {{ 'SETTINGS.EPG_NOTE' | translate }}
-            &nbsp;<a href="https://github.com/4gray/iptvnator/releases">{{
-            'SETTINGS.EPG_NOTE_URL_TEXT' | translate
-          }}</a>
-        </div>
-      }
+            <div class="row">
+                {{ 'SETTINGS.EPG_NOTE' | translate }}
+                &nbsp;<a href="https://github.com/4gray/iptvnator/releases">{{
+                    'SETTINGS.EPG_NOTE_URL_TEXT' | translate
+                }}</a>
+            </div>
+        }
 
-      <mat-divider />
-      <div class="action-buttons" align="end">
-        <button
-          mat-button
-          color="accent"
-          type="reset"
-          (click)="backToHome()"
-          data-test-id="back-to-home"
-          >
-          <mat-icon>chevron_left</mat-icon>
-          {{ 'SETTINGS.BACK_TO_HOME' | translate }}
-        </button>
-        <button
-          mat-button
-          color="accent"
-          type="submit"
-          [disabled]="settingsForm.pristine || !settingsForm.valid"
-          data-test-id="save-settings"
-          >
-          <mat-icon>save</mat-icon>
-          {{ 'SETTINGS.SAVE_CHANGES' | translate }}
-        </button>
-      </div>
+        <mat-divider />
+        <div class="action-buttons" align="end">
+            <button
+                mat-button
+                color="accent"
+                type="reset"
+                (click)="backToHome()"
+                data-test-id="back-to-home"
+            >
+                <mat-icon>chevron_left</mat-icon>
+                {{ 'SETTINGS.BACK_TO_HOME' | translate }}
+            </button>
+            <button
+                mat-button
+                color="accent"
+                type="submit"
+                [disabled]="settingsForm.pristine || !settingsForm.valid"
+                data-test-id="save-settings"
+            >
+                <mat-icon>save</mat-icon>
+                {{ 'SETTINGS.SAVE_CHANGES' | translate }}
+            </button>
+        </div>
     </form>
-  </div>
+</div>

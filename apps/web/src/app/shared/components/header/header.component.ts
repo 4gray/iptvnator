@@ -1,5 +1,4 @@
-import { AsyncPipe } from '@angular/common';
-import { Component, Input, OnInit, effect } from '@angular/core';
+import { Component, OnInit, effect, inject, input } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -13,13 +12,14 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { open } from '@tauri-apps/plugin-shell';
-import { NgxWhatsNewModule } from 'ngx-whats-new';
+import { selectActiveTypeFilters, setSelectedFilters } from 'm3u-state';
+import { DataService } from '../../../../../../../libs/services/src/lib/data.service';
+import {
+    SortBy,
+    SortOrder,
+    SortService,
+} from '../../../../../../../libs/services/src/lib/sort.service';
 import { HomeComponent } from '../../../home/home.component';
-import { DataService } from '../../../services/data.service';
-import { SortBy, SortOrder, SortService } from '../../../services/sort.service';
-import { WhatsNewService } from '../../../services/whats-new.service';
-import { setSelectedFilters } from '../../../state/actions';
-import { selectActiveTypeFilters } from '../../../state/selectors';
 import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
 import {
     AddPlaylistDialogComponent,
@@ -31,7 +31,7 @@ import {
     templateUrl: './header.component.html',
     styleUrls: ['./header.component.scss'],
     imports: [
-        AsyncPipe,
+        FormsModule,
         MatButtonModule,
         MatCheckboxModule,
         MatDividerModule,
@@ -39,33 +39,21 @@ import {
         MatMenuModule,
         MatToolbarModule,
         MatTooltipModule,
-        FormsModule,
-        NgxWhatsNewModule,
         ReactiveFormsModule,
         TranslateModule,
     ],
 })
 export class HeaderComponent implements OnInit {
-    /** Title of the header */
-    @Input() title!: string;
+    private activatedRoute = inject(ActivatedRoute);
+    private dialog = inject(MatDialog);
+    private dataService = inject(DataService);
+    private router = inject(Router);
+    private store = inject(Store);
+    private sortService = inject(SortService);
 
-    /** Subtitle of the header */
-    @Input() subtitle!: string;
-
-    /** Environment flag */
-    isElectron = this.dataService.isElectron;
-
-    /** Environment flag for Tauri */
-    isTauri = this.dataService.getAppEnvironment() === 'tauri';
-
-    /** Visibility flag of the "what is new" modal dialog */
-    isDialogVisible$ = this.whatsNewService.dialogState$;
-
-    /** Dialog options */
-    options = this.whatsNewService.options;
-
-    /** Modals to show for the updated version of the application */
-    modals = this.whatsNewService.getLatestChanges();
+    readonly isDesktop = !!window.electron;
+    readonly title = input.required<string>();
+    readonly subtitle = input.required<string>();
 
     isHome = true;
 
@@ -87,21 +75,15 @@ export class HeaderComponent implements OnInit {
         },
     ];
 
-    selectedTypeFilters = this.store.selectSignal(selectActiveTypeFilters);
+    private readonly selectedTypeFilters = this.store.selectSignal(
+        selectActiveTypeFilters
+    );
 
-    SortBy = SortBy;
-    SortOrder = SortOrder;
-    currentSortOptions: { by: SortBy; order: SortOrder };
+    readonly SortBy = SortBy;
+    readonly SortOrder = SortOrder;
+    private currentSortOptions: { by: SortBy; order: SortOrder };
 
-    constructor(
-        private activatedRoute: ActivatedRoute,
-        private dialog: MatDialog,
-        private dataService: DataService,
-        private router: Router,
-        private store: Store,
-        private whatsNewService: WhatsNewService,
-        private sortService: SortService
-    ) {
+    constructor() {
         effect(() => {
             if (this.selectedTypeFilters) {
                 this.playlistTypes = this.playlistTypes.map((type) => {
@@ -133,20 +115,10 @@ export class HeaderComponent implements OnInit {
      * @param url url to open
      */
     async openUrl(url: string): Promise<void> {
-        if (this.isTauri) {
+        if (this.isDesktop) {
             await open(url);
         } else {
             window.open(url, '_blank');
-        }
-    }
-
-    /**
-     * Sets the visibility flag of the modal window
-     * @param visible show/hide window flag
-     */
-    setDialogVisibility(visible: boolean): void {
-        if (this.modals.length > 0) {
-            this.whatsNewService.changeDialogVisibleState(visible);
         }
     }
 

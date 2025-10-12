@@ -7,27 +7,23 @@ import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ServiceWorkerModule } from '@angular/service-worker';
+import { DataService } from '@iptvnator/services';
 import { EffectsModule } from '@ngrx/effects';
 import { StoreRouterConnectingModule, routerReducer } from '@ngrx/router-store';
 import { StoreModule } from '@ngrx/store';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
-import { isTauri } from '@tauri-apps/api/core';
+import { PlaylistEffects, playlistReducer } from 'm3u-state';
 import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
-import { NgxWhatsNewModule } from 'ngx-whats-new';
-import 'reflect-metadata';
+import { dbConfig } from 'shared-interfaces';
 import { AppConfig } from '../environments/environment';
 import '../polyfills';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { dbConfig } from './indexed-db.config';
-import { DataService } from './services/data.service';
 import { PwaService } from './services/pwa.service';
 import { TauriService } from './services/tauri.service';
-import { PlaylistEffects } from './state/effects';
-import { playlistReducer } from './state/reducers';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -54,7 +50,6 @@ export function DataFactory() {
         AppConfig.environment === 'WEB'
             ? NgxIndexedDBModule.forRoot(dbConfig)
             : [],
-        NgxWhatsNewModule,
         NgxIndexedDBModule.forRoot(dbConfig),
         NgxSkeletonLoaderModule.forRoot({
             animation: 'pulse',
@@ -68,7 +63,7 @@ export function DataFactory() {
             },
         }),
         ServiceWorkerModule.register('ngsw-worker.js', {
-            enabled: AppConfig.production && !isTauri(),
+            enabled: AppConfig.production && !!window.electron,
             registrationStrategy: 'registerWhenStable:30000',
         }),
         StoreModule.forRoot({

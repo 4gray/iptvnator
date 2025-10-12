@@ -7,7 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { WebPlayerViewComponent } from '../../portals/web-player-view/web-player-view.component';
+import { WebPlayerViewComponent } from 'shared-portals';
 
 export interface PlayerDialogData {
     streamUrl: string;

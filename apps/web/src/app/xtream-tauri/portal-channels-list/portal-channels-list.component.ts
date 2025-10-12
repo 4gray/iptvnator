@@ -22,10 +22,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
+import { FilterPipe } from '@iptvnator/pipes';
 import { TranslatePipe } from '@ngx-translate/core';
+import { XtreamItem } from '../../../../../../libs/shared/interfaces/src/lib/xtream-item.interface';
 import { XtreamCategory } from '../../../shared/xtream-category.interface';
-import { XtreamItem } from '../../../shared/xtream-item.interface';
-import { FilterPipe } from '../../shared/pipes/filter.pipe';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../xtream.store';
 

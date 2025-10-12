@@ -2,8 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { catchError, map, Observable } from 'rxjs';
-import { STORE_KEY } from '../shared/enums/store-keys.enum';
-import { Theme } from './../settings/theme.enum';
+import { STORE_KEY } from '../../../../../libs/shared/interfaces/src/lib/store-keys.enum';
+import { Theme } from '../../../../../libs/shared/interfaces/src/lib/theme.enum';
 
 @Injectable({
     providedIn: 'root',

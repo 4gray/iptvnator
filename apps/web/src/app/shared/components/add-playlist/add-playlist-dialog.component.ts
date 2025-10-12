@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, inject, Inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import {
     MAT_DIALOG_DATA,
@@ -8,15 +8,15 @@ import {
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { parsePlaylist } from 'm3u-state';
 import { getFilenameFromUrl } from 'm3u-utils';
-import { PLAYLIST_PARSE_BY_URL } from '../../../../shared/ipc-commands';
+import { PLAYLIST_PARSE_BY_URL } from 'shared-interfaces';
+import { DataService } from '../../../../../../../libs/services/src/lib/data.service';
 import { FileUploadComponent } from '../../../home/file-upload/file-upload.component';
 import { StalkerPortalImportComponent } from '../../../home/stalker-portal-import/stalker-portal-import.component';
 import { TextImportComponent } from '../../../home/text-import/text-import.component';
 import { UrlUploadComponent } from '../../../home/url-upload/url-upload.component';
 import { XtreamCodeImportComponent } from '../../../home/xtream-code-import/xtream-code-import.component';
-import { DataService } from '../../../services/data.service';
-import { parsePlaylist } from '../../../state/actions';
 
 export type PlaylistType = 'xtream' | 'url' | 'text' | 'file' | 'stalker';
 
@@ -35,16 +35,15 @@ export type PlaylistType = 'xtream' | 'url' | 'text' | 'file' | 'stalker';
     templateUrl: './add-playlist-dialog.component.html',
 })
 export class AddPlaylistDialogComponent {
-    playlistType!: PlaylistType;
+    private dataService = inject(DataService);
+    private dialogRef = inject(MatDialogRef<AddPlaylistDialogComponent>);
+    private store = inject(Store);
+    private snackBar = inject(MatSnackBar);
+    private translateService = inject(TranslateService);
 
-    constructor(
-        @Inject(MAT_DIALOG_DATA) data: { type: PlaylistType },
-        private dataService: DataService,
-        private dialogRef: MatDialogRef<AddPlaylistDialogComponent>,
-        private store: Store,
-        private snackBar: MatSnackBar,
-        private translateService: TranslateService
-    ) {
+    readonly playlistType!: PlaylistType;
+
+    constructor(@Inject(MAT_DIALOG_DATA) data: { type: PlaylistType }) {
         this.playlistType = data.type;
     }
 

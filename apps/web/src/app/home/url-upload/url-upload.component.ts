@@ -21,7 +21,7 @@ export class UrlUploadComponent implements OnInit {
     @Output() urlAdded: EventEmitter<string> = new EventEmitter();
 
     form: FormGroup;
-    readonly isDesktop = window.electron;
+    readonly isDesktop = !!window.electron;
 
     ngOnInit() {
         const urlRegex = '(https?://.*?)';

@@ -1,16 +1,15 @@
-
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
+import { selectCurrentPlaylist } from 'm3u-state';
+import { PlaylistsService } from '../../../../../../libs/services/src/lib/playlists.service';
 import {
     XtreamSerieDetails,
     XtreamSerieEpisode,
 } from '../../../shared/xtream-serie-details.interface';
-import { PlaylistsService } from '../../services/playlists.service';
-import { selectCurrentPlaylist } from '../../state/selectors';
 import { SeasonContainerComponent } from '../season-container/season-container.component';
 
 @Component({
@@ -18,11 +17,11 @@ import { SeasonContainerComponent } from '../season-container/season-container.c
     templateUrl: './serial-details.component.html',
     styleUrls: ['../detail-view.scss'],
     imports: [
-    MatButtonModule,
-    MatIconModule,
-    SeasonContainerComponent,
-    TranslateModule
-],
+        MatButtonModule,
+        MatIconModule,
+        SeasonContainerComponent,
+        TranslateModule,
+    ],
 })
 export class SerialDetailsComponent {
     @Input({ required: true }) item: XtreamSerieDetails;

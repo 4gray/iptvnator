@@ -9,6 +9,7 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Store } from '@ngrx/store';
+import { selectActivePlaylist } from 'm3u-state';
 import {
     catchError,
     combineLatestWith,
@@ -19,17 +20,17 @@ import {
     switchMap,
     tap,
 } from 'rxjs';
+import { Playlist } from 'shared-interfaces';
+import { DataService } from '../../../../../libs/services/src/lib/data.service';
+import { DatabaseService } from '../../../../../libs/services/src/lib/database.service';
 import { XtreamCodeActions } from '../../shared/xtream-code-actions';
 import {
     XtreamSerieDetails,
     XtreamSerieEpisode,
 } from '../../shared/xtream-serie-details.interface';
 import { XtreamVodDetails } from '../../shared/xtream-vod-details.interface';
-import { DataService } from '../services/data.service';
-import { DatabaseService } from '../services/database.service';
 import { PlayerService } from '../services/player.service';
 import { SettingsStore } from '../services/settings-store.service';
-import { selectActivePlaylist } from '../state/selectors';
 import { XtreamAccountInfo } from './account-info/account-info.interface';
 import { withFavorites } from './with-favorites.feature';
 import { withRecentItems } from './with-recent-items';
@@ -361,10 +362,9 @@ export const XtreamStore = signalStore(
                                     currentPlaylist: playlist,
                                 });
                             } else {
-                                const playlist =
-                                    oldStore.selectSignal(
-                                        selectActivePlaylist
-                                    )();
+                                const playlist = oldStore.selectSignal(
+                                    selectActivePlaylist
+                                )() as Playlist;
                                 if (playlist) {
                                     await dbService.createPlaylist(playlist);
                                     patchState(store, {

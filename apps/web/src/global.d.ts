@@ -13,6 +13,11 @@ declare global {
             getAppVersion: () => Promise<string>;
             platform: string;
             fetchPlaylistByUrl: (url: string) => Promise<Playlist>;
+            updatePlaylistFromFilePath: (
+                filePath: string,
+                title: string
+            ) => Promise<Playlist>;
+            openPlaylistFromFile: () => Promise<Playlist>;
         };
     }
 }
