@@ -12,7 +12,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { XtreamCategory } from '../../../shared/xtream-category.interface';
+import { XtreamCategory } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
 import { MpvPlayerBarComponent } from '../../shared/components/mpv-player-bar/mpv-player-bar.component';

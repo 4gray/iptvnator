@@ -1,12 +1,11 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CategoryViewComponent } from './category-view/category-view.component';
-
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { XtreamCategory } from '../../shared/xtream-category.interface';
+import { XtreamCategory } from 'shared-interfaces';
 import { MpvPlayerBarComponent } from '../shared/components/mpv-player-bar/mpv-player-bar.component';
+import { CategoryViewComponent } from './category-view/category-view.component';
 import { XtreamStore } from './xtream.store';
 
 @Component({

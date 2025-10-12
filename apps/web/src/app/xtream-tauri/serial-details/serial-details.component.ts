@@ -3,7 +3,7 @@ import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { XtreamSerieEpisode } from '../../../shared/xtream-serie-details.interface';
+import { XtreamSerieEpisode } from 'shared-interfaces';
 import { SeasonContainerComponent } from '../season-container/season-container.component';
 import { XtreamStore } from '../xtream.store';
 

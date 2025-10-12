@@ -1,5 +1,4 @@
-import { StalkerPortalActions } from '../../shared/stalker-portal-actions.enum';
-import { XtreamCodeActions } from '../../shared/xtream-code-actions';
+import { StalkerPortalActions, XtreamCodeActions } from 'shared-interfaces';
 
 export type PortalActions = StalkerPortalActions | XtreamCodeActions;
 

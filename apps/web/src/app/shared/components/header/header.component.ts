@@ -9,16 +9,16 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
+import {
+    DataService,
+    SortBy,
+    SortOrder,
+    SortService,
+} from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { open } from '@tauri-apps/plugin-shell';
 import { selectActiveTypeFilters, setSelectedFilters } from 'm3u-state';
-import { DataService } from '../../../../../../../libs/services/src/lib/data.service';
-import {
-    SortBy,
-    SortOrder,
-    SortService,
-} from '../../../../../../../libs/services/src/lib/sort.service';
 import { HomeComponent } from '../../../home/home.component';
 import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
 import {

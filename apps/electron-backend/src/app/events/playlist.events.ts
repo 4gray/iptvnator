@@ -17,7 +17,7 @@ export default class PlaylistEvents {
 
 const https = require('https');
 
-ipcMain.handle('fetch-playlist-by-url', async (event, url) => {
+ipcMain.handle('fetch-playlist-by-url', async (event, url, title?: string) => {
     try {
         const agent = new https.Agent({
             rejectUnauthorized: false,
@@ -33,7 +33,7 @@ ipcMain.handle('fetch-playlist-by-url', async (event, url) => {
                 : extractedName;
 
         const playlistObject = createPlaylistObject(
-            playlistName,
+            title ?? playlistName,
             parsedPlaylist,
             url,
             'URL'
@@ -62,7 +62,6 @@ ipcMain.handle(
 );
 
 ipcMain.handle('open-playlist-from-file', async () => {
-    // 1. Await the result from the dialog
     const { canceled, filePaths } = await dialog.showOpenDialog({
         properties: ['openFile'],
         filters: [
@@ -89,13 +88,9 @@ ipcMain.handle('open-playlist-from-file', async () => {
             'FILE'
         );
 
-        console.log('Sending playlist object to renderer:', playlistObject);
-
-        // 5. Return the final object. This value is sent back to Angular.
         return playlistObject;
     } catch (error) {
         console.error('Error reading or parsing the file:', error);
-        // It's good practice to throw the error so the renderer can catch it
         throw new Error('Failed to process the selected file.');
     }
 });

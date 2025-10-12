@@ -1,4 +1,4 @@
-import { Component, inject, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import {
     MAT_DIALOG_DATA,
@@ -22,14 +22,14 @@ export type PlaylistType = 'xtream' | 'url' | 'text' | 'file' | 'stalker';
 
 @Component({
     imports: [
+        FileUploadComponent,
         MatButtonModule,
         MatDialogModule,
-        TranslateModule,
-        FileUploadComponent,
-        XtreamCodeImportComponent,
         StalkerPortalImportComponent,
         TextImportComponent,
+        TranslateModule,
         UrlUploadComponent,
+        XtreamCodeImportComponent,
     ],
     selector: 'app-add-playlist',
     templateUrl: './add-playlist-dialog.component.html',
@@ -40,11 +40,12 @@ export class AddPlaylistDialogComponent {
     private store = inject(Store);
     private snackBar = inject(MatSnackBar);
     private translateService = inject(TranslateService);
+    readonly data = inject<{ type: PlaylistType }>(MAT_DIALOG_DATA);
 
     readonly playlistType!: PlaylistType;
 
-    constructor(@Inject(MAT_DIALOG_DATA) data: { type: PlaylistType }) {
-        this.playlistType = data.type;
+    constructor() {
+        this.playlistType = this.data.type;
     }
 
     /**

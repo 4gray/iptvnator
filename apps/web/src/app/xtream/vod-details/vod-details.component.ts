@@ -10,9 +10,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
+import { PlaylistsService } from '@iptvnator/services';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistsService } from '../../../../../../libs/services/src/lib/playlists.service';
-import { XtreamVodDetails } from '../../../shared/xtream-vod-details.interface';
+import { XtreamVodDetails } from 'shared-interfaces';
 import { SafePipe } from './safe.pipe';
 
 @Component({

@@ -1,4 +1,4 @@
-import { XtreamItem } from '../../../../libs/shared/interfaces/src/lib/xtream-item.interface';
+import { XtreamItem } from 'shared-interfaces';
 
 export interface XtreamLiveStream extends XtreamItem {
     stream_type: 'live';

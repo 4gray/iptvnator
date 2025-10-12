@@ -6,7 +6,7 @@ import {
 } from '@angular/core';
 import { MatListModule } from '@angular/material/list';
 import { TranslatePipe } from '@ngx-translate/core';
-import { XtreamCategory } from '../../../shared/xtream-category.interface';
+import { XtreamCategory } from 'shared-interfaces';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 
 @Component({

@@ -3,7 +3,7 @@ import { Component, EventEmitter, Output, input } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
-import { XtreamSerieEpisode } from '../../../shared/xtream-serie-details.interface';
+import { XtreamSerieEpisode } from 'shared-interfaces';
 
 @Component({
     selector: 'app-season-container',

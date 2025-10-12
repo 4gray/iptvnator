@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
@@ -7,7 +7,11 @@ import { TranslateModule } from '@ngx-translate/core';
     imports: [MatIconModule, TranslateModule],
     template: `
         <div mat-dialog-content>
-            <img src="./assets/icons/icon-tv-256.png" width="128" /><br />
+            <img
+                src="./assets/icons/icon-tv-256.png"
+                width="128"
+                alt="logo"
+            /><br />
             <h2 mat-dialog-title>{{ 'ABOUT.TITLE' | translate }}</h2>
             <p>{{ 'ABOUT.DESCRIPTION' | translate }}</p>
             <p>{{ 'ABOUT.VERSION' | translate }}: {{ appVersion }}</p>
@@ -19,7 +23,8 @@ import { TranslateModule } from '@ngx-translate/core';
                     [attr.aria-label]="'ABOUT.GITHUB_TOOLTIP' | translate"
                     ><img
                         src="./assets/icons/github-light.png"
-                        [title]="'ABOUT.GITHUB_TOOLTIP' | translate" /></a
+                        [title]="'ABOUT.GITHUB_TOOLTIP' | translate"
+                        alt="GitHub" /></a
                 >&nbsp;
                 <a
                     href="http://twitter.com/share?text=IPTVnator &mdash; free cross-platform IPTV player. Available as PWA and as native application.&url=https://github.com/4gray/iptvnator&hashtags=iptv,m3u,video-player"
@@ -29,6 +34,7 @@ import { TranslateModule } from '@ngx-translate/core';
                         height="32"
                         src="./assets/icons/twitter-light.png"
                         [title]="'ABOUT.TWITTER_TOOLTIP' | translate"
+                        alt="Twitter"
                     />
                 </a>
                 <a
@@ -57,8 +63,8 @@ import { TranslateModule } from '@ngx-translate/core';
                 font-size: 32px;
             }
         `,
-    ]
+    ],
 })
 export class AboutDialogComponent {
-    constructor(@Inject(MAT_DIALOG_DATA) public appVersion: string) {}
+    public appVersion = inject<string>(MAT_DIALOG_DATA);
 }
