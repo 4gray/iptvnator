@@ -9,15 +9,10 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-    DataService,
-    SortBy,
-    SortOrder,
-    SortService,
-} from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import { open } from '@tauri-apps/plugin-shell';
+import { DataService, SortBy, SortOrder, SortService } from 'services';
+//import { shell } from 'electron';
 import { selectActiveTypeFilters, setSelectedFilters } from 'm3u-state';
 import { HomeComponent } from '../../../home/home.component';
 import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
@@ -116,7 +111,8 @@ export class HeaderComponent implements OnInit {
      */
     async openUrl(url: string): Promise<void> {
         if (this.isDesktop) {
-            await open(url);
+            console.log('TODO: implement me');
+            // await shell.openExternal(url);
         } else {
             window.open(url, '_blank');
         }

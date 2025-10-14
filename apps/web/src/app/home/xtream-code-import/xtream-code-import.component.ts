@@ -10,10 +10,10 @@ import { MatButton } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { PortalStatus, PortalStatusService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { addPlaylist } from 'm3u-state';
+import { PortalStatus, PortalStatusService } from 'services';
 import { Playlist } from 'shared-interfaces';
 import { v4 as uuid } from 'uuid';
 

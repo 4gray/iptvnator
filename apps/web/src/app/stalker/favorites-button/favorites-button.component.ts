@@ -2,9 +2,9 @@ import { AsyncPipe } from '@angular/common';
 import { Component, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { PlaylistsService } from '@iptvnator/services';
 import { TranslateModule } from '@ngx-translate/core';
 import { BehaviorSubject, map, switchMap } from 'rxjs';
+import { PlaylistsService } from 'services';
 import { StalkerStore } from '../stalker.store';
 
 @Component({

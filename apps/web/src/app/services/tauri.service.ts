@@ -1,13 +1,13 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Params } from '@angular/router';
-import { DataService } from '@iptvnator/services';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { readTextFile } from '@tauri-apps/plugin-fs';
 import { fetch } from '@tauri-apps/plugin-http';
 import { parse } from 'iptv-playlist-parser';
 import { createPlaylistObject } from 'm3u-utils';
+import { DataService } from 'services';
 import {
     AUTO_UPDATE_PLAYLISTS,
     AUTO_UPDATE_PLAYLISTS_RESPONSE,

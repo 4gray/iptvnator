@@ -1,8 +1,6 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
-import { isTauri } from '@tauri-apps/api/core';
 import { stalkerRoutes } from './stalker/stalker.routes';
-import { xtreamRoutes } from './xtream-tauri/xtream.routes';
 
 const routes: Routes = [
     {
@@ -38,7 +36,7 @@ const routes: Routes = [
                 (c) => c.SettingsComponent
             ),
     },
-    ...(isTauri()
+    /* ...(!!window.electron
         ? xtreamRoutes
         : [
               {
@@ -48,7 +46,7 @@ const routes: Routes = [
                           (c) => c.XtreamMainContainerComponent
                       ),
               },
-          ]),
+          ]), */
     {
         path: 'portals/:id',
         loadComponent: () =>

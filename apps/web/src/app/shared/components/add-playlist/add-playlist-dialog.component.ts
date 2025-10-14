@@ -6,11 +6,11 @@ import {
     MatDialogRef,
 } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { DataService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { parsePlaylist } from 'm3u-state';
 import { getFilenameFromUrl } from 'm3u-utils';
+import { DataService } from 'services';
 import { PLAYLIST_PARSE_BY_URL } from 'shared-interfaces';
 import { FileUploadComponent } from '../../../home/file-upload/file-upload.component';
 import { StalkerPortalImportComponent } from '../../../home/stalker-portal-import/stalker-portal-import.component';

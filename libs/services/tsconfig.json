@@ -1,14 +1,21 @@
 {
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
-        "module": "commonjs",
-        "forceConsistentCasingInFileNames": true,
+        "target": "es2022",
+        "moduleResolution": "bundler",
         "strict": true,
-        "importHelpers": true,
         "noImplicitOverride": true,
+        "noPropertyAccessFromIndexSignature": true,
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
-        "noPropertyAccessFromIndexSignature": true
+        "module": "preserve"
+    },
+    "angularCompilerOptions": {
+        "enableI18nLegacyMessageIdFormat": false,
+        "strictInjectionParameters": true,
+        "strictInputAccessModifiers": true,
+        "typeCheckHostBindings": true,
+        "strictTemplates": true
     },
     "files": [],
     "include": [],

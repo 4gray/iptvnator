@@ -26,5 +26,3 @@ export * from './lib/xtream-serie-details.interface';
 export * from './lib/xtream-serie-item.interface';
 export * from './lib/xtream-vod-details.interface';
 export * from './lib/xtream-vod-stream.interface';
-
-import './lib/global.d';

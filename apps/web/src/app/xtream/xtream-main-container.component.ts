@@ -14,11 +14,11 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { DataService, PlaylistsService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { selectCurrentPlaylist } from 'm3u-state';
 import { Observable } from 'rxjs';
+import { DataService, PlaylistsService } from 'services';
 import {
     ERROR,
     EpgItem,

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { invoke, isTauri } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { BehaviorSubject } from 'rxjs';
 
@@ -20,7 +20,7 @@ export class MpvPlayerService {
     public activeProcesses$ = this.activeProcessesSubject.asObservable();
 
     constructor() {
-        if (!isTauri()) {
+        if (!window.electron) {
             return;
         }
         this.initializeEventListeners();

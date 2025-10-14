@@ -1,5 +1,5 @@
 import 'jest-extended';
-import { Playlist } from './playlist.interface';
+import { Playlist } from './libs/shared/interfaces/src/lib/playlist.interface';
 
 declare module 'video.js' {
     export interface VideoJsPlayer {
@@ -21,6 +21,7 @@ declare global {
                 title: string
             ) => Promise<Playlist>;
             openPlaylistFromFile: () => Promise<Playlist>;
+            setUserAgent: (userAgent: string, referer?: string) => void;
         };
         process: NodeJS.Process;
         require: NodeRequire;

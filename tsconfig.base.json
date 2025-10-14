@@ -16,14 +16,15 @@
         "baseUrl": ".",
         "paths": {
             "@iptvnator/pipes": ["libs/ui/pipes/src/index.ts"],
-            "@iptvnator/services": ["libs/services/src/index.ts"],
             "@package": ["./package.json"],
             "components": ["libs/ui/components/src/index.ts"],
             "m3u-state": ["libs/m3u-state/src/index.ts"],
             "m3u-utils": ["libs/shared/m3u-utils/src/index.ts"],
+            "services": ["libs/services/src/index.ts"],
             "shared-interfaces": ["libs/shared/interfaces/src/index.ts"],
             "shared-portals": ["libs/ui/shared-portals/src/index.ts"]
         }
     },
-    "exclude": ["node_modules", "tmp"]
+    "exclude": ["node_modules", "tmp"],
+    "files": ["global.d.ts"]
 }

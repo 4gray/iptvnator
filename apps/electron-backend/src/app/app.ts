@@ -1,8 +1,22 @@
-import { BrowserWindow, shell, screen } from 'electron';
-import { rendererAppName, rendererAppPort } from './constants';
-import { environment } from '../environments/environment';
+import { BrowserWindow, screen, shell } from 'electron';
+import Store from 'electron-store';
 import { join } from 'path';
 import { format } from 'url';
+import { environment } from '../environments/environment';
+import { rendererAppName, rendererAppPort } from './constants';
+
+const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
+const MPV_PLAYER_PATH = 'MPV_PLAYER_PATH';
+const VLC_PLAYER_PATH = 'VLC_PLAYER_PATH';
+
+type StoreType = {
+    [WINDOW_BOUNDS]: Electron.Rectangle;
+    [MPV_PLAYER_PATH]: string;
+    [VLC_PLAYER_PATH]: string;
+};
+
+Store.initRenderer();
+const store = new Store<StoreType>();
 
 export default class App {
     // Keep a global reference of the window object, if you don't, the window will
@@ -10,6 +24,7 @@ export default class App {
     static mainWindow: Electron.BrowserWindow;
     static application: Electron.App;
     static BrowserWindow;
+    store = new Store<StoreType>();
 
     public static isDevelopmentMode() {
         const isEnvironmentSet: boolean = 'ELECTRON_IS_DEV' in process.env;
@@ -63,6 +78,8 @@ export default class App {
         const width = Math.min(1280, workAreaSize.width || 1280);
         const height = Math.min(720, workAreaSize.height || 720);
 
+        const savedWindowBounds = store.get(WINDOW_BOUNDS);
+
         // Create the browser window.
         App.mainWindow = new BrowserWindow({
             width: width,
@@ -73,9 +90,12 @@ export default class App {
                 backgroundThrottling: false,
                 preload: join(__dirname, 'main.preload.js'),
             },
+            ...savedWindowBounds,
         });
         App.mainWindow.setMenu(null);
-        App.mainWindow.center();
+        if (!savedWindowBounds) {
+            App.mainWindow.center();
+        }
 
         // if main window is ready to show, close the splash window and show the main window
         App.mainWindow.once('ready-to-show', () => {
@@ -94,6 +114,12 @@ export default class App {
             // in an array if your app supports multi windows, this is the time
             // when you should delete the corresponding element.
             App.mainWindow = null;
+        });
+
+        App.mainWindow.on('close', () => {
+            if (App.mainWindow) {
+                store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+            }
         });
     }
 
@@ -130,5 +156,9 @@ export default class App {
         App.application.on('window-all-closed', App.onWindowAllClosed); // Quit when all windows are closed.
         App.application.on('ready', App.onReady); // App is ready to load data
         App.application.on('activate', App.onActivate); // App is activated
+        App.application.on('before-quit', () => {
+            if (App.mainWindow)
+                store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+        });
     }
 }

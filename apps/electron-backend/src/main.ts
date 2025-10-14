@@ -1,7 +1,10 @@
 import { app, BrowserWindow } from 'electron';
+import fixPath from 'fix-path';
 import App from './app/app';
 import ElectronEvents from './app/events/electron.events';
+import PlayerEvents from './app/events/player.events';
 import PlaylistEvents from './app/events/playlist.events';
+import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 
 export default class Main {
@@ -19,6 +22,8 @@ export default class Main {
     static bootstrapAppEvents() {
         ElectronEvents.bootstrapElectronEvents();
         PlaylistEvents.bootstrapPlaylistEvents();
+        SharedEvents.bootstrapSharedEvents();
+        PlayerEvents.bootstrapPlayerEvents();
 
         // initialize auto updater service
         if (!App.isDevelopmentMode()) {
@@ -26,6 +31,8 @@ export default class Main {
         }
     }
 }
+
+fixPath();
 
 // handle setup events as quickly as possible
 Main.initialize();

@@ -15,7 +15,7 @@ export abstract class DataService {
         return null;
     }
     abstract getAppVersion(): string;
-    abstract sendIpcEvent(type: string, payload?: unknown);
+    abstract sendIpcEvent(type: string, payload?: unknown): any;
     abstract removeAllListeners(type: string): void;
     abstract fetchData(url: string, queryParams: Params): any;
     abstract listenOn(

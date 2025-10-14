@@ -13,7 +13,6 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { DataService, PlaylistsService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import {
@@ -34,6 +33,7 @@ import {
     selectCurrentEpgProgram,
 } from 'm3u-state';
 import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
+import { DataService, PlaylistsService } from 'services';
 import {
     CHANNEL_SET_USER_AGENT,
     COMPONENT_OVERLAY_REF,

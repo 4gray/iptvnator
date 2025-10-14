@@ -7,7 +7,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MomentDatePipe } from '@iptvnator/pipes';
-import { DataService, EpgService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -19,6 +18,7 @@ import {
 import moment from 'moment';
 import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { DataService, EpgService } from 'services';
 import {
     EPG_GET_PROGRAM_DONE,
     EpgChannel,

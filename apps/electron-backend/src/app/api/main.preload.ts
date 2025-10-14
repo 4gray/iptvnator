@@ -8,4 +8,6 @@ contextBridge.exposeInMainWorld('electron', {
     updatePlaylistFromFilePath: (filePath: string, title: string) =>
         ipcRenderer.invoke('update-playlist-from-file-path', filePath, title),
     openPlaylistFromFile: () => ipcRenderer.invoke('open-playlist-from-file'),
+    setUserAgent: (userAgent: string, referer?: string) =>
+        ipcRenderer.send('set-user-agent', userAgent, referer),
 });

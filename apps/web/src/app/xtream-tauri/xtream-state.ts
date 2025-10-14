@@ -1,4 +1,4 @@
-import { GlobalSearchResult } from '@iptvnator/services';
+import { GlobalSearchResult } from 'services';
 import {
     EpgItem,
     XtreamCategory,

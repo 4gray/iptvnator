@@ -18,7 +18,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { DatabaseService, DataService, SortService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as PlaylistActions from 'm3u-state';
@@ -29,6 +28,7 @@ import {
 } from 'm3u-state';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
+import { DatabaseService, DataService, SortService } from 'services';
 import {
     AUTO_UPDATE_PLAYLISTS_RESPONSE,
     GLOBAL_FAVORITES_PLAYLIST_ID,
