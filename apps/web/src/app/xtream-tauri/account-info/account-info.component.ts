@@ -2,10 +2,10 @@ import { Component, Inject, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
+import { DataService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { selectActivePlaylist } from 'm3u-state';
-import { DataService } from '../../../../../../libs/services/src/lib/data.service';
 import { XtreamAccountInfo } from './account-info.interface';
 
 @Component({
@@ -15,9 +15,9 @@ import { XtreamAccountInfo } from './account-info.interface';
         <h2 mat-dialog-title>Account Information</h2>
         <mat-dialog-content class="mat-typography">
             @if (accountInfo?.user_info?.message) {
-                <div class="welcome-message">
-                    {{ accountInfo?.user_info?.message }}
-                </div>
+            <div class="welcome-message">
+                {{ accountInfo?.user_info?.message }}
+            </div>
             }
             <div class="info-grid">
                 <div class="info-section">

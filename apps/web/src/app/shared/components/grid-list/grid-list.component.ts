@@ -35,11 +35,13 @@ import { PlaylistErrorViewComponent } from '../../../xtream-tauri/playlist-error
                                     $event.target.src =
                                         './assets/images/default-poster.png'
                                 "
+                                alt="logo"
                             />
                         } @else {
                             <img
                                 class="stream-icon"
                                 src="./assets/images/default-poster.png"
+                                alt="logo"
                             />
                         }
                         @let rating = i.rating ?? i.rating_imdb;

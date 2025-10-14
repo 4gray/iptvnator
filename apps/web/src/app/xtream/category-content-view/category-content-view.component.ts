@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { FilterPipe, SortPipe } from '@iptvnator/pipes';
 import { TranslateModule } from '@ngx-translate/core';
-import { XtreamItem } from '../../../../../../libs/shared/interfaces/src/lib/xtream-item.interface';
+import { XtreamItem } from 'shared-interfaces';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../portal.store';
 

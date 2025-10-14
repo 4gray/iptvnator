@@ -17,7 +17,7 @@ import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { Observable } from 'rxjs';
 import { PLAYLIST_UPDATE, PlaylistMeta } from 'shared-interfaces';
 import { ElectronServiceStub } from '../../../../../../apps/web/src/app/services/electron.service.stub';
-import { DialogService } from '../../../../../services/src/lib/dialog.service';
+import { DialogService } from '../confirm-dialog/dialog.service';
 import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
 import { RecentPlaylistsComponent } from './recent-playlists.component';
 

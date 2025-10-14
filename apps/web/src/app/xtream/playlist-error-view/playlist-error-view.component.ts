@@ -3,10 +3,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
-import { DialogService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { PlaylistInfoComponent } from 'components';
+import { DialogService, PlaylistInfoComponent } from 'components';
 import * as PlaylistActions from 'm3u-state';
 import { selectCurrentPlaylist } from 'm3u-state';
 import { Playlist } from 'shared-interfaces';
@@ -18,13 +17,13 @@ import { Playlist } from 'shared-interfaces';
     imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule],
 })
 export class PlaylistErrorViewComponent {
-    dialog = inject(MatDialog);
-    dialogService = inject(DialogService);
-    router = inject(Router);
-    store = inject(Store);
-    translate = inject(TranslateService);
+    readonly dialog = inject(MatDialog);
+    readonly dialogService = inject(DialogService);
+    readonly router = inject(Router);
+    readonly store = inject(Store);
+    readonly translate = inject(TranslateService);
 
-    currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
+    readonly currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
 
     @Input() description: string;
     @Input() showActionButtons = true;

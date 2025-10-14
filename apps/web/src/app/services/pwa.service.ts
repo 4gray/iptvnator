@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Params } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
+import { DataService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import * as PlaylistActions from 'm3u-state';
@@ -17,7 +18,6 @@ import {
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
 } from 'shared-interfaces';
-import { DataService } from '../../../../../libs/services/src/lib/data.service';
 import { AppConfig } from '../../environments/environment';
 
 @Injectable({

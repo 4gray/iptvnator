@@ -1,11 +1,11 @@
 import { inject } from '@angular/core';
+import { DatabaseService } from '@iptvnator/services';
 import {
     patchState,
     signalStoreFeature,
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { DatabaseService } from '../../../../../libs/services/src/lib/database.service';
 import { FavoritesService } from './services/favorites.service';
 
 export const withFavorites = function () {

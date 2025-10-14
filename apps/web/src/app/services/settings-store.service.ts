@@ -8,14 +8,14 @@ import {
 } from '@ngrx/signals';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
-import { Language } from '../../../../../libs/shared/interfaces/src/lib/language.enum';
 import {
+    Language,
     Settings,
+    STORE_KEY,
+    StreamFormat,
+    Theme,
     VideoPlayer,
-} from '../../../../../libs/shared/interfaces/src/lib/settings.interface';
-import { STORE_KEY } from '../../../../../libs/shared/interfaces/src/lib/store-keys.enum';
-import { StreamFormat } from '../../../../../libs/shared/interfaces/src/lib/stream-format.enum';
-import { Theme } from '../../../../../libs/shared/interfaces/src/lib/theme.enum';
+} from 'shared-interfaces';
 
 const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,

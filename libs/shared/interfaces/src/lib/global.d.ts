@@ -1,9 +1,9 @@
 import 'jest-extended';
-import { Playlist } from 'shared-interfaces';
+import { Playlist } from './playlist.interface';
 
 declare module 'video.js' {
     export interface VideoJsPlayer {
-        hlsQualitySelector(options?: any): void;
+        hlsQualitySelector(options?: Record<string, unknown>): void;
     }
 }
 
@@ -22,5 +22,13 @@ declare global {
             ) => Promise<Playlist>;
             openPlaylistFromFile: () => Promise<Playlist>;
         };
+        process: NodeJS.Process;
+        require: NodeRequire;
     }
+}
+
+// SystemJS module definition
+declare const nodeModule: NodeModule;
+interface NodeModule {
+    id: string;
 }

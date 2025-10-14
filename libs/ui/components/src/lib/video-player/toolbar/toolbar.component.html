@@ -26,7 +26,7 @@
     <div class="spacer"></div>
     <button
         mat-icon-button
-        (click)="openSettings()"
+        (click)="settingsClicked.emit()"
         [matTooltip]="'MENU.SETTINGS' | translate"
     >
         <mat-icon>settings</mat-icon>

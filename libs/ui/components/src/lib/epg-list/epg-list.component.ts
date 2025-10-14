@@ -6,7 +6,8 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { DataService } from '@iptvnator/services';
+import { MomentDatePipe } from '@iptvnator/pipes';
+import { DataService, EpgService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -23,8 +24,6 @@ import {
     EpgChannel,
     EpgProgram,
 } from 'shared-interfaces';
-import { EpgService } from '../../../../../services/src/lib/epg.service';
-import { MomentDatePipe } from '../../../../pipes/src/lib/moment-date.pipe';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 
 export interface EpgData {

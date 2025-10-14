@@ -17,6 +17,7 @@
                 (toggleRightDrawerClicked)="drawerRight.toggle()"
                 (multiEpgClicked)="openMultiEpgView()"
                 [activeChannel]="activeChannel"
+                (settingsClicked)="openSettings()"
             />
             @if (activeChannel.radio === 'true') {
                 <app-audio-player
