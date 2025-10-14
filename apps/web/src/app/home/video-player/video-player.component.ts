@@ -3,19 +3,30 @@ import { ComponentPortal } from '@angular/cdk/portal';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import {
     Component,
-    InjectionToken,
     Injector,
     NgZone,
     OnInit,
     effect,
     inject,
 } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
+import {
+    ArtPlayerComponent,
+    AudioPlayerComponent,
+    EpgListComponent,
+    HtmlVideoPlayerComponent,
+    InfoOverlayComponent,
+    MultiEpgContainerComponent,
+    SidebarComponent,
+    ToolbarComponent,
+    VjsPlayerComponent,
+} from 'components';
 import * as PlaylistActions from 'm3u-state';
 import {
     selectActive,
@@ -25,6 +36,7 @@ import {
 import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
 import {
     CHANNEL_SET_USER_AGENT,
+    COMPONENT_OVERLAY_REF,
     Channel,
     ERROR,
     PLAYLIST_PARSE_BY_URL,
@@ -34,23 +46,11 @@ import {
     Settings,
     VideoPlayer,
 } from 'shared-interfaces';
-import { SettingsStore } from '../../../../../../apps/web/src/app/services/settings-store.service';
-import { ArtPlayerComponent } from '../art-player/art-player.component';
-import { AudioPlayerComponent } from '../audio-player/audio-player.component';
-import { EpgListComponent } from '../epg-list/epg-list.component';
-import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
-import { InfoOverlayComponent } from '../info-overlay/info-overlay.component';
-import { MultiEpgContainerComponent } from '../multi-epg/multi-epg-container.component';
-import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
-import { SidebarComponent } from './sidebar/sidebar.component';
-import { ToolbarComponent } from './toolbar/toolbar.component';
+import { SettingsStore } from '../../services/settings-store.service';
+import { SettingsComponent } from '../../settings/settings.component';
 
 /** Possible sidebar view options */
 export type SidebarView = 'CHANNELS' | 'PLAYLISTS';
-
-export const COMPONENT_OVERLAY_REF = new InjectionToken(
-    'COMPONENT_OVERLAY_REF'
-);
 
 @Component({
     imports: [
@@ -73,6 +73,7 @@ export const COMPONENT_OVERLAY_REF = new InjectionToken(
 export class VideoPlayerComponent implements OnInit {
     private activatedRoute = inject(ActivatedRoute);
     private dataService = inject(DataService);
+    private readonly dialog = inject(MatDialog);
     private ngZone = inject(NgZone);
     private overlay = inject(Overlay);
     private playlistsService = inject(PlaylistsService);
@@ -298,5 +299,13 @@ export class VideoPlayerComponent implements OnInit {
 
     navigateHome() {
         this.router.navigate(['/']);
+    }
+
+    openSettings() {
+        this.dialog.open(SettingsComponent, {
+            width: '1000px',
+            height: '90%',
+            data: { isDialog: true },
+        });
     }
 }

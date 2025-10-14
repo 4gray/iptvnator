@@ -9,8 +9,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import * as PlaylistActions from 'm3u-state';
 import { selectPlaylistTitle } from 'm3u-state';
 import { Channel } from 'shared-interfaces';
+import { SidebarView } from '../../../../../../../apps/web/src/app/home/video-player/video-player.component';
 import { RecentPlaylistsComponent } from '../../recent-playlists/recent-playlists.component';
-import { SidebarView } from '../video-player.component';
 import { ChannelListContainerComponent } from './../../channel-list-container/channel-list-container.component';
 
 @Component({

@@ -30,8 +30,10 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
+import { DataService, EpgService, PlaylistsService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { DialogService } from 'components';
 import * as PlaylistActions from 'm3u-state';
 import { selectIsEpgAvailable } from 'm3u-state';
 import { take } from 'rxjs';
@@ -46,10 +48,6 @@ import {
     Theme,
     VideoPlayer,
 } from 'shared-interfaces';
-import { DataService } from '../../../../../libs/services/src/lib/data.service';
-import { DialogService } from '../../../../../libs/services/src/lib/dialog.service';
-import { EpgService } from '../../../../../libs/services/src/lib/epg.service';
-import { PlaylistsService } from '../../../../../libs/services/src/lib/playlists.service';
 import { SettingsStore } from '../services/settings-store.service';
 import { HeaderComponent } from '../shared/components/header/header.component';
 import { SettingsService } from './../services/settings.service';

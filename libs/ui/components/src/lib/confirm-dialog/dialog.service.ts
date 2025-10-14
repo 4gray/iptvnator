@@ -1,6 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { ConfirmDialogComponent, ConfirmDialogData } from 'components';
+import {
+    ConfirmDialogComponent,
+    ConfirmDialogData,
+} from './confirm-dialog.component';
 
 @Injectable({
     providedIn: 'root',

@@ -1,11 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
+import { DataService } from '@iptvnator/services';
 import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
     VideoPlayer,
 } from 'shared-interfaces';
-import { DataService } from '../../../../../libs/services/src/lib/data.service';
 import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
 import {
     PlayerDialogComponent,

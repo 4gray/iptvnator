@@ -16,6 +16,7 @@ export * from './lib/stalker-portal-actions.enum';
 export * from './lib/store-keys.enum';
 export * from './lib/stream-format.enum';
 export * from './lib/theme.enum';
+export * from './lib/tokens';
 export * from './lib/xtream-category.interface';
 export * from './lib/xtream-code-actions';
 export * from './lib/xtream-item.interface';
@@ -25,3 +26,5 @@ export * from './lib/xtream-serie-details.interface';
 export * from './lib/xtream-serie-item.interface';
 export * from './lib/xtream-vod-details.interface';
 export * from './lib/xtream-vod-stream.interface';
+
+import './lib/global.d';

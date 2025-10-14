@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 /* import * as semver from 'semver'; */
+import { DataService, EpgService } from '@iptvnator/services';
 import * as PlaylistActions from 'm3u-state';
 import {
     ERROR,
@@ -18,8 +19,6 @@ import {
     VIEW_ADD_PLAYLIST,
     VIEW_SETTINGS,
 } from 'shared-interfaces';
-import { DataService } from '../../../../libs/services/src/lib/data.service';
-import { EpgService } from '../../../../libs/services/src/lib/epg.service';
 import { SettingsService } from './services/settings.service';
 import { RecentlyViewedComponent } from './xtream-tauri/recently-viewed/recently-viewed.component';
 import { SearchResultsComponent } from './xtream-tauri/search-results/search-results.component';

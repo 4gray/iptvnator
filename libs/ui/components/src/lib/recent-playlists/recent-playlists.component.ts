@@ -18,12 +18,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import {
-    DatabaseService,
-    DataService,
-    DialogService,
-    SortService,
-} from '@iptvnator/services';
+import { DatabaseService, DataService, SortService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as PlaylistActions from 'm3u-state';
@@ -42,6 +37,7 @@ import {
     PLAYLIST_UPDATE_RESPONSE,
     PlaylistMeta,
 } from 'shared-interfaces';
+import { DialogService } from '../confirm-dialog/dialog.service';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
 

@@ -26,11 +26,11 @@ import 'videojs-hls-quality-selector';
 })
 export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     /** DOM-element reference */
-    @ViewChild('target', { static: true }) target: ElementRef<Element>;
+    @ViewChild('target', { static: true }) target!: ElementRef<Element>;
     /** Options of VideoJs player */
-    @Input() options: videoJs.PlayerOptions;
+    @Input() options!: videoJs.PlayerOptions;
     /** VideoJs object */
-    player: videoJs.Player;
+    player!: videoJs.Player;
     @Input() volume = 1;
 
     /**
@@ -67,15 +67,15 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * @param changes contains changed channel object
      */
     ngOnChanges(changes: SimpleChanges): void {
-        if (changes.options.previousValue) {
-            this.player.src(changes.options.currentValue.sources[0]);
+        if (changes['options'].previousValue) {
+            this.player.src(changes['options'].currentValue.sources[0]);
         }
-        if (changes.volume?.currentValue !== undefined && this.player) {
+        if (changes['volume']?.currentValue !== undefined && this.player) {
             console.log(
                 'Setting VideoJS player volume to:',
-                changes.volume.currentValue
+                changes['volume'].currentValue
             );
-            this.player.volume(changes.volume.currentValue);
+            this.player.volume(changes['volume'].currentValue);
         }
     }
 

@@ -13,17 +13,23 @@ const routes: Routes = [
     {
         path: 'playlists',
         loadComponent: () =>
-            import('components').then((c) => c.VideoPlayerComponent),
+            import('./home/video-player/video-player.component').then(
+                (c) => c.VideoPlayerComponent
+            ),
     },
     {
         path: 'iptv',
         loadComponent: () =>
-            import('components').then((c) => c.VideoPlayerComponent),
+            import('./home/video-player/video-player.component').then(
+                (c) => c.VideoPlayerComponent
+            ),
     },
     {
         path: 'playlists/:id',
         loadComponent: () =>
-            import('components').then((c) => c.VideoPlayerComponent),
+            import('./home/video-player/video-player.component').then(
+                (c) => c.VideoPlayerComponent
+            ),
     },
     {
         path: 'settings',

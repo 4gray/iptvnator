@@ -16,16 +16,18 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
+import { MomentDatePipe } from '@iptvnator/pipes';
 import { TranslatePipe } from '@ngx-translate/core';
 import { invoke } from '@tauri-apps/api/core';
 import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { Channel } from 'shared-interfaces';
-import { EpgChannel } from '../../../../../shared/interfaces/src/lib/epg-channel.model';
-import { EpgProgram } from '../../../../../shared/interfaces/src/lib/epg-program.model';
-import { MomentDatePipe } from '../../../../pipes/src/lib/moment-date.pipe';
+import {
+    Channel,
+    COMPONENT_OVERLAY_REF,
+    EpgChannel,
+    EpgProgram,
+} from 'shared-interfaces';
 import { EpgItemDescriptionComponent } from '../epg-list/epg-item-description/epg-item-description.component';
-import { COMPONENT_OVERLAY_REF } from '../video-player/video-player.component';
 
 interface EnrichedProgram extends EpgProgram {
     startDate: Date;
@@ -55,7 +57,7 @@ interface EnrichedChannel extends EpgChannel {
 export class MultiEpgContainerComponent
     implements OnInit, AfterViewInit, OnDestroy
 {
-    @ViewChild('epgContainer') epgContainer: ElementRef;
+    @ViewChild('epgContainer') epgContainer!: ElementRef;
 
     @Input() set playlistChannels(value: Observable<Channel[]>) {
         if (value) {

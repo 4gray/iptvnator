@@ -10,14 +10,14 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockProviders } from 'ng-mocks';
-import { ElectronServiceStub } from '../../../../../../apps/web/src/app/services/electron.service.stub';
-import { DataService } from '../../../../../services/src/lib/data.service';
-import { VideoPlayer } from '../../../../../shared/interfaces/src/lib/settings.interface';
-import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
-import { EpgListComponent } from '../epg-list/epg-list.component';
-import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
-import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
-import { InfoOverlayComponent } from './../info-overlay/info-overlay.component';
+import { DataService } from '../../../../../../libs/services/src/lib/data.service';
+import { VideoPlayer } from '../../../../../../libs/shared/interfaces/src/lib/settings.interface';
+import { ChannelListContainerComponent } from '../../../../../../libs/ui/components/src/lib/channel-list-container/channel-list-container.component';
+import { EpgListComponent } from '../../../../../../libs/ui/components/src/lib/epg-list/epg-list.component';
+import { HtmlVideoPlayerComponent } from '../../../../../../libs/ui/components/src/lib/html-video-player/html-video-player.component';
+import { InfoOverlayComponent } from '../../../../../../libs/ui/components/src/lib/info-overlay/info-overlay.component';
+import { VjsPlayerComponent } from '../../../../../../libs/ui/components/src/lib/vjs-player/vjs-player.component';
+import { ElectronServiceStub } from '../../services/electron.service.stub';
 import { VideoPlayerComponent } from './video-player.component';
 
 import { CommonModule } from '@angular/common';
@@ -27,7 +27,7 @@ import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { Observable, of } from 'rxjs';
 import { initialState } from '../../../../../../apps/web/src/app/state/state';
-import { PlaylistsService } from '../../../../../services/src/lib/playlists.service';
+import { PlaylistsService } from '../../../../../../libs/services/src/lib/playlists.service';
 
 class MatSnackBarStub {
     open(): void {}

@@ -3,7 +3,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockComponent, MockModule } from 'ng-mocks';
 import { EMPTY } from 'rxjs';
-import { ConfirmDialogData } from '../../../../apps/web/src/app/shared/components/confirm-dialog/confirm-dialog-data.interface';
+import { ConfirmDialogData } from '../<../../../apps/web/src/app/shared/components/confirm-dialog/confirm-dialog-data.interface';
 import { ConfirmDialogComponent } from '../../../../apps/web/src/app/shared/components/confirm-dialog/confirm-dialog.component';
 import { DialogService } from './dialog.service';
 

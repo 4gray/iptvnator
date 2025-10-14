@@ -4,9 +4,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { DataService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { RecentPlaylistsComponent } from 'components';
 import { addPlaylist } from 'm3u-state';
 import { ERROR, Playlist, PLAYLIST_PARSE_RESPONSE } from 'shared-interfaces';
-import { RecentPlaylistsComponent } from '../../../../../libs/ui/components/src/lib/recent-playlists/recent-playlists.component';
 import { HeaderComponent } from '../shared/components/header/header.component';
 
 @Component({

@@ -1,18 +1,15 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { catchError, map, Observable } from 'rxjs';
-import { STORE_KEY } from '../../../../../libs/shared/interfaces/src/lib/store-keys.enum';
-import { Theme } from '../../../../../libs/shared/interfaces/src/lib/theme.enum';
+import { STORE_KEY, Theme } from 'shared-interfaces';
 
 @Injectable({
     providedIn: 'root',
 })
 export class SettingsService {
-    constructor(
-        private http: HttpClient,
-        private storage: StorageMap
-    ) {}
+    private http = inject(HttpClient);
+    private storage = inject(StorageMap);
 
     /**
      * Changes the visual theme of the application
@@ -58,9 +55,9 @@ export class SettingsService {
      */
     getAppVersion() {
         return this.http
-            .get<
-                { created_at: string; name: string }[]
-            >('https://api.github.com/repos/4gray/iptvnator/releases')
+            .get<{ created_at: string; name: string }[]>(
+                'https://api.github.com/repos/4gray/iptvnator/releases'
+            )
             .pipe(
                 map(
                     (response) =>
