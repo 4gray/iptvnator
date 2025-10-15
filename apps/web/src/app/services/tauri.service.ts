@@ -1,12 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Params } from '@angular/router';
-import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { readTextFile } from '@tauri-apps/plugin-fs';
 import { fetch } from '@tauri-apps/plugin-http';
-import { parse } from 'iptv-playlist-parser';
-import { createPlaylistObject } from 'm3u-utils';
 import { DataService } from 'services';
 import {
     AUTO_UPDATE_PLAYLISTS,
@@ -81,15 +77,15 @@ export class TauriService extends DataService {
         } else if (type === 'OPEN_MPV_PLAYER') {
             const data = payload as any;
             try {
-                return await invoke('open_in_mpv', {
-                    url: data.url,
-                    path: data.mpvPlayerPath || '',
-                    title: data.title ?? '',
-                    thumbnail: data.thumbnail ?? '',
-                    userAgent: data['user-agent'] ?? undefined,
-                    referer: data.referer ?? undefined,
-                    origin: data.origin ?? undefined,
-                });
+                return await window.electron.openInMpv(
+                    data.url,
+                    data.mpvPlayerPath || '',
+                    data.title ?? '',
+                    data['user-agent'] ?? undefined,
+                    data.referer ?? undefined,
+                    data.origin ?? undefined
+                );
+                /* thumbnail: data.thumbnail ?? '', */
             } catch (error) {
                 this.snackBar.open(`Error launching MPV: ${error}`, 'Close', {
                     duration: 5000,
@@ -100,13 +96,13 @@ export class TauriService extends DataService {
         } else if (type === 'OPEN_VLC_PLAYER') {
             const data = payload as any;
             try {
-                return await invoke('open_in_vlc', {
-                    url: data.url,
-                    path: data.vlcPlayerPath || '',
-                    userAgent: data['user-agent'] ?? undefined,
-                    referer: data.referer ?? undefined,
-                    origin: data.origin ?? undefined,
-                });
+                return await window.electron.openInVlc(
+                    data.url,
+                    data.vlcPlayerPath || '',
+                    data['user-agent'] ?? undefined,
+                    data.referer ?? undefined,
+                    data.origin ?? undefined
+                );
             } catch (error) {
                 this.snackBar.open(`Error launching VLC: ${error}`, 'Close', {
                     duration: 5000,
@@ -120,10 +116,9 @@ export class TauriService extends DataService {
                 payload,
             });
         } else if (type === AUTO_UPDATE_PLAYLISTS) {
-            const playlists = [];
             const data = payload as Playlist[];
-
-            for await (const item of data) {
+            const playlists = await window.electron.autoUpdatePlaylists(data);
+            /* for await (const item of data) {
                 if (item.filePath) {
                     const playlist = await readTextFile(item.filePath);
                     const parsedPlaylist = parse(playlist);
@@ -136,6 +131,7 @@ export class TauriService extends DataService {
                     playlists.push({ ...playlistObject, _id: item._id });
                 }
             }
+            */
             window.postMessage({
                 type: AUTO_UPDATE_PLAYLISTS_RESPONSE,
                 payload: {
