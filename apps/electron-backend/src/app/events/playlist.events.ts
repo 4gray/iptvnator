@@ -8,6 +8,7 @@ import { dialog, ipcMain } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import { createPlaylistObject, getFilenameFromUrl } from 'm3u-utils';
 import { readFile } from 'node:fs/promises';
+import { AUTO_UPDATE_PLAYLISTS } from 'shared-interfaces';
 
 export default class PlaylistEvents {
     static bootstrapPlaylistEvents(): Electron.IpcMain {
@@ -92,5 +93,12 @@ ipcMain.handle('open-playlist-from-file', async () => {
     } catch (error) {
         console.error('Error reading or parsing the file:', error);
         throw new Error('Failed to process the selected file.');
+    }
+});
+
+ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlistUrls) => {
+    // TODO: Implement auto-update logic
+    for (const url of playlistUrls) {
+        console.log(`Auto-updating playlist from ${url}`);
     }
 });

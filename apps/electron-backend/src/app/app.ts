@@ -1,22 +1,9 @@
 import { BrowserWindow, screen, shell } from 'electron';
-import Store from 'electron-store';
 import { join } from 'path';
 import { format } from 'url';
 import { environment } from '../environments/environment';
 import { rendererAppName, rendererAppPort } from './constants';
-
-const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
-const MPV_PLAYER_PATH = 'MPV_PLAYER_PATH';
-const VLC_PLAYER_PATH = 'VLC_PLAYER_PATH';
-
-type StoreType = {
-    [WINDOW_BOUNDS]: Electron.Rectangle;
-    [MPV_PLAYER_PATH]: string;
-    [VLC_PLAYER_PATH]: string;
-};
-
-Store.initRenderer();
-const store = new Store<StoreType>();
+import { store, WINDOW_BOUNDS } from './services/store.service';
 
 export default class App {
     // Keep a global reference of the window object, if you don't, the window will
@@ -24,7 +11,6 @@ export default class App {
     static mainWindow: Electron.BrowserWindow;
     static application: Electron.App;
     static BrowserWindow;
-    store = new Store<StoreType>();
 
     public static isDevelopmentMode() {
         const isEnvironmentSet: boolean = 'ELECTRON_IS_DEV' in process.env;

@@ -7,7 +7,7 @@ export default class SharedEvents {
 }
 
 ipcMain.handle('set-user-agent', (event, userAgent, referer) => {
-    setUserAgent(userAgent, referer);
+    setUserAgent(userAgent, referer); // TODO: test if defaults needed
     return true;
 });
 
