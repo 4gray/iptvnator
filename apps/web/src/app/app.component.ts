@@ -5,8 +5,8 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 /* import * as semver from 'semver'; */
-import { DataService, EpgService } from '@iptvnator/services';
 import * as PlaylistActions from 'm3u-state';
+import { DataService, EpgService } from 'services';
 import {
     ERROR,
     IpcCommand,

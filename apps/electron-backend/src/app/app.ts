@@ -1,8 +1,9 @@
-import { BrowserWindow, shell, screen } from 'electron';
-import { rendererAppName, rendererAppPort } from './constants';
-import { environment } from '../environments/environment';
+import { BrowserWindow, screen, shell } from 'electron';
 import { join } from 'path';
 import { format } from 'url';
+import { environment } from '../environments/environment';
+import { rendererAppName, rendererAppPort } from './constants';
+import { store, WINDOW_BOUNDS } from './services/store.service';
 
 export default class App {
     // Keep a global reference of the window object, if you don't, the window will
@@ -63,6 +64,8 @@ export default class App {
         const width = Math.min(1280, workAreaSize.width || 1280);
         const height = Math.min(720, workAreaSize.height || 720);
 
+        const savedWindowBounds = store.get(WINDOW_BOUNDS);
+
         // Create the browser window.
         App.mainWindow = new BrowserWindow({
             width: width,
@@ -73,9 +76,12 @@ export default class App {
                 backgroundThrottling: false,
                 preload: join(__dirname, 'main.preload.js'),
             },
+            ...savedWindowBounds,
         });
         App.mainWindow.setMenu(null);
-        App.mainWindow.center();
+        if (!savedWindowBounds) {
+            App.mainWindow.center();
+        }
 
         // if main window is ready to show, close the splash window and show the main window
         App.mainWindow.once('ready-to-show', () => {
@@ -94,6 +100,12 @@ export default class App {
             // in an array if your app supports multi windows, this is the time
             // when you should delete the corresponding element.
             App.mainWindow = null;
+        });
+
+        App.mainWindow.on('close', () => {
+            if (App.mainWindow) {
+                store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+            }
         });
     }
 
@@ -130,5 +142,9 @@ export default class App {
         App.application.on('window-all-closed', App.onWindowAllClosed); // Quit when all windows are closed.
         App.application.on('ready', App.onReady); // App is ready to load data
         App.application.on('activate', App.onActivate); // App is activated
+        App.application.on('before-quit', () => {
+            if (App.mainWindow)
+                store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+        });
     }
 }

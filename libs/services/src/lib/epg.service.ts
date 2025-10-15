@@ -95,7 +95,7 @@ export class EpgService {
      * Shows fetch in progress snackbar
      */
     showFetchSnackbar(): void {
-        this.snackBar.open(this.translate.instant('EPG.FETCH_EPG'), null, {
+        this.snackBar.open(this.translate.instant('EPG.FETCH_EPG'), undefined, {
             duration: 2000,
             horizontalPosition: 'start',
         });
@@ -105,10 +105,14 @@ export class EpgService {
      * Shows success snackbar
      */
     private showSuccessSnackbar(): void {
-        this.snackBar.open(this.translate.instant('EPG.FETCH_SUCCESS'), null, {
-            duration: 2000,
-            horizontalPosition: 'start',
-        });
+        this.snackBar.open(
+            this.translate.instant('EPG.FETCH_SUCCESS'),
+            undefined,
+            {
+                duration: 2000,
+                horizontalPosition: 'start',
+            }
+        );
     }
 
     /**

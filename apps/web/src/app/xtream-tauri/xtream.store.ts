@@ -1,6 +1,5 @@
 import { computed, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { DatabaseService, DataService } from '@iptvnator/services';
 import {
     patchState,
     signalStore,
@@ -21,6 +20,7 @@ import {
     switchMap,
     tap,
 } from 'rxjs';
+import { DatabaseService, DataService } from 'services';
 import {
     Playlist,
     XtreamCodeActions,
@@ -84,8 +84,8 @@ export const XtreamStore = signalStore(
             return type === 'live'
                 ? store.liveCategories()
                 : type === 'vod'
-                ? store.vodCategories()
-                : store.serialCategories();
+                  ? store.vodCategories()
+                  : store.serialCategories();
         }),
         getSelectedCategory: computed(() => {
             const categoryId = store.selectedCategoryId();
@@ -102,8 +102,8 @@ export const XtreamStore = signalStore(
                 categoryType === 'live'
                     ? store.liveStreams()
                     : categoryType === 'vod'
-                    ? store.vodStreams()
-                    : store.serialStreams();
+                      ? store.vodStreams()
+                      : store.serialStreams();
 
             if (!store.selectedItem()) return null;
 
@@ -128,8 +128,8 @@ export const XtreamStore = signalStore(
                 categoryType === 'live'
                     ? store.liveStreams()
                     : categoryType === 'vod'
-                    ? store.vodStreams()
-                    : store.serialStreams();
+                      ? store.vodStreams()
+                      : store.serialStreams();
 
             return content
                 .filter((item) => item.category_id === categoryId)
@@ -148,13 +148,13 @@ export const XtreamStore = signalStore(
                           .filter((i) => Number((i as any).id) === categoryId)
                           .length
                     : categoryType === 'vod'
-                    ? store
-                          .vodStreams()
-                          .filter((i) => Number(i.category_id) === categoryId)
-                          .length
-                    : store
-                          .serialStreams()
-                          .filter((i) => i.category_id === categoryId).length;
+                      ? store
+                            .vodStreams()
+                            .filter((i) => Number(i.category_id) === categoryId)
+                            .length
+                      : store
+                            .serialStreams()
+                            .filter((i) => i.category_id === categoryId).length;
 
             return Math.ceil(totalItems / store.limit());
         }),
@@ -165,8 +165,8 @@ export const XtreamStore = signalStore(
                 categoryType === 'live'
                     ? store.liveStreams()
                     : categoryType === 'vod'
-                    ? store.vodStreams()
-                    : store.serialStreams();
+                      ? store.vodStreams()
+                      : store.serialStreams();
 
             return content.filter((item) => item.category_id === categoryId);
         }),

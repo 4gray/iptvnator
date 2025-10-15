@@ -2,10 +2,10 @@ import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
-import { PlaylistsService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { selectCurrentPlaylist } from 'm3u-state';
+import { PlaylistsService } from 'services';
 import { XtreamSerieDetails, XtreamSerieEpisode } from 'shared-interfaces';
 import { SeasonContainerComponent } from '../season-container/season-container.component';
 

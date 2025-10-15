@@ -1,5 +1,4 @@
 import { inject, Signal } from '@angular/core';
-import { DatabaseService } from '@iptvnator/services';
 import {
     patchState,
     signalStoreFeature,
@@ -8,6 +7,7 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap, tap } from 'rxjs';
+import { DatabaseService } from 'services';
 
 export interface RecentlyViewedItem {
     id: number;

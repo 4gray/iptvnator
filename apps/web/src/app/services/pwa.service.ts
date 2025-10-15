@@ -3,11 +3,11 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Params } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
-import { DataService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import * as PlaylistActions from 'm3u-state';
 import { catchError, firstValueFrom, throwError } from 'rxjs';
+import { DataService } from 'services';
 import {
     ERROR,
     Playlist,

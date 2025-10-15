@@ -24,13 +24,13 @@ import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { FilterPipe } from '@iptvnator/pipes';
-import { EpgService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as _ from 'lodash';
 import * as PlaylistActions from 'm3u-state';
 import { selectActivePlaylistId, selectFavorites } from 'm3u-state';
 import { map, skipWhile } from 'rxjs';
+import { EpgService } from 'services';
 import { Channel } from 'shared-interfaces';
 import { ChannelListItemComponent } from './channel-list-item/channel-list-item.component';
 

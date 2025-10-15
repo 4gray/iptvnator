@@ -1,6 +1,5 @@
 import { computed, inject, resource, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { DataService, PlaylistsService } from '@iptvnator/services';
 import {
     patchState,
     signalStore,
@@ -10,6 +9,7 @@ import {
     withState,
 } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
+import { DataService, PlaylistsService } from 'services';
 import {
     PlaylistMeta,
     STALKER_REQUEST,

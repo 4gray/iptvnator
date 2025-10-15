@@ -1,7 +1,9 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "types": ["node"]
-  },
-  "include": ["**/*.ts"]
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "types": ["node"],
+        "moduleResolution": "nodenext",
+        "module": "NodeNext"
+    },
+    "include": ["**/*.ts"]
 }

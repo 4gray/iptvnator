@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { DataService } from '@iptvnator/services';
+import { DataService } from 'services';
 import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,

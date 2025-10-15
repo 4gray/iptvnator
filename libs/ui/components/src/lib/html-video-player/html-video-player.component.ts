@@ -9,9 +9,9 @@ import {
     SimpleChanges,
     ViewChild,
 } from '@angular/core';
-import { DataService } from '@iptvnator/services';
 import Hls from 'hls.js';
 import { getExtensionFromUrl } from 'm3u-utils';
+import { DataService } from 'services';
 import { Channel, CHANNEL_SET_USER_AGENT } from 'shared-interfaces';
 
 /**

@@ -1,11 +1,11 @@
 import { Component, inject, OnDestroy } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { DataService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { RecentPlaylistsComponent } from 'components';
 import { addPlaylist } from 'm3u-state';
+import { DataService } from 'services';
 import { ERROR, Playlist, PLAYLIST_PARSE_RESPONSE } from 'shared-interfaces';
 import { HeaderComponent } from '../shared/components/header/header.component';
 

@@ -14,13 +14,13 @@ import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 import * as PlaylistActions from 'm3u-state';
 import { firstValueFrom } from 'rxjs';
+import { DatabaseService, PlaylistsService } from 'services';
 import { Playlist, PlaylistMeta } from 'shared-interfaces';
 
 @Component({
