@@ -1,8 +1,8 @@
-import { NgModule } from '@angular/core';
-import { RouterModule, Routes } from '@angular/router';
+import { Routes } from '@angular/router';
 import { stalkerRoutes } from './stalker/stalker.routes';
+import { xtreamRoutes } from './xtream-tauri/xtream.routes';
 
-const routes: Routes = [
+export const routes: Routes = [
     {
         path: '',
         loadComponent: () =>
@@ -36,7 +36,7 @@ const routes: Routes = [
                 (c) => c.SettingsComponent
             ),
     },
-    /* ...(!!window.electron
+    ...(window.electron
         ? xtreamRoutes
         : [
               {
@@ -46,7 +46,7 @@ const routes: Routes = [
                           (c) => c.XtreamMainContainerComponent
                       ),
               },
-          ]), */
+          ]),
     {
         path: 'portals/:id',
         loadComponent: () =>
@@ -60,15 +60,3 @@ const routes: Routes = [
         redirectTo: '',
     },
 ];
-
-@NgModule({
-    imports: [
-        RouterModule.forRoot(
-            routes /* {
-            enableTracing: !AppConfig.production,
-        } */
-        ),
-    ],
-    exports: [RouterModule],
-})
-export class AppRoutingModule {}
