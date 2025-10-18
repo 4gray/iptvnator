@@ -54,6 +54,13 @@
             },
             "UPDATED": "Updated",
             "REFRESH": "Refresh playlist",
+            "REFRESH_XTREAM": "Refresh Xtream playlist from remote",
+            "REFRESH_XTREAM_DIALOG": {
+                "TITLE": "Refresh Xtream Playlist",
+                "MESSAGE": "This will delete locally cached categories and streams and re-import everything from the remote server. Your favorites and recently viewed items will be preserved. Are you sure you want to continue?",
+                "STARTED": "Refresh started. Navigating to playlist...",
+                "ERROR": "Failed to refresh playlist. Please try again."
+            },
             "GLOBAL_FAVORITES": "Global favorites",
             "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
             "MY_PLAYLISTS": "My playlists",

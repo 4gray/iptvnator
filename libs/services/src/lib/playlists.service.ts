@@ -97,6 +97,9 @@ export class PlaylistsService {
                     ...(updatedPlaylist.password !== null
                         ? { password: updatedPlaylist.password }
                         : {}),
+                    ...(updatedPlaylist.updateDate !== undefined
+                        ? { updateDate: updatedPlaylist.updateDate }
+                        : {}),
                 })
             )
         );

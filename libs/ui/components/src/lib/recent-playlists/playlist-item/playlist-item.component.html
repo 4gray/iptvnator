@@ -69,8 +69,12 @@
             <ng-container *ngIf="item.importDate?.length > 3">
                 | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
                 {{ item.importDate | date }}
-            </ng-container></ng-template
-        >
+            </ng-container>
+            <ng-container *ngIf="item.updateDate">
+                | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
+                {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
+            </ng-container>
+        </ng-template>
     </div>
 
     <span matListItemMeta class="action-buttons" *ngIf="showActions">
@@ -81,6 +85,16 @@
             color="accent"
             (click)="$event.stopPropagation(); refreshClicked.emit(item)"
             [matTooltip]="'HOME.PLAYLISTS.REFRESH' | translate"
+        >
+            <mat-icon>sync</mat-icon>
+        </button>
+        <button
+            *ngIf="item.serverUrl"
+            mat-icon-button
+            class="refresh-btn"
+            color="accent"
+            (click)="$event.stopPropagation(); refreshClicked.emit(item)"
+            [matTooltip]="'HOME.PLAYLISTS.REFRESH_XTREAM' | translate"
         >
             <mat-icon>sync</mat-icon>
         </button>

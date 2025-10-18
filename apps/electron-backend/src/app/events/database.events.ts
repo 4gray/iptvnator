@@ -85,6 +85,7 @@ ipcMain.handle(
             username?: string;
             password?: string;
             serverUrl?: string;
+            lastUpdated?: string;
         }
     ) => {
         try {

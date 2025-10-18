@@ -92,18 +92,24 @@ export class DatabaseService {
      */
     async updateXtreamPlaylistDetails(playlist: {
         id: string;
-        title: string;
+        title?: string;
         username?: string;
         password?: string;
         serverUrl?: string;
+        updateDate?: number;
     }): Promise<boolean> {
         try {
-            await window.electron.dbUpdatePlaylist(playlist.id, {
-                name: playlist.title,
-                username: playlist.username,
-                password: playlist.password,
-                serverUrl: playlist.serverUrl,
-            });
+            const updates: any = {};
+            if (playlist.title) updates.name = playlist.title;
+            if (playlist.username) updates.username = playlist.username;
+            if (playlist.password) updates.password = playlist.password;
+            if (playlist.serverUrl) updates.serverUrl = playlist.serverUrl;
+            if (playlist.updateDate !== undefined)
+                updates.lastUpdated = new Date(
+                    playlist.updateDate
+                ).toISOString();
+
+            await window.electron.dbUpdatePlaylist(playlist.id, updates);
             return true;
         } catch (error) {
             console.error('Error updating playlist details:', error);

@@ -568,51 +568,57 @@ export const XtreamStore = signalStore(
                 try {
                     console.log('Starting content initialization...');
 
-                    console.log('Fetching live categories...');
-                    await lastValueFrom(
-                        fetchCategories(
-                            XtreamCodeActions.GetLiveCategories,
-                            'liveCategories',
-                            'live'
-                        )
-                    );
-                    await lastValueFrom(
-                        fetchCategories(
-                            XtreamCodeActions.GetVodCategories,
-                            'vodCategories',
-                            'movies'
-                        )
-                    );
-                    await lastValueFrom(
-                        fetchCategories(
-                            XtreamCodeActions.GetSeriesCategories,
-                            'serialCategories',
-                            'series'
-                        )
-                    );
+                    // Fetch all categories in parallel
+                    console.log('Fetching categories...');
+                    await Promise.all([
+                        lastValueFrom(
+                            fetchCategories(
+                                XtreamCodeActions.GetLiveCategories,
+                                'liveCategories',
+                                'live'
+                            )
+                        ),
+                        lastValueFrom(
+                            fetchCategories(
+                                XtreamCodeActions.GetVodCategories,
+                                'vodCategories',
+                                'movies'
+                            )
+                        ),
+                        lastValueFrom(
+                            fetchCategories(
+                                XtreamCodeActions.GetSeriesCategories,
+                                'serialCategories',
+                                'series'
+                            )
+                        ),
+                    ]);
 
+                    // Fetch all content in parallel
                     console.log('Fetching content...');
-                    await lastValueFrom(
-                        fetchStreams(
-                            XtreamCodeActions.GetLiveStreams,
-                            'liveStreams',
-                            'live'
-                        )
-                    );
-                    await lastValueFrom(
-                        fetchStreams(
-                            XtreamCodeActions.GetVodStreams,
-                            'vodStreams',
-                            'movie'
-                        )
-                    );
-                    await lastValueFrom(
-                        fetchStreams(
-                            XtreamCodeActions.GetSeries,
-                            'serialStreams',
-                            'series'
-                        )
-                    );
+                    await Promise.all([
+                        lastValueFrom(
+                            fetchStreams(
+                                XtreamCodeActions.GetLiveStreams,
+                                'liveStreams',
+                                'live'
+                            )
+                        ),
+                        lastValueFrom(
+                            fetchStreams(
+                                XtreamCodeActions.GetVodStreams,
+                                'vodStreams',
+                                'movie'
+                            )
+                        ),
+                        lastValueFrom(
+                            fetchStreams(
+                                XtreamCodeActions.GetSeries,
+                                'serialStreams',
+                                'series'
+                            )
+                        ),
+                    ]);
                     console.log('Content initialization completed');
                 } catch (error) {
                     console.error(
@@ -627,7 +633,7 @@ export const XtreamStore = signalStore(
             const checkPortalStatus = rxMethod<void>(
                 pipe(
                     combineLatestWith(oldStore.select(selectActivePlaylist)),
-                    switchMap(([_, playlist]) => {
+                    switchMap(([, playlist]) => {
                         if (!playlist) return EMPTY;
 
                         return from(
