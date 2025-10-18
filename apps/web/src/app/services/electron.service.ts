@@ -21,7 +21,7 @@ import { AppConfig } from '../../environments/environment';
 @Injectable({
     providedIn: 'root',
 })
-export class TauriService extends DataService {
+export class ElectronService extends DataService {
     private eventListeners: { [key: string]: () => void } = {};
     private snackBar = inject(MatSnackBar);
 
