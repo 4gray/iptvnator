@@ -24,6 +24,7 @@ export interface Settings {
     showCaptions: boolean;
     theme: Theme;
     mpvPlayerPath: string;
+    mpvReuseInstance: boolean;
     vlcPlayerPath: string;
     remoteControl: boolean;
     remoteControlPort: number;
