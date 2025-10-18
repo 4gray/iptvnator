@@ -1,7 +1,7 @@
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 /* import * as semver from 'semver'; */
@@ -26,7 +26,7 @@ import { SearchResultsComponent } from './xtream-tauri/search-results/search-res
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
-    standalone: false,
+    imports: [RouterOutlet],
 })
 export class AppComponent implements OnInit, OnDestroy {
     private dataService = inject(DataService);

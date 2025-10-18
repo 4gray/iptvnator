@@ -43,7 +43,6 @@ import {
     Playlist,
     SET_MPV_PLAYER_PATH,
     SET_VLC_PLAYER_PATH,
-    SETTINGS_UPDATE,
     StreamFormat,
     Theme,
     VideoPlayer,
@@ -145,6 +144,7 @@ export class SettingsComponent implements OnInit {
         showCaptions: false,
         theme: Theme.LightTheme,
         mpvPlayerPath: '',
+        mpvReuseInstance: false,
         vlcPlayerPath: '',
         remoteControl: false,
         remoteControlPort: 3000,
@@ -252,10 +252,11 @@ export class SettingsComponent implements OnInit {
     onSubmit(): void {
         this.settingsStore.updateSettings(this.settingsForm.value).then(() => {
             this.applyChangedSettings();
-            this.dataService.sendIpcEvent(
+            /* this.dataService.sendIpcEvent(
                 SETTINGS_UPDATE,
                 this.settingsForm.value
-            );
+            ); */
+            window.electron?.updateSettings(this.settingsForm.value);
 
             this.dataService.sendIpcEvent(
                 SET_MPV_PLAYER_PATH,

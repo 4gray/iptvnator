@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS: Settings = {
     showCaptions: false,
     theme: Theme.LightTheme,
     mpvPlayerPath: '',
+    mpvReuseInstance: false,
     vlcPlayerPath: '',
     remoteControl: false,
     remoteControlPort: 3000,
@@ -48,7 +49,11 @@ export const SettingsStore = signalStore(
 
         async updateSettings(settings: Partial<Settings>) {
             patchState(store, settings);
-            await firstValueFrom(storage.set(STORE_KEY.Settings, settings));
+            // Save the complete settings object, not just the partial update
+            const completeSettings = this.getSettings();
+            await firstValueFrom(
+                storage.set(STORE_KEY.Settings, completeSettings)
+            );
         },
 
         getSettings() {
@@ -59,6 +64,7 @@ export const SettingsStore = signalStore(
                 showCaptions: store.showCaptions(),
                 theme: store.theme(),
                 mpvPlayerPath: store.mpvPlayerPath(),
+                mpvReuseInstance: store.mpvReuseInstance(),
                 vlcPlayerPath: store.vlcPlayerPath(),
                 remoteControl: store.remoteControl(),
                 remoteControlPort: store.remoteControlPort(),

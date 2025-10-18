@@ -5,3 +5,11 @@ export default class EpgEvents {
         return ipcMain;
     }
 }
+
+ipcMain.handle('GET_CHANNEL_PROGRAMS', async (event, channelId) => {
+    // fetch EPG data for the given channelId
+});
+
+ipcMain.handle('FETCH_EPG', async (event, urls: string[]) => {
+    // fetch EPG data from the given URLs
+});

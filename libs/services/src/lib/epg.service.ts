@@ -14,6 +14,8 @@ import { EpgProgram } from 'shared-interfaces';
 export class EpgService {
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
+
+    // TODO: do not use store directly in the service
     private store = inject(Store);
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
@@ -77,15 +79,11 @@ export class EpgService {
                 })
             )
             .subscribe((programs) => {
-                if (programs.length === 0) {
-                    this.store.dispatch(
-                        PlaylistActions.setEpgAvailableFlag({ value: false })
-                    );
-                } else {
-                    this.store.dispatch(
-                        PlaylistActions.setEpgAvailableFlag({ value: true })
-                    );
-                }
+                this.store.dispatch(
+                    PlaylistActions.setEpgAvailableFlag({
+                        value: programs.length === 0 ? false : true,
+                    })
+                );
                 this.currentEpgPrograms.next(programs);
                 console.log('Updated programs:', programs); // Debug log
             });

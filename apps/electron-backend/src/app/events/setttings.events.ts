@@ -1,5 +1,9 @@
 import { ipcMain } from 'electron';
-import { SETTINGS_UPDATE } from 'shared-interfaces';
+import {
+    MPV_PLAYER_PATH,
+    MPV_REUSE_INSTANCE,
+    store,
+} from '../services/store.service';
 
 export default class SettingsEvents {
     static bootstrapSettingsEvents(): Electron.IpcMain {
@@ -7,8 +11,7 @@ export default class SettingsEvents {
     }
 }
 
-ipcMain.handle(SETTINGS_UPDATE, (_event, arg) => {
-    /* TODO: Implement settings update logic */
-    /* this.settings = arg;
-    this.server.updateSettings(); */
+ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
+    console.log('Received SETTINGS_UPDATE with data:', arg);
+    store.set(MPV_REUSE_INSTANCE, arg.mpvReuseInstance);
 });

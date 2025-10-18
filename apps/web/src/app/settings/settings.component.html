@@ -128,6 +128,23 @@
                     </mat-form-field>
                 </div>
             </div>
+            <div class="row">
+                <div class="column">
+                    {{ 'SETTINGS.MPV_REUSE_INSTANCE_LABEL' | translate }}
+                    <p>
+                        {{
+                            'SETTINGS.MPV_REUSE_INSTANCE_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="column margin-right">
+                    <mat-checkbox
+                        class="column"
+                        formControlName="mpvReuseInstance"
+                    ></mat-checkbox>
+                </div>
+            </div>
         }
         @if (settingsForm.value.player === 'vlc') {
             <div class="row">
