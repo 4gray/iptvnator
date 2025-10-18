@@ -99,7 +99,7 @@ export class FavoritesComponent implements OnInit {
 
     async removeFromFavorites(item: any) {
         await this.favoritesService.removeFromFavorites(
-            item.id,
+            item.content_id,
             item.playlist_id
         );
         // Refresh favorites after removal

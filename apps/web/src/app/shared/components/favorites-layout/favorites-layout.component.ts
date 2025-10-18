@@ -6,7 +6,6 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { CategoryViewComponent } from '../../../xtream-tauri/category-view/category-view.component';
-import { MpvPlayerBarComponent } from '../mpv-player-bar/mpv-player-bar.component';
 
 @Component({
     selector: 'app-favorites-layout',
@@ -21,7 +20,7 @@ import { MpvPlayerBarComponent } from '../mpv-player-bar/mpv-player-bar.componen
         MatCardModule,
         MatIcon,
         MatIconButton,
-        MpvPlayerBarComponent,
+        /* MpvPlayerBarComponent, */
         MatTooltip,
         TranslatePipe,
     ],
@@ -33,15 +32,15 @@ export class FavoritesLayoutComponent {
     readonly titleTranslationString = input<string>('CHANNELS.FAVORITES');
 
     readonly categoryClicked = output<any>();
-    readonly removeFromFavorites = output<any>();
+    readonly removeFavorite = output<any>();
     readonly openItem = output<any>();
 
     setCategoryId(categoryId: any) {
         this.categoryClicked.emit({ category_id: categoryId });
     }
 
-    removeFavorite(item: any) {
-        this.removeFromFavorites.emit(item);
+    removeFromFavorites(item: any) {
+        this.removeFavorite.emit(item);
     }
 
     openFavorite(item: any) {

@@ -8,7 +8,6 @@ import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { PlaylistsService } from 'services';
-import { MpvPlayerBarComponent } from '../shared/components/mpv-player-bar/mpv-player-bar.component';
 import { CategoryViewComponent } from '../xtream-tauri/category-view/category-view.component';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { StalkerStore } from './stalker.store';
@@ -28,7 +27,7 @@ import { StalkerStore } from './stalker.store';
         MatIconButton,
         MatListModule,
         MatPaginatorModule,
-        MpvPlayerBarComponent,
+        /* MpvPlayerBarComponent, */
         NgxSkeletonLoaderModule,
         PlaylistErrorViewComponent,
         TranslatePipe,

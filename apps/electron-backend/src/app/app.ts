@@ -68,6 +68,7 @@ export default class App {
 
         // Create the browser window.
         App.mainWindow = new BrowserWindow({
+            title: 'IPTVnator',
             width: width,
             height: height,
             show: false,

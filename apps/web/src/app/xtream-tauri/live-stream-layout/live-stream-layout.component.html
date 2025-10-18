@@ -1,4 +1,5 @@
-@let isEmbeddedPlayer = player() === 'videojs' || player() === 'html5';
+@let isEmbeddedPlayer =
+    player() === 'videojs' || player() === 'html5' || player() === 'artplayer';
 
 <div class="sidebar">
     <div class="sidebar-header">
@@ -42,5 +43,5 @@
             {{ 'PORTALS.SELECT_CATEGORY' | translate }}
         </div>
     }
-    <app-mpv-player-bar />
+    <!-- <app-mpv-player-bar /> -->
 </div>

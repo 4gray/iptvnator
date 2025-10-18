@@ -5,7 +5,6 @@ import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
-import Database from '@tauri-apps/plugin-sql';
 import {
     combineLatestWith,
     firstValueFrom,
@@ -253,20 +252,16 @@ export class PlaylistEffects {
                 }),
                 map(async (playlist) => {
                     if (playlist.serverUrl && this.dataService.isElectron) {
-                        const db = await Database.load('sqlite:database.db');
-                        const result = await db.execute(
-                            `INSERT INTO playlists (id, name, serverUrl, username, password, type)
-                        VALUES (?, ?, ?, ?, ?, ?)`,
-                            [
-                                playlist._id.toString(),
-                                playlist.title || '',
-                                playlist.serverUrl || '',
-                                playlist.username || '',
-                                playlist.password || '',
-                                'xtream',
-                            ]
-                        );
-                        console.log('inserted item', result);
+                        // Use Electron database API
+                        await window.electron.dbCreatePlaylist({
+                            id: playlist._id.toString(),
+                            name: playlist.title || '',
+                            serverUrl: playlist.serverUrl || '',
+                            username: playlist.username || '',
+                            password: playlist.password || '',
+                            type: 'xtream',
+                        });
+                        console.log('Playlist created in database');
                         this.router.navigate(['/xtreams/', playlist._id]);
                     }
                 })

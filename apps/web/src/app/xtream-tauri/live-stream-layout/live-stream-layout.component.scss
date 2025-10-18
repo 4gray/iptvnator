@@ -54,3 +54,13 @@
     font-size: 1.2rem;
     font-weight: 500;
 }
+
+::ng-deep {
+    .video-player
+        > app-web-player-view
+        > app-art-player
+        > .artplayer-container {
+        height: 100% !important;
+        width: 100% !important;
+    }
+}
