@@ -29,7 +29,7 @@ declare global {
                 userAgent: string,
                 referer?: string,
                 origin?: string
-            ) => any;
+            ) => void;
             openInVlc: (
                 url: string,
                 path: string,
@@ -37,8 +37,13 @@ declare global {
                 userAgent: string,
                 referer?: string,
                 origin?: string
-            ) => any;
-            autoUpdatePlaylists: (playlists: Playlist[]) => any;
+            ) => void;
+            autoUpdatePlaylists: (playlists: Playlist[]) => Promise<Playlist[]>;
+            fetchEpg: (urls: string[]) => Promise<any>;
+            getChannelPrograms: (channelId: string) => Promise<any>;
+            updateSettings: (settings: any) => Promise<void>;
+            setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
+            setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;
         };
         process: NodeJS.Process;
         require: NodeRequire;

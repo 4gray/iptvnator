@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { AUTO_UPDATE_PLAYLISTS, Playlist } from 'shared-interfaces';
 
 contextBridge.exposeInMainWorld('electron', {
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
@@ -10,7 +9,7 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('update-playlist-from-file-path', filePath, title),
     openPlaylistFromFile: () => ipcRenderer.invoke('open-playlist-from-file'),
     setUserAgent: (userAgent: string, referer?: string) =>
-        ipcRenderer.send('set-user-agent', userAgent, referer),
+        ipcRenderer.invoke('set-user-agent', userAgent, referer),
     openInMpv: (
         url: string,
         path: string,
@@ -19,8 +18,8 @@ contextBridge.exposeInMainWorld('electron', {
         referer?: string,
         origin?: string
     ) =>
-        ipcRenderer.send(
-            'open-in-mpv',
+        ipcRenderer.invoke(
+            'OPEN_MPV_PLAYER',
             url,
             path,
             title,
@@ -36,8 +35,8 @@ contextBridge.exposeInMainWorld('electron', {
         referer?: string,
         origin?: string
     ) =>
-        ipcRenderer.send(
-            'open-in-vlc',
+        ipcRenderer.invoke(
+            'OPEN_VLC_PLAYER',
             url,
             path,
             title,
@@ -45,6 +44,16 @@ contextBridge.exposeInMainWorld('electron', {
             referer,
             origin
         ),
-    autoUpdatePlaylists: (playlists: Playlist[]) =>
-        ipcRenderer.send(AUTO_UPDATE_PLAYLISTS, playlists),
+    autoUpdatePlaylists: (playlists) =>
+        ipcRenderer.invoke('AUTO_UPDATE_PLAYLISTS', playlists),
+    fetchEpg: (urls: string[]) =>
+        ipcRenderer.invoke('FETCH_EPG', { url: urls }),
+    getChannelPrograms: (channelId: string) =>
+        ipcRenderer.invoke('GET_CHANNEL_PROGRAMS', { channelId }),
+    setMpvPlayerPath: (mpvPlayerPath: string) =>
+        ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
+    setVlcPlayerPath: (vlcPlayerPath: string) =>
+        ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
+    updateSettings: (settings: any) =>
+        ipcRenderer.invoke('SETTINGS_UPDATE', settings),
 });

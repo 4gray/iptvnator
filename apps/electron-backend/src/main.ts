@@ -4,6 +4,7 @@ import App from './app/app';
 import ElectronEvents from './app/events/electron.events';
 import PlayerEvents from './app/events/player.events';
 import PlaylistEvents from './app/events/playlist.events';
+import SettingsEvents from './app/events/setttings.events';
 import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 
@@ -24,6 +25,7 @@ export default class Main {
         PlaylistEvents.bootstrapPlaylistEvents();
         SharedEvents.bootstrapSharedEvents();
         PlayerEvents.bootstrapPlayerEvents();
+        SettingsEvents.bootstrapSettingsEvents();
 
         // initialize auto updater service
         if (!App.isDevelopmentMode()) {
