@@ -20,45 +20,42 @@ export const withFavorites = function () {
                 favoritesService = inject(FavoritesService)
             ) => ({
                 async toggleFavorite(xtreamId: number, playlistId: string) {
-                    let result = false;
-                    if (!xtreamId || !playlistId) return;
-
-                    const db = await dbService.getConnection();
-
-                    const content: any = await db.select(
-                        'SELECT content.id FROM content ' +
-                            'INNER JOIN categories ON content.category_id = categories.id ' +
-                            'WHERE content.xtream_id = ? AND categories.playlist_id = ?',
-                        [xtreamId, playlistId]
-                    );
-
-                    if (!content || content.length === 0) {
-                        console.error('Content not found in database');
-                        return;
+                    if (!xtreamId || !playlistId) {
+                        return false;
                     }
 
-                    const contentId = content[0].id;
-                    const isFavorite = await favoritesService.isFavorite(
+                    // Get content by xtream ID
+                    const content = await dbService.getContentByXtreamId(
                         xtreamId,
                         playlistId
                     );
-
-                    if (isFavorite) {
-                        await favoritesService.removeFromFavorites(
-                            contentId,
-                            playlistId
+                    if (!content) {
+                        console.error(
+                            'Content not found for xtream ID:',
+                            xtreamId
                         );
-                        result = false;
-                    } else {
-                        await favoritesService.addToFavorites({
-                            content_id: contentId,
-                            playlist_id: playlistId,
-                        });
-                        result = true;
+                        return false;
                     }
 
-                    patchState(store, { isFavorite: !isFavorite });
-                    return result;
+                    const currentStatus = store.isFavorite();
+
+                    if (currentStatus) {
+                        // Remove from favorites
+                        await favoritesService.removeFromFavorites(
+                            content.id,
+                            playlistId
+                        );
+                        patchState(store, { isFavorite: false });
+                        return false;
+                    } else {
+                        // Add to favorites
+                        await favoritesService.addToFavorites({
+                            content_id: content.id,
+                            playlist_id: playlistId,
+                        });
+                        patchState(store, { isFavorite: true });
+                        return true;
+                    }
                 },
 
                 async checkFavoriteStatus(
@@ -70,13 +67,18 @@ export const withFavorites = function () {
                         return;
                     }
 
-                    if (!xtreamId) {
+                    // Get content by xtream ID
+                    const content = await dbService.getContentByXtreamId(
+                        xtreamId,
+                        playlistId
+                    );
+                    if (!content) {
                         patchState(store, { isFavorite: false });
                         return;
                     }
 
                     const isFavorite = await favoritesService.isFavorite(
-                        xtreamId,
+                        content.id,
                         playlistId
                     );
 

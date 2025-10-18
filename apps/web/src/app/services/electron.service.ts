@@ -1,8 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Params } from '@angular/router';
-import { listen } from '@tauri-apps/api/event';
-import { fetch } from '@tauri-apps/plugin-http';
 import { DataService } from 'services';
 import {
     AUTO_UPDATE_PLAYLISTS,
@@ -21,29 +19,13 @@ import { AppConfig } from '../../environments/environment';
 @Injectable({
     providedIn: 'root',
 })
-export class TauriService extends DataService {
+export class ElectronService extends DataService {
     private eventListeners: { [key: string]: () => void } = {};
     private snackBar = inject(MatSnackBar);
 
     constructor() {
         super();
-        console.log('Tauri service initialized...');
-        this.setupEventListeners();
-    }
-
-    private async setupEventListeners() {
-        // Listen for player errors
-        /* this.eventListeners['player-error'] = await listen(
-            'player-error',
-            (event) => {
-                console.error('Player error:', event);
-                this.snackBar.open(
-                    `Player Error: ${event.payload as string}`,
-                    'Close',
-                    { duration: 5000 }
-                );
-            }
-        ); */
+        console.log('Electron service initialized...');
     }
 
     getAppVersion(): string {
@@ -150,42 +132,22 @@ export class TauriService extends DataService {
         params: Record<string, string>;
     }) {
         try {
-            const url = new URL(payload.url);
-
-            Object.entries(payload.params).forEach(([key, value]) => {
-                url.searchParams.append(key, value);
-            });
-
-            const response = await fetch(url.toString(), {
-                method: 'GET',
-                headers: {
-                    Cookie: `mac=${payload.macAddress}`,
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(
-                    `Error: ${response.statusText} (Status: ${response.status})`
-                );
-            }
-
-            return await response.json();
-            /* window.postMessage({
-                type: 'STALKER_RESPONSE',
-                payload: result,
-                action: payload.params.action,
-            }); */
-        } catch (err) {
-            console.log(err);
+            // Use Electron IPC to make the Stalker request
+            const response = await window.electron.stalkerRequest(payload);
+            return response;
+        } catch (err: any) {
+            console.error('Stalker request error:', err);
             window.postMessage({
                 type: ERROR,
                 message: err.message ?? 'Error: not found',
                 status: err.status ?? 404,
             });
+            throw err;
         }
     }
 
     private async fetchM3uPlaylistFromUrl(payload: Partial<Playlist>) {
+        console.log(payload);
         window.electron.fetchPlaylistByUrl(payload.url).then((result) => {
             // TODO: call store and decide and store where to store based on the isTemporary flag etc
             window.postMessage({
@@ -255,36 +217,32 @@ export class TauriService extends DataService {
         url: string;
         params: Record<string, string>;
     }) {
-        let result: any;
-        const url = new URL(`${payload.url}/player_api.php`);
-        Object.entries(payload.params).forEach(([key, value]) => {
-            url.searchParams.append(key, value);
-        });
+        try {
+            // Use Electron IPC to make the Xtream request
+            const response = await window.electron.xtreamRequest(payload);
 
-        const response = await fetch(url.toString());
-
-        const responseBody = await response.json();
-        if (!responseBody) {
-            result = {
-                type: ERROR,
-                status: response.status,
-                message: responseBody.message ?? 'Unknown error',
-            };
-            window.postMessage(result);
-        } else {
-            result = {
+            const result = {
                 type: XTREAM_RESPONSE,
-                payload: responseBody,
-                action: payload.params.action,
+                payload: response.payload,
+                action: response.action,
             };
             window.postMessage(result);
+            return result;
+        } catch (error: any) {
+            console.error('Xtream request error:', error);
+            const result = {
+                type: ERROR,
+                status: error.status ?? 500,
+                message: error.message ?? 'Failed to connect to Xtream server',
+            };
+            window.postMessage(result);
+            return result;
         }
-        return result;
     }
 
     removeAllListeners(type: string): void {
         if (type === 'all') {
-            // Unsubscribe from all Tauri events
+            // Unsubscribe from all event listeners
             Object.values(this.eventListeners).forEach((unsubscribe) =>
                 unsubscribe()
             );
@@ -296,7 +254,6 @@ export class TauriService extends DataService {
         }
 
         // Also remove any window message listeners
-        // Note: This is a bit crude, but works for simple cases
         window.removeEventListener('message', this.getListenerForCommand(type));
     }
 
@@ -307,20 +264,12 @@ export class TauriService extends DataService {
     }
 
     listenOn(command: string, callback: (...args: any[]) => void): void {
-        if (command.startsWith('tauri:')) {
-            // For Tauri specific events, use the Tauri event system
-            const tauriEvent = command.replace('tauri:', '');
-            listen(tauriEvent, callback).then((unsubscribe) => {
-                this.eventListeners[command] = unsubscribe;
-            });
-        } else {
-            // For backward compatibility, use window messages
-            window.addEventListener('message', callback);
-        }
+        // For Electron, use window message events
+        window.addEventListener('message', callback);
     }
 
     getAppEnvironment(): string {
-        return 'tauri';
+        return 'electron';
     }
 
     async fetchData(url: string, queryParams: Params) {

@@ -3,7 +3,6 @@ import {
     AfterViewInit,
     Component,
     effect,
-    ElementRef,
     inject,
     Inject,
     Optional,
@@ -55,7 +54,7 @@ interface SearchResultsData {
     styleUrls: ['./search-results.component.scss'],
 })
 export class SearchResultsComponent implements AfterViewInit {
-    @ViewChild('searchInput') searchInput!: ElementRef;
+    @ViewChild(SearchFormComponent) searchFormComponent!: SearchFormComponent;
     readonly xtreamStore = inject(XtreamStore);
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
@@ -105,7 +104,7 @@ export class SearchResultsComponent implements AfterViewInit {
     ngAfterViewInit() {
         this.xtreamStore.setSelectedContentType(undefined);
         setTimeout(() => {
-            this.searchInput.nativeElement.focus();
+            this.searchFormComponent?.focusSearchInput();
         });
     }
 

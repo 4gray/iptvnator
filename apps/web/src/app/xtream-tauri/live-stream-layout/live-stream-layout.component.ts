@@ -15,7 +15,6 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { XtreamCategory } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
-import { MpvPlayerBarComponent } from '../../shared/components/mpv-player-bar/mpv-player-bar.component';
 import { CategoryViewComponent } from '../category-view/category-view.component';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { FavoritesService } from '../services/favorites.service';
@@ -34,7 +33,7 @@ import { XtreamStore } from '../xtream.store';
         MatIconButton,
         MatInputModule,
         MatListModule,
-        MpvPlayerBarComponent,
+        /* MpvPlayerBarComponent, */
         PortalChannelsListComponent,
         TranslatePipe,
         WebPlayerViewComponent,

@@ -24,8 +24,8 @@ import { DataService } from 'services';
 import { dbConfig } from 'shared-interfaces';
 import { AppConfig } from '../environments/environment';
 import { routes } from './app.routes';
+import { ElectronService } from './services/electron.service';
 import { PwaService } from './services/pwa.service';
-import { TauriService } from './services/tauri.service';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -37,7 +37,7 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
  */
 export function DataFactory() {
     if (window.electron) {
-        return new TauriService();
+        return new ElectronService();
     }
     return new PwaService();
 }

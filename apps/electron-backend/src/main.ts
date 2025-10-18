@@ -1,12 +1,18 @@
 import { app, BrowserWindow } from 'electron';
 import fixPath from 'fix-path';
 import App from './app/app';
+import { initDatabase } from './app/database/connection';
+import DatabaseEvents from './app/events/database.events';
 import ElectronEvents from './app/events/electron.events';
 import PlayerEvents from './app/events/player.events';
 import PlaylistEvents from './app/events/playlist.events';
 import SettingsEvents from './app/events/setttings.events';
 import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
+import StalkerEvents from './app/events/stalker.events';
+import XtreamEvents from './app/events/xtream.events';
+
+app.setName('iptvnator');
 
 export default class Main {
     static initialize() {
@@ -20,12 +26,18 @@ export default class Main {
         App.main(app, BrowserWindow);
     }
 
-    static bootstrapAppEvents() {
+    static async bootstrapAppEvents() {
+        // Initialize database before other events
+        await initDatabase();
+
         ElectronEvents.bootstrapElectronEvents();
         PlaylistEvents.bootstrapPlaylistEvents();
         SharedEvents.bootstrapSharedEvents();
         PlayerEvents.bootstrapPlayerEvents();
         SettingsEvents.bootstrapSettingsEvents();
+        StalkerEvents.bootstrapStalkerEvents();
+        XtreamEvents.bootstrapXtreamEvents();
+        DatabaseEvents.bootstrapDatabaseEvents();
 
         // initialize auto updater service
         if (!App.isDevelopmentMode()) {
@@ -41,4 +53,8 @@ Main.initialize();
 
 // bootstrap app
 Main.bootstrapApp();
-Main.bootstrapAppEvents();
+
+// Bootstrap app events after Electron app is ready
+app.whenReady().then(async () => {
+    await Main.bootstrapAppEvents();
+});

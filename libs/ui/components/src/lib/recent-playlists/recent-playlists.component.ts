@@ -249,10 +249,74 @@ export class RecentPlaylistsComponent implements OnInit {
      * @param item playlist to update
      */
     refreshPlaylist(item: PlaylistMeta) {
-        this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
-            id: item._id,
-            title: item.title,
-            ...(item.url ? { url: item.url } : { filePath: item.filePath }),
+        if (item.serverUrl) {
+            // For Xtream playlists, delete and re-import
+            this.refreshXtreamPlaylist(item);
+        } else {
+            // For M3U playlists, use existing refresh logic
+            this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
+                id: item._id,
+                title: item.title,
+                ...(item.url ? { url: item.url } : { filePath: item.filePath }),
+            });
+        }
+    }
+
+    /**
+     * Refresh Xtream playlist by deleting all data and re-importing from remote
+     * @param item Xtream playlist to refresh
+     */
+    async refreshXtreamPlaylist(item: PlaylistMeta) {
+        this.dialogService.openConfirmDialog({
+            title: this.translate.instant(
+                'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.TITLE'
+            ),
+            message: this.translate.instant(
+                'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.MESSAGE'
+            ),
+            onConfirm: async () => {
+                try {
+                    // Delete all content and categories for this playlist
+                    await this.databaseService.deleteXtreamPlaylistContent(
+                        item._id
+                    );
+
+                    const updateDate = Date.now();
+
+                    // Update the updateDate timestamp in database (Electron)
+                    await this.databaseService.updateXtreamPlaylistDetails({
+                        id: item._id,
+                        updateDate,
+                    });
+
+                    // Update the updateDate timestamp in IndexedDB
+                    this.store.dispatch(
+                        PlaylistActions.updatePlaylistMeta({
+                            playlist: { ...item, updateDate },
+                        })
+                    );
+
+                    this.snackBar.open(
+                        this.translate.instant(
+                            'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.STARTED'
+                        ),
+                        undefined,
+                        { duration: 2000 }
+                    );
+
+                    // Navigate to the playlist to trigger re-import
+                    this.router.navigate(['xtreams', item._id]);
+                } catch (error) {
+                    console.error('Error refreshing Xtream playlist:', error);
+                    this.snackBar.open(
+                        this.translate.instant(
+                            'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.ERROR'
+                        ),
+                        undefined,
+                        { duration: 3000 }
+                    );
+                }
+            },
         });
     }
 

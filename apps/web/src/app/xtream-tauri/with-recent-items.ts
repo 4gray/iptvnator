@@ -18,6 +18,7 @@ export interface RecentlyViewedItem {
     playlist_id: string;
     viewed_at: string;
     xtream_id: number;
+    category_id: number;
 }
 
 export const withRecentItems = function () {
@@ -29,30 +30,21 @@ export const withRecentItems = function () {
             loadRecentItems: rxMethod<{ id: string }>(
                 pipe(
                     switchMap(async (playlist) => {
-                        if (!playlist) return [];
-                        console.log(
-                            'Loading recent items for playlist',
+                        const items = await dbService.getRecentItems(
                             playlist.id
                         );
-                        const db = await dbService.getConnection();
-                        return db.select<RecentlyViewedItem[]>(
-                            `SELECT 
-                                rv.id,
-                                c.title,
-                                c.type,
-                                c.poster_url,
-                                c.id as content_id,
-                                rv.playlist_id,
-                                rv.viewed_at,
-                                c.xtream_id,
-                                c.category_id
-                            FROM recently_viewed rv
-                            JOIN content c ON rv.content_id = c.id
-                            WHERE rv.playlist_id = ?
-                            ORDER BY rv.viewed_at DESC
-                            LIMIT 50`,
-                            [playlist.id]
-                        );
+                        // Map to RecentlyViewedItem format
+                        return items.map((item) => ({
+                            id: item.id,
+                            title: item.title,
+                            type: item.type as 'live' | 'movie' | 'series',
+                            poster_url: item.poster_url,
+                            content_id: item.id,
+                            playlist_id: playlist.id,
+                            viewed_at: item.viewed_at || '',
+                            xtream_id: item.xtream_id,
+                            category_id: item.category_id,
+                        }));
                     }),
                     tap((items: RecentlyViewedItem[]) =>
                         patchState(store, { recentItems: items })
@@ -67,50 +59,16 @@ export const withRecentItems = function () {
             }>(
                 pipe(
                     switchMap(async ({ contentId, playlist }) => {
-                        if (!playlist().id) {
-                            console.error('No active playlist found');
-                            return;
-                        }
-
-                        console.log(
-                            'Adding to recently viewed:',
+                        // contentId is actually xtream_id, need to look up the database content.id
+                        const content = await dbService.getContentByXtreamId(
+                            contentId,
                             playlist().id
                         );
-
-                        const db = await dbService.getConnection();
-
-                        const content: any = await db.select(
-                            'SELECT content.id FROM content ' +
-                                'INNER JOIN categories ON content.category_id = categories.id ' +
-                                'WHERE content.xtream_id = ? AND categories.playlist_id = ?',
-                            [contentId, playlist().id]
-                        );
-
-                        if (content && content.length > 0) {
-                            // Check if item already exists in recently_viewed
-                            const existing: any = await db.select(
-                                'SELECT recently_viewed.id FROM recently_viewed ' +
-                                    'INNER JOIN content ON recently_viewed.content_id = content.id ' +
-                                    'INNER JOIN categories ON content.category_id = categories.id ' +
-                                    'WHERE content.id = ? AND categories.playlist_id = ?',
-                                [content[0].id, playlist().id]
+                        if (content) {
+                            await dbService.addRecentItem(
+                                content.id,
+                                playlist().id
                             );
-
-                            if (existing && existing.length > 0) {
-                                // Update existing record's viewed_at timestamp
-                                await db.execute(
-                                    'UPDATE recently_viewed SET viewed_at = CURRENT_TIMESTAMP WHERE id = ?',
-                                    [existing[0].id]
-                                );
-                            } else {
-                                // Insert new record
-                                await db.execute(
-                                    `INSERT INTO recently_viewed (content_id, playlist_id) 
-                            VALUES (?, ?)`,
-                                    [content[0].id, playlist().id]
-                                );
-                            }
-                            return store.loadRecentItems({ id: playlist().id });
                         }
                     })
                 )
@@ -118,28 +76,30 @@ export const withRecentItems = function () {
             clearRecentItems: rxMethod<{ id: string }>(
                 pipe(
                     switchMap(async (playlist) => {
-                        console.log(
-                            'Clearing recent items for playlist',
-                            playlist.id
-                        );
-                        const db = await dbService.getConnection();
-                        await db.execute(
-                            `DELETE FROM recently_viewed WHERE playlist_id = ?`,
-                            [playlist.id]
-                        );
-                        return store.loadRecentItems({ id: playlist.id });
+                        await dbService.clearPlaylistRecentItems(playlist.id);
+                        patchState(store, { recentItems: [] });
                     })
                 )
             ),
             removeRecentItem: rxMethod<{ itemId: number; playlistId: string }>(
                 pipe(
                     switchMap(async ({ itemId, playlistId }) => {
-                        const db = await dbService.getConnection();
-                        await db.execute(
-                            `DELETE FROM recently_viewed WHERE id = ? AND playlist_id = ?`,
-                            [itemId, playlistId]
-                        );
-                        return store.loadRecentItems({ id: playlistId });
+                        await dbService.removeRecentItem(itemId, playlistId);
+                        // Reload recent items to update UI
+                        const items =
+                            await dbService.getRecentItems(playlistId);
+                        const mappedItems = items.map((item) => ({
+                            id: item.id,
+                            title: item.title,
+                            type: item.type as 'live' | 'movie' | 'series',
+                            poster_url: item.poster_url,
+                            content_id: item.id,
+                            playlist_id: playlistId,
+                            viewed_at: item.viewed_at || '',
+                            xtream_id: item.xtream_id,
+                            category_id: item.category_id,
+                        }));
+                        patchState(store, { recentItems: mappedItems });
                     })
                 )
             ),

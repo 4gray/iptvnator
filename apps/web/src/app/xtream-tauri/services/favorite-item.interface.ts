@@ -6,4 +6,6 @@ export interface FavoriteItem {
     stream_icon?: string;
     poster_url?: string;
     added_at?: string;
+    category_id: number;
+    xtream_id: number;
 }

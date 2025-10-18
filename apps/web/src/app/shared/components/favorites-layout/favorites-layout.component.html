@@ -63,7 +63,8 @@
                                 'CHANNELS.REMOVE_FAVORITE' | translate
                             "
                             (click)="
-                                $event.stopPropagation(); removeFavorite(item)
+                                $event.stopPropagation();
+                                removeFromFavorites(item)
                             "
                         >
                             <mat-icon>delete</mat-icon>
@@ -78,5 +79,5 @@
             </div>
         }
     </div>
-    <app-mpv-player-bar />
+    <!-- <app-mpv-player-bar /> -->
 </div>
