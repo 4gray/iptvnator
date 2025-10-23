@@ -22,7 +22,7 @@
             @if (activeChannel.radio === 'true') {
                 <app-audio-player
                     [url]="activeChannel.url"
-                    [icon]="activeChannel?.tvg?.logo"
+                    [icon]="activeChannel?.tvg?.logo!"
                 />
             } @else {
                 <!-- video.js player -->
@@ -32,8 +32,8 @@
                             sources: [
                                 {
                                     src:
-                                        activeChannel?.url +
-                                        activeChannel?.epgParams,
+                                        activeChannel.url +
+                                        activeChannel.epgParams,
                                     type: 'application/x-mpegURL',
                                 },
                             ],
@@ -47,7 +47,7 @@
                     <app-html-video-player
                         [channel]="activeChannel"
                         [volume]="volume"
-                        [showCaptions]="playerSettings.showCaptions"
+                        [showCaptions]="playerSettings.showCaptions!"
                     />
                 }
                 <!-- Add ArtPlayer component -->
@@ -55,7 +55,7 @@
                     <app-art-player
                         [channel]="activeChannel"
                         [volume]="volume"
-                        [showCaptions]="playerSettings.showCaptions"
+                        [showCaptions]="playerSettings.showCaptions!"
                     />
                 }
                 @if (playerSettings.player === 'mpv') {

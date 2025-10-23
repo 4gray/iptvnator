@@ -17,7 +17,20 @@
                 "outputPath": "dist/apps/electron-backend",
                 "main": "apps/electron-backend/src/main.ts",
                 "tsConfig": "apps/electron-backend/tsconfig.app.json",
-                "assets": ["apps/electron-backend/src/assets"]
+                "assets": [
+                    "apps/electron-backend/src/assets",
+                    {
+                        "input": "apps/electron-backend/src/app/workers",
+                        "glob": "*.worker.ts",
+                        "output": "workers"
+                    }
+                ],
+                "additionalEntryPoints": [
+                    {
+                        "entryName": "workers/epg-parser.worker",
+                        "entryPath": "apps/electron-backend/src/app/workers/epg-parser.worker.ts"
+                    }
+                ]
             },
             "configurations": {
                 "production": {

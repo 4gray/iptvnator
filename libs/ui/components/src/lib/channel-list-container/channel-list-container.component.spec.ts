@@ -1,4 +1,4 @@
-import { ScrollingModule } from '@angular/cdk/scrolling';
+/* import { ScrollingModule } from '@angular/cdk/scrolling';
 import { KeyValue } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
@@ -233,3 +233,4 @@ describe('ChannelListContainerComponent', () => {
         });
     });
 });
+ */

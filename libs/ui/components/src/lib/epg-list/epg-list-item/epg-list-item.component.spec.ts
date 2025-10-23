@@ -4,11 +4,11 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MomentDatePipe } from '@iptvnator/pipes';
 import { TranslateModule } from '@ngx-translate/core';
 import moment from 'moment';
 import { MockModule, MockPipe } from 'ng-mocks';
-import { EpgProgram } from '../../../../../../shared/interfaces/src/lib/epg-program.model';
-import { MomentDatePipe } from '../../../../../pipes/src/lib/moment-date.pipe';
+import { EpgProgram } from 'shared-interfaces';
 import { EpgItemDescriptionComponent } from '../epg-item-description/epg-item-description.component';
 import { EpgListItemComponent } from './epg-list-item.component';
 

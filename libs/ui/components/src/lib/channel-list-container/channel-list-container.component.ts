@@ -130,7 +130,8 @@ export class ChannelListContainerComponent implements OnDestroy {
         this.selected = channel;
         this.store.dispatch(PlaylistActions.setActiveChannel({ channel }));
 
-        const epgChannelId = channel?.name.trim();
+        // Use tvg-id for EPG matching, fallback to channel name if not available
+        const epgChannelId = channel?.tvg?.id?.trim() || channel?.name.trim();
 
         if (epgChannelId) {
             this.epgService.getChannelPrograms(epgChannelId);

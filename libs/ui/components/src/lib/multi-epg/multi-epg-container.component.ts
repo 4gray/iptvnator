@@ -18,7 +18,6 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MomentDatePipe } from '@iptvnator/pipes';
 import { TranslatePipe } from '@ngx-translate/core';
-import { invoke } from '@tauri-apps/api/core';
 import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
 import { BehaviorSubject, Observable } from 'rxjs';
 import {
@@ -154,29 +153,22 @@ export class MultiEpgContainerComponent
     }
 
     async requestPrograms(): Promise<void> {
-        const today = new Date();
-        const startTime = format(subDays(today, 1), 'yyyyMMddHHmmss +0000');
-        const endTime = format(addDays(today, 2), 'yyyyMMddHHmmss +0000');
+        if (!window.electron) {
+            console.warn('Multi-EPG not available: Electron not detected');
+            return;
+        }
 
         try {
-            const channelNames = this._playlistChannels
-                .map((channel) => channel.name?.trim() ?? '')
-                .filter((name) => name !== '');
-
             console.log('Requesting EPG data:');
             console.log('- Skip:', this.channelsLowerRange);
             console.log('- Limit:', this.visibleChannels);
-            console.log('- Channel names count:', channelNames.length);
 
-            const response = await invoke<any>('get_epg_by_range', {
-                startTime,
-                endTime,
-                skip: this.channelsLowerRange,
-                limit: this.visibleChannels,
-                playlistChannelNames: channelNames,
-            });
+            const response = await window.electron.getEpgChannelsByRange(
+                this.channelsLowerRange,
+                this.visibleChannels
+            );
 
-            if (response) {
+            if (response && Array.isArray(response)) {
                 console.log('Received channels:', response.length);
                 this.originalEpgData = response;
                 this.channels$.next(this.enrichProgramData());
@@ -223,14 +215,14 @@ export class MultiEpgContainerComponent
 
         return this.originalEpgData.map((channel) => {
             const filteredPrograms = channel.programs
-                .filter((item) => {
+                .filter((item: EpgProgram) => {
                     const itemDate = format(
                         this.getCachedDate(item.start),
                         'yyyyMMdd'
                     );
                     return itemDate === this.today;
                 })
-                .map((program) => {
+                .map((program: EpgProgram) => {
                     const startDate = this.getCachedDate(program.start);
                     const stopDate = this.getCachedDate(program.stop);
                     const startPosition =
@@ -253,6 +245,26 @@ export class MultiEpgContainerComponent
                 programs: filteredPrograms,
             };
         });
+    }
+
+    /**
+     * Get display name from EpgChannel
+     */
+    getChannelName(channel: EpgChannel): string {
+        if (channel.displayName && channel.displayName.length > 0) {
+            return channel.displayName[0].value;
+        }
+        return '';
+    }
+
+    /**
+     * Get icon from EpgChannel
+     */
+    getChannelIcon(channel: EpgChannel): string {
+        if (channel.icon && channel.icon.length > 0) {
+            return channel.icon[0].src;
+        }
+        return '';
     }
 
     zoomIn(): void {

@@ -3,7 +3,7 @@ import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule } from 'ng-mocks';
-import { EpgProgram } from '../../../../../../shared/interfaces/src/lib/epg-program.model';
+import { EpgProgram } from 'shared-interfaces';
 import { EpgItemDescriptionComponent } from './epg-item-description.component';
 
 describe('EpgItemDescriptionComponent', () => {
