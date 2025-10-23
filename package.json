@@ -69,7 +69,7 @@
         "date-fns": "2.29.3",
         "drizzle-orm": "0.44.6",
         "electron-store": "11.0.2",
-        "epg-parser": "0.1.6",
+        "epg-parser": "0.4.0",
         "fix-path": "5.0.0",
         "hls.js": "1.6.13",
         "iptv-playlist-parser": "github:4gray/iptv-playlist-parser",
