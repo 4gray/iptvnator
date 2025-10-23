@@ -12,7 +12,7 @@ import {
 import Hls from 'hls.js';
 import { getExtensionFromUrl } from 'm3u-utils';
 import { DataService } from 'services';
-import { Channel, CHANNEL_SET_USER_AGENT } from 'shared-interfaces';
+import { Channel } from 'shared-interfaces';
 
 /**
  * This component contains the implementation of HTML5 based video player
@@ -74,61 +74,38 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             const url = channel.url + (channel.epgParams ?? '');
             const extension = getExtensionFromUrl(channel.url);
 
-            // Send IPC event and handle the response
-            this.dataService
-                .sendIpcEvent(CHANNEL_SET_USER_AGENT, {
-                    userAgent: channel.http?.['user-agent'] ?? '',
-                    referer: channel.http?.referrer ?? '',
-                    origin: channel.http?.origin ?? '',
-                })
-                .then(() => {
-                    if (
-                        extension !== 'mp4' &&
-                        extension !== 'mpv' &&
-                        Hls &&
-                        Hls.isSupported()
-                    ) {
-                        console.log(
-                            '... switching channel to ',
-                            channel.name,
-                            url
-                        );
-                        this.hls = new Hls();
-                        this.hls.attachMedia(this.videoPlayer.nativeElement);
-                        this.hls.loadSource(url);
-                        this.handlePlayOperation();
-                    } else {
-                        console.log('Using native video player...');
-                        this.addSourceToVideo(
-                            this.videoPlayer.nativeElement,
-                            url,
-                            'video/mp4'
-                        );
-                        this.videoPlayer.nativeElement.play();
-                    }
-                })
-                .catch((error: any) => {
-                    console.error('Error setting user agent:', error);
-                    // Continue playback even if setting user agent fails
-                    if (
-                        extension !== 'mp4' &&
-                        extension !== 'mpv' &&
-                        Hls &&
-                        Hls.isSupported()
-                    ) {
-                        this.hls = new Hls();
-                        this.hls.attachMedia(this.videoPlayer.nativeElement);
-                        this.hls.loadSource(url);
-                        this.handlePlayOperation();
-                    } else {
-                        this.addSourceToVideo(
-                            this.videoPlayer.nativeElement,
-                            url,
-                            'video/mp4'
-                        );
-                        this.videoPlayer.nativeElement.play();
-                    }
-                });
+            // Set user agent if specified on channel
+            if (channel.http?.['user-agent']) {
+                window.electron?.setUserAgent(
+                    channel.http['user-agent'],
+                    channel.http.referrer
+                );
+            }
+
+            if (
+                extension !== 'mp4' &&
+                extension !== 'mpv' &&
+                Hls &&
+                Hls.isSupported()
+            ) {
+                console.log(
+                    '... switching channel to ',
+                    channel.name,
+                    url
+                );
+                this.hls = new Hls();
+                this.hls.attachMedia(this.videoPlayer.nativeElement);
+                this.hls.loadSource(url);
+                this.handlePlayOperation();
+            } else {
+                console.log('Using native video player...');
+                this.addSourceToVideo(
+                    this.videoPlayer.nativeElement,
+                    url,
+                    'video/mp4'
+                );
+                this.videoPlayer.nativeElement.play();
+            }
         }
     }
 

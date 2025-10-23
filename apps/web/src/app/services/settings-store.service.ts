@@ -36,14 +36,19 @@ export const SettingsStore = signalStore(
     withState<Settings>(DEFAULT_SETTINGS),
     withMethods((store, storage = inject(StorageMap)) => ({
         async loadSettings() {
-            const stored = await firstValueFrom(
-                storage.get(STORE_KEY.Settings)
-            );
-            if (stored) {
-                patchState(store, {
-                    ...DEFAULT_SETTINGS,
-                    ...(stored as Settings),
-                });
+            try {
+                const stored = await firstValueFrom(
+                    storage.get(STORE_KEY.Settings)
+                );
+                if (stored) {
+                    patchState(store, {
+                        ...DEFAULT_SETTINGS,
+                        ...(stored as Settings),
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+                // Keep default settings if loading fails
             }
         },
 
@@ -51,9 +56,14 @@ export const SettingsStore = signalStore(
             patchState(store, settings);
             // Save the complete settings object, not just the partial update
             const completeSettings = this.getSettings();
-            await firstValueFrom(
-                storage.set(STORE_KEY.Settings, completeSettings)
-            );
+            try {
+                await firstValueFrom(
+                    storage.set(STORE_KEY.Settings, completeSettings)
+                );
+            } catch (error) {
+                console.error('Failed to save settings:', error);
+                throw error;
+            }
         },
 
         getSettings() {

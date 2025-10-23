@@ -5,7 +5,6 @@ import { DataService } from 'services';
 import {
     AUTO_UPDATE_PLAYLISTS,
     AUTO_UPDATE_PLAYLISTS_RESPONSE,
-    EPG_GET_PROGRAM_DONE,
     ERROR,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
@@ -92,11 +91,6 @@ export class ElectronService extends DataService {
                 console.error('VLC launch error:', error);
                 throw error;
             }
-        } else if (type === 'EPG_FETCH_DONE') {
-            window.postMessage({
-                type: EPG_GET_PROGRAM_DONE,
-                payload,
-            });
         } else if (type === AUTO_UPDATE_PLAYLISTS) {
             const data = payload as Playlist[];
             const playlists = await window.electron.autoUpdatePlaylists(data);

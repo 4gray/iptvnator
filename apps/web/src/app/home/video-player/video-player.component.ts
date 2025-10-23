@@ -35,7 +35,6 @@ import {
 import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
 import { DataService, PlaylistsService } from 'services';
 import {
-    CHANNEL_SET_USER_AGENT,
     COMPONENT_OVERLAY_REF,
     Channel,
     ERROR,
@@ -44,13 +43,11 @@ import {
     Playlist,
     STORE_KEY,
     Settings,
+    SidebarView,
     VideoPlayer,
 } from 'shared-interfaces';
 import { SettingsStore } from '../../services/settings-store.service';
 import { SettingsComponent } from '../../settings/settings.component';
-
-/** Possible sidebar view options */
-export type SidebarView = 'CHANNELS' | 'PLAYLISTS';
 
 @Component({
     imports: [
@@ -175,15 +172,13 @@ export class VideoPlayerComponent implements OnInit {
                     );
                     return this.playlistsService.getPlaylist(params['id']).pipe(
                         map((playlist) => {
-                            this.dataService.sendIpcEvent(
-                                CHANNEL_SET_USER_AGENT,
-                                playlist.userAgent
-                                    ? {
-                                          referer: 'localhost',
-                                          userAgent: playlist.userAgent,
-                                      }
-                                    : {}
-                            );
+                            // Set user agent if specified on playlist level
+                            if (playlist.userAgent) {
+                                window.electron?.setUserAgent(
+                                    playlist.userAgent,
+                                    'localhost'
+                                );
+                            }
 
                             this.store.dispatch(
                                 PlaylistActions.setChannels({

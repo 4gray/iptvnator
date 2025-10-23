@@ -13,10 +13,8 @@ import {
     tap,
     withLatestFrom,
 } from 'rxjs';
-import { DataService, PlaylistsService } from 'services';
+import { DataService, EpgService, PlaylistsService } from 'services';
 import {
-    CHANNEL_SET_USER_AGENT,
-    EPG_GET_PROGRAM,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
     Playlist,
@@ -36,6 +34,7 @@ export class PlaylistEffects {
     private actions$ = inject(Actions);
     private playlistsService = inject(PlaylistsService);
     private dataService = inject(DataService);
+    private epgService = inject(EpgService);
     private router = inject(Router);
     private snackBar = inject(MatSnackBar);
     private storage = inject(StorageMap);
@@ -126,15 +125,19 @@ export class PlaylistEffects {
             ofType(PlaylistActions.setActiveChannel),
             map((action) => {
                 const { channel } = action;
-                this.dataService.sendIpcEvent(EPG_GET_PROGRAM, {
-                    channel,
-                });
+                
+                // Use modern EPG service to get channel programs
+                const channelId = channel.tvg?.id || channel.name;
+                if (channelId) {
+                    this.epgService.getChannelPrograms(channelId);
+                }
+                
+                // Set user agent if specified on channel
                 if (channel.http['user-agent']) {
-                    this.dataService.sendIpcEvent(CHANNEL_SET_USER_AGENT, {
-                        referer: channel.http.referrer,
-                        userAgent: channel.http['user-agent'],
-                        origin: channel.http.origin,
-                    });
+                    window.electron?.setUserAgent(
+                        channel.http['user-agent'],
+                        channel.http.referrer
+                    );
                 }
 
                 firstValueFrom(this.storage.get(STORE_KEY.Settings)).then(

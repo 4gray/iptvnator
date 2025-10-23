@@ -2,8 +2,6 @@
 export const EPG_FETCH = 'EPG:FETCH';
 export const EPG_FETCH_DONE = 'EPG:FETCH_DONE';
 export const EPG_ERROR = 'EPG:ERROR';
-export const EPG_GET_PROGRAM = 'EPG:GET_PROGRAM';
-export const EPG_GET_PROGRAM_DONE = 'EPG:GET_PROGRAM_DONE';
 export const EPG_GET_CHANNELS = 'EPG:GET_CHANNELS';
 export const EPG_GET_CHANNELS_DONE = 'EPG:GET_CHANNELS_DONE';
 export const EPG_GET_CHANNELS_BY_RANGE = 'EPG:EPG_GET_CHANNELS_BY_RANGE';
@@ -20,9 +18,6 @@ export const PLAYLIST_UPDATE_RESPONSE = 'PLAYLIST:UPDATE_RESPONSE';
 // General
 export const ERROR = 'ERROR';
 export const OPEN_FILE = 'OPEN_FILE';
-
-// Channels
-export const CHANNEL_SET_USER_AGENT = 'CHANNEL:SET_USER_AGENT';
 
 // Views
 export const VIEW_SETTINGS = 'VIEW:SETTINGS';

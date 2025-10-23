@@ -41,8 +41,6 @@ import { DataService, EpgService, PlaylistsService } from 'services';
 import {
     Language,
     Playlist,
-    SET_MPV_PLAYER_PATH,
-    SET_VLC_PLAYER_PATH,
     StreamFormat,
     Theme,
     VideoPlayer,
@@ -165,7 +163,9 @@ export class SettingsComponent implements OnInit {
      * Reads the config object from the browsers
      * storage (indexed db)
      */
-    ngOnInit(): void {
+    async ngOnInit(): Promise<void> {
+        // Wait for settings to load before setting the form
+        await this.settingsStore.loadSettings();
         this.setSettings();
         this.checkAppVersion();
     }
@@ -252,21 +252,18 @@ export class SettingsComponent implements OnInit {
     onSubmit(): void {
         this.settingsStore.updateSettings(this.settingsForm.value).then(() => {
             this.applyChangedSettings();
-            /* this.dataService.sendIpcEvent(
-                SETTINGS_UPDATE,
-                this.settingsForm.value
-            ); */
-            window.electron?.updateSettings(this.settingsForm.value);
-
-            this.dataService.sendIpcEvent(
-                SET_MPV_PLAYER_PATH,
-                this.settingsForm.value.mpvPlayerPath
-            );
-
-            this.dataService.sendIpcEvent(
-                SET_VLC_PLAYER_PATH,
-                this.settingsForm.value.mpvPlayerPath
-            );
+            
+            if (window.electron) {
+                window.electron.updateSettings(this.settingsForm.value);
+                
+                // Set player paths if using external players
+                if (this.settingsForm.value.mpvPlayerPath) {
+                    window.electron.setMpvPlayerPath(this.settingsForm.value.mpvPlayerPath);
+                }
+                if (this.settingsForm.value.vlcPlayerPath) {
+                    window.electron.setVlcPlayerPath(this.settingsForm.value.vlcPlayerPath);
+                }
+            }
         });
         if (this.isDialog) {
             this.matDialog.closeAll();

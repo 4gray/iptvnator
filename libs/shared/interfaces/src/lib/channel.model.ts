@@ -1,4 +1,4 @@
-import { Channel } from 'shared-interfaces';
+import { Channel } from './channel.interface';
 
 /**
  * Creates new channel object based on the given fields
@@ -15,3 +15,6 @@ export function createChannel(params: Partial<Channel>): Channel {
         http: params.http,
     } as Channel;
 }
+
+/** Possible sidebar view options */
+export type SidebarView = 'CHANNELS' | 'PLAYLISTS';
