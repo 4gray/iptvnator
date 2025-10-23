@@ -1,6 +1,7 @@
 export * from './lib/channel.interface';
 export * from './lib/channel.model';
 export * from './lib/constants';
+export * from './lib/epg-channel-with-programs.interface';
 export * from './lib/epg-channel.model';
 export * from './lib/epg-item.interface';
 export * from './lib/epg-program.model';
