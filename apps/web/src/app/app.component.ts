@@ -120,15 +120,21 @@ export class AppComponent implements OnInit, OnDestroy {
             .getValueFromLocalStorage(STORE_KEY.Settings)
             .subscribe((settings: Settings) => {
                 if (settings && Object.keys(settings).length > 0) {
-                    this.dataService.sendIpcEvent(SETTINGS_UPDATE, settings);
+                    // Send settings to Electron main process
+                    if (window.electron) {
+                        window.electron.updateSettings(settings);
+                    }
+                    
                     this.translate.use(settings.language ?? this.DEFAULT_LANG);
-                    /* if (
+                    
+                    // Fetch EPG if URLs are configured
+                    if (
+                        window.electron &&
                         settings.epgUrl?.length > 0 &&
-                        settings.epgUrl?.some((u) => u !== '') &&
-                        isTauri()
+                        settings.epgUrl?.some((u) => u !== '')
                     ) {
                         this.epgService.fetchEpg(settings.epgUrl);
-                    } */
+                    }
 
                     if (settings.theme) {
                         this.settingsService.changeTheme(settings.theme);
