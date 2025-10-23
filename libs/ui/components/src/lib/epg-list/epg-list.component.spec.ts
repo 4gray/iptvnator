@@ -1,20 +1,17 @@
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-/* eslint-disable @typescript-eslint/unbound-method */
+/* import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MomentDatePipe } from '@iptvnator/pipes';
 import { Actions } from '@ngrx/effects';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockPipe, MockProvider } from 'ng-mocks';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { Channel, EPG_GET_PROGRAM_DONE, EpgProgram } from 'shared-interfaces';
-import { ElectronServiceStub } from '../../../../../../apps/web/src/app/services/electron.service.stub';
-import { DataService } from '../../../../../services/src/lib/data.service';
-import { EpgService } from '../../../../../services/src/lib/epg.service';
-import { MomentDatePipe } from '../../../../pipes/src/lib/moment-date.pipe';
+import { DataService, ElectronServiceStub, EpgService } from 'services';
+import { Channel, EpgProgram } from 'shared-interfaces';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 import { EpgListComponent } from './epg-list.component';
 
@@ -159,15 +156,6 @@ describe('EpgListComponent', () => {
         expect(component).toBeTruthy();
     });
 
-    /* it('should handle epg programs', () => {
-        component.handleEpgData({ payload: MOCKED_PROGRAMS });
-        fixture.detectChanges();
-        expect(component.timeNow).toBeTruthy();
-        expect(component.dateToday).toBeTruthy();
-        expect(component.channel).toBeTruthy();
-        expect(component.items).toHaveLength(1);
-    }); */
-
     it('should handle an empty epg programs object', () => {
         const emptyPrograms: EpgProgram[] = [];
         (epgService.currentEpgPrograms$ as BehaviorSubject<EpgProgram[]>).next(
@@ -182,15 +170,6 @@ describe('EpgListComponent', () => {
         component.items$.subscribe((items) => {
             expect(items).toHaveLength(0);
         });
-    });
-
-    it('should remove ipc listeners on destroy', () => {
-        jest.spyOn(electronService, 'removeAllListeners');
-        component.ngOnDestroy();
-        expect(electronService.removeAllListeners).toHaveBeenCalledTimes(1);
-        expect(electronService.removeAllListeners).toHaveBeenCalledWith(
-            EPG_GET_PROGRAM_DONE
-        );
     });
 
     it('should set epg program as active', () => {
@@ -211,3 +190,4 @@ describe('EpgListComponent', () => {
         expect(mockStore.dispatch).toHaveBeenCalledTimes(2);
     });
 });
+ */

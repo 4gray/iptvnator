@@ -56,7 +56,7 @@
         hideSingleSelectionIndicator="true"
     >
         @if (items?.length > 0) {
-            @for (program of items; track program) {
+            @for (program of items; track program.start + program.stop) {
                 @if (
                     program.start < timeshiftUntil || program.start >= timeNow
                 ) {
@@ -68,7 +68,9 @@
                                 [item]="program"
                             />
                         </div>
-                        <p matListItemLine>{{ program?.title?.[0]?.value }}</p>
+                        <p matListItemTitle class="program-title">
+                            {{ program?.title?.[0]?.value }}
+                        </p>
                     </mat-list-option>
                 } @else {
                     <mat-list-option

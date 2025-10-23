@@ -1,5 +1,5 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
@@ -14,13 +14,13 @@ import {
     selectActive,
     setActiveEpgProgram,
     setCurrentEpgProgram,
+    setEpgAvailableFlag,
 } from 'm3u-state';
 import moment from 'moment';
 import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { DataService, EpgService } from 'services';
 import {
-    EPG_GET_PROGRAM_DONE,
     EpgChannel,
     EpgProgram,
 } from 'shared-interfaces';
@@ -50,7 +50,7 @@ const DATE_FORMAT = 'YYYY-MM-DD';
     templateUrl: './epg-list.component.html',
     styleUrls: ['./epg-list.component.scss'],
 })
-export class EpgListComponent implements OnInit, OnDestroy {
+export class EpgListComponent implements OnInit {
     private readonly store = inject(Store);
     private dataService = inject(DataService);
     private readonly epgService = inject(EpgService);
@@ -164,11 +164,18 @@ export class EpgListComponent implements OnInit, OnDestroy {
     handleEpgData(programs: EpgProgram[]): void {
         this.timeNow = new Date().toISOString();
         this.dateToday = moment().format(DATE_FORMAT);
+        
+        // Dispatch EPG availability flag
+        this.store.dispatch(
+            setEpgAvailableFlag({ value: programs.length > 0 })
+        );
+        
         if (programs.length > 0) {
             this.setPlayingNow();
         } else {
             this.channel = {} as EpgChannel;
-            this.store.dispatch(setCurrentEpgProgram(undefined));
+            // Clear the current EPG program when no programs available
+            this.store.dispatch(resetActiveEpgProgram());
         }
     }
 
@@ -246,12 +253,5 @@ export class EpgListComponent implements OnInit, OnDestroy {
             this.store.dispatch(setActiveEpgProgram({ program }));
         }
         this.playingNow = program;
-    }
-
-    /**
-     * Removes all ipc renderer listeners after destroy
-     */
-    ngOnDestroy(): void {
-        this.dataService.removeAllListeners(EPG_GET_PROGRAM_DONE);
     }
 }

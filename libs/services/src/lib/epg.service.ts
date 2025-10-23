@@ -1,8 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import * as PlaylistActions from 'm3u-state';
 import { BehaviorSubject, from, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { EpgProgram } from 'shared-interfaces';
@@ -13,9 +11,6 @@ import { EpgProgram } from 'shared-interfaces';
 export class EpgService {
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
-
-    // TODO: do not use store directly in the service
-    private store = inject(Store);
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
@@ -77,15 +72,12 @@ export class EpgService {
                     console.error('EPG get programs error:', err);
                     this.showErrorSnackbar();
                     this.currentEpgPrograms.next([]);
+                    this.epgAvailable.next(false);
                     return of([]);
                 })
             )
             .subscribe((programs) => {
-                this.store.dispatch(
-                    PlaylistActions.setEpgAvailableFlag({
-                        value: programs.length === 0 ? false : true,
-                    })
-                );
+                this.epgAvailable.next(programs.length > 0);
                 this.currentEpgPrograms.next(programs);
             });
     }
