@@ -85,6 +85,32 @@ export class EpgListComponent implements OnInit, OnDestroy {
         moment().format(DATE_FORMAT)
     );
 
+    /**
+     * Helper function to get channel display name
+     */
+    getChannelDisplayName(channel: EpgChannel): string {
+        if (
+            !channel ||
+            !channel.displayName ||
+            channel.displayName.length === 0
+        ) {
+            return '';
+        }
+        // Return first available display name
+        return channel.displayName[0]?.value || '';
+    }
+
+    /**
+     * Helper function to get channel icon
+     */
+    getChannelIcon(channel: EpgChannel): string {
+        if (!channel || !channel.icon || channel.icon.length === 0) {
+            return '';
+        }
+        // Return first available icon src
+        return channel.icon[0]?.src || '';
+    }
+
     /** Filtered EPG programs based on selected date */
     filteredItems$ = combineLatest([this.items$, this.selectedDate$]).pipe(
         map(([items, selectedDate]) =>
@@ -103,11 +129,19 @@ export class EpgListComponent implements OnInit, OnDestroy {
     ngOnInit(): void {
         this.timeshiftUntil$ = this.store.select(selectActive).pipe(
             map((active) => {
+                // Create EpgChannel with proper structure
+                const displayNames = active?.name
+                    ? [{ lang: '', value: active.name }]
+                    : [];
+                const icons = active?.tvg?.logo
+                    ? [{ src: active.tvg.logo }]
+                    : [];
+
                 this.channel = {
-                    id: active?.tvg?.id,
-                    name: active?.name,
-                    url: [active?.url],
-                    icon: [active?.tvg?.logo],
+                    id: active?.tvg?.id || '',
+                    displayName: displayNames,
+                    url: active?.url ? [active.url] : [],
+                    icon: icons,
                 };
                 return (
                     active?.tvg?.rec ||

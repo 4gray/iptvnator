@@ -6,17 +6,18 @@
     >
         <div class="channel-logo">
             <img
-                [src]="epgProgram?.icon || channel?.tvg?.logo"
+                [src]="epgProgram?.icon?.[0]?.src || channel?.tvg?.logo"
                 width="68"
                 onerror="this.style.display='none'"
+                alt="channel icon"
             />
         </div>
         <div class="content">
             <div class="program-name">
-                {{ epgProgram?.title }} | {{ channel.name }}
+                {{ epgProgram?.title?.[0]?.value }} | {{ channel.name }}
             </div>
             <div class="program-description">
-                {{ epgProgram?.desc }}
+                {{ epgProgram?.desc?.[0]?.value }}
             </div>
             <div class="program-progress">
                 <div

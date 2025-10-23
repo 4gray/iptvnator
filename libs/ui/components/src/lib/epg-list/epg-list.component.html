@@ -5,18 +5,19 @@
 <div id="channel-header" color="primary">
     <div class="channel-info">
         <div class="channel-icon">
-            @if (channel?.icon) {
-                <img [src]="channel.icon" width="48" />
+            @if (getChannelIcon(channel)) {
+                <img [src]="getChannelIcon(channel)" width="48" alt="icon" />
             }
         </div>
         <div class="channel-details">
             <div class="channel-name">
-                {{ channel?.name }}
+                {{ getChannelDisplayName(channel) }}
             </div>
             <div class="program-name">
                 {{
                     playingNow
-                        ? playingNow.title
+                        ? (playingNow.title?.[0]?.value || 'EPG.LIVE_STREAM'
+                          | translate)
                         : ('EPG.LIVE_STREAM' | translate)
                 }}
             </div>
@@ -67,7 +68,7 @@
                                 [item]="program"
                             />
                         </div>
-                        <p matListItemLine>{{ program?.title }}</p>
+                        <p matListItemLine>{{ program?.title?.[0]?.value }}</p>
                     </mat-list-option>
                 } @else {
                     <mat-list-option
@@ -91,7 +92,10 @@
                                 [item]="program"
                             />
                         </div>
-                        <p matListItemLine [innerHTML]="program.title"></p>
+                        <p
+                            matListItemLine
+                            [innerHTML]="program.title?.[0]?.value"
+                        ></p>
                     </mat-list-option>
                 }
                 <mat-divider />

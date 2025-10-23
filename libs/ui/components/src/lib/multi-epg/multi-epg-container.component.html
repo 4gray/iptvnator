@@ -24,10 +24,10 @@
   <div class="today-date">
     {{ today | momentDate: 'YYYYMMDD' : 'MMMM Do, dddd' }}
   </div>
-  <button mat-icon-button (click)="zoomIn()" [disabled]="(hourWidth$ | async) >= 800">
+  <button mat-icon-button (click)="zoomIn()" [disabled]="(hourWidth$ | async)! >= 800">
     <mat-icon>zoom_in</mat-icon>
   </button>
-  <button mat-icon-button [disabled]="(hourWidth$ | async) <= 50" (click)="zoomOut()">
+  <button mat-icon-button [disabled]="(hourWidth$ | async)! <= 50" (click)="zoomOut()">
     <mat-icon>zoom_out</mat-icon>
   </button>
   <div class="navigation-buttons">
@@ -51,7 +51,7 @@
 </div>
 <div class="parent" #epgContainer>
   <svg id="channels-column">
-    @for (item of channels$ | async; track $any(item).channel; let i = $index) {
+    @for (item of channels$ | async; track item.id; let i = $index) {
       <g>
         <!-- channel name -->
         <g class="channel">
@@ -67,14 +67,14 @@
             [attr.y]="barHeight * i + barHeight"
             >
             <div class="channel-name">
-              @if (item.icon) {
+              @if (getChannelIcon(item)) {
                 <img
-                  [src]="item.icon"
-                  [alt]="item.name"
+                  [src]="getChannelIcon(item)"
+                  [alt]="getChannelName(item)"
                   style="height: 20px; width: 20px; margin-right: 8px;"
                   >
               }
-              <span>{{ item.name }}</span>
+              <span>{{ getChannelName(item) }}</span>
             </div>
           </foreignObject>
         </g>
@@ -82,7 +82,7 @@
     }
   </svg>
   <div id="epg-container">
-    <svg [attr.width]="(hourWidth$ | async) * 24" height="100%" id="epg-svg">
+    <svg [attr.width]="(hourWidth$ | async)! * 24" height="100%" id="epg-svg">
       <!-- time headline -->
       @for (hour of timeHeader; track hour) {
         <g>
@@ -90,11 +90,11 @@
             [matTooltip]="hour + ':00'"
             [attr.width]="hourWidth$ | async"
             [attr.height]="barHeight"
-            [attr.x]="hour * (hourWidth$ | async)"
+            [attr.x]="hour * (hourWidth$ | async)!"
             fill="#000"
           ></rect>
           <text
-            [attr.x]="hour * (hourWidth$ | async)"
+            [attr.x]="hour * (hourWidth$ | async)!"
             y="10"
             font-size="14"
             fill="white"
@@ -106,7 +106,7 @@
       }
 
       <!-- epg channels with programs -->
-      @for (item of channels$ | async; track $any(item).channel; let i = $index) {
+      @for (item of channels$ | async; track item.id; let i = $index) {
         <g>
           @for (program of item.programs; track trackByProgram($index, program)) {
             <g
@@ -123,7 +123,7 @@
                 [attr.width]="program.width"
                 [attr.height]="barHeight"
                 >
-                <div class="program-title">{{ program.title }}</div>
+                <div class="program-title">{{ program.title[0]?.value }}</div>
               </foreignObject>
             </g>
           }
@@ -135,7 +135,7 @@
         [attr.x1]="currentTimeLine"
         y1="0"
         [attr.x2]="currentTimeLine"
-        [attr.y2]="(channels$ | async)?.length * barHeight + barHeight"
+        [attr.y2]="(channels$ | async)!.length * barHeight + barHeight"
         stroke="red"
         stroke-width="2"
       ></line>
