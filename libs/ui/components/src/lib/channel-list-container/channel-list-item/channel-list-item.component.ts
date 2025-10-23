@@ -32,6 +32,7 @@ import { TranslatePipe } from '@ngx-translate/core';
             [src]="logo"
             width="42"
             onerror="this.style.display='none'"
+            alt="Channel Logo"
         />
         <p matListItemTitle class="channel-name">
             {{ name }}

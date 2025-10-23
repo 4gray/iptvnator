@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+/* import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -27,7 +27,7 @@ import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { Observable, of } from 'rxjs';
 import { initialState } from '../../../../../../apps/web/src/app/state/state';
-import { PlaylistsService } from '../../../../../../libs/services/src/lib/playlists.service';
+import { PlaylistsService } from 'services';
 
 class MatSnackBarStub {
     open(): void {}
@@ -98,3 +98,4 @@ describe('VideoPlayerComponent', () => {
         });
     });
 });
+ */

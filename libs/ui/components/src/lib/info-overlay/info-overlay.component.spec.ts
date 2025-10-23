@@ -1,5 +1,5 @@
+import { MomentDatePipe } from '@iptvnator/pipes';
 import { MockPipe } from 'ng-mocks';
-import { MomentDatePipe } from '../../../../pipes/src/lib/moment-date.pipe';
 /* tslint:disable:no-unused-variable */
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 
