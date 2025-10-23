@@ -39,8 +39,18 @@ declare global {
                 origin?: string
             ) => void;
             autoUpdatePlaylists: (playlists: Playlist[]) => Promise<Playlist[]>;
-            fetchEpg: (urls: string[]) => Promise<any>;
+            fetchEpg: (
+                urls: string[]
+            ) => Promise<{ success: boolean; message?: string }>;
             getChannelPrograms: (channelId: string) => Promise<any>;
+            getEpgChannels: () => Promise<any>;
+            getEpgChannelsByRange: (
+                skip: number,
+                limit: number
+            ) => Promise<any>;
+            forceFetchEpg: (
+                url: string
+            ) => Promise<{ success: boolean; message?: string }>;
             updateSettings: (settings: any) => Promise<void>;
             setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
             setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;

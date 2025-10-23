@@ -2,9 +2,8 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { invoke } from '@tauri-apps/api/core';
 import * as PlaylistActions from 'm3u-state';
-import { BehaviorSubject, from } from 'rxjs';
+import { BehaviorSubject, from, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { EpgProgram } from 'shared-interfaces';
 
@@ -37,17 +36,22 @@ export class EpgService {
         const validUrls = urls.filter((url) => url?.trim());
         if (validUrls.length === 0) return;
 
-        from(invoke('fetch_epg', { url: validUrls }))
+        from(window.electron.fetchEpg(validUrls))
             .pipe(
-                tap(() => {
-                    this.epgAvailable.next(true);
-                    this.showSuccessSnackbar();
+                tap((result) => {
+                    if (result.success) {
+                        this.epgAvailable.next(true);
+                        this.showSuccessSnackbar();
+                    } else {
+                        this.epgAvailable.next(false);
+                        this.showErrorSnackbar(result.message);
+                    }
                 }),
                 catchError((err) => {
                     console.error('EPG fetch error:', err);
                     this.epgAvailable.next(false);
                     this.showErrorSnackbar();
-                    throw err;
+                    return of(null);
                 })
             )
             .subscribe();
@@ -59,12 +63,10 @@ export class EpgService {
     getChannelPrograms(channelId: string): void {
         if (!this.isDesktop) return;
         console.log('Fetching EPG for channel ID:', channelId);
-        from(invoke<EpgProgram[]>('get_channel_programs', { channelId }))
+
+        from(window.electron.getChannelPrograms(channelId))
             .pipe(
-                tap((programs) => {
-                    console.log('Received programs:', programs);
-                }),
-                map((programs) =>
+                map((programs: EpgProgram[]) =>
                     programs.map((program) => ({
                         ...program,
                         start: new Date(program.start).toISOString(),
@@ -75,7 +77,7 @@ export class EpgService {
                     console.error('EPG get programs error:', err);
                     this.showErrorSnackbar();
                     this.currentEpgPrograms.next([]);
-                    throw err;
+                    return of([]);
                 })
             )
             .subscribe((programs) => {
@@ -85,7 +87,6 @@ export class EpgService {
                     })
                 );
                 this.currentEpgPrograms.next(programs);
-                console.log('Updated programs:', programs); // Debug log
             });
     }
 
@@ -116,14 +117,11 @@ export class EpgService {
     /**
      * Shows error snackbar
      */
-    private showErrorSnackbar(): void {
-        this.snackBar.open(
-            this.translate.instant('EPG.ERROR'),
-            this.translate.instant('CLOSE'),
-            {
-                duration: 2000,
-                horizontalPosition: 'start',
-            }
-        );
+    private showErrorSnackbar(message?: string): void {
+        const errorMessage = message || this.translate.instant('EPG.ERROR');
+        this.snackBar.open(errorMessage, this.translate.instant('CLOSE'), {
+            duration: 3000,
+            horizontalPosition: 'start',
+        });
     }
 }

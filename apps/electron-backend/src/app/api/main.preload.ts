@@ -50,6 +50,10 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('FETCH_EPG', { url: urls }),
     getChannelPrograms: (channelId: string) =>
         ipcRenderer.invoke('GET_CHANNEL_PROGRAMS', { channelId }),
+    getEpgChannels: () => ipcRenderer.invoke('EPG_GET_CHANNELS'),
+    getEpgChannelsByRange: (skip: number, limit: number) =>
+        ipcRenderer.invoke('EPG_GET_CHANNELS_BY_RANGE', { skip, limit }),
+    forceFetchEpg: (url: string) => ipcRenderer.invoke('EPG_FORCE_FETCH', url),
     setMpvPlayerPath: (mpvPlayerPath: string) =>
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
     setVlcPlayerPath: (vlcPlayerPath: string) =>

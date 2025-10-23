@@ -4,6 +4,7 @@ import App from './app/app';
 import { initDatabase } from './app/database/connection';
 import DatabaseEvents from './app/events/database.events';
 import ElectronEvents from './app/events/electron.events';
+import EpgEvents from './app/events/epg.events';
 import PlayerEvents from './app/events/player.events';
 import PlaylistEvents from './app/events/playlist.events';
 import SettingsEvents from './app/events/setttings.events';
@@ -38,6 +39,7 @@ export default class Main {
         StalkerEvents.bootstrapStalkerEvents();
         XtreamEvents.bootstrapXtreamEvents();
         DatabaseEvents.bootstrapDatabaseEvents();
+        EpgEvents.bootstrapEpgEvents();
 
         // initialize auto updater service
         if (!App.isDevelopmentMode()) {
