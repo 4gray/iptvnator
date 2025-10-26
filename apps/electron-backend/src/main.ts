@@ -7,7 +7,7 @@ import ElectronEvents from './app/events/electron.events';
 import EpgEvents from './app/events/epg.events';
 import PlayerEvents from './app/events/player.events';
 import PlaylistEvents from './app/events/playlist.events';
-import SettingsEvents from './app/events/setttings.events';
+import SettingsEvents from './app/events/settings.events';
 import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
