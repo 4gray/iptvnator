@@ -33,7 +33,7 @@ export class InfoOverlayComponent implements OnChanges {
     stop: any | undefined;
 
     /** Timeout for the overlay visibility */
-    currentTimeout: any;
+    private currentTimeout: any;
 
     /**
      * Calculates the necessary information for the visualization in the overview popup

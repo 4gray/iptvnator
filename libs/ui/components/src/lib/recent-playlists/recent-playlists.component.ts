@@ -10,10 +10,8 @@ import {
     Output,
     viewChild,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -47,9 +45,7 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
     styleUrls: ['./recent-playlists.component.scss'],
     imports: [
         AsyncPipe,
-        MatButtonModule,
-        MatDividerModule,
-        MatIconModule,
+        MatIcon,
         MatInputModule,
         MatListModule,
         NgxSkeletonLoaderComponent,
@@ -75,7 +71,7 @@ export class RecentPlaylistsComponent implements OnInit {
 
     readonly ghostElements = new Array(10);
 
-    playlists$ = combineLatest([
+    readonly playlists$ = combineLatest([
         this.store.select(selectAllPlaylistsMeta),
         this.searchQuery,
         this.store.select(selectActiveTypeFilters),

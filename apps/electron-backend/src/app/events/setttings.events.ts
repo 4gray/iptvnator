@@ -1,6 +1,5 @@
 import { ipcMain } from 'electron';
 import {
-    MPV_PLAYER_PATH,
     MPV_REUSE_INSTANCE,
     store,
 } from '../services/store.service';
@@ -13,5 +12,9 @@ export default class SettingsEvents {
 
 ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
     console.log('Received SETTINGS_UPDATE with data:', arg);
-    store.set(MPV_REUSE_INSTANCE, arg.mpvReuseInstance);
+    
+    // Only set values that are defined
+    if (arg.mpvReuseInstance !== undefined) {
+        store.set(MPV_REUSE_INSTANCE, arg.mpvReuseInstance);
+    }
 });

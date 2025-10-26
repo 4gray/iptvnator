@@ -252,16 +252,20 @@ export class SettingsComponent implements OnInit {
     onSubmit(): void {
         this.settingsStore.updateSettings(this.settingsForm.value).then(() => {
             this.applyChangedSettings();
-            
+
             if (window.electron) {
                 window.electron.updateSettings(this.settingsForm.value);
-                
+
                 // Set player paths if using external players
                 if (this.settingsForm.value.mpvPlayerPath) {
-                    window.electron.setMpvPlayerPath(this.settingsForm.value.mpvPlayerPath);
+                    window.electron.setMpvPlayerPath(
+                        this.settingsForm.value.mpvPlayerPath
+                    );
                 }
                 if (this.settingsForm.value.vlcPlayerPath) {
-                    window.electron.setVlcPlayerPath(this.settingsForm.value.vlcPlayerPath);
+                    window.electron.setVlcPlayerPath(
+                        this.settingsForm.value.vlcPlayerPath
+                    );
                 }
             }
         });

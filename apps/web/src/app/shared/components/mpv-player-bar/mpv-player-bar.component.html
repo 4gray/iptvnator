@@ -1,4 +1,4 @@
-@if ((activeProcesses$ | async)?.length) {
+<!-- @if ((activeProcesses$ | async)?.length) {
   <div class="mpv-player-bar">
     @for (process of activeProcesses$ | async; track process.id) {
       <div class="player-item">
@@ -24,20 +24,6 @@
           </div>
         </div>
         <div class="player-controls">
-          <!-- <button
-          mat-icon-button
-          (click)="pauseStream(process.id)"
-          title="Pause"
-          >
-          <mat-icon>pause</mat-icon>
-        </button>
-        <button
-          mat-icon-button
-          (click)="playStream(process.id)"
-          title="Play"
-          >
-          <mat-icon>play_arrow</mat-icon>
-        </button> -->
         <button
           mat-icon-button
           (click)="closeStream(process.id)"
@@ -50,3 +36,4 @@
   }
 </div>
 }
+ -->

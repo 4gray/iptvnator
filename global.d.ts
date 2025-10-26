@@ -21,6 +21,14 @@ declare global {
                 title: string
             ) => Promise<Playlist>;
             openPlaylistFromFile: () => Promise<Playlist>;
+            saveFileDialog: (
+                defaultPath: string,
+                filters?: { name: string; extensions: string[] }[]
+            ) => Promise<string | null>;
+            writeFile: (
+                filePath: string,
+                content: string
+            ) => Promise<{ success: boolean }>;
             setUserAgent: (userAgent: string, referer?: string) => void;
             openInMpv: (
                 url: string,

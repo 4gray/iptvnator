@@ -159,17 +159,12 @@ export class MultiEpgContainerComponent
         }
 
         try {
-            console.log('Requesting EPG data:');
-            console.log('- Skip:', this.channelsLowerRange);
-            console.log('- Limit:', this.visibleChannels);
-
             const response = await window.electron.getEpgChannelsByRange(
                 this.channelsLowerRange,
                 this.visibleChannels
             );
 
             if (response && Array.isArray(response)) {
-                console.log('Received channels:', response.length);
                 this.originalEpgData = response;
                 this.channels$.next(this.enrichProgramData());
 
