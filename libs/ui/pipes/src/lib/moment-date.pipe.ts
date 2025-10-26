@@ -13,7 +13,7 @@ export class MomentDatePipe implements PipeTransform {
         value: string,
         formatToParse: string,
         formatToReturn = 'MMMM Do, dddd'
-    ): any {
+    ): string {
         return moment(value, formatToParse).format(formatToReturn);
     }
 }

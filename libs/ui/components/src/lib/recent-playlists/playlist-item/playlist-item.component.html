@@ -1,56 +1,59 @@
 <mat-list-item (click)="playlistClicked.emit(item._id)">
-    <mat-icon
-        matListItemIcon
-        class="upload-type-icon"
-        *ngIf="item?.url"
-        [matTooltip]="
-            ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) + ' ' + item?.url
-        "
-        >cloud</mat-icon
-    >
-    <mat-icon
-        matListItemIcon
-        class="upload-type-icon"
-        *ngIf="!item?.url && !item.serverUrl && !item.macAddress"
-        [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
-        >folder</mat-icon
-    >
-    <div class="icon-container" *ngIf="item?.serverUrl" matListItemIcon>
+    @if (item.url) {
         <mat-icon
+            matListItemIcon
             class="upload-type-icon"
-            [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
-            >public</mat-icon
+            [matTooltip]="
+                ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) + ' ' + item.url
+            "
+            >cloud</mat-icon
         >
-        <span
-            class="status-dot"
-            [class]="getStatusClass()"
-            [matTooltip]="'Portal status: ' + portalStatus"
-        ></span>
-    </div>
-    <mat-icon
-        matListItemIcon
-        class="upload-type-icon"
-        *ngIf="item?.macAddress"
-        [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
-        >dashboard</mat-icon
-    >
+    }
+    @if (!item.url && !item.serverUrl && !item.macAddress) {
+        <mat-icon
+            matListItemIcon
+            class="upload-type-icon"
+            [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
+            >folder</mat-icon
+        >
+    }
+    @if (item.serverUrl) {
+        <div class="icon-container" matListItemIcon>
+            <mat-icon
+                class="upload-type-icon"
+                [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
+                >public</mat-icon
+            >
+            <span
+                class="status-dot"
+                [class]="getStatusClass()"
+                [matTooltip]="'Portal status: ' + portalStatus"
+            ></span>
+        </div>
+    }
+    @if (item.macAddress) {
+        <mat-icon
+            matListItemIcon
+            class="upload-type-icon"
+            [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
+            >dashboard</mat-icon
+        >
+    }
     <div matListItemTitle>
         {{ item.title || item.filename }}
     </div>
     <div matListItemLine class="meta">
-        <ng-container
-            *ngIf="!item.serverUrl && !item.portalUrl; else xtreamPlaylist"
-        >
+        @if (!item.serverUrl && !item.portalUrl) {
             {{ 'HOME.PLAYLISTS.CHANNELS' | translate }}: {{ item.count }}
-            <ng-container *ngIf="item.importDate?.length > 3">
+            @if (item.importDate.length > 3) {
                 | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
                 {{ item.importDate | date }}
-            </ng-container>
-            <ng-container *ngIf="item.updateDate">
+            }
+            @if (item.updateDate) {
                 | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
                 {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
-            </ng-container>
-            <ng-container *ngIf="item.updateState === 2">
+            }
+            @if (item.updateState === 2) {
                 <mat-icon
                     [matTooltip]="
                         'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED' | translate
@@ -58,64 +61,74 @@
                     [inline]="true"
                     >warning</mat-icon
                 >
-            </ng-container>
-        </ng-container>
-        <ng-template #xtreamPlaylist>
-            @if (item?.macAddress) {
+            }
+        } @else {
+            @if (item.macAddress) {
                 Stalker Portal
             } @else {
                 Xtream Code Playlist
             }
-            <ng-container *ngIf="item.importDate?.length > 3">
+            @if (item.importDate.length > 3) {
                 | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
                 {{ item.importDate | date }}
-            </ng-container>
-            <ng-container *ngIf="item.updateDate">
+            }
+            @if (item.updateDate) {
                 | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
                 {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
-            </ng-container>
-        </ng-template>
+            }
+        }
     </div>
 
-    <span matListItemMeta class="action-buttons" *ngIf="showActions">
-        <button
-            *ngIf="item.url || item.filePath"
-            mat-icon-button
-            class="refresh-btn"
-            color="accent"
-            (click)="$event.stopPropagation(); refreshClicked.emit(item)"
-            [matTooltip]="'HOME.PLAYLISTS.REFRESH' | translate"
-        >
-            <mat-icon>sync</mat-icon>
-        </button>
-        <button
-            *ngIf="item.serverUrl"
-            mat-icon-button
-            class="refresh-btn"
-            color="accent"
-            (click)="$event.stopPropagation(); refreshClicked.emit(item)"
-            [matTooltip]="'HOME.PLAYLISTS.REFRESH_XTREAM' | translate"
-        >
-            <mat-icon>sync</mat-icon>
-        </button>
-        <button
-            mat-icon-button
-            color="accent"
-            class="edit-btn"
-            (click)="$event.stopPropagation(); editPlaylistClicked.emit(item)"
-            [matTooltip]="'HOME.PLAYLISTS.SHOW_DETAILS' | translate"
-        >
-            <mat-icon>edit</mat-icon>
-        </button>
+    @if (showActions()) {
+        <span matListItemMeta class="action-buttons">
+            @if (item.url || item.filePath) {
+                <button
+                    mat-icon-button
+                    class="refresh-btn"
+                    color="accent"
+                    (click)="
+                        $event.stopPropagation(); refreshClicked.emit(item)
+                    "
+                    [matTooltip]="'HOME.PLAYLISTS.REFRESH' | translate"
+                >
+                    <mat-icon>sync</mat-icon>
+                </button>
+            }
+            @if (item.serverUrl) {
+                <button
+                    mat-icon-button
+                    class="refresh-btn"
+                    color="accent"
+                    (click)="
+                        $event.stopPropagation(); refreshClicked.emit(item)
+                    "
+                    [matTooltip]="'HOME.PLAYLISTS.REFRESH_XTREAM' | translate"
+                >
+                    <mat-icon>sync</mat-icon>
+                </button>
+            }
 
-        <button
-            mat-icon-button
-            color="accent"
-            class="delete-btn"
-            (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
-            [matTooltip]="'HOME.PLAYLISTS.REMOVE' | translate"
-        >
-            <mat-icon>delete</mat-icon>
-        </button>
-    </span>
+            <button
+                mat-icon-button
+                color="accent"
+                class="edit-btn"
+                (click)="
+                    $event.stopPropagation(); editPlaylistClicked.emit(item)
+                "
+                [matTooltip]="'HOME.PLAYLISTS.SHOW_DETAILS' | translate"
+            >
+                <mat-icon>edit</mat-icon>
+            </button>
+
+            <button
+                mat-icon-button
+                color="accent"
+                class="delete-btn"
+                (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
+                [matTooltip]="'HOME.PLAYLISTS.REMOVE' | translate"
+            >
+                <mat-icon>delete</mat-icon>
+            </button>
+        </span>
+    }
 </mat-list-item>

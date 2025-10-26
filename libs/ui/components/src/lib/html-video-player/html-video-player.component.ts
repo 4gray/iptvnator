@@ -88,11 +88,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 Hls &&
                 Hls.isSupported()
             ) {
-                console.log(
-                    '... switching channel to ',
-                    channel.name,
-                    url
-                );
+                console.log('... switching channel to ', channel.name, url);
                 this.hls = new Hls();
                 this.hls.attachMedia(this.videoPlayer.nativeElement);
                 this.hls.loadSource(url);

@@ -125,13 +125,13 @@ export class PlaylistEffects {
             ofType(PlaylistActions.setActiveChannel),
             map((action) => {
                 const { channel } = action;
-                
+
                 // Use modern EPG service to get channel programs
                 const channelId = channel.tvg?.id || channel.name;
                 if (channelId) {
                     this.epgService.getChannelPrograms(channelId);
                 }
-                
+
                 // Set user agent if specified on channel
                 if (channel.http['user-agent']) {
                     window.electron?.setUserAgent(

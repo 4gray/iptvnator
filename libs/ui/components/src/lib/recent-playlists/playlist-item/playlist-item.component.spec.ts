@@ -4,7 +4,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule } from 'ng-mocks';
-import { DataService } from '../../../../../../services/src/lib/data.service';
+import { DataService } from 'services';
 import { PlaylistItemComponent } from './playlist-item.component';
 
 describe('PlaylistItemComponent', () => {
@@ -27,7 +27,13 @@ describe('PlaylistItemComponent', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(PlaylistItemComponent);
         component = fixture.componentInstance;
-        component.item = { title: 'Playlist', id: '1' } as any;
+        component.item = {
+            title: 'Playlist',
+            _id: '1',
+            count: 10,
+            importDate: Date.now().toString(),
+            autoRefresh: false,
+        };
         fixture.detectChanges();
     });
 

@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/unbound-method */
-import { CommonModule, DatePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import {
     FormControl,
@@ -8,16 +7,14 @@ import {
     UntypedFormGroup,
     Validators,
 } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
+import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { save } from '@tauri-apps/plugin-dialog';
-import { writeTextFile } from '@tauri-apps/plugin-fs';
 import * as PlaylistActions from 'm3u-state';
 import { firstValueFrom } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
@@ -35,11 +32,10 @@ import { Playlist, PlaylistMeta } from 'shared-interfaces';
     ],
     providers: [DatePipe],
     imports: [
-        CommonModule,
-        MatButtonModule,
+        MatButton,
         MatCheckboxModule,
         MatDialogModule,
-        MatIconModule,
+        MatIcon,
         MatInputModule,
         ReactiveFormsModule,
         TranslatePipe,
@@ -55,7 +51,7 @@ export class PlaylistInfoComponent {
     private translate = inject(TranslateService);
     public playlistData = inject<Playlist & { id: string }>(MAT_DIALOG_DATA);
 
-    isTauri = !!window.electron;
+    readonly isDesktop = !!window.electron;
 
     /** Playlist object */
     playlist: Playlist & { id: string };
@@ -168,20 +164,20 @@ export class PlaylistInfoComponent {
             this.playlistsService.getRawPlaylistById(this.playlist._id)
         );
 
-        if (this.isTauri) {
+        if (this.isDesktop) {
             try {
-                const savePath = await save({
-                    filters: [
+                const savePath = await window.electron.saveFileDialog(
+                    `${this.playlist.title || 'exported'}.m3u8`,
+                    [
                         {
                             name: 'Playlist',
-                            extensions: ['m3u8'],
+                            extensions: ['m3u8', 'm3u'],
                         },
-                    ],
-                    defaultPath: `${this.playlist.title || 'exported'}.m3u8`,
-                });
+                    ]
+                );
 
                 if (savePath) {
-                    await writeTextFile(savePath, playlistAsString);
+                    await window.electron.writeFile(savePath, playlistAsString);
                     this.snackBar.open(
                         this.translate.instant(
                             'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_EXPORT_SUCCESS'

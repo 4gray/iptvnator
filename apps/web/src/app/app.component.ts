@@ -13,7 +13,6 @@ import {
     Language,
     OPEN_FILE,
     Settings,
-    SETTINGS_UPDATE,
     STORE_KEY,
     Theme,
     VIEW_ADD_PLAYLIST,
@@ -120,13 +119,12 @@ export class AppComponent implements OnInit, OnDestroy {
             .getValueFromLocalStorage(STORE_KEY.Settings)
             .subscribe((settings: Settings) => {
                 if (settings && Object.keys(settings).length > 0) {
-                    // Send settings to Electron main process
-                    if (window.electron) {
-                        window.electron.updateSettings(settings);
-                    }
-                    
+                    // No need to send settings to Electron on init
+                    // Settings are stored in IndexedDB and loaded by the settings store
+                    // Only specific Electron settings (MPV/VLC paths) are sent when changed in settings component
+
                     this.translate.use(settings.language ?? this.DEFAULT_LANG);
-                    
+
                     // Fetch EPG if URLs are configured
                     if (
                         window.electron &&
