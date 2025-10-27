@@ -1,0 +1,116 @@
+name: Build and Make Electron App
+
+on:
+    push:
+        branches:
+            - nx
+            # - master  # Uncomment this when ready to run on master branch
+        tags:
+            - 'v*.*.*'
+    workflow_dispatch:
+
+jobs:
+    build:
+        name: Build on ${{ matrix.os }}
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 60
+        strategy:
+            matrix:
+                os: [macos-latest, ubuntu-latest, windows-latest]
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --no-frozen-lockfile
+
+            - name: Build frontend
+              run: npm run build:frontend
+
+            - name: Build backend
+              run: npm run build:backend
+
+            - name: Make Electron app
+              run: npm run make:app
+
+            - name: Upload artifacts (macOS)
+              if: matrix.os == 'macos-latest'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: macos-artifacts
+                  path: |
+                      dist/executables/**/*.dmg
+                      dist/executables/**/*.zip
+                  retention-days: 7
+
+            - name: Upload artifacts (Linux)
+              if: matrix.os == 'ubuntu-latest'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: linux-artifacts
+                  path: |
+                      dist/executables/**/*.deb
+                      dist/executables/**/*.rpm
+                      dist/executables/**/*.snap
+                      dist/executables/**/*.AppImage
+                      dist/executables/**/*.tar.gz
+                  retention-days: 7
+
+            - name: Upload artifacts (Windows)
+              if: matrix.os == 'windows-latest'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: windows-artifacts
+                  path: |
+                      dist/executables/**/*.exe
+                      dist/executables/**/*.msi
+                      dist/executables/**/*.zip
+                  retention-days: 7
+
+    create-release:
+        name: Create Draft Release
+        needs: build
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Download all artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: artifacts
+
+            - name: Display structure of downloaded files
+              run: ls -R artifacts
+
+            - name: Get version from package.json
+              id: package-version
+              run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+            - name: Create Draft Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  draft: true
+                  prerelease: false
+                  name: Release v${{ steps.package-version.outputs.version }}
+                  tag_name: ${{ github.ref_name }}
+                  generate_release_notes: true
+                  files: |
+                      artifacts/**/*
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
