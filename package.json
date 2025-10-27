@@ -21,7 +21,43 @@
     ],
     "build": {
         "appId": "com.fourgray.iptvnator",
-        "productName": "IPTVnator"
+        "productName": "IPTVnator",
+        "mac": {
+            "target": {
+                "target": "dmg",
+                "arch": [
+                    "x64",
+                    "arm64"
+                ]
+            },
+            "category": "public.app-category.video",
+            "identity": null,
+            "gatekeeperAssess": false,
+            "hardenedRuntime": false,
+            "entitlements": null,
+            "entitlementsInherit": null
+        },
+        "linux": {
+            "category": "Video",
+            "target": [
+                "AppImage",
+                "Snap",
+                "deb",
+                "rpm"
+            ]
+        },
+        "win": {
+            "compression": "maximum",
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "ia32",
+                        "x64"
+                    ]
+                }
+            ]
+        }
     },
     "scripts": {
         "postinstall": "electron-builder install-app-deps",
@@ -57,17 +93,13 @@
         "@ngx-pwa/local-storage": "20.0.0",
         "@rx-angular/cdk": "20.0.0",
         "@rx-angular/template": "20.0.0",
-        "@tauri-apps/api": "2.3.0",
-        "@tauri-apps/plugin-dialog": "2.2.0",
-        "@tauri-apps/plugin-fs": "2.2.0",
-        "@tauri-apps/plugin-http": "2.3.0",
-        "@tauri-apps/plugin-sql": "2.2.0",
         "@videojs/http-streaming": "2.15.0",
         "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
         "artplayer": "5.3.0",
         "axios": "1.12.2",
-        "date-fns": "2.29.3",
+        "date-fns": "4.1.0",
         "drizzle-orm": "0.44.6",
+        "electron-conf": "1.3.0",
         "electron-store": "11.0.2",
         "epg-parser": "0.4.0",
         "fix-path": "5.0.0",
@@ -75,9 +107,8 @@
         "iptv-playlist-parser": "github:4gray/iptv-playlist-parser",
         "lodash": "4.17.21",
         "moment": "2.30.1",
-        "ngx-indexed-db": "19.0.0",
+        "ngx-indexed-db": "21.0.0",
         "ngx-skeleton-loader": "11.3.0",
-        "node-mpv": "github:4gray/Node-MPV",
         "rxjs": "7.8.2",
         "semver": "7.7.3",
         "uuid": "9.0.0",
@@ -109,7 +140,7 @@
         "@commitlint/cli": "18.4.3",
         "@commitlint/config-conventional": "18.4.3",
         "@eslint/eslintrc": "3.3.1",
-        "@eslint/js": "^9.8.0",
+        "@eslint/js": "^9.38.0",
         "@ngrx/eslint-plugin": "^20.0.0",
         "@ngx-translate/core": "16.0.4",
         "@ngx-translate/http-loader": "16.0.1",
@@ -137,10 +168,9 @@
         "@types/uuid": "^10.0.0",
         "@types/video.js": "7.3.29",
         "@types/videojs-hls-quality-selector": "1.1.0",
-        "@typescript-eslint/eslint-plugin": "^8.2.0",
-        "@typescript-eslint/eslint-plugin-tslint": "7.0.2",
-        "@typescript-eslint/parser": "^8.2.0",
-        "@typescript-eslint/utils": "^8.29.0",
+        "@typescript-eslint/eslint-plugin": "^8.46.2",
+        "@typescript-eslint/parser": "^8.46.2",
+        "@typescript-eslint/utils": "^8.46.2",
         "angular-eslint": "^20.0.0",
         "conventional-changelog-cli": "5.0.0",
         "drizzle-kit": "0.31.5",
@@ -158,17 +188,17 @@
         "jest-preset-angular": "~15.0.0",
         "jest-util": "^30.0.2",
         "jsonc-eslint-parser": "^2.1.0",
-        "ng-mocks": "14.13.2",
+        "ng-mocks": "14.14.0",
         "nx": "21.4.1",
         "nx-electron": "^21.0.1",
-        "playwright": "1.46.1",
-        "playwright-core": "1.46.1",
+        "playwright": "1.56.1",
+        "playwright-core": "1.56.1",
         "prettier": "^3.6.2",
         "semantic-release": "24.2.9",
-        "ts-jest": "^29.4.0",
-        "ts-node": "10.9.1",
-        "tslib": "^2.3.0",
+        "ts-jest": "^29.4.5",
+        "ts-node": "10.9.2",
+        "tslib": "^2.8.1",
         "typescript": "~5.8.2",
-        "typescript-eslint": "^8.29.0"
+        "typescript-eslint": "^8.46.2"
     }
 }
