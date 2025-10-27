@@ -1,4 +1,4 @@
-import Store from 'electron-store';
+import { Conf } from 'electron-conf/main';
 
 export const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
 export const MPV_PLAYER_PATH = 'MPV_PLAYER_PATH';
@@ -12,8 +12,5 @@ export type StoreType = {
     [MPV_REUSE_INSTANCE]: boolean;
 };
 
-// Initialize renderer support
-Store.initRenderer();
-
 // Export singleton store instance
-export const store = new Store<StoreType>();
+export const store = new Conf<StoreType>();
