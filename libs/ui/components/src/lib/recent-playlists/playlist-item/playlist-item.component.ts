@@ -1,9 +1,9 @@
-import { DatePipe, NgIf } from '@angular/common';
-import { Component, Input, OnInit, inject, output } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { DatePipe } from '@angular/common';
+import { Component, Input, OnInit, inject, input, output } from '@angular/core';
+import { MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PortalStatus, PortalStatusService } from 'services';
 import { PlaylistMeta } from 'shared-interfaces';
@@ -14,17 +14,16 @@ import { PlaylistMeta } from 'shared-interfaces';
     styleUrls: ['./playlist-item.component.scss'],
     imports: [
         DatePipe,
-        MatButtonModule,
-        MatIconModule,
+        MatIconButton,
+        MatIcon,
         MatListModule,
-        MatTooltipModule,
-        NgIf,
+        MatTooltip,
         TranslatePipe,
     ],
 })
 export class PlaylistItemComponent implements OnInit {
     @Input() item!: PlaylistMeta;
-    @Input() showActions = true;
+    readonly showActions = input(true);
 
     readonly editPlaylistClicked = output<PlaylistMeta>();
     readonly playlistClicked = output<string>();
@@ -34,21 +33,24 @@ export class PlaylistItemComponent implements OnInit {
     portalStatus: PortalStatus = 'unavailable';
     private readonly portalStatusService = inject(PortalStatusService);
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async ngOnInit() {
-        if (this.item?.serverUrl) {
-            await this.checkPortalStatus();
-        }
+        await this.checkPortalStatus();
     }
 
     private async checkPortalStatus() {
         try {
-            this.portalStatus =
-                await this.portalStatusService.checkPortalStatus(
-                    this.item.serverUrl,
-                    this.item.username,
-                    this.item.password
-                );
+            if (
+                this.item.serverUrl &&
+                this.item.username &&
+                this.item.password
+            ) {
+                this.portalStatus =
+                    await this.portalStatusService.checkPortalStatus(
+                        this.item.serverUrl,
+                        this.item.username,
+                        this.item.password
+                    );
+            }
         } catch (error) {
             console.error('Error checking portal status:', error);
             this.portalStatus = 'unavailable';

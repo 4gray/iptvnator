@@ -20,10 +20,7 @@ import moment from 'moment';
 import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { DataService, EpgService } from 'services';
-import {
-    EpgChannel,
-    EpgProgram,
-} from 'shared-interfaces';
+import { EpgChannel, EpgProgram } from 'shared-interfaces';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 
 export interface EpgData {
@@ -164,12 +161,12 @@ export class EpgListComponent implements OnInit {
     handleEpgData(programs: EpgProgram[]): void {
         this.timeNow = new Date().toISOString();
         this.dateToday = moment().format(DATE_FORMAT);
-        
+
         // Dispatch EPG availability flag
         this.store.dispatch(
             setEpgAvailableFlag({ value: programs.length > 0 })
         );
-        
+
         if (programs.length > 0) {
             this.setPlayingNow();
         } else {

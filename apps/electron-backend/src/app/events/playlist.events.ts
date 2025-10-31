@@ -7,7 +7,7 @@ import axios from 'axios';
 import { dialog, ipcMain } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import { createPlaylistObject, getFilenameFromUrl } from 'm3u-utils';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { AUTO_UPDATE_PLAYLISTS } from 'shared-interfaces';
 
 export default class PlaylistEvents {
@@ -100,5 +100,35 @@ ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlistUrls) => {
     // TODO: Implement auto-update logic
     for (const url of playlistUrls) {
         console.log(`Auto-updating playlist from ${url}`);
+    }
+});
+
+ipcMain.handle('save-file-dialog', async (event, defaultPath, filters) => {
+    try {
+        const { canceled, filePath } = await dialog.showSaveDialog({
+            defaultPath,
+            filters: filters || [
+                { name: 'All Files', extensions: ['*'] },
+            ],
+        });
+
+        if (canceled || !filePath) {
+            return null;
+        }
+
+        return filePath;
+    } catch (error) {
+        console.error('Error showing save dialog:', error);
+        throw error;
+    }
+});
+
+ipcMain.handle('write-file', async (event, filePath, content) => {
+    try {
+        await writeFile(filePath, content, 'utf-8');
+        return { success: true };
+    } catch (error) {
+        console.error('Error writing file:', error);
+        throw error;
     }
 });
