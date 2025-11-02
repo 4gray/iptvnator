@@ -13,7 +13,7 @@
 
 **IPTVnator** is a video player application that provides support for IPTV playlist playback (m3u, m3u8). The application allows users to import playlists using remote URLs or by uploading files from the local file system. Additionally, it supports EPG information in XMLTV format which can be provided via URL.
 
-The application is a cross-platform, open-source project built with Electron and Angular, managed with NX monorepo.
+The application is a cross-platform, open-source project built with Electron and Angular, managed with Nx monorepo.
 
 ⚠️ Note: IPTVnator does not provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
 
@@ -112,7 +112,7 @@ sudo emerge iptvnator-bin
 
 Requirements:
 
--   Node.js with npm or pnpm
+-   Node.js 22 or higher with npm or pnpm
 
 1. Clone this repository and install project dependencies:
 
