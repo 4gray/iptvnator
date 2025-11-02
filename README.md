@@ -13,7 +13,7 @@
 
 **IPTVnator** is a video player application that provides support for IPTV playlist playback (m3u, m3u8). The application allows users to import playlists using remote URLs or by uploading files from the local file system. Additionally, it supports EPG information in XMLTV format which can be provided via URL.
 
-The application is a cross-platform, open-source project built with ~~Electron~~ Tauri and Angular.
+The application is a cross-platform, open-source project built with Electron and Angular, managed with NX monorepo.
 
 ⚠️ Note: IPTVnator does not provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
 
@@ -112,27 +112,38 @@ sudo emerge iptvnator-bin
 
 Requirements:
 
--   Node.js with npm
--   Rust (required for tauri)
+-   Node.js with npm or pnpm
 
 1. Clone this repository and install project dependencies:
 
     ```
     $ npm install
+    # or
+    $ pnpm install
     ```
 
-2. Start the application:
+2. Start the application in development mode:
     ```
-    $ npm run tauri dev
+    $ npm run serve:frontend
+    ```
+    
+    This will start the Angular frontend at http://localhost:4200.
+    
+    To run the Electron app:
+    ```
+    $ npm run serve:backend
     ```
 
-This will open the Tauri version in a separate window, while the PWA version will be available at http://localhost:4200.
+3. Build the application:
+    ```
+    $ npm run build:frontend
+    $ npm run build:backend
+    ```
 
-To run only the Angular app without Tauri, use:
-
-```
-$ npm run serve
-```
+4. Package the Electron application:
+    ```
+    $ npm run make:app
+    ```
 
 ## Disclaimer
 

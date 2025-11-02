@@ -25,7 +25,7 @@ If applicable, add screenshots to help explain your problem.
 
 **Desktop (please complete the following information):**
 
--   PWA or Electron/Tauri application
+-   Electron application
 -   OS: [e.g. Linux]
 -   Browser [e.g. chrome, safari]
 -   Version [e.g. 0.16.0]
