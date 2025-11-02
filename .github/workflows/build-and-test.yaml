@@ -22,9 +22,11 @@ jobs:
                   node-version: '22'
             - run: git config --global url."https://${{ secrets.PAT }}@github.com/".insteadOf ssh://git@github.com/
             - run: npm ci
-            - run: npm test -- --coverage
+            - run: npm run test:frontend -- --coverage
+            - run: npm run test:backend -- --coverage
             - run: bash <(curl -s https://codecov.io/bash)
-            - run: npm run build:prod
+            - run: npm run build:frontend
+            - run: npm run build:backend
               env:
                   CI: true
     e2e-tests:
@@ -46,13 +48,14 @@ jobs:
             - run: npm ci
             #  env:
             #      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-            - run: npm run build:prod
+            - run: npm run build:frontend
+            - run: npm run build:backend
             - run: npx playwright install --with-deps
             #- run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" -- npm run e2e:ci
             #  if: matrix.os == 'ubuntu-latest'
             #  env:
             #    e2e: true
-            - run: npm run e2e:ci
+            - run: npx nx e2e web-e2e
               env:
                   e2e: true
     # release:

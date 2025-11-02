@@ -20,13 +20,13 @@ RUN npm ci
 COPY . .
 
 # Build the application
-RUN npm run build:web
+RUN npm run build:frontend
 
 # Stage 2 - the production environment
 FROM nginx:stable-alpine
 
 # Copy artifacts and nignx.conf
-COPY --from=build /usr/src/app/dist/browser /usr/share/nginx/html
+COPY --from=build /usr/src/app/dist/apps/web /usr/share/nginx/html
 COPY --from=build /usr/src/app/docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 CMD sed -i "s#http://localhost:3333#$BACKEND_URL#g" /usr/share/nginx/html/main.js && nginx -g 'daemon off;'
