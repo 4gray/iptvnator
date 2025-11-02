@@ -23,6 +23,8 @@ export interface Playlist {
     count: number;
     url?: string;
     userAgent?: string;
+    referrer?: string;
+    origin?: string;
     filePath?: string;
     autoRefresh: boolean;
     updateDate?: number;

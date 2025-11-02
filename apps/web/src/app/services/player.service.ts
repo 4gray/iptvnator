@@ -26,7 +26,10 @@ export class PlayerService {
         title: string,
         thumbnail?: string,
         hideExternalInfoDialog = true,
-        isLiveContent = false
+        isLiveContent = false,
+        userAgent?: string,
+        referer?: string,
+        origin?: string
     ) {
         const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
 
@@ -39,6 +42,9 @@ export class PlayerService {
                 mpvPlayerPath: this.settingsStore.mpvPlayerPath(),
                 title,
                 thumbnail,
+                'user-agent': userAgent,
+                referer: referer,
+                origin: origin,
             });
         } else if (player === VideoPlayer.VLC) {
             if (!hideExternalInfoDialog) {
@@ -49,6 +55,9 @@ export class PlayerService {
                 vlcPlayerPath: this.settingsStore.vlcPlayerPath(),
                 title,
                 thumbnail,
+                'user-agent': userAgent,
+                referer: referer,
+                origin: origin,
             });
         } else if (!isLiveContent) {
             this.dialog.open<PlayerDialogComponent, PlayerDialogData>(

@@ -479,7 +479,17 @@ export const StalkerStore = signalStore(
                     cover: thumbnail,
                     title,
                 });
-                playerService.openPlayer(url, title, thumbnail);
+                const playlist = this.currentPlaylist();
+                playerService.openPlayer(
+                    url,
+                    title,
+                    thumbnail,
+                    true,
+                    false,
+                    playlist?.userAgent,
+                    playlist?.referrer,
+                    playlist?.origin
+                );
             },
             addToRecentlyViewed(item: any) {
                 console.log('Adding to recently viewed', item);
