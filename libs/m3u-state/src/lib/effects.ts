@@ -100,7 +100,6 @@ export class PlaylistEffects {
                                     url:
                                         activeChannel?.url +
                                         (activeChannel?.epgParams ?? ''),
-                                    mpvPlayerPath: settings?.mpvPlayerPath,
                                 });
                             else if (
                                 settings &&
@@ -111,7 +110,6 @@ export class PlaylistEffects {
                                     url:
                                         activeChannel?.url +
                                         (activeChannel?.epgParams ?? ''),
-                                    vlcPlayerPath: settings?.vlcPlayerPath,
                                 });
                         }
                     );
@@ -151,7 +149,6 @@ export class PlaylistEffects {
                         ) {
                             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                                 url: channel.url,
-                                mpvPlayerPath: settings?.mpvPlayerPath,
                                 referer: channel.http.referrer,
                                 userAgent: channel.http['user-agent'],
                                 origin: channel.http.origin,
@@ -164,7 +161,6 @@ export class PlaylistEffects {
                         )
                             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                                 url: channel.url,
-                                vlcPlayerPath: settings?.vlcPlayerPath,
                             });
                     }
                 );

@@ -18,7 +18,6 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('set-user-agent', userAgent, referer),
     openInMpv: (
         url: string,
-        path: string,
         title: string,
         userAgent: string,
         referer?: string,
@@ -27,7 +26,6 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke(
             'OPEN_MPV_PLAYER',
             url,
-            path,
             title,
             userAgent,
             referer,
@@ -35,7 +33,6 @@ contextBridge.exposeInMainWorld('electron', {
         ),
     openInVlc: (
         url: string,
-        path: string,
         title: string,
         userAgent: string,
         referer?: string,
@@ -44,7 +41,6 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke(
             'OPEN_VLC_PLAYER',
             url,
-            path,
             title,
             userAgent,
             referer,

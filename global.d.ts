@@ -32,7 +32,6 @@ declare global {
             setUserAgent: (userAgent: string, referer?: string) => void;
             openInMpv: (
                 url: string,
-                path: string,
                 title: string,
                 userAgent: string,
                 referer?: string,
@@ -40,7 +39,6 @@ declare global {
             ) => void;
             openInVlc: (
                 url: string,
-                path: string,
                 title: string,
                 userAgent: string,
                 referer?: string,

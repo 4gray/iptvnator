@@ -58,7 +58,6 @@ ipcMain.handle(
     async (
         event,
         url: string,
-        path: string,
         title: string,
         userAgent?: string,
         referer?: string,
@@ -199,7 +198,6 @@ ipcMain.handle(
     (
         event,
         url: string,
-        path: string,
         title: string,
         userAgent?: string,
         referer?: string,

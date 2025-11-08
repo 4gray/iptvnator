@@ -62,7 +62,6 @@ export class ElectronService extends DataService {
             try {
                 return await window.electron.openInMpv(
                     data.url,
-                    data.mpvPlayerPath || '',
                     data.title ?? '',
                     data['user-agent'] ?? undefined,
                     data.referer ?? undefined,
@@ -81,7 +80,6 @@ export class ElectronService extends DataService {
             try {
                 return await window.electron.openInVlc(
                     data.url,
-                    data.vlcPlayerPath || '',
                     data.title ?? '',
                     data['user-agent'] ?? undefined,
                     data.referer ?? undefined,

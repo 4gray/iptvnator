@@ -39,7 +39,6 @@ export class PlayerService {
             }
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
-                mpvPlayerPath: this.settingsStore.mpvPlayerPath(),
                 title,
                 thumbnail,
                 'user-agent': userAgent,
@@ -52,7 +51,6 @@ export class PlayerService {
             }
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
-                vlcPlayerPath: this.settingsStore.vlcPlayerPath(),
                 title,
                 thumbnail,
                 'user-agent': userAgent,
