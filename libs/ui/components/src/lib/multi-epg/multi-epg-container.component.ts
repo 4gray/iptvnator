@@ -19,7 +19,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { MomentDatePipe } from '@iptvnator/pipes';
 import { TranslatePipe } from '@ngx-translate/core';
 import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription } from 'rxjs';
 import {
     Channel,
     COMPONENT_OVERLAY_REF,
@@ -59,8 +59,13 @@ export class MultiEpgContainerComponent
     readonly epgContainer = viewChild.required<ElementRef>('epgContainer');
 
     @Input() set playlistChannels(value: Observable<Channel[]>) {
+        // Unsubscribe from previous subscription if it exists
+        if (this.playlistChannelsSubscription) {
+            this.playlistChannelsSubscription.unsubscribe();
+        }
+
         if (value) {
-            value.subscribe(() => {
+            this.playlistChannelsSubscription = value.subscribe(() => {
                 this.initializeVisibleChannels();
                 this.requestPrograms();
             });
@@ -81,13 +86,14 @@ export class MultiEpgContainerComponent
 
     private dateCache = new Map<string, Date>();
     private interval!: number;
+    private playlistChannelsSubscription?: Subscription;
 
     isLastPage = false;
     totalChannels = 0;
 
     private readonly dialog = inject(MatDialog);
-    private cdr = inject(ChangeDetectorRef);
-    private overlayRef = inject<OverlayRef>(COMPONENT_OVERLAY_REF);
+    private readonly cdr = inject(ChangeDetectorRef);
+    private readonly overlayRef = inject<OverlayRef>(COMPONENT_OVERLAY_REF);
 
     ngOnInit() {
         this.calculateCurrentTimeBar();
@@ -138,6 +144,11 @@ export class MultiEpgContainerComponent
         this.hourWidth$.complete();
         this.channels$.complete();
         clearInterval(this.interval);
+
+        // Clean up playlist channels subscription
+        if (this.playlistChannelsSubscription) {
+            this.playlistChannelsSubscription.unsubscribe();
+        }
     }
 
     trackByIndex(index: number): number {
