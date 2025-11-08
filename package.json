@@ -22,6 +22,7 @@
     "build": {
         "appId": "com.fourgray.iptvnator",
         "productName": "IPTVnator",
+        "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
         "mac": {
             "target": {
                 "target": "dmg",
@@ -44,7 +45,8 @@
                 "Snap",
                 "deb",
                 "rpm"
-            ]
+            ],
+            "artifactName": "${name}-${version}-${os}-${arch}.${ext}"
         },
         "win": {
             "compression": "maximum",
@@ -56,7 +58,11 @@
                         "x64"
                     ]
                 }
-            ]
+            ],
+            "artifactName": "${name}-${version}-windows-${arch}-setup.${ext}"
+        },
+        "nsis": {
+            "artifactName": "${name}-${version}-windows-${arch}-setup.${ext}"
         }
     },
     "scripts": {
