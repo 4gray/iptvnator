@@ -1,17 +1,9 @@
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
 import { AsyncPipe, CommonModule } from '@angular/common';
-import {
-    Component,
-    Injector,
-    NgZone,
-    OnInit,
-    effect,
-    inject,
-} from '@angular/core';
+import { Component, Injector, OnInit, effect, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -37,10 +29,7 @@ import { DataService, PlaylistsService } from 'services';
 import {
     COMPONENT_OVERLAY_REF,
     Channel,
-    ERROR,
     PLAYLIST_PARSE_BY_URL,
-    PLAYLIST_PARSE_RESPONSE,
-    Playlist,
     STORE_KEY,
     Settings,
     SidebarView,
@@ -51,37 +40,35 @@ import { SettingsComponent } from '../../settings/settings.component';
 
 @Component({
     imports: [
+        ArtPlayerComponent,
         AsyncPipe,
         AudioPlayerComponent,
-        InfoOverlayComponent,
         CommonModule,
         EpgListComponent,
         HtmlVideoPlayerComponent,
+        InfoOverlayComponent,
         MatSidenavModule,
         RouterLink,
         SidebarComponent,
         ToolbarComponent,
         VjsPlayerComponent,
-        ArtPlayerComponent,
     ],
     templateUrl: './video-player.component.html',
     styleUrl: './video-player.component.scss',
 })
 export class VideoPlayerComponent implements OnInit {
-    private activatedRoute = inject(ActivatedRoute);
-    private dataService = inject(DataService);
+    private readonly activatedRoute = inject(ActivatedRoute);
+    private readonly dataService = inject(DataService);
     private readonly dialog = inject(MatDialog);
-    private ngZone = inject(NgZone);
-    private overlay = inject(Overlay);
-    private playlistsService = inject(PlaylistsService);
-    private router = inject(Router);
-    private settingsStore = inject(SettingsStore);
-    private snackBar = inject(MatSnackBar);
-    private storage = inject(StorageMap);
-    private store = inject(Store);
+    private readonly overlay = inject(Overlay);
+    private readonly playlistsService = inject(PlaylistsService);
+    private readonly router = inject(Router);
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly storage = inject(StorageMap);
+    private readonly store = inject(Store);
 
     /** Active selected channel */
-    activeChannel$ = this.store
+    readonly activeChannel$ = this.store
         .select(selectActive)
         .pipe(filter((channel) => Boolean((channel as Channel)?.url)));
 
@@ -89,44 +76,13 @@ export class VideoPlayerComponent implements OnInit {
     channels$!: Observable<Channel[]>;
 
     /** Current epg program */
-    epgProgram$ = this.store.select(selectCurrentEpgProgram);
+    readonly epgProgram$ = this.store.select(selectCurrentEpgProgram);
 
     /** Selected video player options */
     playerSettings: Partial<Settings> = {
         player: VideoPlayer.VideoJs,
         showCaptions: false,
     };
-
-    /** IPC Renderer commands list with callbacks */
-    commandsList = [
-        {
-            id: ERROR,
-            execute: (response: { message: string }): void => {
-                this.snackBar.open(response.message, '', {
-                    duration: 3100,
-                });
-            },
-        },
-        {
-            id: PLAYLIST_PARSE_RESPONSE,
-            execute: (response: { payload: Playlist }): void => {
-                if (response.payload.isTemporary) {
-                    this.store.dispatch(
-                        PlaylistActions.setChannels({
-                            channels: response.payload.playlist.items,
-                        })
-                    );
-                } else {
-                    this.store.dispatch(
-                        PlaylistActions.addPlaylist({
-                            playlist: response.payload,
-                        })
-                    );
-                }
-                this.sidebarView = 'CHANNELS';
-            },
-        },
-    ];
 
     readonly isDesktop = !!window['electron'];
 
@@ -158,7 +114,6 @@ export class VideoPlayerComponent implements OnInit {
      */
     ngOnInit(): void {
         this.applySettings();
-        this.setRendererListeners();
         this.getPlaylistUrlAsParam();
 
         this.channels$ = this.activatedRoute.params.pipe(
@@ -212,23 +167,6 @@ export class VideoPlayerComponent implements OnInit {
                 isTemporary: true,
             });
         }
-    }
-
-    setRendererListeners(): void {
-        this.commandsList.forEach((command) => {
-            if (this.isDesktop) {
-                this.dataService.listenOn(command.id, (event, response) =>
-                    this.ngZone.run(() => command.execute(response))
-                );
-            } else {
-                const cb = (response: any) => {
-                    if (response.data.type === command.id) {
-                        command.execute(response.data);
-                    }
-                };
-                this.dataService.listenOn(command.id, cb);
-            }
-        });
     }
 
     /**

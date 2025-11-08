@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import { XTREAM_REQUEST } from 'shared-interfaces';
 import { DataService } from './data.service';
 
 export type PortalStatus = 'active' | 'inactive' | 'expired' | 'unavailable';
@@ -29,14 +28,17 @@ export class PortalStatusService {
                 normalizedUrl = serverUrl;
             }
 
-            let response = await this.dataService.sendIpcEvent(XTREAM_REQUEST, {
-                url: normalizedUrl,
-                params: {
-                    password,
-                    username,
-                    action: 'get_account_info',
-                },
-            });
+            let response = await this.dataService.sendIpcEvent(
+                'XTREAM_REQUEST',
+                {
+                    url: normalizedUrl,
+                    params: {
+                        password,
+                        username,
+                        action: 'get_account_info',
+                    },
+                }
+            );
             response = response?.payload;
 
             if (!response?.user_info?.status) {

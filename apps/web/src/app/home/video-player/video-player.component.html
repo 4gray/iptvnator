@@ -96,7 +96,7 @@
                 <!-- channel overlay -->
                 <app-info-overlay
                     [channel]="activeChannel"
-                    [epgProgram]="epgProgram$ | async"
+                    [epgProgram]="(epgProgram$ | async)!"
                 />
             }
         }

@@ -7,6 +7,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
 import {
     combineLatestWith,
+    EMPTY,
     firstValueFrom,
     map,
     switchMap,
@@ -239,10 +240,16 @@ export class PlaylistEffects {
     addPlaylist$ = createEffect(
         () => {
             return this.actions$.pipe(
-                ofType(PlaylistActions.addPlaylist),
-                switchMap((action) =>
-                    this.playlistsService.addPlaylist(action.playlist)
+                ofType(
+                    PlaylistActions.addPlaylist,
+                    PlaylistActions.handleAddingPlaylistByUrl
                 ),
+                switchMap((action) => {
+                    if ('isTemporary' in action && action.isTemporary) {
+                        return EMPTY;
+                    }
+                    return this.playlistsService.addPlaylist(action.playlist);
+                }),
                 map((playlist: Playlist) => {
                     if (playlist.serverUrl && !this.dataService.isElectron) {
                         this.router.navigate(['/xtreams/', playlist._id]);

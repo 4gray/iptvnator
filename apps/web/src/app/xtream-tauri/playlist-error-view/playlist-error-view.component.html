@@ -1,20 +1,21 @@
 <div class="expired-account">
-    @if (viewType === 'ERROR') {
-        <img src="./assets/images/broken-tv.svg" />
-    } @else if (viewType === 'EMPTY_CATEGORY') {
+    @if (viewType() === 'ERROR') {
+        <img alt="Something went wrong" src="./assets/images/broken-tv.svg" />
+    } @else if (viewType() === 'EMPTY_CATEGORY') {
         <img
+            alt="empty category"
             class="empty-category-img"
             src="./assets/images/empty-category.svg"
         />
-    } @else if (viewType === 'NO_SEARCH_RESULTS') {
+    } @else if (viewType() === 'NO_SEARCH_RESULTS') {
         <mat-icon class="icon">search</mat-icon>
     }
     <div>
-        <h3>{{ title }}</h3>
-        {{ description }}
+        <h3>{{ title() }}</h3>
+        {{ description() }}
     </div>
 
-    @if (showActionButtons) {
+    @if (showActionButtons()) {
         <div>
             <button mat-stroked-button routerLink="/">
                 <mat-icon>home</mat-icon>

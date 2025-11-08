@@ -90,7 +90,10 @@ ipcMain.handle(
                     );
                     return;
                 } catch (err) {
-                    console.error('Failed to send command to existing MPV:', err);
+                    console.error(
+                        'Failed to send command to existing MPV:',
+                        err
+                    );
                     // If it fails, clear the reference and create a new one
                     mpvProcess = null;
                     mpvSocketPath = null;

@@ -78,6 +78,8 @@ export default class App {
                 preload: join(__dirname, 'main.preload.js'),
             },
             ...savedWindowBounds,
+            minHeight: 600,
+            minWidth: 900,
         });
         App.mainWindow.setMenu(null);
         if (!savedWindowBounds) {

@@ -1,10 +1,5 @@
-<div class="grid-container">
-  <app-header
+<app-header
     [title]="'HOME.TITLE' | translate"
     [subtitle]="'HOME.SUBTITLE' | translate"
-    />
-  <app-recent-playlists class="recent-playlists" />
-  @if (isLoading) {
-    <mat-progress-bar mode="indeterminate" />
-  }
-</div>
+/>
+<app-recent-playlists class="recent-playlists" />
