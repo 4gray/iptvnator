@@ -254,6 +254,25 @@ export const playlistReducer = createReducer(
                 currentPlaylistId: playlistId,
             };
         }
+    ),
+    on(
+        PlaylistActions.handleAddingPlaylistByUrl,
+        (state, action): PlaylistState => {
+            if (action.isTemporary) {
+                return {
+                    ...state,
+                    channels: action.playlist.playlist.items as Channel[],
+                };
+            } else {
+                return {
+                    ...state,
+                    playlists: playlistsAdapter.addOne(
+                        action.playlist,
+                        state.playlists
+                    ),
+                };
+            }
+        }
     )
 );
 

@@ -1,12 +1,13 @@
 import { SimpleChange } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
-import { DataService } from '../../../../../services/src/lib/data.service';
+import { DataService } from 'services';
 import { HtmlVideoPlayerComponent } from './html-video-player.component';
 
 describe('HtmlVideoPlayerComponent', () => {
     let component: HtmlVideoPlayerComponent;
     let fixture: ComponentFixture<HtmlVideoPlayerComponent>;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let dataService: DataService;
 
     const TEST_CHANNEL = {
@@ -45,7 +46,9 @@ describe('HtmlVideoPlayerComponent', () => {
 
     it('should call play channel function after input changes', () => {
         jest.spyOn(component, 'playChannel');
-        jest.spyOn(global.console, 'error').mockImplementation(() => {});
+        jest.spyOn(global.console, 'error').mockImplementation(() => {
+            /* empty */
+        });
         component.ngOnChanges({
             channel: new SimpleChange(null, TEST_CHANNEL, true),
         });

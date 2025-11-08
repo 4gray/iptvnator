@@ -7,6 +7,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
 import {
     combineLatestWith,
+    EMPTY,
     firstValueFrom,
     map,
     switchMap,
@@ -99,7 +100,10 @@ export class PlaylistEffects {
                                     url:
                                         activeChannel?.url +
                                         (activeChannel?.epgParams ?? ''),
-                                    mpvPlayerPath: settings?.mpvPlayerPath,
+                                    title: activeChannel?.name ?? '',
+                                    'user-agent': activeChannel?.http?.['user-agent'],
+                                    referer: activeChannel?.http?.referrer,
+                                    origin: activeChannel?.http?.origin,
                                 });
                             else if (
                                 settings &&
@@ -110,7 +114,10 @@ export class PlaylistEffects {
                                     url:
                                         activeChannel?.url +
                                         (activeChannel?.epgParams ?? ''),
-                                    vlcPlayerPath: settings?.vlcPlayerPath,
+                                    title: activeChannel?.name ?? '',
+                                    'user-agent': activeChannel?.http?.['user-agent'],
+                                    referer: activeChannel?.http?.referrer,
+                                    origin: activeChannel?.http?.origin,
                                 });
                         }
                     );
@@ -150,9 +157,9 @@ export class PlaylistEffects {
                         ) {
                             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                                 url: channel.url,
-                                mpvPlayerPath: settings?.mpvPlayerPath,
+                                title: channel.name ?? '',
+                                'user-agent': channel.http['user-agent'],
                                 referer: channel.http.referrer,
-                                userAgent: channel.http['user-agent'],
                                 origin: channel.http.origin,
                             });
                         } else if (
@@ -163,7 +170,10 @@ export class PlaylistEffects {
                         )
                             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                                 url: channel.url,
-                                vlcPlayerPath: settings?.vlcPlayerPath,
+                                title: channel.name ?? '',
+                                'user-agent': channel.http['user-agent'],
+                                referer: channel.http.referrer,
+                                origin: channel.http.origin,
                             });
                     }
                 );
@@ -239,10 +249,16 @@ export class PlaylistEffects {
     addPlaylist$ = createEffect(
         () => {
             return this.actions$.pipe(
-                ofType(PlaylistActions.addPlaylist),
-                switchMap((action) =>
-                    this.playlistsService.addPlaylist(action.playlist)
+                ofType(
+                    PlaylistActions.addPlaylist,
+                    PlaylistActions.handleAddingPlaylistByUrl
                 ),
+                switchMap((action) => {
+                    if ('isTemporary' in action && action.isTemporary) {
+                        return EMPTY;
+                    }
+                    return this.playlistsService.addPlaylist(action.playlist);
+                }),
                 map((playlist: Playlist) => {
                     if (playlist.serverUrl && !this.dataService.isElectron) {
                         this.router.navigate(['/xtreams/', playlist._id]);

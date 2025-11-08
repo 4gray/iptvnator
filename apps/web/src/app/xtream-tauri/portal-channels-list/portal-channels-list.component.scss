@@ -7,7 +7,7 @@ mat-nav-list {
 }
 
 mat-list-item {
-    width: 280px !important;
+    width: 370px !important;
 }
 
 .scroll-viewport-portals {
@@ -33,7 +33,7 @@ mat-list-item {
     transition: background-color 0.2s ease;
     border-radius: 4px;
     margin: 2px 8px;
-    
+
     ::ng-deep .mdc-list-item__content {
         overflow: hidden;
         flex: 1;
@@ -50,7 +50,7 @@ mat-list-item {
     }
 
     &.mat-mdc-list-item-active {
-        background-color: rgba(29, 185, 84, 0.2); 
+        background-color: rgba(29, 185, 84, 0.2);
         .channel-info .title {
             color: #1db954;
         }
@@ -73,7 +73,7 @@ mat-list-item {
             border-radius: 20px;
         }
     }
-    
+
     div[matformfieldlineripple] {
         display: none;
     }
@@ -93,7 +93,7 @@ mat-list-item {
     flex-direction: column;
     width: 100%;
     gap: 4px;
-    
+
     .title {
         font-weight: 600; // Slightly bolder
         font-size: 14px;
@@ -108,7 +108,7 @@ mat-list-item {
             animation: marquee 6s linear infinite;
         }
     }
-    
+
     .current-program {
         font-size: 12px;
         white-space: nowrap;
@@ -116,7 +116,7 @@ mat-list-item {
         text-overflow: ellipsis;
         line-height: 1.2;
         margin-top: 2px;
-        
+
         &:hover {
             overflow: visible;
             text-overflow: clip;
@@ -135,17 +135,17 @@ mat-list-item {
         align-items: center;
         gap: 8px;
         font-size: 11px;
-        opacity: .6;
+        opacity: 0.6;
         padding: 0 2px;
-        
+
         .progress-bar {
             flex: 1;
             height: 3px;
             background: rgba(255, 255, 255, 0.1);
-            opacity: .6;
+            opacity: 0.6;
             border-radius: 2px;
             overflow: hidden;
-            
+
             .progress {
                 height: 100%;
                 background: #1db954;
@@ -166,7 +166,7 @@ mat-list-item {
 
         .progress-container {
             opacity: 0.5;
-            
+
             .progress-bar {
                 background: rgba(255, 255, 255, 0.05);
             }

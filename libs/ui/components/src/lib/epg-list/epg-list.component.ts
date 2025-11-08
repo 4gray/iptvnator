@@ -1,11 +1,11 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIconButton } from '@angular/material/button';
+import { MatDivider } from '@angular/material/divider';
+import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTooltip } from '@angular/material/tooltip';
 import { MomentDatePipe } from '@iptvnator/pipes';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -17,9 +17,8 @@ import {
     setEpgAvailableFlag,
 } from 'm3u-state';
 import moment from 'moment';
-import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { DataService, EpgService } from 'services';
+import { BehaviorSubject, combineLatest, map } from 'rxjs';
+import { EpgService } from 'services';
 import { EpgChannel, EpgProgram } from 'shared-interfaces';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 
@@ -35,11 +34,11 @@ const DATE_FORMAT = 'YYYY-MM-DD';
         AsyncPipe,
         EpgListItemComponent,
         FormsModule,
-        MatButtonModule,
-        MatDividerModule,
-        MatIconModule,
+        MatDivider,
+        MatIcon,
+        MatIconButton,
         MatListModule,
-        MatTooltipModule,
+        MatTooltip,
         MomentDatePipe,
         TranslatePipe,
     ],
@@ -49,7 +48,6 @@ const DATE_FORMAT = 'YYYY-MM-DD';
 })
 export class EpgListComponent implements OnInit {
     private readonly store = inject(Store);
-    private dataService = inject(DataService);
     private readonly epgService = inject(EpgService);
 
     /** Channel info in EPG format */
@@ -76,10 +74,44 @@ export class EpgListComponent implements OnInit {
     timeNow!: string;
 
     /** Timeshift availability date, based on tvg-rec value from the channel */
-    timeshiftUntil$!: Observable<string>;
+    readonly timeshiftUntil$ = this.store.select(selectActive).pipe(
+        map((active) => {
+            // Create EpgChannel with proper structure
+            const displayNames = active?.name
+                ? [{ lang: '', value: active.name }]
+                : [];
+            const icons = active?.tvg?.logo ? [{ src: active.tvg.logo }] : [];
+
+            this.channel = {
+                id: active?.tvg?.id || '',
+                displayName: displayNames,
+                url: active?.url ? [active.url] : [],
+                icon: icons,
+            };
+            return (
+                active?.tvg?.rec || active?.timeshift || active?.catchup?.days
+            );
+        }),
+        map((value) => {
+            const days = Number(value ?? 0) || 0;
+            return moment().subtract(days, 'days').toISOString();
+        })
+    );
 
     private readonly selectedDate$ = new BehaviorSubject<string>(
         moment().format(DATE_FORMAT)
+    );
+
+    /** Filtered EPG programs based on selected date */
+    filteredItems$ = combineLatest([this.items$, this.selectedDate$]).pipe(
+        map(([items, selectedDate]) =>
+            items
+                .filter(
+                    (item) =>
+                        moment(item.start).format('YYYY-MM-DD') === selectedDate
+                )
+                .sort((a, b) => moment(a.start).diff(moment(b.start)))
+        )
     );
 
     /**
@@ -108,47 +140,10 @@ export class EpgListComponent implements OnInit {
         return channel.icon[0]?.src || '';
     }
 
-    /** Filtered EPG programs based on selected date */
-    filteredItems$ = combineLatest([this.items$, this.selectedDate$]).pipe(
-        map(([items, selectedDate]) =>
-            items
-                .filter(
-                    (item) =>
-                        moment(item.start).format('YYYY-MM-DD') === selectedDate
-                )
-                .sort((a, b) => moment(a.start).diff(moment(b.start)))
-        )
-    );
-
     /**
      * Subscribe for values from the store on component init
      */
     ngOnInit(): void {
-        this.timeshiftUntil$ = this.store.select(selectActive).pipe(
-            map((active) => {
-                // Create EpgChannel with proper structure
-                const displayNames = active?.name
-                    ? [{ lang: '', value: active.name }]
-                    : [];
-                const icons = active?.tvg?.logo
-                    ? [{ src: active.tvg.logo }]
-                    : [];
-
-                this.channel = {
-                    id: active?.tvg?.id || '',
-                    displayName: displayNames,
-                    url: active?.url ? [active.url] : [],
-                    icon: icons,
-                };
-                return (
-                    active?.tvg?.rec ||
-                    active?.timeshift ||
-                    active?.catchup?.days
-                );
-            }),
-            map((value) => moment().subtract(value, 'days').toISOString())
-        );
-
         this.items$.subscribe((programs) => this.handleEpgData(programs));
         this.dateToday = moment().format(DATE_FORMAT);
         this.selectedDate$.next(this.dateToday);

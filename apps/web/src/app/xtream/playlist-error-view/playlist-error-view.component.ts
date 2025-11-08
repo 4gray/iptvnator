@@ -10,6 +10,9 @@ import * as PlaylistActions from 'm3u-state';
 import { selectCurrentPlaylist } from 'm3u-state';
 import { Playlist } from 'shared-interfaces';
 
+/**
+ * @deprecated: there is another one in xtream-tauri
+ */
 @Component({
     selector: 'app-playlist-error-view',
     templateUrl: './playlist-error-view.component.html',

@@ -133,3 +133,8 @@ export const setCurrentPlaylistId = createAction(
     `${STORE_KEY} Set current playlist id`,
     props<{ playlistId: string | undefined }>()
 );
+
+export const handleAddingPlaylistByUrl = createAction(
+    `${PLAYLISTS_STORE_KEY} Handle adding playlist by URL`,
+    props<{ isTemporary: boolean; playlist: Playlist }>()
+);

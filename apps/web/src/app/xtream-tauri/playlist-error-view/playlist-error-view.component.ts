@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, inject, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -25,13 +25,16 @@ export class PlaylistErrorViewComponent {
     private store = inject(Store);
     private translate = inject(TranslateService);
 
-    currentPlaylist = this.store.selectSignal(selectCurrentPlaylist);
+    private readonly currentPlaylist = this.store.selectSignal(
+        selectCurrentPlaylist
+    );
 
-    @Input() description: string;
-    @Input() showActionButtons = true;
-    @Input() title: string;
-    @Input() viewType: 'ERROR' | 'EMPTY_CATEGORY' | 'NO_SEARCH_RESULTS' =
-        'ERROR';
+    readonly description = input<string>(undefined);
+    readonly showActionButtons = input(true);
+    readonly title = input<string>(undefined);
+    readonly viewType = input<'ERROR' | 'EMPTY_CATEGORY' | 'NO_SEARCH_RESULTS'>(
+        'ERROR'
+    );
 
     openPlaylistDetails() {
         this.dialog.open(PlaylistInfoComponent, {

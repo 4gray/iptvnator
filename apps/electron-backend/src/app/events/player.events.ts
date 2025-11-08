@@ -53,87 +53,142 @@ function sendMpvCommand(command: string, args: string[]): Promise<void> {
     });
 }
 
-ipcMain.handle('OPEN_MPV_PLAYER', async (event, url) => {
-    try {
-        const mpvPath = getMpvPath();
-        const reuseInstance = store.get(MPV_REUSE_INSTANCE, false);
+ipcMain.handle(
+    'OPEN_MPV_PLAYER',
+    async (
+        event,
+        url: string,
+        title: string,
+        userAgent?: string,
+        referer?: string,
+        origin?: string
+    ) => {
+        try {
+            const mpvPath = getMpvPath();
+            const reuseInstance = store.get(MPV_REUSE_INSTANCE, false);
 
-        console.log('Opening MPV player with path:', mpvPath);
-        console.log('Reuse instance:', reuseInstance);
-        console.log('URL:', url);
+            console.log('Opening MPV player with path:', mpvPath);
+            console.log('Reuse instance:', reuseInstance);
+            console.log('URL:', url);
+            console.log('User-Agent:', userAgent);
+            console.log('Referer:', referer);
+            console.log('Origin:', origin);
 
-        // If reuse is enabled and there's an existing process, try to use it
-        if (
-            reuseInstance &&
-            mpvProcess &&
-            !mpvProcess.killed &&
-            mpvSocketPath
-        ) {
-            console.log('Reusing existing MPV instance');
-            try {
-                await sendMpvCommand('loadfile', [url, 'replace']);
-                console.log(
-                    'Successfully loaded new URL in existing MPV instance'
-                );
-                return;
-            } catch (err) {
-                console.error('Failed to send command to existing MPV:', err);
-                // If it fails, clear the reference and create a new one
-                mpvProcess = null;
-                mpvSocketPath = null;
+            // If reuse is enabled and there's an existing process, try to use it
+            if (
+                reuseInstance &&
+                mpvProcess &&
+                !mpvProcess.killed &&
+                mpvSocketPath
+            ) {
+                console.log('Reusing existing MPV instance');
+                try {
+                    await sendMpvCommand('loadfile', [url, 'replace']);
+                    console.log(
+                        'Successfully loaded new URL in existing MPV instance'
+                    );
+                    return;
+                } catch (err) {
+                    console.error(
+                        'Failed to send command to existing MPV:',
+                        err
+                    );
+                    // If it fails, clear the reference and create a new one
+                    mpvProcess = null;
+                    mpvSocketPath = null;
+                    // Fall through to create new instance
+                }
             }
-        }
 
-        // Create new MPV process
-        console.log('Creating new MPV instance');
+            // Create new MPV process
+            console.log('Creating new MPV instance');
 
-        // Generate unique socket path
-        const socketPath =
-            process.platform === 'win32'
-                ? `\\\\.\\pipe\\mpv-${Date.now()}`
-                : `/tmp/mpvsocket-${Date.now()}`;
+            // Generate unique socket path
+            const socketPath =
+                process.platform === 'win32'
+                    ? `\\\\.\\pipe\\mpv-${Date.now()}`
+                    : `/tmp/mpvsocket-${Date.now()}`;
 
-        const args = [`--input-ipc-server=${socketPath}`, '--idle=yes', url];
+            const args = [`--input-ipc-server=${socketPath}`, '--idle=yes'];
 
-        const proc = spawn(mpvPath, args, {
-            shell: false,
-            detached: !reuseInstance,
-            stdio: 'ignore',
-        });
+            // Add user agent if provided
+            if (userAgent) {
+                args.push(`--user-agent=${userAgent}`);
+            }
 
-        proc.on('error', (err) => {
-            console.error('Failed to start MPV player:', err);
+            // Add referer if provided
+            if (referer) {
+                args.push(`--referrer=${referer}`);
+            }
+
+            // Add origin as custom HTTP header if provided
+            // MPV doesn't have a direct --origin flag, so we use --http-header-fields
+            if (origin) {
+                args.push(`--http-header-fields=Origin: ${origin}`);
+            }
+
+            // Add title if provided
+            if (title) {
+                args.push(`--force-media-title=${title}`);
+            }
+
+            // Add URL last
+            args.push(url);
+
+            // Wrap spawn in a promise to catch startup errors
+            await new Promise<void>((resolve, reject) => {
+                const proc = spawn(mpvPath, args, {
+                    shell: false,
+                    detached: !reuseInstance,
+                    stdio: 'ignore',
+                });
+
+                proc.on('error', (err) => {
+                    console.error('Failed to start MPV player:', err);
+                    mpvProcess = null;
+                    mpvSocketPath = null;
+                    reject(
+                        new Error(
+                            `Failed to start MPV player: ${err.message}. Make sure MPV is installed and the path '${mpvPath}' is correct.`
+                        )
+                    );
+                });
+
+                proc.on('exit', (code) => {
+                    console.log(`MPV exited with code ${code}`);
+                    mpvProcess = null;
+                    mpvSocketPath = null;
+                });
+
+                // Store the process reference if reuse is enabled
+                if (reuseInstance) {
+                    mpvProcess = proc;
+                    mpvSocketPath = socketPath;
+                    console.log(
+                        'Stored MPV process for reuse with socket:',
+                        socketPath
+                    );
+                } else {
+                    // Detach the process so it can continue running independently
+                    proc.unref();
+                }
+
+                // Resolve immediately if spawn succeeds (error event would fire if it fails)
+                // Give a small window to catch immediate spawn errors
+                setTimeout(() => {
+                    if (!proc.killed) {
+                        resolve();
+                    }
+                }, 100);
+            });
+        } catch (error) {
+            console.error('Error opening MPV player:', error);
             mpvProcess = null;
             mpvSocketPath = null;
-            /* event.sender.send(ERROR, {
-                message: `Error: Failed to start MPV player. Make sure that mpv player is installed on your system and the path is correct.`,
-            }); */
-        });
-
-        proc.on('exit', (code) => {
-            console.log(`MPV exited with code ${code}`);
-            mpvProcess = null;
-            mpvSocketPath = null;
-        });
-
-        // Store the process reference if reuse is enabled
-        if (reuseInstance) {
-            mpvProcess = proc;
-            mpvSocketPath = socketPath;
-            console.log(
-                'Stored MPV process for reuse with socket:',
-                socketPath
-            );
-        } else {
-            // Detach the process so it can continue running independently
-            proc.unref();
+            throw error;
         }
-    } catch (error) {
-        console.log(error);
-        mpvProcess = null;
-        mpvSocketPath = null;
     }
-});
+);
 
 ipcMain.handle('SET_MPV_PLAYER_PATH', (_event, mpvPlayerPath) => {
     console.log('... setting mpv player path', mpvPlayerPath);
@@ -153,28 +208,85 @@ ipcMain.handle('SET_MPV_REUSE_INSTANCE', (_event, reuseInstance: boolean) => {
     }
 });
 
-ipcMain.handle('OPEN_VLC_PLAYER', (event, url) => {
-    const vlcPath = getVlcPath();
-    console.log('Opening VLC player with path:', vlcPath);
-    console.log('URL:', url);
+ipcMain.handle(
+    'OPEN_VLC_PLAYER',
+    async (
+        event,
+        url: string,
+        title: string,
+        userAgent?: string,
+        referer?: string,
+        origin?: string
+    ) => {
+        try {
+            const vlcPath = getVlcPath();
+            console.log('Opening VLC player with path:', vlcPath);
+            console.log('URL:', url);
+            console.log('User-Agent:', userAgent);
+            console.log('Referer:', referer);
+            console.log('Origin:', origin);
 
-    const proc = spawn(vlcPath, [url as string], {
-        shell: false,
-        detached: true,
-        stdio: 'ignore',
-    });
+            const args: string[] = [];
 
-    proc.on('error', (err) => {
-        console.error('Failed to start VLC player:', err);
-    });
+            // Add user agent if provided (VLC uses :http-user-agent= format)
+            if (userAgent) {
+                args.push(`:http-user-agent=${userAgent}`);
+            }
 
-    proc.on('exit', (code) => {
-        console.log(`VLC exited with code ${code}`);
-    });
+            // Add referer if provided (VLC uses :http-referrer= format)
+            if (referer) {
+                args.push(`:http-referrer=${referer}`);
+            }
 
-    // Detach the process so it can continue running independently
-    proc.unref();
-});
+            // Note: VLC doesn't have a direct origin option, but origin is typically
+            // included in referer for most IPTV use cases
+
+            // Add title if provided
+            if (title) {
+                args.push(`--meta-title=${title}`);
+            }
+
+            // Add URL last
+            args.push(url);
+
+            // Wrap spawn in a promise to catch startup errors
+            await new Promise<void>((resolve, reject) => {
+                const proc = spawn(vlcPath, args, {
+                    shell: false,
+                    detached: true,
+                    stdio: 'ignore',
+                });
+
+                proc.on('error', (err) => {
+                    console.error('Failed to start VLC player:', err);
+                    reject(
+                        new Error(
+                            `Failed to start VLC player: ${err.message}. Make sure VLC is installed and the path '${vlcPath}' is correct.`
+                        )
+                    );
+                });
+
+                proc.on('exit', (code) => {
+                    console.log(`VLC exited with code ${code}`);
+                });
+
+                // Detach the process so it can continue running independently
+                proc.unref();
+
+                // Resolve immediately if spawn succeeds (error event would fire if it fails)
+                // Give a small window to catch immediate spawn errors
+                setTimeout(() => {
+                    if (!proc.killed) {
+                        resolve();
+                    }
+                }, 100);
+            });
+        } catch (error) {
+            console.error('Error opening VLC player:', error);
+            throw error;
+        }
+    }
+);
 
 ipcMain.handle('SET_VLC_PLAYER_PATH', (_event, vlcPlayerPath) => {
     console.log('... setting vlc player path', vlcPlayerPath);

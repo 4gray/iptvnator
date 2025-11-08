@@ -3,8 +3,8 @@
         class="navigation-sidebar"
         [navigationItems]="mainNavigationItems"
         (categoryClick)="setContentType($any($event))"
-        [selectedContentType]="stalkerStore.selectedContentType()"
         (pageClicked)="handlePageClick()"
+        [selectedContentType]="stalkerStore.selectedContentType()"
     />
     <router-outlet />
 </div>

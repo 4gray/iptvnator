@@ -45,6 +45,25 @@
                     ],
                     "outputHashing": "all"
                 },
+                "pwa": {
+                    "baseHref": "/",
+                    "budgets": [
+                        {
+                            "type": "initial",
+                            "maximumWarning": "500kb",
+                            "maximumError": "5mb"
+                        },
+                        {
+                            "type": "anyComponentStyle",
+                            "maximumWarning": "4kb",
+                            "maximumError": "8kb"
+                        }
+                    ],
+                    "outputHashing": "all",
+                    "optimization": true,
+                    "extractLicenses": true,
+                    "sourceMap": false
+                },
                 "development": {
                     "optimization": false,
                     "extractLicenses": false,
@@ -59,6 +78,9 @@
             "configurations": {
                 "production": {
                     "buildTarget": "web:build:production"
+                },
+                "pwa": {
+                    "buildTarget": "web:build:pwa"
                 },
                 "development": {
                     "buildTarget": "web:build:development"

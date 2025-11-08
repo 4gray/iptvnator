@@ -6,11 +6,11 @@ import {
     ChangeDetectorRef,
     Component,
     ElementRef,
-    Inject,
+    inject,
     Input,
     OnDestroy,
     OnInit,
-    ViewChild,
+    viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -19,7 +19,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { MomentDatePipe } from '@iptvnator/pipes';
 import { TranslatePipe } from '@ngx-translate/core';
 import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription } from 'rxjs';
 import {
     Channel,
     COMPONENT_OVERLAY_REF,
@@ -56,18 +56,21 @@ interface EnrichedChannel extends EpgChannel {
 export class MultiEpgContainerComponent
     implements OnInit, AfterViewInit, OnDestroy
 {
-    @ViewChild('epgContainer') epgContainer!: ElementRef;
+    readonly epgContainer = viewChild.required<ElementRef>('epgContainer');
 
     @Input() set playlistChannels(value: Observable<Channel[]>) {
+        // Unsubscribe from previous subscription if it exists
+        if (this.playlistChannelsSubscription) {
+            this.playlistChannelsSubscription.unsubscribe();
+        }
+
         if (value) {
-            value.subscribe((channels) => {
-                this._playlistChannels = channels;
+            this.playlistChannelsSubscription = value.subscribe(() => {
                 this.initializeVisibleChannels();
                 this.requestPrograms();
             });
         }
     }
-    private _playlistChannels: Channel[] = [];
 
     readonly timeHeader = Array.from({ length: 24 }, (_, i) => i);
     readonly hourWidth$ = new BehaviorSubject<number>(150);
@@ -82,16 +85,15 @@ export class MultiEpgContainerComponent
     originalEpgData: any[] = [];
 
     private dateCache = new Map<string, Date>();
-    private interval: any;
+    private interval!: number;
+    private playlistChannelsSubscription?: Subscription;
 
     isLastPage = false;
     totalChannels = 0;
 
-    constructor(
-        private dialog: MatDialog,
-        private cdr: ChangeDetectorRef,
-        @Inject(COMPONENT_OVERLAY_REF) private overlayRef: OverlayRef
-    ) {}
+    private readonly dialog = inject(MatDialog);
+    private readonly cdr = inject(ChangeDetectorRef);
+    private readonly overlayRef = inject<OverlayRef>(COMPONENT_OVERLAY_REF);
 
     ngOnInit() {
         this.calculateCurrentTimeBar();
@@ -123,9 +125,9 @@ export class MultiEpgContainerComponent
     }
 
     private initializeVisibleChannels(): void {
-        if (this.epgContainer) {
-            const containerHeight =
-                this.epgContainer.nativeElement.offsetHeight;
+        const epgContainer = this.epgContainer();
+        if (epgContainer) {
+            const containerHeight = epgContainer.nativeElement.offsetHeight;
             const calculatedVisibleChannels = Math.floor(
                 (containerHeight - this.barHeight) / this.barHeight
             );
@@ -142,6 +144,11 @@ export class MultiEpgContainerComponent
         this.hourWidth$.complete();
         this.channels$.complete();
         clearInterval(this.interval);
+
+        // Clean up playlist channels subscription
+        if (this.playlistChannelsSubscription) {
+            this.playlistChannelsSubscription.unsubscribe();
+        }
     }
 
     trackByIndex(index: number): number {

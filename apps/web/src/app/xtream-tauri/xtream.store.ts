@@ -844,13 +844,17 @@ export const XtreamStore = signalStore(
                     title: string,
                     thumbnail: string = null
                 ) {
+                    const playlist = store.currentPlaylist();
                     playerService.openPlayer(
                         streamUrl,
                         title,
                         thumbnail,
                         localStorage.getItem('hideExternalInfoDialog') ===
                             'true',
-                        store.selectedContentType() === 'live'
+                        store.selectedContentType() === 'live',
+                        playlist?.userAgent,
+                        playlist?.referrer,
+                        playlist?.origin
                     );
                 },
                 addToFavorites(item: any) {

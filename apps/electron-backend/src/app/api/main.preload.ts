@@ -8,15 +8,16 @@ contextBridge.exposeInMainWorld('electron', {
     updatePlaylistFromFilePath: (filePath: string, title: string) =>
         ipcRenderer.invoke('update-playlist-from-file-path', filePath, title),
     openPlaylistFromFile: () => ipcRenderer.invoke('open-playlist-from-file'),
-    saveFileDialog: (defaultPath: string, filters?: { name: string; extensions: string[] }[]) =>
-        ipcRenderer.invoke('save-file-dialog', defaultPath, filters),
+    saveFileDialog: (
+        defaultPath: string,
+        filters?: { name: string; extensions: string[] }[]
+    ) => ipcRenderer.invoke('save-file-dialog', defaultPath, filters),
     writeFile: (filePath: string, content: string) =>
         ipcRenderer.invoke('write-file', filePath, content),
     setUserAgent: (userAgent: string, referer?: string) =>
         ipcRenderer.invoke('set-user-agent', userAgent, referer),
     openInMpv: (
         url: string,
-        path: string,
         title: string,
         userAgent: string,
         referer?: string,
@@ -25,7 +26,6 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke(
             'OPEN_MPV_PLAYER',
             url,
-            path,
             title,
             userAgent,
             referer,
@@ -33,7 +33,6 @@ contextBridge.exposeInMainWorld('electron', {
         ),
     openInVlc: (
         url: string,
-        path: string,
         title: string,
         userAgent: string,
         referer?: string,
@@ -42,7 +41,6 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke(
             'OPEN_VLC_PLAYER',
             url,
-            path,
             title,
             userAgent,
             referer,

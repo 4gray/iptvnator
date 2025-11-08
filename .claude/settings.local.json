@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "WebSearch",
+      "WebFetch(domain:www.electronjs.org)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

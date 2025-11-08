@@ -29,6 +29,9 @@ export default [
     {
         files: ['**/*.html'],
         // Override or add rules here
-        rules: {},
+        rules: {
+            '@angular-eslint/template/click-events-have-key-events': 'off',
+            '@angular-eslint/template/interactive-supports-focus': 'off',
+        },
     },
 ];

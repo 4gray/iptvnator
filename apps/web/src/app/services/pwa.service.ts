@@ -12,7 +12,6 @@ import {
     ERROR,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
-    PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
     STALKER_REQUEST,
     XTREAM_REQUEST,
@@ -88,9 +87,15 @@ export class PwaService extends DataService {
         this.getPlaylistFromUrl(payload.url)
             .pipe(
                 catchError((error) => {
-                    window.postMessage({
-                        type: ERROR,
-                    });
+                    this.snackBar.open(
+                        `Error: ${error.message ?? 'Unknown error'}, status: ${
+                            error.status ?? 500
+                        }`,
+                        'Close',
+                        {
+                            duration: 5000,
+                        }
+                    );
                     return throwError(() => error);
                 })
             )
@@ -120,19 +125,23 @@ export class PwaService extends DataService {
         this.getPlaylistFromUrl(payload.url)
             .pipe(
                 catchError((error) => {
-                    window.postMessage({
-                        type: ERROR,
-                        message: this.getErrorMessageByStatusCode(error.status),
-                        status: error.status,
-                    });
+                    this.snackBar.open(
+                        this.getErrorMessageByStatusCode(error.status),
+                        'Close',
+                        {
+                            duration: 5000,
+                        }
+                    );
                     return throwError(() => error);
                 })
             )
-            .subscribe((response: any) => {
-                window.postMessage({
-                    type: PLAYLIST_PARSE_RESPONSE,
-                    payload: { ...response, isTemporary: payload.isTemporary },
-                });
+            .subscribe((response: Playlist) => {
+                this.store.dispatch(
+                    PlaylistActions.handleAddingPlaylistByUrl({
+                        isTemporary: !!payload?.isTemporary,
+                        playlist: response,
+                    })
+                );
             });
     }
 
@@ -196,11 +205,15 @@ export class PwaService extends DataService {
             return result;
         } catch (error: any) {
             if (payload.params.action === 'get_account_info') return;
-            window.postMessage({
-                type: ERROR,
-                status: error.error?.status,
-                message: error.error?.message ?? 'Unknown error',
-            });
+            this.snackBar.open(
+                `Error: ${error.message ?? ' Unknown error'}, status: ${
+                    error.status ?? 500
+                }`,
+                'Close',
+                {
+                    duration: 5000,
+                }
+            );
         }
     }
 
@@ -232,11 +245,14 @@ export class PwaService extends DataService {
             return (await response.json()).payload;
         } catch (err) {
             console.error('Stalker request error:', err);
-            window.postMessage({
-                type: ERROR,
-                message: err.message ?? 'Error: not found',
-                status: err.status ?? 404,
-            });
+
+            this.snackBar.open(
+                `Error: ${err.message ?? ' Not found'}, status: ${err.status ?? 404}`,
+                'Close',
+                {
+                    duration: 5000,
+                }
+            );
             throw err;
         }
     }

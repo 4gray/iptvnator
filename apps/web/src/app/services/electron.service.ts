@@ -1,16 +1,16 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Params } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { TranslateService } from '@ngx-translate/core';
+import * as PlaylistActions from 'm3u-state';
 import { DataService } from 'services';
 import {
     AUTO_UPDATE_PLAYLISTS,
-    AUTO_UPDATE_PLAYLISTS_RESPONSE,
     ERROR,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
-    PLAYLIST_PARSE_RESPONSE,
     PLAYLIST_UPDATE,
-    PLAYLIST_UPDATE_RESPONSE,
     XTREAM_RESPONSE,
 } from 'shared-interfaces';
 import { AppConfig } from '../../environments/environment';
@@ -20,7 +20,9 @@ import { AppConfig } from '../../environments/environment';
 })
 export class ElectronService extends DataService {
     private eventListeners: { [key: string]: () => void } = {};
-    private snackBar = inject(MatSnackBar);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly store = inject(Store);
+    private readonly translateService = inject(TranslateService);
 
     constructor() {
         super();
@@ -60,15 +62,15 @@ export class ElectronService extends DataService {
             try {
                 return await window.electron.openInMpv(
                     data.url,
-                    data.mpvPlayerPath || '',
                     data.title ?? '',
                     data['user-agent'] ?? undefined,
                     data.referer ?? undefined,
                     data.origin ?? undefined
                 );
                 /* thumbnail: data.thumbnail ?? '', */
-            } catch (error) {
-                this.snackBar.open(`Error launching MPV: ${error}`, 'Close', {
+            } catch (error: any) {
+                const errorMessage = error?.message || String(error);
+                this.snackBar.open(`Error launching MPV: ${errorMessage}`, 'Close', {
                     duration: 5000,
                 });
                 console.error('MPV launch error:', error);
@@ -79,13 +81,14 @@ export class ElectronService extends DataService {
             try {
                 return await window.electron.openInVlc(
                     data.url,
-                    data.vlcPlayerPath || '',
+                    data.title ?? '',
                     data['user-agent'] ?? undefined,
                     data.referer ?? undefined,
                     data.origin ?? undefined
                 );
-            } catch (error) {
-                this.snackBar.open(`Error launching VLC: ${error}`, 'Close', {
+            } catch (error: any) {
+                const errorMessage = error?.message || String(error);
+                this.snackBar.open(`Error launching VLC: ${errorMessage}`, 'Close', {
                     duration: 5000,
                 });
                 console.error('VLC launch error:', error);
@@ -94,27 +97,18 @@ export class ElectronService extends DataService {
         } else if (type === AUTO_UPDATE_PLAYLISTS) {
             const data = payload as Playlist[];
             const playlists = await window.electron.autoUpdatePlaylists(data);
-            /* for await (const item of data) {
-                if (item.filePath) {
-                    const playlist = await readTextFile(item.filePath);
-                    const parsedPlaylist = parse(playlist);
-                    const playlistObject = createPlaylistObject(
-                        item.title,
-                        parsedPlaylist,
-                        item.filePath,
-                        'FILE'
-                    );
-                    playlists.push({ ...playlistObject, _id: item._id });
-                }
-            }
-            */
-            window.postMessage({
-                type: AUTO_UPDATE_PLAYLISTS_RESPONSE,
-                payload: {
-                    message: 'Success! The playlists were successfully updated',
+            this.store.dispatch(
+                PlaylistActions.updateManyPlaylists({
                     playlists,
-                },
-            });
+                })
+            );
+            this.snackBar.open(
+                this.translateService.instant(
+                    'HOME.PLAYLISTS.AUTO_REFRESH_UPDATE_SUCCESS'
+                ),
+                null,
+                { duration: 2000 }
+            );
         } else {
             console.log('Unknown type', type);
         }
@@ -129,25 +123,27 @@ export class ElectronService extends DataService {
             // Use Electron IPC to make the Stalker request
             const response = await window.electron.stalkerRequest(payload);
             return response;
-        } catch (err: any) {
+        } catch (err) {
             console.error('Stalker request error:', err);
-            window.postMessage({
-                type: ERROR,
-                message: err.message ?? 'Error: not found',
-                status: err.status ?? 404,
-            });
+            this.snackBar.open(
+                `Error: ${err.message ?? ' Not found'}, status: ${err.status ?? 404}`,
+                'Close',
+                {
+                    duration: 5000,
+                }
+            );
             throw err;
         }
     }
 
     private async fetchM3uPlaylistFromUrl(payload: Partial<Playlist>) {
-        console.log(payload);
         window.electron.fetchPlaylistByUrl(payload.url).then((result) => {
-            // TODO: call store and decide and store where to store based on the isTemporary flag etc
-            window.postMessage({
-                type: PLAYLIST_PARSE_RESPONSE,
-                payload: { ...result, isTemporary: payload.isTemporary },
-            });
+            this.store.dispatch(
+                PlaylistActions.handleAddingPlaylistByUrl({
+                    isTemporary: !!payload?.isTemporary,
+                    playlist: result,
+                })
+            );
         });
     }
 
@@ -178,16 +174,23 @@ export class ElectronService extends DataService {
         }
 
         methodToCall.then((playlistObject) => {
-            window.postMessage({
-                type: PLAYLIST_UPDATE_RESPONSE,
-                payload: {
-                    message: 'Success! The playlist was successfully updated',
+            this.store.dispatch(
+                PlaylistActions.updatePlaylist({
                     playlist: {
                         ...playlistObject,
                         _id: data.id,
                     },
-                },
-            });
+                    playlistId: data.id,
+                })
+            );
+
+            this.snackBar.open(
+                this.translateService.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
+                ),
+                null,
+                { duration: 2000 }
+            );
         });
     }
 
@@ -223,14 +226,21 @@ export class ElectronService extends DataService {
             window.postMessage(result);
             return result;
         } catch (error: any) {
-            console.error('Xtream request error:', error);
-            const result = {
+            console.error('Xtream request error:', error.message);
+            this.snackBar.open(
+                `Error: ${error.message ?? 'Failed to connect to Xtream server'}, status: ${
+                    error.status ?? 500
+                }`,
+                'Close',
+                {
+                    duration: 5000,
+                }
+            );
+            return {
                 type: ERROR,
                 status: error.status ?? 500,
                 message: error.message ?? 'Failed to connect to Xtream server',
             };
-            window.postMessage(result);
-            return result;
         }
     }
 

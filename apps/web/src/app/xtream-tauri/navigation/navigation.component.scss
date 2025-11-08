@@ -10,7 +10,6 @@
 }
 
 .navigation-bottom {
-    border-top: 1px solid #333;
     margin-top: auto;
     padding-bottom: 16px;
 }
@@ -19,7 +18,6 @@
     transition: all 0.2s ease;
     background: rgba(63, 81, 181, 0.12);
     color: #3f51b5;
-    border-left: 4px solid #3f51b5;
 
     mat-icon {
         color: #3f51b5;
@@ -39,10 +37,14 @@ mat-icon {
     padding: 16px;
     position: relative;
     overflow: hidden;
-    background: linear-gradient(to bottom, rgba(18, 18, 18, 0.8) 0%, transparent 100%);
+    background: linear-gradient(
+        to bottom,
+        rgba(18, 18, 18, 0.8) 0%,
+        transparent 100%
+    );
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    min-height: 120px;
+    min-height: 50px;
 
     &::before {
         content: '';
@@ -57,13 +59,26 @@ mat-icon {
     }
 
     &.status-active::before {
-        background: linear-gradient(135deg, rgba(76, 175, 80, 0.3) 0%, transparent 100%);
+        background: linear-gradient(
+            135deg,
+            rgba(76, 175, 80, 0.3) 0%,
+            transparent 100%
+        );
     }
-    &.status-inactive::before, &.status-unavailable::before {
-        background: linear-gradient(135deg, rgba(244, 67, 54, 0.3) 0%, transparent 100%);
+    &.status-inactive::before,
+    &.status-unavailable::before {
+        background: linear-gradient(
+            135deg,
+            rgba(244, 67, 54, 0.3) 0%,
+            transparent 100%
+        );
     }
     &.status-expired::before {
-        background: linear-gradient(135deg, rgba(255, 152, 0, 0.3) 0%, transparent 100%);
+        background: linear-gradient(
+            135deg,
+            rgba(255, 152, 0, 0.3) 0%,
+            transparent 100%
+        );
     }
 
     .portal-status-wrapper {
@@ -99,14 +114,21 @@ mat-icon {
             margin: 0;
         }
 
-        &.status-active { color: #4caf50; }
-        &.status-inactive, &.status-unavailable { color: #f44336; }
-        &.status-expired { color: #ff9800; }
+        &.status-active {
+            color: #4caf50;
+        }
+        &.status-inactive,
+        &.status-unavailable {
+            color: #f44336;
+        }
+        &.status-expired {
+            color: #ff9800;
+        }
     }
 
     .portal-info {
         text-align: center;
-        
+
         .portal-name {
             font-size: 16px;
             font-weight: 600;
@@ -129,40 +151,6 @@ mat-icon {
         }
     }
 
-    .portal-actions {
-        display: flex;
-        justify-content: center;
-        gap: 8px;
-        margin-top: 4px;
-
-        .action-button {
-            width: 36px;
-            height: 36px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            
-            mat-icon {
-                font-size: 20px;
-                width: 20px;
-                height: 20px;
-                margin: 0;
-                transition: all 0.2s ease;
-            }
-
-            &:hover {
-                background: rgba(255, 255, 255, 0.15);
-                
-                mat-icon {
-                    transform: scale(1.1);
-                }
-            }
-        }
-    }
-
     .info-button {
         opacity: 0.7;
         margin-left: 8px;
@@ -172,18 +160,14 @@ mat-icon {
     }
 }
 
-
 .nav-section {
-    margin: 10px 0;
-    padding: 5px 0;
-
     .nav-group-label {
         padding: 0 16px 0;
         font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         font-weight: 500;
-        opacity: .7;
+        opacity: 0.7;
     }
 
     .mat-nav-list {

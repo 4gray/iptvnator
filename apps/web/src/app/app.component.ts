@@ -1,6 +1,5 @@
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -8,15 +7,11 @@ import { TranslateService } from '@ngx-translate/core';
 import * as PlaylistActions from 'm3u-state';
 import { DataService, EpgService } from 'services';
 import {
-    ERROR,
-    IpcCommand,
     Language,
     OPEN_FILE,
     Settings,
     STORE_KEY,
     Theme,
-    VIEW_ADD_PLAYLIST,
-    VIEW_SETTINGS,
 } from 'shared-interfaces';
 import { SettingsService } from './services/settings.service';
 import { RecentlyViewedComponent } from './xtream-tauri/recently-viewed/recently-viewed.component';
@@ -27,29 +22,23 @@ import { SearchResultsComponent } from './xtream-tauri/search-results/search-res
     templateUrl: './app.component.html',
     imports: [RouterOutlet],
 })
-export class AppComponent implements OnInit, OnDestroy {
+export class AppComponent implements OnInit {
     private dataService = inject(DataService);
     private dialog = inject(MatDialog);
     private epgService = inject(EpgService);
     private router = inject(Router);
     private store = inject(Store);
-    private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
     private settingsService = inject(SettingsService);
 
     /** List of ipc commands with function mapping */
-    private readonly commandsList = [
+    /* private readonly commandsList = [
         new IpcCommand(VIEW_ADD_PLAYLIST, () => this.navigateToRoute('/')),
         new IpcCommand(VIEW_SETTINGS, () => this.navigateToRoute('/settings')),
-        new IpcCommand(ERROR, (response: { message: string; status: number }) =>
-            this.showErrorAsNotification(response)
-        ),
-    ];
+    ]; */
 
     /** Default language as fallback */
     private readonly DEFAULT_LANG = Language.ENGLISH;
-
-    private listeners = [];
 
     constructor() {
         if (
@@ -90,24 +79,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.store.dispatch(PlaylistActions.loadPlaylists());
         this.translate.setDefaultLang(this.DEFAULT_LANG);
 
-        this.setRendererListeners();
         this.initSettings();
-        /* this.handleWhatsNewDialog(); */
-    }
-
-    /**
-     * Initializes all necessary listeners for the events from the renderer process
-     */
-    setRendererListeners(): void {
-        this.commandsList.forEach((command) => {
-            const cb = (response) => {
-                if (response.data.type === command.id) {
-                    command.callback(response.data);
-                }
-            };
-            this.dataService.listenOn(command.id, cb);
-            this.listeners.push(cb);
-        });
     }
 
     /**
@@ -133,6 +105,8 @@ export class AppComponent implements OnInit, OnDestroy {
                     ) {
                         this.epgService.fetchEpg(settings.epgUrl);
                     }
+
+                    // TODO: trigger auto-refresh mechanism for playlists
 
                     if (settings.theme) {
                         this.settingsService.changeTheme(settings.theme);
@@ -161,36 +135,11 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     /**
-     * Checks the actual version of the application and shows the "what is new" dialog if the updated version was detected
-     */
-    /* handleWhatsNewDialog(): void {
-        const actualVersion = this.dataService.getAppVersion();
-        this.settingsService
-            .getValueFromLocalStorage(STORE_KEY.Version)
-            .subscribe(() => {
-                this.settingsService.setValueToLocalStorage(
-                    STORE_KEY.Version,
-                    actualVersion
-                );
-            });
-    } */
-
-    /**
      * Navigate to the specified route
      * @param route route to navigate to
      */
     navigateToRoute(route: string) {
         this.router.navigateByUrl(route);
-    }
-
-    showErrorAsNotification(response: { message: string; status: number }) {
-        this.snackBar.open(
-            `Error: ${response?.message ?? 'Something went wrong'} (Status: ${
-                response?.status ?? 0
-            })`,
-            null,
-            { duration: 4000 }
-        );
     }
 
     openGlobalSearch(): void {
@@ -213,20 +162,5 @@ export class AppComponent implements OnInit, OnDestroy {
             hasBackdrop: true,
             disableClose: false,
         });
-    }
-
-    /**
-     * Removes all ipc command listeners on component destroy
-     */
-    ngOnDestroy(): void {
-        if (this.dataService.isElectron) {
-            this.commandsList.forEach((command) =>
-                this.dataService.removeAllListeners(command.id)
-            );
-        } else {
-            this.listeners.forEach((listener) =>
-                window.removeEventListener('message', listener)
-            );
-        }
     }
 }

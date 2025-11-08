@@ -5,7 +5,6 @@
 
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
-import { XTREAM_REQUEST } from 'shared-interfaces';
 
 export default class XtreamEvents {
     static bootstrapXtreamEvents(): Electron.IpcMain {
@@ -17,7 +16,7 @@ export default class XtreamEvents {
  * Handle Xtream Codes API requests
  */
 ipcMain.handle(
-    XTREAM_REQUEST,
+    'XTREAM_REQUEST',
     async (
         event,
         payload: {
@@ -77,7 +76,11 @@ ipcMain.handle(
                     status: error.response?.status || 500,
                 };
                 throw errorResponse;
-            } else if (error && typeof error === 'object' && 'message' in error) {
+            } else if (
+                error &&
+                typeof error === 'object' &&
+                'message' in error
+            ) {
                 throw error;
             } else {
                 throw {

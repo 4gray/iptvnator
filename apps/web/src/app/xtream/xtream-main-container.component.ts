@@ -345,12 +345,18 @@ export class XtreamMainContainerComponent implements OnInit, OnDestroy {
     openPlayer(streamUrl: string, title: string) {
         this.streamUrl = streamUrl;
         this.player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
+        const playlist = this.currentPlaylist() as Playlist;
+
         if (this.player === VideoPlayer.MPV) {
             if (!this.hideExternalInfoDialog())
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
                 mpvPlayerPath: this.settingsStore.mpvPlayerPath(),
+                title,
+                'user-agent': playlist?.userAgent,
+                referer: playlist?.referrer,
+                origin: playlist?.origin,
             });
         } else if (this.player === VideoPlayer.VLC) {
             if (!this.hideExternalInfoDialog())
@@ -358,6 +364,10 @@ export class XtreamMainContainerComponent implements OnInit, OnDestroy {
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
                 vlcPlayerPath: this.settingsStore.vlcPlayerPath(),
+                title,
+                'user-agent': playlist?.userAgent,
+                referer: playlist?.referrer,
+                origin: playlist?.origin,
             });
         } else {
             if (this.selectedContentType !== ContentType.ITV) {
@@ -384,14 +394,26 @@ export class XtreamMainContainerComponent implements OnInit, OnDestroy {
     }
 
     playEpisode(episode: XtreamSerieEpisode) {
-        const { serverUrl, username, password } =
-            this.currentPlaylist() as Playlist;
+        const playlist = this.currentPlaylist() as Playlist;
+        const { serverUrl, username, password, userAgent, referrer, origin } = playlist;
         const player = this.settingsStore.player();
         const streamUrl = `${serverUrl}/series/${username}/${password}/${episode.id}.${episode.container_extension}`;
         if (player === VideoPlayer.MPV) {
-            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, { url: streamUrl });
+            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+                url: streamUrl,
+                title: episode.title,
+                'user-agent': userAgent,
+                referer: referrer,
+                origin: origin,
+            });
         } else if (player === VideoPlayer.VLC) {
-            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, { url: streamUrl });
+            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
+                url: streamUrl,
+                title: episode.title,
+                'user-agent': userAgent,
+                referer: referrer,
+                origin: origin,
+            });
         } else {
             this.dialog.open(PlayerDialogComponent, {
                 data: { streamUrl, player, title: episode.title },

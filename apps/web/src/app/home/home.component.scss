@@ -1,24 +1,4 @@
-::ng-deep {
-    .mat-tab-label-content {
-        text-transform: uppercase;
-    }
-
-    .mat-tab-group.mat-background-primary .mat-tab-header-pagination {
-        display: none;
-    }
-}
-
-.playlists-container {
-    grid-area: playlists;
-}
-
 .recent-playlists {
     height: calc(100vh - 100px);
     overflow: auto;
-}
-
-@media only screen and (max-width: 480px) {
-    .tab-title {
-        display: none;
-    }
 }
