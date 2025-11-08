@@ -92,7 +92,10 @@ export class EpgListComponent implements OnInit {
                 active?.tvg?.rec || active?.timeshift || active?.catchup?.days
             );
         }),
-        map((value) => moment().subtract(value, 'days').toISOString())
+        map((value) => {
+            const days = Number(value ?? 0) || 0;
+            return moment().subtract(days, 'days').toISOString();
+        })
     );
 
     private readonly selectedDate$ = new BehaviorSubject<string>(
