@@ -68,8 +68,9 @@ export class ElectronService extends DataService {
                     data.origin ?? undefined
                 );
                 /* thumbnail: data.thumbnail ?? '', */
-            } catch (error) {
-                this.snackBar.open(`Error launching MPV: ${error}`, 'Close', {
+            } catch (error: any) {
+                const errorMessage = error?.message || String(error);
+                this.snackBar.open(`Error launching MPV: ${errorMessage}`, 'Close', {
                     duration: 5000,
                 });
                 console.error('MPV launch error:', error);
@@ -85,8 +86,9 @@ export class ElectronService extends DataService {
                     data.referer ?? undefined,
                     data.origin ?? undefined
                 );
-            } catch (error) {
-                this.snackBar.open(`Error launching VLC: ${error}`, 'Close', {
+            } catch (error: any) {
+                const errorMessage = error?.message || String(error);
+                this.snackBar.open(`Error launching VLC: ${errorMessage}`, 'Close', {
                     duration: 5000,
                 });
                 console.error('VLC launch error:', error);
