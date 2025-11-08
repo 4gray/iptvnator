@@ -1,11 +1,16 @@
 <div class="portal-status-container" [class]="getStatusColor()">
     <div class="portal-status-wrapper">
         <div class="portal-header">
-            <div class="portal-icon" [class]="getStatusColor()">
+            <div
+                class="portal-icon"
+                [class]="getStatusColor()"
+                [matTooltip]="xtreamStore.portalStatus()"
+                matTooltipPosition="right"
+            >
                 <mat-icon>{{ getStatusIcon() }}</mat-icon>
             </div>
         </div>
-        <div class="portal-info">
+        <!-- <div class="portal-info">
             <span class="portal-name">{{
                 currentPlaylist()?.title || 'Unknown Portal'
             }}</span>
@@ -14,102 +19,111 @@
                     xtreamStore.portalStatus()
                 }}</span>
             }
-        </div>
-        <div class="portal-actions">
-            <button
-                mat-icon-button
-                class="action-button"
-                routerLink="/"
-                routerLinkActive="active"
-                [routerLinkActiveOptions]="{ exact: true }"
-                [matTooltip]="'PORTALS.SIDEBAR.HOME' | translate"
-            >
-                <mat-icon>home</mat-icon>
-            </button>
-            @if (!isStalkerPlaylist()) {
-                <button
-                    mat-icon-button
-                    class="action-button"
-                    (click)="openAccountInfo()"
-                    [matTooltip]="'PORTALS.SIDEBAR.ACCOUNT_INFO' | translate"
-                >
-                    <mat-icon>person</mat-icon>
-                </button>
-            }
-            <button
-                mat-icon-button
-                class="action-button"
-                (click)="openPlaylistInfo()"
-                [matTooltip]="'PORTALS.SIDEBAR.PLAYLIST_INFO' | translate"
-            >
-                <mat-icon>playlist_play</mat-icon>
-            </button>
-        </div>
+        </div> -->
     </div>
 </div>
-
 <div class="nav-section">
-    <div class="nav-group-label">{{ 'PORTALS.SIDEBAR.MAIN' | translate }}</div>
+    <!-- <div class="nav-group-label">{{ 'PORTALS.SIDEBAR.MAIN' | translate }}</div> -->
+    <mat-nav-list>
+        <a
+            mat-list-item
+            routerLink="/"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            [matTooltip]="'PORTALS.SIDEBAR.HOME' | translate"
+            matTooltipPosition="right"
+        >
+            <mat-icon matListItemIcon>home</mat-icon>
+        </a>
+    </mat-nav-list>
+</div>
+<mat-divider />
+<div class="nav-section">
+    <!-- <div class="nav-group-label">{{ 'PORTALS.SIDEBAR.MAIN' | translate }}</div> -->
     <mat-nav-list>
         @for (item of navigationItems(); track item.id) {
             <a
                 mat-list-item
                 [class.active]="isContentTypeActive(item.id)"
                 (click)="categoryClick.emit(item.id)"
+                [matTooltip]="item.labelKey | translate"
+                matTooltipPosition="right"
             >
                 <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-                <span matListItemTitle>{{ item.labelKey | translate }}</span>
             </a>
         }
     </mat-nav-list>
 </div>
+<mat-divider />
 
 <div class="nav-section">
-    <div class="nav-group-label">
+    <!-- <div class="nav-group-label">
         {{ 'PORTALS.SIDEBAR.LIBRARY' | translate }}
-    </div>
+    </div> -->
     <mat-nav-list>
         <a
             mat-list-item
             routerLink="./search"
             routerLinkActive="active"
+            [matTooltip]="'PORTALS.SIDEBAR.SEARCH' | translate"
+            matTooltipPosition="right"
             (click)="pageSwitch('search')"
         >
             <mat-icon matListItemIcon>search</mat-icon>
-            <span matListItemTitle>{{
-                'PORTALS.SIDEBAR.SEARCH' | translate
-            }}</span>
         </a>
         <a
             mat-list-item
             routerLink="./recent"
             routerLinkActive="active"
+            [matTooltip]="'PORTALS.SIDEBAR.RECENT' | translate"
+            matTooltipPosition="right"
             (click)="pageSwitch('recent')"
         >
             <mat-icon matListItemIcon>history</mat-icon>
-            <span matListItemTitle>{{
-                'PORTALS.SIDEBAR.RECENT' | translate
-            }}</span>
         </a>
         <a
             mat-list-item
             routerLink="./favorites"
             routerLinkActive="active"
+            [matTooltip]="'PORTALS.SIDEBAR.FAVORITES' | translate"
+            matTooltipPosition="right"
             (click)="pageSwitch('favorites')"
         >
             <mat-icon matListItemIcon>favorite</mat-icon>
-            <span matListItemTitle>{{
-                'PORTALS.SIDEBAR.FAVORITES' | translate
-            }}</span>
         </a>
     </mat-nav-list>
 </div>
 
 <div class="navigation-bottom">
+    <mat-divider />
     <mat-nav-list>
-        <a mat-list-item (click)="openSettings()">
+        @if (!isStalkerPlaylist()) {
+            <a
+                mat-list-item
+                class="action-button"
+                (click)="openAccountInfo()"
+                [matTooltip]="'PORTALS.SIDEBAR.ACCOUNT_INFO' | translate"
+                matTooltipPosition="right"
+            >
+                <mat-icon>person</mat-icon>
+            </a>
+        }
+        <a
+            mat-list-item
+            (click)="openPlaylistInfo()"
+            [matTooltip]="'PORTALS.SIDEBAR.PLAYLIST_INFO' | translate"
+            matTooltipPosition="right"
+        >
+            <mat-icon matListItemIcon>playlist_play</mat-icon>
+        </a>
+        <mat-divider />
+        <a
+            mat-list-item
+            (click)="openSettings()"
+            [matTooltip]="'MENU.SETTINGS' | translate"
+            matTooltipPosition="right"
+        >
             <mat-icon matListItemIcon>settings</mat-icon>
-            <span matListItemTitle>{{ 'MENU.SETTINGS' | translate }}</span>
         </a>
     </mat-nav-list>
 </div>

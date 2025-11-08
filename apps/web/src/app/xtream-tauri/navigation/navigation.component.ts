@@ -1,5 +1,4 @@
 import { Component, computed, inject, input, output } from '@angular/core';
-import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
@@ -19,7 +18,6 @@ import { NavigationItem } from './navigation.interface';
     selector: 'app-navigation',
     imports: [
         MatIcon,
-        MatIconButton,
         MatListModule,
         MatTooltip,
         RouterLink,
