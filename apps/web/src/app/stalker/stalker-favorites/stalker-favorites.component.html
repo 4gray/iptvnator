@@ -31,7 +31,7 @@
         [favorites]="favoritesToShow() ?? []"
         [selectedCategoryId]="selectedCategoryId()"
         (categoryClicked)="setCategoryId($event.category_id)"
-        (removeFromFavorites)="removeFromFavorites($event)"
+        (removeFavorite)="removeFromFavorites($event)"
         (openItem)="openItem($event)"
     />
 }

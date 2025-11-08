@@ -33,7 +33,7 @@
         [favorites]="itemsToShow() ?? []"
         [selectedCategoryId]="selectedCategoryId()"
         (categoryClicked)="setCategoryId($event.category_id)"
-        (removeFromFavorites)="removeFromRecentlyViewed($event)"
+        (removeFavorite)="removeFromRecentlyViewed($event)"
         [titleTranslationString]="'PORTALS.SIDEBAR.RECENT'"
         (openItem)="openItem($event)"
     />
