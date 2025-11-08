@@ -100,6 +100,10 @@ export class PlaylistEffects {
                                     url:
                                         activeChannel?.url +
                                         (activeChannel?.epgParams ?? ''),
+                                    title: activeChannel?.name ?? '',
+                                    'user-agent': activeChannel?.http?.['user-agent'],
+                                    referer: activeChannel?.http?.referrer,
+                                    origin: activeChannel?.http?.origin,
                                 });
                             else if (
                                 settings &&
@@ -110,6 +114,10 @@ export class PlaylistEffects {
                                     url:
                                         activeChannel?.url +
                                         (activeChannel?.epgParams ?? ''),
+                                    title: activeChannel?.name ?? '',
+                                    'user-agent': activeChannel?.http?.['user-agent'],
+                                    referer: activeChannel?.http?.referrer,
+                                    origin: activeChannel?.http?.origin,
                                 });
                         }
                     );
@@ -149,8 +157,9 @@ export class PlaylistEffects {
                         ) {
                             this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                                 url: channel.url,
+                                title: channel.name ?? '',
+                                'user-agent': channel.http['user-agent'],
                                 referer: channel.http.referrer,
-                                userAgent: channel.http['user-agent'],
                                 origin: channel.http.origin,
                             });
                         } else if (
@@ -161,6 +170,10 @@ export class PlaylistEffects {
                         )
                             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                                 url: channel.url,
+                                title: channel.name ?? '',
+                                'user-agent': channel.http['user-agent'],
+                                referer: channel.http.referrer,
+                                origin: channel.http.origin,
                             });
                     }
                 );
