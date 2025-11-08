@@ -25,7 +25,7 @@
                         </div>
                     </mat-list-item>
                 } @else {
-                    <mat-list-item (click)="getGlobalFavorites()">
+                    <mat-list-item (click)="navigateToGlobalFavorites()">
                         <mat-icon class="favorites-icon" matListItemIcon
                             >star</mat-icon
                         >
@@ -42,7 +42,7 @@
                     @for (item of playlists; track item._id; let last = $last) {
                         <app-playlist-item
                             [item]="item"
-                            [showActions]="!sidebarMode"
+                            [showActions]="!sidebarMode()"
                             (editPlaylistClicked)="openInfoDialog($event)"
                             (playlistClicked)="getPlaylist(item)"
                             (refreshClicked)="refreshPlaylist($event)"

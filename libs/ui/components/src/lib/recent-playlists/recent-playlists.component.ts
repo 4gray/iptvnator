@@ -3,11 +3,9 @@ import { AsyncPipe } from '@angular/common';
 import {
     Component,
     ElementRef,
-    EventEmitter,
     inject,
-    Input,
-    OnInit,
-    Output,
+    input,
+    output,
     viewChild,
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
@@ -28,11 +26,8 @@ import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { DatabaseService, DataService, SortService } from 'services';
 import {
-    AUTO_UPDATE_PLAYLISTS_RESPONSE,
     GLOBAL_FAVORITES_PLAYLIST_ID,
-    Playlist,
     PLAYLIST_UPDATE,
-    PLAYLIST_UPDATE_RESPONSE,
     PlaylistMeta,
 } from 'shared-interfaces';
 import { DialogService } from '../confirm-dialog/dialog.service';
@@ -53,7 +48,7 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
         TranslatePipe,
     ],
 })
-export class RecentPlaylistsComponent implements OnInit {
+export class RecentPlaylistsComponent {
     private readonly databaseService = inject(DatabaseService);
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
@@ -63,6 +58,13 @@ export class RecentPlaylistsComponent implements OnInit {
     private readonly sortService = inject(SortService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
+
+    readonly sidebarMode = input(false);
+    readonly playlistClicked = output<string>();
+
+    readonly allPlaylistsLoaded = this.store.selectSignal(
+        selectPlaylistsLoadingFlag
+    );
 
     readonly searchQueryInput =
         viewChild<ElementRef<HTMLInputElement>>('searchQuery');
@@ -112,58 +114,6 @@ export class RecentPlaylistsComponent implements OnInit {
         })
     );
 
-    allPlaylistsLoaded = this.store.selectSignal(selectPlaylistsLoadingFlag);
-
-    @Input() sidebarMode = false;
-    @Output() playlistClicked = new EventEmitter<string>();
-
-    /** IPC Renderer commands list with callbacks */
-    commandsList = [
-        {
-            id: PLAYLIST_UPDATE_RESPONSE,
-            execute: (response: {
-                payload: { message: string; playlist: Playlist };
-            }) => {
-                this.snackBar.open(response.payload.message, undefined, {
-                    duration: 2000,
-                });
-                this.store.dispatch(
-                    PlaylistActions.updatePlaylist({
-                        playlistId: response.payload.playlist._id,
-                        playlist: response.payload.playlist,
-                    })
-                );
-            },
-        },
-        {
-            id: AUTO_UPDATE_PLAYLISTS_RESPONSE,
-            execute: (response: {
-                payload: { message: string; playlists: Playlist[] };
-            }) => {
-                this.store.dispatch(
-                    PlaylistActions.updateManyPlaylists({
-                        playlists: response.payload.playlists,
-                    })
-                );
-            },
-        },
-    ];
-
-    ngOnInit(): void {
-        this.setRendererListeners();
-    }
-
-    setRendererListeners(): void {
-        this.commandsList.forEach((command) => {
-            const cb = (response: any) => {
-                if (response.data.type === command.id) {
-                    command.execute(response.data);
-                }
-            };
-            this.dataService.listenOn(command.id, cb);
-        });
-    }
-
     /**
      * Opens the details dialog with the information about the provided playlist
      * @param data selected playlist
@@ -190,7 +140,7 @@ export class RecentPlaylistsComponent implements OnInit {
         );
     }
 
-    getGlobalFavorites() {
+    navigateToGlobalFavorites() {
         this.router.navigate(['playlists', GLOBAL_FAVORITES_PLAYLIST_ID]);
         this.playlistClicked.emit(GLOBAL_FAVORITES_PLAYLIST_ID);
     }
