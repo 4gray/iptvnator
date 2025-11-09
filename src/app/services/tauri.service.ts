@@ -140,16 +140,34 @@ export class TauriService extends DataService {
             const data = payload as Playlist[];
 
             for await (const item of data) {
-                if (item.filePath) {
-                    const playlist = await readTextFile(item.filePath);
-                    const parsedPlaylist = parse(playlist);
-                    const playlistObject = createPlaylistObject(
-                        item.title,
-                        parsedPlaylist,
-                        item.filePath,
-                        'FILE'
+                try {
+                    if (item.filePath) {
+                        const playlist = await readTextFile(item.filePath);
+                        const parsedPlaylist = parse(playlist);
+                        const playlistObject = createPlaylistObject(
+                            item.title,
+                            parsedPlaylist,
+                            item.filePath,
+                            'FILE'
+                        );
+                        playlists.push({ ...playlistObject, _id: item._id });
+                    } else if (item.url) {
+                        const response = await fetch(item.url);
+                        const playlistContent = await response.text();
+                        const parsedPlaylist = parse(playlistContent);
+                        const playlistObject = createPlaylistObject(
+                            item.title,
+                            parsedPlaylist,
+                            item.url,
+                            'URL'
+                        );
+                        playlists.push({ ...playlistObject, _id: item._id });
+                    }
+                } catch (error) {
+                    console.error(
+                        `Failed to update playlist "${item.title}":`,
+                        error
                     );
-                    playlists.push({ ...playlistObject, _id: item._id });
                 }
             }
             window.postMessage({
