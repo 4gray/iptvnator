@@ -18,29 +18,63 @@ export default class PlaylistEvents {
 
 const https = require('https');
 
+/**
+ * Fetches and parses a playlist from a URL
+ * @param url - The URL to fetch the playlist from
+ * @param title - Optional title for the playlist
+ * @returns Parsed playlist object
+ */
+async function fetchPlaylistFromUrl(
+    url: string,
+    title?: string
+): Promise<any> {
+    const agent = new https.Agent({
+        rejectUnauthorized: false,
+    });
+    const result = await axios.get(url, { httpsAgent: agent });
+    const parsedPlaylist = parse(result.data);
+
+    const extractedName =
+        url && url.length > 1 ? getFilenameFromUrl(url) : '';
+    const playlistName =
+        !extractedName || extractedName === 'Untitled playlist'
+            ? 'Imported from URL'
+            : extractedName;
+
+    const playlistObject = createPlaylistObject(
+        title ?? playlistName,
+        parsedPlaylist,
+        url,
+        'URL'
+    );
+
+    return playlistObject;
+}
+
+/**
+ * Reads and parses a playlist from a file path
+ * @param filePath - The path to the playlist file
+ * @param title - Title for the playlist
+ * @returns Parsed playlist object
+ */
+async function fetchPlaylistFromFile(
+    filePath: string,
+    title: string
+): Promise<any> {
+    const fileContent = await readFile(filePath, 'utf-8');
+    const parsedPlaylist = parse(fileContent);
+    const playlistObject = createPlaylistObject(
+        title,
+        parsedPlaylist,
+        filePath,
+        'FILE'
+    );
+    return playlistObject;
+}
+
 ipcMain.handle('fetch-playlist-by-url', async (event, url, title?: string) => {
     try {
-        const agent = new https.Agent({
-            rejectUnauthorized: false,
-        });
-        const result = await axios.get(url, { httpsAgent: agent });
-        const parsedPlaylist = parse(result.data);
-
-        const extractedName =
-            url && url.length > 1 ? getFilenameFromUrl(url) : '';
-        const playlistName =
-            !extractedName || extractedName === 'Untitled playlist'
-                ? 'Imported from URL'
-                : extractedName;
-
-        const playlistObject = createPlaylistObject(
-            title ?? playlistName,
-            parsedPlaylist,
-            url,
-            'URL'
-        );
-
-        return playlistObject;
+        return await fetchPlaylistFromUrl(url, title);
     } catch (error) {
         console.error('Error fetching playlist:', error);
         throw error;
@@ -50,15 +84,12 @@ ipcMain.handle('fetch-playlist-by-url', async (event, url, title?: string) => {
 ipcMain.handle(
     'update-playlist-from-file-path',
     async (event, filePath, title) => {
-        const playlist = await readFile(filePath, 'utf-8');
-        const parsedPlaylist = parse(playlist);
-        const playlistObject = createPlaylistObject(
-            title,
-            parsedPlaylist,
-            filePath,
-            'FILE'
-        );
-        return playlistObject;
+        try {
+            return await fetchPlaylistFromFile(filePath, title);
+        } catch (error) {
+            console.error('Error reading playlist from file:', error);
+            throw error;
+        }
     }
 );
 
@@ -79,28 +110,66 @@ ipcMain.handle('open-playlist-from-file', async () => {
     const filePath = filePaths[0];
 
     try {
-        const fileContent = await readFile(filePath, 'utf-8');
-
-        const parsedPlaylist = parse(fileContent);
-        const playlistObject = createPlaylistObject(
-            'from file',
-            parsedPlaylist,
-            filePath,
-            'FILE'
-        );
-
-        return playlistObject;
+        return await fetchPlaylistFromFile(filePath, 'from file');
     } catch (error) {
         console.error('Error reading or parsing the file:', error);
         throw new Error('Failed to process the selected file.');
     }
 });
 
-ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlistUrls) => {
-    // TODO: Implement auto-update logic
-    for (const url of playlistUrls) {
-        console.log(`Auto-updating playlist from ${url}`);
+ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlists) => {
+    console.log(`Auto-updating ${playlists.length} playlist(s)...`);
+
+    const updatedPlaylists = [];
+
+    for (const playlist of playlists) {
+        try {
+            let playlistObject;
+
+            if (playlist.importDate && playlist.url) {
+                // Update from URL
+                console.log(
+                    `Updating playlist "${playlist.title}" from URL: ${playlist.url}`
+                );
+                playlistObject = await fetchPlaylistFromUrl(
+                    playlist.url,
+                    playlist.title
+                );
+            } else if (playlist.filePath) {
+                // Update from file path
+                console.log(
+                    `Updating playlist "${playlist.title}" from file: ${playlist.filePath}`
+                );
+                playlistObject = await fetchPlaylistFromFile(
+                    playlist.filePath,
+                    playlist.title
+                );
+            } else {
+                console.warn(
+                    `Skipping playlist "${playlist.title}": no URL or file path found`
+                );
+                continue;
+            }
+
+            // Preserve the original _id and autoRefresh setting
+            updatedPlaylists.push({
+                ...playlistObject,
+                _id: playlist._id,
+                autoRefresh: playlist.autoRefresh,
+            });
+
+            console.log(`Successfully updated playlist "${playlist.title}"`);
+        } catch (error) {
+            console.error(
+                `Failed to update playlist "${playlist.title}":`,
+                error
+            );
+            // Continue with other playlists even if one fails
+        }
     }
+
+    console.log(`Auto-update completed: ${updatedPlaylists.length} updated`);
+    return updatedPlaylists;
 });
 
 ipcMain.handle('save-file-dialog', async (event, defaultPath, filters) => {

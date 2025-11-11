@@ -1,21 +1,37 @@
 <mat-list-item (click)="playlistClicked.emit(item._id)">
     @if (item.url) {
-        <mat-icon
-            matListItemIcon
-            class="upload-type-icon"
-            [matTooltip]="
-                ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) + ' ' + item.url
-            "
-            >cloud</mat-icon
-        >
+        <div class="icon-container" matListItemIcon>
+            <mat-icon
+                class="upload-type-icon"
+                [matTooltip]="
+                    ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) + ' ' + item.url
+                "
+                >cloud</mat-icon
+            >
+            @if (item.autoRefresh) {
+                <mat-icon
+                    class="auto-refresh-indicator"
+                    [matTooltip]="'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate"
+                    >autorenew</mat-icon
+                >
+            }
+        </div>
     }
     @if (!item.url && !item.serverUrl && !item.macAddress) {
-        <mat-icon
-            matListItemIcon
-            class="upload-type-icon"
-            [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
-            >folder</mat-icon
-        >
+        <div class="icon-container" matListItemIcon>
+            <mat-icon
+                class="upload-type-icon"
+                [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
+                >folder</mat-icon
+            >
+            @if (item.autoRefresh) {
+                <mat-icon
+                    class="auto-refresh-indicator"
+                    [matTooltip]="'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate"
+                    >autorenew</mat-icon
+                >
+            }
+        </div>
     }
     @if (item.serverUrl) {
         <div class="icon-container" matListItemIcon>

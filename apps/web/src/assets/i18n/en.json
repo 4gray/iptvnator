@@ -67,7 +67,8 @@
             "MY_PLAYLISTS_SUBTITLE": "all available playlists",
             "PLAYLIST_UPDATE_SUCCESS": "Success! The playlist was successfully updated.",
             "PLAYLIST_UPDATE_ERROR": "Error updating playlist details.",
-            "AUTO_REFRESH_UPDATE_SUCCESS": "Success! The playlists were successfully updated"
+            "AUTO_REFRESH_UPDATE_SUCCESS": "Success! The playlists were successfully updated",
+            "AUTO_REFRESH_ENABLED": "Auto-refresh enabled"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Drag & drop files here",

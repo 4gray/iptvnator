@@ -1,7 +1,14 @@
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
 import { AsyncPipe, CommonModule } from '@angular/common';
-import { Component, Injector, OnInit, effect, inject } from '@angular/core';
+import {
+    Component,
+    InjectionToken,
+    Injector,
+    OnInit,
+    effect,
+    inject,
+} from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -27,7 +34,6 @@ import {
 import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
 import { DataService, PlaylistsService } from 'services';
 import {
-    COMPONENT_OVERLAY_REF,
     Channel,
     PLAYLIST_PARSE_BY_URL,
     STORE_KEY,
@@ -66,6 +72,10 @@ export class VideoPlayerComponent implements OnInit {
     private readonly settingsStore = inject(SettingsStore);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
+
+    private readonly COMPONENT_OVERLAY_REF = new InjectionToken<OverlayRef>(
+        'COMPONENT_OVERLAY_REF'
+    );
 
     /** Active selected channel */
     readonly activeChannel$ = this.store
@@ -204,7 +214,7 @@ export class VideoPlayerComponent implements OnInit {
         const injector = Injector.create({
             providers: [
                 {
-                    provide: COMPONENT_OVERLAY_REF,
+                    provide: this.COMPONENT_OVERLAY_REF,
                     useValue: this.overlayRef,
                 },
             ],
