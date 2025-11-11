@@ -84,6 +84,21 @@ mat-list-item {
     background-color: #444444;
 }
 
+.auto-refresh-indicator {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    font-size: 14px !important;
+    width: 14px !important;
+    height: 14px !important;
+    color: #4caf50;
+    background-color: var(--background-color, #fff);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 @media only screen and (max-width: 480px) {
     .upload-type-icon,
     .icon-container {
