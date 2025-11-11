@@ -1,12 +1,16 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router, RouterOutlet } from '@angular/router';
+import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { filter, take } from 'rxjs';
 /* import * as semver from 'semver'; */
 import * as PlaylistActions from 'm3u-state';
+import { selectAllPlaylistsMeta } from 'm3u-state';
 import { DataService, EpgService } from 'services';
 import {
+    AUTO_UPDATE_PLAYLISTS,
     Language,
     OPEN_FILE,
     Settings,
@@ -23,6 +27,7 @@ import { SearchResultsComponent } from './xtream-tauri/search-results/search-res
     imports: [RouterOutlet],
 })
 export class AppComponent implements OnInit {
+    private actions$ = inject(Actions);
     private dataService = inject(DataService);
     private dialog = inject(MatDialog);
     private epgService = inject(EpgService);
@@ -30,12 +35,6 @@ export class AppComponent implements OnInit {
     private store = inject(Store);
     private translate = inject(TranslateService);
     private settingsService = inject(SettingsService);
-
-    /** List of ipc commands with function mapping */
-    /* private readonly commandsList = [
-        new IpcCommand(VIEW_ADD_PLAYLIST, () => this.navigateToRoute('/')),
-        new IpcCommand(VIEW_SETTINGS, () => this.navigateToRoute('/settings')),
-    ]; */
 
     /** Default language as fallback */
     private readonly DEFAULT_LANG = Language.ENGLISH;
@@ -80,6 +79,7 @@ export class AppComponent implements OnInit {
         this.translate.setDefaultLang(this.DEFAULT_LANG);
 
         this.initSettings();
+        this.triggerAutoUpdatePlaylists();
     }
 
     /**
@@ -105,8 +105,6 @@ export class AppComponent implements OnInit {
                     ) {
                         this.epgService.fetchEpg(settings.epgUrl);
                     }
-
-                    // TODO: trigger auto-refresh mechanism for playlists
 
                     if (settings.theme) {
                         this.settingsService.changeTheme(settings.theme);
@@ -162,5 +160,43 @@ export class AppComponent implements OnInit {
             hasBackdrop: true,
             disableClose: false,
         });
+    }
+
+    /**
+     * Triggers auto-update for playlists that have autoRefresh enabled
+     */
+    private triggerAutoUpdatePlaylists(): void {
+        // Wait for playlists to be loaded successfully
+        this.actions$
+            .pipe(
+                ofType(PlaylistActions.loadPlaylistsSuccess),
+                take(1) // Only trigger once on app startup
+            )
+            .subscribe(() => {
+                // Get all playlists from store
+                this.store
+                    .select(selectAllPlaylistsMeta)
+                    .pipe(
+                        take(1),
+                        filter((playlists) => playlists.length > 0)
+                    )
+                    .subscribe((playlists) => {
+                        // Filter playlists with autoRefresh enabled
+                        const playlistsToUpdate = playlists.filter(
+                            (playlist) => playlist.autoRefresh === true
+                        );
+
+                        // Trigger auto-update if there are playlists to update
+                        if (playlistsToUpdate.length > 0) {
+                            console.log(
+                                `Auto-updating ${playlistsToUpdate.length} playlist(s) on startup`
+                            );
+                            this.dataService.sendIpcEvent(
+                                AUTO_UPDATE_PLAYLISTS,
+                                playlistsToUpdate
+                            );
+                        }
+                    });
+            });
     }
 }
