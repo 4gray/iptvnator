@@ -2,7 +2,7 @@ import { Component, inject, input, output } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { FilterPipe } from '@iptvnator/pipes';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { XtreamCategory } from 'shared-interfaces';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { PortalStore } from '../portal.store';
@@ -10,36 +10,46 @@ import { PortalStore } from '../portal.store';
 @Component({
     selector: 'app-category-view',
     template: `
-        @if (items?.length > 0) { @for ( item of items() | filterBy:
-        searchPhrase() : 'category_name'; track $index ) {
-        <mat-card
-            appearance="outlined"
-            class="category-item"
-            (click)="categoryClicked.emit(item)"
-        >
-            <mat-card-content>
-                {{ item.category_name || item.name || 'No category name' }}
-            </mat-card-content>
-        </mat-card>
-        } @if ( !(items() | filterBy: searchPhrase() : 'category_name')?.length
-        ) {
-        <app-playlist-error-view
-            title="No results"
-            [description]="
-                'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate
-            "
-            [showActionButtons]="false"
-            [viewType]="'NO_SEARCH_RESULTS'"
-        />
-        } } @else {
-        <app-playlist-error-view
-            [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"
-            [description]="
-                'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION' | translate
-            "
-            [showActionButtons]="false"
-            [viewType]="'EMPTY_CATEGORY'"
-        />
+        @if (items().length > 0) {
+            @for (
+                item of items() | filterBy: searchPhrase() : 'category_name';
+                track $index
+            ) {
+                <mat-card
+                    appearance="outlined"
+                    class="category-item"
+                    (click)="categoryClicked.emit(item)"
+                >
+                    <mat-card-content>
+                        {{
+                            item.category_name ||
+                                item.name ||
+                                'No category name'
+                        }}
+                    </mat-card-content>
+                </mat-card>
+            }
+            @if (
+                !(items() | filterBy: searchPhrase() : 'category_name')?.length
+            ) {
+                <app-playlist-error-view
+                    title="No results"
+                    [description]="
+                        'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate
+                    "
+                    [showActionButtons]="false"
+                    [viewType]="'NO_SEARCH_RESULTS'"
+                />
+            }
+        } @else {
+            <app-playlist-error-view
+                [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"
+                [description]="
+                    'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION' | translate
+                "
+                [showActionButtons]="false"
+                [viewType]="'EMPTY_CATEGORY'"
+            />
         }
     `,
     styleUrl: './category-view.component.scss',
@@ -48,7 +58,7 @@ import { PortalStore } from '../portal.store';
         MatCardModule,
         MatIconModule,
         PlaylistErrorViewComponent,
-        TranslateModule,
+        TranslatePipe,
     ],
 })
 export class CategoryViewComponent {

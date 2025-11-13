@@ -620,6 +620,29 @@ export const XtreamStore = signalStore(
                         ),
                     ]);
                     console.log('Content initialization completed');
+
+                    // Check if we need to restore favorites and recently viewed after refresh
+                    const playlistId = route.snapshot.params.id;
+                    if (playlistId) {
+                        const restoreKey = `xtream-restore-${playlistId}`;
+                        const restoreData = localStorage.getItem(restoreKey);
+                        if (restoreData) {
+                            try {
+                                const {
+                                    favoritedXtreamIds,
+                                    recentlyViewedXtreamIds,
+                                } = JSON.parse(restoreData);
+                                await dbService.restoreXtreamUserData(
+                                    playlistId,
+                                    favoritedXtreamIds,
+                                    recentlyViewedXtreamIds
+                                );
+                                localStorage.removeItem(restoreKey);
+                            } catch (err) {
+                                console.error('Error restoring user data:', err);
+                            }
+                        }
+                    }
                 } catch (error) {
                     console.error(
                         'Error during content initialization:',

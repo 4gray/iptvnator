@@ -67,9 +67,29 @@ export class DatabaseService {
     /**
      * Delete all content and categories for an Xtream playlist (for refresh)
      * Keeps the playlist entry but removes all imported data
+     * Returns saved favorites and recently viewed xtreamIds for restoration
      */
-    async deleteXtreamPlaylistContent(playlistId: string): Promise<void> {
-        await window.electron.dbDeleteXtreamContent(playlistId);
+    async deleteXtreamPlaylistContent(playlistId: string): Promise<{
+        success: boolean;
+        favoritedXtreamIds: number[];
+        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[];
+    }> {
+        return await window.electron.dbDeleteXtreamContent(playlistId);
+    }
+
+    /**
+     * Restore favorites and recently viewed items after Xtream refresh
+     */
+    async restoreXtreamUserData(
+        playlistId: string,
+        favoritedXtreamIds: number[],
+        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[]
+    ): Promise<void> {
+        await window.electron.dbRestoreXtreamUserData(
+            playlistId,
+            favoritedXtreamIds,
+            recentlyViewedXtreamIds
+        );
     }
 
     /**

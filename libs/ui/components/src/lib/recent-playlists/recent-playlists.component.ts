@@ -223,9 +223,11 @@ export class RecentPlaylistsComponent {
             onConfirm: async () => {
                 try {
                     // Delete all content and categories for this playlist
-                    await this.databaseService.deleteXtreamPlaylistContent(
-                        item._id
-                    );
+                    // This returns the xtreamIds of favorites and recently viewed items
+                    const { favoritedXtreamIds, recentlyViewedXtreamIds } =
+                        await this.databaseService.deleteXtreamPlaylistContent(
+                            item._id
+                        );
 
                     const updateDate = Date.now();
 
@@ -239,6 +241,16 @@ export class RecentPlaylistsComponent {
                     this.store.dispatch(
                         PlaylistActions.updatePlaylistMeta({
                             playlist: { ...item, updateDate },
+                        })
+                    );
+
+                    // Store the user data in localStorage to restore after re-import
+                    const restoreKey = `xtream-restore-${item._id}`;
+                    localStorage.setItem(
+                        restoreKey,
+                        JSON.stringify({
+                            favoritedXtreamIds,
+                            recentlyViewedXtreamIds,
                         })
                     );
 
