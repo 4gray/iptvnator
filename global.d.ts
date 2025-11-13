@@ -81,6 +81,15 @@ declare global {
             ) => Promise<{ success: boolean }>;
             dbDeleteXtreamContent: (
                 playlistId: string
+            ) => Promise<{
+                success: boolean;
+                favoritedXtreamIds: number[];
+                recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[];
+            }>;
+            dbRestoreXtreamUserData: (
+                playlistId: string,
+                favoritedXtreamIds: number[],
+                recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[]
             ) => Promise<{ success: boolean }>;
             dbHasCategories: (
                 playlistId: string,

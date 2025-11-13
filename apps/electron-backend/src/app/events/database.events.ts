@@ -139,39 +139,149 @@ ipcMain.handle(
 
             const categoryIds = categories.map((c) => c.id);
 
-            console.log(
-                `Deleting playlist content for ${playlistId}: ${categoryIds.length} categories found`
-            );
+            // Before deleting content, save xtreamIds of favorited and recently viewed items
+            // so they can be restored after refresh
+            let favoritedXtreamIds: number[] = [];
+            let recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[] = [];
 
             if (categoryIds.length > 0) {
+                // Get favorites with their xtreamIds
+                const favorites = await db
+                    .select({
+                        xtreamId: schema.content.xtreamId,
+                    })
+                    .from(schema.favorites)
+                    .innerJoin(schema.content, eq(schema.favorites.contentId, schema.content.id))
+                    .where(
+                        and(
+                            eq(schema.favorites.playlistId, playlistId),
+                            inArray(schema.content.categoryId, categoryIds)
+                        )
+                    );
+
+                favoritedXtreamIds = favorites.map((f) => f.xtreamId);
+
+                // Get recently viewed with their xtreamIds and timestamps
+                const recentlyViewed = await db
+                    .select({
+                        xtreamId: schema.content.xtreamId,
+                        viewedAt: schema.recentlyViewed.viewedAt,
+                    })
+                    .from(schema.recentlyViewed)
+                    .innerJoin(schema.content, eq(schema.recentlyViewed.contentId, schema.content.id))
+                    .where(
+                        and(
+                            eq(schema.recentlyViewed.playlistId, playlistId),
+                            inArray(schema.content.categoryId, categoryIds)
+                        )
+                    );
+
+                recentlyViewedXtreamIds = recentlyViewed.map((rv) => ({
+                    xtreamId: rv.xtreamId,
+                    viewedAt: rv.viewedAt || new Date().toISOString(),
+                }));
+
                 // Delete all content for these categories
+                // (This will cascade delete favorites and recently viewed)
                 await db
                     .delete(schema.content)
                     .where(inArray(schema.content.categoryId, categoryIds));
-
-                console.log(
-                    `Deleted content for ${categoryIds.length} categories`
-                );
             }
 
             // Delete all categories for this playlist
-            // (Could rely on cascade delete, but being explicit is clearer)
             await db
                 .delete(schema.categories)
                 .where(eq(schema.categories.playlistId, playlistId));
 
-            console.log(
-                `Deleted ${categoryIds.length} categories for playlist ${playlistId}`
-            );
+            // Return the saved xtreamIds so favorites and recently viewed can be restored
+            return {
+                success: true,
+                favoritedXtreamIds,
+                recentlyViewedXtreamIds,
+            };
+        } catch (error) {
+            console.error('Error deleting Xtream content:', error);
+            throw error;
+        }
+    }
+);
 
-            // NOTE: Do NOT delete user favorites or recently viewed items here.
-            // When refreshing an Xtream playlist we want to remove only the
-            // imported categories and content so user-specific data (favorites,
-            // recently viewed) is preserved.
+/**
+ * Restore favorites and recently viewed items after Xtream refresh
+ * Matches content by xtreamId and re-creates favorites/recently viewed entries
+ */
+ipcMain.handle(
+    'DB_RESTORE_XTREAM_USER_DATA',
+    async (
+        event,
+        playlistId: string,
+        favoritedXtreamIds: number[],
+        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[]
+    ) => {
+        try {
+            const db = await getDatabase();
+
+            // Restore favorites
+            if (favoritedXtreamIds.length > 0) {
+                // Find content IDs for the xtreamIds
+                const content = await db
+                    .select({ id: schema.content.id, xtreamId: schema.content.xtreamId })
+                    .from(schema.content)
+                    .innerJoin(schema.categories, eq(schema.content.categoryId, schema.categories.id))
+                    .where(
+                        and(
+                            eq(schema.categories.playlistId, playlistId),
+                            inArray(schema.content.xtreamId, favoritedXtreamIds)
+                        )
+                    );
+
+                // Re-create favorite entries
+                for (const item of content) {
+                    await db.insert(schema.favorites).values({
+                        contentId: item.id,
+                        playlistId: playlistId,
+                        addedAt: new Date().toISOString(),
+                    });
+                }
+            }
+
+            // Restore recently viewed
+            if (recentlyViewedXtreamIds.length > 0) {
+                const xtreamIds = recentlyViewedXtreamIds.map((rv) => rv.xtreamId);
+
+                // Find content IDs for the xtreamIds
+                const content = await db
+                    .select({ id: schema.content.id, xtreamId: schema.content.xtreamId })
+                    .from(schema.content)
+                    .innerJoin(schema.categories, eq(schema.content.categoryId, schema.categories.id))
+                    .where(
+                        and(
+                            eq(schema.categories.playlistId, playlistId),
+                            inArray(schema.content.xtreamId, xtreamIds)
+                        )
+                    );
+
+                // Create a map of xtreamId -> contentId
+                const xtreamIdToContentId = new Map(
+                    content.map((item) => [item.xtreamId, item.id])
+                );
+
+                // Re-create recently viewed entries with original timestamps
+                for (const item of recentlyViewedXtreamIds) {
+                    const contentId = xtreamIdToContentId.get(item.xtreamId);
+                    if (contentId) {
+                        await db.insert(schema.recentlyViewed).values({
+                            contentId: contentId,
+                            playlistId: playlistId,
+                            viewedAt: item.viewedAt,
+                        });
+                    }
+                }
+            }
 
             return { success: true };
         } catch (error) {
-            console.error('Error deleting Xtream content:', error);
+            console.error('Error restoring Xtream user data:', error);
             throw error;
         }
     }

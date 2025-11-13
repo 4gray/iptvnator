@@ -80,6 +80,17 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('DB_DELETE_PLAYLIST', playlistId),
     dbDeleteXtreamContent: (playlistId: string) =>
         ipcRenderer.invoke('DB_DELETE_XTREAM_CONTENT', playlistId),
+    dbRestoreXtreamUserData: (
+        playlistId: string,
+        favoritedXtreamIds: number[],
+        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[]
+    ) =>
+        ipcRenderer.invoke(
+            'DB_RESTORE_XTREAM_USER_DATA',
+            playlistId,
+            favoritedXtreamIds,
+            recentlyViewedXtreamIds
+        ),
     dbHasCategories: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_HAS_CATEGORIES', playlistId, type),
     dbGetCategories: (playlistId: string, type: string) =>
