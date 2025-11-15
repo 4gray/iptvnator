@@ -1,4 +1,4 @@
-import { Component, Inject, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
@@ -11,150 +11,32 @@ import { XtreamAccountInfo } from './account-info.interface';
 @Component({
     selector: 'app-account-info',
     imports: [MatButton, MatDialogModule, MatListModule, TranslatePipe],
-    template: `
-        <h2 mat-dialog-title>Account Information</h2>
-        <mat-dialog-content class="mat-typography">
-            @if (accountInfo?.user_info?.message) {
-                <div class="welcome-message">
-                    {{ accountInfo?.user_info?.message }}
-                </div>
-            }
-            <div class="info-grid">
-                <div class="info-section">
-                    <h3>User Information</h3>
-                    <mat-list>
-                        <mat-list-item>
-                            Status:
-                            <span [class.active]="isActive">{{
-                                accountInfo?.user_info?.status
-                            }}</span>
-                        </mat-list-item>
-                        <mat-list-item>
-                            Username:
-                            {{ accountInfo?.user_info?.username }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            Active Connections:
-                            {{ accountInfo?.user_info?.active_cons }}/{{
-                                accountInfo?.user_info?.max_connections
-                            }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            Created:
-                            {{ formattedCreatedDate }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            Expires: {{ formattedExpDate }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            Trial Account:
-                            <span [class.trial]="isTrial">{{
-                                isTrial ? 'Yes' : 'No'
-                            }}</span>
-                        </mat-list-item>
-                        <mat-list-item>
-                            Allowed Formats:
-                            <span class="formats">
-                                {{
-                                    accountInfo?.user_info?.allowed_output_formats?.join(
-                                        ', '
-                                    )
-                                }}
-                            </span>
-                        </mat-list-item>
-                    </mat-list>
-                </div>
-
-                <div class="info-section">
-                    <h3>Server Information</h3>
-                    <mat-list>
-                        <mat-list-item>
-                            Live TV:
-                            {{ liveStreamsCount }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            Movies:
-                            {{ vodStreamsCount }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            TV Series:
-                            {{ seriesCount }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            URL:
-                            {{ accountInfo?.server_info?.url }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            Protocol:
-                            {{ accountInfo?.server_info?.server_protocol }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            Timezone:
-                            {{ accountInfo?.server_info?.timezone }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            Server Time:
-                            {{ accountInfo?.server_info?.time_now }}
-                        </mat-list-item>
-                        <mat-list-item>
-                            Ports:
-                            <div class="ports">
-                                <span
-                                    >HTTP:
-                                    {{ accountInfo?.server_info?.port }}</span
-                                >
-                                <span
-                                    >HTTPS:
-                                    {{
-                                        accountInfo?.server_info?.https_port
-                                    }}</span
-                                >
-                                <span
-                                    >RTMP:
-                                    {{
-                                        accountInfo?.server_info?.rtmp_port
-                                    }}</span
-                                >
-                            </div>
-                        </mat-list-item>
-                    </mat-list>
-                </div>
-            </div>
-        </mat-dialog-content>
-        <mat-dialog-actions>
-            <button mat-button mat-dialog-close color="accent">
-                {{ 'CLOSE' | translate }}
-            </button>
-        </mat-dialog-actions>
-    `,
+    templateUrl: './account-info.component.html',
     styleUrl: './account-info.component.scss',
 })
 export class AccountInfoComponent {
-    accountInfo: XtreamAccountInfo;
-    formattedExpDate: string;
-    formattedCreatedDate: string;
-
+    readonly data = inject<{
+        vodStreamsCount: number;
+        liveStreamsCount: number;
+        seriesCount: number;
+    }>(MAT_DIALOG_DATA);
     private readonly dataService = inject(DataService);
     private readonly store = inject(Store);
 
+    accountInfo: XtreamAccountInfo;
+    formattedExpDate: string;
+    formattedCreatedDate: string;
     vodStreamsCount: number;
     liveStreamsCount: number;
     seriesCount: number;
 
     readonly currentPlaylist = this.store.selectSignal(selectActivePlaylist);
 
-    constructor(
-        @Inject(MAT_DIALOG_DATA)
-        data: {
-            vodStreamsCount: number;
-            liveStreamsCount: number;
-            seriesCount: number;
-        }
-    ) {
+    constructor() {
         this.setAccountInfo();
-        this.vodStreamsCount = data.vodStreamsCount;
-        this.liveStreamsCount = data.liveStreamsCount;
-        this.seriesCount = data.seriesCount;
+        this.vodStreamsCount = this.data.vodStreamsCount;
+        this.liveStreamsCount = this.data.liveStreamsCount;
+        this.seriesCount = this.data.seriesCount;
     }
 
     async setAccountInfo() {
@@ -170,7 +52,7 @@ export class AccountInfoComponent {
                     action: 'get_account_info',
                 }
             );
-            console.log(this.accountInfo);
+
             if (this.accountInfo) {
                 this.formattedExpDate = new Date(
                     parseInt(this.accountInfo.user_info.exp_date) * 1000

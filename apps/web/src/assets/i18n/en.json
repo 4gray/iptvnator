@@ -264,6 +264,7 @@
     "REFRESH": "Refresh",
     "XTREAM": {
         "PLAY": "Play",
+        "OPENING_PLAYER": "Opening player...",
         "NAME": "Name",
         "RELEASE_DATE": "Release date",
         "GENRE": "Genre",
@@ -280,7 +281,32 @@
         "YEAR": "Year",
         "AGE": "Age",
         "YOUTUBE_TRAILER": "YouTube Trailer",
-        "EPISODE": "Episode"
+        "EPISODE": "Episode",
+        "ACCOUNT_INFO": {
+            "TITLE": "Account Information",
+            "USER_INFO": "User Information",
+            "STATUS": "Status",
+            "USERNAME": "Username",
+            "ACTIVE_CONNECTIONS": "Active Connections",
+            "CREATED": "Created",
+            "EXPIRES": "Expires",
+            "TRIAL_ACCOUNT": "Trial Account",
+            "YES": "Yes",
+            "NO": "No",
+            "ALLOWED_FORMATS": "Allowed Formats",
+            "SERVER_INFO": "Server Information",
+            "LIVE_TV": "Live TV",
+            "MOVIES": "Movies",
+            "TV_SERIES": "TV Series",
+            "URL": "URL",
+            "PROTOCOL": "Protocol",
+            "TIMEZONE": "Timezone",
+            "SERVER_TIME": "Server Time",
+            "PORTS": "Ports",
+            "HTTP_PORT": "HTTP",
+            "HTTPS_PORT": "HTTPS",
+            "RTMP_PORT": "RTMP"
+        }
     },
     "PORTALS": {
         "ALL_CATEGORIES": "All categories",

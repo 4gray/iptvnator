@@ -219,6 +219,7 @@
     "RELEASE_DATE": "Veröffentlichungsdatum",
     "ACTORS": "Schauspieler",
     "PLAY": "Abspielen",
+    "OPENING_PLAYER": "Player wird geöffnet...",
     "GENRE": "Genre",
     "DURATION": "Dauer",
     "COUNTRY": "Land",
@@ -233,7 +234,32 @@
     "DESCRIPTION": "Beschreibung",
     "KINOPOISK_RATING": "Bewertung Kinopoisk",
     "IMDB_RATING": "IMDB-Bewertung",
-    "EPISODE_RUN_TIME": "Laufzeit der Episode"
+    "EPISODE_RUN_TIME": "Laufzeit der Episode",
+    "ACCOUNT_INFO": {
+      "TITLE": "Kontoinformationen",
+      "USER_INFO": "Benutzerinformationen",
+      "STATUS": "Status",
+      "USERNAME": "Benutzername",
+      "ACTIVE_CONNECTIONS": "Aktive Verbindungen",
+      "CREATED": "Erstellt",
+      "EXPIRES": "Läuft ab",
+      "TRIAL_ACCOUNT": "Testkonto",
+      "YES": "Ja",
+      "NO": "Nein",
+      "ALLOWED_FORMATS": "Zulässige Formate",
+      "SERVER_INFO": "Serverinformationen",
+      "LIVE_TV": "Live-TV",
+      "MOVIES": "Filme",
+      "TV_SERIES": "Serien",
+      "URL": "URL",
+      "PROTOCOL": "Protokoll",
+      "TIMEZONE": "Zeitzone",
+      "SERVER_TIME": "Serverzeit",
+      "PORTS": "Ports",
+      "HTTP_PORT": "HTTP",
+      "HTTPS_PORT": "HTTPS",
+      "RTMP_PORT": "RTMP"
+    }
   },
   "PORTALS": {
     "SIDEBAR": {
