@@ -36,7 +36,6 @@ import { DialogService } from 'components';
 import * as PlaylistActions from 'm3u-state';
 import { selectIsEpgAvailable } from 'm3u-state';
 import { take } from 'rxjs';
-import * as semver from 'semver';
 import { DataService, EpgService, PlaylistsService } from 'services';
 import {
     Language,
@@ -242,7 +241,10 @@ export class SettingsComponent implements OnInit {
      */
     isCurrentVersionOutdated(latestVersion: string): boolean {
         this.version = this.dataService.getAppVersion();
-        return semver.lt(this.version, latestVersion);
+        return this.settingsService.isVersionOutdated(
+            this.version,
+            latestVersion
+        );
     }
 
     /**
