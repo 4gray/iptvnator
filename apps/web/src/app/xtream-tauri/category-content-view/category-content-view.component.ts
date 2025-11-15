@@ -46,7 +46,11 @@ export class CategoryContentViewComponent implements OnInit {
 
     ngOnInit() {
         const { categoryId } = this.activatedRoute.snapshot.params;
-        if (categoryId) this.store.setSelectedCategory(categoryId);
+        // Only set category if it's different from the currently selected one
+        // This preserves the page state when navigating back from detail view
+        if (categoryId && this.store.selectedCategoryId() !== Number(categoryId)) {
+            this.store.setSelectedCategory(categoryId);
+        }
     }
 
     onPageChange(event: PageEvent) {

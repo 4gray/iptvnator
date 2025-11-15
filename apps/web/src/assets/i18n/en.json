@@ -363,7 +363,8 @@
         },
         "STREAM_URL_COPIED": "Stream URL copied to clipboard",
         "COPY_STREAM_URL": "Copy Stream URL",
-        "SELECT_CATEGORY": "Select a category"
+        "SELECT_CATEGORY": "Select a category",
+        "PAGE": "Page"
     },
     "INFORMATION": "Information",
     "REMOTE_CONTROL": {

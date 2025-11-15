@@ -306,7 +306,9 @@
       "NO_SEARCH_RESULTS": "Ничего не найдено, попробуйте изменить поисковый запрос"
     },
     "REMOVED_FROM_FAVORITES": "Удалено из избранного",
-    "ADDED_TO_FAVORITES": "Добавлено в избранное"
+    "ADDED_TO_FAVORITES": "Добавлено в избранное",
+    "SELECT_CATEGORY": "Выберите категорию",
+    "PAGE": "Страница"
   },
   "INFORMATION": "Инфо"
 }

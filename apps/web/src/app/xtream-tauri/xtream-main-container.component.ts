@@ -53,9 +53,19 @@ export class XtreamMainContainerComponent implements OnInit {
             return this.translateService.instant('PORTALS.SELECT_CATEGORY');
         } else {
             const selectedCategory = this.xtreamStore.getSelectedCategory();
-            return selectedCategory
-                ? `Content for ${(selectedCategory as any).name}`
+            const categoryName = selectedCategory
+                ? (selectedCategory as any).name
                 : 'Category Content';
+
+            // Show page number when viewing category content (not detail view)
+            if (!this.xtreamStore.selectedItem() && this.xtreamStore.getTotalPages() > 1) {
+                const currentPage = this.xtreamStore.page() + 1; // +1 because page is 0-indexed
+                const totalPages = this.xtreamStore.getTotalPages();
+                const pageLabel = this.translateService.instant('PORTALS.PAGE');
+                return `${categoryName} (${pageLabel} ${currentPage}/${totalPages})`;
+            }
+
+            return `Content for ${categoryName}`;
         }
     }
 

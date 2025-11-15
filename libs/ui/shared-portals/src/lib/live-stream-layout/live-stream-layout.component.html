@@ -26,7 +26,7 @@
                     <mat-list-option
                         *cdkVirtualFor="
                             let item of channels
-                                | filterBy : searchString() : 'name';
+                                | filterBy: searchString() : 'name';
                             trackBy: trackBy;
                             templateCacheSize: 0
                         "
@@ -51,17 +51,22 @@
             </mat-selection-list>
         </div>
     </div>
-    @if (player === 'videojs' || player === 'html5') { @if (streamUrl) {
-    <div class="video-player">
-        <app-web-player-view [streamUrl]="streamUrl" />
-    </div>
-    } } @if (streamUrl) {
-    <div class="epg">
-        <div class="epg-content">
-            <app-epg-view [epgItems]="epgItems" />
+    @if (player === 'videojs' || player === 'html5') {
+        @if (streamUrl) {
+            <div class="video-player">
+                <app-web-player-view [streamUrl]="streamUrl" />
+            </div>
+        }
+    }
+    @if (streamUrl) {
+        <div class="epg">
+            <div class="epg-content">
+                <app-epg-view [epgItems]="epgItems" />
+            </div>
         </div>
-    </div>
     } @else {
-    <div class="no-channel-selected">Please select a channel</div>
+        <div class="no-channel-selected">
+            {{ 'PORTALS.SELECT_CATEGORY' | translate }}
+        </div>
     }
 </div>

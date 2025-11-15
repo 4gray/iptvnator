@@ -310,7 +310,9 @@
       "NO_SEARCH_RESULTS": "Nichts gefunden. Versuchen Sie, Ihre Suchanfrage zu ändern"
     },
     "REMOVED_FROM_FAVORITES": "Aus den Favoriten entfernt",
-    "ADDED_TO_FAVORITES": "Zu den Favoriten hinzugefügt"
+    "ADDED_TO_FAVORITES": "Zu den Favoriten hinzugefügt",
+    "SELECT_CATEGORY": "Wählen Sie eine Kategorie aus",
+    "PAGE": "Seite"
   },
   "ABOUT": {
     "TITLE": "Über IPTVnator",
