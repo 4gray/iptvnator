@@ -12,20 +12,16 @@ import { provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockComponent, MockModule, MockPipe, MockProviders } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { NgxWhatsNewComponent } from 'ngx-whats-new';
 import { of } from 'rxjs';
-import { DataService } from '../../../../libs/services/src/lib/data.service';
-import { PlaylistsService } from '../../../../libs/services/src/lib/playlists.service';
-import { Language } from '../../../../libs/shared/interfaces/src/lib/language.enum';
-import { STORE_KEY } from '../../../../libs/shared/interfaces/src/lib/store-keys.enum';
-import { Theme } from '../../../../libs/shared/interfaces/src/lib/theme.enum';
+import { DataService, PlaylistsService } from 'services';
+import { Language, STORE_KEY, Theme } from 'shared-interfaces';
 import { AppComponent } from './app.component';
 import { ElectronServiceStub } from './services/electron.service.stub';
 import { SettingsService } from './services/settings.service';
-import { WhatsNewService } from './services/whats-new.service';
-import { WhatsNewServiceStub } from './services/whats-new.service.stub';
 
-jest.spyOn(global.console, 'error').mockImplementation(() => {});
+jest.spyOn(global.console, 'error').mockImplementation(() => {
+    // suppress console.error output during tests
+});
 
 describe('AppComponent', () => {
     let component: AppComponent;
@@ -33,14 +29,12 @@ describe('AppComponent', () => {
     let fixture: ComponentFixture<AppComponent>;
     let settingsService: SettingsService;
     let translateService: TranslateService;
-    let whatsNewService: WhatsNewService;
     const defaultLanguage = 'en';
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
             declarations: [AppComponent, MockPipe(TranslatePipe)],
             providers: [
-                { provide: WhatsNewService, useClass: WhatsNewServiceStub },
                 MockProviders(
                     TranslateService,
                     PlaylistsService,
@@ -68,7 +62,6 @@ describe('AppComponent', () => {
         fixture = TestBed.createComponent(AppComponent);
         settingsService = TestBed.inject(SettingsService);
         translateService = TestBed.inject(TranslateService);
-        whatsNewService = TestBed.inject(WhatsNewService);
         component = fixture.componentInstance;
 
         // TODO: investigate in detail
@@ -128,14 +121,6 @@ describe('AppComponent', () => {
                 expect(router.navigateByUrl).toHaveBeenCalledWith(route);
             }
         ));
-
-        it('show show whats new dialog', () => {
-            jest.spyOn(whatsNewService, 'getModalsByVersion');
-            jest.spyOn(component, 'setDialogVisibility');
-            component.showWhatsNewDialog();
-            expect(whatsNewService.getModalsByVersion).toHaveBeenCalledTimes(1);
-            expect(component.setDialogVisibility).toHaveBeenCalledWith(true);
-        });
     });
 
     describe('Test version handling', () => {
@@ -144,17 +129,8 @@ describe('AppComponent', () => {
             const spyOnSettingsGet = jest
                 .spyOn(settingsService, 'getValueFromLocalStorage')
                 .mockReturnValue(of(currentAppVersion));
-            jest.spyOn(whatsNewService, 'getModalsByVersion').mockReturnValue([
-                {},
-            ]);
-            jest.spyOn(whatsNewService, 'changeDialogVisibleState');
 
-            component.handleWhatsNewDialog();
             expect(spyOnSettingsGet).toHaveBeenCalled();
-            expect(whatsNewService.getModalsByVersion).toHaveBeenCalled();
-            expect(
-                whatsNewService.changeDialogVisibleState
-            ).toHaveBeenCalledWith(true);
         });
 
         it('should get actual app version which is not outdated and do not shop updates dialog', () => {
@@ -162,40 +138,8 @@ describe('AppComponent', () => {
             const spyOnSettingsGet = jest
                 .spyOn(settingsService, 'getValueFromLocalStorage')
                 .mockReturnValue(of(currentAppVersion));
-            jest.spyOn(whatsNewService, 'getModalsByVersion').mockReturnValue([
-                {},
-            ]);
-            jest.spyOn(whatsNewService, 'changeDialogVisibleState');
 
-            component.handleWhatsNewDialog();
             expect(spyOnSettingsGet).toHaveBeenCalled();
-            expect(whatsNewService.getModalsByVersion).toHaveBeenCalledTimes(0);
-            expect(
-                whatsNewService.changeDialogVisibleState
-            ).toHaveBeenCalledTimes(0);
-        });
-
-        it('should change the visibility of the whats new dialog', () => {
-            jest.spyOn(whatsNewService, 'changeDialogVisibleState');
-            component.modals = [{}, {}];
-            const visibilityFlag = true;
-            component.setDialogVisibility(true);
-
-            expect(
-                whatsNewService.changeDialogVisibleState
-            ).toHaveBeenCalledWith(visibilityFlag);
-            expect(
-                whatsNewService.changeDialogVisibleState
-            ).toHaveBeenCalledTimes(1);
-        });
-
-        it('should not change the visibility of the whats new dialog', () => {
-            jest.spyOn(whatsNewService, 'changeDialogVisibleState');
-            component.modals = [];
-            component.setDialogVisibility(true);
-            expect(
-                whatsNewService.changeDialogVisibleState
-            ).toHaveBeenCalledTimes(0);
         });
     });
 

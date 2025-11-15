@@ -1,6 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
-import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -16,13 +15,11 @@ import { XtreamStore } from '../xtream.store';
     templateUrl: './category-content-view.component.html',
     styleUrls: ['./category-content-view.component.scss'],
     imports: [
-        MatCardModule,
-        MatPaginatorModule,
+        GridListComponent,
         PlaylistErrorViewComponent,
+        StalkerSeriesViewComponent,
         TranslatePipe,
         VodDetailsComponent,
-        GridListComponent,
-        StalkerSeriesViewComponent,
     ],
 })
 export class CategoryContentViewComponent implements OnInit {

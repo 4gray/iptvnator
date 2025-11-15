@@ -5,12 +5,6 @@
     padding: 10px !important;
 }
 
-.link-input {
-    width: 100%;
-    padding-top: 5px;
-    @include mat.form-field-density(-5);
-}
-
 .align-actions {
     justify-content: space-between;
 }

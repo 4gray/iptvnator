@@ -41,6 +41,10 @@ import {
 import { LiveStreamLayoutComponent } from 'shared-portals';
 import { SettingsStore } from '../services/settings-store.service';
 import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
+import {
+    PlayerDialogComponent,
+    PlayerDialogData,
+} from '../xtream-tauri/player-dialog/player-dialog.component';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { Breadcrumb, PortalActions } from './breadcrumb.interface';
 import { CategoryContentViewComponent } from './category-content-view/category-content-view.component';
@@ -48,10 +52,6 @@ import { CategoryViewComponent } from './category-view/category-view.component';
 import { ContentTypeNavigationItem } from './content-type-navigation-item.interface';
 import { ContentType } from './content-type.enum';
 import { NavigationBarComponent } from './navigation-bar/navigation-bar.component';
-import {
-    PlayerDialogComponent,
-    PlayerDialogData,
-} from './player-dialog/player-dialog.component';
 import { PortalStore } from './portal.store';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 import { VodDetailsComponent } from './vod-details/vod-details.component';
@@ -395,7 +395,8 @@ export class XtreamMainContainerComponent implements OnInit, OnDestroy {
 
     playEpisode(episode: XtreamSerieEpisode) {
         const playlist = this.currentPlaylist() as Playlist;
-        const { serverUrl, username, password, userAgent, referrer, origin } = playlist;
+        const { serverUrl, username, password, userAgent, referrer, origin } =
+            playlist;
         const player = this.settingsStore.player();
         const streamUrl = `${serverUrl}/series/${username}/${password}/${episode.id}.${episode.container_extension}`;
         if (player === VideoPlayer.MPV) {
