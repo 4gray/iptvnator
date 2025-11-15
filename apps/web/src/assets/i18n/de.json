@@ -12,9 +12,14 @@
     "UNNAMED_CHANNEL": "Sender ohne Namen",
     "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Neue Playlist hochladen oder eine andere aussuchen",
     "USE_STAR_TO_FAVORITE": "Nutzen Sie das Star-Icon um Sender als Favoriten zu markieren",
-    "FAVORITES_UPDATED": "Favoriten wurden aktualisiert!"
+    "FAVORITES_UPDATED": "Favoriten wurden aktualisiert!",
+    "SORT_BY": "Sortieren nach",
+    "SORT_BY_DATE": "Nach Datum sortieren (Neueste zuerst)",
+    "SORT_BY_RATING": "Nach Bewertung sortieren",
+    "SORT_BY_NAME": "Nach Name sortieren (A-Z)"
   },
   "EPG": {
+    "TITLE": "Elektronischer Programmführer",
     "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Versuchen Sie bitte die TV-Guide Einstellungen zu ändern.",
     "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ups, leider ist das TV-Programm nicht verfügbar.",
     "EPG_NOT_AVAILABLE_DATE": "Ups, leider ist das TV-Programm für das ausgewählte Datum nicht verfügbar",
@@ -26,6 +31,7 @@
     "FETCH_EPG": "EPG-Daten werden geladen...",
     "ERROR": "Ooops, EPG konnte nicht geladen werden",
     "DOWNLOAD_SUCCESS": "EPG wurde erfolgreich geladen.",
+    "FETCH_SUCCESS": "EPG wurde erfolgreich abgerufen",
     "PROGRAM_DIALOG": {
       "PROGRAM_DETAILS": "Details zum TV-Programm",
       "TITLE": "Titel",
@@ -74,19 +80,32 @@
         "PASSWORD": "Passwort",
         "SERVER_URL": "Server-URL",
         "USERNAME": "Nutzername",
-        "MAC_ADDRESS": "MAC-Adresse"
+        "MAC_ADDRESS": "MAC-Adresse",
+        "PLAYLIST_EXPORT_SUCCESS": "Playlist wurde erfolgreich exportiert.",
+        "PLAYLIST_EXPORT_ERROR": "Fehler: Playlist-Export fehlgeschlagen."
       },
       "UPDATED": "Aktualisiert am",
       "REFRESH": "Aktualisieren",
+      "REFRESH_XTREAM": "Xtream-Playlist vom Server aktualisieren",
+      "REFRESH_XTREAM_DIALOG": {
+        "TITLE": "Xtream-Playlist aktualisieren",
+        "MESSAGE": "Dadurch werden lokal zwischengespeicherte Kategorien und Streams gelöscht und alles vom Remote-Server erneut importiert. Ihre Favoriten und kürzlich angesehenen Elemente bleiben erhalten. Möchten Sie wirklich fortfahren?",
+        "STARTED": "Aktualisierung gestartet. Navigation zur Playlist...",
+        "ERROR": "Playlist-Aktualisierung fehlgeschlagen. Bitte versuchen Sie es erneut."
+      },
       "REMOVE_DIALOG": {
         "MESSAGE": "Sind Sie sicher, dass Sie diese Wiedergabeliste vollständig löschen möchten",
-        "TITLE": "Wiedergabeliste entfernen"
+        "TITLE": "Wiedergabeliste entfernen",
+        "SUCCESS": "Playlist wurde erfolgreich entfernt"
       },
       "GLOBAL_FAVORITES": "Globale Favoriten",
-      "GLOBAL_FAVORITES_DESCRIPTION": "Auto-generated playlist with aggregated favorites from all playlists",
+      "GLOBAL_FAVORITES_DESCRIPTION": "Automatisch generierte Playlist mit aggregierten Favoriten aus allen Playlists",
       "MY_PLAYLISTS": "Meine Playlisten",
       "MY_PLAYLISTS_SUBTITLE": "Alle verfügbaren Playlisten",
       "PLAYLIST_UPDATE_SUCCESS": "Erfolg! Die Playlist wurde erfolgreich aktualisiert.",
+      "PLAYLIST_UPDATE_ERROR": "Fehler beim Aktualisieren der Playlist-Details.",
+      "AUTO_REFRESH_UPDATE_SUCCESS": "Erfolg! Die Playlists wurden erfolgreich aktualisiert",
+      "AUTO_REFRESH_ENABLED": "Auto-Refresh aktiviert",
       "STALKER_PORTAL": "Stalker-Portal",
       "XTREAM_PLAYLIST": "Xtream-Playlist"
     },
@@ -100,7 +119,8 @@
     },
     "URL_UPLOAD": {
       "ADD_PLAYLIST": "Playlist hinzufügen",
-      "PLAYLIST_URL": "URL der Playlist"
+      "PLAYLIST_URL": "URL der Playlist",
+      "CORS_NOTE": "Hinweis: Um CORS-Probleme zu vermeiden, verwendet die Anwendung an dieser Stelle einen öffentlichen CORS-Proxy-Dienst. Wenn Sie eine Playlist mit sensiblen Daten hochladen möchten, ist es sicherer, sie aus einer Datei zu importieren."
     },
     "TEXT_IMPORT": {
       "LABEL": "Füge m3u(8)-Wiedergabeliste hier als Text ein",
@@ -123,8 +143,16 @@
       "URL_VALIDATION_ERROR": "Sollte eine gültige URL mit Protokoll sein (z. B. http://example.com/c oder https://example.com/stalker_portal/c)"
     },
     "FILTER_BY_TYPE": "Nach Typ filtern",
-    "IMPORTED_AS_TEXT": "Als Text importiert",
     "FILTER_BY_NAME": "Nach Namen filtern",
+    "SORT_PLAYLISTS": "Playlisten sortieren",
+    "SORT_BY": "Sortieren nach",
+    "SORT_OPTIONS": {
+      "NAME_ASC": "Name (A-Z)",
+      "NAME_DESC": "Name (Z-A)",
+      "NEWEST": "Hinzugefügt (Neueste zuerst)",
+      "OLDEST": "Hinzugefügt (Älteste zuerst)"
+    },
+    "IMPORTED_AS_TEXT": "Als Text importiert",
     "PARSING_ERROR": "Fehler: Parsen fehlgeschlagen, keine gültige Playlist:"
   },
   "LANGUAGES": {
@@ -161,9 +189,11 @@
     "VERSION": "Version",
     "VIDEO_PLAYER_LABEL": "Video player",
     "VIDEO_PLAYER_PLACEHOLDER": "Option auswählen",
+    "STREAM_FORMAT": "Stream-Format",
     "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!",
     "THEME": "Farbdesign",
     "SHOW_CAPTIONS": "Untertitel anzeigen",
+    "STREAM_FORMAT_DESCRIPTION": "Standard-Streamformat auswählen (Xtream)",
     "REMOVE_ALL": "Playlist entfernen",
     "REMOVE_ALL_BUTTON": "Entfernen",
     "REMOVE_DIALOG": {
@@ -190,7 +220,14 @@
     "VLC_PLAYER_PATH": "VLC-Playerpfad",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Exportieren oder importieren Sie Wiedergabelisten im JSON-Format, das in der Anwendung verwendet wird.",
     "EPG_NOTE_URL_TEXT": "Überprüfen Sie es hier",
-    "MPV_PLAYER_PATH_LABEL": "MPV-Pfad"
+    "MPV_PLAYER_PATH_LABEL": "MPV-Pfad",
+    "MPV_PLAYER_PATH_DESCRIPTION": "Legen Sie den Pfad zum MPV-Player in Ihrem System fest. Es wird der bereitgestellte Pfad zu einer MPV-Binärdatei anstelle des in $PATH gefundenen verwendet.",
+    "MPV_REUSE_INSTANCE_LABEL": "MPV-Instanz wiederverwenden",
+    "MPV_REUSE_INSTANCE_DESCRIPTION": "Wenn aktiviert, wird dasselbe MPV-Fenster zum Abspielen verschiedener Streams wiederverwendet. Wenn deaktiviert, wird jeder Stream in einem neuen MPV-Fenster geöffnet.",
+    "REMOTE_CONTROL": "Fernbedienung",
+    "REMOTE_CONTROL_DESCRIPTION": "Fernsteuerung der Anwendung aktivieren.",
+    "REMOTE_CONTROL_PORT": "Fernsteuerungs-Port",
+    "REMOTE_CONTROL_PORT_DESCRIPTION": "Port für die Fernsteuerung der Anwendung. Standardmäßig wird Port 3000 verwendet."
   },
   "THEMES": {
     "DARK_THEME": "Dunkel",
@@ -219,6 +256,7 @@
     "RELEASE_DATE": "Veröffentlichungsdatum",
     "ACTORS": "Schauspieler",
     "PLAY": "Abspielen",
+    "OPENING_PLAYER": "Player wird geöffnet...",
     "GENRE": "Genre",
     "DURATION": "Dauer",
     "COUNTRY": "Land",
@@ -233,7 +271,32 @@
     "DESCRIPTION": "Beschreibung",
     "KINOPOISK_RATING": "Bewertung Kinopoisk",
     "IMDB_RATING": "IMDB-Bewertung",
-    "EPISODE_RUN_TIME": "Laufzeit der Episode"
+    "EPISODE_RUN_TIME": "Laufzeit der Episode",
+    "ACCOUNT_INFO": {
+      "TITLE": "Kontoinformationen",
+      "USER_INFO": "Benutzerinformationen",
+      "STATUS": "Status",
+      "USERNAME": "Benutzername",
+      "ACTIVE_CONNECTIONS": "Aktive Verbindungen",
+      "CREATED": "Erstellt",
+      "EXPIRES": "Läuft ab",
+      "TRIAL_ACCOUNT": "Testkonto",
+      "YES": "Ja",
+      "NO": "Nein",
+      "ALLOWED_FORMATS": "Zulässige Formate",
+      "SERVER_INFO": "Serverinformationen",
+      "LIVE_TV": "Live-TV",
+      "MOVIES": "Filme",
+      "TV_SERIES": "Serien",
+      "URL": "URL",
+      "PROTOCOL": "Protokoll",
+      "TIMEZONE": "Zeitzone",
+      "SERVER_TIME": "Serverzeit",
+      "PORTS": "Ports",
+      "HTTP_PORT": "HTTP",
+      "HTTPS_PORT": "HTTPS",
+      "RTMP_PORT": "RTMP"
+    }
   },
   "PORTALS": {
     "SIDEBAR": {
@@ -265,6 +328,10 @@
         "TITLE": "Leere Kategorie",
         "DESCRIPTION": "Diese Kategorie hat keinen Inhalt. Bitte wählen Sie eine andere Kategorie aus oder ändern Sie den Inhaltstyp"
       },
+      "NO_CATEGORY_SELECTED": {
+        "TITLE": "Keine Kategorie ausgewählt",
+        "DESCRIPTION": "Bitte wählen Sie eine Kategorie aus, um den Inhalt anzuzeigen"
+      },
       "UNAUTHORIZED": {
         "TITLE": "Nicht autorisiert",
         "DESCRIPTION": "Bitte überprüfen Sie die Anmeldeinformationen in den Playlist-Einstellungen oder entfernen Sie sie."
@@ -281,19 +348,30 @@
     },
     "STREAM_URL_COPIED": "Stream-URL in die Zwischenablage kopiert",
     "EMPTY_LIST_VIEW": {
+      "TITLE": "Keine Ergebnisse gefunden",
       "NO_SEARCH_RESULTS": "Nichts gefunden. Versuchen Sie, Ihre Suchanfrage zu ändern"
     },
     "REMOVED_FROM_FAVORITES": "Aus den Favoriten entfernt",
-    "ADDED_TO_FAVORITES": "Zu den Favoriten hinzugefügt"
+    "ADDED_TO_FAVORITES": "Zu den Favoriten hinzugefügt",
+    "SELECT_CATEGORY": "Wählen Sie eine Kategorie aus",
+    "PAGE": "Seite"
   },
   "ABOUT": {
     "TITLE": "Über IPTVnator",
-    "VERSION": "Ausführung",
+    "DESCRIPTION": "Plattformübergreifende IPTV-Player-Anwendung mit mehreren Funktionen wie Unterstützung von M3U- und M3U8-Wiedergabelisten, Favoriten, TV-Guide, TV-Archiv/Catchup und mehr.",
+    "VERSION": "Version",
     "TWITTER_TOOLTIP": "Auf Twitter teilen",
     "GITHUB_TOOLTIP": "ITPVnator-Repository auf GitHub",
     "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee"
   },
   "REFRESH": "Aktualisieren",
   "UPDATE_AVAILABLE": "Update verfügbar",
-  "INFORMATION": "Information"
+  "INFORMATION": "Information",
+  "REMOTE_CONTROL": {
+    "TITLE": "Fernbedienung",
+    "UP_CHANNEL": "Sender aufwärts",
+    "DOWN_CHANNEL": "Sender abwärts",
+    "HEADER": "IPTVNator Fernbedienung",
+    "FOOTER": "IPTVNator Fernbedienung"
+  }
 }

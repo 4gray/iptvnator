@@ -1,6 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
-import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -16,13 +15,11 @@ import { XtreamStore } from '../xtream.store';
     templateUrl: './category-content-view.component.html',
     styleUrls: ['./category-content-view.component.scss'],
     imports: [
-        MatCardModule,
-        MatPaginatorModule,
+        GridListComponent,
         PlaylistErrorViewComponent,
+        StalkerSeriesViewComponent,
         TranslatePipe,
         VodDetailsComponent,
-        GridListComponent,
-        StalkerSeriesViewComponent,
     ],
 })
 export class CategoryContentViewComponent implements OnInit {
@@ -49,7 +46,11 @@ export class CategoryContentViewComponent implements OnInit {
 
     ngOnInit() {
         const { categoryId } = this.activatedRoute.snapshot.params;
-        if (categoryId) this.store.setSelectedCategory(categoryId);
+        // Only set category if it's different from the currently selected one
+        // This preserves the page state when navigating back from detail view
+        if (categoryId && this.store.selectedCategoryId() !== Number(categoryId)) {
+            this.store.setSelectedCategory(categoryId);
+        }
     }
 
     onPageChange(event: PageEvent) {

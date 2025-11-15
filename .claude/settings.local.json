@@ -3,7 +3,9 @@
     "allow": [
       "Bash(tree:*)",
       "WebSearch",
-      "WebFetch(domain:www.electronjs.org)"
+      "WebFetch(domain:www.electronjs.org)",
+      "Bash(npm run build:frontend:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

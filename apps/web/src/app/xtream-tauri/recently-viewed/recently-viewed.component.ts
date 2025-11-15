@@ -1,9 +1,9 @@
-import { CommonModule, KeyValuePipe } from '@angular/common';
+import { DatePipe, KeyValuePipe, TitleCasePipe } from '@angular/common';
 import { Component, computed, inject, Optional } from '@angular/core';
-import { MatButtonModule, MatIconButton } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatCard } from '@angular/material/card';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import groupBy from 'lodash/groupBy';
 import { XtreamStore } from '../xtream.store';
@@ -11,12 +11,14 @@ import { XtreamStore } from '../xtream.store';
 @Component({
     selector: 'app-recently-viewed',
     imports: [
-        CommonModule,
-        MatCardModule,
-        MatButtonModule,
-        MatIconModule,
+        DatePipe,
         KeyValuePipe,
+        MatButton,
+        MatCard,
+        MatIcon,
         MatIconButton,
+        MatIconButton,
+        TitleCasePipe,
     ],
     templateUrl: './recently-viewed.component.html',
     styleUrl: './recently-viewed.component.scss',

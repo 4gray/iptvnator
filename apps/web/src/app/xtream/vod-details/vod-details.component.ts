@@ -13,7 +13,7 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistsService } from 'services';
 import { XtreamVodDetails } from 'shared-interfaces';
-import { SafePipe } from './safe.pipe';
+import { SafePipe } from '../../xtream-tauri/vod-details/safe.pipe';
 
 @Component({
     selector: 'app-vod-details',

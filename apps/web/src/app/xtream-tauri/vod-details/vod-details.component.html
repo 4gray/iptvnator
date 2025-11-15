@@ -21,37 +21,35 @@
                     (error)="
                         $event.target.src = './assets/images/default-poster.png'
                     "
+                    alt="Movie poster"
                 />
             } @else {
-                <img src="./assets/images/default-poster.png" />
+                <img
+                    src="./assets/images/default-poster.png"
+                    alt="Default poster"
+                />
             }
         </div>
         <div class="details">
             <h2>{{ item?.info?.name || item?.movie_data?.name }}</h2>
             @if (item?.info?.description || item?.info?.plot) {
-                <label>
+                <div>
                     {{ item?.info?.description || item?.info?.plot }}
-                </label>
+                </div>
             }
             @if (item?.info?.releasedate) {
-                <label>
-                    <div class="label">
-                        {{ 'XTREAM.RELEASE_DATE' | translate }}:
-                    </div>
-                    {{ item?.info?.releasedate }}
-                </label>
+                <div class="label">
+                    {{ 'XTREAM.RELEASE_DATE' | translate }}:
+                </div>
+                {{ item?.info?.releasedate }}
             }
             @if (item?.info?.genre) {
-                <label>
-                    <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
-                    {{ item?.info?.genre }}
-                </label>
+                <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
+                {{ item?.info?.genre }}
             }
             @if (item?.info?.country) {
-                <label>
-                    <div class="label">{{ 'XTREAM.COUNTRY' | translate }}:</div>
-                    {{ item?.info?.country }}
-                </label>
+                <div class="label">{{ 'XTREAM.COUNTRY' | translate }}:</div>
+                {{ item?.info?.country }}
             }
             @if (item?.info?.actors || item?.info?.cast) {
                 <div>
@@ -60,36 +58,22 @@
                 </div>
             }
             @if (item?.info?.director) {
-                <label>
-                    <div class="label">
-                        {{ 'XTREAM.DIRECTOR' | translate }}:
-                    </div>
-                    {{ item?.info?.director }}
-                </label>
+                <div class="label">{{ 'XTREAM.DIRECTOR' | translate }}:</div>
+                {{ item?.info?.director }}
             }
             @if (item?.info?.duration) {
-                <label>
-                    <div class="label">
-                        {{ 'XTREAM.DURATION' | translate }}:
-                    </div>
-                    {{ item?.info?.duration }}
-                </label>
+                <div class="label">{{ 'XTREAM.DURATION' | translate }}:</div>
+                {{ item?.info?.duration }}
             }
             @if (item?.info?.rating_imdb) {
-                <label>
-                    <div class="label">
-                        {{ 'XTREAM.IMDB_RATING' | translate }}:
-                    </div>
-                    {{ item?.info?.rating_imdb }}
-                </label>
+                <div class="label">{{ 'XTREAM.IMDB_RATING' | translate }}:</div>
+                {{ item?.info?.rating_imdb }}
             }
             @if (item?.info?.rating_kinopoisk) {
-                <label>
-                    <div class="label">
-                        {{ 'XTREAM.KINOPOISK_RATING' | translate }}:
-                    </div>
-                    {{ item?.info?.rating_kinopoisk }}
-                </label>
+                <div class="label">
+                    {{ 'XTREAM.KINOPOISK_RATING' | translate }}:
+                </div>
+                {{ item?.info?.rating_kinopoisk }}
             }
             <div class="action-buttons">
                 <button mat-flat-button color="accent" (click)="playVod(item)">

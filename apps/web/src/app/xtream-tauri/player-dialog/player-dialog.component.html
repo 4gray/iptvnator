@@ -1,20 +1,13 @@
 <h2 mat-dialog-title>{{ title }}</h2>
 <mat-dialog-content class="content">
     <app-web-player-view [streamUrl]="streamUrl" />
-    <mat-form-field class="link-input">
-        <input
-            matInput
-            formControlName="streamUrl"
-            [value]="streamUrl"
-            disabled
-        />
-    </mat-form-field>
 </mat-dialog-content>
 <mat-dialog-actions class="align-actions">
     <button
         mat-button
         [cdkCopyToClipboard]="streamUrl"
         (click)="showCopyNotification()"
+        [matTooltip]="streamUrl"
     >
         <mat-icon>content_copy</mat-icon>
         {{ 'PORTALS.COPY_STREAM_URL' | translate }}

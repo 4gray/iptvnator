@@ -1,0 +1,114 @@
+<h2 mat-dialog-title>{{ 'XTREAM.ACCOUNT_INFO.TITLE' | translate }}</h2>
+<mat-dialog-content class="mat-typography">
+    @if (accountInfo?.user_info?.message) {
+        <div class="welcome-message">
+            {{ accountInfo?.user_info?.message }}
+        </div>
+    }
+    <div class="info-grid">
+        <div class="info-section">
+            <h3>{{ 'XTREAM.ACCOUNT_INFO.USER_INFO' | translate }}</h3>
+            <mat-list>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.STATUS' | translate }}:
+                    <span [class.active]="isActive">{{
+                        accountInfo?.user_info?.status
+                    }}</span>
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.USERNAME' | translate }}:
+                    {{ accountInfo?.user_info?.username }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.ACTIVE_CONNECTIONS' | translate }}:
+                    {{ accountInfo?.user_info?.active_cons }}/{{
+                        accountInfo?.user_info?.max_connections
+                    }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.CREATED' | translate }}:
+                    {{ formattedCreatedDate }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.EXPIRES' | translate }}:
+                    {{ formattedExpDate }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.TRIAL_ACCOUNT' | translate }}:
+                    <span [class.trial]="isTrial">{{
+                        (isTrial
+                            ? 'XTREAM.ACCOUNT_INFO.YES'
+                            : 'XTREAM.ACCOUNT_INFO.NO'
+                        ) | translate
+                    }}</span>
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.ALLOWED_FORMATS' | translate }}:
+                    <span class="formats">
+                        {{
+                            accountInfo?.user_info?.allowed_output_formats?.join(
+                                ', '
+                            )
+                        }}
+                    </span>
+                </mat-list-item>
+            </mat-list>
+        </div>
+
+        <div class="info-section">
+            <h3>{{ 'XTREAM.ACCOUNT_INFO.SERVER_INFO' | translate }}</h3>
+            <mat-list>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.LIVE_TV' | translate }}:
+                    {{ liveStreamsCount }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.MOVIES' | translate }}:
+                    {{ vodStreamsCount }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.TV_SERIES' | translate }}:
+                    {{ seriesCount }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.URL' | translate }}:
+                    {{ accountInfo?.server_info?.url }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.PROTOCOL' | translate }}:
+                    {{ accountInfo?.server_info?.server_protocol }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.TIMEZONE' | translate }}:
+                    {{ accountInfo?.server_info?.timezone }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.SERVER_TIME' | translate }}:
+                    {{ accountInfo?.server_info?.time_now }}
+                </mat-list-item>
+                <mat-list-item>
+                    {{ 'XTREAM.ACCOUNT_INFO.PORTS' | translate }}:
+                    <div class="ports">
+                        <span
+                            >{{ 'XTREAM.ACCOUNT_INFO.HTTP_PORT' | translate }}:
+                            {{ accountInfo?.server_info?.port }}</span
+                        >
+                        <span
+                            >{{ 'XTREAM.ACCOUNT_INFO.HTTPS_PORT' | translate }}:
+                            {{ accountInfo?.server_info?.https_port }}</span
+                        >
+                        <span
+                            >{{ 'XTREAM.ACCOUNT_INFO.RTMP_PORT' | translate }}:
+                            {{ accountInfo?.server_info?.rtmp_port }}</span
+                        >
+                    </div>
+                </mat-list-item>
+            </mat-list>
+        </div>
+    </div>
+</mat-dialog-content>
+<mat-dialog-actions>
+    <button mat-button mat-dialog-close color="accent">
+        {{ 'CLOSE' | translate }}
+    </button>
+</mat-dialog-actions>
