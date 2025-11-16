@@ -22,7 +22,8 @@
             "m3u-utils": ["libs/shared/m3u-utils/src/index.ts"],
             "services": ["libs/services/src/index.ts"],
             "shared-interfaces": ["libs/shared/interfaces/src/index.ts"],
-            "shared-portals": ["libs/ui/shared-portals/src/index.ts"]
+            "shared-portals": ["libs/ui/shared-portals/src/index.ts"],
+            "remote-control": ["libs/ui/remote-control/src/index.ts"]
         }
     },
     "exclude": ["node_modules", "tmp"],
