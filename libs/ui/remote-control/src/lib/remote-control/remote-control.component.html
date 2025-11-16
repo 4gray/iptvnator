@@ -1,0 +1,77 @@
+<div class="remote">
+    <div class="remote__body">
+        <!-- App branding -->
+        <div class="remote__header">
+            <div class="remote__logo">IPTVnator</div>
+        </div>
+
+        <!-- Error state -->
+        @if (error) {
+            <div class="remote__error">
+                {{ error }}
+            </div>
+        }
+
+        <!-- Main touchpad circle -->
+        <div class="touchpad">
+            <div class="touchpad__glass">
+                <!-- Up button (top half) -->
+                <button
+                    class="touchpad__button touchpad__button--up"
+                    (click)="changeChannelUp()"
+                    [disabled]="isLoading"
+                    [class.is-loading]="isLoading"
+                    aria-label="Channel Up"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                    >
+                        <path d="M5 15l7-7 7 7" />
+                    </svg>
+                </button>
+
+                <!-- Down button (bottom half) -->
+                <button
+                    class="touchpad__button touchpad__button--down"
+                    (click)="changeChannelDown()"
+                    [disabled]="isLoading"
+                    [class.is-loading]="isLoading"
+                    aria-label="Channel Down"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                    >
+                        <path d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+
+                <!-- Center indicator -->
+                <div class="touchpad__center">
+                    <div
+                        class="touchpad__pulse"
+                        [class.is-active]="!isLoading"
+                    ></div>
+                </div>
+            </div>
+
+            <!-- Subtle edge highlights -->
+            <div class="touchpad__edge"></div>
+        </div>
+
+        <!-- Status indicator -->
+        <div class="remote__status">
+            <div class="status-dot" [class.is-active]="!isLoading"></div>
+            <span class="status-text">{{
+                isLoading ? 'Switching' : 'Ready'
+            }}</span>
+        </div>
+    </div>
+</div>
