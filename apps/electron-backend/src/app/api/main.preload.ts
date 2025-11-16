@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electron', {
+    // Remote control channel change listener
+    onChannelChange: (callback: (data: { direction: 'up' | 'down' }) => void) => {
+        ipcRenderer.on('CHANNEL_CHANGE', (_event, data) => callback(data));
+    },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     platform: process.platform,
     fetchPlaylistByUrl: (url: string, title?: string) =>
