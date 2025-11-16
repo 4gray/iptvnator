@@ -28,7 +28,11 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as _ from 'lodash';
 import * as PlaylistActions from 'm3u-state';
-import { selectActivePlaylistId, selectFavorites } from 'm3u-state';
+import {
+    selectActive,
+    selectActivePlaylistId,
+    selectFavorites,
+} from 'm3u-state';
 import { map, skipWhile } from 'rxjs';
 import { EpgService } from 'services';
 import { Channel } from 'shared-interfaces';
@@ -81,7 +85,7 @@ export class ChannelListContainerComponent implements OnDestroy {
     groupedChannels!: { [key: string]: Channel[] };
 
     /** Selected channel */
-    selected!: Channel;
+    readonly activeChannel = this.store.selectSignal(selectActive);
 
     /** Search term for channel filter */
     searchTerm: { name: string } = {
@@ -123,11 +127,10 @@ export class ChannelListContainerComponent implements OnDestroy {
     );
 
     /**
-     * Sets clicked channel as selected and emits them to the parent component
+     * Sets clicked channel as active and dispatches to store
      * @param channel selected channel
      */
     selectChannel(channel: Channel): void {
-        this.selected = channel;
         this.store.dispatch(PlaylistActions.setActiveChannel({ channel }));
 
         // Use tvg-id for EPG matching, fallback to channel name if not available

@@ -42,7 +42,7 @@
                         "
                         [logo]="channel?.tvg?.logo"
                         (clicked)="selectChannel(channel)"
-                        [selected]="selected?.id === channel?.id"
+                        [selected]="activeChannel()?.url === channel?.url"
                     />
                 </cdk-virtual-scroll-viewport>
             </mat-nav-list>
@@ -90,7 +90,7 @@
                                             [logo]="channel?.tvg?.logo"
                                             (clicked)="selectChannel(channel)"
                                             [selected]="
-                                                selected?.id === channel.id
+                                                activeChannel()?.url === channel.url
                                             "
                                         ></app-channel-list-item>
                                     }
@@ -136,7 +136,7 @@
                                     [isDraggable]="true"
                                     [logo]="channel?.tvg?.logo"
                                     (clicked)="selectChannel(channel)"
-                                    [selected]="selected?.id === channel?.id"
+                                    [selected]="activeChannel()?.url === channel?.url"
                                     [showFavoriteButton]="true"
                                     (favoriteToggled)="
                                         toggleFavoriteChannel(channel, $event)
