@@ -7,7 +7,6 @@ import {
     Component,
     ElementRef,
     inject,
-    InjectionToken,
     Input,
     OnDestroy,
     OnInit,
@@ -23,6 +22,7 @@ import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
 import { BehaviorSubject, Observable, Subscription } from 'rxjs';
 import { Channel, EpgChannel, EpgProgram } from 'shared-interfaces';
 import { EpgItemDescriptionComponent } from '../epg-list/epg-item-description/epg-item-description.component';
+import { COMPONENT_OVERLAY_REF } from './overlay-ref.token';
 
 interface EnrichedProgram extends EpgProgram {
     startDate: Date;
@@ -89,13 +89,7 @@ export class MultiEpgContainerComponent
 
     private readonly dialog = inject(MatDialog);
     private readonly cdr = inject(ChangeDetectorRef);
-    private readonly COMPONENT_OVERLAY_REF = new InjectionToken<OverlayRef>(
-        'COMPONENT_OVERLAY_REF'
-    );
-
-    private readonly overlayRef = inject<OverlayRef>(
-        this.COMPONENT_OVERLAY_REF
-    );
+    private readonly overlayRef = inject<OverlayRef>(COMPONENT_OVERLAY_REF);
 
     ngOnInit() {
         this.calculateCurrentTimeBar();
