@@ -1,17 +1,20 @@
+// Import refined fonts
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap');
+
 .channel-overlay {
     position: absolute;
     bottom: 35px;
     width: 100%;
     min-height: 130px;
-    max-height: 165px;
+    max-height: 200px;
     margin-left: auto;
     margin-right: auto;
     left: 0;
     right: 0;
-    flex-direction: row;
     box-sizing: border-box;
     display: flex;
     isolation: isolate;
+    padding: 0 40px;
 
     // Gradient blur effect using pseudo-element
     &::before {
@@ -25,74 +28,172 @@
         z-index: -1;
     }
 
-    &.no-epg {
-        min-height: 100px;
-        max-height: 180px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
 }
 
-.program-name,
-.program-description {
-    margin: 20px 0;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
+// EPG Layout with data
+.epg-layout {
+    display: flex;
+    gap: 28px;
+    width: 100%;
+    align-items: flex-start;
+    padding: 24px 0;
+    animation: fadeInUp 0.5s ease-out;
 }
 
 .channel-logo {
-    margin-top: 20px;
-    place-content: flex-start center;
-    align-items: flex-start;
-    flex-direction: row;
-    box-sizing: border-box;
+    flex-shrink: 0;
     display: flex;
-    flex: 1 1 100px;
-    max-width: 100px;
-    min-width: 100px;
+    align-items: center;
+    justify-content: center;
+    width: 90px;
+    height: 90px;
+
+    img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+    }
 }
 
 .content {
-    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0; // Allow text truncation
 }
 
-.program-progress {
-    width: 96%;
-    background: #ccc;
-    height: 20px;
-    margin-bottom: 8px;
+.content-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    animation: fadeIn 0.6s ease-out 0.1s backwards;
 }
 
-.program-name {
-    width: 96%;
-    max-height: 20px;
-    -webkit-line-clamp: 1;
+.program-title {
+    font-family: 'Crimson Pro', serif;
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #ffffff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: -0.02em;
+}
+
+.channel-name {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.75);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 .program-description {
-    width: 96%;
-    max-height: 55px;
-    -webkit-line-clamp: 3;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.05rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.88);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    animation: fadeIn 0.6s ease-out 0.2s backwards;
 }
 
-.program-finished {
-    background: #717171;
-    height: 20px;
-    font-size: 0.8em;
-    padding-left: 10px;
-    color: #000;
-    line-height: 20px;
+.program-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+    animation: fadeIn 0.6s ease-out 0.3s backwards;
 }
 
-.duration {
+.timeline-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.time-separator {
+    opacity: 0.5;
+    margin: 0 2px;
+}
+
+.progress-track {
     position: relative;
-    top: -18px;
-    font-size: 0.8em;
-    color: #000;
-    left: 10px;
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    overflow: hidden;
+    backdrop-filter: blur(4px);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);
+    border-radius: 2px;
+    transition: width 0.3s ease-out;
+    box-shadow: 0 0 12px rgba(124, 58, 237, 0.6);
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+        animation: shimmer 2s ease-in-out infinite;
+    }
+}
+
+// Animations
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
 }
 
 .visible {
@@ -106,41 +207,14 @@
     transition: visibility 0s 2s, opacity 2s linear;
 }
 
-// No EPG layout styles
-.no-epg-layout {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 20px;
-    gap: 20px;
+// No EPG state variations
+.no-epg-title {
+    // When there's no EPG, the channel name becomes the main title
+    font-size: 2.5rem; // Slightly larger since it's the only content
 }
 
-.channel-logo-large {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    img {
-        max-width: 150px;
-        max-height: 100px;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-    }
-}
-
-.channel-name-large {
-    font-size: 2.5rem;
-    font-weight: 600;
-    text-align: center;
-    line-height: 1.2;
-    max-width: 90%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+.no-epg-subtitle {
+    // Subtle message indicating no EPG data
+    font-style: italic;
+    opacity: 0.6;
 }

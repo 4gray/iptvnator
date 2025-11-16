@@ -213,6 +213,7 @@
         "FETCH_EPG": "Fetching EPG data...",
         "ERROR": "Ooops, EPG could not be loaded.",
         "DOWNLOAD_SUCCESS": "EPG was successfully downloaded.",
+        "NO_PROGRAM_INFO": "No program information available",
         "PROGRAM_DIALOG": {
             "PROGRAM_DETAILS": "Details about the TV program",
             "TITLE": "Title",

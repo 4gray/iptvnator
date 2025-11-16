@@ -1,11 +1,12 @@
 import { NgStyle } from '@angular/common';
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { MomentDatePipe } from '@iptvnator/pipes';
+import { TranslatePipe } from '@ngx-translate/core';
 import moment from 'moment';
 import { Channel, EpgProgram } from 'shared-interfaces';
 
 @Component({
-    imports: [MomentDatePipe, NgStyle],
+    imports: [MomentDatePipe, NgStyle, TranslatePipe],
     selector: 'app-info-overlay',
     templateUrl: './info-overlay.component.html',
     styleUrls: ['./info-overlay.component.scss'],
@@ -45,7 +46,7 @@ export class InfoOverlayComponent implements OnChanges {
             this.isVisible = true;
             this.currentTimeout = setTimeout(() => {
                 this.isVisible = false;
-            }, 4000);
+            }, 10000);
         }
         if (changes['epgProgram'] && changes['epgProgram'].currentValue) {
             const { stop, start } = changes['epgProgram'].currentValue;
