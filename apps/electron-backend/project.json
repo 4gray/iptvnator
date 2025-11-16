@@ -7,7 +7,7 @@
         "build": {
             "dependsOn": [
                 {
-                    "projects": ["web"],
+                    "projects": ["web", "remote-control-web"],
                     "target": "build"
                 }
             ],
@@ -54,6 +54,7 @@
                     "nx run electron-backend:serve-electron"
                 ]
             }
+
         },
         "serve-electron": {
             "executor": "nx-electron:execute",

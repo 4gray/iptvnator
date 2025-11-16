@@ -1,0 +1,96 @@
+{
+    "name": "remote-control-web",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "projectType": "application",
+    "prefix": "app",
+    "sourceRoot": "apps/remote-control-web/src",
+    "tags": [],
+    "targets": {
+        "build": {
+            "executor": "@angular/build:application",
+            "outputs": ["{options.outputPath}"],
+            "options": {
+                "outputPath": "dist/apps/remote-control-web",
+                "browser": "apps/remote-control-web/src/main.ts",
+                "polyfills": ["zone.js"],
+                "tsConfig": "apps/remote-control-web/tsconfig.app.json",
+                "inlineStyleLanguage": "scss",
+                "assets": [
+                    {
+                        "glob": "**/*",
+                        "input": "apps/remote-control-web/public"
+                    },
+                    {
+                        "glob": "**/*",
+                        "input": "apps/web/src/assets/i18n",
+                        "output": "assets/i18n"
+                    }
+                ],
+                "styles": ["apps/remote-control-web/src/styles.scss"]
+            },
+            "configurations": {
+                "production": {
+                    "budgets": [
+                        {
+                            "type": "initial",
+                            "maximumWarning": "500kb",
+                            "maximumError": "1mb"
+                        },
+                        {
+                            "type": "anyComponentStyle",
+                            "maximumWarning": "4kb",
+                            "maximumError": "8kb"
+                        }
+                    ],
+                    "outputHashing": "all"
+                },
+                "development": {
+                    "optimization": false,
+                    "extractLicenses": false,
+                    "sourceMap": true
+                }
+            },
+            "defaultConfiguration": "production"
+        },
+        "serve": {
+            "continuous": true,
+            "executor": "@angular/build:dev-server",
+            "configurations": {
+                "production": {
+                    "buildTarget": "remote-control-web:build:production"
+                },
+                "development": {
+                    "buildTarget": "remote-control-web:build:development"
+                }
+            },
+            "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+            "executor": "@angular/build:extract-i18n",
+            "options": {
+                "buildTarget": "remote-control-web:build"
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        },
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "apps/remote-control-web/jest.config.ts",
+                "tsConfig": "apps/remote-control-web/tsconfig.spec.json"
+            }
+        },
+        "serve-static": {
+            "continuous": true,
+            "executor": "@nx/web:file-server",
+            "options": {
+                "buildTarget": "remote-control-web:build",
+                "port": 4200,
+                "staticFilePath": "dist/apps/remote-control-web/browser",
+                "spa": true
+            }
+        }
+    }
+}
