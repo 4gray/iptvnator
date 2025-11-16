@@ -156,6 +156,10 @@ declare global {
                 xtreamId: number,
                 playlistId: string
             ) => Promise<any | null>;
+            // Remote control
+            onChannelChange?: (
+                callback: (data: { direction: 'up' | 'down' }) => void
+            ) => void;
         };
         process: NodeJS.Process;
         require: NodeRequire;
