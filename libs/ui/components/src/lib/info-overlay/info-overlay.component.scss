@@ -8,10 +8,30 @@
     margin-right: auto;
     left: 0;
     right: 0;
-    backdrop-filter: blur(10px);
     flex-direction: row;
     box-sizing: border-box;
     display: flex;
+    isolation: isolate;
+
+    // Gradient blur effect using pseudo-element
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 20%, rgba(0, 0, 0, 0.8) 60%, black 100%);
+        -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 20%, rgba(0, 0, 0, 0.8) 60%, black 100%);
+        z-index: -1;
+    }
+
+    &.no-epg {
+        min-height: 100px;
+        max-height: 180px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 }
 
 .program-name,
@@ -84,4 +104,43 @@
     visibility: hidden;
     opacity: 0;
     transition: visibility 0s 2s, opacity 2s linear;
+}
+
+// No EPG layout styles
+.no-epg-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 20px;
+    gap: 20px;
+}
+
+.channel-logo-large {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+        max-width: 150px;
+        max-height: 100px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+    }
+}
+
+.channel-name-large {
+    font-size: 2.5rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.2;
+    max-width: 90%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
 }
