@@ -5,7 +5,7 @@
         [matTooltip]="'TOP_MENU.OPEN_CHANNELS_LIST' | translate"
         class="sidenav-toggle-button"
     >
-        <mat-icon>menu</mat-icon>
+        <mat-icon>{{ isLeftDrawerOpened ? 'menu' : 'menu_open' }}</mat-icon>
     </button>
     @if ((playlistId$ | async) !== 'GLOBAL_FAVORITES') {
         <button
@@ -22,6 +22,13 @@
             >
         </button>
     }
+    <button
+        mat-icon-button
+        (click)="infoOverlayClicked.emit()"
+        [matTooltip]="'TOP_MENU.SHOW_INFO' | translate"
+    >
+        <mat-icon>info</mat-icon>
+    </button>
     {{ activeChannel?.name }}
     <div class="spacer"></div>
     <button

@@ -16,7 +16,9 @@
                 (toggleLeftDrawerClicked)="drawer.toggle()"
                 (toggleRightDrawerClicked)="drawerRight.toggle()"
                 (multiEpgClicked)="openMultiEpgView()"
+                (infoOverlayClicked)="toggleInfoOverlay()"
                 [activeChannel]="activeChannel"
+                [isLeftDrawerOpened]="drawer.opened"
                 (settingsClicked)="openSettings()"
             />
             @if (activeChannel.radio === 'true') {

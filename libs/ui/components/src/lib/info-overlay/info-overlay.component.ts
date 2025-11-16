@@ -80,4 +80,23 @@ export class InfoOverlayComponent implements OnChanges {
             .duration(this.stop.diff(timeNow))
             .asMilliseconds();
     }
+
+    /**
+     * Manually shows the overlay (triggered by user action like 'I' key or info button)
+     * Toggles visibility if already shown, or shows for 10 seconds if hidden
+     */
+    showOverlay(): void {
+        if (this.isVisible) {
+            // If already visible, hide it (toggle behavior)
+            clearTimeout(this.currentTimeout);
+            this.isVisible = false;
+        } else {
+            // Show overlay for 10 seconds
+            clearTimeout(this.currentTimeout);
+            this.isVisible = true;
+            this.currentTimeout = setTimeout(() => {
+                this.isVisible = false;
+            }, 10000);
+        }
+    }
 }

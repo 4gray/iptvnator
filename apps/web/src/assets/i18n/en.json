@@ -198,7 +198,8 @@
         "OPEN_CHANNELS_LIST": "Open channel list",
         "TOGGLE_FAVORITE_FLAG": "Toggle favorite flag",
         "OPEN_EPG_LIST": "Open EPG list",
-        "OPEN_MULTI_EPG": "Open Multi-EPG view"
+        "OPEN_MULTI_EPG": "Open Multi-EPG view",
+        "SHOW_INFO": "Show program info (Press I)"
     },
     "EPG": {
         "TITLE": "Electronic Program Guide",
