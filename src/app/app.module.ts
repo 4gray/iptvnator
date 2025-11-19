@@ -1,6 +1,7 @@
 import {
     HttpClient,
     provideHttpClient,
+    withInterceptors,
     withInterceptorsFromDi,
 } from '@angular/common/http';
 import { NgModule } from '@angular/core';
@@ -23,6 +24,7 @@ import '../polyfills';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { dbConfig } from './indexed-db.config';
+import { authInterceptor } from './services/auth/auth.interceptor';
 import { DataService } from './services/data.service';
 import { PwaService } from './services/pwa.service';
 import { TauriService } from './services/tauri.service';
@@ -88,7 +90,10 @@ export function DataFactory() {
             useFactory: DataFactory,
             deps: [NgxIndexedDBService, HttpClient],
         },
-        provideHttpClient(withInterceptorsFromDi()),
+        provideHttpClient(
+            withInterceptors([authInterceptor]),
+            withInterceptorsFromDi()
+        ),
     ],
 })
 export class AppModule {}

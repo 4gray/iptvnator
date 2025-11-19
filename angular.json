@@ -30,7 +30,8 @@
                         "assets": [
                             "src/favicon.ico",
                             "src/assets",
-                            "src/manifest.webmanifest"
+                            "src/manifest.webmanifest",
+                            "src/silent-refresh.html"
                         ],
                         "styles": [
                             "src/m3-theme.scss",

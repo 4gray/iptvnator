@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Silent Refresh</title>
+    </head>
+    <body>
+        <script>
+            // This page is used for silent token refresh
+            // The oidc-client library will handle the refresh process
+            parent.postMessage(location.href, location.origin);
+        </script>
+    </body>
+</html>
+
+

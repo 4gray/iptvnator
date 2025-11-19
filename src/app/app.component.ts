@@ -20,6 +20,7 @@ import {
     VIEW_ADD_PLAYLIST,
     VIEW_SETTINGS,
 } from '../../shared/ipc-commands';
+import { AuthService } from './services/auth/auth.service';
 import { DataService } from './services/data.service';
 import { EpgService } from './services/epg.service';
 import { PlaylistsService } from './services/playlists.service';
@@ -64,6 +65,7 @@ export class AppComponent {
     listeners = [];
 
     constructor(
+        private authService: AuthService,
         private dataService: DataService,
         private dialog: MatDialog,
         private epgService: EpgService,
@@ -110,6 +112,9 @@ export class AppComponent {
     }
 
     ngOnInit() {
+        // Initialize authentication - check if user is already authenticated
+        this.authService.getUser().subscribe();
+
         this.store.dispatch(PlaylistActions.loadPlaylists());
         this.translate.setDefaultLang(this.DEFAULT_LANG);
 

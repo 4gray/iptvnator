@@ -1,14 +1,24 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { isTauri } from '@tauri-apps/api/core';
+import { authGuard } from './services/auth/auth.guard';
 import { stalkerRoutes } from './stalker/stalker.routes';
 import { xtreamRoutes } from './xtream-tauri/xtream.routes';
 
 const routes: Routes = [
     {
+        path: 'auth-callback',
+        loadComponent: () =>
+            import('./auth-callback/auth-callback.component').then(
+                (c) => c.AuthCallbackComponent
+            ),
+    },
+    {
         path: '',
         loadComponent: () =>
             import('./home/home.component').then((c) => c.HomeComponent),
+        // Uncomment the line below to protect the home route
+        canActivate: [authGuard],
     },
     {
         path: 'playlists',
@@ -16,6 +26,8 @@ const routes: Routes = [
             import(
                 './player/components/video-player/video-player.component'
             ).then((c) => c.VideoPlayerComponent),
+        // Uncomment the line below to protect this route
+        canActivate: [authGuard],
     },
     {
         path: 'iptv',
@@ -23,6 +35,8 @@ const routes: Routes = [
             import(
                 './player/components/video-player/video-player.component'
             ).then((c) => c.VideoPlayerComponent),
+        // Uncomment the line below to protect this route
+        canActivate: [authGuard],
     },
     {
         path: 'playlists/:id',
@@ -30,6 +44,8 @@ const routes: Routes = [
             import(
                 './player/components/video-player/video-player.component'
             ).then((c) => c.VideoPlayerComponent),
+        // Uncomment the line below to protect this route
+        canActivate: [authGuard],
     },
     {
         path: 'settings',
@@ -37,6 +53,8 @@ const routes: Routes = [
             import('./settings/settings.component').then(
                 (c) => c.SettingsComponent
             ),
+        // Uncomment the line below to protect this route
+        // canActivate: [authGuard],
     },
     ...(isTauri()
         ? xtreamRoutes
