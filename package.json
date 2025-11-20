@@ -36,7 +36,8 @@
             "gatekeeperAssess": false,
             "hardenedRuntime": false,
             "entitlements": null,
-            "entitlementsInherit": null
+            "entitlementsInherit": null,
+            "sign": false
         },
         "linux": {
             "category": "Video",
