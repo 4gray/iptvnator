@@ -1,0 +1,80 @@
+<section class="channel-grid-container">
+    <div class="toolbar">
+        <mat-form-field appearance="outline" class="search-field">
+            <mat-label>{{ 'CHANNELS.SEARCH_CHANNEL' | translate }}</mat-label>
+            <input
+                matInput
+                #searchInput
+                type="search"
+                [value]="searchTerm"
+                (input)="onSearchChange($event.target?.value || '')"
+                autocomplete="off"
+            />
+            <button
+                *ngIf="searchTerm?.length"
+                mat-icon-button
+                matSuffix
+                aria-label="Clear search"
+                (click)="clearSearch()">
+                <mat-icon>close</mat-icon>
+            </button>
+        </mat-form-field>
+
+        <div class="total-count">
+            {{ filteredChannels.length }} /
+            {{ channelList.length }}
+            {{ 'CHANNELS.ALL_CHANNELS' | translate }}
+        </div>
+    </div>
+
+    @if (filteredChannels.length === 0) {
+        <div class="empty-state">
+            {{ 'CHANNELS.UPLOAD_OR_SELECT_OTHER_PLAYLIST' | translate }}
+        </div>
+    } @else {
+        <div class="grid" role="list">
+            @for (channel of filteredChannels; track trackByFn($index, channel)) {
+                <article
+                    class="grid-card"
+                    tabindex="0"
+                    role="listitem"
+                    [class.active]="selectedChannelId === channel?.id"
+                    (keydown)="onCardKeyDown($event, channel)"
+                    (click)="selectChannel(channel)">
+                    <div class="card-header">
+                        <div class="logo" aria-hidden="true">
+                            @if (channel?.tvg?.logo) {
+                                <img [src]="channel.tvg.logo" [alt]="channel.name" loading="lazy" />
+                            } @else {
+                                <span>{{ channel?.name?.charAt(0) || '•' }}</span>
+                            }
+                        </div>
+                        <button
+                            mat-icon-button
+                            class="favorite-btn"
+                            [attr.aria-pressed]="isFavorite(channel)"
+                            matTooltip="{{ 'CHANNELS.FAVORITES' | translate }}"
+                            (click)="toggleFavorite(channel, $event)">
+                            <mat-icon>
+                                {{ isFavorite(channel) ? 'star' : 'star_border' }}
+                            </mat-icon>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="title">
+                            {{
+                                channel?.name ||
+                                    ('CHANNELS.UNNAMED_CHANNEL' | translate)
+                            }}
+                        </div>
+                        <div class="metadata">
+                            {{ channel?.group?.title || ('CHANNELS.UNGROUPED' | translate) }}
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</section>
+
+

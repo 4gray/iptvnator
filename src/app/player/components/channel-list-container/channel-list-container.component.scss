@@ -26,6 +26,27 @@ mat-nav-list {
     overflow: scroll;
 }
 
+.channel-view-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 0.5rem 0.5rem;
+
+    mat-button-toggle-group {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    mat-button-toggle {
+        display: flex;
+        gap: 0.25rem;
+        align-items: center;
+        text-transform: none;
+    }
+
+    mat-icon {
+        font-size: 18px;
+    }
+}
+
 #all-channels {
     overflow: hidden;
     max-height: calc(100vh - 167px);

@@ -1,0 +1,113 @@
+.channel-grid-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0.5rem;
+    gap: 0.75rem;
+
+    .toolbar {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+
+        .search-field {
+            flex: 1;
+        }
+
+        .total-count {
+            color: var(--mat-mdc-theme-on-surface-variant, #9aa8b5);
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.75rem;
+        overflow-y: auto;
+        padding-bottom: 1rem;
+    }
+
+    .grid-card {
+        position: relative;
+        background: rgba(17, 24, 39, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        outline: none;
+        min-height: 140px;
+        transition: border 0.2s ease, transform 0.2s ease;
+
+        &:hover {
+            border-color: rgba(94, 177, 255, 0.6);
+            transform: translateY(-1px);
+        }
+
+        &.active,
+        &:focus-visible {
+            border-color: rgba(94, 177, 255, 0.9);
+            box-shadow: 0 0 0 2px rgba(94, 177, 255, 0.4);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 0.6rem;
+            background: rgba(255, 255, 255, 0.08);
+            display: grid;
+            place-items: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 600;
+            font-size: 1.2rem;
+            overflow: hidden;
+
+            img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
+        }
+
+        .favorite-btn {
+            color: #f5c542;
+            margin-top: -0.5rem;
+        }
+
+        .card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+
+            .title {
+                font-weight: 600;
+                font-size: 1rem;
+                color: #f8fafc;
+                min-height: 2.4rem;
+            }
+
+            .metadata {
+                color: rgba(255, 255, 255, 0.65);
+                font-size: 0.85rem;
+            }
+        }
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 1.5rem;
+        color: rgba(255, 255, 255, 0.65);
+    }
+}
+
+

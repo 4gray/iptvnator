@@ -13,6 +13,7 @@ import {
     ViewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -33,6 +34,7 @@ import {
     selectActivePlaylistId,
     selectFavorites,
 } from '../../../state/selectors';
+import { ChannelGridContainerComponent } from '../channel-grid-container/channel-grid-container.component';
 import { ChannelListItemComponent } from './channel-list-item/channel-list-item.component';
 
 @Component({
@@ -40,11 +42,13 @@ import { ChannelListItemComponent } from './channel-list-item/channel-list-item.
     templateUrl: './channel-list-container.component.html',
     styleUrls: ['./channel-list-container.component.scss'],
     imports: [
+        ChannelGridContainerComponent,
         ChannelListItemComponent,
         CommonModule,
         DragDropModule,
         FilterPipe,
         FormsModule,
+        MatButtonToggleModule,
         MatDividerModule,
         MatExpansionModule,
         MatFormFieldModule,
@@ -118,6 +122,8 @@ export class ChannelListContainerComponent {
         )
     );
 
+    viewMode: 'list' | 'grid' = 'grid';
+
     constructor(
         private readonly epgService: EpgService,
         private readonly snackBar: MatSnackBar,
@@ -138,6 +144,10 @@ export class ChannelListContainerComponent {
         if (epgChannelId) {
             this.epgService.getChannelPrograms(epgChannelId);
         }
+    }
+
+    setViewMode(mode: 'list' | 'grid'): void {
+        this.viewMode = mode;
     }
 
     /**

@@ -1,165 +1,190 @@
-@if (_channelList) {
-    <mat-tab-group color="primary" backgroundColor="primary">
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">list</mat-icon>
-                <div class="tab-title">
-                    {{ 'CHANNELS.ALL_CHANNELS' | translate }}
-                </div>
-            </ng-template>
-            <div class="search-panel">
-                <mat-form-field class="search-bar">
-                    <input
-                        matInput
-                        class="full-width"
-                        type="search"
-                        spellcheck="false"
-                        autocomplete="off"
-                        #search
-                        [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
-                        [(ngModel)]="searchTerm.name"
-                    />
-                </mat-form-field>
-            </div>
-            <mat-nav-list id="all-channels">
-                <cdk-virtual-scroll-viewport
-                    itemSize="50"
-                    class="scroll-viewport"
-                >
-                    <app-channel-list-item
-                        *cdkVirtualFor="
-                            let channel of _channelList
-                                | filterBy: searchTerm.name : 'name';
-                            index as i;
-                            trackBy: trackByFn
-                        "
-                        [name]="
-                            i +
-                            1 +
-                            '. ' +
-                            (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
-                                | translate)
-                        "
-                        [logo]="channel?.tvg?.logo"
-                        (clicked)="selectChannel(channel)"
-                        [selected]="selected?.id === channel?.id"
-                    />
-                </cdk-virtual-scroll-viewport>
-            </mat-nav-list>
-        </mat-tab>
+@if (_channelList?.length) {
+    <div class="channel-view-toolbar">
+        <mat-button-toggle-group
+            [value]="viewMode"
+            (change)="setViewMode($event.value)">
+            <mat-button-toggle value="list">
+                <mat-icon>view_list</mat-icon>
+                <span>{{ 'CHANNELS.ALL_CHANNELS' | translate }}</span>
+            </mat-button-toggle>
+            <mat-button-toggle value="grid">
+                <mat-icon>grid_view</mat-icon>
+                <span>Grid</span>
+            </mat-button-toggle>
+        </mat-button-toggle-group>
+    </div>
 
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">category</mat-icon>
-                <div class="tab-title">
-                    {{ 'CHANNELS.GROUPS' | translate }}
-                </div>
-            </ng-template>
-            <mat-nav-list id="groups-list">
-                <mat-accordion multi>
-                    @for (
-                        groups of groupedChannels | keyvalue: groupsComparator;
-                        track $index
-                    ) {
-                        @if (groups.value.length > 0) {
-                            <mat-expansion-panel>
-                                <mat-expansion-panel-header>
-                                    {{
-                                        groups.key ||
-                                            ('CHANNELS.UNGROUPED' | translate)
-                                            | titlecase
-                                    }}
-                                    ({{ groups.value.length }})
-                                </mat-expansion-panel-header>
-
-                                <ng-template matExpansionPanelContent>
-                                    @for (
-                                        channel of groups.value;
-                                        track trackByFn($index, channel);
-                                        let i = $index
-                                    ) {
-                                        <app-channel-list-item
-                                            [name]="
-                                                i +
-                                                1 +
-                                                '. ' +
-                                                (channel?.name ||
-                                                    'CHANNELS.UNNAMED_CHANNEL'
-                                                    | translate)
-                                            "
-                                            [logo]="channel?.tvg?.logo"
-                                            (clicked)="selectChannel(channel)"
-                                            [selected]="
-                                                selected?.id === channel.id
-                                            "
-                                        ></app-channel-list-item>
-                                    }
-                                </ng-template>
-                            </mat-expansion-panel>
-                        }
-                    }
-                </mat-accordion>
-            </mat-nav-list>
-        </mat-tab>
-
-        @let showFavorites = (playlistId$ | async) !== 'GLOBAL_FAVORITES';
-        @if (showFavorites) {
+    @if (viewMode === 'list') {
+        <mat-tab-group color="primary" backgroundColor="primary">
             <mat-tab>
                 <ng-template mat-tab-label>
-                    <mat-icon class="tab-icon">star</mat-icon>
+                    <mat-icon class="tab-icon">list</mat-icon>
                     <div class="tab-title">
-                        {{ 'CHANNELS.FAVORITES' | translate }}
+                        {{ 'CHANNELS.ALL_CHANNELS' | translate }}
                     </div>
                 </ng-template>
-                @let favorites = favorites$ | async;
-                @if (favorites) {
-                    <mat-nav-list
-                        cdkDropList
-                        (cdkDropListDropped)="drop($event, favorites)"
-                        id="favorites-list"
+                <div class="search-panel">
+                    <mat-form-field class="search-bar">
+                        <input
+                            matInput
+                            class="full-width"
+                            type="search"
+                            spellcheck="false"
+                            autocomplete="off"
+                            #search
+                            [placeholder]="
+                                'CHANNELS.SEARCH_CHANNEL' | translate
+                            "
+                            [(ngModel)]="searchTerm.name"
+                        />
+                    </mat-form-field>
+                </div>
+                <mat-nav-list id="all-channels">
+                    <cdk-virtual-scroll-viewport
+                        itemSize="50"
+                        class="scroll-viewport"
                     >
-                        @if (favorites.length > 0) {
-                            @for (
-                                channel of favorites;
-                                track trackByFn($index, channel);
-                                let i = $index
-                            ) {
-                                <app-channel-list-item
-                                    [name]="
-                                        i +
-                                        1 +
-                                        '. ' +
-                                        (channel?.name ||
-                                            'CHANNELS.UNNAMED_CHANNEL'
-                                            | translate)
-                                    "
-                                    [isDraggable]="true"
-                                    [logo]="channel?.tvg?.logo"
-                                    (clicked)="selectChannel(channel)"
-                                    [selected]="selected?.id === channel?.id"
-                                    [showFavoriteButton]="true"
-                                    (favoriteToggled)="
-                                        toggleFavoriteChannel(channel, $event)
-                                    "
-                                />
-                            }
-                        } @else {
-                            <mat-list-item
-                                ><strong>{{
-                                    'CHANNELS.NO_FAVORITES' | translate
-                                }}</strong></mat-list-item
-                            >
-                            <mat-list-item>
-                                {{
-                                    'CHANNELS.USE_STAR_TO_FAVORITE' | translate
-                                }}</mat-list-item
-                            >
-                        }
-                    </mat-nav-list>
-                }
+                        <app-channel-list-item
+                            *cdkVirtualFor="
+                                let channel of _channelList
+                                    | filterBy: searchTerm.name : 'name';
+                                index as i;
+                                trackBy: trackByFn
+                            "
+                            [name]="
+                                i +
+                                1 +
+                                '. ' +
+                                (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
+                                    | translate)
+                            "
+                            [logo]="channel?.tvg?.logo"
+                            (clicked)="selectChannel(channel)"
+                            [selected]="selected?.id === channel?.id"
+                        />
+                    </cdk-virtual-scroll-viewport>
+                </mat-nav-list>
             </mat-tab>
-        }
-    </mat-tab-group>
+
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">category</mat-icon>
+                    <div class="tab-title">
+                        {{ 'CHANNELS.GROUPS' | translate }}
+                    </div>
+                </ng-template>
+                <mat-nav-list id="groups-list">
+                    <mat-accordion multi>
+                        @for (
+                            groups of groupedChannels | keyvalue: groupsComparator;
+                            track $index
+                        ) {
+                            @if (groups.value.length > 0) {
+                                <mat-expansion-panel>
+                                    <mat-expansion-panel-header>
+                                        {{
+                                            groups.key ||
+                                                ('CHANNELS.UNGROUPED' | translate)
+                                                | titlecase
+                                        }}
+                                        ({{ groups.value.length }})
+                                    </mat-expansion-panel-header>
+
+                                    <ng-template matExpansionPanelContent>
+                                        @for (
+                                            channel of groups.value;
+                                            track trackByFn($index, channel);
+                                            let i = $index
+                                        ) {
+                                            <app-channel-list-item
+                                                [name]="
+                                                    i +
+                                                    1 +
+                                                    '. ' +
+                                                    (channel?.name ||
+                                                        'CHANNELS.UNNAMED_CHANNEL'
+                                                        | translate)
+                                                "
+                                                [logo]="channel?.tvg?.logo"
+                                                (clicked)="selectChannel(channel)"
+                                                [selected]="
+                                                    selected?.id === channel.id
+                                                "
+                                            ></app-channel-list-item>
+                                        }
+                                    </ng-template>
+                                </mat-expansion-panel>
+                            }
+                        }
+                    </mat-accordion>
+                </mat-nav-list>
+            </mat-tab>
+
+            @let showFavorites = (playlistId$ | async) !== 'GLOBAL_FAVORITES';
+            @if (showFavorites) {
+                <mat-tab>
+                    <ng-template mat-tab-label>
+                        <mat-icon class="tab-icon">star</mat-icon>
+                        <div class="tab-title">
+                            {{ 'CHANNELS.FAVORITES' | translate }}
+                        </div>
+                    </ng-template>
+                    @let favorites = favorites$ | async;
+                    @if (favorites) {
+                        <mat-nav-list
+                            cdkDropList
+                            (cdkDropListDropped)="drop($event, favorites)"
+                            id="favorites-list"
+                        >
+                            @if (favorites.length > 0) {
+                                @for (
+                                    channel of favorites;
+                                    track trackByFn($index, channel);
+                                    let i = $index
+                                ) {
+                                    <app-channel-list-item
+                                        [name]="
+                                            i +
+                                            1 +
+                                            '. ' +
+                                            (channel?.name ||
+                                                'CHANNELS.UNNAMED_CHANNEL'
+                                                | translate)
+                                        "
+                                        [isDraggable]="true"
+                                        [logo]="channel?.tvg?.logo"
+                                        (clicked)="selectChannel(channel)"
+                                        [selected]="selected?.id === channel?.id"
+                                        [showFavoriteButton]="true"
+                                        (favoriteToggled)="
+                                            toggleFavoriteChannel(
+                                                channel,
+                                                $event
+                                            )
+                                        "
+                                    />
+                                }
+                            } @else {
+                                <mat-list-item
+                                    ><strong>{{
+                                        'CHANNELS.NO_FAVORITES' | translate
+                                    }}</strong></mat-list-item
+                                >
+                                <mat-list-item>
+                                    {{
+                                        'CHANNELS.USE_STAR_TO_FAVORITE'
+                                            | translate
+                                    }}</mat-list-item
+                                >
+                            }
+                        </mat-nav-list>
+                    }
+                </mat-tab>
+            }
+        </mat-tab-group>
+    } @else {
+        <app-channel-grid-container [channelList]="_channelList" />
+    }
 } @else {
     No channels there
 }
