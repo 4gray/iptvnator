@@ -49,6 +49,15 @@ jobs:
             - name: Make Electron app
               run: npm run make:app
 
+            - name: Remove macOS quarantine attributes
+              if: matrix.os == 'macos-latest'
+              run: |
+                echo "Removing quarantine attributes from DMG and ZIP files..."
+                find dist/executables -type f \( -name "*.dmg" -o -name "*.zip" \) -print0 | xargs -0 xattr -cr || true
+
+                echo "Ensuring .app bundle itself has no quarantine..."
+                find dist/executables -type d -name "*.app" -print0 | xargs -0 xattr -cr || true
+
             - name: Upload artifacts (macOS)
               if: matrix.os == 'macos-latest'
               uses: actions/upload-artifact@v4
