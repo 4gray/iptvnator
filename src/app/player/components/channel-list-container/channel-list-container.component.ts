@@ -122,7 +122,7 @@ export class ChannelListContainerComponent {
         )
     );
 
-    viewMode: 'list' | 'grid' = 'grid';
+    viewMode: 'list' | 'grid' = 'list';
 
     constructor(
         private readonly epgService: EpgService,
