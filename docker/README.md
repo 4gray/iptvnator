@@ -13,4 +13,4 @@ This command will launch the frontend and backend applications. By default, the 
 
 ## Build backend
 
-You can find the backend app with all instructions in a separate GitHub repository - https://github.com/4gray/iptvnator-backend
+You can find the backend app with all instructions in a separate GitHub repository - https://github.com/cloud-saviour/iptvnator-backend

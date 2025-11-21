@@ -90,7 +90,7 @@ export class WhatsNewService {
             },
             {
                 title: 'User-Agent Support on Channel Level',
-                html: 'Now user-agent support can be specified not only on the playlist level but also on the level of individual channels. For this purpose, support for Kodi <a target="_blank" href="https://github.com/4gray/iptvnator/issues/57">playlist format</a> was added to the application.',
+                html: 'Now user-agent support can be specified not only on the playlist level but also on the level of individual channels. For this purpose, support for Kodi <a target="_blank" href="https://github.com/cloud-saviour/iptvnator/issues/57">playlist format</a> was added to the application.',
                 button: {
                     text: 'Next!',
                     textColor: '#ccc',
@@ -99,7 +99,7 @@ export class WhatsNewService {
             },
             {
                 title: 'Information about current EPG program',
-                html: 'Similarly to digital receivers, after you switch channels at the bottom of the screen you will see a pop-up window with information about the current program <a target="_blank" href="https://github.com/4gray/iptvnator/issues/51">#51</a>',
+                html: 'Similarly to digital receivers, after you switch channels at the bottom of the screen you will see a pop-up window with information about the current program <a target="_blank" href="https://github.com/cloud-saviour/iptvnator/issues/51">#51</a>',
                 imageHeight: 250,
                 imageBgColor: '#333',
                 imageSrc: './assets/updates/080/channel-info.png',
@@ -111,7 +111,7 @@ export class WhatsNewService {
             },
             {
                 title: 'This and that',
-                html: 'In addition to the already mentioned new features, some bugs have been fixed and the internal dependencies of the application have been updated. Thanks for all the <a href="https://github.com/4gray/iptvnator/issues" target="_blank">ideas</a>, contributions and <a target="_blank" href="https://github.com/sponsors/4gray">first donations.</a>',
+                html: 'In addition to the already mentioned new features, some bugs have been fixed and the internal dependencies of the application have been updated. Thanks for all the <a href="https://github.com/cloud-saviour/iptvnator/issues" target="_blank">ideas</a>, contributions and <a target="_blank" href="https://github.com/sponsors/cloud-saviour">first donations.</a>',
                 button: {
                     text: 'YAY!',
                     textColor: '#ccc',
@@ -125,7 +125,7 @@ export class WhatsNewService {
                 imageBgColor: '#333',
                 imageSrc: './assets/updates/090/reorder-playlists.gif',
                 title: '🎉 v0.9.0 - rearrange playlists',
-                html: 'The new version of the app has an option to <a href="https://github.com/4gray/iptvnator/issues/77" target="_blank">sort the playlists</a> using drag&drop.',
+                html: 'The new version of the app has an option to <a href="https://github.com/cloud-saviour/iptvnator/issues/77" target="_blank">sort the playlists</a> using drag&drop.',
                 button: {
                     text: 'YAY!',
                     textColor: '#ccc',
@@ -160,7 +160,7 @@ export class WhatsNewService {
                 title: 'This & That',
                 html: `
                     * improved english translation (thanks to <a target="_blank" href="https://github.com/mbuett">@mbuett</a>)<br />
-                    * bugfixes and visual improvements, see <a href="https://github.com/4gray/iptvnator/blob/master/CHANGELOG.md">changelog</a> for more details
+                    * bugfixes and visual improvements, see <a href="https://github.com/cloud-saviour/iptvnator/blob/master/CHANGELOG.md">changelog</a> for more details
                 `,
                 button: {
                     text: 'YAY!',
@@ -251,7 +251,7 @@ export class WhatsNewService {
                 imageBgColor: '#333',
                 imageSrc: './assets/updates/0130/mpv-player.png',
                 title: '🚀 MPV player integration',
-                html: 'Long-awaited mpv player support, which can now be selected from the settings. Before activating the player from the settings page, make sure it is installed on your system. For more details about mvp integration, check the <a target="_blank" href="https://github.com/4gray/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F">wiki page</a>.',
+                html: 'Long-awaited mpv player support, which can now be selected from the settings. Before activating the player from the settings page, make sure it is installed on your system. For more details about mvp integration, check the <a target="_blank" href="https://github.com/cloud-saviour/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F">wiki page</a>.',
                 button: {
                     text: 'YAY',
                     textColor: '#ccc',
