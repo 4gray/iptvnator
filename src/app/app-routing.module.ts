@@ -18,7 +18,7 @@ const routes: Routes = [
         loadComponent: () =>
             import('./home/home.component').then((c) => c.HomeComponent),
         // Uncomment the line below to protect the home route
-        canActivate: [authGuard],
+        // canActivate: [authGuard],
     },
     {
         path: 'playlists',
@@ -27,7 +27,7 @@ const routes: Routes = [
                 './player/components/video-player/video-player.component'
             ).then((c) => c.VideoPlayerComponent),
         // Uncomment the line below to protect this route
-        canActivate: [authGuard],
+        // canActivate: [authGuard],
     },
     {
         path: 'iptv',
@@ -36,7 +36,7 @@ const routes: Routes = [
                 './player/components/video-player/video-player.component'
             ).then((c) => c.VideoPlayerComponent),
         // Uncomment the line below to protect this route
-        canActivate: [authGuard],
+        // canActivate: [authGuard],
     },
     {
         path: 'playlists/:id',
@@ -45,7 +45,7 @@ const routes: Routes = [
                 './player/components/video-player/video-player.component'
             ).then((c) => c.VideoPlayerComponent),
         // Uncomment the line below to protect this route
-        canActivate: [authGuard],
+        // canActivate: [authGuard],
     },
     {
         path: 'settings',
@@ -54,7 +54,7 @@ const routes: Routes = [
                 (c) => c.SettingsComponent
             ),
         // Uncomment the line below to protect this route
-        // canActivate: [authGuard],
+        // // canActivate: [authGuard],
     },
     ...(isTauri()
         ? xtreamRoutes
