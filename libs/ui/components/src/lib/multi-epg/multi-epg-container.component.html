@@ -1,60 +1,41 @@
 <div id="epg-navigation">
   <button
     [matTooltip]="'CLOSE' | translate"
-    mat-button
+    mat-icon-button
     (click)="close()"
-    color="accent"
     >
-    <mat-icon>close</mat-icon> {{ 'CLOSE' | translate }}
+    <mat-icon>close</mat-icon>
   </button>
   <button
     [matTooltip]="'EPG.PREVIOUS_DAY' | translate"
     mat-icon-button
     (click)="switchDay('prev')"
     >
-    <mat-icon>navigate_before</mat-icon>
+    <mat-icon>chevron_left</mat-icon>
   </button>
+  <div class="today-date">
+    {{ today | momentDate: 'YYYYMMDD' : 'MMMM Do, dddd' }}
+  </div>
   <button
     [matTooltip]="'EPG.NEXT_DAY' | translate"
     mat-icon-button
     (click)="switchDay('next')"
     >
-    <mat-icon>navigate_next</mat-icon>
+    <mat-icon>chevron_right</mat-icon>
   </button>
-  <div class="today-date">
-    {{ today | momentDate: 'YYYYMMDD' : 'MMMM Do, dddd' }}
-  </div>
-  <button mat-icon-button (click)="zoomIn()" [disabled]="(hourWidth$ | async)! >= 800">
-    <mat-icon>zoom_in</mat-icon>
+  <button mat-icon-button (click)="zoomOut()" [disabled]="(hourWidth$ | async)! <= 50" matTooltip="Zoom out">
+    <mat-icon>remove</mat-icon>
   </button>
-  <button mat-icon-button [disabled]="(hourWidth$ | async)! <= 50" (click)="zoomOut()">
-    <mat-icon>zoom_out</mat-icon>
+  <button mat-icon-button (click)="zoomIn()" [disabled]="(hourWidth$ | async)! >= 800" matTooltip="Zoom in">
+    <mat-icon>add</mat-icon>
   </button>
-  <div class="navigation-buttons">
-    <button
-      mat-button
-      (click)="previousChannels()"
-      [disabled]="channelsLowerRange === 0"
-      matTooltip="Previous channels"
-      >
-      <mat-icon>keyboard_arrow_up</mat-icon> Previous channels
-    </button>
-    <button
-      mat-button
-      (click)="nextChannels()"
-      [disabled]="isLastPage"
-      matTooltip="Next channels"
-      >
-      <mat-icon>keyboard_arrow_down</mat-icon> Next channels
-    </button>
-  </div>
 </div>
-<div class="parent" #epgContainer>
-  <svg id="channels-column">
+<div class="parent" #epgContainer (scroll)="onScroll($event)">
+  <svg id="channels-column" [attr.height]="(channels$ | async)!.length * barHeight + barHeight + 50">
     @for (item of channels$ | async; track item.id; let i = $index) {
       <g>
         <!-- channel name -->
-        <g class="channel">
+        <g class="channel" [class.active]="item.id === activeChannelId">
           <rect
             width="100"
             [attr.height]="barHeight"
@@ -81,8 +62,8 @@
       </g>
     }
   </svg>
-  <div id="epg-container">
-    <svg [attr.width]="(hourWidth$ | async)! * 24" height="100%" id="epg-svg">
+  <div id="epg-container" [style.height.px]="(channels$ | async)!.length * barHeight + barHeight + 50">
+    <svg [attr.width]="(hourWidth$ | async)! * 24" [attr.height]="(channels$ | async)!.length * barHeight + barHeight + 50" id="epg-svg">
       <!-- time headline -->
       @for (hour of timeHeader; track hour) {
         <g>
@@ -102,12 +83,20 @@
             >
             {{ hour }}:00
           </text>
+          <!-- vertical hour separator line -->
+          <line
+            [attr.x1]="hour * (hourWidth$ | async)!"
+            [attr.y1]="barHeight"
+            [attr.x2]="hour * (hourWidth$ | async)!"
+            [attr.y2]="(channels$ | async)!.length * barHeight + barHeight"
+            class="hour-separator"
+          ></line>
         </g>
       }
 
       <!-- epg channels with programs -->
       @for (item of channels$ | async; track item.id; let i = $index) {
-        <g>
+        <g [class.active-row]="item.id === activeChannelId">
           @for (program of item.programs; track trackByProgram($index, program)) {
             <g
               [attr.transform]="'translate(' + program.startPosition + ',' + (barHeight * i + barHeight) + ')'"

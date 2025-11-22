@@ -1,18 +1,340 @@
+// Import distinctive fonts
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+// Color palette - Broadcast control room aesthetic
+$bg-deep: #0a0a0f;
+$bg-surface: #12121a;
+$bg-elevated: #1a1a24;
+$bg-hover: #24243a;
+$border-subtle: rgba(255, 255, 255, 0.06);
+$border-medium: rgba(255, 255, 255, 0.12);
+
+// Accent colors - TV broadcast vibes
+$accent-primary: #00d4aa; // Cyan/teal for time
+$accent-secondary: #8b5cf6; // Purple for programs
+$accent-tertiary: #f472b6; // Pink for highlights
+$accent-warning: #fbbf24;
+
+// Text colors
+$text-primary: #f8fafc;
+$text-secondary: rgba(248, 250, 252, 0.7);
+$text-muted: rgba(248, 250, 252, 0.4);
+
+// Gradients
+$gradient-program: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.15) 0%,
+    rgba(139, 92, 246, 0.05) 100%
+);
+$gradient-program-hover: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.3) 0%,
+    rgba(139, 92, 246, 0.15) 100%
+);
+$gradient-header: linear-gradient(
+    180deg,
+    rgba(0, 212, 170, 0.08) 0%,
+    transparent 100%
+);
+
+// Base container
+.parent {
+    display: flex;
+    background: $bg-deep;
+    color: $text-primary;
+    font-family: 'Outfit', sans-serif;
+    position: relative;
+    overflow-y: auto;
+    height: calc(100vh - 56px);
+
+    // Custom scrollbar for vertical scroll
+    &::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: $bg-surface;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: rgba(139, 92, 246, 0.4);
+        border-radius: 4px;
+
+        &:hover {
+            background: rgba(139, 92, 246, 0.6);
+        }
+    }
+}
+
+// Navigation toolbar - Frosted glass effect
+#epg-navigation {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(18, 18, 26, 0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid $border-medium;
+    gap: 8px;
+    position: relative;
+
+    // Subtle glow at bottom
+    &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(0, 212, 170, 0.3) 20%,
+            rgba(139, 92, 246, 0.3) 80%,
+            transparent 100%
+        );
+    }
+
+    // Button styling
+    button {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        transition: all 0.2s ease;
+
+        &:not([disabled]):hover {
+            background: rgba(139, 92, 246, 0.15);
+        }
+
+        &[disabled] {
+            opacity: 0.3;
+        }
+
+        mat-icon {
+            font-size: 20px;
+        }
+    }
+}
+
+// Today's date display
+.today-date {
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: $accent-primary;
+    text-align: center;
+    padding: 0 24px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+
+    // Glowing text effect
+    text-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
+}
+
+// Channel column
+#channels-column {
+    width: 140px;
+    flex: none;
+    border-right: 1px solid $border-medium;
+    background: $bg-surface;
+    position: relative;
+    z-index: 10;
+    min-height: calc(100vh - 6px);
+
+    // Subtle shadow for depth
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+
+    .channel {
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        rect {
+            fill: $bg-surface;
+            stroke: $border-subtle;
+            transition: fill 0.15s ease;
+        }
+
+        &:hover rect {
+            fill: $bg-elevated;
+        }
+
+        &.active rect {
+            fill: rgba(139, 92, 246, 0.2);
+            stroke: rgba(139, 92, 246, 0.4);
+        }
+
+        &.active .channel-name {
+            color: $accent-secondary;
+            font-weight: 600;
+        }
+    }
+
+    .channel-name {
+        color: $text-primary;
+        padding: 8px 12px;
+        font-size: 11px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        letter-spacing: 0.02em;
+
+        img {
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px;
+        }
+
+        span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    image {
+        object-fit: contain;
+        background: $bg-elevated;
+    }
+}
+
+// EPG container
+#epg-container {
+    width: calc(100vw - 140px);
+    overflow-x: scroll;
+    overflow-y: clip;
+    background: $bg-deep;
+    min-height: calc(100vh - 6px);
+
+    // Custom scrollbar
+    &::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: $bg-surface;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: rgba(139, 92, 246, 0.4);
+        border-radius: 4px;
+
+        &:hover {
+            background: rgba(139, 92, 246, 0.6);
+        }
+    }
+}
+
+// EPG SVG container
+#epg-svg {
+    // Time header styling
+    g > rect[fill='#000'] {
+        fill: $bg-surface !important;
+    }
+
+    g > text {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 11px !important;
+        font-weight: 500;
+        fill: $text-secondary !important;
+        letter-spacing: 0.1em;
+    }
+
+    // Hour separator vertical lines
+    .hour-separator {
+        stroke: $border-subtle;
+        stroke-width: 1px;
+        pointer-events: none;
+    }
+
+    // Program blocks
+    .program {
+        cursor: pointer;
+
+        rect {
+            fill: $bg-elevated;
+            stroke: $border-subtle;
+            rx: 4;
+            ry: 4;
+            transition: all 0.15s ease;
+        }
+
+        &:hover rect {
+            fill: $bg-hover;
+            stroke: rgba(139, 92, 246, 0.4);
+            filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.2));
+        }
+    }
+
+    // Active channel row highlighting
+    .active-row .program rect {
+        fill: rgba(139, 92, 246, 0.15);
+        stroke: rgba(139, 92, 246, 0.3);
+    }
+
+    .active-row .program:hover rect {
+        fill: rgba(139, 92, 246, 0.25);
+    }
+
+    .program-title {
+        color: $text-primary;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 400;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        pointer-events: none;
+        letter-spacing: 0.01em;
+        line-height: 1.4;
+
+        // Subtle gradient text for depth
+        display: flex;
+        align-items: center;
+        height: 100%;
+    }
+
+    // Current time line - glowing effect
+    line[stroke='red'] {
+        stroke: $accent-primary !important;
+        stroke-width: 2px;
+        filter: drop-shadow(0 0 8px rgba(0, 212, 170, 0.6))
+            drop-shadow(0 0 16px rgba(0, 212, 170, 0.3));
+
+        // Animated pulse
+        animation: timePulse 2s ease-in-out infinite;
+    }
+}
+
+// Pulse animation for time line
+@keyframes timePulse {
+    0%,
+    100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 8px rgba(0, 212, 170, 0.6))
+            drop-shadow(0 0 16px rgba(0, 212, 170, 0.3));
+    }
+    50% {
+        opacity: 0.8;
+        filter: drop-shadow(0 0 12px rgba(0, 212, 170, 0.8))
+            drop-shadow(0 0 24px rgba(0, 212, 170, 0.4));
+    }
+}
+
+// Legacy classes cleanup
 .program-item {
     cursor: pointer;
 }
 
 rect {
-    stroke: #676767;
+    stroke: $border-subtle;
     cursor: pointer;
 }
 
 .channel > rect {
-    stroke: #676767;
-}
-
-.program-item:hover > rect {
-    fill: #333;
+    stroke: $border-subtle;
 }
 
 .program-name,
@@ -23,112 +345,121 @@ rect {
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    padding: 6px 2px;
-}
-
-#epg-container {
-    width: calc(100vw - 100px);
-    height: calc(100vh - 42px);
-    overflow-x: scroll;
-    overflow-y: hidden;
-}
-
-.parent {
-    display: flex;
-    background-color: black;
-    color: #fff;
-}
-
-#channels-column {
-    width: 100px;
-    flex: none;
-    border-right: 2px solid #ccc;
-
-    .channel {
-        cursor: pointer;
-
-        rect {
-            fill: #2d2d2d;
-            stroke: #3d3d3d;
-        }
-
-        &:hover rect {
-            fill: #3d3d3d;
-        }
-    }
-
-    .channel-name {
-        color: white;
-        padding: 4px 8px;
-        font-size: 12px;
-        display: flex;
-        align-items: center;
-        height: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    image {
-        object-fit: contain;
-        background: #2d2d2d;
-    }
-}
-
-/* .channel-name {
-    margin: 0 5px;
-    text-align: center;
-} */
-
-#epg-navigation {
-    display: flex;
-    background-color: white;
-    border-bottom: 2px solid #fff;
-    align-items: center;
-}
-
-#epg-svg {
-    .program {
-        cursor: pointer;
-
-        rect {
-            fill: #2d2d2d;
-            stroke: #3d3d3d;
-        }
-
-        &:hover rect {
-            fill: #3d3d3d;
-        }
-    }
-
-    .program-title {
-        color: white;
-        padding: 4px 8px;
-        font-size: 12px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        pointer-events: none;
-    }
-}
-
-.today-date {
-    flex: 1;
-    align-items: center;
-    line-height: 40px;
-    height: 40px;
-    padding: 0 20px;
+    padding: 6px 8px;
 }
 
 #current-time-line {
     stroke-width: 2px;
-    stroke: white;
+    stroke: $accent-primary;
 }
 
+// Dark theme override (already dark, but ensure consistency)
 ::ng-deep {
     .dark-theme {
         #epg-navigation {
-            background-color: black;
+            background: rgba(18, 18, 26, 0.85);
         }
+    }
+
+    // Light theme adjustments
+    .light-theme {
+        #epg-navigation {
+            background: rgba(255, 255, 255, 0.9);
+            border-bottom-color: rgba(0, 0, 0, 0.1);
+
+            .today-date {
+                color: #059669;
+                text-shadow: none;
+            }
+        }
+
+        .parent {
+            background: #f8fafc;
+
+            &::before {
+                background-image:
+                    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+                    linear-gradient(
+                        90deg,
+                        rgba(0, 0, 0, 0.03) 1px,
+                        transparent 1px
+                    );
+            }
+        }
+
+        #channels-column {
+            background: #ffffff;
+            border-right-color: rgba(0, 0, 0, 0.1);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.05);
+
+            .channel rect {
+                fill: #ffffff;
+                stroke: rgba(0, 0, 0, 0.08);
+            }
+
+            .channel:hover rect {
+                fill: #f1f5f9;
+            }
+
+            .channel-name {
+                color: #1e293b;
+            }
+        }
+
+        #epg-container {
+            background: #f8fafc;
+        }
+
+        #epg-svg {
+            g > rect[fill='#000'] {
+                fill: #e2e8f0 !important;
+            }
+
+            g > text {
+                fill: #64748b !important;
+            }
+
+            .program {
+                rect {
+                    fill: #ffffff;
+                    stroke: rgba(0, 0, 0, 0.08);
+                }
+
+                &:hover rect {
+                    fill: #f1f5f9;
+                    stroke: rgba(139, 92, 246, 0.4);
+                }
+            }
+
+            .program-title {
+                color: #1e293b;
+            }
+
+            line[stroke='red'] {
+                stroke: #059669 !important;
+                filter: drop-shadow(0 0 6px rgba(5, 150, 105, 0.4));
+            }
+        }
+    }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+    #channels-column {
+        width: 100px;
+
+        .channel-name {
+            font-size: 10px;
+            padding: 6px 8px;
+        }
+    }
+
+    #epg-container {
+        width: calc(100vw - 100px);
+    }
+
+    .today-date {
+        font-size: 12px;
+        padding: 0 12px;
     }
 }

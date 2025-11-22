@@ -335,6 +335,13 @@ export class VideoPlayerComponent implements OnInit {
             selectChannels
         ) as Observable<Channel[]>;
 
+        // Pass the active channel's tvg.id for highlighting
+        this.activeChannel$.pipe(take(1)).subscribe((channel) => {
+            if (channel) {
+                componentRef.instance.activeChannelId = (channel as Channel).tvg?.id || null;
+            }
+        });
+
         this.overlayRef.backdropClick().subscribe(() => {
             this.overlayRef.dispose();
         });
