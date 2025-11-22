@@ -62,11 +62,18 @@ export class MultiEpgContainerComponent
 
         if (value) {
             this.playlistChannelsSubscription = value.subscribe(() => {
+                // Reset data for new playlist
+                this.channelsLowerRange = 0;
+                this.originalEpgData = [];
+                this.channels$.next([]);
+                this.isLastPage = false;
                 this.initializeVisibleChannels();
                 this.requestPrograms();
             });
         }
     }
+
+    @Input() activeChannelId: string | null = null;
 
     readonly timeHeader = Array.from({ length: 24 }, (_, i) => i);
     readonly hourWidth$ = new BehaviorSubject<number>(150);
@@ -85,6 +92,7 @@ export class MultiEpgContainerComponent
     private playlistChannelsSubscription?: Subscription;
 
     isLastPage = false;
+    isLoading = false;
     totalChannels = 0;
 
     private readonly dialog = inject(MatDialog);
@@ -161,6 +169,12 @@ export class MultiEpgContainerComponent
             return;
         }
 
+        if (this.isLoading || this.isLastPage) {
+            return;
+        }
+
+        this.isLoading = true;
+
         try {
             const response = await window.electron.getEpgChannelsByRange(
                 this.channelsLowerRange,
@@ -168,35 +182,35 @@ export class MultiEpgContainerComponent
             );
 
             if (response && Array.isArray(response)) {
-                this.originalEpgData = response;
+                // Append new data to existing data
+                this.originalEpgData = [...this.originalEpgData, ...response];
                 this.channels$.next(this.enrichProgramData());
 
                 // Update isLastPage based on the number of channels received
                 this.isLastPage = response.length < this.visibleChannels;
 
+                // Update range for next fetch
+                this.channelsLowerRange += response.length;
+
                 this.cdr.detectChanges();
             }
         } catch (error) {
             console.error('Error fetching EPG data:', error);
+        } finally {
+            this.isLoading = false;
         }
     }
 
-    nextChannels(): void {
-        this.channelsLowerRange += this.visibleChannels;
-        this.channelsUpperRange =
-            this.channelsLowerRange + this.visibleChannels;
+    onScroll(event: Event): void {
+        const target = event.target as HTMLElement;
+        const scrollTop = target.scrollTop;
+        const scrollHeight = target.scrollHeight;
+        const clientHeight = target.clientHeight;
 
-        this.requestPrograms();
-    }
-
-    previousChannels(): void {
-        this.channelsLowerRange = Math.max(
-            0,
-            this.channelsLowerRange - this.visibleChannels
-        );
-        this.channelsUpperRange =
-            this.channelsLowerRange + this.visibleChannels;
-        this.requestPrograms();
+        // Load more when user scrolls to within 200px of the bottom
+        if (scrollHeight - scrollTop - clientHeight < 200) {
+            this.requestPrograms();
+        }
     }
 
     private getCachedDate(dateStr: string): Date {
