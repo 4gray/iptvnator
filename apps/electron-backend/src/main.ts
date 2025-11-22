@@ -7,6 +7,7 @@ import ElectronEvents from './app/events/electron.events';
 import EpgEvents from './app/events/epg.events';
 import PlayerEvents from './app/events/player.events';
 import PlaylistEvents from './app/events/playlist.events';
+import RemoteControlEvents from './app/events/remote-control.events';
 import SettingsEvents from './app/events/settings.events';
 import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
@@ -40,6 +41,7 @@ export default class Main {
         XtreamEvents.bootstrapXtreamEvents();
         DatabaseEvents.bootstrapDatabaseEvents();
         EpgEvents.bootstrapEpgEvents();
+        RemoteControlEvents.bootstrapRemoteControlEvents();
 
         // initialize auto updater service
         if (!App.isDevelopmentMode()) {

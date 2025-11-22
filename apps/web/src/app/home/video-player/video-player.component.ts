@@ -3,7 +3,6 @@ import { ComponentPortal } from '@angular/cdk/portal';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import {
     Component,
-    InjectionToken,
     Injector,
     OnInit,
     effect,
@@ -17,6 +16,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import {
     ArtPlayerComponent,
     AudioPlayerComponent,
+    COMPONENT_OVERLAY_REF,
     EpgListComponent,
     HtmlVideoPlayerComponent,
     InfoOverlayComponent,
@@ -31,7 +31,7 @@ import {
     selectChannels,
     selectCurrentEpgProgram,
 } from 'm3u-state';
-import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
+import { Observable, combineLatest, combineLatestWith, filter, map, switchMap, take } from 'rxjs';
 import { DataService, PlaylistsService } from 'services';
 import {
     Channel,
@@ -72,10 +72,6 @@ export class VideoPlayerComponent implements OnInit {
     private readonly settingsStore = inject(SettingsStore);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
-
-    private readonly COMPONENT_OVERLAY_REF = new InjectionToken<OverlayRef>(
-        'COMPONENT_OVERLAY_REF'
-    );
 
     /** Active selected channel */
     readonly activeChannel$ = this.store
@@ -126,6 +122,13 @@ export class VideoPlayerComponent implements OnInit {
         this.applySettings();
         this.getPlaylistUrlAsParam();
 
+        // Setup remote control channel change listener (Electron only)
+        if (this.isDesktop && window.electron?.onChannelChange) {
+            window.electron.onChannelChange((data: { direction: 'up' | 'down' }) => {
+                this.handleRemoteChannelChange(data.direction);
+            });
+        }
+
         this.channels$ = this.activatedRoute.params.pipe(
             combineLatestWith(this.activatedRoute.queryParams),
             switchMap(([params, queryParams]) => {
@@ -160,6 +163,56 @@ export class VideoPlayerComponent implements OnInit {
                 }
             })
         );
+    }
+
+    /**
+     * Handle remote control channel change
+     */
+    handleRemoteChannelChange(direction: 'up' | 'down'): void {
+        console.log(`Remote control: changing channel ${direction}`);
+
+        // Use combineLatest to get both values and take only the first emission
+        combineLatest([this.channels$, this.activeChannel$])
+            .pipe(
+                filter(([channels, activeChannel]) => {
+                    return channels.length > 0 && !!activeChannel;
+                }),
+                take(1),
+                map(([channels, activeChannel]) => {
+                    return { channels, activeChannel: activeChannel as Channel };
+                })
+            )
+            .subscribe({
+                next: ({ channels, activeChannel }) => {
+                    // Find current channel index
+                    const currentIndex = channels.findIndex(
+                        ch => ch.url === activeChannel.url
+                    );
+
+                    if (currentIndex === -1) {
+                        console.warn('Current channel not found in channel list');
+                        return;
+                    }
+
+                    // Calculate next/previous index with wraparound
+                    let nextIndex: number;
+                    if (direction === 'up') {
+                        // Up = previous channel (decrease index)
+                        nextIndex = currentIndex - 1 < 0 ? channels.length - 1 : currentIndex - 1;
+                    } else {
+                        // Down = next channel (increase index)
+                        nextIndex = currentIndex + 1 >= channels.length ? 0 : currentIndex + 1;
+                    }
+
+                    // Dispatch action to change channel
+                    const nextChannel = channels[nextIndex];
+                    console.log(`Switching to channel: ${nextChannel.name}`);
+                    this.store.dispatch(PlaylistActions.setActiveChannel({ channel: nextChannel }));
+                },
+                error: (err) => {
+                    console.error('Error changing channel:', err);
+                }
+            });
     }
 
     /**
@@ -214,7 +267,7 @@ export class VideoPlayerComponent implements OnInit {
         const injector = Injector.create({
             providers: [
                 {
-                    provide: this.COMPONENT_OVERLAY_REF,
+                    provide: COMPONENT_OVERLAY_REF,
                     useValue: this.overlayRef,
                 },
             ],

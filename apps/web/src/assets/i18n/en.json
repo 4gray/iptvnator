@@ -167,7 +167,11 @@
         "REMOTE_CONTROL": "Remote control",
         "REMOTE_CONTROL_DESCRIPTION": "Enable remote control of the application.",
         "REMOTE_CONTROL_PORT": "Remote control port",
-        "REMOTE_CONTROL_PORT_DESCRIPTION": "Port used for remote control of the application. Port 3000 is used by default."
+        "REMOTE_CONTROL_PORT_DESCRIPTION": "Port used for remote control of the application. Port 8765 is used by default.",
+        "PORT_REQUIRED": "Port is required",
+        "PORT_MIN": "Port must be at least 1",
+        "PORT_MAX": "Port must be at most 65535",
+        "PORT_PATTERN": "Only digits are allowed"
     },
     "THEMES": {
         "DARK_THEME": "Dark theme",
@@ -369,8 +373,9 @@
     "INFORMATION": "Information",
     "REMOTE_CONTROL": {
         "TITLE": "Remote control",
-        "UP_CHANNEL": "Up channel",
-        "DOWN_CHANNEL": "Down channel",
+        "SUBTITLE": "Control your IPTV player remotely",
+        "UP_CHANNEL": "Channel Up",
+        "DOWN_CHANNEL": "Channel Down",
         "HEADER": "IPTVNator Remote Control",
         "FOOTER": "IPTVNator Remote Control"
     }
