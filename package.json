@@ -36,7 +36,8 @@
             "gatekeeperAssess": false,
             "hardenedRuntime": false,
             "entitlements": null,
-            "entitlementsInherit": null
+            "entitlementsInherit": null,
+            "icon": "apps/web/src/assets/icons/favicon.icns"
         },
         "linux": {
             "category": "Video",
@@ -46,7 +47,8 @@
                 "deb",
                 "rpm"
             ],
-            "artifactName": "${name}-${version}-${os}-${arch}.${ext}"
+            "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+            "icon": "apps/web/src/assets/icons"
         },
         "win": {
             "compression": "maximum",
@@ -59,7 +61,8 @@
                     ]
                 }
             ],
-            "artifactName": "${name}-${version}-windows-${arch}-setup.${ext}"
+            "artifactName": "${name}-${version}-windows-${arch}-setup.${ext}",
+            "icon": "apps/web/src/assets/icons/favicon.ico"
         },
         "nsis": {
             "artifactName": "${name}-${version}-windows-${arch}-setup.${ext}"
