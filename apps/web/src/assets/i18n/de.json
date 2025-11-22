@@ -190,7 +190,15 @@
     "VLC_PLAYER_PATH": "VLC-Playerpfad",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Exportieren oder importieren Sie Wiedergabelisten im JSON-Format, das in der Anwendung verwendet wird.",
     "EPG_NOTE_URL_TEXT": "Überprüfen Sie es hier",
-    "MPV_PLAYER_PATH_LABEL": "MPV-Pfad"
+    "MPV_PLAYER_PATH_LABEL": "MPV-Pfad",
+    "REMOTE_CONTROL": "Fernsteuerung",
+    "REMOTE_CONTROL_DESCRIPTION": "Fernsteuerung der Anwendung aktivieren.",
+    "REMOTE_CONTROL_PORT": "Fernsteuerungsport",
+    "REMOTE_CONTROL_PORT_DESCRIPTION": "Port für die Fernsteuerung der Anwendung. Standardmäßig wird Port 8765 verwendet.",
+    "PORT_REQUIRED": "Port ist erforderlich",
+    "PORT_MIN": "Port muss mindestens 1 sein",
+    "PORT_MAX": "Port darf maximal 65535 sein",
+    "PORT_PATTERN": "Nur Ziffern sind erlaubt"
   },
   "THEMES": {
     "DARK_THEME": "Dunkel",
