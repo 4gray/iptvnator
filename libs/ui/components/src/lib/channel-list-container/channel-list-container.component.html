@@ -23,7 +23,7 @@
             </div>
             <div id="all-channels" class="channel-list">
                 <cdk-virtual-scroll-viewport
-                    itemSize="68"
+                    [itemSize]="itemSize"
                     class="scroll-viewport"
                 >
                     <app-channel-list-item
@@ -41,6 +41,7 @@
                                 | translate)
                         "
                         [logo]="channel?.tvg?.logo"
+                        [showEpg]="shouldShowEpg"
                         [epgProgram]="getEpgForChannel(channel)"
                         (clicked)="selectChannel(channel)"
                         [selected]="activeChannel()?.url === channel?.url"
@@ -90,10 +91,11 @@
                                                         | translate)
                                                 "
                                                 [logo]="channel?.tvg?.logo"
+                                                [showEpg]="shouldShowEpg"
                                                 [epgProgram]="getEpgForChannel(channel)"
                                                 (clicked)="selectChannel(channel)"
                                                 [selected]="
-                                                    activeChannel()?.url === channel.url
+                                                    activeChannel()?.url === channel?.url
                                                 "
                                             ></app-channel-list-item>
                                         }
@@ -140,6 +142,7 @@
                                     "
                                     [isDraggable]="true"
                                     [logo]="channel?.tvg?.logo"
+                                    [showEpg]="shouldShowEpg"
                                     [epgProgram]="getEpgForChannel(channel)"
                                     (clicked)="selectChannel(channel)"
                                     [selected]="activeChannel()?.url === channel?.url"
