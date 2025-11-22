@@ -56,11 +56,9 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 });
             }
         );
-        /* this.player.hlsQualitySelector({
+        this.player.hlsQualitySelector({
             displayCurrentQuality: true,
         });
-        // this one produces warning in console
-        */
         this.player['aspectRatioPanel']();
     }
 
