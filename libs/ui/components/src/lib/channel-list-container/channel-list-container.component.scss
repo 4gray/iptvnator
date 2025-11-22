@@ -1,11 +1,8 @@
 @use '@angular/material' as mat;
 
-.mat-list-base {
-    padding-top: 0;
-}
-
 .scroll-viewport {
     min-height: calc(100vh - 159px);
+    overflow-x: hidden;
 }
 
 .search-panel {
@@ -22,13 +19,14 @@
     }
 }
 
-mat-nav-list {
-    overflow: scroll;
-}
-
 #all-channels {
     overflow: hidden;
+    overflow-x: hidden;
     max-height: calc(100vh - 167px);
+}
+
+.channel-list {
+    overflow-x: hidden;
 }
 
 ::ng-deep {
@@ -69,6 +67,22 @@ mat-nav-list {
 #groups-list,
 #favorites-list {
     height: calc(100vh - 105px);
+}
+
+.empty-favorites,
+.empty-favorites-hint {
+    padding: 16px 24px;
+    text-align: center;
+}
+
+.empty-favorites {
+    margin-top: 40px;
+    font-size: 1rem;
+}
+
+.empty-favorites-hint {
+    opacity: 0.7;
+    font-size: 0.9rem;
 }
 
 @media only screen and (max-width: 599px) {
