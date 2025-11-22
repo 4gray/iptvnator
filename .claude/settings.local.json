@@ -9,5 +9,9 @@
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "nx-mcp"
+  ],
+  "enableAllProjectMcpServers": true
 }
