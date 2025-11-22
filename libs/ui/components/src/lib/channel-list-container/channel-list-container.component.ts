@@ -25,6 +25,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { FilterPipe } from '@iptvnator/pipes';
 import { Store } from '@ngrx/store';
+import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as _ from 'lodash';
 import * as PlaylistActions from 'm3u-state';
@@ -33,9 +34,16 @@ import {
     selectActivePlaylistId,
     selectFavorites,
 } from 'm3u-state';
-import { BehaviorSubject, combineLatest, map, skipWhile } from 'rxjs';
+import {
+    BehaviorSubject,
+    combineLatest,
+    map,
+    skipWhile,
+    Subject,
+    takeUntil,
+} from 'rxjs';
 import { EpgService } from 'services';
-import { Channel, EpgProgram } from 'shared-interfaces';
+import { Channel, EpgProgram, Settings, STORE_KEY } from 'shared-interfaces';
 import { ChannelListItemComponent } from './channel-list-item/channel-list-item.component';
 
 @Component({
@@ -62,6 +70,7 @@ import { ChannelListItemComponent } from './channel-list-item/channel-list-item.
 export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly epgService = inject(EpgService);
     private readonly snackBar = inject(MatSnackBar);
+    private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly translateService = inject(TranslateService);
 
@@ -70,6 +79,16 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Interval for refreshing EPG data */
     private epgRefreshInterval?: number;
+
+    private destroy$ = new Subject<void>();
+
+    /** Whether to show EPG data in channel items (false in PWA mode or when EPG is not configured) */
+    shouldShowEpg = false;
+
+    /** Item size for virtual scroll - compact when no EPG */
+    get itemSize(): number {
+        return this.shouldShowEpg ? 68 : 48;
+    }
 
     /**
      * Channels array
@@ -128,7 +147,12 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         this.channelList$,
     ]).pipe(
         map(([favoriteChannelIds, channelList]) => {
-            console.log('[ChannelList] favorites$ emit - IDs:', favoriteChannelIds.length, 'Channels:', channelList.length);
+            console.log(
+                '[ChannelList] favorites$ emit - IDs:',
+                favoriteChannelIds.length,
+                'Channels:',
+                channelList.length
+            );
             const favorites = favoriteChannelIds
                 .map((favoriteChannelId) =>
                     channelList.find(
@@ -136,7 +160,11 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                     )
                 )
                 .filter((channel): channel is Channel => channel !== undefined); // Filter out undefined channels
-            console.log('[ChannelList] favorites$ result:', favorites.length, 'favorites');
+            console.log(
+                '[ChannelList] favorites$ result:',
+                favorites.length,
+                'favorites'
+            );
             return favorites;
         })
     );
@@ -185,6 +213,25 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     ngOnInit(): void {
+        // Check if EPG should be shown (only in Electron with configured EPG URL)
+        const isElectron = !!window['electron'];
+        if (isElectron) {
+            this.storage
+                .get(STORE_KEY.Settings)
+                .subscribe((settings: unknown) => {
+                    if (
+                        settings &&
+                        Object.keys(settings as Settings).length > 0
+                    ) {
+                        const epgUrl = (settings as Settings).epgUrl;
+                        this.shouldShowEpg = !!(epgUrl && epgUrl.length > 0);
+                    }
+                });
+        } else {
+            // PWA mode - don't show EPG
+            this.shouldShowEpg = false;
+        }
+
         // Set up EPG refresh interval (every 60 seconds)
         this.epgRefreshInterval = window.setInterval(() => {
             this.fetchEpgForChannels(this._channelList);
@@ -198,6 +245,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             clearInterval(this.epgRefreshInterval);
         }
 
+        this.destroy$.next();
+        this.destroy$.complete();
         // Clean up BehaviorSubject
         this.channelList$.complete();
     }
@@ -213,19 +262,16 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
         // Get channel IDs (prefer tvg-id, fallback to name)
         const channelIds = channels
-            .map(channel => channel?.tvg?.id?.trim() || channel?.name?.trim())
-            .filter(id => !!id);
-
-        console.log(`[EPG] Fetching EPG for ${channelIds.length} channels`);
+            .map((channel) => channel?.tvg?.id?.trim() || channel?.name?.trim())
+            .filter((id) => !!id);
 
         // Batch fetch EPG programs
-        this.epgService.getCurrentProgramsForChannels(channelIds).subscribe(
-            (epgMap) => {
-                console.log(`[EPG] Received EPG data for ${epgMap.size} channels`);
-                console.log('[EPG] Sample data:', Array.from(epgMap.entries()).slice(0, 3));
+        this.epgService
+            .getCurrentProgramsForChannels(channelIds)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((epgMap) => {
                 this.channelEpgMap = epgMap;
-            }
-        );
+            });
     }
 
     /**

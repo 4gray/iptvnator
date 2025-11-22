@@ -26,6 +26,7 @@ import { EpgProgram } from 'shared-interfaces';
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<div
         class="channel-list-item"
+        [class.compact]="!showEpg"
         cdkDrag
         [cdkDragDisabled]="!isDraggable"
         cdkDragPreviewContainer="parent"
