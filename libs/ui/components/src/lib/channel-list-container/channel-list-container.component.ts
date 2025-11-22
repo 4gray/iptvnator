@@ -12,6 +12,7 @@ import {
     inject,
     Input,
     OnDestroy,
+    OnInit,
     viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -20,7 +21,6 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { FilterPipe } from '@iptvnator/pipes';
@@ -35,7 +35,7 @@ import {
 } from 'm3u-state';
 import { map, skipWhile } from 'rxjs';
 import { EpgService } from 'services';
-import { Channel } from 'shared-interfaces';
+import { Channel, EpgProgram } from 'shared-interfaces';
 import { ChannelListItemComponent } from './channel-list-item/channel-list-item.component';
 
 @Component({
@@ -53,18 +53,23 @@ import { ChannelListItemComponent } from './channel-list-item/channel-list-item.
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
-        MatListModule,
         MatTabsModule,
         ScrollingModule,
         TitleCasePipe,
         TranslatePipe,
     ],
 })
-export class ChannelListContainerComponent implements OnDestroy {
+export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly epgService = inject(EpgService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translateService = inject(TranslateService);
+
+    /** Map of channel ID to current EPG program */
+    channelEpgMap = new Map<string, EpgProgram | null>();
+
+    /** Interval for refreshing EPG data */
+    private epgRefreshInterval?: number;
 
     /**
      * Channels array
@@ -79,6 +84,8 @@ export class ChannelListContainerComponent implements OnDestroy {
     set channelList(value: Channel[]) {
         this._channelList = value;
         this.groupedChannels = _.default.groupBy(value, 'group.title');
+        // Fetch EPG for new channel list
+        this.fetchEpgForChannels(value);
     }
 
     /** Object with channels sorted by groups */
@@ -169,8 +176,53 @@ export class ChannelListContainerComponent implements OnDestroy {
         );
     }
 
+    ngOnInit(): void {
+        // Set up EPG refresh interval (every 60 seconds)
+        this.epgRefreshInterval = window.setInterval(() => {
+            this.fetchEpgForChannels(this._channelList);
+        }, 60000);
+    }
+
     ngOnDestroy() {
         this.store.dispatch(PlaylistActions.setChannels({ channels: [] }));
+
+        if (this.epgRefreshInterval) {
+            clearInterval(this.epgRefreshInterval);
+        }
+    }
+
+    /**
+     * Fetches EPG data for all channels
+     */
+    private fetchEpgForChannels(channels: Channel[]): void {
+        if (!channels || channels.length === 0) {
+            console.log('[EPG] No channels to fetch EPG for');
+            return;
+        }
+
+        // Get channel IDs (prefer tvg-id, fallback to name)
+        const channelIds = channels
+            .map(channel => channel?.tvg?.id?.trim() || channel?.name?.trim())
+            .filter(id => !!id);
+
+        console.log(`[EPG] Fetching EPG for ${channelIds.length} channels`);
+
+        // Batch fetch EPG programs
+        this.epgService.getCurrentProgramsForChannels(channelIds).subscribe(
+            (epgMap) => {
+                console.log(`[EPG] Received EPG data for ${epgMap.size} channels`);
+                console.log('[EPG] Sample data:', Array.from(epgMap.entries()).slice(0, 3));
+                this.channelEpgMap = epgMap;
+            }
+        );
+    }
+
+    /**
+     * Gets EPG program for a specific channel
+     */
+    getEpgForChannel(channel: Channel): EpgProgram | null | undefined {
+        const channelId = channel?.tvg?.id?.trim() || channel?.name?.trim();
+        return channelId ? this.channelEpgMap.get(channelId) : null;
     }
 
     groupsComparator = (

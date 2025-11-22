@@ -1,9 +1,14 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject, from, of } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { BehaviorSubject, forkJoin, from, Observable, of } from 'rxjs';
+import { catchError, map, tap, timeout } from 'rxjs/operators';
 import { EpgProgram } from 'shared-interfaces';
+
+interface CachedProgram {
+    program: EpgProgram | null;
+    timestamp: number;
+}
 
 @Injectable({
     providedIn: 'root',
@@ -14,6 +19,10 @@ export class EpgService {
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
+
+    // Cache for channel programs with 60-second TTL
+    private programCache = new Map<string, CachedProgram>();
+    private readonly CACHE_TTL = 60000; // 60 seconds
 
     private readonly isDesktop = !!window.electron;
 
@@ -115,5 +124,130 @@ export class EpgService {
             duration: 3000,
             horizontalPosition: 'start',
         });
+    }
+
+    /**
+     * Gets the current EPG program for a specific channel (with caching)
+     * @param channelId Channel ID (tvg-id or channel name)
+     * @returns Observable of current program or null
+     */
+    getCurrentProgramForChannel(channelId: string): Observable<EpgProgram | null> {
+        if (!this.isDesktop || !channelId) {
+            return of(null);
+        }
+
+        // Check cache first
+        const cached = this.programCache.get(channelId);
+        const now = Date.now();
+
+        if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
+            return of(cached.program);
+        }
+
+        // Fetch from backend
+        return from(window.electron.getChannelPrograms(channelId)).pipe(
+            map((programs: EpgProgram[]) => {
+                if (!programs || programs.length === 0) {
+                    this.programCache.set(channelId, { program: null, timestamp: now });
+                    return null;
+                }
+
+                // Normalize date formats to ISO strings for consistency
+                const transformedPrograms = programs.map((program) => ({
+                    ...program,
+                    start: new Date(program.start).toISOString(),
+                    stop: new Date(program.stop).toISOString(),
+                }));
+
+                // Find current program from transformed programs
+                const currentProgram = this.findCurrentProgram(transformedPrograms);
+
+                // Cache the result
+                this.programCache.set(channelId, {
+                    program: currentProgram,
+                    timestamp: now
+                });
+
+                return currentProgram;
+            }),
+            catchError((err) => {
+                console.error('EPG get current program error:', err);
+                this.programCache.set(channelId, { program: null, timestamp: now });
+                return of(null);
+            })
+        );
+    }
+
+    /**
+     * Finds the current program from a list of programs
+     */
+    private findCurrentProgram(programs: EpgProgram[]): EpgProgram | null {
+        const now = new Date();
+
+        return programs.find(program => {
+            const start = new Date(program.start);
+            const stop = new Date(program.stop);
+            return start <= now && now <= stop;
+        }) || null;
+    }
+
+    /**
+     * Gets current programs for multiple channels (batch operation)
+     * @param channelIds Array of channel IDs
+     * @returns Observable of Map with channelId -> current program
+     */
+    getCurrentProgramsForChannels(channelIds: string[]): Observable<Map<string, EpgProgram | null>> {
+        if (!this.isDesktop) {
+            return of(new Map());
+        }
+
+        if (!channelIds || channelIds.length === 0) {
+            return of(new Map());
+        }
+
+        const resultMap = new Map<string, EpgProgram | null>();
+        const channelsToFetch: string[] = [];
+        const now = Date.now();
+
+        // Check cache for each channel
+        channelIds.forEach(channelId => {
+            const cached = this.programCache.get(channelId);
+            if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
+                resultMap.set(channelId, cached.program);
+            } else {
+                channelsToFetch.push(channelId);
+            }
+        });
+
+        // If all channels were cached, return immediately
+        if (channelsToFetch.length === 0) {
+            return of(resultMap);
+        }
+
+        // Fetch uncached channels with timeout and error handling per request
+        const fetchObservables = channelsToFetch.map(channelId =>
+            this.getCurrentProgramForChannel(channelId).pipe(
+                timeout(5000), // 5 second timeout per request
+                map(program => ({ channelId, program })),
+                catchError(() => of({ channelId, program: null }))
+            )
+        );
+
+        // Combine all fetches using forkJoin
+        return forkJoin(fetchObservables).pipe(
+            map(results => {
+                results.forEach(result => {
+                    resultMap.set(result.channelId, result.program);
+                });
+                return resultMap;
+            })
+        );
+    }
+
+    /**
+     * Clears the program cache (useful when EPG is refreshed)
+     */
+    clearCache(): void {
+        this.programCache.clear();
     }
 }

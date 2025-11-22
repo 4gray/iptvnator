@@ -48,9 +48,17 @@ export class InfoOverlayComponent implements OnChanges {
                 this.isVisible = false;
             }, 10000);
         }
-        if (changes['epgProgram'] && changes['epgProgram'].currentValue) {
-            const { stop, start } = changes['epgProgram'].currentValue;
-            this.setProgramDuration(start, stop);
+        if (changes['epgProgram']) {
+            if (changes['epgProgram'].currentValue) {
+                const { stop, start } = changes['epgProgram'].currentValue;
+                this.setProgramDuration(start, stop);
+            } else {
+                // Reset EPG data when no program is available
+                this.start = undefined;
+                this.stop = undefined;
+                this.generalDuration = 0;
+                this.finishedDuration = 0;
+            }
         }
     }
 

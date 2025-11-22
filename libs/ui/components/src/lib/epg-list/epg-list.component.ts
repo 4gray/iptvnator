@@ -219,11 +219,11 @@ export class EpgListComponent implements OnInit {
             )
             .subscribe((playingNow) => {
                 this.playingNow = playingNow!;
-                if (this.playingNow) {
-                    this.store.dispatch(
-                        setCurrentEpgProgram({ program: this.playingNow })
-                    );
-                }
+                // Always dispatch the action, even when playingNow is null/undefined
+                // This ensures the store is updated and old EPG data is cleared
+                this.store.dispatch(
+                    setCurrentEpgProgram({ program: this.playingNow })
+                );
             });
     }
 
