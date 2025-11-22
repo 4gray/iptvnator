@@ -33,7 +33,7 @@ import {
     selectActivePlaylistId,
     selectFavorites,
 } from 'm3u-state';
-import { map, skipWhile } from 'rxjs';
+import { BehaviorSubject, combineLatest, map, skipWhile } from 'rxjs';
 import { EpgService } from 'services';
 import { Channel, EpgProgram } from 'shared-interfaces';
 import { ChannelListItemComponent } from './channel-list-item/channel-list-item.component';
@@ -76,6 +76,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      * Create local copy of the store for local manipulations without updates in the store
      */
     _channelList: Channel[] = [];
+    private channelList$ = new BehaviorSubject<Channel[]>([]);
+
     get channelList(): Channel[] {
         return this._channelList;
     }
@@ -83,6 +85,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     @Input()
     set channelList(value: Channel[]) {
         this._channelList = value;
+        this.channelList$.next(value); // Emit to observable
         this.groupedChannels = _.default.groupBy(value, 'group.title');
         // Fetch EPG for new channel list
         this.fetchEpgForChannels(value);
@@ -119,18 +122,23 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             )
         );
 
-    /** List with favorites */
-    favorites$ = this.store.select(selectFavorites).pipe(
-        map(
-            (
-                favoriteChannelIds // TODO: move to selector
-            ) =>
-                favoriteChannelIds.map((favoriteChannelId) =>
-                    this.channelList.find(
+    /** List with favorites - combines favorites from store with current channel list */
+    favorites$ = combineLatest([
+        this.store.select(selectFavorites),
+        this.channelList$,
+    ]).pipe(
+        map(([favoriteChannelIds, channelList]) => {
+            console.log('[ChannelList] favorites$ emit - IDs:', favoriteChannelIds.length, 'Channels:', channelList.length);
+            const favorites = favoriteChannelIds
+                .map((favoriteChannelId) =>
+                    channelList.find(
                         (channel) => channel.url === favoriteChannelId
                     )
                 )
-        )
+                .filter((channel): channel is Channel => channel !== undefined); // Filter out undefined channels
+            console.log('[ChannelList] favorites$ result:', favorites.length, 'favorites');
+            return favorites;
+        })
     );
 
     /**
@@ -189,6 +197,9 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         if (this.epgRefreshInterval) {
             clearInterval(this.epgRefreshInterval);
         }
+
+        // Clean up BehaviorSubject
+        this.channelList$.complete();
     }
 
     /**

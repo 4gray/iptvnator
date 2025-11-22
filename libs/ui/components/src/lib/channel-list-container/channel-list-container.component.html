@@ -74,33 +74,36 @@
                                 </mat-expansion-panel-header>
 
                                 <ng-template matExpansionPanelContent>
-                                    @for (
-                                        channel of groups.value;
-                                        track trackByFn($index, channel);
-                                        let i = $index
-                                    ) {
-                                        <app-channel-list-item
-                                            [name]="
-                                                i +
-                                                1 +
-                                                '. ' +
-                                                (channel?.name ||
-                                                    'CHANNELS.UNNAMED_CHANNEL'
-                                                    | translate)
-                                            "
-                                            [logo]="channel?.tvg?.logo"
-                                            (clicked)="selectChannel(channel)"
-                                            [selected]="
-                                                activeChannel()?.url === channel.url
-                                            "
-                                        ></app-channel-list-item>
-                                    }
+                                    <div class="group-channels">
+                                        @for (
+                                            channel of groups.value;
+                                            track trackByFn($index, channel);
+                                            let i = $index
+                                        ) {
+                                            <app-channel-list-item
+                                                [name]="
+                                                    i +
+                                                    1 +
+                                                    '. ' +
+                                                    (channel?.name ||
+                                                        'CHANNELS.UNNAMED_CHANNEL'
+                                                        | translate)
+                                                "
+                                                [logo]="channel?.tvg?.logo"
+                                                [epgProgram]="getEpgForChannel(channel)"
+                                                (clicked)="selectChannel(channel)"
+                                                [selected]="
+                                                    activeChannel()?.url === channel.url
+                                                "
+                                            ></app-channel-list-item>
+                                        }
+                                    </div>
                                 </ng-template>
                             </mat-expansion-panel>
                         }
                     }
                 </mat-accordion>
-            </mat-nav-list>
+            </div>
         </mat-tab>
 
         @let showFavorites = (playlistId$ | async) !== 'GLOBAL_FAVORITES';
