@@ -144,7 +144,15 @@ export class SettingsComponent implements OnInit {
         mpvReuseInstance: false,
         vlcPlayerPath: '',
         remoteControl: false,
-        remoteControlPort: 3000,
+        remoteControlPort: [
+            8765,
+            [
+                Validators.required,
+                Validators.min(1),
+                Validators.max(65535),
+                Validators.pattern(/^\d+$/),
+            ],
+        ],
     });
 
     /** Form array with epg sources */
