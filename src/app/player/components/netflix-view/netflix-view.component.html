@@ -4,6 +4,29 @@
         <p>Loading channels...</p>
     </div>
 } @else {
-    <app-netflix-grid [channelList]="channels"></app-netflix-grid>
+    @if (channels.length > 0) {
+        <div class="view-toggle-container">
+            <mat-button-toggle-group
+                [value]="viewMode"
+                (change)="setViewMode($event.value)">
+                <mat-button-toggle value="grid">
+                    <mat-icon>grid_view</mat-icon>
+                    <span>Netflix Grid</span>
+                </mat-button-toggle>
+                <mat-button-toggle value="list">
+                    <mat-icon>view_list</mat-icon>
+                    <span>{{ 'CHANNELS.ALL_CHANNELS' | translate }}</span>
+                </mat-button-toggle>
+            </mat-button-toggle-group>
+        </div>
+    }
+
+    @if (viewMode === 'grid') {
+        <app-netflix-grid [channelList]="channels"></app-netflix-grid>
+    } @else {
+        <app-channel-list-container 
+            [channelList]="channels"
+            [hideToggle]="true"></app-channel-list-container>
+    }
 }
 

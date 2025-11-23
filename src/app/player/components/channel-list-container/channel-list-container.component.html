@@ -1,18 +1,20 @@
 @if (_channelList?.length) {
-    <div class="channel-view-toolbar">
-        <mat-button-toggle-group
-            [value]="viewMode"
-            (change)="setViewMode($event.value)">
-            <mat-button-toggle value="list">
-                <mat-icon>view_list</mat-icon>
-                <span>{{ 'CHANNELS.ALL_CHANNELS' | translate }}</span>
-            </mat-button-toggle>
-            <mat-button-toggle value="grid">
-                <mat-icon>grid_view</mat-icon>
-                <span>Grid</span>
-            </mat-button-toggle>
-        </mat-button-toggle-group>
-    </div>
+    @if (!hideToggle) {
+        <div class="channel-view-toolbar">
+            <mat-button-toggle-group
+                [value]="viewMode"
+                (change)="setViewMode($event.value)">
+                <mat-button-toggle value="list">
+                    <mat-icon>view_list</mat-icon>
+                    <span>{{ 'CHANNELS.ALL_CHANNELS' | translate }}</span>
+                </mat-button-toggle>
+                <mat-button-toggle value="grid">
+                    <mat-icon>grid_view</mat-icon>
+                    <span>Grid</span>
+                </mat-button-toggle>
+            </mat-button-toggle-group>
+        </div>
+    }
 
     @if (viewMode === 'list') {
         <mat-tab-group color="primary" backgroundColor="primary">

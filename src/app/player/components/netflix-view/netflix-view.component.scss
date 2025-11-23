@@ -24,6 +24,35 @@
     }
 }
 
+.view-toggle-container {
+    padding: 1rem;
+    display: flex;
+    justify-content: flex-end;
+    background: rgba(0, 0, 0, 0.8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    mat-button-toggle-group {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    mat-button-toggle {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        text-transform: none;
+        color: rgba(255, 255, 255, 0.8);
+
+        mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+        }
+    }
+}
+
 @keyframes spin {
     to {
         transform: rotate(360deg);

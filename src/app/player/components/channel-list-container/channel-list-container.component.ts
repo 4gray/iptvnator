@@ -122,7 +122,16 @@ export class ChannelListContainerComponent {
         )
     );
 
-    viewMode: 'list' | 'grid' = 'list';
+    @Input() hideToggle = false;
+    
+    private _viewMode: 'list' | 'grid' = 'list';
+    get viewMode(): 'list' | 'grid' {
+        // When toggle is hidden, always return 'list'
+        return this.hideToggle ? 'list' : this._viewMode;
+    }
+    set viewMode(value: 'list' | 'grid') {
+        this._viewMode = value;
+    }
 
     constructor(
         private readonly epgService: EpgService,
