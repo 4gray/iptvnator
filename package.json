@@ -23,6 +23,9 @@
         "appId": "com.fourgray.iptvnator",
         "productName": "IPTVnator",
         "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+        "asarUnpack": [
+            "**/workers/**"
+        ],
         "mac": {
             "target": {
                 "target": "dmg",

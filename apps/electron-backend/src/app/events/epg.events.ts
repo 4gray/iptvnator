@@ -97,11 +97,16 @@ export default class EpgEvents {
         }
 
         return new Promise((resolve, reject) => {
-            const workerPath = path.join(
+            let workerPath = path.join(
                 __dirname,
                 'workers',
                 'epg-parser.worker.js'
             );
+
+            // Handle asar unpacked files in production
+            if (workerPath.includes('app.asar')) {
+                workerPath = workerPath.replace('app.asar', 'app.asar.unpacked');
+            }
 
             console.log(this.loggerLabel, 'Creating worker for:', url);
             console.log(this.loggerLabel, 'Worker path:', workerPath);
