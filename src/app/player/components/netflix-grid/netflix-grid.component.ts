@@ -8,6 +8,7 @@ import {
     OnInit,
     ViewChild,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -18,7 +19,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import * as PlaylistActions from '../../../state/actions';
 import { EpgService } from '../../../services/epg.service';
-import { selectFavorites } from '../../../state/selectors';
+import { selectActivePlaylistId, selectFavorites } from '../../../state/selectors';
 
 @Component({
     selector: 'app-netflix-grid',
@@ -51,9 +52,11 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
     groupedChannels: { [key: string]: Channel[] } = {};
     selectedChannelId?: string;
     scrollButtonStates: { [groupKey: string]: { left: boolean; right: boolean } } = {};
+    playlistId: string | undefined;
 
     constructor(
         private readonly epgService: EpgService,
+        private readonly router: Router,
         private readonly store: Store
     ) {
         this.store
@@ -61,6 +64,14 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
             .pipe(takeUntil(this.destroy$))
             .subscribe((favoriteUrls) => {
                 this.favoriteIds = new Set(favoriteUrls ?? []);
+            });
+        
+        // Get the current playlist ID from store
+        this.store
+            .select(selectActivePlaylistId)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((playlistId) => {
+                this.playlistId = playlistId;
             });
     }
 
@@ -115,9 +126,15 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
         }
         this.selectedChannelId = channel.id;
         this.store.dispatch(PlaylistActions.setActiveChannel({ channel }));
+        
         const epgChannelId = channel?.name?.trim();
         if (epgChannelId) {
             this.epgService.getChannelPrograms(epgChannelId);
+        }
+
+        // Navigate to video player route to play the channel
+        if (this.playlistId) {
+            this.router.navigate(['/playlists', this.playlistId]);
         }
     }
 

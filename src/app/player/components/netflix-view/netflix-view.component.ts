@@ -14,6 +14,8 @@ import * as PlaylistActions from '../../../state/actions';
 import { NetflixGridComponent } from '../netflix-grid/netflix-grid.component';
 import { ChannelListContainerComponent } from '../channel-list-container/channel-list-container.component';
 
+const NETFLIX_VIEW_MODE_STORAGE_KEY = 'netflix-view-mode';
+
 @Component({
     selector: 'app-netflix-view',
     templateUrl: './netflix-view.component.html',
@@ -31,6 +33,7 @@ export class NetflixViewComponent implements OnInit, OnDestroy {
     channels: Channel[] = [];
     isLoading = true;
     viewMode: 'list' | 'grid' = 'grid';
+    playlistId: string | undefined;
 
     constructor(
         private activatedRoute: ActivatedRoute,
@@ -40,10 +43,15 @@ export class NetflixViewComponent implements OnInit, OnDestroy {
     ) {}
 
     ngOnInit(): void {
+        // Load saved view mode preference
+        this.loadViewModePreference();
+
         this.activatedRoute.params
             .pipe(
                 switchMap((params) => {
                     if (params['id']) {
+                        this.playlistId = params['id'];
+                        
                         // Set active playlist in store
                         this.store.dispatch(
                             PlaylistActions.setActivePlaylist({
@@ -97,6 +105,26 @@ export class NetflixViewComponent implements OnInit, OnDestroy {
 
     setViewMode(mode: 'list' | 'grid'): void {
         this.viewMode = mode;
+        this.saveViewModePreference(mode);
+    }
+
+    private loadViewModePreference(): void {
+        try {
+            const savedMode = localStorage.getItem(NETFLIX_VIEW_MODE_STORAGE_KEY);
+            if (savedMode === 'list' || savedMode === 'grid') {
+                this.viewMode = savedMode;
+            }
+        } catch (error) {
+            console.error('Error loading view mode preference:', error);
+        }
+    }
+
+    private saveViewModePreference(mode: 'list' | 'grid'): void {
+        try {
+            localStorage.setItem(NETFLIX_VIEW_MODE_STORAGE_KEY, mode);
+        } catch (error) {
+            console.error('Error saving view mode preference:', error);
+        }
     }
 }
 

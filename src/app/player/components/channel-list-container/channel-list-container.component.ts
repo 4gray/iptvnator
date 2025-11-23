@@ -10,8 +10,10 @@ import {
     ElementRef,
     HostListener,
     Input,
+    OnDestroy,
     ViewChild,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDividerModule } from '@angular/material/divider';
@@ -25,7 +27,8 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as _ from 'lodash';
-import { map, skipWhile } from 'rxjs';
+import { map, skipWhile, takeUntil } from 'rxjs';
+import { Subject } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import { EpgService } from '../../../services/epg.service';
 import { FilterPipe } from '../../../shared/pipes/filter.pipe';
@@ -61,7 +64,9 @@ import { ChannelListItemComponent } from './channel-list-item/channel-list-item.
         TranslatePipe,
     ],
 })
-export class ChannelListContainerComponent {
+export class ChannelListContainerComponent implements OnDestroy {
+    private readonly destroy$ = new Subject<void>();
+    
     /**
      * Channels array
      * Create local copy of the store for local manipulations without updates in the store
@@ -108,6 +113,9 @@ export class ChannelListContainerComponent {
             )
         );
 
+    /** Current playlist ID */
+    playlistId: string | undefined;
+
     /** List with favorites */
     favorites$ = this.store.select(selectFavorites).pipe(
         map(
@@ -135,10 +143,18 @@ export class ChannelListContainerComponent {
 
     constructor(
         private readonly epgService: EpgService,
+        private readonly router: Router,
         private readonly snackBar: MatSnackBar,
         private readonly store: Store,
         private readonly translateService: TranslateService
-    ) {}
+    ) {
+        // Subscribe to playlist ID changes
+        this.playlistId$
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((playlistId) => {
+                this.playlistId = playlistId;
+            });
+    }
 
     /**
      * Sets clicked channel as selected and emits them to the parent component
@@ -152,6 +168,11 @@ export class ChannelListContainerComponent {
 
         if (epgChannelId) {
             this.epgService.getChannelPrograms(epgChannelId);
+        }
+
+        // Navigate to video player route to play the channel
+        if (this.playlistId) {
+            this.router.navigate(['/playlists', this.playlistId]);
         }
     }
 
@@ -188,6 +209,8 @@ export class ChannelListContainerComponent {
     }
 
     ngOnDestroy() {
+        this.destroy$.next();
+        this.destroy$.complete();
         this.store.dispatch(PlaylistActions.setChannels({ channels: [] }));
     }
 
