@@ -3,10 +3,12 @@ import { ComponentPortal } from '@angular/cdk/portal';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import {
     Component,
+    HostListener,
     Injector,
     OnInit,
     effect,
     inject,
+    viewChild,
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -31,7 +33,15 @@ import {
     selectChannels,
     selectCurrentEpgProgram,
 } from 'm3u-state';
-import { Observable, combineLatest, combineLatestWith, filter, map, switchMap, take } from 'rxjs';
+import {
+    Observable,
+    combineLatest,
+    combineLatestWith,
+    filter,
+    map,
+    switchMap,
+    take,
+} from 'rxjs';
 import { DataService, PlaylistsService } from 'services';
 import {
     Channel,
@@ -97,6 +107,14 @@ export class VideoPlayerComponent implements OnInit {
     /** EPG overlay reference */
     private overlayRef!: OverlayRef;
 
+    /** Info overlay component reference for manual triggering */
+    readonly infoOverlay = viewChild(InfoOverlayComponent);
+
+    /** Channel number input state */
+    channelNumberInput = '';
+    showChannelNumberOverlay = false;
+    private channelNumberTimeout?: number;
+
     volume = 1;
 
     constructor() {
@@ -124,9 +142,11 @@ export class VideoPlayerComponent implements OnInit {
 
         // Setup remote control channel change listener (Electron only)
         if (this.isDesktop && window.electron?.onChannelChange) {
-            window.electron.onChannelChange((data: { direction: 'up' | 'down' }) => {
-                this.handleRemoteChannelChange(data.direction);
-            });
+            window.electron.onChannelChange(
+                (data: { direction: 'up' | 'down' }) => {
+                    this.handleRemoteChannelChange(data.direction);
+                }
+            );
         }
 
         this.channels$ = this.activatedRoute.params.pipe(
@@ -153,6 +173,26 @@ export class VideoPlayerComponent implements OnInit {
                                     channels: playlist.playlist.items,
                                 })
                             );
+
+                            // Load favorites from the playlist
+                            if (
+                                playlist.favorites &&
+                                playlist.favorites.length > 0
+                            ) {
+                                this.store.dispatch(
+                                    PlaylistActions.setFavorites({
+                                        channelIds: playlist.favorites,
+                                    })
+                                );
+                            } else {
+                                // Clear favorites if playlist has none
+                                this.store.dispatch(
+                                    PlaylistActions.setFavorites({
+                                        channelIds: [],
+                                    })
+                                );
+                            }
+
                             return playlist.playlist.items as Channel[];
                         })
                     );
@@ -179,18 +219,20 @@ export class VideoPlayerComponent implements OnInit {
                 }),
                 take(1),
                 map(([channels, activeChannel]) => {
-                    return { channels, activeChannel: activeChannel as Channel };
+                    return {
+                        channels,
+                        activeChannel: activeChannel as Channel,
+                    };
                 })
             )
             .subscribe({
                 next: ({ channels, activeChannel }) => {
                     // Find current channel index
                     const currentIndex = channels.findIndex(
-                        ch => ch.url === activeChannel.url
+                        (ch) => ch.url === activeChannel.url
                     );
 
                     if (currentIndex === -1) {
-                        console.warn('Current channel not found in channel list');
                         return;
                     }
 
@@ -198,20 +240,29 @@ export class VideoPlayerComponent implements OnInit {
                     let nextIndex: number;
                     if (direction === 'up') {
                         // Up = previous channel (decrease index)
-                        nextIndex = currentIndex - 1 < 0 ? channels.length - 1 : currentIndex - 1;
+                        nextIndex =
+                            currentIndex - 1 < 0
+                                ? channels.length - 1
+                                : currentIndex - 1;
                     } else {
                         // Down = next channel (increase index)
-                        nextIndex = currentIndex + 1 >= channels.length ? 0 : currentIndex + 1;
+                        nextIndex =
+                            currentIndex + 1 >= channels.length
+                                ? 0
+                                : currentIndex + 1;
                     }
 
                     // Dispatch action to change channel
                     const nextChannel = channels[nextIndex];
-                    console.log(`Switching to channel: ${nextChannel.name}`);
-                    this.store.dispatch(PlaylistActions.setActiveChannel({ channel: nextChannel }));
+                    this.store.dispatch(
+                        PlaylistActions.setActiveChannel({
+                            channel: nextChannel,
+                        })
+                    );
                 },
                 error: (err) => {
                     console.error('Error changing channel:', err);
-                }
+                },
             });
     }
 
@@ -284,6 +335,13 @@ export class VideoPlayerComponent implements OnInit {
             selectChannels
         ) as Observable<Channel[]>;
 
+        // Pass the active channel's tvg.id for highlighting
+        this.activeChannel$.pipe(take(1)).subscribe((channel) => {
+            if (channel) {
+                componentRef.instance.activeChannelId = (channel as Channel).tvg?.id || null;
+            }
+        });
+
         this.overlayRef.backdropClick().subscribe(() => {
             this.overlayRef.dispose();
         });
@@ -303,5 +361,96 @@ export class VideoPlayerComponent implements OnInit {
             height: '90%',
             data: { isDialog: true },
         });
+    }
+
+    /**
+     * Keyboard shortcut: Press 'I' to toggle EPG info overlay
+     */
+    @HostListener('document:keydown.i', ['$event'])
+    handleInfoKeyPress(event: Event): void {
+        // Prevent default behavior and show info overlay
+        event.preventDefault();
+        this.toggleInfoOverlay();
+    }
+
+    /**
+     * Handle digit key presses for channel number input
+     */
+    @HostListener('document:keydown', ['$event'])
+    handleKeyPress(event: KeyboardEvent): void {
+        // Only handle digit keys (0-9)
+        if (event.key >= '0' && event.key <= '9') {
+            event.preventDefault();
+            this.handleChannelNumberInput(event.key);
+        }
+    }
+
+    /**
+     * Toggles the EPG info overlay visibility
+     * Called by 'I' keyboard shortcut or info button
+     */
+    toggleInfoOverlay(): void {
+        const overlay = this.infoOverlay();
+        if (overlay) {
+            overlay.showOverlay();
+        }
+    }
+
+    /**
+     * Handle channel number input from keyboard
+     * Debounces input to allow multi-digit channel numbers
+     */
+    handleChannelNumberInput(digit: string): void {
+        // Clear existing timeout
+        if (this.channelNumberTimeout) {
+            clearTimeout(this.channelNumberTimeout);
+        }
+
+        // Add digit to current input
+        this.channelNumberInput += digit;
+        this.showChannelNumberOverlay = true;
+
+        // Set timeout to switch channel after 2 seconds of no input
+        this.channelNumberTimeout = window.setTimeout(() => {
+            this.switchToChannelByNumber(parseInt(this.channelNumberInput, 10));
+            this.clearChannelNumberInput();
+        }, 2000);
+    }
+
+    /**
+     * Switch to channel by number (1-based index)
+     */
+    switchToChannelByNumber(channelNumber: number): void {
+        this.channels$
+            .pipe(
+                take(1),
+                map((channels) => {
+                    // Channel numbers are 1-based, array is 0-based
+                    const channelIndex = channelNumber - 1;
+                    if (channelIndex >= 0 && channelIndex < channels.length) {
+                        return channels[channelIndex];
+                    }
+                    return null;
+                })
+            )
+            .subscribe((channel) => {
+                if (channel) {
+                    this.store.dispatch(
+                        PlaylistActions.setActiveChannel({ channel })
+                    );
+                }
+            });
+    }
+
+    /**
+     * Clear channel number input and hide overlay
+     */
+    clearChannelNumberInput(): void {
+        this.channelNumberInput = '';
+        this.showChannelNumberOverlay = false;
+        if (this.channelNumberTimeout) {
+            clearTimeout(this.channelNumberTimeout);
+            this.channelNumberTimeout = undefined;
+        }
     }
 }

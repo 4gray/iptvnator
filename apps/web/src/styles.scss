@@ -73,39 +73,6 @@ textarea,
     }
 }
 
-.cet-container {
-    .video-js {
-        height: calc(100vh - 93px) !important;
-    }
-
-    app-web-player-view > app-vjs-player > .video-js {
-        height: 100% !important;
-    }
-
-    #video-player {
-        width: 100%;
-        height: calc(100vh - 80px) !important;
-    }
-
-    .recent-playlists {
-        height: calc(100vh - 106px - 28px) !important;
-    }
-
-    #groups-list,
-    #favorites-list {
-        height: calc(100vh - 148px) !important;
-    }
-
-    .scroll-viewport {
-        min-height: calc(100vh - 210px) !important;
-    }
-
-    .scroll-viewport-portals {
-        min-height: calc(100vh - 170px) !important;
-        overflow-x: hidden !important;
-    }
-}
-
 .scroll-viewport-portals {
     min-height: calc(100vh - 170px) !important;
     overflow-x: hidden !important;
@@ -113,21 +80,4 @@ textarea,
 
 .mat-drawer-inner-container {
     overflow: hidden !important;
-}
-
-@media only screen and (max-width: 599px) {
-    .cet-container {
-        .video-js {
-            height: calc(50vh - 70px) !important;
-        }
-
-        #video-player {
-            height: calc(50vh - 80px) !important;
-        }
-
-        .scroll-viewport {
-            min-height: calc(50vh - 159px) !important
-        }
-    }
-
 }

@@ -16,7 +16,9 @@
                 (toggleLeftDrawerClicked)="drawer.toggle()"
                 (toggleRightDrawerClicked)="drawerRight.toggle()"
                 (multiEpgClicked)="openMultiEpgView()"
+                (infoOverlayClicked)="toggleInfoOverlay()"
                 [activeChannel]="activeChannel"
+                [isLeftDrawerOpened]="drawer.opened"
                 (settingsClicked)="openSettings()"
             />
             @if (activeChannel.radio === 'true') {
@@ -98,6 +100,15 @@
                     [channel]="activeChannel"
                     [epgProgram]="(epgProgram$ | async)!"
                 />
+
+                <!-- channel number overlay -->
+                @if (showChannelNumberOverlay) {
+                    <div class="channel-number-overlay">
+                        <div class="channel-number-display">
+                            {{ channelNumberInput }}
+                        </div>
+                    </div>
+                }
             }
         }
     </mat-drawer-content>

@@ -151,11 +151,13 @@ ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlists) => {
                 continue;
             }
 
-            // Preserve the original _id and autoRefresh setting
+            // Preserve user data when updating playlist
             updatedPlaylists.push({
                 ...playlistObject,
                 _id: playlist._id,
                 autoRefresh: playlist.autoRefresh,
+                favorites: playlist.favorites || [], // Preserve favorites
+                userAgent: playlist.userAgent, // Preserve custom user agent
             });
 
             console.log(`Successfully updated playlist "${playlist.title}"`);

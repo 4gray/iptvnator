@@ -198,7 +198,8 @@
         "OPEN_CHANNELS_LIST": "Open channel list",
         "TOGGLE_FAVORITE_FLAG": "Toggle favorite flag",
         "OPEN_EPG_LIST": "Open EPG list",
-        "OPEN_MULTI_EPG": "Open Multi-EPG view"
+        "OPEN_MULTI_EPG": "Open Multi-EPG view",
+        "SHOW_INFO": "Show program info (Press I)"
     },
     "EPG": {
         "TITLE": "Electronic Program Guide",
@@ -213,6 +214,7 @@
         "FETCH_EPG": "Fetching EPG data...",
         "ERROR": "Ooops, EPG could not be loaded.",
         "DOWNLOAD_SUCCESS": "EPG was successfully downloaded.",
+        "NO_PROGRAM_INFO": "No program information available",
         "PROGRAM_DIALOG": {
             "PROGRAM_DETAILS": "Details about the TV program",
             "TITLE": "Title",

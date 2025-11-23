@@ -1,38 +1,170 @@
-.channel-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    font-size: 0.9em;
-    max-width: 290px;
-    transition: color 0.2s ease;
-    width: 100%;
-    position: relative;
-    overflow: hidden;
+// Main channel list item container
+.channel-list-item {
+    display: flex;
+    align-items: center;
+    height: 68px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    gap: 12px;
 
     &:hover {
-        overflow: visible;
-        text-overflow: clip;
-        animation: marquee 6s linear infinite;
+        background-color: rgba(0, 0, 0, 0.04);
     }
-    
+
+    &.active {
+        background-color: rgba(0, 0, 0, 0.08);
+    }
+
+    // Compact mode when EPG is not shown
+    &.compact {
+        height: 48px;
+        padding: 6px 12px;
+    }
 }
 
-.active {
-    background: #ddd;
-}
+// Dark theme support
+::ng-deep .dark-theme {
+    .channel-list-item {
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.04);
+        }
 
-::ng-deep {
-    .dark-theme {
-        .active {
-            background: #000;
+        &.active {
+            background-color: rgba(255, 255, 255, 0.08);
         }
     }
 }
 
+// Drag handle icon
 .drag-icon {
     cursor: move;
-    margin-left: 0;
-    margin-right: 0;
+    margin-right: 4px;
+    opacity: 0.5;
+}
+
+// Main content area
+.channel-content {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 12px;
+    min-width: 0; // Allow text truncation
+}
+
+// Channel logo
+.channel-logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 4px;
+    object-fit: contain;
+    flex-shrink: 0;
+
+    // Smaller logo in compact mode
+    .compact & {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+// Channel details (name + EPG)
+.channel-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0; // Allow text truncation
+}
+
+// Channel name
+.channel-name {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
+}
+
+// EPG title (program name)
+.epg-title {
+    font-family:
+        -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+        Arial, sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    opacity: 0.85;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+    min-width: 0;
+    max-width: 100%;
+}
+
+// EPG timeline container
+.epg-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+// EPG time display
+.epg-time {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.7rem;
+    opacity: 0.6;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
+}
+
+// EPG placeholder (when no data available)
+.epg-placeholder {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    opacity: 0.5;
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
+}
+
+// Progress track
+.epg-progress-track {
+    position: relative;
+    width: 100%;
+    height: 3px;
+    background: rgba(128, 128, 128, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+// Progress fill
+.epg-progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);
+    border-radius: 2px;
+    transition: width 0.5s ease-out;
+    box-shadow: 0 0 6px rgba(124, 58, 237, 0.4);
+}
+
+// Favorite button
+.favorite-button {
+    flex-shrink: 0;
 }

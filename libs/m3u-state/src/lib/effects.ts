@@ -8,6 +8,7 @@ import { TranslateService } from '@ngx-translate/core';
 import {
     combineLatestWith,
     EMPTY,
+    filter,
     firstValueFrom,
     map,
     switchMap,
@@ -130,6 +131,8 @@ export class PlaylistEffects {
     setActiveChannel$ = createEffect(() => {
         return this.actions$.pipe(
             ofType(PlaylistActions.setActiveChannel),
+            // Skip the effect entirely when channel is falsy
+            filter((action) => !!action.channel),
             map((action) => {
                 const { channel } = action;
 

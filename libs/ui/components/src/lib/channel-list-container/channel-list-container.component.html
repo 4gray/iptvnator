@@ -21,9 +21,9 @@
                     />
                 </mat-form-field>
             </div>
-            <mat-nav-list id="all-channels">
+            <div id="all-channels" class="channel-list">
                 <cdk-virtual-scroll-viewport
-                    itemSize="50"
+                    [itemSize]="itemSize"
                     class="scroll-viewport"
                 >
                     <app-channel-list-item
@@ -41,11 +41,13 @@
                                 | translate)
                         "
                         [logo]="channel?.tvg?.logo"
+                        [showEpg]="shouldShowEpg"
+                        [epgProgram]="getEpgForChannel(channel)"
                         (clicked)="selectChannel(channel)"
                         [selected]="activeChannel()?.url === channel?.url"
                     />
                 </cdk-virtual-scroll-viewport>
-            </mat-nav-list>
+            </div>
         </mat-tab>
 
         <mat-tab>
@@ -55,7 +57,7 @@
                     {{ 'CHANNELS.GROUPS' | translate }}
                 </div>
             </ng-template>
-            <mat-nav-list id="groups-list">
+            <div id="groups-list" class="channel-list">
                 <mat-accordion multi>
                     @for (
                         groups of groupedChannels | keyvalue: groupsComparator;
@@ -73,33 +75,37 @@
                                 </mat-expansion-panel-header>
 
                                 <ng-template matExpansionPanelContent>
-                                    @for (
-                                        channel of groups.value;
-                                        track trackByFn($index, channel);
-                                        let i = $index
-                                    ) {
-                                        <app-channel-list-item
-                                            [name]="
-                                                i +
-                                                1 +
-                                                '. ' +
-                                                (channel?.name ||
-                                                    'CHANNELS.UNNAMED_CHANNEL'
-                                                    | translate)
-                                            "
-                                            [logo]="channel?.tvg?.logo"
-                                            (clicked)="selectChannel(channel)"
-                                            [selected]="
-                                                activeChannel()?.url === channel.url
-                                            "
-                                        ></app-channel-list-item>
-                                    }
+                                    <div class="group-channels">
+                                        @for (
+                                            channel of groups.value;
+                                            track trackByFn($index, channel);
+                                            let i = $index
+                                        ) {
+                                            <app-channel-list-item
+                                                [name]="
+                                                    i +
+                                                    1 +
+                                                    '. ' +
+                                                    (channel?.name ||
+                                                        'CHANNELS.UNNAMED_CHANNEL'
+                                                        | translate)
+                                                "
+                                                [logo]="channel?.tvg?.logo"
+                                                [showEpg]="shouldShowEpg"
+                                                [epgProgram]="getEpgForChannel(channel)"
+                                                (clicked)="selectChannel(channel)"
+                                                [selected]="
+                                                    activeChannel()?.url === channel?.url
+                                                "
+                                            ></app-channel-list-item>
+                                        }
+                                    </div>
                                 </ng-template>
                             </mat-expansion-panel>
                         }
                     }
                 </mat-accordion>
-            </mat-nav-list>
+            </div>
         </mat-tab>
 
         @let showFavorites = (playlistId$ | async) !== 'GLOBAL_FAVORITES';
@@ -113,7 +119,8 @@
                 </ng-template>
                 @let favorites = favorites$ | async;
                 @if (favorites) {
-                    <mat-nav-list
+                    <div
+                        class="channel-list"
                         cdkDropList
                         (cdkDropListDropped)="drop($event, favorites)"
                         id="favorites-list"
@@ -135,6 +142,8 @@
                                     "
                                     [isDraggable]="true"
                                     [logo]="channel?.tvg?.logo"
+                                    [showEpg]="shouldShowEpg"
+                                    [epgProgram]="getEpgForChannel(channel)"
                                     (clicked)="selectChannel(channel)"
                                     [selected]="activeChannel()?.url === channel?.url"
                                     [showFavoriteButton]="true"
@@ -144,18 +153,18 @@
                                 />
                             }
                         } @else {
-                            <mat-list-item
-                                ><strong>{{
+                            <div class="empty-favorites">
+                                <strong>{{
                                     'CHANNELS.NO_FAVORITES' | translate
-                                }}</strong></mat-list-item
-                            >
-                            <mat-list-item>
+                                }}</strong>
+                            </div>
+                            <div class="empty-favorites-hint">
                                 {{
                                     'CHANNELS.USE_STAR_TO_FAVORITE' | translate
-                                }}</mat-list-item
-                            >
+                                }}
+                            </div>
                         }
-                    </mat-nav-list>
+                    </div>
                 }
             </mat-tab>
         }

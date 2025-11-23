@@ -1,6 +1,5 @@
 import { BrowserWindow, screen, shell } from 'electron';
 import { join } from 'path';
-import { format } from 'url';
 import { environment } from '../environments/environment';
 import { rendererAppName, rendererAppPort } from './constants';
 import { store, WINDOW_BOUNDS } from './services/store.service';
@@ -118,17 +117,8 @@ export default class App {
             App.mainWindow.loadURL(`http://localhost:${rendererAppPort}`);
             App.mainWindow.webContents.openDevTools();
         } else {
-            App.mainWindow.loadURL(
-                format({
-                    pathname: join(
-                        __dirname,
-                        '..',
-                        rendererAppName,
-                        'index.html'
-                    ),
-                    protocol: 'file:',
-                    slashes: true,
-                })
+            App.mainWindow.loadFile(
+                join(__dirname, '..', rendererAppName, 'index.html')
             );
         }
     }
