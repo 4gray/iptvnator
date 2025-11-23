@@ -1,6 +1,3 @@
-// Import refined fonts
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap');
-
 .channel-overlay {
     position: absolute;
     bottom: 35px;
@@ -23,11 +20,22 @@
         inset: 0;
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 20%, rgba(0, 0, 0, 0.8) 60%, black 100%);
-        -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 20%, rgba(0, 0, 0, 0.8) 60%, black 100%);
+        mask-image: linear-gradient(
+            to bottom,
+            transparent 0%,
+            rgba(0, 0, 0, 0.3) 20%,
+            rgba(0, 0, 0, 0.8) 60%,
+            black 100%
+        );
+        -webkit-mask-image: linear-gradient(
+            to bottom,
+            transparent 0%,
+            rgba(0, 0, 0, 0.3) 20%,
+            rgba(0, 0, 0, 0.8) 60%,
+            black 100%
+        );
         z-index: -1;
     }
-
 }
 
 // EPG Layout with data
@@ -161,7 +169,12 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.3) 50%,
+            transparent 100%
+        );
         animation: shimmer 2s ease-in-out infinite;
     }
 }
@@ -204,7 +217,9 @@
 .hidden {
     visibility: hidden;
     opacity: 0;
-    transition: visibility 0s 2s, opacity 2s linear;
+    transition:
+        visibility 0s 2s,
+        opacity 2s linear;
 }
 
 // No EPG state variations

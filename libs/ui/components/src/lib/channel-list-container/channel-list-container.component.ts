@@ -34,14 +34,7 @@ import {
     selectActivePlaylistId,
     selectFavorites,
 } from 'm3u-state';
-import {
-    BehaviorSubject,
-    combineLatest,
-    map,
-    skipWhile,
-    Subject,
-    takeUntil,
-} from 'rxjs';
+import { BehaviorSubject, combineLatest, map, skipWhile } from 'rxjs';
 import { EpgService } from 'services';
 import { Channel, EpgProgram, Settings, STORE_KEY } from 'shared-interfaces';
 import { ChannelListItemComponent } from './channel-list-item/channel-list-item.component';
@@ -79,8 +72,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Interval for refreshing EPG data */
     private epgRefreshInterval?: number;
-
-    private destroy$ = new Subject<void>();
 
     /** Whether to show EPG data in channel items (false in PWA mode or when EPG is not configured) */
     shouldShowEpg = false;
@@ -245,8 +236,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             clearInterval(this.epgRefreshInterval);
         }
 
-        this.destroy$.next();
-        this.destroy$.complete();
         // Clean up BehaviorSubject
         this.channelList$.complete();
     }
@@ -268,7 +257,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         // Batch fetch EPG programs
         this.epgService
             .getCurrentProgramsForChannels(channelIds)
-            .pipe(takeUntil(this.destroy$))
             .subscribe((epgMap) => {
                 this.channelEpgMap = epgMap;
             });
