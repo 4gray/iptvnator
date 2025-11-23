@@ -41,7 +41,7 @@ jobs:
               run: pnpm install --no-frozen-lockfile
 
             - name: Build frontend
-              run: npm run build:frontend
+              run: npx nx build web --skip-nx-cache
 
             - name: Build backend
               run: npm run build:backend
