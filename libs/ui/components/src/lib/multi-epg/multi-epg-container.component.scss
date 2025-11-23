@@ -1,6 +1,3 @@
-// Import distinctive fonts
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
 // Color palette - Broadcast control room aesthetic
 $bg-deep: #0a0a0f;
 $bg-surface: #12121a;
@@ -42,7 +39,7 @@ $gradient-header: linear-gradient(
     display: flex;
     background: $bg-deep;
     color: $text-primary;
-    font-family: 'Outfit', sans-serif;
+    font-family: Roboto, 'Helvetica Neue', sans-serif;
     position: relative;
     overflow-y: auto;
     height: calc(100vh - 56px);
@@ -96,7 +93,7 @@ $gradient-header: linear-gradient(
 
     // Button styling
     button {
-        font-family: 'Outfit', sans-serif;
+        font-family: Roboto, 'Helvetica Neue', sans-serif;
         font-weight: 500;
         letter-spacing: 0.02em;
         transition: all 0.2s ease;
