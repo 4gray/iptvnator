@@ -1,0 +1,9 @@
+@if (isLoading) {
+    <div class="loading-container">
+        <div class="spinner"></div>
+        <p>Loading channels...</p>
+    </div>
+} @else {
+    <app-netflix-grid [channelList]="channels"></app-netflix-grid>
+}
+

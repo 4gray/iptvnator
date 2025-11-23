@@ -48,6 +48,13 @@ const routes: Routes = [
         // canActivate: [authGuard],
     },
     {
+        path: 'netflix/:id',
+        loadComponent: () =>
+            import(
+                './player/components/netflix-view/netflix-view.component'
+            ).then((c) => c.NetflixViewComponent),
+    },
+    {
         path: 'settings',
         loadComponent: () =>
             import('./settings/settings.component').then(

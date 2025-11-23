@@ -1,0 +1,106 @@
+@if (channelList.length === 0) {
+    <div class="empty-state">
+        <mat-icon>tv_off</mat-icon>
+        <p>{{ 'CHANNELS.UPLOAD_OR_SELECT_OTHER_PLAYLIST' | translate }}</p>
+    </div>
+} @else {
+    <div class="netflix-grid-container">
+        @for (
+            group of groupedChannels | keyvalue: groupsComparator;
+            track group.key
+        ) {
+            @if (group.value.length > 0) {
+            <div class="channel-row">
+                <div class="row-header">
+                    <h2 class="row-title">
+                        {{ 
+                            group.key === 'UNGROUPED' 
+                                ? ('CHANNELS.UNGROUPED' | translate)
+                                : group.key 
+                        }}
+                        <span class="channel-count">({{ group.value.length }})</span>
+                    </h2>
+                </div>
+                
+                <div class="row-container">
+                    <button
+                        class="scroll-button scroll-left"
+                        [class.visible]="canScrollLeft(group.key)"
+                        (click)="scrollGroup(group.key, 'left', $event)"
+                        [attr.aria-label]="'Scroll left'"
+                        mat-icon-button>
+                        <mat-icon>chevron_left</mat-icon>
+                    </button>
+
+                    <div 
+                        class="channel-row-content"
+                        [id]="'group-' + group.key"
+                        role="list"
+                        (scroll)="onScroll(group.key)">
+                        @for (
+                            channel of group.value;
+                            track trackByFn($index, channel);
+                            let i = $index
+                        ) {
+                            <article
+                                class="channel-card"
+                                role="listitem"
+                                [class.active]="selectedChannelId === channel?.id"
+                                [class.favorite]="isFavorite(channel)"
+                                tabindex="0"
+                                (click)="selectChannel(channel)"
+                                (keydown.enter)="selectChannel(channel)"
+                                (keydown.space)="selectChannel(channel); $event.preventDefault()">
+                                
+                                <div class="card-image-container">
+                                    @if (channel?.tvg?.logo) {
+                                        <img 
+                                            [src]="channel.tvg.logo" 
+                                            [alt]="channel.name || ''"
+                                            class="channel-logo"
+                                            loading="lazy"
+                                            (error)="$any($event.target).style.display='none'" />
+                                    } @else {
+                                        <div class="channel-logo-placeholder">
+                                            <span>{{ channel?.name?.charAt(0)?.toUpperCase() || '•' }}</span>
+                                        </div>
+                                    }
+                                    
+                                    <button
+                                        class="favorite-button"
+                                        [class.favorite]="isFavorite(channel)"
+                                        [matTooltip]="
+                                            isFavorite(channel) 
+                                                ? ('CHANNELS.REMOVE_FAVORITE' | translate)
+                                                : ('CHANNELS.ADD_FAVORITE' | translate)
+                                        "
+                                        (click)="toggleFavorite(channel, $event)"
+                                        mat-icon-button>
+                                        <mat-icon>{{ isFavorite(channel) ? 'star' : 'star_border' }}</mat-icon>
+                                    </button>
+                                </div>
+
+                                <div class="card-info">
+                                    <h3 class="channel-name" [title]="channel?.name || ''">
+                                        {{ channel?.name || ('CHANNELS.UNNAMED_CHANNEL' | translate) }}
+                                    </h3>
+                                </div>
+                            </article>
+                        }
+                    </div>
+
+                    <button
+                        class="scroll-button scroll-right"
+                        [class.visible]="canScrollRight(group.key)"
+                        (click)="scrollGroup(group.key, 'right', $event)"
+                        [attr.aria-label]="'Scroll right'"
+                        mat-icon-button>
+                        <mat-icon>chevron_right</mat-icon>
+                    </button>
+                </div>
+            </div>
+            }
+        }
+    </div>
+}
+

@@ -1,0 +1,316 @@
+.netflix-grid-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding: 2rem 1rem;
+    background: #000;
+    min-height: 100vh;
+    color: #fff;
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 2rem;
+        color: rgba(255, 255, 255, 0.6);
+        text-align: center;
+        gap: 1rem;
+
+        mat-icon {
+            font-size: 4rem;
+            width: 4rem;
+            height: 4rem;
+            opacity: 0.5;
+        }
+
+        p {
+            font-size: 1.125rem;
+            margin: 0;
+        }
+    }
+
+    .channel-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+
+        .row-header {
+            padding: 0 1rem;
+
+            .row-title {
+                font-size: 1.5rem;
+                font-weight: 600;
+                margin: 0;
+                color: #e5e5e5;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+
+                .channel-count {
+                    font-size: 1rem;
+                    font-weight: 400;
+                    color: rgba(255, 255, 255, 0.6);
+                }
+            }
+        }
+
+        .row-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 0 0.5rem;
+
+            .scroll-button {
+                position: absolute;
+                z-index: 10;
+                background: rgba(0, 0, 0, 0.75);
+                color: #fff;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                pointer-events: none;
+
+                &.visible {
+                    opacity: 1;
+                    pointer-events: auto;
+                }
+
+                &:hover {
+                    background: rgba(0, 0, 0, 0.9);
+                    transform: scale(1.1);
+                }
+
+                &.scroll-left {
+                    left: 0.5rem;
+                }
+
+                &.scroll-right {
+                    right: 0.5rem;
+                }
+
+                mat-icon {
+                    font-size: 2rem;
+                    width: 2rem;
+                    height: 2rem;
+                }
+            }
+
+            .channel-row-content {
+                display: flex;
+                gap: 0.75rem;
+                overflow-x: auto;
+                overflow-y: hidden;
+                scroll-behavior: smooth;
+                padding: 0.5rem 1rem;
+                scrollbar-width: none; // Firefox
+                -ms-overflow-style: none; // IE/Edge
+
+                &::-webkit-scrollbar {
+                    display: none; // Chrome/Safari
+                }
+
+                &::-webkit-scrollbar-track {
+                    display: none;
+                }
+
+                &::-webkit-scrollbar-thumb {
+                    display: none;
+                }
+
+                // Show scroll buttons on hover
+                &:hover ~ .scroll-button,
+                .scroll-button:hover {
+                    opacity: 1 !important;
+                    pointer-events: auto !important;
+                }
+            }
+        }
+    }
+
+    .channel-card {
+        position: relative;
+        flex: 0 0 200px;
+        background: #181818;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 280px;
+        border: 2px solid transparent;
+
+        &:hover {
+            transform: scale(1.05);
+            z-index: 5;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.3);
+
+            .card-info {
+                opacity: 1;
+            }
+
+            ~ .scroll-button {
+                opacity: 1 !important;
+            }
+        }
+
+        &.active {
+            border-color: #e50914;
+            box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.5);
+        }
+
+        &.favorite {
+            .favorite-button {
+                color: #f5c542;
+            }
+        }
+
+        &:focus-visible {
+            outline: 2px solid #e50914;
+            outline-offset: 2px;
+        }
+
+        .card-image-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; // 16:9 aspect ratio
+            background: #2a2a2a;
+            overflow: hidden;
+
+            .channel-logo,
+            .channel-logo-placeholder {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                padding: 0.75rem;
+            }
+
+            .channel-logo-placeholder {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: #fff;
+                font-size: 3rem;
+                font-weight: 600;
+            }
+
+            .favorite-button {
+                position: absolute;
+                top: 0.5rem;
+                right: 0.5rem;
+                background: rgba(0, 0, 0, 0.6);
+                color: rgba(255, 255, 255, 0.8);
+                opacity: 0;
+                transition: opacity 0.2s ease, background 0.2s ease;
+                z-index: 2;
+
+                &:hover {
+                    background: rgba(0, 0, 0, 0.9);
+                    color: #f5c542;
+                }
+
+                &.favorite {
+                    opacity: 1;
+                    color: #f5c542;
+                }
+            }
+
+            &:hover .favorite-button {
+                opacity: 1;
+            }
+        }
+
+        .card-info {
+            padding: 0.75rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            opacity: 0.9;
+            transition: opacity 0.2s ease;
+
+            .channel-name {
+                font-size: 0.875rem;
+                font-weight: 500;
+                margin: 0;
+                color: #e5e5e5;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                line-height: 1.4;
+            }
+        }
+    }
+
+    // Responsive adjustments
+    @media (max-width: 768px) {
+        padding: 1rem 0.5rem;
+        gap: 1.5rem;
+
+        .channel-row {
+            .row-header .row-title {
+                font-size: 1.25rem;
+            }
+
+            .row-container {
+                .scroll-button {
+                    width: 40px;
+                    height: 40px;
+
+                    mat-icon {
+                        font-size: 1.5rem;
+                        width: 1.5rem;
+                        height: 1.5rem;
+                    }
+                }
+
+                .channel-row-content {
+                    padding: 0.5rem;
+                }
+            }
+        }
+
+        .channel-card {
+            flex: 0 0 160px;
+            min-height: 240px;
+        }
+    }
+
+    // Dark theme support
+    @media (prefers-color-scheme: light) {
+        background: #f5f5f5;
+
+        .channel-row .row-header .row-title {
+            color: #1a1a1a;
+        }
+
+        .channel-card {
+            background: #fff;
+            border-color: rgba(0, 0, 0, 0.1);
+
+            &:hover {
+                border-color: rgba(0, 0, 0, 0.2);
+            }
+
+            .card-image-container {
+                background: #f0f0f0;
+            }
+
+            .card-info .channel-name {
+                color: #1a1a1a;
+            }
+        }
+    }
+}
+
