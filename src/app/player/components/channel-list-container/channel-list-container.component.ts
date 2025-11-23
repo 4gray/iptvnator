@@ -40,6 +40,8 @@ import {
 import { ChannelGridContainerComponent } from '../channel-grid-container/channel-grid-container.component';
 import { ChannelListItemComponent } from './channel-list-item/channel-list-item.component';
 
+const CHANNEL_LIST_VIEW_MODE_STORAGE_KEY = 'channel-list-view-mode';
+
 @Component({
     selector: 'app-channel-list-container',
     templateUrl: './channel-list-container.component.html',
@@ -148,6 +150,9 @@ export class ChannelListContainerComponent implements OnDestroy {
         private readonly store: Store,
         private readonly translateService: TranslateService
     ) {
+        // Load saved view mode preference
+        this.loadViewModePreference();
+
         // Subscribe to playlist ID changes
         this.playlistId$
             .pipe(takeUntil(this.destroy$))
@@ -178,6 +183,7 @@ export class ChannelListContainerComponent implements OnDestroy {
 
     setViewMode(mode: 'list' | 'grid'): void {
         this.viewMode = mode;
+        this.saveViewModePreference(mode);
     }
 
     /**
@@ -227,4 +233,23 @@ export class ChannelListContainerComponent implements OnDestroy {
 
         return a.key.localeCompare(b.key);
     };
+
+    private loadViewModePreference(): void {
+        try {
+            const savedMode = localStorage.getItem(CHANNEL_LIST_VIEW_MODE_STORAGE_KEY);
+            if (savedMode === 'list' || savedMode === 'grid') {
+                this._viewMode = savedMode;
+            }
+        } catch (error) {
+            console.error('Error loading channel list view mode preference:', error);
+        }
+    }
+
+    private saveViewModePreference(mode: 'list' | 'grid'): void {
+        try {
+            localStorage.setItem(CHANNEL_LIST_VIEW_MODE_STORAGE_KEY, mode);
+        } catch (error) {
+            console.error('Error saving channel list view mode preference:', error);
+        }
+    }
 }
