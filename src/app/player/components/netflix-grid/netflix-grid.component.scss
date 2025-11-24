@@ -80,7 +80,7 @@
                 }
 
                 &:hover {
-                    background: rgba(255, 255, 255, 0.9);
+                    background: rgba(128, 128, 128, 0.6);
                     transform: scale(1.1);
                 }
 
@@ -327,6 +327,30 @@
 
 // Dark theme overrides
 ::ng-deep {
+    body.dark-theme {
+        app-netflix-grid {
+            .netflix-grid-container {
+                .channel-row {
+                    .row-container {
+                        button.scroll-button.mat-icon-button {
+                            background: rgba(255, 255, 255, 0.2) !important;
+                            color: #fff !important;
+
+                            &:hover {
+                                background: rgba(255, 255, 255, 0.3) !important;
+                                color: #fff !important;
+                            }
+
+                            mat-icon {
+                                color: #fff !important;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     .dark-theme {
         .netflix-grid-container {
             background: #000;
@@ -356,13 +380,13 @@
                 }
 
                 .row-container {
-                    .scroll-button {
-                        background: rgba(0, 0, 0, 0.75);
-                        color: #fff;
+                    button.scroll-button.mat-icon-button {
+                        background: rgba(255, 255, 255, 0.2) !important;
+                        color: #fff !important;
 
                         &:hover {
-                            background: rgba(0, 0, 0, 0.9);
-                            color: #fff;
+                            background: rgba(255, 255, 255, 0.3) !important;
+                            color: #fff !important;
                         }
 
                         mat-icon {
