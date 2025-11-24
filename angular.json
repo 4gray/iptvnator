@@ -7,7 +7,7 @@
     "version": 1,
     "newProjectRoot": "projects",
     "projects": {
-        "iptvnator": {
+        "csiptv": {
             "root": "",
             "sourceRoot": "src",
             "projectType": "application",
@@ -90,24 +90,24 @@
                 "serve": {
                     "builder": "@angular/build:dev-server",
                     "options": {
-                        "buildTarget": "iptvnator:build"
+                        "buildTarget": "csiptv:build"
                     },
                     "configurations": {
                         "dev": {
-                            "buildTarget": "iptvnator:build:dev"
+                            "buildTarget": "csiptv:build:dev"
                         },
                         "web": {
-                            "buildTarget": "iptvnator:build:web"
+                            "buildTarget": "csiptv:build:web"
                         },
                         "production": {
-                            "buildTarget": "iptvnator:build:production"
+                            "buildTarget": "csiptv:build:production"
                         }
                     }
                 },
                 "extract-i18n": {
                     "builder": "@angular/build:extract-i18n",
                     "options": {
-                        "buildTarget": "iptvnator:build"
+                        "buildTarget": "csiptv:build"
                     }
                 },
                 "test": {
@@ -122,7 +122,7 @@
                 }
             }
         },
-        "iptvnator-e2e": {
+        "csiptv-e2e": {
             "root": "e2e",
             "projectType": "application",
             "architect": {

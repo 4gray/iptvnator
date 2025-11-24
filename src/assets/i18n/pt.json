@@ -2,7 +2,7 @@
   "CLOSE": "Fechar",
   "PLAYLISTS": "Playlists",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "Por favor, selecione uma playlist da lista ou adicione uma nova playlist",
     "TABS": {
       "RECENTLY_ADDED": "Playlists adicionadas recentemente",
@@ -106,7 +106,7 @@
     "PARSING_ERROR": "Erro: Falha na análise, não é uma playlist válida:"
   },
   "SETTINGS": {
-    "TITLE": "Configurações / IPTVnator",
+    "TITLE": "Configurações / CSIPTV",
     "SUBTITLE": "Altere a configuração do aplicativo",
     "DESCRIPTION": "Adapte as opções da lista abaixo e confirme com o botão salvar alterações",
     "EPG_URL_LABEL": "URL do EPG (*.xml ou *.xml.gz)",
@@ -132,7 +132,7 @@
     "THEME_DESCRIPTION": "Selecionar tema visual do aplicativo",
     "SHOW_CAPTIONS_DESCRIPTION": "Mostrar ou ocultar legendas por padrão",
     "VERSION_DESCRIPTION": "Versão atual do aplicativo",
-    "EPG_NOTE": "Atualmente, o EPG está disponível apenas na versão baseada em electron do IPTVnator.",
+    "EPG_NOTE": "Atualmente, o EPG está disponível apenas na versão baseada em electron do CSIPTV.",
     "EPG_NOTE_URL_TEXT": "Verifique aqui",
     "IMPORT_EXPORT_DATA": "Importar/exportar playlists",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Exportar ou importar playlists no formato JSON usado no aplicativo.",
@@ -232,7 +232,7 @@
   "NO": "Não",
   "MENU": {
     "OPEN": "Abrir menu",
-    "SUPPORT_ARIA": "Apoie o IPTVnator no GitHub",
+    "SUPPORT_ARIA": "Apoie o CSIPTV no GitHub",
     "SETTINGS": "Configurações",
     "SETTINGS_ARIA": "Abrir configurações",
     "BUG_REPORT": "Reportar um bug",
@@ -242,7 +242,7 @@
     "SUPPORT_PROJECT": "Apoiar projeto"
   },
   "ABOUT": {
-    "TITLE": "Sobre o IPTVnator",
+    "TITLE": "Sobre o CSIPTV",
     "DESCRIPTION": "Aplicativo reprodutor de IPTV multiplataforma com vários recursos, como suporte a playlists m3u e m3u8, favoritos, guia de TV, arquivo/catchup de TV e muito mais.",
     "VERSION": "Versão",
     "GITHUB_TOOLTIP": "Repositório ITPVnator no GitHub",
@@ -333,7 +333,7 @@
     "TITLE": "Controle remoto",
     "UP_CHANNEL": "Canal acima",
     "DOWN_CHANNEL": "Canal abaixo",
-    "HEADER": "Controle Remoto IPTVNator",
-    "FOOTER": "Controle Remoto IPTVNator"
+    "HEADER": "Controle Remoto CSIPTV",
+    "FOOTER": "Controle Remoto CSIPTV"
   }
 }

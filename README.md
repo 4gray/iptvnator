@@ -1,23 +1,23 @@
-# IPTVnator - IPTV Player Application
+# CSIPTV - IPTV Player Application
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cloud-saviour/iptvnator/electron/src/assets/icons/favicon.256x256.png" alt="IPTVnator icon" title="Free IPTV player application" />
+  <img src="https://raw.githubusercontent.com/cloud-saviour/csiptv/electron/src/assets/icons/favicon.256x256.png" alt="CSIPTV icon" title="Free IPTV player application" />
 </p>
 <p align="center">
-  <a href="https://github.com/cloud-saviour/iptvnator/releases"><img src="https://img.shields.io/github/release/4gray/iptvnator.svg?style=for-the-badge&logo=github" alt="Release"></a>
-  <a href="https://github.com/cloud-saviour/iptvnator/releases"><img src="https://img.shields.io/github/v/release/4gray/iptvnator?include_prereleases&label=pre-release&logo=github&style=for-the-badge" /></a>
- <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/4gray/iptvnator/build-and-test.yaml?style=for-the-badge&logo=github"> <a href="https://github.com/cloud-saviour/iptvnator/releases"><img src="https://img.shields.io/github/downloads/4gray/iptvnator/total?style=for-the-badge&logo=github" alt="Releases"></a> <a href="https://codecov.io/gh/cloud-saviour/iptvnator"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/4gray/iptvnator?style=for-the-badge"></a> <a href="https://t.me/iptvnator"><img src="https://img.shields.io/badge/telegram-iptvnator-blue?logo=telegram&style=for-the-badge" alt="Telegram"></a> <a href="https://bsky.app/profile/iptvnator.bsky.social"><img src="https://img.shields.io/badge/bluesky-iptvnator-darkblue?logo=bluesky&style=for-the-badge" alt="Bluesky"></a>
+  <a href="https://github.com/cloud-saviour/csiptv/releases"><img src="https://img.shields.io/github/release/4gray/csiptv.svg?style=for-the-badge&logo=github" alt="Release"></a>
+  <a href="https://github.com/cloud-saviour/csiptv/releases"><img src="https://img.shields.io/github/v/release/4gray/csiptv?include_prereleases&label=pre-release&logo=github&style=for-the-badge" /></a>
+ <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/4gray/csiptv/build-and-test.yaml?style=for-the-badge&logo=github"> <a href="https://github.com/cloud-saviour/csiptv/releases"><img src="https://img.shields.io/github/downloads/4gray/csiptv/total?style=for-the-badge&logo=github" alt="Releases"></a> <a href="https://codecov.io/gh/cloud-saviour/csiptv"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/4gray/csiptv?style=for-the-badge"></a> <a href="https://t.me/csiptv"><img src="https://img.shields.io/badge/telegram-csiptv-blue?logo=telegram&style=for-the-badge" alt="Telegram"></a> <a href="https://bsky.app/profile/csiptv.bsky.social"><img src="https://img.shields.io/badge/bluesky-csiptv-darkblue?logo=bluesky&style=for-the-badge" alt="Bluesky"></a>
 </p>
 
-<a href="https://t.me/iptvnator">Telegram channel for discussions</a>
+<a href="https://t.me/csiptv">Telegram channel for discussions</a>
 
-**IPTVnator** is a video player application that provides support for IPTV playlist playback (m3u, m3u8). The application allows users to import playlists using remote URLs or by uploading files from the local file system. Additionally, it supports EPG information in XMLTV format which can be provided via URL.
+**CSIPTV** is a video player application that provides support for IPTV playlist playback (m3u, m3u8). The application allows users to import playlists using remote URLs or by uploading files from the local file system. Additionally, it supports EPG information in XMLTV format which can be provided via URL.
 
 The application is a cross-platform, open-source project built with ~~Electron~~ Tauri and Angular.
 
-⚠️ Note: IPTVnator does not provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
+⚠️ Note: CSIPTV does not provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
 
-![IPTVnator: Channels list, player and epg list](./iptv-dark-theme.png)
+![CSIPTV: Channels list, player and epg list](./iptv-dark-theme.png)
 
 ## Features
 
@@ -70,41 +70,41 @@ _Note: First version of the application which was developed as a PWA is availabl
 
 ## Download
 
-Download the latest version of the application for macOS, Windows, and Linux from the [release page](https://github.com/cloud-saviour/iptvnator/releases).
+Download the latest version of the application for macOS, Windows, and Linux from the [release page](https://github.com/cloud-saviour/csiptv/releases).
 
 Alternatively, you can install the application using one of the following package managers:
 
 ### Homebrew
 
 ```shell
-$ brew install iptvnator
+$ brew install csiptv
 ```
 
 ### Snap
 
 ```shell
-$ sudo snap install iptvnator
+$ sudo snap install csiptv
 ```
 
 ### Arch
 
-Also available as an Arch PKG, [iptvnator-bin](https://aur.archlinux.org/packages/iptvnator-bin/), in the AUR (using your favourite AUR-helper, .e.g. `yay`)
+Also available as an Arch PKG, [csiptv-bin](https://aur.archlinux.org/packages/csiptv-bin/), in the AUR (using your favourite AUR-helper, .e.g. `yay`)
 
 ```shell
-$ yay -S iptvnator-bin
+$ yay -S csiptv-bin
 ```
 
 ### Gentoo
 
-You can install IPTVnator from the [gentoo-zh overlay](https://github.com/microcai/gentoo-zh)
+You can install CSIPTV from the [gentoo-zh overlay](https://github.com/microcai/gentoo-zh)
 
 ```shell
 sudo eselect repository enable gentoo-zh
 sudo emerge --sync gentoo-zh
-sudo emerge iptvnator-bin
+sudo emerge csiptv-bin
 ```
 
-[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/iptvnator)
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/csiptv)
 
 <a href="https://github.com/sponsors/cloud-saviour" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-green.png" alt="Buy Me A Coffee" width="185"></a>
 
@@ -136,7 +136,7 @@ $ npm run serve
 
 ## Disclaimer
 
-**IPTVnator doesn't provide any playlists or other digital content.**
+**CSIPTV doesn't provide any playlists or other digital content.**
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 

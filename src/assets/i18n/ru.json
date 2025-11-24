@@ -2,7 +2,7 @@
   "CLOSE": "Закрыть",
   "PLAYLISTS": "Плейлисты",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "Выберите плейлист из списка, добавьте новый с компьютера или загрузите по ссылке",
     "TABS": {
       "RECENTLY_ADDED": "Недавно добавленные плейлисты",
@@ -93,7 +93,7 @@
     "PARSING_ERROR": "Ошибка парсинга, недействительный плейлист:"
   },
   "SETTINGS": {
-    "TITLE": "Настройки / IPTVnator",
+    "TITLE": "Настройки / CSIPTV",
     "SUBTITLE": "Здесь можно изменить общие настройки приложения",
     "DESCRIPTION": "Закончив настройку, не забудьте подтвердить новые настройки кнопкой 'Сохранить'",
     "EPG_URL_LABEL": "Ссылка на программу каналов (EPG) (*.xml или *.xml.gz)",
@@ -117,7 +117,7 @@
     "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
     "SHOW_CAPTIONS_DESCRIPTION": "Показать или скрыть субтитры по умолчанию.",
     "VERSION_DESCRIPTION": "Текущая версия приложения",
-    "EPG_NOTE": "На данный момент EPG доступен только в нативной версии IPTVnator.",
+    "EPG_NOTE": "На данный момент EPG доступен только в нативной версии CSIPTV.",
     "EPG_NOTE_URL_TEXT": "Подробнее здесь",
     "IMPORT_EXPORT_DATA": "Импорт/экспорт плейлистов",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
@@ -206,7 +206,7 @@
   "YES": "Да",
   "MENU": {
     "OPEN": "Открыть меню",
-    "SUPPORT_ARIA": "Поддержать IPTVnator на GitHub",
+    "SUPPORT_ARIA": "Поддержать CSIPTV на GitHub",
     "SETTINGS": "Настройки",
     "SETTINGS_ARIA": "Открыть настройки",
     "BUG_REPORT": "Сообщить об ошибке",

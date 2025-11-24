@@ -50,7 +50,7 @@ describe('VideoPlayerComponent', () => {
                         params: of({ id: '1' }),
                         snapshot: {
                             queryParams: {
-                                url: 'https://iptvnator/list.m3u',
+                                url: 'https://csiptv/list.m3u',
                             },
                         },
                     },

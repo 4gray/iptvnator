@@ -1,7 +1,7 @@
 {
-    "name": "IPTVnator",
-    "description": "IPTVnator is a tool to watch and manage your IPTV playlists.",
-    "short_name": "IPTVnator",
+    "name": "CSIPTV",
+    "description": "CSIPTV is a tool to watch and manage your IPTV playlists.",
+    "short_name": "CSIPTV",
     "theme_color": "#1b1c1c",
     "background_color": "#1b1c1c",
     "display": "standalone",

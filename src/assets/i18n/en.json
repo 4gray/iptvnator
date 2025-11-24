@@ -2,7 +2,7 @@
   "CLOSE": "Close",
   "PLAYLISTS": "Playlists",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "Please select a playlist from the list or add a new playlist",
     "TABS": {
       "RECENTLY_ADDED": "Recently added playlists",
@@ -106,7 +106,7 @@
     "PARSING_ERROR": "Error: Parsing failed, not a valid playlist:"
   },
   "SETTINGS": {
-    "TITLE": "Settings / IPTVnator",
+    "TITLE": "Settings / CSIPTV",
     "SUBTITLE": "Change the configuration of the application",
     "DESCRIPTION": "Please adapt the options from the list below and confirm with the save changes button",
     "EPG_URL_LABEL": "EPG Url (*.xml or *.xml.gz)",
@@ -132,7 +132,7 @@
     "THEME_DESCRIPTION": "Select visual theme of the application",
     "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
     "VERSION_DESCRIPTION": "Current version of the application",
-    "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
+    "EPG_NOTE": "Currently EPG is available only in the electron-based version of CSIPTV.",
     "EPG_NOTE_URL_TEXT": "Check it here",
     "IMPORT_EXPORT_DATA": "Import/export playlists",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Export or import playlists in the JSON format used within the application.",
@@ -232,7 +232,7 @@
   "NO": "No",
   "MENU": {
     "OPEN": "Open menu",
-    "SUPPORT_ARIA": "Support IPTVnator on GitHub",
+    "SUPPORT_ARIA": "Support CSIPTV on GitHub",
     "SETTINGS": "Settings",
     "SETTINGS_ARIA": "Open settings",
     "BUG_REPORT": "Report a bug",
@@ -242,7 +242,7 @@
     "SUPPORT_PROJECT": "Support project"
   },
   "ABOUT": {
-    "TITLE": "About IPTVnator",
+    "TITLE": "About CSIPTV",
     "DESCRIPTION": "Cross-platform IPTV player application with multiple features, such as support of m3u and m3u8 playlists, favorites, TV guide, TV archive/catchup and more.",
     "VERSION": "Version",
     "GITHUB_TOOLTIP": "ITPVnator repository on GitHub",
@@ -333,7 +333,7 @@
     "TITLE": "Remote control",
     "UP_CHANNEL": "Up channel",
     "DOWN_CHANNEL": "Down channel",
-    "HEADER": "IPTVNator Remote Control",
-    "FOOTER": "IPTVNator Remote Control"
+    "HEADER": "CSIPTV Remote Control",
+    "FOOTER": "CSIPTV Remote Control"
   }
 }

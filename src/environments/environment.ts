@@ -4,7 +4,7 @@ export const AppConfig = {
     production: false,
     environment: 'LOCAL',
     version: require('../../package.json').version,
-    BACKEND_URL: 'https://iptvnator-playlist-parser-api.vercel.app',
+    BACKEND_URL: 'https://csiptv-playlist-parser-api.vercel.app',
     OIDC_CONFIG: {
         authority: 'http://localhost:8080/realms/development',
         client_id: 'iptv_clientid',

@@ -1,7 +1,7 @@
 {
   "CLOSE": "关闭",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "选择一个播放列表或者从URL/文件中添加一个新的播放列表",
     "TABS": {
       "RECENTLY_ADDED": "最近添加的播放列表",
@@ -108,7 +108,7 @@
     "VLC_PLAYER_PATH_LABEL": "VLC路径",
     "VLC_PLAYER_PATH_DESCRIPTION": "设置系统中 VLC 播放器的路径。\n它将使用提供的 VLC 二进制文件路径，而不是我们系统的默认路径。",
     "THEME_DESCRIPTION": "选择应用程序的视觉主题",
-    "EPG_NOTE": "目前 EPG 仅在基于电子的 IPTVnator 版本中可用。",
+    "EPG_NOTE": "目前 EPG 仅在基于电子的 CSIPTV 版本中可用。",
     "VLC_PLAYER_PATH": "VLC播放器路径",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "以应用程序中使用的 JSON 格式导出或导入播放列表。",
     "EPG_NOTE_URL_TEXT": "在这里检查一下",
@@ -182,7 +182,7 @@
   "NO": "否",
   "MENU": {
     "OPEN": "打开菜单",
-    "SUPPORT_ARIA": "在 GitHub 上支持 IPTVnator",
+    "SUPPORT_ARIA": "在 GitHub 上支持 CSIPTV",
     "SETTINGS": "设置",
     "SETTINGS_ARIA": "打开设置",
     "BUG_REPORT": "问题反馈",
@@ -243,7 +243,7 @@
     "ADDED_TO_FAVORITES": "已添加至收藏夹"
   },
   "ABOUT": {
-    "TITLE": "关于 IPTVnator",
+    "TITLE": "关于 CSIPTV",
     "VERSION": "版本",
     "TWITTER_TOOLTIP": "分享到Twitter",
     "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee"

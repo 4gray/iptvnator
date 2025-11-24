@@ -2,7 +2,7 @@
   "CLOSE": "إغلاق",
   "PLAYLISTS": "قوائم التشغيل",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "يرجى اختيار قائمة تشغيل من القائمة أو إضافة قائمة جديدة",
     "TABS": {
       "RECENTLY_ADDED": "قوائم التشغيل المضافة مؤخرًا",
@@ -106,7 +106,7 @@
     "PARSING_ERROR": "خطأ: فشل التحليل، ليست قائمة تشغيل صالحة:"
   },
   "SETTINGS": {
-    "TITLE": "الإعدادات / IPTVnator",
+    "TITLE": "الإعدادات / CSIPTV",
     "SUBTITLE": "تعديل تكوين التطبيق",
     "DESCRIPTION": "يرجى ضبط الخيارات أدناه ثم النقر على حفظ التغييرات",
     "EPG_URL_LABEL": "رابط EPG (XML/XML.GZ)",
@@ -230,7 +230,7 @@
   "NO": "لا",
   "MENU": {
     "OPEN": "فتح القائمة",
-    "SUPPORT_ARIA": "دعم IPTVnator على GitHub",
+    "SUPPORT_ARIA": "دعم CSIPTV على GitHub",
     "SETTINGS": "الإعدادات",
     "SETTINGS_ARIA": "فتح الإعدادات",
     "BUG_REPORT": "ابلاغ عن خلل",
@@ -240,10 +240,10 @@
     "SUPPORT_PROJECT": "دعم المشروع"
   },
   "ABOUT": {
-    "TITLE": "حول IPTVnator",
+    "TITLE": "حول CSIPTV",
     "DESCRIPTION": "تطبيق مشغل IPTV متعدد المنصات مع ميزات مثل دعم قوائم M3U/M3U8، المفضلة، الدليل التلفزيوني، الأرشيف، والمزيد.",
     "VERSION": "الإصدار",
-    "GITHUB_TOOLTIP": "مستودع IPTVnator على GitHub",
+    "GITHUB_TOOLTIP": "مستودع CSIPTV على GitHub",
     "BUY_ME_A_COFFEE_TOOLTIP": "اشتري لي قهوة",
     "TWITTER_TOOLTIP": "مشاركة على تويتر"
   },
@@ -312,7 +312,7 @@
     "TITLE": "التحكم عن بعد",
     "UP_CHANNEL": "القناة السابقة",
     "DOWN_CHANNEL": "القناة التالية",
-    "HEADER": "التحكم عن بعد في IPTVNator",
-    "FOOTER": "التحكم عن بعد في IPTVNator"
+    "HEADER": "التحكم عن بعد في CSIPTV",
+    "FOOTER": "التحكم عن بعد في CSIPTV"
   }
 }

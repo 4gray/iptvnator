@@ -1,7 +1,7 @@
 {
   "CLOSE": "Fermer",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "Choisissez une liste de lecture, ou ajoutez en une nouvelle via un transfert de fichier ou via une URL",
     "TABS": {
       "RECENTLY_ADDED": "Récemment ajoutés",
@@ -80,7 +80,7 @@
     }
   },
   "SETTINGS": {
-    "TITLE": "Paramètres / IPTVnator",
+    "TITLE": "Paramètres / CSIPTV",
     "SUBTITLE": "Modifiez la configuration de l'application",
     "DESCRIPTION": "Changez les options de la liste ci-dessous et enregistrez vos modifications.",
     "EPG_URL_LABEL": "URL du EPG  (*.xml ou *.xml.gz)",
@@ -118,7 +118,7 @@
     "VLC_PLAYER_PATH_LABEL": "Chemin VLC",
     "VLC_PLAYER_PATH_DESCRIPTION": "Définissez le chemin d'accès au lecteur VLC dans votre système. \nIl utilisera le chemin fourni vers un binaire VLC au lieu du chemin par défaut de notre système.",
     "THEME_DESCRIPTION": "Sélectionnez le thème visuel de l'application",
-    "EPG_NOTE": "Actuellement, l'EPG n'est disponible que dans la version électronique d'IPTVnator.",
+    "EPG_NOTE": "Actuellement, l'EPG n'est disponible que dans la version électronique d'CSIPTV.",
     "VLC_PLAYER_PATH": "Chemin du lecteur VLC",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Exportez ou importez des playlists au format JSON utilisé dans l'application.",
     "EPG_NOTE_URL_TEXT": "Vérifiez-le ici",
@@ -192,7 +192,7 @@
   "NO": "Non",
   "MENU": {
     "OPEN": "Open menu",
-    "SUPPORT_ARIA": "Support IPTVnator on GitHub",
+    "SUPPORT_ARIA": "Support CSIPTV on GitHub",
     "SETTINGS": "Settings",
     "SETTINGS_ARIA": "Open settings",
     "BUG_REPORT": "Report a bug",
@@ -256,7 +256,7 @@
     "ADDED_TO_FAVORITES": "Ajouté aux favoris"
   },
   "ABOUT": {
-    "TITLE": "À propos d'IPTVnator",
+    "TITLE": "À propos d'CSIPTV",
     "VERSION": "Version",
     "TWITTER_TOOLTIP": "Partager sur Twitter",
     "GITHUB_TOOLTIP": "Dépôt ITPVnator sur GitHub",

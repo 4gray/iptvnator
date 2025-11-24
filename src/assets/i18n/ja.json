@@ -2,7 +2,7 @@
   "CLOSE": "閉じる",
   "PLAYLISTS": "プレイリスト",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "リストからプレイリストを選択するか、新しいプレイリストを追加してください",
     "TABS": {
       "RECENTLY_ADDED": "最近追加したプレイリスト",
@@ -94,7 +94,7 @@
     "PARSING_ERROR": "エラー：解析に失敗しました。有効なプレイリストではありません："
   },
   "SETTINGS": {
-    "TITLE": "設定 / IPTVnator",
+    "TITLE": "設定 / CSIPTV",
     "SUBTITLE": "アプリケーションの設定を変更",
     "DESCRIPTION": "以下のオプションを調整し、変更を保存ボタンで確定してください",
     "EPG_URL_LABEL": "EPG URL (*.xml または *.xml.gz)",
@@ -118,7 +118,7 @@
     "THEME_DESCRIPTION": "アプリケーションの視覚テーマを選択",
     "SHOW_CAPTIONS_DESCRIPTION": "デフォルトで字幕を表示/非表示",
     "VERSION_DESCRIPTION": "アプリケーションの現在のバージョン",
-    "EPG_NOTE": "現在、EPGはIPTVnatorのelectronベース版でのみ利用可能です。",
+    "EPG_NOTE": "現在、EPGはCSIPTVのelectronベース版でのみ利用可能です。",
     "EPG_NOTE_URL_TEXT": "こちらをチェック",
     "IMPORT_EXPORT_DATA": "プレイリストのインポート/エクスポート",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "アプリケーション内で使用されているJSONフォーマットでプレイリストをエクスポートまたはインポート。",
@@ -218,7 +218,7 @@
   "NO": "いいえ",
   "MENU": {
     "OPEN": "メニューを開く",
-    "SUPPORT_ARIA": "GitHubでIPTVnatorをサポート",
+    "SUPPORT_ARIA": "GitHubでCSIPTVをサポート",
     "SETTINGS": "設定",
     "SETTINGS_ARIA": "設定を開く",
     "BUG_REPORT": "バグを報告",
@@ -228,7 +228,7 @@
     "SUPPORT_PROJECT": "プロジェクトをサポート"
   },
   "ABOUT": {
-    "TITLE": "IPTVnatorについて",
+    "TITLE": "CSIPTVについて",
     "DESCRIPTION": "m3uやm3u8プレイリストのサポート、お気に入り、TV番組表、TVアーカイブ/キャッチアップなど、複数の機能を備えたクロスプラットフォームのIPTVプレーヤーアプリケーション。",
     "VERSION": "バージョン",
     "GITHUB_TOOLTIP": "GitHub上のITPVnatorリポジトリ",
@@ -300,7 +300,7 @@
     "TITLE": "リモートコントロール",
     "UP_CHANNEL": "チャンネルアップ",
     "DOWN_CHANNEL": "チャンネルダウン",
-    "HEADER": "IPTVNatorリモートコントロール",
-    "FOOTER": "IPTVNatorリモートコントロール"
+    "HEADER": "CSIPTVリモートコントロール",
+    "FOOTER": "CSIPTVリモートコントロール"
   }
 }

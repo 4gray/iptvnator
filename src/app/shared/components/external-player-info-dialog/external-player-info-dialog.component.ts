@@ -23,7 +23,7 @@ import { PortalStore } from '../../../xtream/portal.store';
                         style="cursor: pointer"
                         (click)="
                             openUrl(
-                                'https://github.com/cloud-saviour/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F'
+                                'https://github.com/cloud-saviour/csiptv/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F'
                             )
                         "
                         >installation instructions</a

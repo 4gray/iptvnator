@@ -1,8 +1,8 @@
 {
-    "name": "iptvnator",
+    "name": "csiptv",
     "version": "1.0.0-beta.7",
     "description": "IPTV player application.",
-    "homepage": "https://github.com/cloud-saviour/iptvnator",
+    "homepage": "https://github.com/cloud-saviour/csiptv",
     "author": {
         "name": "4gray",
         "email": "fourgray@proton.me"
@@ -31,7 +31,7 @@
         "e2e:ci": "npx playwright test --retries 3 --workers=1",
         "version": "conventional-changelog -i CHANGELOG.md -p angular -s -r 0 && git add CHANGELOG.md",
         "lint": "ng lint",
-        "build-pwa": "ng build -c production --base-href /iptvnator --deploy-url /iptvnator/",
+        "build-pwa": "ng build -c production --base-href /csiptv --deploy-url /csiptv/",
         "tauri": "tauri"
     },
     "dependencies": {

@@ -1,7 +1,7 @@
 {
   "CLOSE": "關閉",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "請從列表中選擇一個播放清單，或透過檔案上傳或網址新增新播放清單",
     "TABS": {
       "RECENTLY_ADDED": "最近新增的播放清單",
@@ -73,7 +73,7 @@
     }
   },
   "SETTINGS": {
-    "TITLE": "設定 / IPTVnator",
+    "TITLE": "設定 / CSIPTV",
     "SUBTITLE": "更改應用程式的配置",
     "DESCRIPTION": "請調整下面的選項列表，並使用儲存變更按鈕確認",
     "EPG_URL_LABEL": "EPG 網址（*.xml 或 *.xml.gz）",
@@ -97,7 +97,7 @@
     "THEME_DESCRIPTION": "選擇應用程式視覺主題",
     "SHOW_CAPTIONS_DESCRIPTION": "預設顯示或隱藏字幕",
     "VERSION_DESCRIPTION": "應用程式目前版本",
-    "EPG_NOTE": "目前僅在 Electron 版的 IPTVnator 中提供 EPG。",
+    "EPG_NOTE": "目前僅在 Electron 版的 CSIPTV 中提供 EPG。",
     "EPG_NOTE_URL_TEXT": "在此處查看",
     "IMPORT_EXPORT_DATA": "匯入/匯出播放清單",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "以應用程式內使用的 JSON 格式匯出或匯入播放清單。",
@@ -185,7 +185,7 @@
   "NO": "否",
   "MENU": {
     "OPEN": "開啟選單",
-    "SUPPORT_ARIA": "在 GitHub 上支持 IPTVnator",
+    "SUPPORT_ARIA": "在 GitHub 上支持 CSIPTV",
     "SETTINGS": "設定",
     "SETTINGS_ARIA": "開啟設定",
     "BUG_REPORT": "回報問題",
@@ -195,7 +195,7 @@
     "SUPPORT_PROJECT": "Support project"
   },
   "ABOUT": {
-    "TITLE": "關於 IPTVnator",
+    "TITLE": "關於 CSIPTV",
     "DESCRIPTION": "跨平台 IPTV 播放器，具有多種功能，如支援 m3u 和 m3u8 播放清單、我的最愛、電視指南、電視節目存檔/回看等。",
     "VERSION": "版本",
     "GITHUB_TOOLTIP": "ITPVnator 的 GitHub 專案",

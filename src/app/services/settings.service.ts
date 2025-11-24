@@ -60,7 +60,7 @@ export class SettingsService {
         return this.http
             .get<
                 { created_at: string; name: string }[]
-            >('https://api.github.com/repos/cloud-saviour/iptvnator/releases')
+            >('https://api.github.com/repos/cloud-saviour/csiptv/releases')
             .pipe(
                 map(
                     (response) =>

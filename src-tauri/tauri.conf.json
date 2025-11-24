@@ -1,6 +1,6 @@
 {
     "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-    "productName": "iptvnator",
+    "productName": "csiptv",
     "version": "1.0.0-7",
     "identifier": "com.4gray.dev",
     "build": {
@@ -13,7 +13,7 @@
         "updater": {
             "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyRTRBNzlCMkE5QkI0MjgKUldRb3RKc3FtNmZra3BmeDVKYmtLd3RUNnZkUHdDbmM0TkpHQ25hZzhoS1FZcFRqaTl2eXRScU0K",
             "endpoints": [
-                "https://github.com/cloud-saviour/iptvnator/releases/latest/download/latest.json"
+                "https://github.com/cloud-saviour/csiptv/releases/latest/download/latest.json"
             ]
         },
         "sql": {
@@ -23,7 +23,7 @@
     "app": {
         "windows": [
             {
-                "title": "IPTVnator",
+                "title": "CSIPTV",
                 "width": 800,
                 "height": 600,
                 "resizable": true,

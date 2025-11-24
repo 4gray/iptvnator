@@ -38,7 +38,7 @@
   },
   "HOME": {
     "SUBTITLE": "Wählen Sie eine Playlist aus oder laden Sie eine neue Playlist hoch",
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "FILE_UPLOAD": {
       "CHOOSE_PLAYLIST": "Playlist auswählen",
       "DRAG_DROP": "Ziehen Sie Dateien per Drag & Drop",
@@ -157,7 +157,7 @@
     "REFRESH_EPG": "TV-Programm aktualisieren",
     "SAVE_CHANGES": "Änderungen speichern",
     "SUBTITLE": "Die App-Einstellungen ändern",
-    "TITLE": "Einstellungen / IPTVnator",
+    "TITLE": "Einstellungen / CSIPTV",
     "VERSION": "Version",
     "VIDEO_PLAYER_LABEL": "Video player",
     "VIDEO_PLAYER_PLACEHOLDER": "Option auswählen",
@@ -186,7 +186,7 @@
     "VLC_PLAYER_PATH_LABEL": "VLC-Pfad",
     "VLC_PLAYER_PATH_DESCRIPTION": "Legen Sie den Pfad zum VLC-Player in Ihrem System fest. \nEs wird der bereitgestellte Pfad zu einer VLC-Binärdatei anstelle des Standardpfads für unser System verwendet.",
     "THEME_DESCRIPTION": "Wählen Sie das visuelle Thema der Anwendung aus",
-    "EPG_NOTE": "Derzeit ist EPG nur in der Electron-basierten Version von IPTVnator verfügbar.",
+    "EPG_NOTE": "Derzeit ist EPG nur in der Electron-basierten Version von CSIPTV verfügbar.",
     "VLC_PLAYER_PATH": "VLC-Playerpfad",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Exportieren oder importieren Sie Wiedergabelisten im JSON-Format, das in der Anwendung verwendet wird.",
     "EPG_NOTE_URL_TEXT": "Überprüfen Sie es hier",
@@ -206,7 +206,7 @@
   "YES": "Ja",
   "MENU": {
     "OPEN": "Menü öffnen",
-    "SUPPORT_ARIA": "IPTVnator auf GitHub unterstützen",
+    "SUPPORT_ARIA": "CSIPTV auf GitHub unterstützen",
     "SETTINGS": "Einstellungen",
     "SETTINGS_ARIA": "Einstellungen öffnen",
     "BUG_REPORT": "Fehler melden",
@@ -287,7 +287,7 @@
     "ADDED_TO_FAVORITES": "Zu den Favoriten hinzugefügt"
   },
   "ABOUT": {
-    "TITLE": "Über IPTVnator",
+    "TITLE": "Über CSIPTV",
     "VERSION": "Ausführung",
     "TWITTER_TOOLTIP": "Auf Twitter teilen",
     "GITHUB_TOOLTIP": "ITPVnator-Repository auf GitHub",

@@ -2,7 +2,7 @@
   "CLOSE": "Kapat",
   "PLAYLISTS": "Oynatma Listeleri",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "Lütfen listeden bir oynatma listesi seçin veya yeni bir liste ekleyin",
     "TABS": {
       "RECENTLY_ADDED": "Son Eklenen Listeler",
@@ -94,7 +94,7 @@
     "PARSING_ERROR": "Hata: Ayrıştırma başarısız, geçerli bir oynatma listesi değil:"
   },
   "SETTINGS": {
-    "TITLE": "Ayarlar / IPTVnator",
+    "TITLE": "Ayarlar / CSIPTV",
     "SUBTITLE": "Uygulamanın yapılandırmasını değiştir",
     "DESCRIPTION": "Lütfen aşağıdaki seçenekleri düzenleyin ve değişiklikleri kaydet düğmesiyle onaylayın",
     "EPG_URL_LABEL": "EPG Url (*.xml veya *.xml.gz)",
@@ -118,7 +118,7 @@
     "THEME_DESCRIPTION": "Uygulamanın görünüm temasını seçin",
     "SHOW_CAPTIONS_DESCRIPTION": "Varsayılan olarak altyazıları göster veya gizle",
     "VERSION_DESCRIPTION": "Uygulamanın geçerli sürümü",
-    "EPG_NOTE": "Şu anda EPG, yalnızca Electron tabanlı IPTVnator sürümünde kullanılabilir.",
+    "EPG_NOTE": "Şu anda EPG, yalnızca Electron tabanlı CSIPTV sürümünde kullanılabilir.",
     "EPG_NOTE_URL_TEXT": "Buradan kontrol edin",
     "IMPORT_EXPORT_DATA": "Oynatma listelerini içe/dışa aktar",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Uygulama içi kullanılan JSON formatında oynatma listelerini dışa aktar veya içe aktar.",
@@ -218,7 +218,7 @@
   "NO": "Hayır",
   "MENU": {
     "OPEN": "Menüyü aç",
-    "SUPPORT_ARIA": "IPTVnator'u GitHub'da destekleyin",
+    "SUPPORT_ARIA": "CSIPTV'u GitHub'da destekleyin",
     "SETTINGS": "Ayarlar",
     "SETTINGS_ARIA": "Ayarları aç",
     "BUG_REPORT": "Hata bildir",
@@ -228,10 +228,10 @@
     "SUPPORT_PROJECT": "Projeyi destekleyin"
   },
   "ABOUT": {
-    "TITLE": "IPTVnator Hakkında",
+    "TITLE": "CSIPTV Hakkında",
     "DESCRIPTION": "Çoklu özellikler sunan, m3u ve m3u8 oynatma listeleri, favoriler, TV rehberi, TV arşivi/geri dönük izleme ve daha fazlasını destekleyen çok platformlu IPTV oynatıcı uygulaması.",
     "VERSION": "Sürüm",
-    "GITHUB_TOOLTIP": "IPTVnator GitHub deposu",
+    "GITHUB_TOOLTIP": "CSIPTV GitHub deposu",
     "BUY_ME_A_COFFEE_TOOLTIP": "Bana bir kahve alın",
     "TWITTER_TOOLTIP": "Twitter'da paylaş"
   },
@@ -300,7 +300,7 @@
     "TITLE": "Uzaktan kontrol",
     "UP_CHANNEL": "Kanal yukarı",
     "DOWN_CHANNEL": "Kanal aşağı",
-    "HEADER": "IPTVNator Uzaktan Kontrol",
-    "FOOTER": "IPTVNator Uzaktan Kontrol"
+    "HEADER": "CSIPTV Uzaktan Kontrol",
+    "FOOTER": "CSIPTV Uzaktan Kontrol"
   }
 }

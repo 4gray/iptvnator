@@ -4,7 +4,7 @@ test('basic test', async ({ page }) => {
     await page.goto('/');
 
     // Basic checks
-    expect(await page.title()).toBe('IPTVnator');
+    expect(await page.title()).toBe('CSIPTV');
 
     // Upload playlist test
     await page.getByTestId('add-playlist').click();

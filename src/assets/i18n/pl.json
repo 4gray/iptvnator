@@ -2,7 +2,7 @@
   "CLOSE": "Zamknij",
   "PLAYLISTS": "Listy odtwarzania",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "Wybierz listę odtwarzania z listy lub dodaj nową listę odtwarzania",
     "TABS": {
       "RECENTLY_ADDED": "Ostatnio dodane listy odtwarzania",
@@ -106,7 +106,7 @@
     "PARSING_ERROR": "Błąd: Analiza nie powiodła się, nieprawidłowa lista odtwarzania:"
   },
   "SETTINGS": {
-    "TITLE": "Ustawienia / IPTVnator",
+    "TITLE": "Ustawienia / CSIPTV",
     "SUBTITLE": "Zmień konfigurację aplikacji",
     "DESCRIPTION": "Dostosuj opcje z poniższej listy i potwierdź przyciskiem „Zapisz zmiany”",
     "EPG_URL_LABEL": "URL EPG (*.xml lub *.xml.gz)",
@@ -130,7 +130,7 @@
     "THEME_DESCRIPTION": "Wybierz motyw wizualny aplikacji",
     "SHOW_CAPTIONS_DESCRIPTION": "Domyślnie pokaż lub ukryj napisy",
     "VERSION_DESCRIPTION": "Aktualna wersja aplikacji",
-    "EPG_NOTE": "Obecnie EPG jest dostępne tylko w wersji IPTVnator opartej na Electron.",
+    "EPG_NOTE": "Obecnie EPG jest dostępne tylko w wersji CSIPTV opartej na Electron.",
     "EPG_NOTE_URL_TEXT": "Sprawdź tutaj",
     "IMPORT_EXPORT_DATA": "Import/eksport list odtwarzania",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Eksportuj lub importuj listy odtwarzania w formacie JSON używanym w aplikacji.",
@@ -230,7 +230,7 @@
   "NO": "Nie",
   "MENU": {
     "OPEN": "Otwórz menu",
-    "SUPPORT_ARIA": "Wsparcie IPTVnator na GitHubie",
+    "SUPPORT_ARIA": "Wsparcie CSIPTV na GitHubie",
     "SETTINGS": "Ustawienia",
     "SETTINGS_ARIA": "Otwórz ustawienia",
     "BUG_REPORT": "Zgłoś błąd",
@@ -240,7 +240,7 @@
     "SUPPORT_PROJECT": "Wesprzyj projekt"
   },
   "ABOUT": {
-    "TITLE": "O IPTVnator",
+    "TITLE": "O CSIPTV",
     "DESCRIPTION": "Wieloplatformowa aplikacja do odtwarzania IPTV z wieloma funkcjami, takimi jak obsługa list odtwarzania m3u i m3u8, ulubione, przewodnik TV, archiwum TV/catchup i inne.",
     "VERSION": "Wersja",
     "GITHUB_TOOLTIP": "Repozytorium ITPVnator na GitHubie",
@@ -312,7 +312,7 @@
     "TITLE": "Zdalne sterowanie",
     "UP_CHANNEL": "Kanał w górę",
     "DOWN_CHANNEL": "Kanał w dół",
-    "HEADER": "Zdalne sterowanie IPTVNator",
-    "FOOTER": "Zdalne sterowanie IPTVNator"
+    "HEADER": "Zdalne sterowanie CSIPTV",
+    "FOOTER": "Zdalne sterowanie CSIPTV"
   }
 }

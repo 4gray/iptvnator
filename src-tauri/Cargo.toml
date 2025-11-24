@@ -1,10 +1,10 @@
 [package]
-name = "IPTVnator"
+name = "CSIPTV"
 version = "1.0.0-beta.7"
-description = "IPTVnator"
+description = "CSIPTV"
 authors = ["4gray"]
 license = "MIT"
-repository = "https://github.com/cloud-saviour/iptvnator"
+repository = "https://github.com/cloud-saviour/csiptv"
 edition = "2021"
 rust-version = "1.77.2"
 

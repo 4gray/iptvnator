@@ -1,7 +1,7 @@
 {
   "CLOSE": "닫기",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "목록에서 재생 목록을 선택하거나 파일 업로드 또는 URL을 통해 새 재생 목록을 추가하십시오.",
     "TABS": {
       "RECENTLY_ADDED": "최근 재생 목록이 추가되었습니다",
@@ -72,7 +72,7 @@
     }
   },
   "SETTINGS": {
-    "TITLE": "설정 / IPTVnator",
+    "TITLE": "설정 / CSIPTV",
     "SUBTITLE": "응용 프로그램의 구성을 변경하십시오",
     "DESCRIPTION": "아래 목록에서 옵션을 적용하고 저장 버튼으로 확인하십시오.",
     "EPG_URL_LABEL": "EPG Url (*.xml or *.xml.gz)",
@@ -108,7 +108,7 @@
     "VLC_PLAYER_PATH_LABEL": "VLC 경로",
     "VLC_PLAYER_PATH_DESCRIPTION": "시스템에서 VLC 플레이어의 경로를 설정하십시오. \n시스템의 기본 경로 대신 VLC 바이너리에 제공된 경로를 사용합니다.",
     "THEME_DESCRIPTION": "애플리케이션의 시각적 테마 선택",
-    "EPG_NOTE": "현재 EPG는 IPTVnator의 전자 기반 버전에서만 사용할 수 있습니다.",
+    "EPG_NOTE": "현재 EPG는 CSIPTV의 전자 기반 버전에서만 사용할 수 있습니다.",
     "VLC_PLAYER_PATH": "VLC 플레이어 경로",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "애플리케이션 내에서 사용되는 JSON 형식으로 재생 목록을 내보내거나 가져옵니다.",
     "EPG_NOTE_URL_TEXT": "여기에서 확인하세요",
@@ -182,7 +182,7 @@
   "NO": "No",
   "MENU": {
     "OPEN": "Open menu",
-    "SUPPORT_ARIA": "Support IPTVnator on GitHub",
+    "SUPPORT_ARIA": "Support CSIPTV on GitHub",
     "SETTINGS": "Settings",
     "SETTINGS_ARIA": "Open settings",
     "BUG_REPORT": "Report a bug",
@@ -244,7 +244,7 @@
     "ADDED_TO_FAVORITES": "즐겨찾기에 추가됨"
   },
   "ABOUT": {
-    "TITLE": "IPTVnator 소개",
+    "TITLE": "CSIPTV 소개",
     "VERSION": "버전",
     "TWITTER_TOOLTIP": "트위터에 공유",
     "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee"

@@ -2,7 +2,7 @@
   "CLOSE": "Afsluiten",
   "PLAYLISTS": "Afspeellijst",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "Selecteer een afspeellijst of voeg een nieuwe lijst toe",
     "TABS": {
       "RECENTLY_ADDED": "Recent toegevoegde afspeellijst",
@@ -106,7 +106,7 @@
     "PARSING_ERROR": "Fout: parsing mislukt, geen geldige afspeellijst:"
   },
   "SETTINGS": {
-    "TITLE": "Instellingen / IPTVnator",
+    "TITLE": "Instellingen / CSIPTV",
     "SUBTITLE": "Wijzig de configuratie van de applicatie",
     "DESCRIPTION": "Pas de instellingen aan en bevestig met de knop 'Wijzigingen opslaan'.",
     "EPG_URL_LABEL": "EPG-URL (*.xml of *.xml.gz)",
@@ -130,7 +130,7 @@
     "THEME_DESCRIPTION": "Kies het visuele thema van de applicatie",
     "SHOW_CAPTIONS_DESCRIPTION": "Standaard ondertiteling weergeven of verbergen",
     "VERSION_DESCRIPTION": "Huidige versie van de applicatie",
-    "EPG_NOTE": "Momenteel is EPG alleen beschikbaar in de op Electron gebaseerde versie van IPTVnator.",
+    "EPG_NOTE": "Momenteel is EPG alleen beschikbaar in de op Electron gebaseerde versie van CSIPTV.",
     "EPG_NOTE_URL_TEXT": "Bekijk het hier",
     "IMPORT_EXPORT_DATA": "Afspeellijsten importeren/exporteren",
     "IMPORT_EXPORT_DATA_DESCRIPTION": "Exporteer of importeer afspeellijsten in JSON-formaat.",
@@ -230,7 +230,7 @@
   "NO": "Nee",
   "MENU": {
     "OPEN": "Open menu",
-    "SUPPORT_ARIA": "Ondersteun IPTVnator op GitHub",
+    "SUPPORT_ARIA": "Ondersteun CSIPTV op GitHub",
     "SETTINGS": "Instellingen",
     "SETTINGS_ARIA": "Open instellingen",
     "BUG_REPORT": "Meld een bug",
@@ -240,7 +240,7 @@
     "SUPPORT_PROJECT": "Ondersteun het project"
   },
   "ABOUT": {
-    "TITLE": "Over IPTVnator",
+    "TITLE": "Over CSIPTV",
     "DESCRIPTION": "Cross-platform IPTV-speler met meerdere features zoals ondersteuning voor m3u en m3u8 afspeellijsten, favorieten, TV-gids, TV-archief en meer.",
     "VERSION": "Versie",
     "GITHUB_TOOLTIP": "ITPVnator repository op GitHub",
@@ -312,7 +312,7 @@
     "TITLE": "Afstandsbediening",
     "UP_CHANNEL": "Kanaal omhoog",
     "DOWN_CHANNEL": "Kanaal omlaag",
-    "HEADER": "IPTVNator Afstandsbediening",
-    "FOOTER": "IPTVNator Afstandsbediening"
+    "HEADER": "CSIPTV Afstandsbediening",
+    "FOOTER": "CSIPTV Afstandsbediening"
   }
 }

@@ -2,7 +2,7 @@
   "CLOSE": "Chiudi",
   "PLAYLISTS": "Playlist",
   "HOME": {
-    "TITLE": "IPTVnator",
+    "TITLE": "CSIPTV",
     "SUBTITLE": "Seleziona una playlist dall'elenco o aggiungi una nuova playlist tramite caricamento del file o tramite URL",
     "TABS": {
       "RECENTLY_ADDED": "Playlist aggiunte di recente",
@@ -102,7 +102,7 @@
     "PARSING_ERROR": "Errore: analisi fallita, non è una playlist valida:"
   },
   "SETTINGS": {
-    "TITLE": "Impostazioni IPTVnator",
+    "TITLE": "Impostazioni CSIPTV",
     "SUBTITLE": "Modifica la configurazione dell'applicazione",
     "DESCRIPTION": "Configura le opzioni nell'elenco sottostante e conferma con 'Salva modifiche'",
     "EPG_URL_LABEL": "URL EPG (*.xml o *.xml.gz)",
@@ -228,7 +228,7 @@
   "NO": "No",
   "MENU": {
     "OPEN": "Apri menu",
-    "SUPPORT_ARIA": "Supporta IPTVnator su GitHub",
+    "SUPPORT_ARIA": "Supporta CSIPTV su GitHub",
     "SETTINGS": "Impostazioni",
     "SETTINGS_ARIA": "Apri impostazioni",
     "BUG_REPORT": "Segnala un bug",
@@ -238,7 +238,7 @@
     "SUPPORT_PROJECT": "Supporta il progetto"
   },
   "ABOUT": {
-    "TITLE": "Info su IPTVnator",
+    "TITLE": "Info su CSIPTV",
     "DESCRIPTION": "Applicazione per la riproduzione IPTV multi piattaforma con molteplici funzionalità, come il supporto di playlist m3u e m3u8, preferiti, guida TV, archivio TV/catchup e altro ancora.",
     "VERSION": "Versione",
     "GITHUB_TOOLTIP": "Repository ITPVnator su GitHub",
@@ -310,7 +310,7 @@
     "TITLE": "Controllo remoto",
     "UP_CHANNEL": "Canale +",
     "DOWN_CHANNEL": "Canale -",
-    "HEADER": "Controllo remoto IPTVNator",
-    "FOOTER": "Controllo remoto IPTVNator"
+    "HEADER": "Controllo remoto CSIPTV",
+    "FOOTER": "Controllo remoto CSIPTV"
   }
 }
