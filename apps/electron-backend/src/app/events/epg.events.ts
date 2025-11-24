@@ -113,8 +113,8 @@ export default class EpgEvents {
 
             let worker: Worker;
             try {
-                // Worker threads require file:// URLs in packaged apps
-                const workerURL = pathToFileURL(workerPath).href;
+                // Worker threads require file:// URLs wrapped in URL object for packaged apps
+                const workerURL = pathToFileURL(workerPath);
                 worker = new Worker(workerURL);
                 console.log(this.loggerLabel, 'Worker created successfully');
             } catch (error) {
