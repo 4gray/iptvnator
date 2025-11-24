@@ -1,8 +1,10 @@
-import { CommonModule } from '@angular/common';
+import { AsyncPipe, CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
+import { MatIconButton } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { map, switchMap } from 'rxjs';
@@ -26,6 +28,8 @@ const NETFLIX_VIEW_MODE_STORAGE_KEY = 'netflix-view-mode';
         ChannelListContainerComponent,
         MatButtonToggleModule,
         MatIconModule,
+        MatIconButton,
+        MatTooltipModule,
         TranslatePipe,
     ],
 })
@@ -39,7 +43,8 @@ export class NetflixViewComponent implements OnInit, OnDestroy {
         private activatedRoute: ActivatedRoute,
         private dataService: DataService,
         private playlistsService: PlaylistsService,
-        private store: Store
+        private store: Store,
+        private router: Router
     ) {}
 
     ngOnInit(): void {
@@ -87,7 +92,7 @@ export class NetflixViewComponent implements OnInit, OnDestroy {
                     return [];
                 })
             )
-            .subscribe({
+                            .subscribe({
                 next: (channels) => {
                     this.channels = channels;
                     this.isLoading = false;
@@ -125,6 +130,16 @@ export class NetflixViewComponent implements OnInit, OnDestroy {
         } catch (error) {
             console.error('Error saving view mode preference:', error);
         }
+    }
+
+    /**
+     * Navigates to the settings page with return URL
+     */
+    openSettings(): void {
+        const currentUrl = this.router.url;
+        this.router.navigate(['/settings'], {
+            state: { returnUrl: currentUrl }
+        });
     }
 }
 

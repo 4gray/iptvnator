@@ -1,6 +1,6 @@
 :host {
-    background: #1b1c1c;
-    color: #fff;
+    background: rgba(255, 255, 255, 0.95);
+    color: #000;
     display: flex;
     width: 100%;
     --mat-toolbar-standard-height: 100px;
@@ -25,10 +25,11 @@
 
     .title {
         font-size: 1em;
+        color: #000;
     }
 
     .subtitle {
-        color: #999;
+        color: rgba(0, 0, 0, 0.6);
         font-size: 0.7em;
         margin-top: 5px;
         text-wrap: pretty;
@@ -58,7 +59,7 @@
 }
 
 .active-sort {
-    background-color: rgb(48 48 48);
+    background-color: rgba(0, 0, 0, 0.1);
 }
 
 .check-icon {
@@ -72,5 +73,29 @@
 
     .logo > img {
         height: 48px;
+    }
+}
+
+// Dark theme overrides
+::ng-deep {
+    .dark-theme {
+        :host {
+            background: #1b1c1c;
+            color: #fff;
+
+            .main {
+                .title {
+                    color: #fff !important;
+                }
+
+                .subtitle {
+                    color: rgba(255, 255, 255, 0.6) !important;
+                }
+            }
+
+            .active-sort {
+                background-color: rgb(48 48 48);
+            }
+        }
     }
 }

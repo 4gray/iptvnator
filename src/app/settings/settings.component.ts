@@ -29,6 +29,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Location } from '@angular/common';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -154,6 +155,7 @@ export class SettingsComponent implements OnInit {
         public dataService: DataService,
         private epgService: EpgService,
         private formBuilder: FormBuilder,
+        private location: Location,
         private playlistsService: PlaylistsService,
         private router: Router,
         private settingsService: SettingsService,
@@ -308,13 +310,23 @@ export class SettingsComponent implements OnInit {
     }
 
     /**
-     * Navigates back to the applications homepage
+     * Navigates back to the previous page or homepage
      */
     backToHome(): void {
         if (this.isDialog) {
             this.matDialog.closeAll();
         } else {
-            this.router.navigateByUrl('/');
+            // Use location.back() to navigate to the previous page in history
+            // This will work correctly when navigating from another route
+            // If no history exists (direct navigation to settings), fallback to home
+            const canGoBack = window.history.length > 1;
+            
+            if (canGoBack) {
+                this.location.back();
+            } else {
+                // Fallback to home if no history
+                this.router.navigateByUrl('/');
+            }
         }
     }
 

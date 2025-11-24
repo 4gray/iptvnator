@@ -3,9 +3,9 @@
     flex-direction: column;
     gap: 2rem;
     padding: 2rem 1rem;
-    background: #000;
+    background: #f5f5f5;
     min-height: 100vh;
-    color: #fff;
+    color: #1a1a1a;
 
     .empty-state {
         display: flex;
@@ -13,7 +13,7 @@
         align-items: center;
         justify-content: center;
         padding: 4rem 2rem;
-        color: rgba(255, 255, 255, 0.6);
+        color: rgba(0, 0, 0, 0.6);
         text-align: center;
         gap: 1rem;
 
@@ -43,7 +43,7 @@
                 font-size: 1.5rem;
                 font-weight: 600;
                 margin: 0;
-                color: #e5e5e5;
+                color: #000;
                 display: flex;
                 align-items: center;
                 gap: 0.5rem;
@@ -51,7 +51,7 @@
                 .channel-count {
                     font-size: 1rem;
                     font-weight: 400;
-                    color: rgba(255, 255, 255, 0.6);
+                    color: rgba(0, 0, 0, 0.6);
                 }
             }
         }
@@ -65,8 +65,8 @@
             .scroll-button {
                 position: absolute;
                 z-index: 10;
-                background: rgba(0, 0, 0, 0.75);
-                color: #fff;
+                background: rgba(255, 255, 255, 0.75);
+                color: #1a1a1a;
                 width: 48px;
                 height: 48px;
                 border-radius: 50%;
@@ -80,7 +80,7 @@
                 }
 
                 &:hover {
-                    background: rgba(0, 0, 0, 0.9);
+                    background: rgba(255, 255, 255, 0.9);
                     transform: scale(1.1);
                 }
 
@@ -134,7 +134,7 @@
     .channel-card {
         position: relative;
         flex: 0 0 200px;
-        background: #181818;
+        background: #fff;
         border-radius: 0.5rem;
         cursor: pointer;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -147,8 +147,8 @@
         &:hover {
             transform: scale(1.05);
             z-index: 5;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
-            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            border-color: rgba(0, 0, 0, 0.2);
 
             .card-info {
                 opacity: 1;
@@ -160,8 +160,8 @@
         }
 
         &.active {
-            border-color: #e50914;
-            box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.5);
+            border-color: #1976d2;
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.5);
         }
 
         &.favorite {
@@ -171,7 +171,7 @@
         }
 
         &:focus-visible {
-            outline: 2px solid #e50914;
+            outline: 2px solid #1976d2;
             outline-offset: 2px;
         }
 
@@ -179,7 +179,7 @@
             position: relative;
             width: 100%;
             padding-top: 56.25%; // 16:9 aspect ratio
-            background: #2a2a2a;
+            background: #f0f0f0;
             overflow: hidden;
 
             .channel-logo,
@@ -207,14 +207,14 @@
                 position: absolute;
                 top: 0.5rem;
                 right: 0.5rem;
-                background: rgba(0, 0, 0, 0.6);
-                color: rgba(255, 255, 255, 0.8);
+                background: rgba(255, 255, 255, 0.6);
+                color: rgba(0, 0, 0, 0.8);
                 opacity: 0;
                 transition: opacity 0.2s ease, background 0.2s ease;
                 z-index: 2;
 
                 &:hover {
-                    background: rgba(0, 0, 0, 0.9);
+                    background: rgba(255, 255, 255, 0.9);
                     color: #f5c542;
                 }
 
@@ -242,7 +242,7 @@
                 font-size: 0.875rem;
                 font-weight: 500;
                 margin: 0;
-                color: #e5e5e5;
+                color: #1a1a1a;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 display: -webkit-box;
@@ -287,28 +287,109 @@
         }
     }
 
-    // Dark theme support
-    @media (prefers-color-scheme: light) {
-        background: #f5f5f5;
+}
 
-        .channel-row .row-header .row-title {
-            color: #1a1a1a;
-        }
+// Dark theme overrides
+::ng-deep {
+    .dark-theme {
+        .netflix-grid-container {
+            background: #000;
+            color: #fff;
 
-        .channel-card {
-            background: #fff;
-            border-color: rgba(0, 0, 0, 0.1);
+            .empty-state {
+                color: rgba(255, 255, 255, 0.6);
 
-            &:hover {
-                border-color: rgba(0, 0, 0, 0.2);
+                p {
+                    color: rgba(255, 255, 255, 0.6);
+                }
+
+                mat-icon {
+                    color: rgba(255, 255, 255, 0.5);
+                }
             }
 
-            .card-image-container {
-                background: #f0f0f0;
+            .channel-row {
+                .row-header {
+                    .row-title {
+                        color: #fff !important;
+
+                        .channel-count {
+                            color: rgba(255, 255, 255, 0.6) !important;
+                        }
+                    }
+                }
+
+                .row-container {
+                    .scroll-button {
+                        background: rgba(0, 0, 0, 0.75);
+                        color: #fff;
+
+                        &:hover {
+                            background: rgba(0, 0, 0, 0.9);
+                            color: #fff;
+                        }
+
+                        mat-icon {
+                            color: #fff;
+                        }
+                    }
+                }
             }
 
-            .card-info .channel-name {
-                color: #1a1a1a;
+            .channel-card {
+                background: #181818;
+                border-color: transparent;
+                color: #fff;
+
+                &:hover {
+                    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+                    border-color: rgba(255, 255, 255, 0.3);
+                    color: #fff;
+                }
+
+                &.active {
+                    border-color: #e50914;
+                    box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.5);
+                }
+
+                &:focus-visible {
+                    outline: 2px solid #e50914;
+                    outline-offset: 2px;
+                }
+
+                .card-image-container {
+                    background: #2a2a2a;
+
+                    .channel-logo-placeholder {
+                        color: #fff;
+                    }
+
+                    .favorite-button {
+                        background: rgba(0, 0, 0, 0.6);
+                        color: #fff;
+
+                        &:hover {
+                            background: rgba(0, 0, 0, 0.9);
+                            color: #f5c542;
+                        }
+
+                        &.favorite {
+                            color: #f5c542;
+                        }
+
+                        mat-icon {
+                            color: inherit;
+                        }
+                    }
+                }
+
+                .card-info {
+                    color: #fff;
+
+                    .channel-name {
+                        color: #fff;
+                    }
+                }
             }
         }
     }

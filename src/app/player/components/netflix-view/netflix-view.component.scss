@@ -1,61 +1,241 @@
+.header-container {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    gap: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    .logo {
+        flex: 0 0 auto;
+
+        img {
+            height: 100px;
+            display: block;
+        }
+    }
+
+    .main {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 0;
+
+        .title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #000;
+            margin: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .subtitle {
+            font-size: 0.875rem;
+            color: rgba(0, 0, 0, 0.6) !important;
+            margin-top: 0.25rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
+
+    .controls {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 0 0 auto;
+        margin-left: auto;
+
+        mat-button-toggle-group {
+            background: rgba(0, 0, 0, 0.04);
+        }
+
+        mat-button-toggle {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            text-transform: none;
+            color: rgba(0, 0, 0, 0.8);
+
+            mat-icon {
+                font-size: 20px;
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        .settings-button {
+            color: rgba(0, 0, 0, 0.8);
+
+            mat-icon {
+                font-size: 24px;
+                width: 24px;
+                height: 24px;
+            }
+
+            &:hover {
+                background: rgba(0, 0, 0, 0.04);
+            }
+        }
+    }
+}
+
 .loading-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    background: #000;
-    color: #fff;
+    background: #f5f5f5;
+    color: #1a1a1a;
     gap: 1rem;
 
     .spinner {
         width: 48px;
         height: 48px;
-        border: 4px solid rgba(255, 255, 255, 0.1);
-        border-top-color: #e50914;
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-top-color: #1976d2;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
     }
 
     p {
         font-size: 1rem;
-        color: rgba(255, 255, 255, 0.6);
+        color: rgba(0, 0, 0, 0.6);
         margin: 0;
     }
 }
 
-.view-toggle-container {
-    padding: 1rem;
-    display: flex;
-    justify-content: flex-end;
-    background: rgba(0, 0, 0, 0.8);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-
-    mat-button-toggle-group {
-        background: rgba(255, 255, 255, 0.04);
-    }
-
-    mat-button-toggle {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-        text-transform: none;
-        color: rgba(255, 255, 255, 0.8);
-
-        mat-icon {
-            font-size: 20px;
-            width: 20px;
-            height: 20px;
-        }
-    }
-}
 
 @keyframes spin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+// Responsive adjustments
+@media (max-width: 599px) {
+    .header-container {
+        .logo {
+            img {
+                height: 48px;
+            }
+        }
+
+        .main {
+            .title {
+                font-size: 1.25rem;
+            }
+
+            .subtitle {
+                display: none;
+            }
+        }
+
+        .controls {
+            mat-button-toggle {
+                span {
+                    display: none;
+                }
+            }
+        }
+    }
+}
+
+// Dark theme overrides
+:host ::ng-deep {
+    .dark-theme {
+        .header-container {
+            background: rgba(0, 0, 0, 0.95) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: #fff !important;
+
+            .main {
+                .title {
+                    color: #fff !important;
+                }
+
+                .subtitle {
+                    color: rgba(255, 255, 255, 0.6) !important;
+                }
+            }
+        }
+    }
+}
+
+::ng-deep {
+    body.dark-theme {
+        .loading-container {
+            background: #000;
+            color: #fff;
+
+            .spinner {
+                border: 4px solid rgba(255, 255, 255, 0.1);
+                border-top-color: #e50914;
+            }
+
+            p {
+                color: #fff;
+            }
+        }
+
+        app-netflix-view {
+            .header-container {
+                background: rgba(0, 0, 0, 0.95) !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+                color: #fff !important;
+
+                .main {
+                    .title {
+                        color: #fff !important;
+                    }
+
+                    .subtitle {
+                        color: rgba(255, 255, 255, 0.6) !important;
+                    }
+                }
+
+                .controls {
+                    mat-button-toggle-group {
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    mat-button-toggle {
+                        color: #fff;
+
+                        span {
+                            color: #fff;
+                        }
+
+                        mat-icon {
+                            color: #fff;
+                        }
+
+                        &.mat-button-toggle-checked {
+                            color: #fff;
+                        }
+                    }
+
+                    .settings-button {
+                        color: #fff;
+
+                        mat-icon {
+                            color: #fff;
+                        }
+
+                        &:hover {
+                            background: rgba(255, 255, 255, 0.08);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

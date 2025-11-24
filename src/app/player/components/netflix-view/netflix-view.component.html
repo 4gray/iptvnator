@@ -4,22 +4,37 @@
         <p>Loading channels...</p>
     </div>
 } @else {
-    @if (channels.length > 0) {
-        <div class="view-toggle-container">
-            <mat-button-toggle-group
-                [value]="viewMode"
-                (change)="setViewMode($event.value)">
-                <mat-button-toggle value="grid">
-                    <mat-icon>grid_view</mat-icon>
-                    <span>Netflix Grid</span>
-                </mat-button-toggle>
-                <mat-button-toggle value="list">
-                    <mat-icon>view_list</mat-icon>
-                    <span>{{ 'CHANNELS.ALL_CHANNELS' | translate }}</span>
-                </mat-button-toggle>
-            </mat-button-toggle-group>
+    <div class="header-container">
+        <div class="logo">
+            <img src="./assets/icons/icon-tv-256.png" height="100" />
         </div>
-    }
+        <div class="main">
+            <div class="title">{{ 'HOME.TITLE' | translate }}</div>
+        </div>
+        @if (channels.length > 0) {
+            <div class="controls">
+                <mat-button-toggle-group
+                    [value]="viewMode"
+                    (change)="setViewMode($event.value)">
+                    <mat-button-toggle value="grid">
+                        <mat-icon>grid_view</mat-icon>
+                        <span>Netflix Grid</span>
+                    </mat-button-toggle>
+                    <mat-button-toggle value="list">
+                        <mat-icon>view_list</mat-icon>
+                        <span>{{ 'CHANNELS.ALL_CHANNELS' | translate }}</span>
+                    </mat-button-toggle>
+                </mat-button-toggle-group>
+                <button
+                    mat-icon-button
+                    (click)="openSettings()"
+                    matTooltip="{{ 'MENU.SETTINGS' | translate }}"
+                    class="settings-button">
+                    <mat-icon>settings</mat-icon>
+                </button>
+            </div>
+        }
+    </div>
 
     @if (viewMode === 'grid') {
         <app-netflix-grid [channelList]="channels"></app-netflix-grid>
