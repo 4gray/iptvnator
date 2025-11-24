@@ -1,7 +1,8 @@
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import * as path from 'path';
 import { EpgChannelWithPrograms, EpgData, EpgProgram } from 'shared-interfaces';
 import { Worker } from 'worker_threads';
+import { pathToFileURL } from 'url';
 
 /**
  * EPG Events Handler
@@ -97,23 +98,24 @@ export default class EpgEvents {
         }
 
         return new Promise((resolve, reject) => {
-            let workerPath = path.join(
-                __dirname,
+            // Get the proper worker path following Electron's recommended approach
+            // https://www.electronjs.org/docs/latest/tutorial/multithreading
+            const workerPath = path.join(
+                app.getAppPath().replace('app.asar', 'app.asar.unpacked'),
+                'electron-backend',
                 'workers',
                 'epg-parser.worker.js'
             );
 
-            // Handle asar unpacked files in production
-            if (workerPath.includes('app.asar')) {
-                workerPath = workerPath.replace('app.asar', 'app.asar.unpacked');
-            }
-
             console.log(this.loggerLabel, 'Creating worker for:', url);
             console.log(this.loggerLabel, 'Worker path:', workerPath);
+            console.log(this.loggerLabel, 'App path:', app.getAppPath());
 
             let worker: Worker;
             try {
-                worker = new Worker(workerPath);
+                // Worker threads require file:// URLs in packaged apps
+                const workerURL = pathToFileURL(workerPath).href;
+                worker = new Worker(workerURL);
                 console.log(this.loggerLabel, 'Worker created successfully');
             } catch (error) {
                 console.error(
