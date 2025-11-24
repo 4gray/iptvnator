@@ -23,14 +23,21 @@
         "appId": "com.fourgray.iptvnator",
         "productName": "IPTVnator",
         "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+        "directories": {
+            "buildResources": "dist/apps",
+            "output": "dist/executables"
+        },
         "files": [
             "electron-backend/**/*",
             "web/**/*",
             "remote-control-web/**/*",
             "!**/*.map"
         ],
+        "extraMetadata": {
+            "main": "electron-backend/main.js"
+        },
         "asarUnpack": [
-            "electron-backend/workers/**"
+            "**/workers/**"
         ],
         "mac": {
             "target": {
