@@ -5,13 +5,16 @@
       "WebSearch",
       "WebFetch(domain:www.electronjs.org)",
       "Bash(npm run build:frontend:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npx asar:*)",
+      "Bash(npm run package:app:*)",
+      "Bash(npm run build:backend:*)"
     ],
     "deny": [],
     "ask": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "nx-mcp"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

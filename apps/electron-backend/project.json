@@ -4,8 +4,16 @@
     "sourceRoot": "apps/electron-backend/src",
     "projectType": "application",
     "targets": {
+        "build-worker": {
+            "executor": "nx:run-commands",
+            "outputs": ["{workspaceRoot}/dist/apps/electron-backend/workers"],
+            "options": {
+                "command": "node apps/electron-backend/build-worker.js"
+            }
+        },
         "build": {
             "dependsOn": [
+                "electron-backend:build-worker",
                 {
                     "projects": ["web", "remote-control-web"],
                     "target": "build"
@@ -17,20 +25,7 @@
                 "outputPath": "dist/apps/electron-backend",
                 "main": "apps/electron-backend/src/main.ts",
                 "tsConfig": "apps/electron-backend/tsconfig.app.json",
-                "assets": [
-                    "apps/electron-backend/src/assets",
-                    {
-                        "input": "apps/electron-backend/src/app/workers",
-                        "glob": "*.worker.ts",
-                        "output": "workers"
-                    }
-                ],
-                "additionalEntryPoints": [
-                    {
-                        "entryName": "workers/epg-parser.worker",
-                        "entryPath": "apps/electron-backend/src/app/workers/epg-parser.worker.ts"
-                    }
-                ]
+                "assets": ["apps/electron-backend/src/assets"]
             },
             "configurations": {
                 "production": {
@@ -54,7 +49,6 @@
                     "nx run electron-backend:serve-electron"
                 ]
             }
-
         },
         "serve-electron": {
             "executor": "nx-electron:execute",

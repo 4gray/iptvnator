@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { parse as parseEpg } from 'epg-parser';
 import { EpgData, EpgProgram } from 'shared-interfaces';
 import { parentPort } from 'worker_threads';
@@ -29,32 +28,28 @@ const loggerLabel = '[EPG Worker]';
  */
 async function fetchAndParseEpg(url: string): Promise<EpgData> {
     try {
-        console.log(loggerLabel, 'Fetching EPG from:', url);
-
         const isGzipped = url.endsWith('.gz');
-        const axiosConfig = isGzipped
-            ? { responseType: 'arraybuffer' as const }
-            : {};
 
-        const response = await axios.get(url.trim(), axiosConfig);
-        console.log(
-            loggerLabel,
-            'EPG data fetched, size:',
-            response.data.length
-        );
+        // Use native fetch (available in Node.js 18+)
+        const response = await fetch(url.trim());
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         let xmlString: string;
 
         if (isGzipped) {
-            console.log(loggerLabel, 'Unzipping...');
-            const buffer = Buffer.from(response.data);
+            // For gzipped files, get as ArrayBuffer
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
             const decompressed = gunzipSync(buffer);
             xmlString = decompressed.toString('utf-8');
         } else {
-            xmlString = response.data;
+            // For regular files, get as text
+            xmlString = await response.text();
         }
 
-        console.log(loggerLabel, 'Parsing EPG XML...');
         const parsed = parseEpg(xmlString);
 
         // Normalize data to match our interface
@@ -89,11 +84,6 @@ async function fetchAndParseEpg(url: string): Promise<EpgData> {
             ) as EpgProgram[],
         };
 
-        console.log(
-            loggerLabel,
-            `Parsed ${normalized.channels.length} channels and ${normalized.programs.length} programs`
-        );
-
         return normalized;
     } catch (error) {
         console.error(
@@ -109,20 +99,12 @@ async function fetchAndParseEpg(url: string): Promise<EpgData> {
  * Worker message handler
  */
 if (parentPort) {
-    console.log(loggerLabel, 'Worker initialized and ready');
-
     parentPort.on('message', async (message: WorkerMessage) => {
-        console.log(loggerLabel, 'Received message:', message.type);
         try {
             if (
                 message.type === 'FETCH_EPG' ||
                 message.type === 'FORCE_FETCH'
             ) {
-                console.log(
-                    loggerLabel,
-                    'Starting EPG fetch for:',
-                    message.url
-                );
                 const parsedData = await fetchAndParseEpg(message.url);
 
                 const response: WorkerResponse = {
@@ -131,10 +113,6 @@ if (parentPort) {
                     url: message.url,
                 };
 
-                console.log(
-                    loggerLabel,
-                    'Sending parsed data back to main thread'
-                );
                 parentPort?.postMessage(response);
             }
         } catch (error) {
@@ -150,7 +128,6 @@ if (parentPort) {
     });
 
     // Notify parent that worker is ready
-    console.log(loggerLabel, 'Sending READY message');
     parentPort.postMessage({ type: 'READY' });
 } else {
     console.error(loggerLabel, 'parentPort is not available!');
