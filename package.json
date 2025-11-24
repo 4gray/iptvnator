@@ -24,11 +24,13 @@
         "productName": "IPTVnator",
         "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
         "files": [
-            "**/*",
+            "electron-backend/**/*",
+            "web/**/*",
+            "remote-control-web/**/*",
             "!**/*.map"
         ],
         "asarUnpack": [
-            "workers/**/*.js"
+            "electron-backend/workers/**"
         ],
         "mac": {
             "target": {
