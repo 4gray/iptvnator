@@ -1,10 +1,8 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
-import { MatDivider } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MomentDatePipe } from '@iptvnator/pipes';
 import { Store } from '@ngrx/store';
@@ -34,10 +32,8 @@ const DATE_FORMAT = 'YYYY-MM-DD';
         AsyncPipe,
         EpgListItemComponent,
         FormsModule,
-        MatDivider,
         MatIcon,
         MatIconButton,
-        MatListModule,
         MatTooltip,
         MomentDatePipe,
         TranslatePipe,
@@ -45,10 +41,12 @@ const DATE_FORMAT = 'YYYY-MM-DD';
     selector: 'app-epg-list',
     templateUrl: './epg-list.component.html',
     styleUrls: ['./epg-list.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EpgListComponent implements OnInit {
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
+    private readonly cdr = inject(ChangeDetectorRef);
 
     /** Channel info in EPG format */
     channel!: EpgChannel;
@@ -169,6 +167,9 @@ export class EpgListComponent implements OnInit {
             // Clear the current EPG program when no programs available
             this.store.dispatch(resetActiveEpgProgram());
         }
+
+        // Trigger change detection for OnPush strategy
+        this.cdr.markForCheck();
     }
 
     /**
@@ -224,6 +225,8 @@ export class EpgListComponent implements OnInit {
                 this.store.dispatch(
                     setCurrentEpgProgram({ program: this.playingNow })
                 );
+                // Trigger change detection for OnPush strategy
+                this.cdr.markForCheck();
             });
     }
 
@@ -245,5 +248,33 @@ export class EpgListComponent implements OnInit {
             this.store.dispatch(setActiveEpgProgram({ program }));
         }
         this.playingNow = program;
+        // Trigger change detection for OnPush strategy
+        this.cdr.markForCheck();
+    }
+
+    /**
+     * Calculates the progress percentage for the EPG program
+     */
+    calculateProgress(program: EpgProgram): number {
+        const now = new Date().getTime();
+        const start = new Date(program.start).getTime();
+        const stop = new Date(program.stop).getTime();
+
+        const total = stop - start;
+        const elapsed = now - start;
+
+        const progress = Math.min(100, Math.max(0, (elapsed / total) * 100));
+
+        return progress;
+    }
+
+    /**
+     * Check if program is currently playing
+     */
+    isProgramPlaying(program: EpgProgram): boolean {
+        const isPlaying =
+            this.timeNow >= program.start && this.timeNow <= program.stop;
+
+        return isPlaying;
     }
 }

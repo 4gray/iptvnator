@@ -23,7 +23,7 @@
             </div>
         </div>
     </div>
-    <mat-divider />
+    <div class="header-divider"></div>
     <div id="date-navigator">
         <button
             class="previous-day"
@@ -46,35 +46,40 @@
         </button>
     </div>
 </div>
-<mat-divider />
 
 @if (timeshiftUntil) {
     <!-- program list -->
-    <mat-selection-list
-        id="program-list"
-        [multiple]="false"
-        hideSingleSelectionIndicator="true"
-    >
+    <div id="program-list">
         @if (items?.length > 0) {
-            @for (program of items; track program.start + program.stop) {
+            @for (program of items; track $index) {
                 @if (
                     program.start < timeshiftUntil || program.start >= timeNow
                 ) {
-                    <mat-list-option>
-                        <div matListItemLine>
+                    <div class="program-item">
+                        <div class="program-meta">
                             <app-epg-list-item
                                 [timeshiftUntil]="timeshiftUntil"
                                 [timeNow]="timeNow"
                                 [item]="program"
                             />
                         </div>
-                        <p matListItemTitle class="program-title">
+                        <div class="program-title">
                             {{ program?.title?.[0]?.value }}
-                        </p>
-                    </mat-list-option>
+                        </div>
+                        @if (isProgramPlaying(program)) {
+                            <div class="program-progress">
+                                <div class="epg-progress-track">
+                                    <div
+                                        class="epg-progress-fill"
+                                        [style.width.%]="calculateProgress(program)"
+                                    ></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
                 } @else {
-                    <mat-list-option
-                        [value]="program"
+                    <div
+                        class="program-item clickable"
                         [class.active]="
                             timeNow >= program.start && timeNow <= program.stop
                         "
@@ -87,25 +92,34 @@
                             )
                         "
                     >
-                        <div matListItemLine>
+                        <div class="program-meta">
                             <app-epg-list-item
                                 [timeshiftUntil]="timeshiftUntil"
                                 [timeNow]="timeNow"
                                 [item]="program"
                             />
                         </div>
-                        <p
-                            matListItemLine
+                        <div
+                            class="program-title"
                             [innerHTML]="program.title?.[0]?.value"
-                        ></p>
-                    </mat-list-option>
+                        ></div>
+                        @if (isProgramPlaying(program)) {
+                            <div class="program-progress">
+                                <div class="epg-progress-track">
+                                    <div
+                                        class="epg-progress-fill"
+                                        [style.width.%]="calculateProgress(program)"
+                                    ></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
                 }
-                <mat-divider />
             }
         } @else {
-            <p class="epg-not-available">
+            <div class="epg-not-available">
                 {{ 'EPG.EPG_NOT_AVAILABLE_DATE' | translate }}
-            </p>
+            </div>
         }
-    </mat-selection-list>
+    </div>
 }
