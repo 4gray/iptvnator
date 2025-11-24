@@ -48,6 +48,7 @@
                                 [attr.data-channel-id]="channel?.id"
                                 [class.active]="selectedChannelId === channel?.id || isActiveChannel(channel)"
                                 [class.playing]="isActiveChannel(channel)"
+                                [class.last-watched]="isLastWatchedChannel(channel)"
                                 [class.favorite]="isFavorite(channel)"
                                 tabindex="0"
                                 (click)="selectChannel(channel)"

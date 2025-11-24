@@ -33,6 +33,30 @@ mat-list-item.active {
     }
 }
 
+mat-list-item[data-last-watched="true"] {
+    background: rgba(255, 165, 0, 0.08);
+    border-left: 3px solid #ffa500;
+    position: relative;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0.75rem;
+        transform: translateY(-50%);
+        width: 6px;
+        height: 6px;
+        background: #ffa500;
+        border-radius: 50%;
+        z-index: 1;
+    }
+    
+    .channel-name {
+        font-weight: 500;
+        color: #ff8c00;
+    }
+}
+
 ::ng-deep {
     .dark-theme {
         .active {
@@ -46,6 +70,20 @@ mat-list-item.active {
             .channel-name {
                 font-weight: 600;
                 color: #e50914;
+            }
+        }
+
+        mat-list-item[data-last-watched="true"] {
+            background: rgba(255, 165, 0, 0.12);
+            border-left: 3px solid #ffa500;
+
+            &::before {
+                background: #ffa500;
+            }
+            
+            .channel-name {
+                font-weight: 500;
+                color: #ffa500;
             }
         }
     }

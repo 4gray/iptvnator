@@ -62,8 +62,9 @@
                             "
                             [logo]="channel?.tvg?.logo"
                             (clicked)="selectChannel(channel)"
-                            [selected]="selected?.id === channel?.id || isActiveChannel(channel)"
+                            [selected]="selected?.id === channel?.id || isActiveChannel(channel) || isLastWatchedChannel(channel)"
                             [attr.data-channel-id]="channel?.id"
+                            [attr.data-last-watched]="isLastWatchedChannel(channel) ? 'true' : null"
                         />
                     </cdk-virtual-scroll-viewport>
                 </mat-nav-list>

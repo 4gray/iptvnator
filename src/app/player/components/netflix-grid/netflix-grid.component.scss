@@ -175,6 +175,30 @@
             }
         }
 
+        &.last-watched {
+            border-color: #ffa500;
+            box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.4);
+            background: rgba(255, 165, 0, 0.03);
+            position: relative;
+
+            &::before {
+                content: '';
+                position: absolute;
+                top: 0.5rem;
+                left: 0.5rem;
+                width: 8px;
+                height: 8px;
+                background: #ffa500;
+                border-radius: 50%;
+                z-index: 1;
+            }
+
+            .channel-name {
+                font-weight: 500;
+                color: #ff8c00;
+            }
+        }
+
         &.favorite {
             .favorite-button {
                 color: #f5c542;
@@ -371,6 +395,30 @@
                     .channel-name {
                         font-weight: 600;
                         color: #e50914;
+                    }
+                }
+
+                &.last-watched {
+                    border-color: #ffa500;
+                    box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.6);
+                    background: rgba(255, 165, 0, 0.1);
+                    position: relative;
+
+                    &::before {
+                        content: '';
+                        position: absolute;
+                        top: 0.5rem;
+                        left: 0.5rem;
+                        width: 8px;
+                        height: 8px;
+                        background: #ffa500;
+                        border-radius: 50%;
+                        z-index: 1;
+                    }
+
+                    .channel-name {
+                        font-weight: 500;
+                        color: #ffa500;
                     }
                 }
 

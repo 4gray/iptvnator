@@ -44,6 +44,10 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
         this.groupChannels();
         // Wait for DOM update then check scroll positions
         setTimeout(() => this.updateScrollButtons(), 0);
+        // Restore last watched channel when channel list changes
+        if (this._channelList.length > 0) {
+            setTimeout(() => this.restoreLastWatchedChannel(), 200);
+        }
     }
     get channelList(): Channel[] {
         return this._channelList;
@@ -52,6 +56,7 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
     groupedChannels: { [key: string]: Channel[] } = {};
     selectedChannelId?: string;
     activeChannelId?: string;
+    lastWatchedChannelId?: string;
     scrollButtonStates: { [groupKey: string]: { left: boolean; right: boolean } } = {};
     playlistId: string | undefined;
 
@@ -82,6 +87,8 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
             .subscribe((activeChannel) => {
                 if (activeChannel?.id) {
                     this.activeChannelId = activeChannel.id;
+                    // Save last watched channel
+                    this.saveLastWatchedChannel(activeChannel.id);
                     // Scroll to active channel after a short delay to ensure DOM is updated
                     setTimeout(() => this.scrollToChannel(activeChannel.id), 100);
                 }
@@ -90,6 +97,8 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
 
     ngOnInit(): void {
         this.updateScrollButtons();
+        // Restore and scroll to last watched channel
+        this.restoreLastWatchedChannel();
     }
 
     ngOnDestroy(): void {
@@ -259,6 +268,57 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
      */
     isActiveChannel(channel: Channel): boolean {
         return this.activeChannelId === channel?.id;
+    }
+
+    /**
+     * Checks if a channel was the last watched channel
+     */
+    isLastWatchedChannel(channel: Channel): boolean {
+        return this.lastWatchedChannelId === channel?.id && !this.isActiveChannel(channel);
+    }
+
+    /**
+     * Saves the last watched channel ID to localStorage
+     */
+    private saveLastWatchedChannel(channelId: string): void {
+        try {
+            const storageKey = `lastWatchedChannel_${this.playlistId || 'default'}`;
+            localStorage.setItem(storageKey, channelId);
+        } catch (error) {
+            console.error('Error saving last watched channel:', error);
+        }
+    }
+
+    /**
+     * Restores and scrolls to the last watched channel
+     */
+    private restoreLastWatchedChannel(): void {
+        try {
+            const storageKey = `lastWatchedChannel_${this.playlistId || 'default'}`;
+            const lastChannelId = localStorage.getItem(storageKey);
+            
+            if (lastChannelId && this._channelList.length > 0) {
+                // Check if the channel still exists in the current playlist
+                const channelExists = this._channelList.some(ch => ch.id === lastChannelId);
+                
+                if (channelExists) {
+                    // Set last watched channel ID for highlighting
+                    this.lastWatchedChannelId = lastChannelId;
+                    // Wait for DOM to be ready, then scroll to the channel
+                    setTimeout(() => {
+                        this.scrollToChannel(lastChannelId);
+                    }, 300);
+                } else {
+                    // Channel no longer exists, remove from storage
+                    localStorage.removeItem(storageKey);
+                    this.lastWatchedChannelId = undefined;
+                }
+            } else {
+                this.lastWatchedChannelId = undefined;
+            }
+        } catch (error) {
+            console.error('Error restoring last watched channel:', error);
+        }
     }
 }
 

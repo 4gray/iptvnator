@@ -16,7 +16,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { Observable, combineLatestWith, filter, map, switchMap } from 'rxjs';
+import { Observable, combineLatestWith, filter, map, switchMap, take } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import {
     CHANNEL_SET_USER_AGENT,
@@ -27,6 +27,7 @@ import {
 import { Playlist } from '../../../../../shared/playlist.interface';
 import { DataService } from '../../../services/data.service';
 import { PlaylistsService } from '../../../services/playlists.service';
+import { EpgService } from '../../../services/epg.service';
 import { SettingsStore } from '../../../services/settings-store.service';
 import { Settings, VideoPlayer } from '../../../settings/settings.interface';
 import { STORE_KEY } from '../../../shared/enums/store-keys.enum';
@@ -136,6 +137,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     constructor(
         private activatedRoute: ActivatedRoute,
         private dataService: DataService,
+        private epgService: EpgService,
         private ngZone: NgZone,
         private overlay: Overlay,
         private playlistsService: PlaylistsService,
@@ -188,11 +190,15 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                                     : {}
                             );
 
-                            this.store.dispatch(
-                                PlaylistActions.setChannels({
-                                    channels: playlist.playlist.items,
-                                })
-                            );
+                        this.store.dispatch(
+                            PlaylistActions.setChannels({
+                                channels: playlist.playlist.items,
+                            })
+                        );
+                        
+                        // Auto-play last watched channel if no active channel
+                        this.autoplayLastWatchedChannel(params.id, playlist.playlist.items);
+                        
                             return playlist.playlist.items;
                         })
                     );
@@ -305,5 +311,43 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     navigateHome() {
         this.router.navigate(['/']);
+    }
+
+    /**
+     * Auto-plays the last watched channel if no channel is currently active
+     */
+    private autoplayLastWatchedChannel(playlistId: string, channels: Channel[]): void {
+        // Check if there's already an active channel
+        this.store.select(selectActive).pipe(
+            take(1)
+        ).subscribe((activeChannel) => {
+            // If there's already an active channel, don't autoplay
+            if (activeChannel?.id) {
+                return;
+            }
+
+            // Try to get last watched channel from localStorage
+            try {
+                const storageKey = `lastWatchedChannel_${playlistId || 'default'}`;
+                const lastChannelId = localStorage.getItem(storageKey);
+                
+                if (lastChannelId && channels.length > 0) {
+                    // Find the channel in the current playlist
+                    const lastWatchedChannel = channels.find(ch => ch.id === lastChannelId);
+                    
+                    if (lastWatchedChannel) {
+                        // Auto-play the last watched channel
+                        this.store.dispatch(PlaylistActions.setActiveChannel({ channel: lastWatchedChannel }));
+                        
+                        const epgChannelId = lastWatchedChannel?.name?.trim();
+                        if (epgChannelId) {
+                            this.epgService.getChannelPrograms(epgChannelId);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error auto-playing last watched channel:', error);
+            }
+        });
     }
 }
