@@ -236,4 +236,8 @@ export class StalkerMainContainerComponent {
     backToCategories() {
         this.stalkerStore.setSelectedCategory(null);
     }
+
+    goBackToList() {
+        this.stalkerStore.clearSelectedItem();
+    }
 }

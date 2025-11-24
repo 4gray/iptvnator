@@ -2,10 +2,11 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    overflow: auto;
 }
 
 .details {
+    overflow: visible;
+
     h2 {
         word-wrap: break-word;
     }
@@ -16,6 +17,7 @@
     grid-gap: 10px;
     grid-template-columns: 320px 1fr;
     padding: 0 10px;
+    overflow: visible;
 
     &::before {
         content: '';

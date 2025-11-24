@@ -38,6 +38,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     @Input() showCaptions = false;
 
     private player!: Artplayer;
+    private hls: Hls | null = null;
 
     private readonly elementRef = inject(ElementRef);
 
@@ -46,17 +47,23 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     ngOnDestroy(): void {
-        if (this.player) {
-            this.player.destroy();
-        }
+        this.destroyPlayer();
     }
 
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['channel'] && !changes['channel'].firstChange) {
-            if (this.player) {
-                this.player.destroy();
-            }
+            this.destroyPlayer();
             this.initPlayer();
+        }
+    }
+
+    private destroyPlayer(): void {
+        if (this.hls) {
+            this.hls.destroy();
+            this.hls = null;
+        }
+        if (this.player) {
+            this.player.destroy();
         }
     }
 
@@ -89,11 +96,14 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             mutex: true,
             theme: '#ff0000',
             customType: {
-                m3u8: function (video: HTMLVideoElement, url: string) {
+                m3u8: (video: HTMLVideoElement, url: string) => {
                     if (Hls.isSupported()) {
-                        const hls = new Hls();
-                        hls.loadSource(url);
-                        hls.attachMedia(video);
+                        if (this.hls) {
+                            this.hls.destroy();
+                        }
+                        this.hls = new Hls();
+                        this.hls.loadSource(url);
+                        this.hls.attachMedia(video);
                     } else if (
                         video.canPlayType('application/vnd.apple.mpegurl')
                     ) {

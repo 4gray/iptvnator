@@ -23,6 +23,22 @@
         "appId": "com.fourgray.iptvnator",
         "productName": "IPTVnator",
         "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+        "directories": {
+            "buildResources": "dist/apps",
+            "output": "dist/executables"
+        },
+        "files": [
+            "electron-backend/**/*",
+            "web/**/*",
+            "remote-control-web/**/*",
+            "!**/*.map"
+        ],
+        "extraMetadata": {
+            "main": "electron-backend/main.js"
+        },
+        "extraResources": [
+            "dist/apps/electron-backend/workers"
+        ],
         "mac": {
             "target": {
                 "target": "dmg",
@@ -185,6 +201,7 @@
         "drizzle-kit": "0.31.5",
         "electron": "^39.0.0",
         "electron-builder": "^26.0.12",
+        "esbuild": "0.27.0",
         "eslint": "^9.8.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-import": "2.32.0",

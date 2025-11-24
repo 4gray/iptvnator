@@ -332,6 +332,14 @@ export const StalkerStore = signalStore(
                     selectedItem,
                 });
             },
+            clearSelectedItem() {
+                patchState(store, {
+                    selectedVodId: undefined,
+                    selectedSerialId: undefined,
+                    selectedItvId: undefined,
+                    selectedItem: undefined,
+                });
+            },
             setCategories(type: 'vod' | 'series' | 'itv', categories: any[]) {
                 if (type === 'vod') {
                     patchState(store, { vodCategories: categories });

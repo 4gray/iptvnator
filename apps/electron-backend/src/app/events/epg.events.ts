@@ -1,7 +1,8 @@
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import * as path from 'path';
 import { EpgChannelWithPrograms, EpgData, EpgProgram } from 'shared-interfaces';
 import { Worker } from 'worker_threads';
+import { pathToFileURL } from 'url';
 
 /**
  * EPG Events Handler
@@ -23,8 +24,6 @@ export default class EpgEvents {
      * Bootstrap EPG events
      */
     static bootstrapEpgEvents(): Electron.IpcMain {
-        console.log('[EPG Events] Bootstrapping EPG events...');
-
         // Fetch EPG from URLs
         ipcMain.handle('FETCH_EPG', async (event, args: { url: string[] }) => {
             return await this.handleFetchEpg(args.url);
@@ -78,7 +77,7 @@ export default class EpgEvents {
             await Promise.all(promises);
             return { success: true };
         } catch (error) {
-            console.error('[EPG Events] Error fetching EPG:', error);
+            console.error(this.loggerLabel, 'Error fetching EPG:', error);
             return {
                 success: false,
                 message: error instanceof Error ? error.message : String(error),
@@ -92,24 +91,33 @@ export default class EpgEvents {
     private static async fetchEpgFromUrl(url: string): Promise<void> {
         // Skip if already fetched
         if (this.fetchedUrls.has(url)) {
-            console.log(this.loggerLabel, 'URL already fetched:', url);
             return;
         }
 
         return new Promise((resolve, reject) => {
-            const workerPath = path.join(
-                __dirname,
-                'workers',
-                'epg-parser.worker.js'
-            );
+            let workerPath: string;
 
-            console.log(this.loggerLabel, 'Creating worker for:', url);
-            console.log(this.loggerLabel, 'Worker path:', workerPath);
+            if (app.isPackaged) {
+                // In packaged app: Resources/dist/apps/electron-backend/workers/epg-parser.worker.js
+                const resourcesPath = path.dirname(app.getAppPath());
+                workerPath = path.join(
+                    resourcesPath,
+                    'dist',
+                    'apps',
+                    'electron-backend',
+                    'workers',
+                    'epg-parser.worker.js'
+                );
+            } else {
+                // In development: dist/apps/electron-backend/workers/epg-parser.worker.js
+                workerPath = path.join(__dirname, 'workers', 'epg-parser.worker.js');
+            }
 
             let worker: Worker;
             try {
-                worker = new Worker(workerPath);
-                console.log(this.loggerLabel, 'Worker created successfully');
+                // Worker threads require file:// URLs wrapped in URL object for packaged apps
+                const workerURL = pathToFileURL(workerPath);
+                worker = new Worker(workerURL);
             } catch (error) {
                 console.error(
                     this.loggerLabel,
@@ -131,16 +139,8 @@ export default class EpgEvents {
                     url?: string;
                 }) => {
                     if (message.type === 'READY') {
-                        console.log(
-                            this.loggerLabel,
-                            'Worker ready, sending fetch command'
-                        );
                         worker.postMessage({ type: 'FETCH_EPG', url });
                     } else if (message.type === 'EPG_PARSED') {
-                        console.log(
-                            this.loggerLabel,
-                            'EPG parsed in worker, merging data...'
-                        );
                         if (message.data) {
                             this.mergeEpgData(message.data);
                             this.fetchedUrls.add(url);
@@ -183,11 +183,6 @@ export default class EpgEvents {
      * Merge EPG data (optimized for large datasets)
      */
     private static mergeEpgData(newData: EpgData): void {
-        console.log(
-            this.loggerLabel,
-            `Merging ${newData.channels.length} channels and ${newData.programs.length} programs...`
-        );
-
         // Merge channels (avoid duplicates)
         const existingChannelIds = new Set(
             this.epgData.channels.map((c) => c.id)
@@ -208,11 +203,6 @@ export default class EpgEvents {
 
         // Rebuild merged data structure
         this.rebuildMergedData();
-
-        console.log(
-            this.loggerLabel,
-            `Merged EPG data: ${this.epgData.channels.length} channels, ${this.epgData.programs.length} programs`
-        );
     }
 
     /**
@@ -220,7 +210,6 @@ export default class EpgEvents {
      * Optimized for large datasets
      */
     private static rebuildMergedData(): void {
-        console.log(this.loggerLabel, 'Rebuilding merged data structure...');
         this.epgDataMerged.clear();
 
         // Create channel lookup map for O(1) access
@@ -247,31 +236,17 @@ export default class EpgEvents {
                 });
             }
         }
-
-        console.log(
-            this.loggerLabel,
-            `Rebuild complete. ${this.epgDataMerged.size} channels with programs`
-        );
     }
 
     /**
      * Get programs for a specific channel
      */
     private static handleGetChannelPrograms(channelId: string): EpgProgram[] {
-        console.log('[EPG Events] Getting programs for channel:', channelId);
-        console.log(
-            '[EPG Events] Total merged channels:',
-            this.epgDataMerged.size
-        );
-
         // First try exact ID match
         let channelData = this.epgDataMerged.get(channelId);
 
         // If not found, try to find by display name
         if (!channelData) {
-            console.log(
-                '[EPG Events] No exact match, searching by display name...'
-            );
             for (const [id, channel] of this.epgDataMerged.entries()) {
                 const displayNames = channel.displayName.map((d) =>
                     d.value.toLowerCase()
@@ -284,22 +259,12 @@ export default class EpgEvents {
                             channelId.toLowerCase().includes(name)
                     )
                 ) {
-                    console.log(
-                        '[EPG Events] Found match by name:',
-                        id,
-                        '→',
-                        channel.displayName[0]?.value
-                    );
                     channelData = channel;
                     break;
                 }
             }
         }
 
-        console.log(
-            '[EPG Events] Found programs:',
-            channelData?.programs?.length || 0
-        );
         return channelData?.programs || [];
     }
 
@@ -325,7 +290,5 @@ export default class EpgEvents {
         // Terminate all workers
         this.workers.forEach((worker) => worker.terminate());
         this.workers.clear();
-
-        console.log(this.loggerLabel, 'EPG data cleared');
     }
 }

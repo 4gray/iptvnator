@@ -90,19 +90,17 @@
 <div class="main-content">
     <div class="content-header">
         <h2>
-            @if (
-                currentLayout === 'vod-details' ||
-                currentLayout === 'serial-details'
-            ) {
-                <button mat-icon-button (click)="historyBack()">
+            @if (stalkerStore.selectedItem()) {
+                <button mat-icon-button (click)="goBackToList()">
                     <mat-icon>chevron_left</mat-icon>
+                </button>
+            } @else if (!isItvCategorySelected) {
+                <button mat-icon-button disabled>
+                    <mat-icon>category</mat-icon>
                 </button>
             }
 
             @if (!isItvCategorySelected) {
-                <button mat-icon-button disabled>
-                    <mat-icon>category</mat-icon>
-                </button>
                 {{ selectedCategoryTitle() }}
             }
 
