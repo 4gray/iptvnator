@@ -186,7 +186,10 @@ export class PwaService extends DataService {
             );
 
             if (!(response as any).payload) {
-                if (payload.params.action === 'get_account_info') return;
+                if (payload.params.action === 'get_account_info') {
+                    console.log('Portal status check failed - portal may be unavailable:', (response as any).message || 'No payload received');
+                    return;
+                }
 
                 result = {
                     type: ERROR,
@@ -204,7 +207,15 @@ export class PwaService extends DataService {
             }
             return result;
         } catch (error: any) {
-            if (payload.params.action === 'get_account_info') return;
+            const isStatusCheck = payload.params.action === 'get_account_info';
+
+            // Log error to console
+            if (isStatusCheck) {
+                console.log('Portal status check failed - portal may be unavailable:', error.message || error);
+                return;
+            }
+
+            console.error('Xtream request error:', error.message);
             this.snackBar.open(
                 `Error: ${error.message ?? ' Unknown error'}, status: ${
                     error.status ?? 500

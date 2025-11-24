@@ -226,16 +226,28 @@ export class ElectronService extends DataService {
             window.postMessage(result);
             return result;
         } catch (error: any) {
-            console.error('Xtream request error:', error.message);
-            this.snackBar.open(
-                `Error: ${error.message ?? 'Failed to connect to Xtream server'}, status: ${
-                    error.status ?? 500
-                }`,
-                'Close',
-                {
-                    duration: 5000,
-                }
-            );
+            const isStatusCheck = payload.params?.action === 'get_account_info';
+
+            // Log error to console
+            if (isStatusCheck) {
+                console.log('Portal status check failed - portal may be unavailable:', error.message || error);
+            } else {
+                console.error('Xtream request error:', error.message);
+            }
+
+            // Only show snackbar for non-status-check requests
+            if (!isStatusCheck) {
+                this.snackBar.open(
+                    `Error: ${error.message ?? 'Failed to connect to Xtream server'}, status: ${
+                        error.status ?? 500
+                    }`,
+                    'Close',
+                    {
+                        duration: 5000,
+                    }
+                );
+            }
+
             return {
                 type: ERROR,
                 status: error.status ?? 500,
