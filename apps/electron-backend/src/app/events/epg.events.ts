@@ -100,16 +100,24 @@ export default class EpgEvents {
         return new Promise((resolve, reject) => {
             // Get the proper worker path following Electron's recommended approach
             // https://www.electronjs.org/docs/latest/tutorial/multithreading
-            const workerPath = path.join(
-                app.getAppPath().replace('app.asar', 'app.asar.unpacked'),
-                'electron-backend',
-                'workers',
-                'epg-parser.worker.js'
-            );
+            let workerPath: string;
+            
+            if (app.isPackaged) {
+                // In packaged app: Resources/app.asar.unpacked/workers/epg-parser.worker.js
+                workerPath = path.join(
+                    app.getAppPath().replace('app.asar', 'app.asar.unpacked'),
+                    'workers',
+                    'epg-parser.worker.js'
+                );
+            } else {
+                // In development: dist/apps/electron-backend/workers/epg-parser.worker.js
+                workerPath = path.join(__dirname, 'workers', 'epg-parser.worker.js');
+            }
 
             console.log(this.loggerLabel, 'Creating worker for:', url);
             console.log(this.loggerLabel, 'Worker path:', workerPath);
             console.log(this.loggerLabel, 'App path:', app.getAppPath());
+            console.log(this.loggerLabel, 'Is packaged:', app.isPackaged);
 
             let worker: Worker;
             try {
