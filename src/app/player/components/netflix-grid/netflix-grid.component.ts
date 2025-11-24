@@ -109,7 +109,14 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
     groupChannels(): void {
         this.groupedChannels = _.groupBy(
             this._channelList,
-            (channel) => channel?.group?.title || 'UNGROUPED'
+            (channel) => {
+                const groupTitle = channel?.group?.title;
+                // Handle undefined, null, empty string, or the literal string "undefined"
+                if (!groupTitle || groupTitle.trim() === '' || groupTitle.toLowerCase() === 'undefined') {
+                    return 'MISCELLANEOUS';
+                }
+                return groupTitle;
+            }
         );
         
         // Initialize scroll button states
@@ -177,9 +184,9 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
         a: KeyValue<string, Channel[]>,
         b: KeyValue<string, Channel[]>
     ): number => {
-        // Sort ungrouped to the end
-        if (a.key === 'UNGROUPED') return 1;
-        if (b.key === 'UNGROUPED') return -1;
+        // Sort miscellaneous/ungrouped to the end
+        if (a.key === 'MISCELLANEOUS' || a.key === 'UNGROUPED') return 1;
+        if (b.key === 'MISCELLANEOUS' || b.key === 'UNGROUPED') return -1;
 
         // Try numeric sorting if group names contain numbers
         const numA = parseInt(a.key.replace(/\D/g, ''));
@@ -221,9 +228,13 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
     }
 
     getGroupDisplayName(groupKey: string): string {
-        return groupKey === 'UNGROUPED' 
-            ? 'CHANNELS.UNGROUPED' 
-            : groupKey;
+        if (groupKey === 'UNGROUPED') {
+            return 'CHANNELS.UNGROUPED';
+        }
+        if (groupKey === 'MISCELLANEOUS' || !groupKey || groupKey.toLowerCase() === 'undefined') {
+            return 'Miscellaneous';
+        }
+        return groupKey;
     }
 
     /**

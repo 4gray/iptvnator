@@ -1,3 +1,10 @@
+:host {
+    display: block;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
 .header-container {
     display: flex;
     align-items: center;
@@ -8,6 +15,10 @@
     position: sticky;
     top: 0;
     z-index: 100;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    min-width: 0;
 
     .logo {
         flex: 0 0 auto;
@@ -48,12 +59,16 @@
     .controls {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: 0.5rem;
         flex: 0 0 auto;
         margin-left: auto;
+        min-width: 0;
+        flex-shrink: 0;
 
         mat-button-toggle-group {
             background: rgba(0, 0, 0, 0.04);
+            flex-shrink: 1;
+            min-width: 0;
         }
 
         mat-button-toggle {
@@ -62,16 +77,22 @@
             align-items: center;
             text-transform: none;
             color: rgba(0, 0, 0, 0.8);
+            white-space: nowrap;
 
             mat-icon {
                 font-size: 20px;
                 width: 20px;
                 height: 20px;
+                flex-shrink: 0;
             }
         }
 
         .settings-button {
             color: rgba(0, 0, 0, 0.8);
+            flex-shrink: 0;
+            min-width: 40px;
+            width: 40px;
+            height: 40px;
 
             mat-icon {
                 font-size: 24px;
@@ -122,15 +143,22 @@
 // Responsive adjustments
 @media (max-width: 599px) {
     .header-container {
+        padding: 0.75rem;
+        gap: 0.5rem;
+
         .logo {
+            flex-shrink: 0;
             img {
                 height: 48px;
             }
         }
 
         .main {
+            min-width: 0;
+            flex-shrink: 1;
+            
             .title {
-                font-size: 1.25rem;
+                font-size: 1rem;
             }
 
             .subtitle {
@@ -139,11 +167,52 @@
         }
 
         .controls {
+            gap: 0.25rem;
+            flex-shrink: 0;
+
+            mat-button-toggle-group {
+                flex-shrink: 1;
+                min-width: 0;
+            }
+
             mat-button-toggle {
+                padding: 0 8px;
+                
                 span {
                     display: none;
                 }
             }
+
+            .settings-button {
+                flex-shrink: 0;
+                min-width: 40px;
+                width: 40px;
+                height: 40px;
+            }
+        }
+    }
+}
+
+// Extra small screens
+@media (max-width: 480px) {
+    .header-container {
+        padding: 0.5rem;
+        gap: 0.5rem;
+
+        .logo {
+            img {
+                height: 40px;
+            }
+        }
+
+        .main {
+            .title {
+                font-size: 0.875rem;
+            }
+        }
+
+        .controls {
+            gap: 0.25rem;
         }
     }
 }

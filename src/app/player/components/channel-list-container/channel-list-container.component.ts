@@ -82,7 +82,14 @@ export class ChannelListContainerComponent implements OnDestroy {
     @Input('channelList')
     set channelList(value: Channel[]) {
         this._channelList = value;
-        this.groupedChannels = _.default.groupBy(value, 'group.title');
+        // Group channels, handling undefined/null group titles as "Miscellaneous"
+        this.groupedChannels = _.default.groupBy(value, (channel) => {
+            const groupTitle = channel?.group?.title;
+            if (!groupTitle || groupTitle.trim() === '' || groupTitle.toLowerCase() === 'undefined') {
+                return 'Miscellaneous';
+            }
+            return groupTitle;
+        });
         // Restore last watched channel when channel list changes
         if (this._channelList.length > 0) {
             setTimeout(() => this.restoreLastWatchedChannel(), 200);

@@ -4,7 +4,7 @@
     gap: 2rem;
     padding: 2rem 1rem;
     background: #f5f5f5;
-    min-height: 100vh;
+    min-height: auto;
     color: #1a1a1a;
 
     .empty-state {
@@ -96,6 +96,7 @@
                     font-size: 2rem;
                     width: 2rem;
                     height: 2rem;
+                    color: #1a1a1a;
                 }
             }
 
@@ -365,7 +366,7 @@
                         }
 
                         mat-icon {
-                            color: #fff;
+                            color: #fff !important;
                         }
                     }
                 }

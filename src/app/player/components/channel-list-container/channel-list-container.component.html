@@ -87,9 +87,9 @@
                                 <mat-expansion-panel>
                                     <mat-expansion-panel-header>
                                         {{
-                                            groups.key ||
-                                                ('CHANNELS.UNGROUPED' | translate)
-                                                | titlecase
+                                            groups.key && groups.key.toLowerCase() !== 'undefined'
+                                                ? (groups.key | titlecase)
+                                                : 'Miscellaneous'
                                         }}
                                         ({{ groups.value.length }})
                                     </mat-expansion-panel-header>

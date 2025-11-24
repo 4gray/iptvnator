@@ -16,7 +16,9 @@
                         {{ 
                             group.key === 'UNGROUPED' 
                                 ? ('CHANNELS.UNGROUPED' | translate)
-                                : group.key 
+                                : (group.key === 'MISCELLANEOUS' || !group.key || group.key.toLowerCase() === 'undefined'
+                                    ? 'Miscellaneous'
+                                    : group.key)
                         }}
                         <span class="channel-count">({{ group.value.length }})</span>
                     </h2>

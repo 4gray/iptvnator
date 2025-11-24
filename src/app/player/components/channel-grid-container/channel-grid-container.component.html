@@ -68,7 +68,11 @@
                             }}
                         </div>
                         <div class="metadata">
-                            {{ channel?.group?.title || ('CHANNELS.UNGROUPED' | translate) }}
+                            {{ 
+                                channel?.group?.title && channel.group.title.toLowerCase() !== 'undefined'
+                                    ? channel.group.title
+                                    : 'Miscellaneous'
+                            }}
                         </div>
                     </div>
                 </article>
