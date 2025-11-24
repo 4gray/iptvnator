@@ -23,8 +23,12 @@
         "appId": "com.fourgray.iptvnator",
         "productName": "IPTVnator",
         "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+        "files": [
+            "**/*",
+            "!**/*.map"
+        ],
         "asarUnpack": [
-            "**/workers/**"
+            "workers/**/*.js"
         ],
         "mac": {
             "target": {

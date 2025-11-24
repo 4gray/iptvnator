@@ -104,11 +104,9 @@ export default class EpgEvents {
             
             if (app.isPackaged) {
                 // In packaged app: Resources/app.asar.unpacked/workers/epg-parser.worker.js
-                workerPath = path.join(
-                    app.getAppPath().replace('app.asar', 'app.asar.unpacked'),
-                    'workers',
-                    'epg-parser.worker.js'
-                );
+                const appPath = app.getAppPath();
+                const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
+                workerPath = path.join(unpackedPath, 'workers', 'epg-parser.worker.js');
             } else {
                 // In development: dist/apps/electron-backend/workers/epg-parser.worker.js
                 workerPath = path.join(__dirname, 'workers', 'epg-parser.worker.js');
@@ -118,6 +116,31 @@ export default class EpgEvents {
             console.log(this.loggerLabel, 'Worker path:', workerPath);
             console.log(this.loggerLabel, 'App path:', app.getAppPath());
             console.log(this.loggerLabel, 'Is packaged:', app.isPackaged);
+            console.log(this.loggerLabel, '__dirname:', __dirname);
+            
+            // Check if file exists
+            const fs = require('fs');
+            if (!fs.existsSync(workerPath)) {
+                console.error(this.loggerLabel, 'Worker file does not exist at:', workerPath);
+                console.error(this.loggerLabel, 'Trying alternate paths...');
+                
+                // Try alternate path with electron-backend subdirectory
+                const alternatePath = path.join(
+                    app.getAppPath().replace('app.asar', 'app.asar.unpacked'),
+                    'electron-backend',
+                    'workers',
+                    'epg-parser.worker.js'
+                );
+                console.error(this.loggerLabel, 'Alternate path:', alternatePath);
+                
+                if (fs.existsSync(alternatePath)) {
+                    workerPath = alternatePath;
+                    console.log(this.loggerLabel, 'Using alternate path');
+                } else {
+                    reject(new Error(`Worker file not found at ${workerPath} or ${alternatePath}`));
+                    return;
+                }
+            }
 
             let worker: Worker;
             try {
