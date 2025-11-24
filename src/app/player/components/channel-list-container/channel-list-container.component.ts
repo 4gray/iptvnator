@@ -34,6 +34,7 @@ import { EpgService } from '../../../services/epg.service';
 import { FilterPipe } from '../../../shared/pipes/filter.pipe';
 import * as PlaylistActions from '../../../state/actions';
 import {
+    selectActive,
     selectActivePlaylistId,
     selectFavorites,
 } from '../../../state/selectors';
@@ -89,6 +90,9 @@ export class ChannelListContainerComponent implements OnDestroy {
 
     /** Selected channel */
     selected!: Channel;
+
+    /** Active (playing) channel ID */
+    activeChannelId?: string;
 
     /** Search term for channel filter */
     searchTerm: any = {
@@ -158,6 +162,20 @@ export class ChannelListContainerComponent implements OnDestroy {
             .pipe(takeUntil(this.destroy$))
             .subscribe((playlistId) => {
                 this.playlistId = playlistId;
+            });
+
+        // Subscribe to active channel changes for highlighting and auto-scroll
+        this.store
+            .select(selectActive)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((activeChannel) => {
+                if (activeChannel?.id) {
+                    this.activeChannelId = activeChannel.id;
+                    // Scroll to active channel after a short delay to ensure DOM is updated
+                    setTimeout(() => this.scrollToChannel(activeChannel.id), 100);
+                } else {
+                    this.activeChannelId = undefined;
+                }
             });
     }
 
@@ -251,5 +269,41 @@ export class ChannelListContainerComponent implements OnDestroy {
         } catch (error) {
             console.error('Error saving channel list view mode preference:', error);
         }
+    }
+
+    /**
+     * Scrolls to the channel with the given ID
+     */
+    private scrollToChannel(channelId: string): void {
+        if (!channelId) return;
+
+        // Try to find the channel in the list and scroll to it
+        const channelIndex = this._channelList.findIndex(ch => ch.id === channelId);
+        if (channelIndex !== -1) {
+            // Use the virtual scroll viewport if available
+            const viewport = document.querySelector('#all-channels .scroll-viewport') as HTMLElement;
+            if (viewport) {
+                // Calculate the scroll position for virtual scroll
+                const itemSize = 50; // Matches itemSize in template
+                const targetScroll = channelIndex * itemSize;
+                viewport.scrollTo({
+                    top: Math.max(0, targetScroll - 100), // Offset by 100px to show some context above
+                    behavior: 'smooth'
+                });
+            }
+
+            // Also try to scroll to the element in the groups list
+            const channelElement = document.querySelector(`[data-channel-id="${channelId}"]`);
+            if (channelElement) {
+                channelElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }
+
+    /**
+     * Checks if a channel is currently active (playing)
+     */
+    isActiveChannel(channel: Channel): boolean {
+        return this.activeChannelId === channel?.id;
     }
 }

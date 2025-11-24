@@ -62,7 +62,8 @@
                             "
                             [logo]="channel?.tvg?.logo"
                             (clicked)="selectChannel(channel)"
-                            [selected]="selected?.id === channel?.id"
+                            [selected]="selected?.id === channel?.id || isActiveChannel(channel)"
+                            [attr.data-channel-id]="channel?.id"
                         />
                     </cdk-virtual-scroll-viewport>
                 </mat-nav-list>
@@ -110,8 +111,9 @@
                                                 [logo]="channel?.tvg?.logo"
                                                 (clicked)="selectChannel(channel)"
                                                 [selected]="
-                                                    selected?.id === channel.id
+                                                    selected?.id === channel.id || isActiveChannel(channel)
                                                 "
+                                                [attr.data-channel-id]="channel?.id"
                                             ></app-channel-list-item>
                                         }
                                     </ng-template>
@@ -156,7 +158,8 @@
                                         [isDraggable]="true"
                                         [logo]="channel?.tvg?.logo"
                                         (clicked)="selectChannel(channel)"
-                                        [selected]="selected?.id === channel?.id"
+                                        [selected]="selected?.id === channel?.id || isActiveChannel(channel)"
+                                        [attr.data-channel-id]="channel?.id"
                                         [showFavoriteButton]="true"
                                         (favoriteToggled)="
                                             toggleFavoriteChannel(

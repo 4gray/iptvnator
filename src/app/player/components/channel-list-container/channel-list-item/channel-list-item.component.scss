@@ -23,10 +23,30 @@
     background: #ddd;
 }
 
+mat-list-item.active {
+    background: rgba(25, 118, 210, 0.1);
+    border-left: 3px solid #1976d2;
+    
+    .channel-name {
+        font-weight: 600;
+        color: #1976d2;
+    }
+}
+
 ::ng-deep {
     .dark-theme {
         .active {
             background: #000;
+        }
+
+        mat-list-item.active {
+            background: rgba(229, 9, 20, 0.15);
+            border-left: 3px solid #e50914;
+            
+            .channel-name {
+                font-weight: 600;
+                color: #e50914;
+            }
         }
     }
 }

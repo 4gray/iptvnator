@@ -45,7 +45,9 @@
                             <article
                                 class="channel-card"
                                 role="listitem"
-                                [class.active]="selectedChannelId === channel?.id"
+                                [attr.data-channel-id]="channel?.id"
+                                [class.active]="selectedChannelId === channel?.id || isActiveChannel(channel)"
+                                [class.playing]="isActiveChannel(channel)"
                                 [class.favorite]="isFavorite(channel)"
                                 tabindex="0"
                                 (click)="selectChannel(channel)"

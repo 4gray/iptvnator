@@ -19,7 +19,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { Channel } from '../../../../../shared/channel.interface';
 import * as PlaylistActions from '../../../state/actions';
 import { EpgService } from '../../../services/epg.service';
-import { selectActivePlaylistId, selectFavorites } from '../../../state/selectors';
+import { selectActive, selectActivePlaylistId, selectFavorites } from '../../../state/selectors';
 
 @Component({
     selector: 'app-netflix-grid',
@@ -51,6 +51,7 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
 
     groupedChannels: { [key: string]: Channel[] } = {};
     selectedChannelId?: string;
+    activeChannelId?: string;
     scrollButtonStates: { [groupKey: string]: { left: boolean; right: boolean } } = {};
     playlistId: string | undefined;
 
@@ -72,6 +73,18 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
             .pipe(takeUntil(this.destroy$))
             .subscribe((playlistId) => {
                 this.playlistId = playlistId;
+            });
+        
+        // Subscribe to active channel changes for highlighting and auto-scroll
+        this.store
+            .select(selectActive)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((activeChannel) => {
+                if (activeChannel?.id) {
+                    this.activeChannelId = activeChannel.id;
+                    // Scroll to active channel after a short delay to ensure DOM is updated
+                    setTimeout(() => this.scrollToChannel(activeChannel.id), 100);
+                }
             });
     }
 
@@ -202,6 +215,50 @@ export class NetflixGridComponent implements OnInit, OnDestroy {
         return groupKey === 'UNGROUPED' 
             ? 'CHANNELS.UNGROUPED' 
             : groupKey;
+    }
+
+    /**
+     * Scrolls to the channel with the given ID
+     */
+    scrollToChannel(channelId: string): void {
+        if (!channelId) return;
+
+        // Find which group contains this channel
+        for (const [groupKey, channels] of Object.entries(this.groupedChannels)) {
+            const channelIndex = channels.findIndex(ch => ch.id === channelId);
+            if (channelIndex !== -1) {
+                // Found the channel, scroll to it
+                const scrollContainer = document.getElementById('group-' + groupKey);
+                const channelElement = document.querySelector(`[data-channel-id="${channelId}"]`);
+                
+                if (scrollContainer && channelElement) {
+                    // Calculate position to center the channel in view
+                    const containerRect = scrollContainer.getBoundingClientRect();
+                    const elementRect = channelElement.getBoundingClientRect();
+                    const relativeLeft = elementRect.left - containerRect.left;
+                    const scrollLeft = scrollContainer.scrollLeft + relativeLeft - (containerRect.width / 2) + (elementRect.width / 2);
+                    
+                    scrollContainer.scrollTo({
+                        left: Math.max(0, scrollLeft),
+                        behavior: 'smooth'
+                    });
+
+                    // Also scroll the page if needed to bring the row into view
+                    const rowElement = scrollContainer.closest('.channel-row');
+                    if (rowElement) {
+                        rowElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    /**
+     * Checks if a channel is currently active (playing)
+     */
+    isActiveChannel(channel: Channel): boolean {
+        return this.activeChannelId === channel?.id;
     }
 }
 

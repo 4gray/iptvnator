@@ -164,6 +164,17 @@
             box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.5);
         }
 
+        &.playing {
+            border-color: #e50914;
+            box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.6);
+            background: rgba(229, 9, 20, 0.05);
+
+            .channel-name {
+                font-weight: 600;
+                color: #e50914;
+            }
+        }
+
         &.favorite {
             .favorite-button {
                 color: #f5c542;
@@ -350,6 +361,17 @@
                 &.active {
                     border-color: #e50914;
                     box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.5);
+                }
+
+                &.playing {
+                    border-color: #e50914;
+                    box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.8);
+                    background: rgba(229, 9, 20, 0.15);
+
+                    .channel-name {
+                        font-weight: 600;
+                        color: #e50914;
+                    }
                 }
 
                 &:focus-visible {
