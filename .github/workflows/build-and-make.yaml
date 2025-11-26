@@ -37,6 +37,20 @@ jobs:
                   node-version: '22'
                   cache: 'pnpm'
 
+            - name: Install Linux system dependencies
+              if: matrix.os == 'ubuntu-latest'
+              run: |
+                sudo apt-get update
+                sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder
+                
+                # Configure Flatpak
+                # 1. Add the Flathub repository (source of runtimes)
+                flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+                
+                # 2. Install the standard Freedesktop Platform and SDK (required by electron-builder)
+                # We install version 24.08 as a safe default, electron-builder might pick what it needs
+                flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+
             - name: Install dependencies
               run: pnpm install --no-frozen-lockfile
 
@@ -70,6 +84,8 @@ jobs:
                       dist/executables/**/*.snap
                       dist/executables/**/*.AppImage
                       dist/executables/**/*.tar.gz
+                      dist/executables/**/*.pacman
+                      dist/executables/**/*.flatpak
                   retention-days: 7
 
             - name: Upload artifacts (Windows)
@@ -122,6 +138,8 @@ jobs:
                       artifacts/linux-artifacts/*.rpm
                       artifacts/linux-artifacts/*.snap
                       artifacts/linux-artifacts/*.tar.gz
+                      artifacts/linux-artifacts/*.pacman
+                      artifacts/linux-artifacts/*.flatpak
                       artifacts/windows-artifacts/*-setup.exe
                       artifacts/windows-artifacts/*.msi
                       artifacts/windows-artifacts/*.zip
