@@ -41,10 +41,15 @@ jobs:
               if: matrix.os == 'ubuntu-latest'
               run: |
                 sudo apt-get update
-                # rpm: for rpm builds
-                # libarchive-tools: provides 'bsdtar' for pacman builds
-                # flatpak flatpak-builder: for flatpak builds
                 sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder
+                
+                # Configure Flatpak
+                # 1. Add the Flathub repository (source of runtimes)
+                flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+                
+                # 2. Install the standard Freedesktop Platform and SDK (required by electron-builder)
+                # We install version 24.08 as a safe default, electron-builder might pick what it needs
+                flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
 
             - name: Install dependencies
               run: pnpm install --no-frozen-lockfile
