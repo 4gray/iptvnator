@@ -68,11 +68,11 @@
                 },
                 {
                     "target": "Snap",
-                    "arch": ["x64", "arm64"] 
+                    "arch": ["x64"] 
                 },
                 {
                     "target": "rpm",
-                    "arch": ["x64", "arm64"]
+                    "arch": ["x64"]
                 },
                 {
                     "target": "pacman",
