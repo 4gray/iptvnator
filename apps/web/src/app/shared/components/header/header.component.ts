@@ -1,4 +1,4 @@
-import { Component, OnInit, effect, inject, input } from '@angular/core';
+import { Component, HostBinding, OnInit, effect, inject, input, output } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -39,6 +39,9 @@ import {
     ],
 })
 export class HeaderComponent implements OnInit {
+    @HostBinding('class.home-header') get isHomeHeader() {
+        return this.isHome;
+    }
     private activatedRoute = inject(ActivatedRoute);
     private dialog = inject(MatDialog);
     private dataService = inject(DataService);
@@ -49,6 +52,7 @@ export class HeaderComponent implements OnInit {
     readonly isDesktop = !!window.electron;
     readonly title = input.required<string>();
     readonly subtitle = input.required<string>();
+    readonly searchQuery = output<string>();
 
     isHome = true;
 
@@ -159,5 +163,9 @@ export class HeaderComponent implements OnInit {
             this.currentSortOptions?.by === by &&
             this.currentSortOptions?.order === order
         );
+    }
+
+    onSearchQueryUpdate(query: string): void {
+        this.searchQuery.emit(query);
     }
 }

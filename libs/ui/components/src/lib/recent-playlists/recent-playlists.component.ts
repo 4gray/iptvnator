@@ -2,11 +2,10 @@ import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { AsyncPipe } from '@angular/common';
 import {
     Component,
-    ElementRef,
+    effect,
     inject,
     input,
     output,
-    viewChild,
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
@@ -60,18 +59,23 @@ export class RecentPlaylistsComponent {
     private readonly translate = inject(TranslateService);
 
     readonly sidebarMode = input(false);
+    readonly searchQueryInput = input<string>('');
     readonly playlistClicked = output<string>();
 
     readonly allPlaylistsLoaded = this.store.selectSignal(
         selectPlaylistsLoadingFlag
     );
 
-    readonly searchQueryInput =
-        viewChild<ElementRef<HTMLInputElement>>('searchQuery');
-
     readonly searchQuery = new BehaviorSubject<string>('');
 
     readonly ghostElements = new Array(10);
+
+    constructor() {
+        // Update searchQuery when input changes
+        effect(() => {
+            this.searchQuery.next(this.searchQueryInput());
+        });
+    }
 
     readonly playlists$ = combineLatest([
         this.store.select(selectAllPlaylistsMeta),
@@ -278,16 +282,4 @@ export class RecentPlaylistsComponent {
         });
     }
 
-    onSearchQueryUpdate(searchQuery: string) {
-        this.searchQuery.next(searchQuery);
-    }
-
-    /* @HostListener('window:keydown.control.f', ['$event'])
-    @HostListener('window:keydown.meta.f', ['$event']) */
-    onSearchHotkey(event: KeyboardEvent) {
-        // Prevent default browser search behavior
-        event.preventDefault();
-        event.stopPropagation();
-        this.searchQueryInput()?.nativeElement?.focus();
-    }
 }

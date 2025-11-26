@@ -1,44 +1,298 @@
 :host {
-    background: #1b1c1c;
+    background: linear-gradient(135deg, #0a0a0b 0%, #1b1c1c 100%);
     color: #fff;
     display: flex;
     width: 100%;
-    --mat-toolbar-standard-height: 100px;
+    --mat-toolbar-standard-height: 70px;
+    //padding-left: 80px; // Space for macOS traffic lights
+    app-region: drag;
+    position: relative;
+    overflow: hidden;
 }
 
-.logo {
-    flex: 1 1 100px;
+// Premium home page gradient - dark theme
+:host.home-header {
+    background: linear-gradient(
+        135deg,
+        #0f0c1d 0%,
+        #1a1428 25%,
+        #1e1535 50%,
+        #151121 75%,
+        #0d0a18 100%
+    );
+
+    // Subtle animated glow overlay
+    &::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(
+            circle at 30% 50%,
+            rgba(139, 92, 246, 0.08) 0%,
+            rgba(99, 102, 241, 0.05) 25%,
+            transparent 50%
+        );
+        animation: headerGlow 15s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    // Edge accent
+    &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(139, 92, 246, 0.3) 20%,
+            rgba(99, 102, 241, 0.4) 50%,
+            rgba(139, 92, 246, 0.3) 80%,
+            transparent 100%
+        );
+        opacity: 0.6;
+    }
+}
+
+@keyframes headerGlow {
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+    }
+    33% {
+        transform: translate(-10%, -5%) rotate(120deg);
+        opacity: 0.8;
+    }
+    66% {
+        transform: translate(5%, 10%) rotate(240deg);
+        opacity: 0.9;
+    }
+}
+
+// Compact brand block with pulsing logo
+.brand-block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px 0 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 35px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    app-region: no-drag; // Allow interaction with brand block
+    position: relative;
+    z-index: 1;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+}
+
+// Enhanced brand block on home page - dark theme
+:host.home-header .brand-block {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: rgba(139, 92, 246, 0.15);
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.1);
+
+    &:hover {
+        background: rgba(139, 92, 246, 0.12);
+        border-color: rgba(139, 92, 246, 0.25);
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.15);
+    }
+}
+
+.logo-pulse {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     img {
-        height: 100px;
+        width: 38px;
+        height: 38px;
+        object-fit: contain;
+        position: relative;
+        z-index: 2;
+        filter: drop-shadow(0 2px 8px rgba(255, 59, 48, 0.3));
+    }
+
+    // Pulsing effect - like a live broadcast indicator
+    &::before {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(
+            circle,
+            rgba(255, 59, 48, 0.4) 0%,
+            transparent 70%
+        );
+        border-radius: 50%;
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    &::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(
+            circle,
+            rgba(255, 59, 48, 0.2) 0%,
+            transparent 70%
+        );
+        border-radius: 50%;
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite 0.5s;
     }
 }
 
-.main {
-    place-content: center flex-start;
-    align-self: center;
-    flex-direction: column;
-    box-sizing: border-box;
+@keyframes pulse {
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.4);
+        opacity: 0;
+    }
+}
+
+.brand-text {
     display: flex;
-    flex: 1 1 100%;
-    max-width: 100%;
+    flex-direction: column;
+    justify-content: center;
 
     .title {
-        font-size: 1em;
+        font-size: 1.1rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+}
+
+// Modern centered search field
+.search-container {
+    flex: 1;
+    max-width: 500px;
+    margin: 0 24px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 0 20px;
+    height: 48px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    app-region: no-drag; // Allow search interaction
+    z-index: 1;
+
+    &:focus-within {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 59, 48, 0.4);
+        box-shadow:
+            0 0 0 3px rgba(255, 59, 48, 0.1),
+            0 4px 16px rgba(0, 0, 0, 0.2);
+        transform: translateY(-1px);
     }
 
-    .subtitle {
-        color: #999;
-        font-size: 0.7em;
-        margin-top: 5px;
-        text-wrap: pretty;
+    &:hover:not(:focus-within) {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+}
+
+// Enhanced search field on home page
+:host.home-header .search-container {
+    background: rgba(139, 92, 246, 0.06);
+    border-color: rgba(139, 92, 246, 0.12);
+
+    &:focus-within {
+        background: rgba(139, 92, 246, 0.1);
+        border-color: rgba(139, 92, 246, 0.4);
+        box-shadow:
+            0 0 0 3px rgba(139, 92, 246, 0.15),
+            0 4px 20px rgba(139, 92, 246, 0.2);
+        transform: translateY(-1px);
+    }
+
+    &:hover:not(:focus-within) {
+        background: rgba(139, 92, 246, 0.08);
+        border-color: rgba(139, 92, 246, 0.2);
+    }
+}
+
+:host.home-header .search-icon {
+    color: rgba(139, 92, 246, 0.6);
+
+    .search-container:focus-within & {
+        color: rgba(139, 92, 246, 0.9);
+    }
+}
+
+.search-icon {
+    color: rgba(255, 255, 255, 0.4);
+    margin-right: 12px;
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+    transition: color 0.3s ease;
+
+    .search-container:focus-within & {
+        color: rgba(255, 59, 48, 0.8);
+    }
+}
+
+.search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+
+    &::placeholder {
+        color: rgba(255, 255, 255, 0.3);
+        font-weight: 400;
+    }
+
+    &::-webkit-search-cancel-button {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 16px;
+        width: 16px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='rgba(255,255,255,0.4)'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s ease;
+
+        &:hover {
+            opacity: 1;
+        }
     }
 }
 
 .menu {
-    place-content: center;
-    align-self: center;
     display: flex;
+    align-items: center;
+    gap: 4px;
+    app-region: no-drag; // Allow button interactions
 }
 
 .filter-container {
@@ -55,6 +309,7 @@
     margin: 8px 0;
     font-size: 12px;
     font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .active-sort {
@@ -65,12 +320,50 @@
     margin-left: 8px;
 }
 
+// Responsive design
+@media (max-width: 899px) {
+    .search-container {
+        max-width: 300px;
+        margin: 0 16px;
+    }
+}
+
 @media (max-width: 599px) {
-    .subtitle {
-        display: none;
+    :host {
+        --mat-toolbar-standard-height: 64px;
+        padding-left: 70px; // Reduced padding for smaller screens
     }
 
-    .logo > img {
-        height: 48px;
+    .brand-block {
+        padding: 6px 12px 6px 6px;
+        gap: 8px;
+    }
+
+    .logo-pulse {
+        width: 40px;
+        height: 40px;
+
+        img {
+            width: 32px;
+            height: 32px;
+        }
+    }
+
+    .brand-text .title {
+        font-size: 0.95rem;
+    }
+
+    .search-container {
+        margin: 0 12px;
+        height: 42px;
+        padding: 0 16px;
+
+        .search-input {
+            font-size: 14px;
+        }
+    }
+
+    .menu {
+        gap: 2px;
     }
 }

@@ -1,16 +1,29 @@
-<mat-toolbar>
-    <div class="logo">
-        <img
-            src="./assets/icons/icon-tv-256.png"
-            height="100"
-            alt="iptvnator logo"
-        />
+<mat-toolbar class="modern-header">
+    <div class="brand-block">
+        <div class="logo-pulse">
+            <img
+                src="./assets/icons/icon-tv-256.png"
+                alt="iptvnator logo"
+            />
+        </div>
+        <div class="brand-text">
+            <div class="title">{{ title() }}</div>
+        </div>
     </div>
-    <div class="main">
-        <div class="title">{{ title() }}</div>
-        <div class="subtitle">{{ subtitle() }}</div>
-    </div>
+
     @if (isHome) {
+        <div class="search-container">
+            <mat-icon class="search-icon">search</mat-icon>
+            <input
+                #searchInput
+                type="search"
+                class="search-input"
+                spellcheck="false"
+                autocomplete="off"
+                [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"
+                (input)="onSearchQueryUpdate(searchInput.value)"
+            />
+        </div>
         <div class="menu">
             <button
                 mat-icon-button

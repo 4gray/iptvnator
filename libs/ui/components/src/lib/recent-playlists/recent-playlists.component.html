@@ -1,16 +1,4 @@
 @if (allPlaylistsLoaded()) {
-    <mat-form-field class="search-field" subscriptSizing="dynamic">
-        <mat-icon matPrefix>search</mat-icon>
-        <input
-            matInput
-            #searchQuery
-            type="search"
-            spellcheck="false"
-            autocomplete="off"
-            [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"
-            (input)="onSearchQueryUpdate(searchQuery.value)"
-        />
-    </mat-form-field>
     @defer {
         @if (playlists$ | async; as playlists) {
             <mat-nav-list class="playlists-list">

@@ -1,5 +1,9 @@
 <app-header
     [title]="'HOME.TITLE' | translate"
     [subtitle]="'HOME.SUBTITLE' | translate"
+    (searchQuery)="onSearchQueryChange($event)"
 />
-<app-recent-playlists class="recent-playlists" />
+<app-recent-playlists
+    class="recent-playlists"
+    [searchQueryInput]="searchQuery()"
+/>

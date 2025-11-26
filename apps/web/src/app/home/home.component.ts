@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { RecentPlaylistsComponent } from 'components';
 import { HeaderComponent } from '../shared/components/header/header.component';
@@ -9,4 +9,10 @@ import { HeaderComponent } from '../shared/components/header/header.component';
     styleUrls: ['./home.component.scss'],
     imports: [HeaderComponent, RecentPlaylistsComponent, TranslatePipe],
 })
-export class HomeComponent {}
+export class HomeComponent {
+    searchQuery = signal<string>('');
+
+    onSearchQueryChange(query: string): void {
+        this.searchQuery.set(query);
+    }
+}
