@@ -1,5 +1,5 @@
 import { DragDropModule } from '@angular/cdk/drag-drop';
-import { NgIf, NgStyle } from '@angular/common';
+import { NgStyle } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
@@ -14,87 +14,30 @@ import {
     SimpleChanges,
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgProgram } from 'shared-interfaces';
+import { EpgItemDescriptionComponent } from '../../epg-list/epg-item-description/epg-item-description.component';
 
 @Component({
     selector: 'app-channel-list-item',
     styleUrls: ['./channel-list-item.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<div
-        class="channel-list-item"
-        [class.compact]="!showEpg"
-        cdkDrag
-        [cdkDragDisabled]="!isDraggable"
-        cdkDragPreviewContainer="parent"
-        [class.active]="selected"
-        (click)="clicked.emit()"
-        data-test-id="channel-item"
-    >
-        <mat-icon
-            *ngIf="isDraggable"
-            cdkDragHandle
-            class="drag-icon"
-            >drag_indicator</mat-icon
-        >
-        <div class="channel-content">
-            <img
-                class="channel-logo"
-                *ngIf="logo"
-                [src]="logo"
-                onerror="this.style.display='none'"
-                alt="Channel Logo"
-            />
-            <div class="channel-details">
-                <div class="channel-name">{{ name }}</div>
-                @if (showEpg) {
-                    @if (epgProgram) {
-                        <div class="epg-title">
-                            {{ epgProgram.title?.[0]?.value }}
-                        </div>
-                        <div class="epg-timeline">
-                            <span class="epg-time">{{ formatTime(epgProgram.start) }} - {{ formatTime(epgProgram.stop) }}</span>
-                            <div class="epg-progress-track">
-                                <div
-                                    class="epg-progress-fill"
-                                    [ngStyle]="{ width: progressPercentage + '%' }"
-                                ></div>
-                            </div>
-                        </div>
-                    } @else {
-                        <div class="epg-placeholder">
-                            {{ 'EPG.NO_PROGRAM_INFO' | translate }}
-                        </div>
-                    }
-                }
-            </div>
-        </div>
-        <button
-            *ngIf="showFavoriteButton"
-            mat-icon-button
-            class="favorite-button"
-            color="primary"
-            [matTooltip]="'CHANNELS.REMOVE_FAVORITE' | translate"
-            (click)="favoriteToggled.emit($event)"
-        >
-            <mat-icon color="accent">star</mat-icon>
-        </button>
-    </div>`,
+    templateUrl: './channel-list-item.component.html',
     imports: [
         DragDropModule,
         MatIcon,
         MatIconButton,
         MatTooltip,
-        NgIf,
         NgStyle,
         TranslatePipe,
     ],
 })
 export class ChannelListItemComponent implements OnInit, OnChanges, OnDestroy {
     private readonly cdr = inject(ChangeDetectorRef);
+    private readonly dialog = inject(MatDialog);
 
     @Input() isDraggable = false;
     @Input() logo!: string;
@@ -163,6 +106,18 @@ export class ChannelListItemComponent implements OnInit, OnChanges, OnDestroy {
             hour: '2-digit',
             minute: '2-digit',
             hour12: false,
+        });
+    }
+
+    /**
+     * Opens the dialog with details about the current EPG program
+     * @param program EPG program to show details for
+     * @param event Mouse event to stop propagation
+     */
+    showProgramDescription(program: EpgProgram, event: MouseEvent): void {
+        event.stopPropagation();
+        this.dialog.open(EpgItemDescriptionComponent, {
+            data: program,
         });
     }
 }
