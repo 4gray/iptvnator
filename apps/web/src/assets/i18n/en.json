@@ -45,7 +45,9 @@
                 "PASSWORD": "Password",
                 "MAC_ADDRESS": "Mac Address",
                 "PLAYLIST_EXPORT_SUCCESS": "Playlist was exported successfully.",
-                "PLAYLIST_EXPORT_ERROR": "Error: Playlist export failed."
+                "PLAYLIST_EXPORT_ERROR": "Error: Playlist export failed.",
+                "COPY_URL": "Copy URL to clipboard",
+                "URL_COPIED": "URL copied to clipboard"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Remove playlist",
@@ -115,7 +117,7 @@
         "PARSING_ERROR": "Error: Parsing failed, not a valid playlist:"
     },
     "SETTINGS": {
-        "TITLE": "Settings / IPTVnator",
+        "TITLE": "Settings",
         "SUBTITLE": "Change the configuration of the application",
         "DESCRIPTION": "Please adapt the options from the list below and confirm with the save changes button",
         "EPG_URL_LABEL": "EPG Url (*.xml or *.xml.gz)",

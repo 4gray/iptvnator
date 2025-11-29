@@ -1,318 +1,318 @@
 {
-  "CLOSE": "سد",
-  "PLAYLISTS": "قوائم التشغيل",
-  "HOME": {
-    "TITLE": "IPTVnator",
-    "SUBTITLE": "عفاك اختار شي قائمة تشغيل من الليستا ولا زيد قائمة جديدة",
-    "TABS": {
-      "RECENTLY_ADDED": "قوائم التشغيل اللي تزادو مؤخراً",
-      "FILE_UPLOAD": "زيد عن طريق رفع ملف",
-      "URL_UPLOAD": "زيد عن طريق رابط",
-      "TEXT_IMPORT": "استورد من نص",
-      "XTREME_IMPORT": "زيد كود Xtreme",
-      "STALKER_PORTAL_IMPORT": "زيد بوابة Stalker"
+    "CLOSE": "سد",
+    "PLAYLISTS": "قوائم التشغيل",
+    "HOME": {
+        "TITLE": "IPTVnator",
+        "SUBTITLE": "عفاك اختار شي قائمة تشغيل من الليستا ولا زيد قائمة جديدة",
+        "TABS": {
+            "RECENTLY_ADDED": "قوائم التشغيل اللي تزادو مؤخراً",
+            "FILE_UPLOAD": "زيد عن طريق رفع ملف",
+            "URL_UPLOAD": "زيد عن طريق رابط",
+            "TEXT_IMPORT": "استورد من نص",
+            "XTREME_IMPORT": "زيد كود Xtreme",
+            "STALKER_PORTAL_IMPORT": "زيد بوابة Stalker"
+        },
+        "PLAYLISTS": {
+            "NO_PLAYLISTS": "ما تزادت حتى شي قائمة تشغيل",
+            "ADD_FIRST": "عفاك زيد قائمة التشغيل الأولى ديالك",
+            "ADDED_VIA_URL": "تزادت عن طريق رابط. رابط:",
+            "ADDED_VIA_FILE": "تزادت عن طريق رفع ملف",
+            "XTREAM_PLAYLIST": "قائمة تشغيل Xtream",
+            "STALKER_PORTAL": "بوابة Stalker",
+            "CHANNELS": "القنوات",
+            "ADDED": "تزادت",
+            "SHOW_DETAILS": "وري تفاصيل قائمة التشغيل",
+            "REMOVE": "حيد قائمة التشغيل",
+            "SEARCH_PLAYLISTS": "قلب على قوائم التشغيل بالعنوان",
+            "INFO_DIALOG": {
+                "PLAYLIST_DETAILS": "تفاصيل قائمة التشغيل",
+                "TITLE": "العنوان",
+                "FROM_URL": "تزادت من الرابط",
+                "IMPORT_DATE": "تاريخ الاستيراد",
+                "CHANNELS": "عدد القنوات",
+                "CLOSE": "سد",
+                "SAVE": "حفظ",
+                "USER_AGENT": "وكيل المستخدم",
+                "ORIGINAL_FILENAME": "اسم الملف الأصلي",
+                "FILE_PATH": "مسار الملف",
+                "UPDATE_FAILED": "التحديث الأخير ديال قائمة التشغيل فشل",
+                "AUTO_UPDATE": "تحديث تلقائي",
+                "AUTO_UPDATE_DESCRIPTION": "إلى كانت خاصية التحديث التلقائي مفعّلة، قائمة التشغيل غادي تتحدث أوتوماتيكياً كل مرة كيتحل التطبيق.",
+                "CUSTOM_USER_AGENT": "بعض مزودي IPTV كيحتاجو وكيل مستخدم محدد باش يخدمو قائمة التشغيل ديالهم.",
+                "EXPORT_PLAYLIST": "صدّر قائمة التشغيل على شكل m3u",
+                "SERVER_URL": "رابط الخادم",
+                "USERNAME": "اسم المستخدم",
+                "PASSWORD": "كلمة المرور",
+                "MAC_ADDRESS": "عنوان MAC",
+                "PLAYLIST_EXPORT_SUCCESS": "قائمة التشغيل تصدرات بنجاح.",
+                "PLAYLIST_EXPORT_ERROR": "خطأ: تصدير قائمة التشغيل فشل."
+            },
+            "REMOVE_DIALOG": {
+                "TITLE": "حيد قائمة التشغيل",
+                "MESSAGE": "واش متأكد بغيتي تحيد قائمة التشغيل هادي بالكامل؟",
+                "SUCCESS": "قائمة التشغيل تحيدات بنجاح"
+            },
+            "UPDATED": "تحدثات",
+            "REFRESH": "حدث قائمة التشغيل",
+            "GLOBAL_FAVORITES": "المفضلة العامة",
+            "GLOBAL_FAVORITES_DESCRIPTION": "قائمة تشغيل كتتولد أوتوماتيكياً فيها المفضلة المجمعة من جميع قوائم التشغيل",
+            "MY_PLAYLISTS": "قوائم التشغيل ديالي",
+            "MY_PLAYLISTS_SUBTITLE": "جميع قوائم التشغيل المتوفرة",
+            "PLAYLIST_UPDATE_SUCCESS": "نجاح! قائمة التشغيل تحدثات بنجاح.",
+            "PLAYLIST_UPDATE_ERROR": "خطأ في تحديث تفاصيل قائمة التشغيل."
+        },
+        "FILE_UPLOAD": {
+            "DRAG_DROP": "جر وأفلت الملفات هنا",
+            "OR": "أو",
+            "CHOOSE_PLAYLIST": "اختار قائمة تشغيل",
+            "REJECTED": "الملف ترفض، صيغة الملف غير مدعومة {{filename}}."
+        },
+        "URL_UPLOAD": {
+            "PLAYLIST_URL": "رابط قائمة التشغيل (m3u, m3u8)",
+            "ADD_PLAYLIST": "زيد قائمة التشغيل",
+            "CORS_NOTE": "ملاحظة: باش نتفاداو مشاكل CORS فهاد المرحلة، التطبيق كيستعمل خدمة وكيل CORS عامة. إلى بغيتي ترفع قائمة تشغيل فيها بيانات حساسة، من الأحسن تستوردها من ملف."
+        },
+        "TEXT_IMPORT": {
+            "LABEL": "دخل قائمة تشغيل m3u(8) على شكل نص",
+            "BUTTON_LABEL": "استورد"
+        },
+        "XTREAM_PLAYLIST": {
+            "TITLE": "عنوان قائمة التشغيل",
+            "SERVER_URL": "رابط الخادم",
+            "USERNAME": "اسم المستخدم",
+            "PASSWORD": "كلمة المرور",
+            "ADD": "زيد",
+            "TEST_CREDENTIALS": "جرب بيانات الاعتماد",
+            "URL_VALIDATION_ERROR": "خاص يكون رابط صحيح مع البروتوكول (مثلا http://example.com ولا https://example.com:4324)"
+        },
+        "STALKER_PORTAL": {
+            "TITLE": "العنوان",
+            "MAC_ADDRESS": "عنوان MAC",
+            "SERVER_URL": "رابط الخادم",
+            "URL_VALIDATION_ERROR": "خاص يكون رابط صحيح مع البروتوكول (مثلا http://example.com/c ولا https://example.com/stalker_portal/c)",
+            "ADD": "زيد"
+        },
+        "FILTER_BY_NAME": "فلتر بالاسم",
+        "FILTER_BY_TYPE": "فلتر بالنوع",
+        "SORT_PLAYLISTS": "رتب قوائم التشغيل",
+        "SORT_BY": "رتب بـ",
+        "SORT_OPTIONS": {
+            "NAME_ASC": "الاسم (أ-ي)",
+            "NAME_DESC": "الاسم (ي-أ)",
+            "NEWEST": "تاريخ الإضافة (الأحدث أولاً)",
+            "OLDEST": "تاريخ الإضافة (الأقدم أولاً)"
+        },
+        "IMPORTED_AS_TEXT": "استورد كنص",
+        "PARSING_ERROR": "خطأ: التحليل فشل، ماشي قائمة تشغيل صحيحة:"
     },
-    "PLAYLISTS": {
-      "NO_PLAYLISTS": "ما تزادت حتى شي قائمة تشغيل",
-      "ADD_FIRST": "عفاك زيد قائمة التشغيل الأولى ديالك",
-      "ADDED_VIA_URL": "تزادت عن طريق رابط. رابط:",
-      "ADDED_VIA_FILE": "تزادت عن طريق رفع ملف",
-      "XTREAM_PLAYLIST": "قائمة تشغيل Xtream",
-      "STALKER_PORTAL": "بوابة Stalker",
-      "CHANNELS": "القنوات",
-      "ADDED": "تزادت",
-      "SHOW_DETAILS": "وري تفاصيل قائمة التشغيل",
-      "REMOVE": "حيد قائمة التشغيل",
-      "SEARCH_PLAYLISTS": "قلب على قوائم التشغيل بالعنوان",
-      "INFO_DIALOG": {
-        "PLAYLIST_DETAILS": "تفاصيل قائمة التشغيل",
-        "TITLE": "العنوان",
-        "FROM_URL": "تزادت من الرابط",
-        "IMPORT_DATE": "تاريخ الاستيراد",
-        "CHANNELS": "عدد القنوات",
-        "CLOSE": "سد",
-        "SAVE": "حفظ",
-        "USER_AGENT": "وكيل المستخدم",
-        "ORIGINAL_FILENAME": "اسم الملف الأصلي",
-        "FILE_PATH": "مسار الملف",
-        "UPDATE_FAILED": "التحديث الأخير ديال قائمة التشغيل فشل",
-        "AUTO_UPDATE": "تحديث تلقائي",
-        "AUTO_UPDATE_DESCRIPTION": "إلى كانت خاصية التحديث التلقائي مفعّلة، قائمة التشغيل غادي تتحدث أوتوماتيكياً كل مرة كيتحل التطبيق.",
-        "CUSTOM_USER_AGENT": "بعض مزودي IPTV كيحتاجو وكيل مستخدم محدد باش يخدمو قائمة التشغيل ديالهم.",
-        "EXPORT_PLAYLIST": "صدّر قائمة التشغيل على شكل m3u",
-        "SERVER_URL": "رابط الخادم",
-        "USERNAME": "اسم المستخدم",
-        "PASSWORD": "كلمة المرور",
-        "MAC_ADDRESS": "عنوان MAC",
-        "PLAYLIST_EXPORT_SUCCESS": "قائمة التشغيل تصدرات بنجاح.",
-        "PLAYLIST_EXPORT_ERROR": "خطأ: تصدير قائمة التشغيل فشل."
-      },
-      "REMOVE_DIALOG": {
-        "TITLE": "حيد قائمة التشغيل",
-        "MESSAGE": "واش متأكد بغيتي تحيد قائمة التشغيل هادي بالكامل؟",
-        "SUCCESS": "قائمة التشغيل تحيدات بنجاح"
-      },
-      "UPDATED": "تحدثات",
-      "REFRESH": "حدث قائمة التشغيل",
-      "GLOBAL_FAVORITES": "المفضلة العامة",
-      "GLOBAL_FAVORITES_DESCRIPTION": "قائمة تشغيل كتتولد أوتوماتيكياً فيها المفضلة المجمعة من جميع قوائم التشغيل",
-      "MY_PLAYLISTS": "قوائم التشغيل ديالي",
-      "MY_PLAYLISTS_SUBTITLE": "جميع قوائم التشغيل المتوفرة",
-      "PLAYLIST_UPDATE_SUCCESS": "نجاح! قائمة التشغيل تحدثات بنجاح.",
-      "PLAYLIST_UPDATE_ERROR": "خطأ في تحديث تفاصيل قائمة التشغيل."
+    "SETTINGS": {
+        "TITLE": "الإعدادات",
+        "SUBTITLE": "بدل إعدادات التطبيق",
+        "DESCRIPTION": "عفاك بدل الخيارات من الليستا لتحت وأكد بضغط على زر حفظ التغييرات",
+        "EPG_URL_LABEL": "رابط EPG (*.xml ولا *.xml.gz)",
+        "EPG_URL_PLACEHOLDER": "دخل رابط",
+        "REFRESH_EPG": "حدث EPG",
+        "VIDEO_PLAYER_LABEL": "مشغل الفيديو",
+        "VIDEO_PLAYER_PLACEHOLDER": "اختار خيار",
+        "VERSION": "الإصدار",
+        "SAVE_CHANGES": "حفظ التغييرات",
+        "BACK_TO_HOME": "رجوع",
+        "NEW_VERSION_AVAILABLE": "كاين إصدار جديد متوفر",
+        "LATEST_VERSION": "راك تستعمل أحدث إصدار",
+        "LANGUAGE": "اللغة",
+        "SETTINGS_SAVED": "نجاح! الإعدادات تحفضو.",
+        "THEME": "المظهر المرئي",
+        "SHOW_CAPTIONS": "وري الترجمة",
+        "ADD_EPG_SOURCE": "زيد مصدر EPG",
+        "EPG_URL_ERROR": "القيمة ماشي رابط صحيح",
+        "VIDEO_PLAYER_DESCRIPTION": "اختار مشغل الفيديو الافتراضي",
+        "LANGUAGE_DESCRIPTION": "اختار لغة التطبيق",
+        "THEME_DESCRIPTION": "اختار المظهر المرئي للتطبيق",
+        "SHOW_CAPTIONS_DESCRIPTION": "وري ولا خفي الترجمة افتراضياً",
+        "VERSION_DESCRIPTION": "الإصدار الحالي ديال التطبيق",
+        "EPG_NOTE": "EPG متوفر حالياً غير في الإصدار اللي مبني على electron ديال IPTVnator.",
+        "EPG_NOTE_URL_TEXT": "شوف هنا",
+        "IMPORT_EXPORT_DATA": "استورد/صدّر قوائم التشغيل",
+        "IMPORT_EXPORT_DATA_DESCRIPTION": "صدّر ولا استورد قوائم التشغيل بصيغة JSON اللي كيستعملها التطبيق.",
+        "IMPORT_DATA": "استورد",
+        "EXPORT_DATA": "صدّر",
+        "REMOVE_ALL": "حيد قوائم التشغيل",
+        "REMOVE_ALL_BUTTON": "حيد",
+        "REMOVE_ALL_DESCRIPTION": "غادي يحيد جميع قوائم التشغيل الموجودة من التطبيق.",
+        "REMOVE_DIALOG": {
+            "TITLE": "حيد جميع قوائم التشغيل",
+            "MESSAGE": "واش متأكد بغيتي تحيد جميع قوائم التشغيل من التطبيق؟"
+        },
+        "IMPORT_ERROR": "خطأ في الاستيراد، عفاك جرب بملف آخر.",
+        "PLAYLISTS_REMOVED": "جميع قوائم التشغيل تحيدو.",
+        "MPV_PLAYER_PATH_LABEL": "مسار mpv",
+        "MPV_PLAYER_PATH_DESCRIPTION": "حدد مسار مشغل mpv في السيستيم ديالك. غادي يستعمل المسار اللي عطيتيه لملف mpv بدل اللي كيتلقى في $PATH.",
+        "MPV_PLAYER_PATH": "مسار مشغل mpv",
+        "VLC_PLAYER_PATH_LABEL": "مسار VLC",
+        "VLC_PLAYER_PATH_DESCRIPTION": "حدد مسار مشغل VLC في السيستيم ديالك. غادي يستعمل المسار اللي عطيتيه لملف VLC بدل المسار الافتراضي ديال السيستيم ديالنا.",
+        "VLC_PLAYER_PATH": "مسار مشغل VLC",
+        "REMOTE_CONTROL": "التحكم عن بعد",
+        "REMOTE_CONTROL_DESCRIPTION": "فعل التحكم عن بعد للتطبيق.",
+        "REMOTE_CONTROL_PORT": "منفذ التحكم عن بعد",
+        "REMOTE_CONTROL_PORT_DESCRIPTION": "المنفذ اللي كيتستعمل للتحكم عن بعد للتطبيق. المنفذ 3000 كيتستعمل افتراضياً."
     },
-    "FILE_UPLOAD": {
-      "DRAG_DROP": "جر وأفلت الملفات هنا",
-      "OR": "أو",
-      "CHOOSE_PLAYLIST": "اختار قائمة تشغيل",
-      "REJECTED": "الملف ترفض، صيغة الملف غير مدعومة {{filename}}."
+    "THEMES": {
+        "DARK_THEME": "المظهر الداكن",
+        "LIGHT_THEME": "المظهر الفاتح"
     },
-    "URL_UPLOAD": {
-      "PLAYLIST_URL": "رابط قائمة التشغيل (m3u, m3u8)",
-      "ADD_PLAYLIST": "زيد قائمة التشغيل",
-      "CORS_NOTE": "ملاحظة: باش نتفاداو مشاكل CORS فهاد المرحلة، التطبيق كيستعمل خدمة وكيل CORS عامة. إلى بغيتي ترفع قائمة تشغيل فيها بيانات حساسة، من الأحسن تستوردها من ملف."
+    "CHANNELS": {
+        "SEARCH_CHANNEL": "قلب على قناة",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "رفع ولا اختار قائمة تشغيل أخرى",
+        "ALL_CHANNELS": "جميع القنوات",
+        "GROUPS": "المجموعات",
+        "UNGROUPED": "غير مجمعة",
+        "UNNAMED_CHANNEL": "قناة بدون اسم",
+        "FAVORITES": "المفضلة",
+        "NO_FAVORITES": "مازال ما كاينش مفضلة",
+        "USE_STAR_TO_FAVORITE": "عفاك استعمل رمز 'النجمة' باش تزيد قنوات للمفضلة ديالك.",
+        "REMOVE_FAVORITE": "حيد من المفضلة",
+        "FAVORITES_UPDATED": "المفضلة تحدثات!",
+        "SORT_BY": "رتب بـ",
+        "SORT_BY_DATE": "رتب بتاريخ الإضافة (الأحدث أولاً)",
+        "SORT_BY_RATING": "رتب بالتقييم",
+        "SORT_BY_NAME": "رتب بالاسم (أ-ي)"
     },
-    "TEXT_IMPORT": {
-      "LABEL": "دخل قائمة تشغيل m3u(8) على شكل نص",
-      "BUTTON_LABEL": "استورد"
+    "TOP_MENU": {
+        "OPEN_CHANNELS_LIST": "حل قائمة القنوات",
+        "TOGGLE_FAVORITE_FLAG": "بدل علامة المفضلة",
+        "OPEN_EPG_LIST": "حل قائمة EPG",
+        "OPEN_MULTI_EPG": "حل عرض EPG المتعدد"
     },
-    "XTREAM_PLAYLIST": {
-      "TITLE": "عنوان قائمة التشغيل",
-      "SERVER_URL": "رابط الخادم",
-      "USERNAME": "اسم المستخدم",
-      "PASSWORD": "كلمة المرور",
-      "ADD": "زيد",
-      "TEST_CREDENTIALS": "جرب بيانات الاعتماد",
-      "URL_VALIDATION_ERROR": "خاص يكون رابط صحيح مع البروتوكول (مثلا http://example.com ولا https://example.com:4324)"
+    "EPG": {
+        "TITLE": "دليل البرامج الإلكتروني",
+        "NEXT_DAY": "اليوم التالي",
+        "PREVIOUS_DAY": "اليوم السابق",
+        "LIVE_NOW": "مباشر الآن",
+        "LIVE_STREAM": "بث مباشر",
+        "TIMESHIFT_AVAILABLE": "التأجيل الزمني متوفر، ضغط باش تلعب",
+        "EPG_NOT_AVAILABLE_DATE": "أوه، EPG ما متوفرش للتاريخ اللي اختاريتيه",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "أوه، EPG ما متوفرش لهاد القناة.",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "عفاك زيد/بدل رابط قائمة EPG في إعدادات التطبيق.",
+        "FETCH_EPG": "جاري جلب بيانات EPG...",
+        "ERROR": "أوه، EPG ما قدرش يتشارجا.",
+        "DOWNLOAD_SUCCESS": "EPG تشارجا بنجاح.",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "تفاصيل حول البرنامج التلفزيوني",
+            "TITLE": "العنوان",
+            "CATEGORY": "الفئة",
+            "PARENTAL_RATING_SYSTEM": "نظام تقييم المحتوى التلفزيوني",
+            "DESCRIPTION": "الوصف",
+            "LANGUAGE": "اللغة",
+            "SHOW_PROGRAM_DETAILS": "وري تفاصيل حول هاد البرنامج"
+        },
+        "FETCH_SUCCESS": "EPG تجلب بنجاح"
     },
-    "STALKER_PORTAL": {
-      "TITLE": "العنوان",
-      "MAC_ADDRESS": "عنوان MAC",
-      "SERVER_URL": "رابط الخادم",
-      "URL_VALIDATION_ERROR": "خاص يكون رابط صحيح مع البروتوكول (مثلا http://example.com/c ولا https://example.com/stalker_portal/c)",
-      "ADD": "زيد"
+    "LANGUAGES": {
+        "ARABIC": "العربية",
+        "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
+        "ENGLISH": "English",
+        "KOREAN": "한국어",
+        "RUSSIAN": "Русский",
+        "GERMAN": "Deutsch",
+        "SPANISH": "Español",
+        "CHINESE": "简体中文",
+        "TRADITIONAL_CHINESE": "繁體中文",
+        "FRENCH": "Français",
+        "ITALIAN": "Italiano",
+        "TURKISH": "Türkçe",
+        "JAPANESE": "日本語",
+        "DUTCH": "Nederlands",
+        "BELARUSIAN": "Беларуская",
+        "POLISH": "Polski",
+        "PORTUGUESE": "Português"
     },
-    "FILTER_BY_NAME": "فلتر بالاسم",
-    "FILTER_BY_TYPE": "فلتر بالنوع",
-    "SORT_PLAYLISTS": "رتب قوائم التشغيل",
-    "SORT_BY": "رتب بـ",
-    "SORT_OPTIONS": {
-      "NAME_ASC": "الاسم (أ-ي)",
-      "NAME_DESC": "الاسم (ي-أ)",
-      "NEWEST": "تاريخ الإضافة (الأحدث أولاً)",
-      "OLDEST": "تاريخ الإضافة (الأقدم أولاً)"
+    "YES": "آه",
+    "NO": "لا",
+    "MENU": {
+        "OPEN": "حل القائمة",
+        "SUPPORT_ARIA": "دعم IPTVnator على GitHub",
+        "SETTINGS": "الإعدادات",
+        "SETTINGS_ARIA": "حل الإعدادات",
+        "BUG_REPORT": "بلغ على شي مشكل",
+        "WHAT_IS_NEW": "شنو الجديد",
+        "ABOUT": "حول",
+        "ABOUT_ARIA": "حول التطبيق",
+        "SUPPORT_PROJECT": "دعم المشروع"
     },
-    "IMPORTED_AS_TEXT": "استورد كنص",
-    "PARSING_ERROR": "خطأ: التحليل فشل، ماشي قائمة تشغيل صحيحة:"
-  },
-  "SETTINGS": {
-    "TITLE": "الإعدادات / IPTVnator",
-    "SUBTITLE": "بدل إعدادات التطبيق",
-    "DESCRIPTION": "عفاك بدل الخيارات من الليستا لتحت وأكد بضغط على زر حفظ التغييرات",
-    "EPG_URL_LABEL": "رابط EPG (*.xml ولا *.xml.gz)",
-    "EPG_URL_PLACEHOLDER": "دخل رابط",
-    "REFRESH_EPG": "حدث EPG",
-    "VIDEO_PLAYER_LABEL": "مشغل الفيديو",
-    "VIDEO_PLAYER_PLACEHOLDER": "اختار خيار",
-    "VERSION": "الإصدار",
-    "SAVE_CHANGES": "حفظ التغييرات",
-    "BACK_TO_HOME": "رجوع",
-    "NEW_VERSION_AVAILABLE": "كاين إصدار جديد متوفر",
-    "LATEST_VERSION": "راك تستعمل أحدث إصدار",
-    "LANGUAGE": "اللغة",
-    "SETTINGS_SAVED": "نجاح! الإعدادات تحفضو.",
-    "THEME": "المظهر المرئي",
-    "SHOW_CAPTIONS": "وري الترجمة",
-    "ADD_EPG_SOURCE": "زيد مصدر EPG",
-    "EPG_URL_ERROR": "القيمة ماشي رابط صحيح",
-    "VIDEO_PLAYER_DESCRIPTION": "اختار مشغل الفيديو الافتراضي",
-    "LANGUAGE_DESCRIPTION": "اختار لغة التطبيق",
-    "THEME_DESCRIPTION": "اختار المظهر المرئي للتطبيق",
-    "SHOW_CAPTIONS_DESCRIPTION": "وري ولا خفي الترجمة افتراضياً",
-    "VERSION_DESCRIPTION": "الإصدار الحالي ديال التطبيق",
-    "EPG_NOTE": "EPG متوفر حالياً غير في الإصدار اللي مبني على electron ديال IPTVnator.",
-    "EPG_NOTE_URL_TEXT": "شوف هنا",
-    "IMPORT_EXPORT_DATA": "استورد/صدّر قوائم التشغيل",
-    "IMPORT_EXPORT_DATA_DESCRIPTION": "صدّر ولا استورد قوائم التشغيل بصيغة JSON اللي كيستعملها التطبيق.",
-    "IMPORT_DATA": "استورد",
-    "EXPORT_DATA": "صدّر",
-    "REMOVE_ALL": "حيد قوائم التشغيل",
-    "REMOVE_ALL_BUTTON": "حيد",
-    "REMOVE_ALL_DESCRIPTION": "غادي يحيد جميع قوائم التشغيل الموجودة من التطبيق.",
-    "REMOVE_DIALOG": {
-      "TITLE": "حيد جميع قوائم التشغيل",
-      "MESSAGE": "واش متأكد بغيتي تحيد جميع قوائم التشغيل من التطبيق؟"
+    "ABOUT": {
+        "TITLE": "حول IPTVnator",
+        "DESCRIPTION": "تطبيق مشغل IPTV متعدد المنصات فيه بزاف ديال الميزات، بحال دعم قوائم تشغيل m3u و m3u8، المفضلة، دليل التلفزيون، الأرشيف التلفزيوني/الإعادة والمزيد.",
+        "VERSION": "الإصدار",
+        "GITHUB_TOOLTIP": "مستودع IPTVnator على GitHub",
+        "BUY_ME_A_COFFEE_TOOLTIP": "شري ليا قهوة",
+        "TWITTER_TOOLTIP": "شارك على تويتر"
     },
-    "IMPORT_ERROR": "خطأ في الاستيراد، عفاك جرب بملف آخر.",
-    "PLAYLISTS_REMOVED": "جميع قوائم التشغيل تحيدو.",
-    "MPV_PLAYER_PATH_LABEL": "مسار mpv",
-    "MPV_PLAYER_PATH_DESCRIPTION": "حدد مسار مشغل mpv في السيستيم ديالك. غادي يستعمل المسار اللي عطيتيه لملف mpv بدل اللي كيتلقى في $PATH.",
-    "MPV_PLAYER_PATH": "مسار مشغل mpv",
-    "VLC_PLAYER_PATH_LABEL": "مسار VLC",
-    "VLC_PLAYER_PATH_DESCRIPTION": "حدد مسار مشغل VLC في السيستيم ديالك. غادي يستعمل المسار اللي عطيتيه لملف VLC بدل المسار الافتراضي ديال السيستيم ديالنا.",
-    "VLC_PLAYER_PATH": "مسار مشغل VLC",
-    "REMOTE_CONTROL": "التحكم عن بعد",
-    "REMOTE_CONTROL_DESCRIPTION": "فعل التحكم عن بعد للتطبيق.",
-    "REMOTE_CONTROL_PORT": "منفذ التحكم عن بعد",
-    "REMOTE_CONTROL_PORT_DESCRIPTION": "المنفذ اللي كيتستعمل للتحكم عن بعد للتطبيق. المنفذ 3000 كيتستعمل افتراضياً."
-  },
-  "THEMES": {
-    "DARK_THEME": "المظهر الداكن",
-    "LIGHT_THEME": "المظهر الفاتح"
-  },
-  "CHANNELS": {
-    "SEARCH_CHANNEL": "قلب على قناة",
-    "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "رفع ولا اختار قائمة تشغيل أخرى",
-    "ALL_CHANNELS": "جميع القنوات",
-    "GROUPS": "المجموعات",
-    "UNGROUPED": "غير مجمعة",
-    "UNNAMED_CHANNEL": "قناة بدون اسم",
-    "FAVORITES": "المفضلة",
-    "NO_FAVORITES": "مازال ما كاينش مفضلة",
-    "USE_STAR_TO_FAVORITE": "عفاك استعمل رمز 'النجمة' باش تزيد قنوات للمفضلة ديالك.",
-    "REMOVE_FAVORITE": "حيد من المفضلة",
-    "FAVORITES_UPDATED": "المفضلة تحدثات!",
-    "SORT_BY": "رتب بـ",
-    "SORT_BY_DATE": "رتب بتاريخ الإضافة (الأحدث أولاً)",
-    "SORT_BY_RATING": "رتب بالتقييم",
-    "SORT_BY_NAME": "رتب بالاسم (أ-ي)"
-  },
-  "TOP_MENU": {
-    "OPEN_CHANNELS_LIST": "حل قائمة القنوات",
-    "TOGGLE_FAVORITE_FLAG": "بدل علامة المفضلة",
-    "OPEN_EPG_LIST": "حل قائمة EPG",
-    "OPEN_MULTI_EPG": "حل عرض EPG المتعدد"
-  },
-  "EPG": {
-    "TITLE": "دليل البرامج الإلكتروني",
-    "NEXT_DAY": "اليوم التالي",
-    "PREVIOUS_DAY": "اليوم السابق",
-    "LIVE_NOW": "مباشر الآن",
-    "LIVE_STREAM": "بث مباشر",
-    "TIMESHIFT_AVAILABLE": "التأجيل الزمني متوفر، ضغط باش تلعب",
-    "EPG_NOT_AVAILABLE_DATE": "أوه، EPG ما متوفرش للتاريخ اللي اختاريتيه",
-    "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "أوه، EPG ما متوفرش لهاد القناة.",
-    "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "عفاك زيد/بدل رابط قائمة EPG في إعدادات التطبيق.",
-    "FETCH_EPG": "جاري جلب بيانات EPG...",
-    "ERROR": "أوه، EPG ما قدرش يتشارجا.",
-    "DOWNLOAD_SUCCESS": "EPG تشارجا بنجاح.",
-    "PROGRAM_DIALOG": {
-      "PROGRAM_DETAILS": "تفاصيل حول البرنامج التلفزيوني",
-      "TITLE": "العنوان",
-      "CATEGORY": "الفئة",
-      "PARENTAL_RATING_SYSTEM": "نظام تقييم المحتوى التلفزيوني",
-      "DESCRIPTION": "الوصف",
-      "LANGUAGE": "اللغة",
-      "SHOW_PROGRAM_DETAILS": "وري تفاصيل حول هاد البرنامج"
+    "UPDATE_AVAILABLE": "تحديث متوفر",
+    "REFRESH": "حدث",
+    "XTREAM": {
+        "PLAY": "لعب",
+        "NAME": "الاسم",
+        "RELEASE_DATE": "تاريخ الإصدار",
+        "GENRE": "النوع",
+        "COUNTRY": "البلد",
+        "ACTORS": "الممثلون",
+        "DIRECTOR": "المخرج",
+        "DURATION": "المدة",
+        "CAST": "طاقم التمثيل",
+        "EPISODE_RUN_TIME": "مدة تشغيل الحلقة",
+        "RATING": "التقييم",
+        "IMDB_RATING": "تقييم IMDB",
+        "KINOPOISK_RATING": "تقييم Kinopoisk",
+        "DESCRIPTION": "الوصف",
+        "YEAR": "السنة",
+        "AGE": "العمر",
+        "YOUTUBE_TRAILER": "مقطع دعائي على يوتيوب",
+        "EPISODE": "الحلقة"
     },
-    "FETCH_SUCCESS": "EPG تجلب بنجاح"
-  },
-  "LANGUAGES": {
-    "ARABIC": "العربية",
-    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
-    "ENGLISH": "English",
-    "KOREAN": "한국어",
-    "RUSSIAN": "Русский",
-    "GERMAN": "Deutsch",
-    "SPANISH": "Español",
-    "CHINESE": "简体中文",
-    "TRADITIONAL_CHINESE": "繁體中文",
-    "FRENCH": "Français",
-    "ITALIAN": "Italiano",
-    "TURKISH": "Türkçe",
-    "JAPANESE": "日本語",
-    "DUTCH": "Nederlands",
-    "BELARUSIAN": "Беларуская",
-    "POLISH": "Polski",
-    "PORTUGUESE": "Português"
-  },
-  "YES": "آه",
-  "NO": "لا",
-  "MENU": {
-    "OPEN": "حل القائمة",
-    "SUPPORT_ARIA": "دعم IPTVnator على GitHub",
-    "SETTINGS": "الإعدادات",
-    "SETTINGS_ARIA": "حل الإعدادات",
-    "BUG_REPORT": "بلغ على شي مشكل",
-    "WHAT_IS_NEW": "شنو الجديد",
-    "ABOUT": "حول",
-    "ABOUT_ARIA": "حول التطبيق",
-    "SUPPORT_PROJECT": "دعم المشروع"
-  },
-  "ABOUT": {
-    "TITLE": "حول IPTVnator",
-    "DESCRIPTION": "تطبيق مشغل IPTV متعدد المنصات فيه بزاف ديال الميزات، بحال دعم قوائم تشغيل m3u و m3u8، المفضلة، دليل التلفزيون، الأرشيف التلفزيوني/الإعادة والمزيد.",
-    "VERSION": "الإصدار",
-    "GITHUB_TOOLTIP": "مستودع IPTVnator على GitHub",
-    "BUY_ME_A_COFFEE_TOOLTIP": "شري ليا قهوة",
-    "TWITTER_TOOLTIP": "شارك على تويتر"
-  },
-  "UPDATE_AVAILABLE": "تحديث متوفر",
-  "REFRESH": "حدث",
-  "XTREAM": {
-    "PLAY": "لعب",
-    "NAME": "الاسم",
-    "RELEASE_DATE": "تاريخ الإصدار",
-    "GENRE": "النوع",
-    "COUNTRY": "البلد",
-    "ACTORS": "الممثلون",
-    "DIRECTOR": "المخرج",
-    "DURATION": "المدة",
-    "CAST": "طاقم التمثيل",
-    "EPISODE_RUN_TIME": "مدة تشغيل الحلقة",
-    "RATING": "التقييم",
-    "IMDB_RATING": "تقييم IMDB",
-    "KINOPOISK_RATING": "تقييم Kinopoisk",
-    "DESCRIPTION": "الوصف",
-    "YEAR": "السنة",
-    "AGE": "العمر",
-    "YOUTUBE_TRAILER": "مقطع دعائي على يوتيوب",
-    "EPISODE": "الحلقة"
-  },
-  "PORTALS": {
-    "ALL_CATEGORIES": "جميع الفئات",
-    "MY_FAVORITES": "المفضلة ديالي",
-    "ADD_TO_FAVORITES": "زيد للمفضلة",
-    "REMOVE_FROM_FAVORITES": "حيد من المفضلة",
-    "REMOVED_FROM_FAVORITES": "تحيد من المفضلة",
-    "ADDED_TO_FAVORITES": "تزاد للمفضلة",
-    "ERROR_VIEW": {
-      "ACCOUNT_EXPIRED": {
-        "TITLE": "الحساب انتهى",
-        "DESCRIPTION": "هاد الحساب انتهت صلاحيته. عفاك تحقق من بيانات الاعتماد في إعدادات قائمة التشغيل ولا حيدها."
-      },
-      "UNAUTHORIZED": {
-        "TITLE": "غير مصرح",
-        "DESCRIPTION": "عفاك تحقق من بيانات الاعتماد في إعدادات قائمة التشغيل ولا حيدها."
-      },
-      "NOT_FOUND": {
-        "TITLE": "البوابة ما تلقاتش",
-        "DESCRIPTION": "عفاك تحقق من بيانات الاعتماد ورابط البوابة في إعدادات قائمة التشغيل ولا حيدها."
-      },
-      "EMPTY_CATEGORY": {
-        "TITLE": "فئة فارغة",
-        "DESCRIPTION": "هاد الفئة ما فيهاش محتوى، عفاك اختار فئة أخرى ولا بدل نوع المحتوى."
-      },
-      "UNKNOWN_ERROR": {
-        "TITLE": "وقع شي خطأ",
-        "DESCRIPTION": "خطأ غير معروف، عفاك حاول مرة أخرى من بعد."
-      },
-      "PLAYLIST_SETTINGS": "إعدادات قائمة التشغيل",
-      "HOME": "الرئيسية",
-      "DELETE": "حذف"
+    "PORTALS": {
+        "ALL_CATEGORIES": "جميع الفئات",
+        "MY_FAVORITES": "المفضلة ديالي",
+        "ADD_TO_FAVORITES": "زيد للمفضلة",
+        "REMOVE_FROM_FAVORITES": "حيد من المفضلة",
+        "REMOVED_FROM_FAVORITES": "تحيد من المفضلة",
+        "ADDED_TO_FAVORITES": "تزاد للمفضلة",
+        "ERROR_VIEW": {
+            "ACCOUNT_EXPIRED": {
+                "TITLE": "الحساب انتهى",
+                "DESCRIPTION": "هاد الحساب انتهت صلاحيته. عفاك تحقق من بيانات الاعتماد في إعدادات قائمة التشغيل ولا حيدها."
+            },
+            "UNAUTHORIZED": {
+                "TITLE": "غير مصرح",
+                "DESCRIPTION": "عفاك تحقق من بيانات الاعتماد في إعدادات قائمة التشغيل ولا حيدها."
+            },
+            "NOT_FOUND": {
+                "TITLE": "البوابة ما تلقاتش",
+                "DESCRIPTION": "عفاك تحقق من بيانات الاعتماد ورابط البوابة في إعدادات قائمة التشغيل ولا حيدها."
+            },
+            "EMPTY_CATEGORY": {
+                "TITLE": "فئة فارغة",
+                "DESCRIPTION": "هاد الفئة ما فيهاش محتوى، عفاك اختار فئة أخرى ولا بدل نوع المحتوى."
+            },
+            "UNKNOWN_ERROR": {
+                "TITLE": "وقع شي خطأ",
+                "DESCRIPTION": "خطأ غير معروف، عفاك حاول مرة أخرى من بعد."
+            },
+            "PLAYLIST_SETTINGS": "إعدادات قائمة التشغيل",
+            "HOME": "الرئيسية",
+            "DELETE": "حذف"
+        },
+        "EMPTY_LIST_VIEW": {
+            "NO_SEARCH_RESULTS": "ما تلقى والو، حاول تبدل طلب البحث ديالك"
+        },
+        "STREAM_URL_COPIED": "رابط البث تنقل للحافظة",
+        "COPY_STREAM_URL": "نسخ رابط البث"
     },
-    "EMPTY_LIST_VIEW": {
-      "NO_SEARCH_RESULTS": "ما تلقى والو، حاول تبدل طلب البحث ديالك"
-    },
-    "STREAM_URL_COPIED": "رابط البث تنقل للحافظة",
-    "COPY_STREAM_URL": "نسخ رابط البث"
-  },
-  "INFORMATION": "معلومات",
-  "REMOTE_CONTROL": {
-    "TITLE": "التحكم عن بعد",
-    "UP_CHANNEL": "القناة الفوق",
-    "DOWN_CHANNEL": "القناة لتحت",
-    "HEADER": "التحكم عن بعد IPTVNator",
-    "FOOTER": "التحكم عن بعد IPTVNator"
-  }
+    "INFORMATION": "معلومات",
+    "REMOTE_CONTROL": {
+        "TITLE": "التحكم عن بعد",
+        "UP_CHANNEL": "القناة الفوق",
+        "DOWN_CHANNEL": "القناة لتحت",
+        "HEADER": "التحكم عن بعد IPTVNator",
+        "FOOTER": "التحكم عن بعد IPTVNator"
+    }
 }
