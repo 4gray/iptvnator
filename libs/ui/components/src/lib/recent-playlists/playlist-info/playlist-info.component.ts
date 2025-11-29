@@ -1,3 +1,4 @@
+import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
 import { DatePipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import {
@@ -7,12 +8,13 @@ import {
     UntypedFormGroup,
     Validators,
 } from '@angular/forms';
-import { MatButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as PlaylistActions from 'm3u-state';
@@ -32,16 +34,20 @@ import { Playlist, PlaylistMeta } from 'shared-interfaces';
     ],
     providers: [DatePipe],
     imports: [
+        ClipboardModule,
         MatButton,
         MatCheckboxModule,
         MatDialogModule,
         MatIcon,
+        MatIconButton,
         MatInputModule,
+        MatTooltip,
         ReactiveFormsModule,
         TranslatePipe,
     ],
 })
 export class PlaylistInfoComponent {
+    private clipboard = inject(Clipboard);
     private datePipe = inject(DatePipe);
     private formBuilder = inject(UntypedFormBuilder);
     private playlistsService = inject(PlaylistsService);
@@ -213,6 +219,23 @@ export class PlaylistInfoComponent {
             document.body.appendChild(element);
             element.click();
             document.body.removeChild(element);
+        }
+    }
+
+    /**
+     * Copy URL to clipboard
+     */
+    copyUrl(): void {
+        const url = this.playlistDetails.get('url')?.value;
+        if (url) {
+            const success = this.clipboard.copy(url);
+            if (success) {
+                this.snackBar.open(
+                    this.translate.instant('HOME.PLAYLISTS.INFO_DIALOG.URL_COPIED'),
+                    this.translate.instant('CLOSE'),
+                    { duration: 2000 }
+                );
+            }
         }
     }
 }
