@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, HostBinding, inject, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
@@ -27,6 +27,9 @@ import { SearchResultsComponent } from './xtream-tauri/search-results/search-res
     imports: [RouterOutlet],
 })
 export class AppComponent implements OnInit {
+    @HostBinding('class.macos-platform') get isMacOS() {
+        return window.electron && navigator.platform.toLowerCase().includes('mac');
+    }
     private actions$ = inject(Actions);
     private dataService = inject(DataService);
     private dialog = inject(MatDialog);

@@ -6,7 +6,6 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -32,7 +31,6 @@ import {
         MatDividerModule,
         MatIconModule,
         MatMenuModule,
-        MatToolbarModule,
         MatTooltipModule,
         ReactiveFormsModule,
         TranslateModule,

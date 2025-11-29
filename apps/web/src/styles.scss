@@ -1,6 +1,19 @@
 // @import 'themes/';
 @import '@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
 
+// macOS specific styles - space for traffic lights
+app-root.macos-platform app-header .modern-header {
+    padding-left: 80px;
+}
+
+app-root.macos-platform .current-playlist {
+    padding-top: 30px;
+}
+
+app-root.macos-platform app-navigation .portal-status-container {
+    padding-top: 30px;
+}
+
 body,
 html {
     user-select: none;
