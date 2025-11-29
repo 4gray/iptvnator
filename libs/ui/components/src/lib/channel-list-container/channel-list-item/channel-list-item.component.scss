@@ -1,5 +1,6 @@
 // Main channel list item container
 .channel-list-item {
+    width: 360px;
     display: flex;
     align-items: center;
     height: 68px;
@@ -75,6 +76,7 @@
     gap: 2px;
     flex: 1;
     min-width: 0; // Allow text truncation
+    overflow: visible;
 }
 
 // Channel name
@@ -88,6 +90,25 @@
     white-space: nowrap;
     min-width: 0;
     max-width: 100%;
+}
+
+// EPG container - holds EPG content and info button
+.epg-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    overflow: visible;
+}
+
+// EPG content area
+.epg-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden; // Allow text truncation within content
 }
 
 // EPG title (program name)
@@ -167,4 +188,14 @@
 // Favorite button
 .favorite-button {
     flex-shrink: 0;
+}
+
+// Program info button
+.program-info-button {
+    flex-shrink: 0;
+    opacity: 0.7;
+
+    &:hover {
+        opacity: 1;
+    }
 }
