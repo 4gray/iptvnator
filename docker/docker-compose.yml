@@ -1,7 +1,7 @@
 ---
 services:
   backend:
-    image: 4gray/csiptv-backend:latest
+    image: cloud-saviour/csiptv-backend:latest
     ports:
       - "7333:3000"
     environment:
@@ -9,7 +9,7 @@ services:
       # this one should match with the address and port in frontend CLIENT_URL env
       
   frontend: 
-    image: 4gray/csiptv:latest
+    image: cloud-saviour/csiptv:latest
     ports:
       - "4333:80"
     environment:
