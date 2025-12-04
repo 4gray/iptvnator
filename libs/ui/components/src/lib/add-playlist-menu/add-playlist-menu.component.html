@@ -1,0 +1,43 @@
+<mat-menu #addPlaylistMenu="matMenu">
+    <button
+        mat-menu-item
+        [attr.aria-label]="'HOME.TABS.FILE_UPLOAD' | translate"
+        (click)="onPlaylistTypeClick('file')"
+    >
+        <mat-icon>attach_file</mat-icon>
+        <span>{{ 'HOME.TABS.FILE_UPLOAD' | translate }}</span>
+    </button>
+    <button
+        mat-menu-item
+        [attr.aria-label]="'HOME.TABS.URL_UPLOAD' | translate"
+        (click)="onPlaylistTypeClick('url')"
+    >
+        <mat-icon>link</mat-icon>
+        <span>{{ 'HOME.TABS.URL_UPLOAD' | translate }}</span>
+    </button>
+    <button
+        mat-menu-item
+        [attr.aria-label]="'HOME.TABS.TEXT_IMPORT' | translate"
+        (click)="onPlaylistTypeClick('text')"
+    >
+        <mat-icon>text_format</mat-icon>
+        <span>{{ 'HOME.TABS.TEXT_IMPORT' | translate }}</span>
+    </button>
+    <mat-divider></mat-divider>
+    <button
+        mat-menu-item
+        [attr.aria-label]="'HOME.TABS.XTREME_IMPORT' | translate"
+        (click)="onPlaylistTypeClick('xtream')"
+    >
+        <mat-icon>video_library</mat-icon>
+        <span>{{ 'HOME.TABS.XTREME_IMPORT' | translate }}</span>
+    </button>
+    <button
+        mat-menu-item
+        [attr.aria-label]="'HOME.TABS.STALKER_PORTAL_IMPORT' | translate"
+        (click)="onPlaylistTypeClick('stalker')"
+    >
+        <mat-icon>dashboard</mat-icon>
+        <span>{{ 'HOME.TABS.STALKER_PORTAL_IMPORT' | translate }}</span>
+    </button>
+</mat-menu>

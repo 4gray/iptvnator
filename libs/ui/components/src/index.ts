@@ -1,3 +1,4 @@
+export * from './lib/add-playlist-menu/add-playlist-menu.component';
 export * from './lib/art-player/art-player.component';
 export * from './lib/audio-player/audio-player.component';
 export * from './lib/channel-list-container/channel-list-container.component';
