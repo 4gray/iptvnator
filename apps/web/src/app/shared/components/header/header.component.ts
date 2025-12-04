@@ -1,4 +1,4 @@
-import { Component, HostBinding, OnInit, effect, inject, input, output } from '@angular/core';
+import { Component, HostBinding, OnInit, effect, inject, input, output, viewChild } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -13,18 +13,17 @@ import { TranslateModule } from '@ngx-translate/core';
 import { DataService, SortBy, SortOrder, SortService } from 'services';
 //import { shell } from 'electron';
 import { selectActiveTypeFilters, setSelectedFilters } from 'm3u-state';
+import { AddPlaylistMenuComponent, PlaylistType } from 'components';
 import { HomeComponent } from '../../../home/home.component';
 import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
-import {
-    AddPlaylistDialogComponent,
-    PlaylistType,
-} from '../add-playlist/add-playlist-dialog.component';
+import { AddPlaylistDialogComponent } from '../add-playlist/add-playlist-dialog.component';
 
 @Component({
     selector: 'app-header',
     templateUrl: './header.component.html',
     styleUrls: ['./header.component.scss'],
     imports: [
+        AddPlaylistMenuComponent,
         FormsModule,
         MatButtonModule,
         MatCheckboxModule,
@@ -40,6 +39,7 @@ export class HeaderComponent implements OnInit {
     @HostBinding('class.home-header') get isHomeHeader() {
         return this.isHome;
     }
+
     private activatedRoute = inject(ActivatedRoute);
     private dialog = inject(MatDialog);
     private dataService = inject(DataService);
@@ -47,6 +47,7 @@ export class HeaderComponent implements OnInit {
     private store = inject(Store);
     private sortService = inject(SortService);
 
+    readonly addPlaylistMenuComponent = viewChild.required(AddPlaylistMenuComponent);
     readonly isDesktop = !!window.electron;
     readonly title = input.required<string>();
     readonly subtitle = input.required<string>();

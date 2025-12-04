@@ -28,12 +28,15 @@
             <button
                 mat-icon-button
                 class="add-playlist-btn"
-                [matMenuTriggerFor]="addPlaylistMenu"
+                [matMenuTriggerFor]="addPlaylistMenuComponent().menu()"
                 [matTooltip]="'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate"
                 data-test-id="add-playlist"
             >
                 <mat-icon>add</mat-icon>
             </button>
+            <app-add-playlist-menu
+                (playlistTypeSelected)="opedAddPlaylistDialog($event)"
+            />
             <!-- Sort button -->
             <button
                 mat-icon-button
@@ -193,53 +196,6 @@
                         </p>
                     }
                 </section>
-            </mat-menu>
-            <mat-menu #addPlaylistMenu="matMenu">
-                <button
-                    mat-menu-item
-                    [attr.aria-label]="'HOME.TABS.FILE_UPLOAD' | translate"
-                    (click)="opedAddPlaylistDialog('file')"
-                >
-                    <mat-icon>attach_file</mat-icon>
-                    <span>{{ 'HOME.TABS.FILE_UPLOAD' | translate }}</span>
-                </button>
-                <button
-                    mat-menu-item
-                    [attr.aria-label]="'HOME.TABS.URL_UPLOAD' | translate"
-                    (click)="opedAddPlaylistDialog('url')"
-                >
-                    <mat-icon>link</mat-icon>
-                    <span>{{ 'HOME.TABS.URL_UPLOAD' | translate }}</span>
-                </button>
-                <button
-                    mat-menu-item
-                    [attr.aria-label]="'HOME.TABS.TEXT_IMPORT' | translate"
-                    (click)="opedAddPlaylistDialog('text')"
-                >
-                    <mat-icon>text_format</mat-icon>
-                    <span>{{ 'HOME.TABS.TEXT_IMPORT' | translate }}</span>
-                </button>
-                <mat-divider></mat-divider>
-                <button
-                    mat-menu-item
-                    [attr.aria-label]="'HOME.TABS.XTREME_IMPORT' | translate"
-                    (click)="opedAddPlaylistDialog('xtream')"
-                >
-                    <mat-icon>video_library</mat-icon>
-                    <span>{{ 'HOME.TABS.XTREME_IMPORT' | translate }}</span>
-                </button>
-                <button
-                    mat-menu-item
-                    [attr.aria-label]="
-                        'HOME.TABS.STALKER_PORTAL_IMPORT' | translate
-                    "
-                    (click)="opedAddPlaylistDialog('stalker')"
-                >
-                    <mat-icon>dashboard</mat-icon>
-                    <span>{{
-                        'HOME.TABS.STALKER_PORTAL_IMPORT' | translate
-                    }}</span>
-                </button>
             </mat-menu>
         </div>
     }

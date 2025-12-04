@@ -1,12 +1,6 @@
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { AsyncPipe } from '@angular/common';
-import {
-    Component,
-    effect,
-    inject,
-    input,
-    output,
-} from '@angular/core';
+import { Component, effect, inject, input, output } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -22,7 +16,7 @@ import {
     selectPlaylistsLoadingFlag,
 } from 'm3u-state';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
-import { BehaviorSubject, combineLatest, map } from 'rxjs';
+import { BehaviorSubject, combineLatest, map, tap } from 'rxjs';
 import { DatabaseService, DataService, SortService } from 'services';
 import {
     GLOBAL_FAVORITES_PLAYLIST_ID,
@@ -30,6 +24,8 @@ import {
     PlaylistMeta,
 } from 'shared-interfaces';
 import { DialogService } from '../confirm-dialog/dialog.service';
+import { PlaylistType } from '../add-playlist-menu/add-playlist-menu.component';
+import { EmptyStateComponent } from './empty-state/empty-state.component';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
 
@@ -39,6 +35,7 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
     styleUrls: ['./recent-playlists.component.scss'],
     imports: [
         AsyncPipe,
+        EmptyStateComponent,
         MatIcon,
         MatInputModule,
         MatListModule,
@@ -61,6 +58,7 @@ export class RecentPlaylistsComponent {
     readonly sidebarMode = input(false);
     readonly searchQueryInput = input<string>('');
     readonly playlistClicked = output<string>();
+    readonly addPlaylistClicked = output<PlaylistType>();
 
     readonly allPlaylistsLoaded = this.store.selectSignal(
         selectPlaylistsLoadingFlag
@@ -77,7 +75,7 @@ export class RecentPlaylistsComponent {
         });
     }
 
-    readonly playlists$ = combineLatest([
+    readonly playlistsData$ = combineLatest([
         this.store.select(selectAllPlaylistsMeta),
         this.searchQuery,
         this.store.select(selectActiveTypeFilters),
@@ -111,10 +109,15 @@ export class RecentPlaylistsComponent {
                 );
 
             // Apply sorting using the SortService
-            return this.sortService.sortPlaylists(
+            const sortedPlaylists = this.sortService.sortPlaylists(
                 filteredPlaylists,
                 sortOptions
             );
+
+            return {
+                playlists: sortedPlaylists,
+                totalCount: playlists.length
+            };
         })
     );
 
@@ -147,6 +150,10 @@ export class RecentPlaylistsComponent {
     navigateToGlobalFavorites() {
         this.router.navigate(['playlists', GLOBAL_FAVORITES_PLAYLIST_ID]);
         this.playlistClicked.emit(GLOBAL_FAVORITES_PLAYLIST_ID);
+    }
+
+    onAddPlaylist(playlistType: PlaylistType) {
+        this.addPlaylistClicked.emit(playlistType);
     }
 
     getPlaylist(playlistMeta: PlaylistMeta): void {
@@ -281,5 +288,4 @@ export class RecentPlaylistsComponent {
             },
         });
     }
-
 }

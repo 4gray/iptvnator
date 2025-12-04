@@ -6,4 +6,5 @@
 <app-recent-playlists
     class="recent-playlists"
     [searchQueryInput]="searchQuery()"
+    (addPlaylistClicked)="onAddPlaylist($event)"
 />
