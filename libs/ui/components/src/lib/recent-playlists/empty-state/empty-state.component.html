@@ -1,0 +1,87 @@
+@if (type() === 'welcome') {
+    <div class="empty-state welcome-state">
+        <div class="illustration-container">
+            <!-- Monitor with WiFi signal -->
+            <svg class="illustration" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                <!-- Background rounded rectangle -->
+                <rect x="40" y="40" width="432" height="432" rx="80" class="icon-background"/>
+
+                <!-- Monitor base -->
+                <rect x="134" y="387" width="244" height="18" rx="4" class="monitor-base"/>
+
+                <!-- Monitor stand -->
+                <rect x="238" y="347" width="36" height="40" rx="4" class="monitor-stand"/>
+
+                <!-- Monitor screen border -->
+                <rect x="88" y="102" width="336" height="245" rx="12" stroke="currentColor" stroke-width="12" fill="none" class="screen-border"/>
+
+                <!-- WiFi symbol -->
+                <!-- Bottom dot -->
+                <circle cx="256" cy="280" r="16" class="wifi-dot"/>
+
+                <!-- First arc (smallest) -->
+                <path d="M 220 250 Q 256 220, 292 250" stroke="currentColor" stroke-width="14" fill="none" stroke-linecap="round" class="wifi-arc arc-1"/>
+
+                <!-- Second arc (medium) -->
+                <path d="M 200 230 Q 256 185, 312 230" stroke="currentColor" stroke-width="14" fill="none" stroke-linecap="round" class="wifi-arc arc-2"/>
+
+                <!-- Third arc (largest) -->
+                <path d="M 180 210 Q 256 150, 332 210" stroke="currentColor" stroke-width="14" fill="none" stroke-linecap="round" class="wifi-arc arc-3"/>
+            </svg>
+        </div>
+
+        <div class="content">
+            <h2 class="title">{{ 'HOME.PLAYLISTS.WELCOME_TITLE' | translate }}</h2>
+            <p class="description">{{ 'HOME.PLAYLISTS.WELCOME_DESCRIPTION' | translate }}</p>
+
+            <div class="actions">
+                <button
+                    mat-raised-button
+                    class="primary-button"
+                    [matMenuTriggerFor]="addPlaylistMenuComponent().menu()"
+                >
+                    <mat-icon>add_circle</mat-icon>
+                    {{ 'HOME.PLAYLISTS.ADD_YOUR_FIRST' | translate }}
+                </button>
+                <app-add-playlist-menu
+                    (playlistTypeSelected)="onAddPlaylist($event)"
+                />
+            </div>
+
+            <div class="features">
+                <div class="feature-item">
+                    <mat-icon class="feature-icon">folder_open</mat-icon>
+                    <span>{{ 'HOME.PLAYLISTS.FEATURE_M3U' | translate }}</span>
+                </div>
+                <div class="feature-item">
+                    <mat-icon class="feature-icon">cloud</mat-icon>
+                    <span>{{ 'HOME.PLAYLISTS.FEATURE_XTREAM' | translate }}</span>
+                </div>
+                <div class="feature-item">
+                    <mat-icon class="feature-icon">cast</mat-icon>
+                    <span>{{ 'HOME.PLAYLISTS.FEATURE_STALKER' | translate }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+} @else {
+    <div class="empty-state no-results-state">
+        <div class="illustration-container small">
+            <!-- Search/Empty themed illustration -->
+            <svg class="illustration" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Magnifying glass -->
+                <circle cx="65" cy="65" r="35" class="search-circle" stroke-width="4"/>
+                <line x1="90" y1="90" x2="115" y2="115" class="search-handle" stroke-width="4" stroke-linecap="round"/>
+
+                <!-- Empty box -->
+                <rect x="45" y="50" width="40" height="30" rx="3" class="empty-box" stroke-width="2" opacity="0.4"/>
+                <line x1="55" y1="65" x2="75" y2="65" class="empty-line" stroke-width="2" opacity="0.3"/>
+            </svg>
+        </div>
+
+        <div class="content">
+            <h3 class="title small">{{ 'HOME.PLAYLISTS.NO_RESULTS_TITLE' | translate }}</h3>
+            <p class="description">{{ 'HOME.PLAYLISTS.NO_RESULTS_DESCRIPTION' | translate }}</p>
+        </div>
+    </div>
+}
