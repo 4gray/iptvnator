@@ -33,6 +33,9 @@
             "remote-control-web/**/*",
             "!**/*.map"
         ],
+        "asarUnpack": [
+            "node_modules/@libsql/**"
+        ],
         "extraMetadata": {
             "main": "electron-backend/main.js"
         },
@@ -92,7 +95,6 @@
                 {
                     "target": "nsis",
                     "arch": [
-                        "ia32",
                         "x64"
                     ]
                 }
