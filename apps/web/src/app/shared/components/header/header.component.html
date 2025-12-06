@@ -1,10 +1,7 @@
 <div class="modern-header">
     <div class="brand-block">
         <div class="logo-pulse">
-            <img
-                src="./assets/icons/icon-tv-256.png"
-                alt="iptvnator logo"
-            />
+            <img src="./assets/icons/icon-tv-256.png" alt="iptvnator logo" />
         </div>
         <div class="brand-text">
             <div class="title">{{ title() }}</div>
@@ -35,7 +32,7 @@
                 <mat-icon>add</mat-icon>
             </button>
             <app-add-playlist-menu
-                (playlistTypeSelected)="opedAddPlaylistDialog($event)"
+                (playlistTypeSelected)="openAddPlaylistDialog($event)"
             />
             <!-- Sort button -->
             <button
@@ -88,7 +85,7 @@
                     <button
                         mat-menu-item
                         [attr.aria-label]="'MENU.SUPPORT_ARIA' | translate"
-                        (click)="openUrl('https:///github.com/4gray/iptvnator')"
+                        (click)="openUrl('https://github.com/4gray/iptvnator')"
                     >
                         <mat-icon>recommend</mat-icon>
                         <span>GitHub</span>

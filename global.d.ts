@@ -160,6 +160,7 @@ declare global {
             onChannelChange?: (
                 callback: (data: { direction: 'up' | 'down' }) => void
             ) => void;
+            getLocalIpAddresses: () => Promise<string[]>;
         };
         process: NodeJS.Process;
         require: NodeRequire;

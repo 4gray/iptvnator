@@ -1,4 +1,13 @@
-import { Component, HostBinding, OnInit, effect, inject, input, output, viewChild } from '@angular/core';
+import {
+    Component,
+    HostBinding,
+    OnInit,
+    effect,
+    inject,
+    input,
+    output,
+    viewChild,
+} from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -12,8 +21,8 @@ import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { DataService, SortBy, SortOrder, SortService } from 'services';
 //import { shell } from 'electron';
-import { selectActiveTypeFilters, setSelectedFilters } from 'm3u-state';
 import { AddPlaylistMenuComponent, PlaylistType } from 'components';
+import { selectActiveTypeFilters, setSelectedFilters } from 'm3u-state';
 import { HomeComponent } from '../../../home/home.component';
 import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
 import { AddPlaylistDialogComponent } from '../add-playlist/add-playlist-dialog.component';
@@ -47,7 +56,9 @@ export class HeaderComponent implements OnInit {
     private store = inject(Store);
     private sortService = inject(SortService);
 
-    readonly addPlaylistMenuComponent = viewChild.required(AddPlaylistMenuComponent);
+    readonly addPlaylistMenuComponent = viewChild.required(
+        AddPlaylistMenuComponent
+    );
     readonly isDesktop = !!window.electron;
     readonly title = input.required<string>();
     readonly subtitle = input.required<string>();
@@ -133,7 +144,7 @@ export class HeaderComponent implements OnInit {
         });
     }
 
-    opedAddPlaylistDialog(type: PlaylistType) {
+    openAddPlaylistDialog(type: PlaylistType) {
         this.dialog.open<AddPlaylistDialogComponent, { type: PlaylistType }>(
             AddPlaylistDialogComponent,
             {

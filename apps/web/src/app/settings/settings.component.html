@@ -326,6 +326,49 @@
                     </mat-form-field>
                 </div>
             </div>
+            @if (localIpAddresses().length > 0) {
+                <mat-divider />
+                <div class="row">
+                    <div class="column">
+                        {{ 'SETTINGS.REMOTE_CONTROL_URL' | translate }}
+                        <p>
+                            {{ 'SETTINGS.REMOTE_CONTROL_URL_DESCRIPTION' | translate }}
+                        </p>
+                    </div>
+                    <div class="column margin-right remote-control-urls">
+                        @for (ip of localIpAddresses(); track ip) {
+                            <div class="remote-control-url-item">
+                                <div class="url-row">
+                                    <a
+                                        [href]="'http://' + ip + ':' + settingsForm.value.remoteControlPort"
+                                        target="_blank"
+                                        class="remote-control-url"
+                                    >
+                                        http://{{ ip }}:{{ settingsForm.value.remoteControlPort }}
+                                    </a>
+                                    <button
+                                        mat-icon-button
+                                        type="button"
+                                        (click)="toggleQrCode(ip)"
+                                        [matTooltip]="'SETTINGS.SHOW_QR_CODE' | translate"
+                                    >
+                                        <mat-icon>qr_code_2</mat-icon>
+                                    </button>
+                                </div>
+                                @if (visibleQrCodeIp() === ip) {
+                                    <div class="qr-code-container">
+                                        <qrcode
+                                            [qrdata]="'http://' + ip + ':' + settingsForm.value.remoteControlPort"
+                                            [width]="150"
+                                            errorCorrectionLevel="M"
+                                        ></qrcode>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
         }
         <mat-divider />
         <div class="row">

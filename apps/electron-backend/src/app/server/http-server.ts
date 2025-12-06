@@ -10,13 +10,21 @@ export class HttpServer {
     private server: http.Server | null = null;
     private port = 8765;
     private isEnabled = false;
-    private distPath: string;
+    private distPath: string | null = null;
     private remoteControlHandlers: Map<
         string,
         (req: http.IncomingMessage, res: http.ServerResponse) => void
     > = new Map();
 
-    constructor() {
+    /**
+     * Get the path to the remote-control-web static files.
+     * Lazily computed to avoid calling Electron APIs before app is ready.
+     */
+    private getDistPath(): string {
+        if (this.distPath) {
+            return this.distPath;
+        }
+
         // Path to the built remote-control-web app
         // In development: use workspace root
         // In production: use app path
@@ -34,16 +42,16 @@ export class HttpServer {
             );
         } else {
             // Production mode - files are bundled with the app
+            // electron-builder copies remote-control-web/**/* directly to app root
             this.distPath = path.join(
                 appPath,
-                'dist',
-                'apps',
                 'remote-control-web',
                 'browser'
             );
         }
 
         console.log('[HTTP Server] Serving from:', this.distPath);
+        return this.distPath;
     }
 
     /**
@@ -151,7 +159,7 @@ export class HttpServer {
         // Security: prevent directory traversal
         filePath = path.normalize(filePath).replace(/^(\.\.[/\\])+/, '');
 
-        const fullPath = path.join(this.distPath, filePath);
+        const fullPath = path.join(this.getDistPath(), filePath);
 
         fs.readFile(fullPath, (err, data) => {
             if (err) {
