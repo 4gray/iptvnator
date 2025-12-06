@@ -30,20 +30,9 @@ html {
     }
 }
 
-.mat-toolbar.mat-primary {
-    background: #000;
-    color: #b8b8b8;
-}
-
 .full-width {
     width: 100%;
 }
-
-.mat-toolbar-row,
-.mat-toolbar-single-row {
-    height: 54px;
-}
-
 .mat-tab-label-active {
     opacity: 1 !important;
 }
@@ -54,13 +43,6 @@ textarea,
 :focus {
     outline: none;
 }
-
-/* .dark-theme .mat-expansion-panel,
-.dark-theme .mat-drawer,
-.dark-theme .mat-app-background,
-.dark-theme.mat-app-background {
-    background-color: #1d1d1d;
-} */
 
 .dark-theme {
     ::-webkit-scrollbar {

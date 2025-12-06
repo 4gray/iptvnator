@@ -5,6 +5,10 @@
     height: 100%;
 }
 
+.portal-status-container {
+    app-region: drag;
+}
+
 .mat-nav-list {
     padding-top: 0;
 }

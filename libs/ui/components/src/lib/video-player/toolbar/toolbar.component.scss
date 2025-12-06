@@ -1,5 +1,22 @@
+mat-toolbar {
+    app-region: drag;
+
+    button {
+        app-region: no-drag;
+    }
+}
+
 .spacer {
     flex: 1 1 auto;
+}
+
+.mat-toolbar.mat-primary {
+    background: var(--mdc-primary-100);
+    color: #ccc;
+
+    button {
+        color: #ccc;
+    }
 }
 
 @media only screen and (max-width: 599px) {
