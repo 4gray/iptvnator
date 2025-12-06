@@ -53,11 +53,11 @@
             },
             "UPDATED": "Actualizado",
             "REFRESH": "Actualizar lista",
-            "GLOBAL_FAVORITES": "Global favorites",
+            "GLOBAL_FAVORITES": "Favoritos globales",
             "GLOBAL_FAVORITES_DESCRIPTION": "Lista autogenerada con los favoritos agregados de todas las listas",
             "MY_PLAYLISTS": "Mis listas",
             "PLAYLIST_UPDATE_SUCCESS": "¡Éxito! La lista de reproducción se actualizó correctamente.",
-            "STALKER_PORTAL": ""
+            "STALKER_PORTAL": "Stalker Portal"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Arrastre & suelte archivos aquí",

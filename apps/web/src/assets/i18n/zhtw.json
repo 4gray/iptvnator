@@ -1,5 +1,6 @@
 {
     "CLOSE": "關閉",
+    "PLAYLISTS": "播放清單",
     "HOME": {
         "TITLE": "IPTVnator",
         "SUBTITLE": "請從列表中選擇一個播放清單，或透過檔案上傳或網址新增新播放清單",
@@ -8,11 +9,22 @@
             "FILE_UPLOAD": "透過檔案上傳新增",
             "URL_UPLOAD": "透過網址新增",
             "TEXT_IMPORT": "以文字匯入",
-            "STALKER_PORTAL_IMPORT": "Add Stalker Portal"
+            "XTREME_IMPORT": "新增 Xtreme Code",
+            "STALKER_PORTAL_IMPORT": "新增 Stalker Portal"
         },
         "PLAYLISTS": {
             "NO_PLAYLISTS": "尚未新增播放清單",
             "ADD_FIRST": "請從其他分頁新增您的第一個播放清單",
+            "WELCOME_TITLE": "歡迎使用 IPTVnator",
+            "WELCOME_DESCRIPTION": "透過新增您的第一個播放清單開始串流之旅。連接您喜愛的 IPTV 服務，享受直播電視、電影和影集。",
+            "ADD_YOUR_FIRST": "新增您的第一個播放清單",
+            "FEATURE_M3U": "M3U/M3U8 檔案",
+            "FEATURE_XTREAM": "Xtream Codes",
+            "FEATURE_STALKER": "Stalker Portal",
+            "NO_RESULTS_TITLE": "找不到播放清單",
+            "NO_RESULTS_DESCRIPTION": "沒有符合您搜尋條件的播放清單。請嘗試調整搜尋詞或清除篩選條件以查看所有播放清單。",
+            "XTREAM_PLAYLIST": "Xtream 播放清單",
+            "STALKER_PORTAL": "Stalker Portal",
             "ADDED_VIA_URL": "透過網址上傳。網址：",
             "ADDED_VIA_FILE": "透過檔案上傳",
             "CHANNELS": "頻道",
@@ -35,22 +47,36 @@
                 "AUTO_UPDATE_DESCRIPTION": "如果啟動自動重新整理功能，則每次啟動應用程式時都將自動更新播放清單。",
                 "CUSTOM_USER_AGENT": "部分 IPTV 服務提供者需要特定的 User-Agent 才能播放他們的播放清單。",
                 "EXPORT_PLAYLIST": "以 m3u 格式匯出播放清單",
-                "PASSWORD": "Password",
-                "SERVER_URL": "Server URL",
-                "USERNAME": "Username",
-                "MAC_ADDRESS": "Mac Address"
+                "PASSWORD": "密碼",
+                "SERVER_URL": "伺服器網址",
+                "USERNAME": "使用者名稱",
+                "MAC_ADDRESS": "Mac 位址",
+                "PLAYLIST_EXPORT_SUCCESS": "播放清單已成功匯出。",
+                "PLAYLIST_EXPORT_ERROR": "錯誤：播放清單匯出失敗。"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "移除播放清單",
-                "MESSAGE": "您確定要完全刪除此播放清單嗎？"
+                "MESSAGE": "您確定要完全刪除此播放清單嗎？",
+                "SUCCESS": "播放清單已成功移除"
             },
             "UPDATED": "已更新",
             "REFRESH": "重新整理播放清單",
+            "AUTO_REFRESH_ENABLED": "已啟用自動重新整理",
+            "REFRESH_XTREAM": "從遠端重新整理 Xtream 播放清單",
+            "REFRESH_XTREAM_DIALOG": {
+                "TITLE": "重新整理 Xtream 播放清單",
+                "MESSAGE": "這將刪除本機快取的類別和串流，並從遠端伺服器重新匯入所有內容。您的最愛和最近觀看的項目將會保留。確定要繼續嗎？",
+                "STARTED": "已開始重新整理。正在導向播放清單...",
+                "ERROR": "重新整理播放清單失敗。請重試。"
+            },
             "GLOBAL_FAVORITES": "全域我的最愛",
             "GLOBAL_FAVORITES_DESCRIPTION": "從所有播放清單中自動產生的匯總我的最愛清單",
             "MY_PLAYLISTS": "我的播放清單",
             "MY_PLAYLISTS_SUBTITLE": "所有可用清單",
-            "PLAYLIST_UPDATE_SUCCESS": "成功！播放清單已成功更新。"
+            "PLAYLIST_UPDATE_SUCCESS": "成功！播放清單已成功更新。",
+            "PLAYLIST_UPDATE_ERROR": "更新播放清單詳細資訊時發生錯誤。",
+            "AUTO_REFRESH_UPDATE_SUCCESS": "成功！播放清單已成功更新",
+            "SEARCH_PLAYLISTS": "依標題搜尋播放清單"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "在此處拖放檔案",
@@ -68,8 +94,20 @@
             "BUTTON_LABEL": "匯入"
         },
         "STALKER_PORTAL": {
-            "ADD": "Add",
-            "TITLE": "Title"
+            "ADD": "新增",
+            "TITLE": "標題",
+            "MAC_ADDRESS": "Mac 位址",
+            "SERVER_URL": "伺服器網址",
+            "URL_VALIDATION_ERROR": "必須是有效的網址並包含協定（例如 http://example.com/c 或 https://example.com/stalker_portal/c）"
+        },
+        "XTREAM_PLAYLIST": {
+            "TITLE": "播放清單標題",
+            "SERVER_URL": "伺服器網址",
+            "USERNAME": "使用者名稱",
+            "PASSWORD": "密碼",
+            "ADD": "新增",
+            "TEST_CREDENTIALS": "測試憑證",
+            "URL_VALIDATION_ERROR": "必須是有效的網址並包含協定（例如 http://example.com 或 https://example.com:4324）"
         }
     },
     "SETTINGS": {
@@ -112,10 +150,16 @@
         },
         "IMPORT_ERROR": "匯入錯誤，請嘗試另外一個檔案。",
         "PLAYLISTS_REMOVED": "所有播放清單已移除。",
-        "VLC_PLAYER_PATH_LABEL": "VLC path",
-        "VLC_PLAYER_PATH_DESCRIPTION": "Set path to VLC player in your system. It will use the provided path to a VLC binary instead of the default path for our system.",
-        "VLC_PLAYER_PATH": "VLC player path",
-        "MPV_PLAYER_PATH_LABEL": "mpv path"
+        "MPV_PLAYER_PATH_LABEL": "mpv 路徑",
+        "MPV_PLAYER_PATH_DESCRIPTION": "設定您系統中 mpv 播放器的路徑。將使用提供的 mpv 二進位檔路徑，而非 $PATH 中的預設路徑。",
+        "MPV_PLAYER_PATH": "mpv 播放器路徑",
+        "VLC_PLAYER_PATH_LABEL": "VLC 路徑",
+        "VLC_PLAYER_PATH_DESCRIPTION": "設定您系統中 VLC 播放器的路徑。將使用提供的 VLC 二進位檔路徑，而非系統預設路徑。",
+        "VLC_PLAYER_PATH": "VLC 播放器路徑",
+        "REMOTE_CONTROL": "遠端控制",
+        "REMOTE_CONTROL_DESCRIPTION": "啟用應用程式遠端控制功能。",
+        "REMOTE_CONTROL_PORT": "遠端控制連接埠",
+        "REMOTE_CONTROL_PORT_DESCRIPTION": "用於遠端控制應用程式的連接埠。預設使用連接埠 8765。"
     },
     "THEMES": {
         "DARK_THEME": "深色主題",
@@ -192,7 +236,7 @@
         "WHAT_IS_NEW": "更新內容",
         "ABOUT": "關於",
         "ABOUT_ARIA": "關於本應用程式",
-        "SUPPORT_PROJECT": "Support project"
+        "SUPPORT_PROJECT": "支持專案"
     },
     "ABOUT": {
         "TITLE": "關於 IPTVnator",
@@ -205,37 +249,88 @@
     "UPDATE_AVAILABLE": "有可用的更新",
     "REFRESH": "重新整理",
     "XTREAM": {
-        "RELEASE_DATE": "Release date",
-        "ACTORS": "Actors",
-        "PLAY": "Play",
-        "GENRE": "Genre",
-        "DURATION": "Duration",
-        "COUNTRY": "Country",
-        "NAME": "Name",
-        "DIRECTOR": "Director",
-        "CAST": "Cast",
-        "RATING": "Rating"
+        "PLAY": "播放",
+        "NAME": "名稱",
+        "RELEASE_DATE": "發行日期",
+        "GENRE": "類型",
+        "COUNTRY": "國家",
+        "ACTORS": "演員",
+        "DIRECTOR": "導演",
+        "DURATION": "片長",
+        "CAST": "演員陣容",
+        "EPISODE_RUN_TIME": "集數時長",
+        "RATING": "評分",
+        "IMDB_RATING": "IMDB 評分",
+        "KINOPOISK_RATING": "Kinopoisk 評分",
+        "DESCRIPTION": "描述",
+        "YEAR": "年份",
+        "AGE": "年齡",
+        "YOUTUBE_TRAILER": "YouTube 預告片",
+        "EPISODE": "集數"
     },
     "PORTALS": {
-        "ALL_CATEGORIES": "All categories",
-        "ADD_TO_FAVORITES": "Add to favorites",
-        "REMOVE_FROM_FAVORITES": "Remove from favorites",
-        "MY_FAVORITES": "My favorites",
+        "ALL_CATEGORIES": "所有類別",
+        "MY_FAVORITES": "我的最愛",
+        "ADD_TO_FAVORITES": "新增至最愛",
+        "REMOVE_FROM_FAVORITES": "從最愛中移除",
+        "REMOVED_FROM_FAVORITES": "已從最愛中移除",
+        "ADDED_TO_FAVORITES": "已新增至最愛",
+        "SIDEBAR": {
+            "MAIN": "主頁",
+            "MOVIES": "電影",
+            "LIVE_TV": "直播電視",
+            "SERIES": "影集",
+            "LIBRARY": "媒體庫",
+            "SEARCH": "搜尋",
+            "RECENT": "最近觀看",
+            "FAVORITES": "我的最愛",
+            "HOME": "首頁",
+            "PLAYLIST_INFO": "播放清單資訊",
+            "ACCOUNT_INFO": "帳戶資訊"
+        },
         "ERROR_VIEW": {
-            "DELETE": "",
             "ACCOUNT_EXPIRED": {
-                "DESCRIPTION": "This account has been expired. Please check the credentials in playlist settings or remove it."
+                "TITLE": "帳戶已過期",
+                "DESCRIPTION": "此帳戶已過期。請在播放清單設定中檢查憑證或將其移除。"
+            },
+            "UNAUTHORIZED": {
+                "TITLE": "未授權",
+                "DESCRIPTION": "請在播放清單設定中檢查憑證或將其移除。"
+            },
+            "NOT_FOUND": {
+                "TITLE": "找不到入口網站",
+                "DESCRIPTION": "請在播放清單設定中檢查憑證和入口網站網址或將其移除。"
+            },
+            "EMPTY_CATEGORY": {
+                "TITLE": "空類別",
+                "DESCRIPTION": "此類別沒有內容，請選擇其他類別或更改內容類型"
             },
             "UNKNOWN_ERROR": {
-                "TITLE": "Something went wrong",
-                "DESCRIPTION": "Unknown error, please try again later"
+                "TITLE": "發生錯誤",
+                "DESCRIPTION": "未知錯誤，請稍後再試"
             },
-            "PLAYLIST_SETTINGS": "Playlist Settings",
-            "UNAUTHORIZED": {
-                "DESCRIPTION": "Please check the credentials in playlist settings or remove it."
-            }
+            "NO_CATEGORY_SELECTED": {
+                "TITLE": "未選擇類別",
+                "DESCRIPTION": "請選擇一個類別以查看內容"
+            },
+            "PLAYLIST_SETTINGS": "播放清單設定",
+            "HOME": "首頁",
+            "DELETE": "刪除"
         },
-        "REMOVED_FROM_FAVORITES": "Removed from favorites",
-        "ADDED_TO_FAVORITES": "Added to favorites"
+        "EMPTY_LIST_VIEW": {
+            "TITLE": "找不到結果",
+            "NO_SEARCH_RESULTS": "找不到任何內容，請嘗試更改搜尋條件"
+        },
+        "STREAM_URL_COPIED": "串流網址已複製到剪貼簿",
+        "COPY_STREAM_URL": "複製串流網址",
+        "SELECT_CATEGORY": "選擇類別"
+    },
+    "INFORMATION": "資訊",
+    "REMOTE_CONTROL": {
+        "TITLE": "遠端控制",
+        "UP_CHANNEL": "上一頻道",
+        "DOWN_CHANNEL": "下一頻道",
+        "HEADER": "IPTVNator 遠端控制",
+        "FOOTER": "IPTVNator 遠端控制"
     }
 }

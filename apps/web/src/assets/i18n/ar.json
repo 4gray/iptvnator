@@ -15,6 +15,14 @@
         "PLAYLISTS": {
             "NO_PLAYLISTS": "لم تُضف أي قوائم تشغيل",
             "ADD_FIRST": "يرجى إضافة أول قائمة تشغيل",
+            "WELCOME_TITLE": "مرحبًا بك في IPTVnator",
+            "WELCOME_DESCRIPTION": "ابدأ رحلة البث بإضافة قائمة التشغيل الأولى. اتصل بخدمة IPTV المفضلة لديك واستمتع بالتلفزيون المباشر والأفلام والمسلسلات.",
+            "ADD_YOUR_FIRST": "أضف قائمة التشغيل الأولى",
+            "FEATURE_M3U": "ملفات M3U/M3U8",
+            "FEATURE_XTREAM": "Xtream Codes",
+            "FEATURE_STALKER": "بوابة Stalker",
+            "NO_RESULTS_TITLE": "لم يتم العثور على قوائم تشغيل",
+            "NO_RESULTS_DESCRIPTION": "لا توجد قوائم تشغيل تطابق بحثك. حاول تعديل مصطلحات البحث أو امسح الفلتر لرؤية جميع القوائم.",
             "ADDED_VIA_URL": "تمت الإضافة عبر رابط URL. الرابط:",
             "ADDED_VIA_FILE": "تمت الإضافة عبر تحميل ملف",
             "XTREAM_PLAYLIST": "قائمة تشغيل Xtream",
@@ -154,7 +162,7 @@
         "REMOTE_CONTROL": "التحكم عن بعد",
         "REMOTE_CONTROL_DESCRIPTION": "تمكين التحكم عن بعد للتطبيق.",
         "REMOTE_CONTROL_PORT": "منفذ التحكم عن بعد",
-        "REMOTE_CONTROL_PORT_DESCRIPTION": "المنفذ المستخدم للتحكم عن بعد (الافتراضي: 3000)."
+        "REMOTE_CONTROL_PORT_DESCRIPTION": "المنفذ المستخدم للتحكم عن بعد (الافتراضي: 8765)."
     },
     "THEMES": {
         "DARK_THEME": "السمة الداكنة",
