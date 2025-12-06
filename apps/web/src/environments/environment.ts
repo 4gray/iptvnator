@@ -4,5 +4,5 @@ export const AppConfig = {
     production: false,
     environment: 'LOCAL',
     version: packageJson.version,
-    BACKEND_URL: 'https://iptvnator-playlist-parser-api.vercel.app',
+    BACKEND_URL: 'http://localhost:3000',
 };

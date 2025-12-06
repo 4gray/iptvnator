@@ -144,6 +144,78 @@ This is an Nx monorepo with the following structure:
     - Same schema structure but implemented in IndexedDB
     - Limited by browser storage quotas
 
+**Angular Coding Standards**:
+
+This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use the following:
+
+- **Component Queries**: Use `viewChild()`, `viewChildren()`, `contentChild()`, `contentChildren()` instead of `@ViewChild`, `@ViewChildren`, `@ContentChild`, `@ContentChildren` decorators
+    ```typescript
+    // ✅ Correct - Signal-based
+    readonly menu = viewChild.required<MatMenu>('menuRef');
+    readonly items = viewChildren<ElementRef>('item');
+
+    // ❌ Incorrect - Old decorator syntax
+    @ViewChild('menuRef') menu!: MatMenu;
+    @ViewChildren('item') items!: QueryList<ElementRef>;
+    ```
+
+    **Important**: When using signals in templates with properties that expect non-signal values, unwrap the signal by calling it:
+    ```html
+    <!-- ✅ Correct - Unwrap the signal -->
+    <button [matMenuTriggerFor]="menu()">Open Menu</button>
+
+    <!-- ❌ Incorrect - Signal not unwrapped -->
+    <button [matMenuTriggerFor]="menu">Open Menu</button>
+    ```
+
+- **Component Inputs/Outputs**: Use `input()` and `output()` functions instead of `@Input()` and `@Output()` decorators
+    ```typescript
+    // ✅ Correct - Signal-based
+    readonly title = input.required<string>();
+    readonly size = input<number>(10); // with default value
+    readonly clicked = output<string>();
+
+    // ❌ Incorrect - Old decorator syntax
+    @Input({ required: true }) title!: string;
+    @Input() size = 10;
+    @Output() clicked = new EventEmitter<string>();
+    ```
+
+- **Reactive State**: Use signal primitives for reactive state management
+    ```typescript
+    // ✅ Use signal(), computed(), effect(), linkedSignal()
+    readonly count = signal(0);
+    readonly doubled = computed(() => this.count() * 2);
+
+    constructor() {
+        effect(() => {
+            console.log('Count changed:', this.count());
+        });
+    }
+    ```
+
+- **Host Bindings**: Use `@HostBinding()` and `@HostListener()` decorators (these don't have signal equivalents yet)
+    ```typescript
+    @HostBinding('class.active') get isActive() { return this.active(); }
+    @HostListener('click') onClick() { /* ... */ }
+    ```
+
+- **Control Flow**: Use `@if`, `@for`, `@switch` instead of `*ngIf`, `*ngFor`, `*ngSwitch`
+    ```typescript
+    // ✅ Correct - Modern syntax
+    @if (isLoggedIn()) {
+        <p>Welcome!</p>
+    }
+
+    @for (item of items(); track item.id) {
+        <li>{{ item.name }}</li>
+    }
+
+    // ❌ Incorrect - Old syntax
+    <p *ngIf="isLoggedIn">Welcome!</p>
+    <li *ngFor="let item of items; trackBy: trackById">{{ item.name }}</li>
+    ```
+
 ### Backend Architecture (Electron)
 
 **Main Entry**: `apps/electron-backend/src/main.ts`

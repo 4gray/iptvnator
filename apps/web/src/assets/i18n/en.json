@@ -15,6 +15,14 @@
         "PLAYLISTS": {
             "NO_PLAYLISTS": "No playlists were added",
             "ADD_FIRST": "Please add your first playlist",
+            "WELCOME_TITLE": "Welcome to IPTVnator",
+            "WELCOME_DESCRIPTION": "Start your streaming journey by adding your first playlist. Connect to your favorite IPTV service and enjoy live TV, movies, and series.",
+            "ADD_YOUR_FIRST": "Add Your First Playlist",
+            "FEATURE_M3U": "M3U/M3U8 Files",
+            "FEATURE_XTREAM": "Xtream Codes",
+            "FEATURE_STALKER": "Stalker Portal",
+            "NO_RESULTS_TITLE": "No playlists found",
+            "NO_RESULTS_DESCRIPTION": "No playlists match your search. Try adjusting your search terms or clear the filter to see all playlists.",
             "ADDED_VIA_URL": "Added via URL upload. URL:",
             "ADDED_VIA_FILE": "Added via file upload",
             "XTREAM_PLAYLIST": "Xtream playlist",
@@ -45,7 +53,9 @@
                 "PASSWORD": "Password",
                 "MAC_ADDRESS": "Mac Address",
                 "PLAYLIST_EXPORT_SUCCESS": "Playlist was exported successfully.",
-                "PLAYLIST_EXPORT_ERROR": "Error: Playlist export failed."
+                "PLAYLIST_EXPORT_ERROR": "Error: Playlist export failed.",
+                "COPY_URL": "Copy URL to clipboard",
+                "URL_COPIED": "URL copied to clipboard"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Remove playlist",
@@ -115,7 +125,7 @@
         "PARSING_ERROR": "Error: Parsing failed, not a valid playlist:"
     },
     "SETTINGS": {
-        "TITLE": "Settings / IPTVnator",
+        "TITLE": "Settings",
         "SUBTITLE": "Change the configuration of the application",
         "DESCRIPTION": "Please adapt the options from the list below and confirm with the save changes button",
         "EPG_URL_LABEL": "EPG Url (*.xml or *.xml.gz)",
@@ -168,6 +178,9 @@
         "REMOTE_CONTROL_DESCRIPTION": "Enable remote control of the application.",
         "REMOTE_CONTROL_PORT": "Remote control port",
         "REMOTE_CONTROL_PORT_DESCRIPTION": "Port used for remote control of the application. Port 8765 is used by default.",
+        "REMOTE_CONTROL_URL": "Remote control URL",
+        "REMOTE_CONTROL_URL_DESCRIPTION": "Access the remote control from another device on the same network.",
+        "SHOW_QR_CODE": "Show QR code",
         "PORT_REQUIRED": "Port is required",
         "PORT_MIN": "Port must be at least 1",
         "PORT_MAX": "Port must be at most 65535",

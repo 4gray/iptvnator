@@ -58,6 +58,15 @@
                     'HOME.PLAYLISTS.INFO_DIALOG.FROM_URL' | translate
                 }}</mat-label>
                 <input matInput formControlName="url" />
+                <button
+                    mat-icon-button
+                    matSuffix
+                    type="button"
+                    (click)="copyUrl()"
+                    [matTooltip]="'HOME.PLAYLISTS.INFO_DIALOG.COPY_URL' | translate"
+                >
+                    <mat-icon>content_copy</mat-icon>
+                </button>
             </mat-form-field>
         }
         @if (playlist.filename) {

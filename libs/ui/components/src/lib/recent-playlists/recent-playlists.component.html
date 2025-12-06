@@ -1,36 +1,28 @@
 @if (allPlaylistsLoaded()) {
-    <mat-form-field class="search-field" subscriptSizing="dynamic">
-        <mat-icon matPrefix>search</mat-icon>
-        <input
-            matInput
-            #searchQuery
-            type="search"
-            spellcheck="false"
-            autocomplete="off"
-            [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"
-            (input)="onSearchQueryUpdate(searchQuery.value)"
-        />
-    </mat-form-field>
     @defer {
-        @if (playlists$ | async; as playlists) {
-            <mat-nav-list class="playlists-list">
-                @if (playlists.length === 0) {
-                    <mat-list-item>
-                        <mat-icon matListItemIcon>search</mat-icon>
-                        <div matListItemTitle>
-                            {{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}
-                        </div>
-                        <div matListItemLine class="meta">
-                            {{ 'HOME.PLAYLISTS.ADD_FIRST' | translate }}
-                        </div>
-                    </mat-list-item>
+        @if (playlistsData$ | async; as data) {
+            @if (data.playlists.length === 0) {
+                @if (data.totalCount === 0) {
+                    <!-- Welcome state: no playlists at all -->
+                    <app-empty-state
+                        [type]="'welcome'"
+                        (addPlaylistClicked)="onAddPlaylist($event)"
+                    />
                 } @else {
+                    <!-- No results state: search/filter returned nothing -->
+                    <app-empty-state [type]="'no-results'" />
+                }
+            } @else {
+                <mat-nav-list class="playlists-list">
                     <mat-list-item (click)="navigateToGlobalFavorites()">
                         <mat-icon class="favorites-icon" matListItemIcon
                             >star</mat-icon
                         >
                         <div matListItemTitle>
-                            {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}
+                            {{
+                                'HOME.PLAYLISTS.GLOBAL_FAVORITES'
+                                    | translate
+                            }}
                         </div>
                         <div matListItemLine class="meta">
                             {{
@@ -39,7 +31,11 @@
                             }}
                         </div>
                     </mat-list-item>
-                    @for (item of playlists; track item._id; let last = $last) {
+                    @for (
+                        item of data.playlists;
+                        track item._id;
+                        let last = $last
+                    ) {
                         <app-playlist-item
                             [item]="item"
                             [showActions]="!sidebarMode()"
@@ -49,8 +45,8 @@
                             (removeClicked)="removeClicked($event)"
                         />
                     }
-                }
-            </mat-nav-list>
+                </mat-nav-list>
+            }
         }
     } @placeholder {
         <div id="skeleton-container">

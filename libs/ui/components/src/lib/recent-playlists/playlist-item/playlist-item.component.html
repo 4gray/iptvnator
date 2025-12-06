@@ -111,7 +111,7 @@
                     <mat-icon>sync</mat-icon>
                 </button>
             }
-            @if (item.serverUrl) {
+            @if (item.serverUrl && isElectron) {
                 <button
                     mat-icon-button
                     class="refresh-btn"

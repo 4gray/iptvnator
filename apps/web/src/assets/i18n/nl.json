@@ -1,318 +1,318 @@
 {
-  "CLOSE": "Afsluiten",
-  "PLAYLISTS": "Afspeellijst",
-  "HOME": {
-    "TITLE": "IPTVnator",
-    "SUBTITLE": "Selecteer een afspeellijst of voeg een nieuwe lijst toe",
-    "TABS": {
-      "RECENTLY_ADDED": "Recent toegevoegde afspeellijst",
-      "FILE_UPLOAD": "Upload een bestand",
-      "URL_UPLOAD": "Voeg toe via URL",
-      "TEXT_IMPORT": "Voeg toe via tekst",
-      "XTREME_IMPORT": "Voeg een Xtreme Code toe",
-      "STALKER_PORTAL_IMPORT": "Voeg een Stalker Portal toe"
+    "CLOSE": "Afsluiten",
+    "PLAYLISTS": "Afspeellijst",
+    "HOME": {
+        "TITLE": "IPTVnator",
+        "SUBTITLE": "Selecteer een afspeellijst of voeg een nieuwe lijst toe",
+        "TABS": {
+            "RECENTLY_ADDED": "Recent toegevoegde afspeellijst",
+            "FILE_UPLOAD": "Upload een bestand",
+            "URL_UPLOAD": "Voeg toe via URL",
+            "TEXT_IMPORT": "Voeg toe via tekst",
+            "XTREME_IMPORT": "Voeg een Xtreme Code toe",
+            "STALKER_PORTAL_IMPORT": "Voeg een Stalker Portal toe"
+        },
+        "PLAYLISTS": {
+            "NO_PLAYLISTS": "Geen afspeellijst toegevoegd",
+            "ADD_FIRST": "Voeg je afspeellijst toe",
+            "ADDED_VIA_URL": "Toegevoegd via URL: ",
+            "ADDED_VIA_FILE": "Toegevoegd via bestand",
+            "XTREAM_PLAYLIST": "Xtream afspeellijst",
+            "STALKER_PORTAL": "Stalker portal",
+            "CHANNELS": "Kanalen",
+            "ADDED": "Toegevoegd",
+            "SHOW_DETAILS": "Toon afspeellijstdetails",
+            "REMOVE": "Verwijder afspeellijst",
+            "SEARCH_PLAYLISTS": "Zoek afspeellijst op titel",
+            "INFO_DIALOG": {
+                "PLAYLIST_DETAILS": "Afspeellijstdetails",
+                "TITLE": "Titel",
+                "FROM_URL": "Toegevoegd vanuit URL",
+                "IMPORT_DATE": "Importdatum",
+                "CHANNELS": "Aantal kanalen",
+                "CLOSE": "Afsluiten",
+                "SAVE": "Opslaan",
+                "USER_AGENT": "User-agent",
+                "ORIGINAL_FILENAME": "Oorspronkelijke bestandsnaam",
+                "FILE_PATH": "Bestandspad",
+                "UPDATE_FAILED": "Laatste afspeellijstupdate mislukt",
+                "AUTO_UPDATE": "Automatisch bijwerken",
+                "AUTO_UPDATE_DESCRIPTION": "Als automatisch bijwerken is ingeschakeld, wordt de afspeellijst bij elke start van de app vernieuwd.",
+                "CUSTOM_USER_AGENT": "Sommige IPTV-providers vereisen een specifieke user-agent om de afspeellijst af te spelen.",
+                "EXPORT_PLAYLIST": "Exporteer afspeellijst als m3u",
+                "SERVER_URL": "Server-URL",
+                "USERNAME": "Gebruikersnaam",
+                "PASSWORD": "Wachtwoord",
+                "MAC_ADDRESS": "MAC-adres",
+                "PLAYLIST_EXPORT_SUCCESS": "Afspeellijst succesvol geëxporteerd.",
+                "PLAYLIST_EXPORT_ERROR": "Fout: exporteren van afspeellijst mislukt."
+            },
+            "REMOVE_DIALOG": {
+                "TITLE": "Afspeellijst verwijderen",
+                "MESSAGE": "Weet je zeker dat je deze afspeellijst wilt verwijderen?",
+                "SUCCESS": "Afspeellijst succesvol verwijderd."
+            },
+            "UPDATED": "Bijgewerkt",
+            "REFRESH": "Afspeellijst vernieuwen",
+            "GLOBAL_FAVORITES": "Algemene favorieten",
+            "GLOBAL_FAVORITES_DESCRIPTION": "Automatisch gegenereerde afspeellijst met samengevoegde favorieten uit alle afspeellijsten.",
+            "MY_PLAYLISTS": "Mijn afspeellijsten",
+            "MY_PLAYLISTS_SUBTITLE": "Alle beschikbare afspeellijsten",
+            "PLAYLIST_UPDATE_SUCCESS": "De afspeellijst is succesvol bijgewerkt.",
+            "PLAYLIST_UPDATE_ERROR": "Fout bij het bijwerken van de afspeellijst."
+        },
+        "FILE_UPLOAD": {
+            "DRAG_DROP": "Sleep bestanden hierheen",
+            "OR": "of",
+            "CHOOSE_PLAYLIST": "kies een afspeellijst",
+            "REJECTED": "Bestand geweigerd, niet-ondersteund bestandsformaat: {{filename}}."
+        },
+        "URL_UPLOAD": {
+            "PLAYLIST_URL": "Afspeellijst-URL (m3u, m3u8)",
+            "ADD_PLAYLIST": "Afspeellijst toevoegen",
+            "CORS_NOTE": "Opmerking: om CORS-problemen te voorkomen, gebruikt de app een openbare CORS-proxyservice. Voor gevoelige gegevens is het veiliger om de afspeellijst via een bestand te importeren."
+        },
+        "TEXT_IMPORT": {
+            "LABEL": "Voer een m3u(8)-afspeellijst in als tekst",
+            "BUTTON_LABEL": "Importeren"
+        },
+        "XTREAM_PLAYLIST": {
+            "TITLE": "Afspeellijst titel",
+            "SERVER_URL": "Server URL",
+            "USERNAME": "Gebruikersnaam",
+            "PASSWORD": "Wachtwoord",
+            "ADD": "Toevoegen",
+            "TEST_CREDENTIALS": "Test de inloggegevens",
+            "URL_VALIDATION_ERROR": "Moet een geldige URL zijn met protocol (bijv. http://example.com of https://example.com:4324)"
+        },
+        "STALKER_PORTAL": {
+            "TITLE": "Titel",
+            "MAC_ADDRESS": "Mac adres",
+            "SERVER_URL": "Server URL",
+            "URL_VALIDATION_ERROR": "Moet een geldige URL zijn met protocol (bijv. http://example.com/c o https://example.com/stalker_portal/c)",
+            "ADD": "Toevoegen"
+        },
+        "FILTER_BY_NAME": "Filter op naam",
+        "FILTER_BY_TYPE": "Filter op type",
+        "SORT_PLAYLISTS": "Sorteer afspeellijsten",
+        "SORT_BY": "Sorteer op",
+        "SORT_OPTIONS": {
+            "NAME_ASC": "Naam (A-Z)",
+            "NAME_DESC": "Naam (Z-A)",
+            "NEWEST": "Datum toegevoegd (Nieuwste eerst)",
+            "OLDEST": "Datum toegevoegd (Oudste eerst)"
+        },
+        "IMPORTED_AS_TEXT": "Geïmporteerd als tekst",
+        "PARSING_ERROR": "Fout: parsing mislukt, geen geldige afspeellijst:"
     },
-    "PLAYLISTS": {
-      "NO_PLAYLISTS": "Geen afspeellijst toegevoegd",
-      "ADD_FIRST": "Voeg je afspeellijst toe",
-      "ADDED_VIA_URL": "Toegevoegd via URL: ",
-      "ADDED_VIA_FILE": "Toegevoegd via bestand",
-      "XTREAM_PLAYLIST": "Xtream afspeellijst",
-      "STALKER_PORTAL": "Stalker portal",
-      "CHANNELS": "Kanalen",
-      "ADDED": "Toegevoegd",
-      "SHOW_DETAILS": "Toon afspeellijstdetails",
-      "REMOVE": "Verwijder afspeellijst",
-      "SEARCH_PLAYLISTS": "Zoek afspeellijst op titel",
-      "INFO_DIALOG": {
-        "PLAYLIST_DETAILS": "Afspeellijstdetails",
-        "TITLE": "Titel",
-        "FROM_URL": "Toegevoegd vanuit URL",
-        "IMPORT_DATE": "Importdatum",
-        "CHANNELS": "Aantal kanalen",
-        "CLOSE": "Afsluiten",
-        "SAVE": "Opslaan",
-        "USER_AGENT": "User-agent",
-        "ORIGINAL_FILENAME": "Oorspronkelijke bestandsnaam",
-        "FILE_PATH": "Bestandspad",
-        "UPDATE_FAILED": "Laatste afspeellijstupdate mislukt",
-        "AUTO_UPDATE": "Automatisch bijwerken",
-        "AUTO_UPDATE_DESCRIPTION": "Als automatisch bijwerken is ingeschakeld, wordt de afspeellijst bij elke start van de app vernieuwd.",
-        "CUSTOM_USER_AGENT": "Sommige IPTV-providers vereisen een specifieke user-agent om de afspeellijst af te spelen.",
-        "EXPORT_PLAYLIST": "Exporteer afspeellijst als m3u",
-        "SERVER_URL": "Server-URL",
-        "USERNAME": "Gebruikersnaam",
-        "PASSWORD": "Wachtwoord",
-        "MAC_ADDRESS": "MAC-adres",
-        "PLAYLIST_EXPORT_SUCCESS": "Afspeellijst succesvol geëxporteerd.",
-        "PLAYLIST_EXPORT_ERROR": "Fout: exporteren van afspeellijst mislukt."
-      },
-      "REMOVE_DIALOG": {
-        "TITLE": "Afspeellijst verwijderen",
-        "MESSAGE": "Weet je zeker dat je deze afspeellijst wilt verwijderen?",
-        "SUCCESS": "Afspeellijst succesvol verwijderd."
-      },
-      "UPDATED": "Bijgewerkt",
-      "REFRESH": "Afspeellijst vernieuwen",
-      "GLOBAL_FAVORITES": "Algemene favorieten",
-      "GLOBAL_FAVORITES_DESCRIPTION": "Automatisch gegenereerde afspeellijst met samengevoegde favorieten uit alle afspeellijsten.",
-      "MY_PLAYLISTS": "Mijn afspeellijsten",
-      "MY_PLAYLISTS_SUBTITLE": "Alle beschikbare afspeellijsten",
-      "PLAYLIST_UPDATE_SUCCESS": "De afspeellijst is succesvol bijgewerkt.",
-      "PLAYLIST_UPDATE_ERROR": "Fout bij het bijwerken van de afspeellijst."
+    "SETTINGS": {
+        "TITLE": "Instellingen",
+        "SUBTITLE": "Wijzig de configuratie van de applicatie",
+        "DESCRIPTION": "Pas de instellingen aan en bevestig met de knop 'Wijzigingen opslaan'.",
+        "EPG_URL_LABEL": "EPG-URL (*.xml of *.xml.gz)",
+        "EPG_URL_PLACEHOLDER": "Voer een URL in",
+        "REFRESH_EPG": "EPG vernieuwen",
+        "VIDEO_PLAYER_LABEL": "Videospeler",
+        "VIDEO_PLAYER_PLACEHOLDER": "Selecteer een optie",
+        "VERSION": "Versie",
+        "SAVE_CHANGES": "Wijzigingen opslaan",
+        "BACK_TO_HOME": "Terug",
+        "NEW_VERSION_AVAILABLE": "Een nieuwe versie is beschikbaar",
+        "LATEST_VERSION": "Je gebruikt de nieuwste versie",
+        "LANGUAGE": "Taal",
+        "SETTINGS_SAVED": "Succes! De instellingen zijn opgeslagen.",
+        "THEME": "Visueel thema",
+        "SHOW_CAPTIONS": "Ondertiteling weergeven",
+        "ADD_EPG_SOURCE": "EPG-bron toevoegen",
+        "EPG_URL_ERROR": "De opgegeven waarde is geen geldige URL.",
+        "VIDEO_PLAYER_DESCRIPTION": "Selecteer de standaard videospeler",
+        "LANGUAGE_DESCRIPTION": "Selecteer de taal van de applicatie",
+        "THEME_DESCRIPTION": "Kies het visuele thema van de applicatie",
+        "SHOW_CAPTIONS_DESCRIPTION": "Standaard ondertiteling weergeven of verbergen",
+        "VERSION_DESCRIPTION": "Huidige versie van de applicatie",
+        "EPG_NOTE": "Momenteel is EPG alleen beschikbaar in de op Electron gebaseerde versie van IPTVnator.",
+        "EPG_NOTE_URL_TEXT": "Bekijk het hier",
+        "IMPORT_EXPORT_DATA": "Afspeellijsten importeren/exporteren",
+        "IMPORT_EXPORT_DATA_DESCRIPTION": "Exporteer of importeer afspeellijsten in JSON-formaat.",
+        "IMPORT_DATA": "Importeren",
+        "EXPORT_DATA": "Exporteren",
+        "REMOVE_ALL": "Afspeellijsten verwijderen",
+        "REMOVE_ALL_BUTTON": "Verwijderen",
+        "REMOVE_ALL_DESCRIPTION": "Hiermee verwijder je alle afspeellijsten uit de applicatie.",
+        "REMOVE_DIALOG": {
+            "TITLE": "Alle afspeellijsten verwijderen",
+            "MESSAGE": "Weet je zeker dat je alle afspeellijsten wilt verwijderen?"
+        },
+        "IMPORT_ERROR": "Fout bij importeren, probeer een ander bestand.",
+        "PLAYLISTS_REMOVED": "Alle afspeellijsten zijn verwijderd.",
+        "MPV_PLAYER_PATH_LABEL": "mpv-bestandspad",
+        "MPV_PLAYER_PATH_DESCRIPTION": "Stel het bestandspad in naar de mpv-speler op je systeem. Dit bestandspad wordt gebruikt in plaats van de standaard mpv-bestand uit $PATH.",
+        "MPV_PLAYER_PATH": "mpv-speler bestandspad",
+        "VLC_PLAYER_PATH_LABEL": "VLC-bestandspad",
+        "VLC_PLAYER_PATH_DESCRIPTION": "Stel het bestandspad in naar de VLC-speler op je systeem. Dit bestandspad wordt gebruikt in plaats van het standaardpad van het systeem.",
+        "VLC_PLAYER_PATH": "VLC-speler bestandspad",
+        "REMOTE_CONTROL": "Afstandsbediening",
+        "REMOTE_CONTROL_DESCRIPTION": "Schakel de afstandsbediening voor de applicatie in.",
+        "REMOTE_CONTROL_PORT": "Afstandsbedieningspoort",
+        "REMOTE_CONTROL_PORT_DESCRIPTION": "Poort voor de afstandsbediening van de applicatie. Standaard wordt poort 3000 gebruikt."
     },
-    "FILE_UPLOAD": {
-      "DRAG_DROP": "Sleep bestanden hierheen",
-      "OR": "of",
-      "CHOOSE_PLAYLIST": "kies een afspeellijst",
-      "REJECTED": "Bestand geweigerd, niet-ondersteund bestandsformaat: {{filename}}."
+    "THEMES": {
+        "DARK_THEME": "Donker thema",
+        "LIGHT_THEME": "Licht thema"
     },
-    "URL_UPLOAD": {
-      "PLAYLIST_URL": "Afspeellijst-URL (m3u, m3u8)",
-      "ADD_PLAYLIST": "Afspeellijst toevoegen",
-      "CORS_NOTE": "Opmerking: om CORS-problemen te voorkomen, gebruikt de app een openbare CORS-proxyservice. Voor gevoelige gegevens is het veiliger om de afspeellijst via een bestand te importeren."
+    "CHANNELS": {
+        "SEARCH_CHANNEL": "Zoek een kanaal",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload of selecteer een andere afspeellijst",
+        "ALL_CHANNELS": "Alle kanalen",
+        "GROUPS": "Groepen",
+        "UNGROUPED": "Niet gegroepeerd",
+        "UNNAMED_CHANNEL": "Naamloos kanaal",
+        "FAVORITES": "Favorieten",
+        "NO_FAVORITES": "Nog geen favorieten",
+        "USE_STAR_TO_FAVORITE": "Gebruik het ster-icoon om kanalen toe te voegen aan je favorieten.",
+        "REMOVE_FAVORITE": "Verwijder uit favorieten",
+        "FAVORITES_UPDATED": "Favorieten zijn bijgewerkt!",
+        "SORT_BY": "Sorteren op",
+        "SORT_BY_DATE": "Sorteren op datum toegevoegd (Nieuwste eerst)",
+        "SORT_BY_RATING": "Sorteren op beoordeling",
+        "SORT_BY_NAME": "Sorteren op naam (A-Z)"
     },
-    "TEXT_IMPORT": {
-      "LABEL": "Voer een m3u(8)-afspeellijst in als tekst",
-      "BUTTON_LABEL": "Importeren"
+    "TOP_MENU": {
+        "OPEN_CHANNELS_LIST": "Open kanalenlijst",
+        "TOGGLE_FAVORITE_FLAG": "Wissel favorietenstatus",
+        "OPEN_EPG_LIST": "Open TV-gids lijst",
+        "OPEN_MULTI_EPG": "Open Multi TV-Gids weergave"
     },
-    "XTREAM_PLAYLIST": {
-      "TITLE": "Afspeellijst titel",
-      "SERVER_URL": "Server URL",
-      "USERNAME": "Gebruikersnaam",
-      "PASSWORD": "Wachtwoord",
-      "ADD": "Toevoegen",
-      "TEST_CREDENTIALS": "Test de inloggegevens",
-      "URL_VALIDATION_ERROR": "Moet een geldige URL zijn met protocol (bijv. http://example.com of https://example.com:4324)"
+    "EPG": {
+        "TITLE": "TV-Gids",
+        "NEXT_DAY": "Volgende dag",
+        "PREVIOUS_DAY": "Vorige dag",
+        "LIVE_NOW": "Nu live",
+        "LIVE_STREAM": "Live stream",
+        "TIMESHIFT_AVAILABLE": "Doorspoelen is beschikbaar, klik om af te spelen",
+        "EPG_NOT_AVAILABLE_DATE": "De TV-Gids is niet beschikbaar voor de geselecteerde datum",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "De TV-Gids is niet beschikbaar voor dit kanaal.",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Voeg een TV-Gids URL toe of wijzig deze in de instellingen van de app.",
+        "FETCH_EPG": "Ophalen TV-Gids...",
+        "ERROR": "TV-Gids kan niet geladen worden.",
+        "DOWNLOAD_SUCCESS": "De TV-Gids is gedownload.",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Details over het tv-programma",
+            "TITLE": "Titel",
+            "CATEGORY": "Categorie",
+            "PARENTAL_RATING_SYSTEM": "Kijkwijzer",
+            "DESCRIPTION": "Beschrijving",
+            "LANGUAGE": "Taal",
+            "SHOW_PROGRAM_DETAILS": "Toon details over dit programma"
+        },
+        "FETCH_SUCCESS": "TV-Gids bijgewerkt"
     },
-    "STALKER_PORTAL": {
-      "TITLE": "Titel",
-      "MAC_ADDRESS": "Mac adres",
-      "SERVER_URL": "Server URL",
-      "URL_VALIDATION_ERROR": "Moet een geldige URL zijn met protocol (bijv. http://example.com/c o https://example.com/stalker_portal/c)",
-      "ADD": "Toevoegen"
+    "LANGUAGES": {
+        "ARABIC": "العربية",
+        "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
+        "ENGLISH": "English",
+        "KOREAN": "한국어",
+        "RUSSIAN": "Русский",
+        "GERMAN": "Deutsch",
+        "SPANISH": "Español",
+        "CHINESE": "简体中文",
+        "TRADITIONAL_CHINESE": "繁體中文",
+        "FRENCH": "Français",
+        "ITALIAN": "Italiano",
+        "TURKISH": "Türkçe",
+        "JAPANESE": "日本語",
+        "DUTCH": "Nederlands",
+        "BELARUSIAN": "Беларуская",
+        "POLISH": "Polski",
+        "PORTUGUESE": "Português"
     },
-    "FILTER_BY_NAME": "Filter op naam",
-    "FILTER_BY_TYPE": "Filter op type",
-    "SORT_PLAYLISTS": "Sorteer afspeellijsten",
-    "SORT_BY": "Sorteer op",
-    "SORT_OPTIONS": {
-      "NAME_ASC": "Naam (A-Z)",
-      "NAME_DESC": "Naam (Z-A)",
-      "NEWEST": "Datum toegevoegd (Nieuwste eerst)",
-      "OLDEST": "Datum toegevoegd (Oudste eerst)"
+    "YES": "Ja",
+    "NO": "Nee",
+    "MENU": {
+        "OPEN": "Open menu",
+        "SUPPORT_ARIA": "Ondersteun IPTVnator op GitHub",
+        "SETTINGS": "Instellingen",
+        "SETTINGS_ARIA": "Open instellingen",
+        "BUG_REPORT": "Meld een bug",
+        "WHAT_IS_NEW": "Wat is er nieuw",
+        "ABOUT": "Over",
+        "ABOUT_ARIA": "Over de applicatie",
+        "SUPPORT_PROJECT": "Ondersteun het project"
     },
-    "IMPORTED_AS_TEXT": "Geïmporteerd als tekst",
-    "PARSING_ERROR": "Fout: parsing mislukt, geen geldige afspeellijst:"
-  },
-  "SETTINGS": {
-    "TITLE": "Instellingen / IPTVnator",
-    "SUBTITLE": "Wijzig de configuratie van de applicatie",
-    "DESCRIPTION": "Pas de instellingen aan en bevestig met de knop 'Wijzigingen opslaan'.",
-    "EPG_URL_LABEL": "EPG-URL (*.xml of *.xml.gz)",
-    "EPG_URL_PLACEHOLDER": "Voer een URL in",
-    "REFRESH_EPG": "EPG vernieuwen",
-    "VIDEO_PLAYER_LABEL": "Videospeler",
-    "VIDEO_PLAYER_PLACEHOLDER": "Selecteer een optie",
-    "VERSION": "Versie",
-    "SAVE_CHANGES": "Wijzigingen opslaan",
-    "BACK_TO_HOME": "Terug",
-    "NEW_VERSION_AVAILABLE": "Een nieuwe versie is beschikbaar",
-    "LATEST_VERSION": "Je gebruikt de nieuwste versie",
-    "LANGUAGE": "Taal",
-    "SETTINGS_SAVED": "Succes! De instellingen zijn opgeslagen.",
-    "THEME": "Visueel thema",
-    "SHOW_CAPTIONS": "Ondertiteling weergeven",
-    "ADD_EPG_SOURCE": "EPG-bron toevoegen",
-    "EPG_URL_ERROR": "De opgegeven waarde is geen geldige URL.",
-    "VIDEO_PLAYER_DESCRIPTION": "Selecteer de standaard videospeler",
-    "LANGUAGE_DESCRIPTION": "Selecteer de taal van de applicatie",
-    "THEME_DESCRIPTION": "Kies het visuele thema van de applicatie",
-    "SHOW_CAPTIONS_DESCRIPTION": "Standaard ondertiteling weergeven of verbergen",
-    "VERSION_DESCRIPTION": "Huidige versie van de applicatie",
-    "EPG_NOTE": "Momenteel is EPG alleen beschikbaar in de op Electron gebaseerde versie van IPTVnator.",
-    "EPG_NOTE_URL_TEXT": "Bekijk het hier",
-    "IMPORT_EXPORT_DATA": "Afspeellijsten importeren/exporteren",
-    "IMPORT_EXPORT_DATA_DESCRIPTION": "Exporteer of importeer afspeellijsten in JSON-formaat.",
-    "IMPORT_DATA": "Importeren",
-    "EXPORT_DATA": "Exporteren",
-    "REMOVE_ALL": "Afspeellijsten verwijderen",
-    "REMOVE_ALL_BUTTON": "Verwijderen",
-    "REMOVE_ALL_DESCRIPTION": "Hiermee verwijder je alle afspeellijsten uit de applicatie.",
-    "REMOVE_DIALOG": {
-      "TITLE": "Alle afspeellijsten verwijderen",
-      "MESSAGE": "Weet je zeker dat je alle afspeellijsten wilt verwijderen?"
+    "ABOUT": {
+        "TITLE": "Over IPTVnator",
+        "DESCRIPTION": "Cross-platform IPTV-speler met meerdere features zoals ondersteuning voor m3u en m3u8 afspeellijsten, favorieten, TV-gids, TV-archief en meer.",
+        "VERSION": "Versie",
+        "GITHUB_TOOLTIP": "ITPVnator repository op GitHub",
+        "BUY_ME_A_COFFEE_TOOLTIP": "Koop een kopje koffie",
+        "TWITTER_TOOLTIP": "Deel op X"
     },
-    "IMPORT_ERROR": "Fout bij importeren, probeer een ander bestand.",
-    "PLAYLISTS_REMOVED": "Alle afspeellijsten zijn verwijderd.",
-    "MPV_PLAYER_PATH_LABEL": "mpv-bestandspad",
-    "MPV_PLAYER_PATH_DESCRIPTION": "Stel het bestandspad in naar de mpv-speler op je systeem. Dit bestandspad wordt gebruikt in plaats van de standaard mpv-bestand uit $PATH.",
-    "MPV_PLAYER_PATH": "mpv-speler bestandspad",
-    "VLC_PLAYER_PATH_LABEL": "VLC-bestandspad",
-    "VLC_PLAYER_PATH_DESCRIPTION": "Stel het bestandspad in naar de VLC-speler op je systeem. Dit bestandspad wordt gebruikt in plaats van het standaardpad van het systeem.",
-    "VLC_PLAYER_PATH": "VLC-speler bestandspad",
-    "REMOTE_CONTROL": "Afstandsbediening",
-    "REMOTE_CONTROL_DESCRIPTION": "Schakel de afstandsbediening voor de applicatie in.",
-    "REMOTE_CONTROL_PORT": "Afstandsbedieningspoort",
-    "REMOTE_CONTROL_PORT_DESCRIPTION": "Poort voor de afstandsbediening van de applicatie. Standaard wordt poort 3000 gebruikt."
-  },
-  "THEMES": {
-    "DARK_THEME": "Donker thema",
-    "LIGHT_THEME": "Licht thema"
-  },
-  "CHANNELS": {
-    "SEARCH_CHANNEL": "Zoek een kanaal",
-    "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload of selecteer een andere afspeellijst",
-    "ALL_CHANNELS": "Alle kanalen",
-    "GROUPS": "Groepen",
-    "UNGROUPED": "Niet gegroepeerd",
-    "UNNAMED_CHANNEL": "Naamloos kanaal",
-    "FAVORITES": "Favorieten",
-    "NO_FAVORITES": "Nog geen favorieten",
-    "USE_STAR_TO_FAVORITE": "Gebruik het ster-icoon om kanalen toe te voegen aan je favorieten.",
-    "REMOVE_FAVORITE": "Verwijder uit favorieten",
-    "FAVORITES_UPDATED": "Favorieten zijn bijgewerkt!",
-    "SORT_BY": "Sorteren op",
-    "SORT_BY_DATE": "Sorteren op datum toegevoegd (Nieuwste eerst)",
-    "SORT_BY_RATING": "Sorteren op beoordeling",
-    "SORT_BY_NAME": "Sorteren op naam (A-Z)"
-  },
-  "TOP_MENU": {
-    "OPEN_CHANNELS_LIST": "Open kanalenlijst",
-    "TOGGLE_FAVORITE_FLAG": "Wissel favorietenstatus",
-    "OPEN_EPG_LIST": "Open TV-gids lijst",
-    "OPEN_MULTI_EPG": "Open Multi TV-Gids weergave"
-  },
-  "EPG": {
-    "TITLE": "TV-Gids",
-    "NEXT_DAY": "Volgende dag",
-    "PREVIOUS_DAY": "Vorige dag",
-    "LIVE_NOW": "Nu live",
-    "LIVE_STREAM": "Live stream",
-    "TIMESHIFT_AVAILABLE": "Doorspoelen is beschikbaar, klik om af te spelen",
-    "EPG_NOT_AVAILABLE_DATE": "De TV-Gids is niet beschikbaar voor de geselecteerde datum",
-    "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "De TV-Gids is niet beschikbaar voor dit kanaal.",
-    "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Voeg een TV-Gids URL toe of wijzig deze in de instellingen van de app.",
-    "FETCH_EPG": "Ophalen TV-Gids...",
-    "ERROR": "TV-Gids kan niet geladen worden.",
-    "DOWNLOAD_SUCCESS": "De TV-Gids is gedownload.",
-    "PROGRAM_DIALOG": {
-      "PROGRAM_DETAILS": "Details over het tv-programma",
-      "TITLE": "Titel",
-      "CATEGORY": "Categorie",
-      "PARENTAL_RATING_SYSTEM": "Kijkwijzer",
-      "DESCRIPTION": "Beschrijving",
-      "LANGUAGE": "Taal",
-      "SHOW_PROGRAM_DETAILS": "Toon details over dit programma"
+    "UPDATE_AVAILABLE": "Update beschikbaar",
+    "REFRESH": "Ververs",
+    "XTREAM": {
+        "PLAY": "Afspelen",
+        "NAME": "Naam",
+        "RELEASE_DATE": "Verschijningsdatum",
+        "GENRE": "Genre",
+        "COUNTRY": "Land",
+        "ACTORS": "Acteurs",
+        "DIRECTOR": "Regisseur",
+        "DURATION": "Lengte",
+        "CAST": "Cast",
+        "EPISODE_RUN_TIME": "Aflevering lengte",
+        "RATING": "Score",
+        "IMDB_RATING": " Score op IMDB",
+        "KINOPOISK_RATING": "Score op Kinopoisk",
+        "DESCRIPTION": "Beschrijving",
+        "YEAR": "Jaar",
+        "AGE": "Leeftijd",
+        "YOUTUBE_TRAILER": "YouTube Trailer",
+        "EPISODE": "Aflevering"
     },
-    "FETCH_SUCCESS": "TV-Gids bijgewerkt"
-  },
-  "LANGUAGES": {
-    "ARABIC": "العربية",
-    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
-    "ENGLISH": "English",
-    "KOREAN": "한국어",
-    "RUSSIAN": "Русский",
-    "GERMAN": "Deutsch",
-    "SPANISH": "Español",
-    "CHINESE": "简体中文",
-    "TRADITIONAL_CHINESE": "繁體中文",
-    "FRENCH": "Français",
-    "ITALIAN": "Italiano",
-    "TURKISH": "Türkçe",
-    "JAPANESE": "日本語",
-    "DUTCH": "Nederlands",
-    "BELARUSIAN": "Беларуская",
-    "POLISH": "Polski",
-    "PORTUGUESE": "Português"
-  },
-  "YES": "Ja",
-  "NO": "Nee",
-  "MENU": {
-    "OPEN": "Open menu",
-    "SUPPORT_ARIA": "Ondersteun IPTVnator op GitHub",
-    "SETTINGS": "Instellingen",
-    "SETTINGS_ARIA": "Open instellingen",
-    "BUG_REPORT": "Meld een bug",
-    "WHAT_IS_NEW": "Wat is er nieuw",
-    "ABOUT": "Over",
-    "ABOUT_ARIA": "Over de applicatie",
-    "SUPPORT_PROJECT": "Ondersteun het project"
-  },
-  "ABOUT": {
-    "TITLE": "Over IPTVnator",
-    "DESCRIPTION": "Cross-platform IPTV-speler met meerdere features zoals ondersteuning voor m3u en m3u8 afspeellijsten, favorieten, TV-gids, TV-archief en meer.",
-    "VERSION": "Versie",
-    "GITHUB_TOOLTIP": "ITPVnator repository op GitHub",
-    "BUY_ME_A_COFFEE_TOOLTIP": "Koop een kopje koffie",
-    "TWITTER_TOOLTIP": "Deel op X"
-  },
-  "UPDATE_AVAILABLE": "Update beschikbaar",
-  "REFRESH": "Ververs",
-  "XTREAM": {
-    "PLAY": "Afspelen",
-    "NAME": "Naam",
-    "RELEASE_DATE": "Verschijningsdatum",
-    "GENRE": "Genre",
-    "COUNTRY": "Land",
-    "ACTORS": "Acteurs",
-    "DIRECTOR": "Regisseur",
-    "DURATION": "Lengte",
-    "CAST": "Cast",
-    "EPISODE_RUN_TIME": "Aflevering lengte",
-    "RATING": "Score",
-    "IMDB_RATING": " Score op IMDB",
-    "KINOPOISK_RATING": "Score op Kinopoisk",
-    "DESCRIPTION": "Beschrijving",
-    "YEAR": "Jaar",
-    "AGE": "Leeftijd",
-    "YOUTUBE_TRAILER": "YouTube Trailer",
-    "EPISODE": "Aflevering"
-  },
-  "PORTALS": {
-    "ALL_CATEGORIES": "Alle categoriën",
-    "MY_FAVORITES": "Mijn favorieten",
-    "ADD_TO_FAVORITES": "Voeg toe aan favorieten",
-    "REMOVE_FROM_FAVORITES": "Verwijder van favorieten",
-    "REMOVED_FROM_FAVORITES": "Verwijderd van favorieten",
-    "ADDED_TO_FAVORITES": "Toegevoegd aan favorieten",
-    "ERROR_VIEW": {
-      "ACCOUNT_EXPIRED": {
-        "TITLE": "Account verlopen",
-        "DESCRIPTION": "Dit account is verlopen. Controleer de gegevens in de afspeellijst instellingen of verwijder de afspeellijst."
-      },
-      "UNAUTHORIZED": {
-        "TITLE": "Niet geautoriseerd",
-        "DESCRIPTION": "Controleer de inloggegevens in de afspeellijst instellingen of verwijder de afspeellijst."
-      },
-      "NOT_FOUND": {
-        "TITLE": "Portal niet gevonden",
-        "DESCRIPTION": "Controleer de inloggegevens en de portal url in de afspeellijst instellingen of verwijder de afspeellijst."
-      },
-      "EMPTY_CATEGORY": {
-        "TITLE": "Lege categorie",
-        "DESCRIPTION": "Deze categorie heeft geen inhoud, selecteer een andere categorie of verander de categorie"
-      },
-      "UNKNOWN_ERROR": {
-        "TITLE": "Fout, er is iets misgegaan",
-        "DESCRIPTION": "Onbekende fout, probeer het later opnieuw"
-      },
-      "PLAYLIST_SETTINGS": "Afspeellijst instellingen",
-      "HOME": "Home",
-      "DELETE": "Verwijderen"
+    "PORTALS": {
+        "ALL_CATEGORIES": "Alle categoriën",
+        "MY_FAVORITES": "Mijn favorieten",
+        "ADD_TO_FAVORITES": "Voeg toe aan favorieten",
+        "REMOVE_FROM_FAVORITES": "Verwijder van favorieten",
+        "REMOVED_FROM_FAVORITES": "Verwijderd van favorieten",
+        "ADDED_TO_FAVORITES": "Toegevoegd aan favorieten",
+        "ERROR_VIEW": {
+            "ACCOUNT_EXPIRED": {
+                "TITLE": "Account verlopen",
+                "DESCRIPTION": "Dit account is verlopen. Controleer de gegevens in de afspeellijst instellingen of verwijder de afspeellijst."
+            },
+            "UNAUTHORIZED": {
+                "TITLE": "Niet geautoriseerd",
+                "DESCRIPTION": "Controleer de inloggegevens in de afspeellijst instellingen of verwijder de afspeellijst."
+            },
+            "NOT_FOUND": {
+                "TITLE": "Portal niet gevonden",
+                "DESCRIPTION": "Controleer de inloggegevens en de portal url in de afspeellijst instellingen of verwijder de afspeellijst."
+            },
+            "EMPTY_CATEGORY": {
+                "TITLE": "Lege categorie",
+                "DESCRIPTION": "Deze categorie heeft geen inhoud, selecteer een andere categorie of verander de categorie"
+            },
+            "UNKNOWN_ERROR": {
+                "TITLE": "Fout, er is iets misgegaan",
+                "DESCRIPTION": "Onbekende fout, probeer het later opnieuw"
+            },
+            "PLAYLIST_SETTINGS": "Afspeellijst instellingen",
+            "HOME": "Home",
+            "DELETE": "Verwijderen"
+        },
+        "EMPTY_LIST_VIEW": {
+            "NO_SEARCH_RESULTS": "Niks gevonden, verander je zoekopdracht"
+        },
+        "STREAM_URL_COPIED": "Stream URL Gekopieërd",
+        "COPY_STREAM_URL": "Kopieër Stream URL"
     },
-    "EMPTY_LIST_VIEW": {
-      "NO_SEARCH_RESULTS": "Niks gevonden, verander je zoekopdracht"
-    },
-    "STREAM_URL_COPIED": "Stream URL Gekopieërd",
-    "COPY_STREAM_URL": "Kopieër Stream URL"
-  },
-  "INFORMATION": "Informatie",
-  "REMOTE_CONTROL": {
-    "TITLE": "Afstandsbediening",
-    "UP_CHANNEL": "Kanaal omhoog",
-    "DOWN_CHANNEL": "Kanaal omlaag",
-    "HEADER": "IPTVNator Afstandsbediening",
-    "FOOTER": "IPTVNator Afstandsbediening"
-  }
+    "INFORMATION": "Informatie",
+    "REMOTE_CONTROL": {
+        "TITLE": "Afstandsbediening",
+        "UP_CHANNEL": "Kanaal omhoog",
+        "DOWN_CHANNEL": "Kanaal omlaag",
+        "HEADER": "IPTVNator Afstandsbediening",
+        "FOOTER": "IPTVNator Afstandsbediening"
+    }
 }

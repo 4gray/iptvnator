@@ -1,268 +1,276 @@
 {
-  "CLOSE": "Cerrar",
-  "HOME": {
-    "TITLE": "IPTVnator",
-    "SUBTITLE": "Selecciona una lista de reproducción del listado o añade una nueva lista al cargar archivos o por una url",
-    "TABS": {
-      "RECENTLY_ADDED": "Listas añadidas recientemente",
-      "FILE_UPLOAD": "Añadir y cargar archivo",
-      "URL_UPLOAD": "Añadir por url",
-      "TEXT_IMPORT": "Importar como texto",
-      "STALKER_PORTAL_IMPORT": "Agregar portal de acosador"
+    "CLOSE": "Cerrar",
+    "HOME": {
+        "TITLE": "IPTVnator",
+        "SUBTITLE": "Selecciona una lista de reproducción del listado o añade una nueva lista al cargar archivos o por una url",
+        "TABS": {
+            "RECENTLY_ADDED": "Listas añadidas recientemente",
+            "FILE_UPLOAD": "Añadir y cargar archivo",
+            "URL_UPLOAD": "Añadir por url",
+            "TEXT_IMPORT": "Importar como texto",
+            "STALKER_PORTAL_IMPORT": "Agregar portal de acosador"
+        },
+        "PLAYLISTS": {
+            "NO_PLAYLISTS": "No se añadieron listas de reproducción",
+            "ADD_FIRST": "Por favor, añade tu primera lista de la otra pestaña",
+            "WELCOME_TITLE": "Bienvenido a IPTVnator",
+            "WELCOME_DESCRIPTION": "Comience su viaje de streaming agregando su primera lista de reproducción. Conéctese a su servicio IPTV favorito y disfrute de TV en vivo, películas y series.",
+            "ADD_YOUR_FIRST": "Agregar su primera lista",
+            "FEATURE_M3U": "Archivos M3U/M3U8",
+            "FEATURE_XTREAM": "Xtream Codes",
+            "FEATURE_STALKER": "Portal Stalker",
+            "NO_RESULTS_TITLE": "No se encontraron listas",
+            "NO_RESULTS_DESCRIPTION": "Ninguna lista coincide con su búsqueda. Intente ajustar los términos de búsqueda o borrar el filtro para ver todas las listas.",
+            "ADDED_VIA_URL": "Añadido por carga de URL. URL:",
+            "ADDED_VIA_FILE": "Añadido por carga de archivo",
+            "CHANNELS": "Canales",
+            "ADDED": "Añadido",
+            "SHOW_DETAILS": "Mostrar detalles de la lista",
+            "REMOVE": "Quitar lista",
+            "INFO_DIALOG": {
+                "PLAYLIST_DETAILS": "Detalles de la lista",
+                "TITLE": "Título",
+                "FROM_URL": "Añadida desde la URL",
+                "IMPORT_DATE": "Fecha de importación",
+                "CHANNELS": "Número de canales",
+                "CLOSE": "Cerrar",
+                "SAVE": "Guardar",
+                "USER_AGENT": "Agente de usuario",
+                "ORIGINAL_FILENAME": "Nombre de archivo original",
+                "FILE_PATH": "Ruta de archivo",
+                "UPDATE_FAILED": "Última actualización de la lista fallida",
+                "AUTO_UPDATE": "Auto-actualizar",
+                "AUTO_UPDATE_DESCRIPTION": "Si la función de auto-actualizar se activa, la lista de reproducción se refrescará automáticamente cada vez que se inicia la app.",
+                "CUSTOM_USER_AGENT": "Algunos proveedores de IPTV necesitan especificar el agente de usuario para reproducir su lista de reproducción.",
+                "PASSWORD": "Contraseña",
+                "SERVER_URL": "URL del servidor",
+                "USERNAME": "Nombre de usuario",
+                "MAC_ADDRESS": "Dirección MAC"
+            },
+            "REMOVE_DIALOG": {
+                "TITLE": "Quitar lista de reproducción",
+                "MESSAGE": "¿Estás seguro de quitar esta lista de reproducción por completo?"
+            },
+            "UPDATED": "Actualizado",
+            "REFRESH": "Actualizar lista",
+            "GLOBAL_FAVORITES": "Favoritos globales",
+            "GLOBAL_FAVORITES_DESCRIPTION": "Lista autogenerada con los favoritos agregados de todas las listas",
+            "MY_PLAYLISTS": "Mis listas",
+            "PLAYLIST_UPDATE_SUCCESS": "¡Éxito! La lista de reproducción se actualizó correctamente.",
+            "STALKER_PORTAL": "Stalker Portal"
+        },
+        "FILE_UPLOAD": {
+            "DRAG_DROP": "Arrastre & suelte archivos aquí",
+            "OR": "o",
+            "CHOOSE_PLAYLIST": "Escoga una lista de reproducción",
+            "REJECTED": "El archivo fue rechazado, formato de archivo no compatible {{filename}}."
+        },
+        "URL_UPLOAD": {
+            "PLAYLIST_URL": "Lista de reproducción (m3u, m3u8)",
+            "ADD_PLAYLIST": "Añadir lista"
+        },
+        "TEXT_IMPORT": {
+            "LABEL": "Inserte la playlist m3u(8) como texto",
+            "BUTTON_LABEL": "Importar"
+        },
+        "STALKER_PORTAL": {
+            "ADD": "Agregar",
+            "TITLE": "Título",
+            "SERVER_URL": "URL del servidor",
+            "MAC_ADDRESS": "Dirección Mac",
+            "URL_VALIDATION_ERROR": "Debe ser una URL válida con protocolo (por ejemplo, http://example.com/c o https://example.com/stalker_portal/c)."
+        },
+        "FILTER_BY_TYPE": "Filtrar por tipo",
+        "IMPORTED_AS_TEXT": "Importado como texto",
+        "FILTER_BY_NAME": "Filtrar por nombre",
+        "PARSING_ERROR": "Error: Error al analizar, no es una lista de reproducción válida:",
+        "XTREAM_PLAYLIST": {
+            "URL_VALIDATION_ERROR": "Debe ser una URL válida con protocolo (por ejemplo, http://example.com o https://example.com:4324)."
+        }
     },
-    "PLAYLISTS": {
-      "NO_PLAYLISTS": "No se añadieron listas de reproducción",
-      "ADD_FIRST": "Por favor, añade tu primera lista de la otra pestaña",
-      "ADDED_VIA_URL": "Añadido por carga de URL. URL:",
-      "ADDED_VIA_FILE": "Añadido por carga de archivo",
-      "CHANNELS": "Canales",
-      "ADDED": "Añadido",
-      "SHOW_DETAILS": "Mostrar detalles de la lista",
-      "REMOVE": "Quitar lista",
-      "INFO_DIALOG": {
-        "PLAYLIST_DETAILS": "Detalles de la lista",
-        "TITLE": "Título",
-        "FROM_URL": "Añadida desde la URL",
-        "IMPORT_DATE": "Fecha de importación",
-        "CHANNELS": "Número de canales",
-        "CLOSE": "Cerrar",
-        "SAVE": "Guardar",
-        "USER_AGENT": "Agente de usuario",
-        "ORIGINAL_FILENAME": "Nombre de archivo original",
-        "FILE_PATH": "Ruta de archivo",
-        "UPDATE_FAILED": "Última actualización de la lista fallida",
-        "AUTO_UPDATE": "Auto-actualizar",
-        "AUTO_UPDATE_DESCRIPTION": "Si la función de auto-actualizar se activa, la lista de reproducción se refrescará automáticamente cada vez que se inicia la app.",
-        "CUSTOM_USER_AGENT": "Algunos proveedores de IPTV necesitan especificar el agente de usuario para reproducir su lista de reproducción.",
-        "PASSWORD": "Contraseña",
-        "SERVER_URL": "URL del servidor",
-        "USERNAME": "Nombre de usuario",
-        "MAC_ADDRESS": "Dirección MAC"
-      },
-      "REMOVE_DIALOG": {
-        "TITLE": "Quitar lista de reproducción",
-        "MESSAGE": "¿Estás seguro de quitar esta lista de reproducción por completo?"
-      },
-      "UPDATED": "Actualizado",
-      "REFRESH": "Actualizar lista",
-      "GLOBAL_FAVORITES": "Global favorites",
-      "GLOBAL_FAVORITES_DESCRIPTION": "Lista autogenerada con los favoritos agregados de todas las listas",
-      "MY_PLAYLISTS": "Mis listas",
-      "PLAYLIST_UPDATE_SUCCESS": "¡Éxito! La lista de reproducción se actualizó correctamente.",
-      "STALKER_PORTAL": ""
+    "SETTINGS": {
+        "TITLE": "Ajustes",
+        "SUBTITLE": "Cambiar la configuración de la aplicación",
+        "DESCRIPTION": "Por favor, adapta las opciones de la siguiente lista y confirma con un botón de guardar",
+        "EPG_URL_LABEL": "Url de la EPG (*.xml o *.xml.gz)",
+        "EPG_URL_PLACEHOLDER": "Ingresa una URL",
+        "REFRESH_EPG": "Actualizar EPG",
+        "VIDEO_PLAYER_LABEL": "Reproductor de vídeo",
+        "VIDEO_PLAYER_PLACEHOLDER": "Selecciona una opción",
+        "VERSION": "Versión",
+        "SAVE_CHANGES": "Guardar cambios",
+        "BACK_TO_HOME": "Volver al inicio",
+        "NEW_VERSION_AVAILABLE": "Hay una nueva versión disponible",
+        "LATEST_VERSION": "Estás usando la versión reciente",
+        "LANGUAGE": "Idioma",
+        "SETTINGS_SAVED": "¡Completado! La configuración se guardó.",
+        "THEME": "Tema visual",
+        "SHOW_CAPTIONS": "Mostrar subtítulos",
+        "REMOVE_ALL": "Eliminar lista de reproducción",
+        "REMOVE_ALL_BUTTON": "Eliminar",
+        "REMOVE_DIALOG": {
+            "TITLE": "Eliminar todas las listas de reproducción",
+            "MESSAGE": "¿Estás seguro de que deseas eliminar todas las listas de reproducción de la aplicación?"
+        },
+        "LANGUAGE_DESCRIPTION": "Seleccione el idioma de la aplicación",
+        "PLAYLISTS_REMOVED": "Se eliminaron todas las listas de reproducción.",
+        "VERSION_DESCRIPTION": "Versión actual de la aplicación.",
+        "MPV_PLAYER_PATH": "ruta del reproductor mpv",
+        "SHOW_CAPTIONS_DESCRIPTION": "Mostrar u ocultar subtítulos por defecto",
+        "IMPORT_DATA": "Importar",
+        "ADD_EPG_SOURCE": "Agregar fuente EPG",
+        "IMPORT_ERROR": "Error de importación, intente con otro archivo.",
+        "EPG_URL_ERROR": "El valor no es una URL válida.",
+        "EXPORT_DATA": "Exportar",
+        "VIDEO_PLAYER_DESCRIPTION": "Seleccionar reproductor de vídeo predeterminado",
+        "IMPORT_EXPORT_DATA": "Importar/exportar listas de reproducción",
+        "VLC_PLAYER_PATH_LABEL": "ruta VLC",
+        "VLC_PLAYER_PATH_DESCRIPTION": "Establezca la ruta al reproductor VLC en su sistema. \nUtilizará la ruta proporcionada a un binario VLC en lugar de la ruta predeterminada para nuestro sistema.",
+        "THEME_DESCRIPTION": "Seleccione el tema visual de la aplicación.",
+        "EPG_NOTE": "Actualmente, EPG está disponible sólo en la versión electrónica de IPTVnator.",
+        "VLC_PLAYER_PATH": "Ruta del reproductor VLC",
+        "IMPORT_EXPORT_DATA_DESCRIPTION": "Exporte o importe listas de reproducción en el formato JSON utilizado dentro de la aplicación.",
+        "EPG_NOTE_URL_TEXT": "Compruébalo aquí",
+        "MPV_PLAYER_PATH_LABEL": "camino monovolumen"
     },
-    "FILE_UPLOAD": {
-      "DRAG_DROP": "Arrastre & suelte archivos aquí",
-      "OR": "o",
-      "CHOOSE_PLAYLIST": "Escoga una lista de reproducción",
-      "REJECTED": "El archivo fue rechazado, formato de archivo no compatible {{filename}}."
+    "THEMES": {
+        "DARK_THEME": "Tema oscuro",
+        "LIGHT_THEME": "Tema claro"
     },
-    "URL_UPLOAD": {
-      "PLAYLIST_URL": "Lista de reproducción (m3u, m3u8)",
-      "ADD_PLAYLIST": "Añadir lista"
+    "CHANNELS": {
+        "SEARCH_CHANNEL": "Buscar canal",
+        "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Carga o selecciona una lista de reproducción",
+        "ALL_CHANNELS": "Todos los canales",
+        "GROUPS": "Grupos",
+        "UNGROUPED": "Desagrupado",
+        "UNNAMED_CHANNEL": "Canal sin nombre",
+        "FAVORITES": "Favoritos",
+        "NO_FAVORITES": "Sin favoritos",
+        "USE_STAR_TO_FAVORITE": "Por favor, use el ícono de la 'estrella' para añadir canales a la lista.",
+        "REMOVE_FAVORITE": "Quitar de favoritos",
+        "FAVORITES_UPDATED": "¡Se actualizaron los favoritos!"
     },
-    "TEXT_IMPORT": {
-      "LABEL": "Inserte la playlist m3u(8) como texto",
-      "BUTTON_LABEL": "Importar"
+    "TOP_MENU": {
+        "OPEN_CHANNELS_LIST": "Abrir lista de canales",
+        "TOGGLE_FAVORITE_FLAG": "Alternar bandera favorita",
+        "OPEN_EPG_LIST": "Abrir lista EPG",
+        "OPEN_MULTI_EPG": "Abrir vista Multi-EPG"
     },
-    "STALKER_PORTAL": {
-      "ADD": "Agregar",
-      "TITLE": "Título",
-      "SERVER_URL": "URL del servidor",
-      "MAC_ADDRESS": "Dirección Mac",
-      "URL_VALIDATION_ERROR": "Debe ser una URL válida con protocolo (por ejemplo, http://example.com/c o https://example.com/stalker_portal/c)."
+    "EPG": {
+        "NEXT_DAY": "Día siguiente",
+        "PREVIOUS_DAY": "Día anterior",
+        "LIVE_NOW": "Ahora en vivo",
+        "LIVE_STREAM": "Transmisión en vivo",
+        "TIMESHIFT_AVAILABLE": "Timeshift está disponible, clic para reproducir",
+        "EPG_NOT_AVAILABLE_DATE": "Vaya, no está disponible la EPG de esa fecha",
+        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Vaya, no está disponible la EPG del canal.",
+        "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Por favor añada/cargue la url de la lista EPG en los ajustes de la app.",
+        "FETCH_EPG": "Obteniendo datos de EPG...",
+        "ERROR": "¡Vaya! Esta EPG no se pudo cargar.",
+        "DOWNLOAD_SUCCESS": "La EPG se ha descargado correctamente.",
+        "PROGRAM_DIALOG": {
+            "PROGRAM_DETAILS": "Detalles sobre el programa de TV",
+            "TITLE": "Título",
+            "CATEGORY": "Género",
+            "PARENTAL_RATING_SYSTEM": "Sistema de calificación de contenidos televisivos",
+            "DESCRIPTION": "Descripción",
+            "LANGUAGE": "Idioma",
+            "SHOW_PROGRAM_DETAILS": "Mostrar detalles del programa"
+        }
     },
-    "FILTER_BY_TYPE": "Filtrar por tipo",
-    "IMPORTED_AS_TEXT": "Importado como texto",
-    "FILTER_BY_NAME": "Filtrar por nombre",
-    "PARSING_ERROR": "Error: Error al analizar, no es una lista de reproducción válida:",
-    "XTREAM_PLAYLIST": {
-      "URL_VALIDATION_ERROR": "Debe ser una URL válida con protocolo (por ejemplo, http://example.com o https://example.com:4324)."
-    }
-  },
-  "SETTINGS": {
-    "TITLE": "Ajustes / IPTVnator",
-    "SUBTITLE": "Cambiar la configuración de la aplicación",
-    "DESCRIPTION": "Por favor, adapta las opciones de la siguiente lista y confirma con un botón de guardar",
-    "EPG_URL_LABEL": "Url de la EPG (*.xml o *.xml.gz)",
-    "EPG_URL_PLACEHOLDER": "Ingresa una URL",
-    "REFRESH_EPG": "Actualizar EPG",
-    "VIDEO_PLAYER_LABEL": "Reproductor de vídeo",
-    "VIDEO_PLAYER_PLACEHOLDER": "Selecciona una opción",
-    "VERSION": "Versión",
-    "SAVE_CHANGES": "Guardar cambios",
-    "BACK_TO_HOME": "Volver al inicio",
-    "NEW_VERSION_AVAILABLE": "Hay una nueva versión disponible",
-    "LATEST_VERSION": "Estás usando la versión reciente",
-    "LANGUAGE": "Idioma",
-    "SETTINGS_SAVED": "¡Completado! La configuración se guardó.",
-    "THEME": "Tema visual",
-    "SHOW_CAPTIONS": "Mostrar subtítulos",
-    "REMOVE_ALL": "Eliminar lista de reproducción",
-    "REMOVE_ALL_BUTTON": "Eliminar",
-    "REMOVE_DIALOG": {
-      "TITLE": "Eliminar todas las listas de reproducción",
-      "MESSAGE": "¿Estás seguro de que deseas eliminar todas las listas de reproducción de la aplicación?"
+    "LANGUAGES": {
+        "ARABIC": "العربية",
+        "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
+        "ENGLISH": "English",
+        "KOREAN": "한국어",
+        "RUSSIAN": "Русский",
+        "GERMAN": "Deutsch",
+        "SPANISH": "Español",
+        "CHINESE": "简体中文",
+        "TRADITIONAL_CHINESE": "繁體中文",
+        "FRENCH": "Français",
+        "ITALIAN": "Italiano",
+        "TURKISH": "Türkçe",
+        "JAPANESE": "日本語",
+        "DUTCH": "Nederlands",
+        "BELARUSIAN": "Беларуская",
+        "POLISH": "Polski",
+        "PORTUGUESE": "Português"
     },
-    "LANGUAGE_DESCRIPTION": "Seleccione el idioma de la aplicación",
-    "PLAYLISTS_REMOVED": "Se eliminaron todas las listas de reproducción.",
-    "VERSION_DESCRIPTION": "Versión actual de la aplicación.",
-    "MPV_PLAYER_PATH": "ruta del reproductor mpv",
-    "SHOW_CAPTIONS_DESCRIPTION": "Mostrar u ocultar subtítulos por defecto",
-    "IMPORT_DATA": "Importar",
-    "ADD_EPG_SOURCE": "Agregar fuente EPG",
-    "IMPORT_ERROR": "Error de importación, intente con otro archivo.",
-    "EPG_URL_ERROR": "El valor no es una URL válida.",
-    "EXPORT_DATA": "Exportar",
-    "VIDEO_PLAYER_DESCRIPTION": "Seleccionar reproductor de vídeo predeterminado",
-    "IMPORT_EXPORT_DATA": "Importar/exportar listas de reproducción",
-    "VLC_PLAYER_PATH_LABEL": "ruta VLC",
-    "VLC_PLAYER_PATH_DESCRIPTION": "Establezca la ruta al reproductor VLC en su sistema. \nUtilizará la ruta proporcionada a un binario VLC en lugar de la ruta predeterminada para nuestro sistema.",
-    "THEME_DESCRIPTION": "Seleccione el tema visual de la aplicación.",
-    "EPG_NOTE": "Actualmente, EPG está disponible sólo en la versión electrónica de IPTVnator.",
-    "VLC_PLAYER_PATH": "Ruta del reproductor VLC",
-    "IMPORT_EXPORT_DATA_DESCRIPTION": "Exporte o importe listas de reproducción en el formato JSON utilizado dentro de la aplicación.",
-    "EPG_NOTE_URL_TEXT": "Compruébalo aquí",
-    "MPV_PLAYER_PATH_LABEL": "camino monovolumen"
-  },
-  "THEMES": {
-    "DARK_THEME": "Tema oscuro",
-    "LIGHT_THEME": "Tema claro"
-  },
-  "CHANNELS": {
-    "SEARCH_CHANNEL": "Buscar canal",
-    "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Carga o selecciona una lista de reproducción",
-    "ALL_CHANNELS": "Todos los canales",
-    "GROUPS": "Grupos",
-    "UNGROUPED": "Desagrupado",
-    "UNNAMED_CHANNEL": "Canal sin nombre",
-    "FAVORITES": "Favoritos",
-    "NO_FAVORITES": "Sin favoritos",
-    "USE_STAR_TO_FAVORITE": "Por favor, use el ícono de la 'estrella' para añadir canales a la lista.",
-    "REMOVE_FAVORITE": "Quitar de favoritos",
-    "FAVORITES_UPDATED": "¡Se actualizaron los favoritos!"
-  },
-  "TOP_MENU": {
-    "OPEN_CHANNELS_LIST": "Abrir lista de canales",
-    "TOGGLE_FAVORITE_FLAG": "Alternar bandera favorita",
-    "OPEN_EPG_LIST": "Abrir lista EPG",
-    "OPEN_MULTI_EPG": "Abrir vista Multi-EPG"
-  },
-  "EPG": {
-    "NEXT_DAY": "Día siguiente",
-    "PREVIOUS_DAY": "Día anterior",
-    "LIVE_NOW": "Ahora en vivo",
-    "LIVE_STREAM": "Transmisión en vivo",
-    "TIMESHIFT_AVAILABLE": "Timeshift está disponible, clic para reproducir",
-    "EPG_NOT_AVAILABLE_DATE": "Vaya, no está disponible la EPG de esa fecha",
-    "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Vaya, no está disponible la EPG del canal.",
-    "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Por favor añada/cargue la url de la lista EPG en los ajustes de la app.",
-    "FETCH_EPG": "Obteniendo datos de EPG...",
-    "ERROR": "¡Vaya! Esta EPG no se pudo cargar.",
-    "DOWNLOAD_SUCCESS": "La EPG se ha descargado correctamente.",
-    "PROGRAM_DIALOG": {
-      "PROGRAM_DETAILS": "Detalles sobre el programa de TV",
-      "TITLE": "Título",
-      "CATEGORY": "Género",
-      "PARENTAL_RATING_SYSTEM": "Sistema de calificación de contenidos televisivos",
-      "DESCRIPTION": "Descripción",
-      "LANGUAGE": "Idioma",
-      "SHOW_PROGRAM_DETAILS": "Mostrar detalles del programa"
-    }
-  },
-  "LANGUAGES": {
-    "ARABIC": "العربية",
-    "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
-    "ENGLISH": "English",
-    "KOREAN": "한국어",
-    "RUSSIAN": "Русский",
-    "GERMAN": "Deutsch",
-    "SPANISH": "Español",
-    "CHINESE": "简体中文",
-    "TRADITIONAL_CHINESE": "繁體中文",
-    "FRENCH": "Français",
-    "ITALIAN": "Italiano",
-    "TURKISH": "Türkçe",
-    "JAPANESE": "日本語",
-    "DUTCH": "Nederlands",
-    "BELARUSIAN": "Беларуская",
-    "POLISH": "Polski",
-    "PORTUGUESE": "Português"
-  },
-  "YES": "Sí",
-  "NO": "No",
-  "MENU": {
-    "OPEN": "Abrir menú",
-    "SUPPORT_ARIA": "Apoyar IPTVnator en GitHub",
-    "SETTINGS": "Ajustes",
-    "SETTINGS_ARIA": "Abrir ajustes",
-    "BUG_REPORT": "Reportar un  bug",
-    "WHAT_IS_NEW": "Novedades",
-    "ABOUT": "Acerca de",
-    "ABOUT_ARIA": "Acerca de la aplicación",
-    "SUPPORT_PROJECT": "Proyecto de apoyo"
-  },
-  "XTREAM": {
-    "RELEASE_DATE": "Fecha de lanzamiento",
-    "ACTORS": "Actores",
-    "PLAY": "Reproducir",
-    "GENRE": "Género",
-    "DURATION": "Duración",
-    "COUNTRY": "País",
-    "NAME": "Nombre",
-    "DIRECTOR": "Director",
-    "CAST": "Elenco",
-    "RATING": "Clasificación",
-    "AGE": "Edad",
-    "EPISODE": "Episodio",
-    "YEAR": "Año",
-    "YOUTUBE_TRAILER": "Tráiler de YouTube",
-    "DESCRIPTION": "Descripción",
-    "KINOPOISK_RATING": "Calificación de Kinopoisk",
-    "IMDB_RATING": "Calificación IMDB",
-    "EPISODE_RUN_TIME": "Tiempo de ejecución del episodio"
-  },
-  "PORTALS": {
-    "ALL_CATEGORIES": "Todas las categorias",
-    "ADD_TO_FAVORITES": "Agregar a los favoritos",
-    "REMOVE_FROM_FAVORITES": "Quitar de favoritos",
-    "MY_FAVORITES": "Mis favoritos",
-    "COPY_STREAM_URL": "Copiar URL de transmisión",
-    "ERROR_VIEW": {
-      "DELETE": "Borrar",
-      "ACCOUNT_EXPIRED": {
-        "TITLE": "Cuenta caducada",
-        "DESCRIPTION": "Esta cuenta ha caducado. \nVerifique las credenciales en la configuración de la lista de reproducción o elimínelas."
-      },
-      "HOME": "Hogar",
-      "EMPTY_CATEGORY": {
-        "TITLE": "categoría vacía",
-        "DESCRIPTION": "Esta categoría no tiene contenido, seleccione otra categoría o cambie el tipo de contenido"
-      },
-      "UNAUTHORIZED": {
-        "TITLE": "No autorizado",
-        "DESCRIPTION": "Verifique las credenciales en la configuración de la lista de reproducción o elimínelas."
-      },
-      "UNKNOWN_ERROR": {
-        "TITLE": "algo salió mal",
-        "DESCRIPTION": "Error desconocido, inténtalo de nuevo más tarde."
-      },
-      "PLAYLIST_SETTINGS": "Configuración de lista de reproducción"
+    "YES": "Sí",
+    "NO": "No",
+    "MENU": {
+        "OPEN": "Abrir menú",
+        "SUPPORT_ARIA": "Apoyar IPTVnator en GitHub",
+        "SETTINGS": "Ajustes",
+        "SETTINGS_ARIA": "Abrir ajustes",
+        "BUG_REPORT": "Reportar un  bug",
+        "WHAT_IS_NEW": "Novedades",
+        "ABOUT": "Acerca de",
+        "ABOUT_ARIA": "Acerca de la aplicación",
+        "SUPPORT_PROJECT": "Proyecto de apoyo"
     },
-    "STREAM_URL_COPIED": "URL de transmisión copiada al portapapeles",
-    "EMPTY_LIST_VIEW": {
-      "NO_SEARCH_RESULTS": "No se encontró nada, intenta cambiar tu solicitud de búsqueda."
+    "XTREAM": {
+        "RELEASE_DATE": "Fecha de lanzamiento",
+        "ACTORS": "Actores",
+        "PLAY": "Reproducir",
+        "GENRE": "Género",
+        "DURATION": "Duración",
+        "COUNTRY": "País",
+        "NAME": "Nombre",
+        "DIRECTOR": "Director",
+        "CAST": "Elenco",
+        "RATING": "Clasificación",
+        "AGE": "Edad",
+        "EPISODE": "Episodio",
+        "YEAR": "Año",
+        "YOUTUBE_TRAILER": "Tráiler de YouTube",
+        "DESCRIPTION": "Descripción",
+        "KINOPOISK_RATING": "Calificación de Kinopoisk",
+        "IMDB_RATING": "Calificación IMDB",
+        "EPISODE_RUN_TIME": "Tiempo de ejecución del episodio"
     },
-    "REMOVED_FROM_FAVORITES": "Eliminado de favoritos",
-    "ADDED_TO_FAVORITES": "Añadido a favoritos"
-  },
-  "ABOUT": {
-    "TITLE": "Acerca de IPTVnator",
-    "VERSION": "Versión",
-    "TWITTER_TOOLTIP": "Compartir en Twitter",
-    "GITHUB_TOOLTIP": "Repositorio ITPVnator en GitHub",
-    "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee"
-  },
-  "REFRESH": "Actualizar",
-  "UPDATE_AVAILABLE": "Actualización disponible"
+    "PORTALS": {
+        "ALL_CATEGORIES": "Todas las categorias",
+        "ADD_TO_FAVORITES": "Agregar a los favoritos",
+        "REMOVE_FROM_FAVORITES": "Quitar de favoritos",
+        "MY_FAVORITES": "Mis favoritos",
+        "COPY_STREAM_URL": "Copiar URL de transmisión",
+        "ERROR_VIEW": {
+            "DELETE": "Borrar",
+            "ACCOUNT_EXPIRED": {
+                "TITLE": "Cuenta caducada",
+                "DESCRIPTION": "Esta cuenta ha caducado. \nVerifique las credenciales en la configuración de la lista de reproducción o elimínelas."
+            },
+            "HOME": "Hogar",
+            "EMPTY_CATEGORY": {
+                "TITLE": "categoría vacía",
+                "DESCRIPTION": "Esta categoría no tiene contenido, seleccione otra categoría o cambie el tipo de contenido"
+            },
+            "UNAUTHORIZED": {
+                "TITLE": "No autorizado",
+                "DESCRIPTION": "Verifique las credenciales en la configuración de la lista de reproducción o elimínelas."
+            },
+            "UNKNOWN_ERROR": {
+                "TITLE": "algo salió mal",
+                "DESCRIPTION": "Error desconocido, inténtalo de nuevo más tarde."
+            },
+            "PLAYLIST_SETTINGS": "Configuración de lista de reproducción"
+        },
+        "STREAM_URL_COPIED": "URL de transmisión copiada al portapapeles",
+        "EMPTY_LIST_VIEW": {
+            "NO_SEARCH_RESULTS": "No se encontró nada, intenta cambiar tu solicitud de búsqueda."
+        },
+        "REMOVED_FROM_FAVORITES": "Eliminado de favoritos",
+        "ADDED_TO_FAVORITES": "Añadido a favoritos"
+    },
+    "ABOUT": {
+        "TITLE": "Acerca de IPTVnator",
+        "VERSION": "Versión",
+        "TWITTER_TOOLTIP": "Compartir en Twitter",
+        "GITHUB_TOOLTIP": "Repositorio ITPVnator en GitHub",
+        "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee"
+    },
+    "REFRESH": "Actualizar",
+    "UPDATE_AVAILABLE": "Actualización disponible"
 }

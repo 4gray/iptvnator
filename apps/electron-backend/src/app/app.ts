@@ -79,6 +79,12 @@ export default class App {
             ...savedWindowBounds,
             minHeight: 600,
             minWidth: 900,
+            ...(process.platform === 'darwin'
+                ? {
+                      titleBarStyle: 'hidden',
+                      titleBarOverlay: true,
+                  }
+                : {}),
         });
         App.mainWindow.setMenu(null);
         if (!savedWindowBounds) {

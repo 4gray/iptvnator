@@ -137,4 +137,5 @@ contextBridge.exposeInMainWorld('electron', {
     dbGetContentByXtreamId: (xtreamId: number, playlistId: string) =>
         ipcRenderer.invoke('DB_GET_CONTENT_BY_XTREAM_ID', xtreamId, playlistId),
     dbDeleteAllPlaylists: () => ipcRenderer.invoke('DB_DELETE_ALL_PLAYLISTS'),
+    getLocalIpAddresses: () => ipcRenderer.invoke('get-local-ip-addresses'),
 });

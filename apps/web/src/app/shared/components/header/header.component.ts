@@ -1,4 +1,13 @@
-import { Component, OnInit, effect, inject, input } from '@angular/core';
+import {
+    Component,
+    HostBinding,
+    OnInit,
+    effect,
+    inject,
+    input,
+    output,
+    viewChild,
+} from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -6,39 +15,40 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { DataService, SortBy, SortOrder, SortService } from 'services';
 //import { shell } from 'electron';
+import { AddPlaylistMenuComponent, PlaylistType } from 'components';
 import { selectActiveTypeFilters, setSelectedFilters } from 'm3u-state';
 import { HomeComponent } from '../../../home/home.component';
 import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
-import {
-    AddPlaylistDialogComponent,
-    PlaylistType,
-} from '../add-playlist/add-playlist-dialog.component';
+import { AddPlaylistDialogComponent } from '../add-playlist/add-playlist-dialog.component';
 
 @Component({
     selector: 'app-header',
     templateUrl: './header.component.html',
     styleUrls: ['./header.component.scss'],
     imports: [
+        AddPlaylistMenuComponent,
         FormsModule,
         MatButtonModule,
         MatCheckboxModule,
         MatDividerModule,
         MatIconModule,
         MatMenuModule,
-        MatToolbarModule,
         MatTooltipModule,
         ReactiveFormsModule,
         TranslateModule,
     ],
 })
 export class HeaderComponent implements OnInit {
+    @HostBinding('class.home-header') get isHomeHeader() {
+        return this.isHome;
+    }
+
     private activatedRoute = inject(ActivatedRoute);
     private dialog = inject(MatDialog);
     private dataService = inject(DataService);
@@ -46,9 +56,13 @@ export class HeaderComponent implements OnInit {
     private store = inject(Store);
     private sortService = inject(SortService);
 
+    readonly addPlaylistMenuComponent = viewChild.required(
+        AddPlaylistMenuComponent
+    );
     readonly isDesktop = !!window.electron;
     readonly title = input.required<string>();
     readonly subtitle = input.required<string>();
+    readonly searchQuery = output<string>();
 
     isHome = true;
 
@@ -130,7 +144,7 @@ export class HeaderComponent implements OnInit {
         });
     }
 
-    opedAddPlaylistDialog(type: PlaylistType) {
+    openAddPlaylistDialog(type: PlaylistType) {
         this.dialog.open<AddPlaylistDialogComponent, { type: PlaylistType }>(
             AddPlaylistDialogComponent,
             {
@@ -159,5 +173,9 @@ export class HeaderComponent implements OnInit {
             this.currentSortOptions?.by === by &&
             this.currentSortOptions?.order === order
         );
+    }
+
+    onSearchQueryUpdate(query: string): void {
+        this.searchQuery.emit(query);
     }
 }

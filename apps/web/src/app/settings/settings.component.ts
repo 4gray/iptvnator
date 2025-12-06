@@ -7,6 +7,7 @@ import {
     Input,
     OnInit,
     Optional,
+    signal,
 } from '@angular/core';
 import {
     FormArray,
@@ -32,6 +33,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { QRCodeComponent } from 'angularx-qrcode';
 import { DialogService } from 'components';
 import * as PlaylistActions from 'm3u-state';
 import { selectIsEpgAvailable } from 'm3u-state';
@@ -65,6 +67,7 @@ import { SettingsService } from './../services/settings.service';
         ReactiveFormsModule,
         TranslateModule,
         MatDialogModule,
+        QRCodeComponent,
     ],
 })
 export class SettingsComponent implements OnInit {
@@ -158,6 +161,12 @@ export class SettingsComponent implements OnInit {
     /** Form array with epg sources */
     epgUrl = this.settingsForm.get('epgUrl') as FormArray;
 
+    /** Local IP addresses for remote control URL display */
+    localIpAddresses = signal<string[]>([]);
+
+    /** Currently visible QR code IP (null = none visible) */
+    visibleQrCodeIp = signal<string | null>(null);
+
     private settingsStore = inject(SettingsStore);
 
     constructor(
@@ -175,6 +184,28 @@ export class SettingsComponent implements OnInit {
         await this.settingsStore.loadSettings();
         this.setSettings();
         this.checkAppVersion();
+        this.fetchLocalIpAddresses();
+    }
+
+    /**
+     * Fetches local IP addresses for remote control URL display
+     */
+    async fetchLocalIpAddresses(): Promise<void> {
+        if (window.electron?.getLocalIpAddresses) {
+            const addresses = await window.electron.getLocalIpAddresses();
+            this.localIpAddresses.set(addresses);
+        }
+    }
+
+    /**
+     * Toggle QR code visibility for a given IP address
+     */
+    toggleQrCode(ip: string): void {
+        if (this.visibleQrCodeIp() === ip) {
+            this.visibleQrCodeIp.set(null);
+        } else {
+            this.visibleQrCodeIp.set(ip);
+        }
     }
 
     /**

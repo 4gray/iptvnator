@@ -43,3 +43,34 @@ button {
         margin: 0 10px;
     }
 }
+
+.remote-control-urls {
+    text-align: right;
+}
+
+.remote-control-url-item {
+    margin-bottom: 8px;
+}
+
+.url-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.remote-control-url {
+    font-family: monospace;
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.qr-code-container {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 0;
+}

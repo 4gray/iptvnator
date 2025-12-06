@@ -13,11 +13,7 @@
 .playlists-list {
     padding: 0;
     width: 100%;
-}
-
-.search-field {
-    width: 96%;
-    margin: 10px 0;
+    overflow-x: hidden;
 }
 
 .meta {
@@ -26,14 +22,10 @@
     margin-top: 2px !important;
 }
 
-
-::ng-deep {
-    div[matformfieldlineripple] {
-        display: none;
-    }
-
-    .search-field > .mat-mdc-text-field-wrapper {
-        border-radius: 30px;
+// Light theme
+@media (prefers-color-scheme: light) {
+    .meta {
+        color: #757575;
     }
 }
 
@@ -61,9 +53,5 @@
     .favorites-icon {
         padding-left: 0 !important;
         display: none
-    }
-
-    .search-field {
-        @include mat.form-field-density(-2);
     }
 }
