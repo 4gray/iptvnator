@@ -17,6 +17,7 @@ import {
 } from 'rxjs';
 import { DataService, EpgService, PlaylistsService } from 'services';
 import {
+    GLOBAL_FAVORITES_PLAYLIST_ID,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
     Playlist,
@@ -71,6 +72,10 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(PlaylistActions.setFavorites),
                 combineLatestWith(this.store.select(selectActivePlaylistId)),
+                filter(
+                    ([, playlistId]) =>
+                        playlistId !== GLOBAL_FAVORITES_PLAYLIST_ID
+                ),
                 switchMap(([action, playlistId]) =>
                     this.playlistsService.setFavorites(
                         playlistId,
@@ -207,9 +212,25 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.removePlaylist),
-                switchMap((action) =>
-                    this.playlistsService.deletePlaylist(action.playlistId)
-                )
+                switchMap(async (action) => {
+                    // Delete from IndexedDB
+                    await firstValueFrom(
+                        this.playlistsService.deletePlaylist(action.playlistId)
+                    );
+                    // Also delete from SQLite if running in Electron
+                    if ((window as any).electron?.dbDeletePlaylist) {
+                        try {
+                            await (window as any).electron.dbDeletePlaylist(
+                                action.playlistId
+                            );
+                        } catch (error) {
+                            console.error(
+                                'Error deleting playlist from SQLite:',
+                                error
+                            );
+                        }
+                    }
+                })
             );
         },
         { dispatch: false }
@@ -350,8 +371,20 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.removeAllPlaylists),
-                switchMap(() => this.playlistsService.removeAll()),
-                tap(() => {
+                switchMap(async () => {
+                    // Delete from IndexedDB
+                    await firstValueFrom(this.playlistsService.removeAll());
+                    // Also delete from SQLite if running in Electron
+                    if ((window as any).electron?.dbDeleteAllPlaylists) {
+                        try {
+                            await (window as any).electron.dbDeleteAllPlaylists();
+                        } catch (error) {
+                            console.error(
+                                'Error deleting playlists from SQLite:',
+                                error
+                            );
+                        }
+                    }
                     this.snackBar.open(
                         this.translate.instant('SETTINGS.PLAYLISTS_REMOVED'),
                         undefined,

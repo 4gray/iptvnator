@@ -136,4 +136,5 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('DB_REMOVE_RECENT_ITEM', contentId, playlistId),
     dbGetContentByXtreamId: (xtreamId: number, playlistId: string) =>
         ipcRenderer.invoke('DB_GET_CONTENT_BY_XTREAM_ID', xtreamId, playlistId),
+    dbDeleteAllPlaylists: () => ipcRenderer.invoke('DB_DELETE_ALL_PLAYLISTS'),
 });

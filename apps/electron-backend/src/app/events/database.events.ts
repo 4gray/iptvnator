@@ -985,3 +985,31 @@ ipcMain.handle(
         }
     }
 );
+
+/**
+ * Delete all playlists and related data from SQLite
+ */
+ipcMain.handle('DB_DELETE_ALL_PLAYLISTS', async () => {
+    try {
+        const db = await getDatabase();
+
+        // Delete in order respecting foreign key constraints
+        // First delete favorites and recently_viewed (they reference content)
+        await db.delete(schema.favorites);
+        await db.delete(schema.recentlyViewed);
+
+        // Then delete content (references categories)
+        await db.delete(schema.content);
+
+        // Then delete categories (references playlists)
+        await db.delete(schema.categories);
+
+        // Finally delete playlists
+        await db.delete(schema.playlists);
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting all playlists:', error);
+        throw error;
+    }
+});
