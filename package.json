@@ -28,9 +28,13 @@
             "output": "dist/executables"
         },
         "files": [
+            {
+                "from": "dist/apps/remote-control-web",
+                "to": "remote-control-web",
+                "filter": ["**/*"]
+            },
             "electron-backend/**/*",
             "web/**/*",
-            "remote-control-web/**/*",
             "!**/*.map"
         ],
         "asarUnpack": [
