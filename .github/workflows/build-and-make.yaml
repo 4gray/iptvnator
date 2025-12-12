@@ -15,12 +15,24 @@ on:
 
 jobs:
     build:
-        name: Build on ${{ matrix.os }}
-        runs-on: ${{ matrix.os }}
+        name: Build on ${{ matrix.os }} ${{ matrix.arch }}
+        runs-on: ${{ matrix.runner }}
         timeout-minutes: 60
         strategy:
             matrix:
-                os: [macos-latest, ubuntu-latest, windows-latest]
+                include:
+                    # macOS builds - separate runners to avoid native module conflicts
+                    - os: macos
+                      runner: macos-15-intel
+                      arch: x64
+                    - os: macos
+                      runner: macos-latest
+                      arch: arm64
+                    # Linux and Windows
+                    - os: linux
+                      runner: ubuntu-latest
+                    - os: windows
+                      runner: windows-latest
 
         steps:
             - name: Checkout code
@@ -38,18 +50,18 @@ jobs:
                   cache: 'pnpm'
 
             - name: Install Linux system dependencies
-              if: matrix.os == 'ubuntu-latest'
+              if: matrix.os == 'linux'
               run: |
-                sudo apt-get update
-                sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder
-                
-                # Configure Flatpak
-                # 1. Add the Flathub repository (source of runtimes)
-                flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
-                
-                # 2. Install the standard Freedesktop Platform and SDK (required by electron-builder)
-                # We install version 24.08 as a safe default, electron-builder might pick what it needs
-                flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+                  sudo apt-get update
+                  sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder
+
+                  # Configure Flatpak
+                  # 1. Add the Flathub repository (source of runtimes)
+                  flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+
+                  # 2. Install the standard Freedesktop Platform and SDK (required by electron-builder)
+                  # We install version 24.08 as a safe default, electron-builder might pick what it needs
+                  flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
 
             - name: Install dependencies
               run: pnpm install --no-frozen-lockfile
@@ -60,21 +72,32 @@ jobs:
             - name: Build backend
               run: npm run build:backend
 
+            - name: Override macOS arch in package.json
+              if: matrix.os == 'macos'
+              run: |
+                # Replace the mac arch array with just the target architecture
+                node -e "
+                  const fs = require('fs');
+                  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+                  pkg.build.mac.target.arch = ['${{ matrix.arch }}'];
+                  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 4));
+                "
+
             - name: Make Electron app
               run: npm run make:app
 
             - name: Upload artifacts (macOS)
-              if: matrix.os == 'macos-latest'
+              if: matrix.os == 'macos'
               uses: actions/upload-artifact@v4
               with:
-                  name: macos-artifacts
+                  name: macos-${{ matrix.arch }}-artifacts
                   path: |
                       dist/executables/**/*.dmg
                       dist/executables/**/*.zip
                   retention-days: 7
 
             - name: Upload artifacts (Linux)
-              if: matrix.os == 'ubuntu-latest'
+              if: matrix.os == 'linux'
               uses: actions/upload-artifact@v4
               with:
                   name: linux-artifacts
@@ -89,7 +112,7 @@ jobs:
                   retention-days: 7
 
             - name: Upload artifacts (Windows)
-              if: matrix.os == 'windows-latest'
+              if: matrix.os == 'windows'
               uses: actions/upload-artifact@v4
               with:
                   name: windows-artifacts
@@ -131,8 +154,10 @@ jobs:
                   tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('test-{0}', github.sha) }}
                   generate_release_notes: true
                   files: |
-                      artifacts/macos-artifacts/*.dmg
-                      artifacts/macos-artifacts/*.zip
+                      artifacts/macos-x64-artifacts/*-x64.dmg
+                      artifacts/macos-x64-artifacts/*-x64.zip
+                      artifacts/macos-arm64-artifacts/*-arm64.dmg
+                      artifacts/macos-arm64-artifacts/*-arm64.zip
                       artifacts/linux-artifacts/*.AppImage
                       artifacts/linux-artifacts/*.deb
                       artifacts/linux-artifacts/*.rpm
