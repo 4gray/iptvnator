@@ -23,6 +23,12 @@ html {
     font-family: Roboto, 'Helvetica Neue', sans-serif;
 }
 
+// Re-enable context menu and text selection for input fields
+input,
+textarea {
+    user-select: text;
+}
+
 @media (display-mode: standalone) {
     body {
         overscroll-behavior-y: contain;
