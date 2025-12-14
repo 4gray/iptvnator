@@ -26,13 +26,6 @@ mat-list-item {
     margin-top: 2px !important;
 }
 
-// Light theme
-@media (prefers-color-scheme: light) {
-    .meta {
-        color: rgba(0, 0, 0, 0.6);
-    }
-}
-
 .cdk-drag-preview {
     box-sizing: border-box;
     border-radius: 12px;

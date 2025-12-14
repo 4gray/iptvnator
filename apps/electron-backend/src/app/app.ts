@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, shell } from 'electron';
+import { BrowserWindow, Menu, screen, shell } from 'electron';
 import { join } from 'path';
 import { environment } from '../environments/environment';
 import { rendererAppName, rendererAppPort } from './constants';
@@ -113,6 +113,43 @@ export default class App {
         App.mainWindow.on('close', () => {
             if (App.mainWindow) {
                 store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+            }
+        });
+
+        // Enable context menu for input fields only
+        App.mainWindow.webContents.on('context-menu', (event, params) => {
+            const { isEditable, editFlags } = params;
+
+            // Check if this is an editable field (input, textarea, contenteditable)
+            // editFlags.canPaste is a good indicator of an input field
+            if (isEditable && editFlags.canPaste) {
+                const menu = Menu.buildFromTemplate([
+                    {
+                        label: 'Cut',
+                        role: 'cut',
+                        enabled: editFlags.canCut,
+                    },
+                    {
+                        label: 'Copy',
+                        role: 'copy',
+                        enabled: editFlags.canCopy,
+                    },
+                    {
+                        label: 'Paste',
+                        role: 'paste',
+                        enabled: editFlags.canPaste,
+                    },
+                    {
+                        type: 'separator',
+                    },
+                    {
+                        label: 'Select All',
+                        role: 'selectAll',
+                        enabled: editFlags.canSelectAll,
+                    },
+                ]);
+
+                menu.popup();
             }
         });
     }

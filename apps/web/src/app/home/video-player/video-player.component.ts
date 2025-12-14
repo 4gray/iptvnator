@@ -368,6 +368,10 @@ export class VideoPlayerComponent implements OnInit {
      */
     @HostListener('document:keydown.i', ['$event'])
     handleInfoKeyPress(event: Event): void {
+        // Don't trigger hotkeys when user is typing in input fields
+        if (this.isTypingInInput(event)) {
+            return;
+        }
         // Prevent default behavior and show info overlay
         event.preventDefault();
         this.toggleInfoOverlay();
@@ -380,6 +384,10 @@ export class VideoPlayerComponent implements OnInit {
     handleKeyPress(event: KeyboardEvent): void {
         // Only handle digit keys (0-9)
         if (event.key >= '0' && event.key <= '9') {
+            // Don't trigger hotkeys when user is typing in input fields
+            if (this.isTypingInInput(event)) {
+                return;
+            }
             event.preventDefault();
             this.handleChannelNumberInput(event.key);
         }
@@ -452,5 +460,18 @@ export class VideoPlayerComponent implements OnInit {
             clearTimeout(this.channelNumberTimeout);
             this.channelNumberTimeout = undefined;
         }
+    }
+
+    /**
+     * Check if the user is currently typing in an input or textarea field
+     * @param event Keyboard event
+     * @returns true if the event target is an input or textarea element
+     */
+    private isTypingInInput(event: Event): boolean {
+        const target = event.target;
+        return (
+            target instanceof HTMLInputElement ||
+            target instanceof HTMLTextAreaElement
+        );
     }
 }
