@@ -176,6 +176,8 @@ jobs:
         needs: build
         runs-on: ubuntu-latest
         # if: startsWith(github.ref, 'refs/tags/v') # Only publish on version tags
+        env:
+            SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.snapcraft_token }}
 
         steps:
             - name: Download snap artifact
@@ -186,9 +188,7 @@ jobs:
 
             - name: Setup Snapcraft
               uses: samuelmeuli/action-snapcraft@v3
-              env:
-                  SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.snapcraft_token }}
-
+              
             - name: Publish all snaps to edge channel
               run: |
                   # Find and publish all snap files
