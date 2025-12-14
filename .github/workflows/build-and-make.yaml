@@ -72,16 +72,16 @@ jobs:
             - name: Build backend
               run: npm run build:backend
 
-            - name: Override macOS arch in package.json
+            - name: Override macOS arch in electron-builder.json
               if: matrix.os == 'macos'
               run: |
-                # Replace the mac arch array with just the target architecture
-                node -e "
-                  const fs = require('fs');
-                  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-                  pkg.build.mac.target.arch = ['${{ matrix.arch }}'];
-                  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 4));
-                "
+                  # Replace the mac arch array with just the target architecture
+                  node -e "
+                    const fs = require('fs');
+                    const pkg = JSON.parse(fs.readFileSync('electron-builder.json', 'utf8'));
+                    pkg.mac.target.arch = ['${{ matrix.arch }}'];
+                    fs.writeFileSync('electron-builder.json', JSON.stringify(pkg, null, 4));
+                  "
 
             - name: Make Electron app
               run: npm run make:app
@@ -170,3 +170,31 @@ jobs:
                       artifacts/windows-artifacts/*.zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    publish-snap:
+        name: Publish to Snapcraft Store
+        needs: build
+        runs-on: ubuntu-latest
+        # if: startsWith(github.ref, 'refs/tags/v') # Only publish on version tags
+
+        steps:
+            - name: Download snap artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: linux-artifacts
+                  path: artifacts
+
+            - name: Setup Snapcraft
+              uses: samuelmeuli/action-snapcraft@v3
+              env:
+                  SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.snapcraft_token }}
+
+            - name: Publish all snaps to edge channel
+              run: |
+                  # Find and publish all snap files
+                  for SNAP_FILE in artifacts/*.snap; do
+                      if [ -f "$SNAP_FILE" ]; then
+                          echo "Publishing: $SNAP_FILE"
+                          snapcraft upload --release=edge "$SNAP_FILE"
+                      fi
+                  done
