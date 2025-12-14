@@ -1,0 +1,134 @@
+{
+    "appId": "com.fourgray.iptvnator",
+    "productName": "IPTVnator",
+    "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+        "buildResources": "dist/apps",
+        "output": "dist/executables"
+    },
+    "files": [
+        {
+            "from": "dist/apps/remote-control-web",
+            "to": "remote-control-web",
+            "filter": [
+                "**/*"
+            ]
+        },
+        "electron-backend/**/*",
+        "web/**/*",
+        "!**/*.map"
+    ],
+    "asarUnpack": [
+        "**/better-sqlite3/**"
+    ],
+    "extraMetadata": {
+        "main": "electron-backend/main.js"
+    },
+    "extraResources": [
+        "dist/apps/electron-backend/workers"
+    ],
+    "mac": {
+        "target": {
+            "target": "dmg",
+            "arch": [
+                "x64",
+                "arm64"
+            ]
+        },
+        "category": "public.app-category.video",
+        "identity": null,
+        "gatekeeperAssess": false,
+        "hardenedRuntime": false,
+        "entitlements": null,
+        "entitlementsInherit": null,
+        "icon": "apps/web/src/assets/icons/favicon.icns"
+    },
+    "linux": {
+        "category": "Video",
+        "target": [
+            {
+                "target": "AppImage",
+                "arch": [
+                    "x64",
+                    "armv7l",
+                    "arm64"
+                ]
+            },
+            {
+                "target": "deb",
+                "arch": [
+                    "x64",
+                    "armv7l",
+                    "arm64"
+                ]
+            },
+            {
+                "target": "Snap",
+                "arch": [
+                    "x64",
+                    "armv7l"
+                ]
+            },
+            {
+                "target": "rpm",
+                "arch": [
+                    "x64"
+                ]
+            },
+            {
+                "target": "pacman",
+                "arch": [
+                    "x64"
+                ]
+            },
+            {
+                "target": "flatpak",
+                "arch": [
+                    "x64"
+                ]
+            }
+        ],
+        "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+        "icon": "apps/web/src/assets/icons"
+    },
+    "afterPack": "electron-builder-sandbox-fix",
+    "snap": {
+        "confinement": "strict",
+        "grade": "stable",
+        "summary": "IPTV player application for M3U playlists, Xtream Codes API, and Stalker portals",
+        "plugs": [
+            "default",
+            "network",
+            "network-bind",
+            "home",
+            "removable-media",
+            "browser-support",
+            "audio-playback",
+            "pulseaudio",
+            "opengl",
+            "screen-inhibit-control",
+            "x11",
+            "desktop",
+            "desktop-legacy"
+        ],
+        "environment": {
+            "DISABLE_WAYLAND": "1"
+        }
+    },
+    "win": {
+        "compression": "maximum",
+        "target": [
+            {
+                "target": "nsis",
+                "arch": [
+                    "x64"
+                ]
+            }
+        ],
+        "artifactName": "${name}-${version}-windows-${arch}-setup.${ext}",
+        "icon": "apps/web/src/assets/icons/icon.png"
+    },
+    "nsis": {
+        "artifactName": "${name}-${version}-windows-${arch}-setup.${ext}"
+    }
+}
