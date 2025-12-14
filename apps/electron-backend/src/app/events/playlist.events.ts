@@ -8,6 +8,7 @@ import { dialog, ipcMain } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import { createPlaylistObject, getFilenameFromUrl } from 'm3u-utils';
 import { readFile, writeFile } from 'node:fs/promises';
+import { basename } from 'node:path';
 import { AUTO_UPDATE_PLAYLISTS } from 'shared-interfaces';
 
 export default class PlaylistEvents {
@@ -110,7 +111,11 @@ ipcMain.handle('open-playlist-from-file', async () => {
     const filePath = filePaths[0];
 
     try {
-        return await fetchPlaylistFromFile(filePath, 'from file');
+        // Extract filename from path and remove extension for a clean title
+        const filename = basename(filePath);
+        const title = filename.replace(/\.(m3u8?|pls|txt)$/i, '') || 'from file';
+
+        return await fetchPlaylistFromFile(filePath, title);
     } catch (error) {
         console.error('Error reading or parsing the file:', error);
         throw new Error('Failed to process the selected file.');
