@@ -1,0 +1,123 @@
+<mat-menu #filterSortMenu="matMenu" class="filter-sort-menu" xPosition="before">
+    <!-- Filter section -->
+    <section class="filter-section">
+        <div class="menu-section-header">
+            <mat-icon class="section-icon">filter_list</mat-icon>
+            <span>{{ 'HOME.FILTER_BY_TYPE' | translate }}</span>
+        </div>
+        @for (type of playlistTypes; track type.id) {
+            <button
+                mat-menu-item
+                (click)="togglePlaylistType(type); $event.stopPropagation()"
+                [class.active-option]="type.checked"
+            >
+                <mat-icon>{{ type.icon }}</mat-icon>
+                <span class="menu-item-text">{{
+                    type.translationKey | translate
+                }}</span>
+                <mat-icon
+                    class="check-icon"
+                    [class.check-visible]="type.checked"
+                    >check</mat-icon
+                >
+            </button>
+        }
+    </section>
+
+    <!-- Sort section -->
+    <section class="sort-section">
+        <div class="menu-section-header">
+            <mat-icon class="section-icon">sort</mat-icon>
+            <span>{{ 'HOME.SORT_BY' | translate }}</span>
+        </div>
+        <button
+            mat-menu-item
+            (click)="
+                setSortOptions(SortBy.NAME, SortOrder.ASC);
+                $event.stopPropagation()
+            "
+            [class.active-option]="isSortActive(SortBy.NAME, SortOrder.ASC)"
+        >
+            <mat-icon>sort_by_alpha</mat-icon>
+            <span class="menu-item-text">{{
+                'HOME.SORT_OPTIONS.NAME_ASC' | translate
+            }}</span>
+            <mat-icon
+                class="check-icon"
+                [class.check-visible]="isSortActive(SortBy.NAME, SortOrder.ASC)"
+                >check</mat-icon
+            >
+        </button>
+        <button
+            mat-menu-item
+            (click)="
+                setSortOptions(SortBy.NAME, SortOrder.DESC);
+                $event.stopPropagation()
+            "
+            [class.active-option]="isSortActive(SortBy.NAME, SortOrder.DESC)"
+        >
+            <mat-icon>sort_by_alpha</mat-icon>
+            <span class="menu-item-text">{{
+                'HOME.SORT_OPTIONS.NAME_DESC' | translate
+            }}</span>
+            <mat-icon
+                class="check-icon"
+                [class.check-visible]="
+                    isSortActive(SortBy.NAME, SortOrder.DESC)
+                "
+                >check</mat-icon
+            >
+        </button>
+        <button
+            mat-menu-item
+            (click)="
+                setSortOptions(SortBy.DATE_ADDED, SortOrder.DESC);
+                $event.stopPropagation()
+            "
+            [class.active-option]="
+                isSortActive(SortBy.DATE_ADDED, SortOrder.DESC)
+            "
+        >
+            <mat-icon>date_range</mat-icon>
+            <span class="menu-item-text">{{
+                'HOME.SORT_OPTIONS.NEWEST' | translate
+            }}</span>
+            <mat-icon
+                class="check-icon"
+                [class.check-visible]="
+                    isSortActive(SortBy.DATE_ADDED, SortOrder.DESC)
+                "
+                >check</mat-icon
+            >
+        </button>
+        <button
+            mat-menu-item
+            (click)="
+                setSortOptions(SortBy.DATE_ADDED, SortOrder.ASC);
+                $event.stopPropagation()
+            "
+            [class.active-option]="
+                isSortActive(SortBy.DATE_ADDED, SortOrder.ASC)
+            "
+        >
+            <mat-icon>date_range</mat-icon>
+            <span class="menu-item-text">{{
+                'HOME.SORT_OPTIONS.OLDEST' | translate
+            }}</span>
+            <mat-icon
+                class="check-icon"
+                [class.check-visible]="
+                    isSortActive(SortBy.DATE_ADDED, SortOrder.ASC)
+                "
+                >check</mat-icon
+            >
+        </button>
+    </section>
+
+    <!-- Close button -->
+    <div class="menu-footer">
+        <button mat-button (click)="closeMenu()">
+            {{ 'CLOSE' | translate }}
+        </button>
+    </div>
+</mat-menu>
