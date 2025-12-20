@@ -28,7 +28,7 @@ import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as _ from 'lodash';
-import * as PlaylistActions from 'm3u-state';
+import { ChannelActions, FavoritesActions } from 'm3u-state';
 import {
     selectActive,
     selectActivePlaylistId,
@@ -165,7 +165,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      * @param channel selected channel
      */
     selectChannel(channel: Channel): void {
-        this.store.dispatch(PlaylistActions.setActiveChannel({ channel }));
+        this.store.dispatch(ChannelActions.setActiveChannel({ channel }));
 
         // Use tvg-id for EPG matching, fallback to channel name if not available
         const epgChannelId = channel?.tvg?.id?.trim() || channel?.name.trim();
@@ -187,7 +187,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             undefined,
             { duration: 2000 }
         );
-        this.store.dispatch(PlaylistActions.updateFavorites({ channel }));
+        this.store.dispatch(FavoritesActions.updateFavorites({ channel }));
     }
 
     trackByFn(_: number, channel: Channel): string {
@@ -197,7 +197,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     drop(event: CdkDragDrop<Channel[]>, favorites: Channel[]) {
         moveItemInArray(favorites, event.previousIndex, event.currentIndex);
         this.store.dispatch(
-            PlaylistActions.setFavorites({
+            FavoritesActions.setFavorites({
                 channelIds: favorites.map((item) => item.url),
             })
         );
@@ -230,7 +230,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy() {
-        this.store.dispatch(PlaylistActions.setChannels({ channels: [] }));
+        this.store.dispatch(ChannelActions.setChannels({ channels: [] }));
 
         if (this.epgRefreshInterval) {
             clearInterval(this.epgRefreshInterval);

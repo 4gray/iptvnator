@@ -3,7 +3,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Params } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import * as PlaylistActions from 'm3u-state';
+import { PlaylistActions } from 'm3u-state';
 import { DataService } from 'services';
 import {
     AUTO_UPDATE_PLAYLISTS,

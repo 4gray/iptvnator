@@ -35,11 +35,12 @@ import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { DialogService } from 'components';
-import * as PlaylistActions from 'm3u-state';
+import { PlaylistActions } from 'm3u-state';
 import { selectIsEpgAvailable } from 'm3u-state';
 import { take } from 'rxjs';
 import { DataService, EpgService, PlaylistsService } from 'services';
 import {
+    AiProvider,
     Language,
     Playlist,
     StreamFormat,

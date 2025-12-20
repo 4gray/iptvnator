@@ -6,7 +6,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { DialogService, PlaylistInfoComponent } from 'components';
-import * as PlaylistActions from 'm3u-state';
+import { PlaylistActions } from 'm3u-state';
 import { selectCurrentPlaylist } from 'm3u-state';
 import { DatabaseService } from 'services';
 import { Playlist } from 'shared-interfaces';

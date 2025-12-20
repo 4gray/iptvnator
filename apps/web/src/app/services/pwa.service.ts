@@ -5,7 +5,7 @@ import { Params } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import * as PlaylistActions from 'm3u-state';
+import { PlaylistActions } from 'm3u-state';
 import { catchError, firstValueFrom, throwError } from 'rxjs';
 import { DataService } from 'services';
 import {

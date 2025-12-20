@@ -1,7 +1,7 @@
 import { Component, effect, inject, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
-import * as PlaylistActions from 'm3u-state';
+import { PlaylistActions } from 'm3u-state';
 import { selectPlaylistById } from 'm3u-state';
 import { NavigationComponent } from '../../xtream-tauri/navigation/navigation.component';
 import { NavigationItem } from '../../xtream-tauri/navigation/navigation.interface';
