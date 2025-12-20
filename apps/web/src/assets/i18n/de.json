@@ -150,8 +150,9 @@
             "MAC_ADDRESS": "Mac-Adresse",
             "URL_VALIDATION_ERROR": "Sollte eine gültige URL mit Protokoll sein (z. B. http://example.com/c oder https://example.com/stalker_portal/c)"
         },
-        "FILTER_BY_TYPE": "Nach Typ filtern",
+        "FILTER_BY_TYPE": "Playlist-Typen",
         "FILTER_BY_NAME": "Nach Namen filtern",
+        "FILTER_AND_SORT": "Filtern & Sortieren",
         "SORT_PLAYLISTS": "Playlisten sortieren",
         "SORT_BY": "Sortieren nach",
         "SORT_OPTIONS": {
@@ -159,6 +160,11 @@
             "NAME_DESC": "Name (Z-A)",
             "NEWEST": "Hinzugefügt (Neueste zuerst)",
             "OLDEST": "Hinzugefügt (Älteste zuerst)"
+        },
+        "PLAYLIST_TYPES": {
+            "M3U": "M3U (lokal, URL, Text)",
+            "XTREAM": "Xtream",
+            "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Als Text importiert",
         "PARSING_ERROR": "Fehler: Parsen fehlgeschlagen, keine gültige Playlist:"

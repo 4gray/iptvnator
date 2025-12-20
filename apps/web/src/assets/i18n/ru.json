@@ -109,8 +109,9 @@
             "SERVER_URL": "URL сервера",
             "URL_VALIDATION_ERROR": "Должен быть действительный URL-адрес с протоколом (например, http://example.com/c или https://example.com/stalker_portal/c)."
         },
-        "FILTER_BY_TYPE": "Фильтровать по типу",
+        "FILTER_BY_TYPE": "Типы плейлистов",
         "FILTER_BY_NAME": "Фильтровать по имени",
+        "FILTER_AND_SORT": "Фильтр и сортировка",
         "SORT_PLAYLISTS": "Сортировать плейлисты",
         "SORT_BY": "Сортировать по",
         "SORT_OPTIONS": {
@@ -118,6 +119,11 @@
             "NAME_DESC": "Имени (Я-А)",
             "NEWEST": "Дате добавления (сначала новые)",
             "OLDEST": "Дате добавления (сначала старые)"
+        },
+        "PLAYLIST_TYPES": {
+            "M3U": "M3U (локально, URL, текст)",
+            "XTREAM": "Xtream",
+            "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Импортировано как текст",
         "PARSING_ERROR": "Ошибка парсинга, недействительный плейлист:"
