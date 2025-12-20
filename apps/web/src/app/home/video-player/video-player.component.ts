@@ -27,7 +27,7 @@ import {
     ToolbarComponent,
     VjsPlayerComponent,
 } from 'components';
-import * as PlaylistActions from 'm3u-state';
+import { PlaylistActions, ChannelActions, FavoritesActions } from 'm3u-state';
 import {
     selectActive,
     selectChannels,
@@ -169,7 +169,7 @@ export class VideoPlayerComponent implements OnInit {
                             }
 
                             this.store.dispatch(
-                                PlaylistActions.setChannels({
+                                ChannelActions.setChannels({
                                     channels: playlist.playlist.items,
                                 })
                             );
@@ -180,14 +180,14 @@ export class VideoPlayerComponent implements OnInit {
                                 playlist.favorites.length > 0
                             ) {
                                 this.store.dispatch(
-                                    PlaylistActions.setFavorites({
+                                    FavoritesActions.setFavorites({
                                         channelIds: playlist.favorites,
                                     })
                                 );
                             } else {
                                 // Clear favorites if playlist has none
                                 this.store.dispatch(
-                                    PlaylistActions.setFavorites({
+                                    FavoritesActions.setFavorites({
                                         channelIds: [],
                                     })
                                 );
@@ -255,7 +255,7 @@ export class VideoPlayerComponent implements OnInit {
                     // Dispatch action to change channel
                     const nextChannel = channels[nextIndex];
                     this.store.dispatch(
-                        PlaylistActions.setActiveChannel({
+                        ChannelActions.setActiveChannel({
                             channel: nextChannel,
                         })
                     );
@@ -444,7 +444,7 @@ export class VideoPlayerComponent implements OnInit {
             .subscribe((channel) => {
                 if (channel) {
                     this.store.dispatch(
-                        PlaylistActions.setActiveChannel({ channel })
+                        ChannelActions.setActiveChannel({ channel })
                     );
                 }
             });

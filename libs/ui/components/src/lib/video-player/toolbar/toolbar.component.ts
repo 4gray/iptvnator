@@ -11,7 +11,7 @@ import {
     selectActivePlaylistId,
     selectFavorites,
     selectIsEpgAvailable,
-    updateFavorites,
+    FavoritesActions,
 } from 'm3u-state';
 import { Channel } from 'shared-interfaces';
 
@@ -46,6 +46,6 @@ export class ToolbarComponent {
     readonly playlistId$ = this.store.select(selectActivePlaylistId);
 
     updateFavoriteStatus(channel: Channel) {
-        this.store.dispatch(updateFavorites({ channel }));
+        this.store.dispatch(FavoritesActions.updateFavorites({ channel }));
     }
 }

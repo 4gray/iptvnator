@@ -8,7 +8,7 @@ import {
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { parsePlaylist } from 'm3u-state';
+import { PlaylistActions } from 'm3u-state';
 import { getFilenameFromUrl } from 'm3u-utils';
 import { DataService } from 'services';
 import { PLAYLIST_PARSE_BY_URL } from 'shared-interfaces';
@@ -57,11 +57,11 @@ export class AddPlaylistDialogComponent {
             .result as string;
 
         this.store.dispatch(
-            parsePlaylist({
+            PlaylistActions.parsePlaylist({
                 uploadType: 'FILE',
                 playlist,
                 title: payload.file.name,
-                path: (payload.file as any).path,
+                path: (payload.file as File & { path?: string }).path,
             })
         );
         this.closeDialog();
@@ -93,7 +93,7 @@ export class AddPlaylistDialogComponent {
      */
     uploadAsText(playlist: string): void {
         this.store.dispatch(
-            parsePlaylist({
+            PlaylistActions.parsePlaylist({
                 uploadType: 'TEXT',
                 playlist,
                 title: this.translateService.instant('HOME.IMPORTED_AS_TEXT'),

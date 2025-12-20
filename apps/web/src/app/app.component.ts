@@ -4,10 +4,8 @@ import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
 import { filter, take } from 'rxjs';
-/* import * as semver from 'semver'; */
-import * as PlaylistActions from 'm3u-state';
-import { selectAllPlaylistsMeta } from 'm3u-state';
 import { DataService, EpgService } from 'services';
 import {
     AUTO_UPDATE_PLAYLISTS,
@@ -28,7 +26,9 @@ import { SearchResultsComponent } from './xtream-tauri/search-results/search-res
 })
 export class AppComponent implements OnInit {
     @HostBinding('class.macos-platform') get isMacOS() {
-        return window.electron && navigator.platform.toLowerCase().includes('mac');
+        return (
+            window.electron && navigator.platform.toLowerCase().includes('mac')
+        );
     }
     private actions$ = inject(Actions);
     private dataService = inject(DataService);

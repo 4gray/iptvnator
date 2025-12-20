@@ -8,11 +8,8 @@ import { MomentDatePipe } from '@iptvnator/pipes';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-    resetActiveEpgProgram,
     selectActive,
-    setActiveEpgProgram,
-    setCurrentEpgProgram,
-    setEpgAvailableFlag,
+    EpgActions,
 } from 'm3u-state';
 import moment from 'moment';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
@@ -157,7 +154,7 @@ export class EpgListComponent implements OnInit {
 
         // Dispatch EPG availability flag
         this.store.dispatch(
-            setEpgAvailableFlag({ value: programs.length > 0 })
+            EpgActions.setEpgAvailableFlag({ value: programs.length > 0 })
         );
 
         if (programs.length > 0) {
@@ -165,7 +162,7 @@ export class EpgListComponent implements OnInit {
         } else {
             this.channel = {} as EpgChannel;
             // Clear the current EPG program when no programs available
-            this.store.dispatch(resetActiveEpgProgram());
+            this.store.dispatch(EpgActions.resetActiveEpgProgram());
         }
 
         // Trigger change detection for OnPush strategy
@@ -223,7 +220,7 @@ export class EpgListComponent implements OnInit {
                 // Always dispatch the action, even when playingNow is null/undefined
                 // This ensures the store is updated and old EPG data is cleared
                 this.store.dispatch(
-                    setCurrentEpgProgram({ program: this.playingNow })
+                    EpgActions.setCurrentEpgProgram({ program: this.playingNow })
                 );
                 // Trigger change detection for OnPush strategy
                 this.cdr.markForCheck();
@@ -242,10 +239,10 @@ export class EpgListComponent implements OnInit {
         timeshift?: boolean
     ): void {
         if (isLive) {
-            this.store.dispatch(resetActiveEpgProgram());
+            this.store.dispatch(EpgActions.resetActiveEpgProgram());
         } else {
             if (!timeshift) return;
-            this.store.dispatch(setActiveEpgProgram({ program }));
+            this.store.dispatch(EpgActions.setActiveEpgProgram({ program }));
         }
         this.playingNow = program;
         // Trigger change detection for OnPush strategy
