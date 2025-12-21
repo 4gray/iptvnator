@@ -344,10 +344,6 @@
     app-region: no-drag; // Allow button interactions
 }
 
-.filter-container {
-    padding: 0 10px;
-}
-
 .add-playlist-btn {
     background-color: rgba(139, 92, 246, 0.12) !important;
     color: rgba(139, 92, 246, 1) !important;
@@ -365,35 +361,10 @@
     }
 }
 
-.dropdown-menu-header {
-    padding: 0 16px;
-    margin: 8px 0;
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.5);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-.active-sort {
-    background-color: rgba(139, 92, 246, 0.12) !important;
-    position: relative;
-
-    &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 60%;
-        background: rgba(139, 92, 246, 0.8);
-        border-radius: 0 2px 2px 0;
-    }
-}
-
-.check-icon {
-    margin-left: 8px;
+// Badge styling for filter count
+::ng-deep .mat-badge-accent .mat-badge-content {
+    background: rgba(139, 92, 246, 1);
+    color: white;
 }
 
 // Refined Material button and icon overrides

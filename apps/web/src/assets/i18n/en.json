@@ -112,14 +112,20 @@
             "ADD": "Add"
         },
         "FILTER_BY_NAME": "Filter by name",
-        "FILTER_BY_TYPE": "Filter by type",
+        "FILTER_BY_TYPE": "Playlist Types",
+        "FILTER_AND_SORT": "Filter & Sort",
         "SORT_PLAYLISTS": "Sort playlists",
-        "SORT_BY": "Sort by",
+        "SORT_BY": "Sort By",
         "SORT_OPTIONS": {
             "NAME_ASC": "Name (A-Z)",
             "NAME_DESC": "Name (Z-A)",
             "NEWEST": "Date added (Newest first)",
             "OLDEST": "Date added (Oldest first)"
+        },
+        "PLAYLIST_TYPES": {
+            "M3U": "M3U (local, url, text)",
+            "XTREAM": "Xtream",
+            "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Imported as text",
         "PARSING_ERROR": "Error: Parsing failed, not a valid playlist:"

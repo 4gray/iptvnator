@@ -2,7 +2,7 @@ import { Component, EventEmitter, inject, Output } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { addPlaylist } from 'm3u-state';
+import { PlaylistActions } from 'm3u-state';
 import { DragDropFileUploadDirective } from './drag-drop-file-upload.directive';
 
 @Component({
@@ -45,7 +45,7 @@ export class FileUploadComponent {
                             playlistObject
                         );
                         this.store.dispatch(
-                            addPlaylist({ playlist: playlistObject })
+                            PlaylistActions.addPlaylist({ playlist: playlistObject })
                         );
                     } else {
                         // User canceled the dialog

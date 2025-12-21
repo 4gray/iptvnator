@@ -11,7 +11,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { addPlaylist } from 'm3u-state';
+import { PlaylistActions } from 'm3u-state';
 import { DataService } from 'services';
 import { Playlist } from 'shared-interfaces';
 import { v4 as uuid } from 'uuid';
@@ -67,7 +67,7 @@ export class StalkerPortalImportComponent {
             this.form.value.portalUrl
         );
         this.store.dispatch(
-            addPlaylist({ playlist: this.form.value as Playlist })
+            PlaylistActions.addPlaylist({ playlist: this.form.value as Playlist })
         );
         this.addClicked.emit();
     }

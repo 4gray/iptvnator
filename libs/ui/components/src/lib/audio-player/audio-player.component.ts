@@ -12,7 +12,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
 import { Store } from '@ngrx/store';
-import { setAdjacentChannelAsActive } from 'm3u-state';
+import { ChannelActions } from 'm3u-state';
 
 @Component({
     selector: 'app-audio-player',
@@ -125,6 +125,6 @@ export class AudioPlayerComponent implements OnChanges {
     }
 
     switchChannel(direction: 'next' | 'previous') {
-        this.store.dispatch(setAdjacentChannelAsActive({ direction }));
+        this.store.dispatch(ChannelActions.setAdjacentChannelAsActive({ direction }));
     }
 }

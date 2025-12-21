@@ -34,23 +34,23 @@
             <app-add-playlist-menu
                 (playlistTypeSelected)="openAddPlaylistDialog($event)"
             />
-            <!-- Sort button -->
+            <!-- Combined Filter & Sort button -->
             <button
                 mat-icon-button
-                [matMenuTriggerFor]="sortMenu"
-                [matTooltip]="'HOME.SORT_PLAYLISTS' | translate"
-                data-test-id="sort-playlists"
+                #filterMenuTrigger="matMenuTrigger"
+                [matMenuTriggerFor]="filterSortMenuComponent().menu()"
+                [matTooltip]="'HOME.FILTER_AND_SORT' | translate"
+                [matBadge]="filterSortMenuComponent().activeFiltersCount"
+                [matBadgeHidden]="
+                    filterSortMenuComponent().activeFiltersCount === 0
+                "
+                matBadgeSize="small"
+                matBadgeColor="accent"
+                data-test-id="filter-sort-playlists"
             >
-                <mat-icon>sort</mat-icon>
+                <mat-icon>tune</mat-icon>
             </button>
-            <button
-                mat-icon-button
-                [matMenuTriggerFor]="filterPlaylistMenu"
-                [matTooltip]="'HOME.FILTER_BY_TYPE' | translate"
-                data-test-id="filter-playlist-by-type"
-            >
-                <mat-icon>filter_alt</mat-icon>
-            </button>
+            <app-filter-sort-menu [menuTrigger]="filterMenuTrigger" />
             @if (isDesktop) {
                 <button
                     mat-icon-button
@@ -120,80 +120,6 @@
                     </button>
                 </mat-menu>
             }
-            <!-- Sort menu -->
-            <mat-menu #sortMenu="matMenu">
-                <div
-                    class="dropdown-menu-header"
-                    (click)="$event.stopPropagation()"
-                >
-                    {{ 'HOME.SORT_BY' | translate }}
-                </div>
-                <button
-                    mat-menu-item
-                    (click)="setSortOptions(SortBy.NAME, SortOrder.ASC)"
-                    [class.active-sort]="
-                        isSortActive(SortBy.NAME, SortOrder.ASC)
-                    "
-                >
-                    <mat-icon>sort_by_alpha</mat-icon>
-                    <span>{{ 'HOME.SORT_OPTIONS.NAME_ASC' | translate }}</span>
-                </button>
-                <button
-                    mat-menu-item
-                    (click)="setSortOptions(SortBy.NAME, SortOrder.DESC)"
-                    [class.active-sort]="
-                        isSortActive(SortBy.NAME, SortOrder.DESC)
-                    "
-                >
-                    <mat-icon>sort_by_alpha</mat-icon>
-                    <span>{{ 'HOME.SORT_OPTIONS.NAME_DESC' | translate }}</span>
-                </button>
-                <mat-divider></mat-divider>
-                <button
-                    mat-menu-item
-                    (click)="setSortOptions(SortBy.DATE_ADDED, SortOrder.DESC)"
-                    [class.active-sort]="
-                        isSortActive(SortBy.DATE_ADDED, SortOrder.DESC)
-                    "
-                >
-                    <mat-icon>date_range</mat-icon>
-                    <span>{{ 'HOME.SORT_OPTIONS.NEWEST' | translate }}</span>
-                </button>
-                <button
-                    mat-menu-item
-                    (click)="setSortOptions(SortBy.DATE_ADDED, SortOrder.ASC)"
-                    [class.active-sort]="
-                        isSortActive(SortBy.DATE_ADDED, SortOrder.ASC)
-                    "
-                >
-                    <mat-icon>date_range</mat-icon>
-                    <span>{{ 'HOME.SORT_OPTIONS.OLDEST' | translate }}</span>
-                </button>
-            </mat-menu>
-            <mat-menu #filterPlaylistMenu="matMenu">
-                <section
-                    (click)="$event.stopPropagation()"
-                    class="filter-container"
-                >
-                    <div
-                        class="dropdown-menu-header"
-                        (click)="$event.stopPropagation()"
-                    >
-                        {{ 'HOME.FILTER_BY_TYPE' | translate }}
-                    </div>
-                    @for (type of playlistTypes; track $index) {
-                        <p>
-                            <mat-checkbox
-                                (click)="$event.stopPropagation()"
-                                [checked]="true"
-                                (change)="onPlaylistFilterChange()"
-                                [(ngModel)]="type.checked"
-                                >{{ type.title }}</mat-checkbox
-                            >
-                        </p>
-                    }
-                </section>
-            </mat-menu>
         </div>
     }
 </div>

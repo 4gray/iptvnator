@@ -1,0 +1,90 @@
+// Combined Filter & Sort menu styles
+.filter-section,
+.sort-section {
+    padding: 4px 0;
+}
+
+.menu-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    pointer-events: none;
+
+    .section-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: rgba(139, 92, 246, 0.6);
+    }
+}
+
+// Menu item layout with right-aligned checkmark
+::ng-deep .filter-sort-menu {
+    .mat-mdc-menu-item {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        min-height: 40px !important;
+        padding: 0 16px !important;
+
+        .mat-icon:first-child {
+            margin-right: 0 !important;
+            flex-shrink: 0;
+        }
+
+        .menu-item-text {
+            flex: 1;
+            text-align: left;
+        }
+
+        .check-icon {
+            margin-left: auto !important;
+            margin-right: 0 !important;
+            flex-shrink: 0;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+            &.check-visible {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    }
+}
+
+.active-option {
+    background-color: rgba(139, 92, 246, 0.12) !important;
+    position: relative;
+
+    &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 60%;
+        background: rgba(139, 92, 246, 0.8);
+        border-radius: 0 2px 2px 0;
+    }
+}
+
+.check-icon {
+    font-size: 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+    color: rgba(139, 92, 246, 1) !important;
+}
+
+// Menu footer
+.menu-footer {
+    padding: 4px 8px 4px;
+    display: flex;
+    justify-content: center;
+}

@@ -24,7 +24,12 @@ import {
     STORE_KEY,
     VideoPlayer,
 } from 'shared-interfaces';
-import * as PlaylistActions from './actions';
+import {
+    PlaylistActions,
+    ChannelActions,
+    EpgActions,
+    FavoritesActions,
+} from './actions';
 import {
     selectActive,
     selectActivePlaylistId,
@@ -47,7 +52,7 @@ export class PlaylistEffects {
     updateFavorites$ = createEffect(
         () => {
             return this.actions$.pipe(
-                ofType(PlaylistActions.updateFavorites),
+                ofType(FavoritesActions.updateFavorites),
                 combineLatestWith(
                     this.store.select(selectFavorites),
                     this.store.select(selectActivePlaylistId)
@@ -70,7 +75,7 @@ export class PlaylistEffects {
     setFavorites$ = createEffect(
         () => {
             return this.actions$.pipe(
-                ofType(PlaylistActions.setFavorites),
+                ofType(FavoritesActions.setFavorites),
                 combineLatestWith(this.store.select(selectActivePlaylistId)),
                 filter(
                     ([, playlistId]) =>
@@ -92,7 +97,7 @@ export class PlaylistEffects {
     setActiveEpgProgram$ = createEffect(
         () => {
             return this.actions$.pipe(
-                ofType(PlaylistActions.setActiveEpgProgram),
+                ofType(EpgActions.setActiveEpgProgram),
                 combineLatestWith(this.store.select(selectActive)),
                 map(([, activeChannel]) => {
                     firstValueFrom(this.storage.get(STORE_KEY.Settings)).then(
@@ -135,7 +140,7 @@ export class PlaylistEffects {
 
     setActiveChannel$ = createEffect(() => {
         return this.actions$.pipe(
-            ofType(PlaylistActions.setActiveChannel),
+            ofType(ChannelActions.setActiveChannel),
             // Skip the effect entirely when channel is falsy
             filter((action) => !!action.channel),
             map((action) => {
@@ -186,7 +191,7 @@ export class PlaylistEffects {
                     }
                 );
 
-                return PlaylistActions.setActiveChannelSuccess({
+                return ChannelActions.setActiveChannelSuccess({
                     channel: action.channel,
                 });
             })
@@ -400,7 +405,7 @@ export class PlaylistEffects {
 
     setAdjacentChannelAsActive$ = createEffect(() => {
         return this.actions$.pipe(
-            ofType(PlaylistActions.setAdjacentChannelAsActive),
+            ofType(ChannelActions.setAdjacentChannelAsActive),
             withLatestFrom(
                 this.store.select(selectChannels),
                 this.store.select(selectActive)
@@ -419,7 +424,7 @@ export class PlaylistEffects {
                         adjacentChannel = activeChannel;
                     adjacentChannel = channels[index - 1];
                 }
-                return PlaylistActions.setActiveChannelSuccess({
+                return ChannelActions.setActiveChannelSuccess({
                     channel: adjacentChannel!,
                 });
             })

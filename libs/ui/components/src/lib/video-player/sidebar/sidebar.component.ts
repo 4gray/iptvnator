@@ -6,7 +6,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import * as PlaylistActions from 'm3u-state';
+import { ChannelActions } from 'm3u-state';
 import { selectPlaylistTitle } from 'm3u-state';
 import { Channel, SidebarView } from 'shared-interfaces';
 import { RecentPlaylistsComponent } from '../../recent-playlists/recent-playlists.component';
@@ -38,7 +38,7 @@ export class SidebarComponent {
 
     goBack() {
         if (this.sidebarView === 'PLAYLISTS') {
-            this.store.dispatch(PlaylistActions.resetActiveChannel());
+            this.store.dispatch(ChannelActions.resetActiveChannel());
             this.router.navigate(['/']);
         } else {
             this.sidebarView = 'PLAYLISTS';
