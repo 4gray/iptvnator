@@ -94,10 +94,12 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
     updateSettings: (settings: any) =>
         ipcRenderer.invoke('SETTINGS_UPDATE', settings),
+    getAiSettings: () => ipcRenderer.invoke('GET_AI_SETTINGS'),
     stalkerRequest: (payload: {
         url: string;
         macAddress: string;
         params: Record<string, string>;
+        token?: string;
     }) => ipcRenderer.invoke('STALKER_REQUEST', payload),
     xtreamRequest: (payload: { url: string; params: Record<string, string> }) =>
         ipcRenderer.invoke('XTREAM_REQUEST', payload),

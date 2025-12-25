@@ -107,9 +107,18 @@
         "STALKER_PORTAL": {
             "TITLE": "Title",
             "MAC_ADDRESS": "Mac Address",
+            "SERIAL_NUMBER": "Serial Number (Optional)",
+            "SERIAL_NUMBER_HINT": "Use if already registered with provider",
+            "DEVICE_ID_1": "Device ID 1 (Optional)",
+            "DEVICE_ID_2": "Device ID 2 (Optional)",
+            "DEVICE_ID_HINT": "64 hex characters - use if provider requires specific device ID",
+            "SIGNATURE_1": "Signature 1 (Optional)",
+            "SIGNATURE_2": "Signature 2 (Optional)",
+            "SIGNATURE_HINT": "64 hex characters - use if provider requires device verification signatures",
             "SERVER_URL": "Server URL",
             "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com/c or https://example.com/stalker_portal/c)",
-            "ADD": "Add"
+            "ADD": "Add",
+            "VALIDATING": "Validating portal..."
         },
         "FILTER_BY_NAME": "Filter by name",
         "FILTER_BY_TYPE": "Playlist Types",
@@ -402,7 +411,9 @@
         "STREAM_URL_COPIED": "Stream URL copied to clipboard",
         "COPY_STREAM_URL": "Copy Stream URL",
         "SELECT_CATEGORY": "Select a category",
-        "PAGE": "Page"
+        "PAGE": "Page",
+        "CONTENT_NOT_AVAILABLE": "This content is not available on this server",
+        "PLAYBACK_ERROR": "Failed to get playback URL"
     },
     "INFORMATION": "Information",
     "REMOTE_CONTROL": {

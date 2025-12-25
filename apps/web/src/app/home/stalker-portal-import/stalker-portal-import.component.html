@@ -31,6 +31,71 @@
             formControlName="macAddress"
         />
     </mat-form-field>
+    <mat-form-field class="full-width">
+        <mat-label for="serialNumber">{{
+            'HOME.STALKER_PORTAL.SERIAL_NUMBER' | translate
+        }}</mat-label>
+        <input
+            matInput
+            type="text"
+            id="serialNumber"
+            formControlName="serialNumber"
+            placeholder="Optional - auto-generated if empty"
+        />
+        <mat-hint>{{ 'HOME.STALKER_PORTAL.SERIAL_NUMBER_HINT' | translate }}</mat-hint>
+    </mat-form-field>
+    <mat-form-field class="full-width">
+        <mat-label for="deviceId1">{{
+            'HOME.STALKER_PORTAL.DEVICE_ID_1' | translate
+        }}</mat-label>
+        <input
+            matInput
+            type="text"
+            id="deviceId1"
+            formControlName="deviceId1"
+            placeholder="Optional - auto-generated if empty"
+        />
+        <mat-hint>{{ 'HOME.STALKER_PORTAL.DEVICE_ID_HINT' | translate }}</mat-hint>
+    </mat-form-field>
+    <mat-form-field class="full-width">
+        <mat-label for="deviceId2">{{
+            'HOME.STALKER_PORTAL.DEVICE_ID_2' | translate
+        }}</mat-label>
+        <input
+            matInput
+            type="text"
+            id="deviceId2"
+            formControlName="deviceId2"
+            placeholder="Optional - auto-generated if empty"
+        />
+        <mat-hint>{{ 'HOME.STALKER_PORTAL.DEVICE_ID_HINT' | translate }}</mat-hint>
+    </mat-form-field>
+    <mat-form-field class="full-width">
+        <mat-label for="signature1">{{
+            'HOME.STALKER_PORTAL.SIGNATURE_1' | translate
+        }}</mat-label>
+        <input
+            matInput
+            type="text"
+            id="signature1"
+            formControlName="signature1"
+            placeholder="Optional"
+        />
+        <mat-hint>{{ 'HOME.STALKER_PORTAL.SIGNATURE_HINT' | translate }}</mat-hint>
+    </mat-form-field>
+    <mat-form-field class="full-width">
+        <mat-label for="signature2">{{
+            'HOME.STALKER_PORTAL.SIGNATURE_2' | translate
+        }}</mat-label>
+        <input
+            matInput
+            type="text"
+            id="signature2"
+            formControlName="signature2"
+            placeholder="Optional"
+        />
+        <mat-hint>{{ 'HOME.STALKER_PORTAL.SIGNATURE_HINT' | translate }}</mat-hint>
+    </mat-form-field>
     <!-- <mat-form-field class="full-width">
         <mat-label for="username">{{
             'HOME.XTREAM_PLAYLIST.USERNAME' | translate
@@ -43,12 +108,19 @@
         }}</mat-label>
         <input matInput type="text" id="password" formControlName="password" />
     </mat-form-field> -->
-    <button
-        mat-button
-        type="submit"
-        [disabled]="!form.valid"
-        (click)="addPlaylist()"
-    >
-        {{ 'HOME.STALKER_PORTAL.ADD' | translate }}
-    </button>
+    @if (isLoading()) {
+        <div class="loading-container">
+            <mat-spinner diameter="20"></mat-spinner>
+            <span>{{ 'HOME.STALKER_PORTAL.VALIDATING' | translate }}</span>
+        </div>
+    } @else {
+        <button
+            mat-button
+            type="submit"
+            [disabled]="!form.valid"
+            (click)="addPlaylist()"
+        >
+            {{ 'HOME.STALKER_PORTAL.ADD' | translate }}
+        </button>
+    }
 </form>

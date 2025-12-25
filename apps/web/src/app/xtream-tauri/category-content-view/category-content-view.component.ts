@@ -63,10 +63,14 @@ export class CategoryContentViewComponent implements OnInit {
         const selectedItem = {
             id: item.id,
             cmd: item.cmd,
+            // For VOD items with embedded series array (Stalker vclub)
+            series: item.series,
+            // Preserve has_files for cmd transformation during playback
+            has_files: item.has_files,
             info: {
                 movie_image: item.screenshot_uri,
                 description: item.description,
-                name: item.name,
+                name: item.name || item.o_name,
                 director: item.director,
                 releasedate: item.year,
                 genre: item.genres_str,

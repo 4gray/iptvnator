@@ -1,18 +1,23 @@
 @if (selectedCategory()) {
     @if (isStalker && selectedItem()) {
         @if (contentType === 'vod') {
-            <app-vod-details
-                [item]="selectedItem()"
-                (playClicked)="
-                    createLinkToPlayVod(
-                        selectedItem().cmd,
-                        selectedItem().info.name,
-                        selectedItem().info.movie_image
-                    )
-                "
-                (addToFavoritesClicked)="addToFavorites($event)"
-                (removeFromFavoritesClicked)="removeFromFavorites($any($event))"
-            />
+            @if (selectedItem().series?.length > 0) {
+                <!-- VOD item with embedded series (vclub) -->
+                <app-stalker-series-view [vodWithSeries]="selectedItem()" />
+            } @else {
+                <app-vod-details
+                    [item]="selectedItem()"
+                    (playClicked)="
+                        createLinkToPlayVod(
+                            selectedItem().cmd,
+                            selectedItem().info.name,
+                            selectedItem().info.movie_image
+                        )
+                    "
+                    (addToFavoritesClicked)="addToFavorites($event)"
+                    (removeFromFavoritesClicked)="removeFromFavorites($any($event))"
+                />
+            }
         } @else if (contentType === 'series') {
             <app-stalker-series-view />
         }

@@ -82,3 +82,7 @@ textarea,
 .mat-drawer-inner-container {
     overflow: hidden !important;
 }
+
+.cdk-overlay-backdrop {
+    backdrop-filter: blur(4px);
+}

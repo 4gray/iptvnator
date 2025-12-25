@@ -7,8 +7,12 @@ import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { selectPlaylistById } from 'm3u-state';
-import { DataService } from 'services';
-import { STALKER_REQUEST, StalkerPortalActions } from 'shared-interfaces';
+import { DataService, StalkerSessionService } from 'services';
+import {
+    Playlist,
+    STALKER_REQUEST,
+    StalkerPortalActions,
+} from 'shared-interfaces';
 import { SearchFormComponent } from '../../shared/components/search-form/search-form.component';
 import { SearchResultItemComponent } from '../../shared/components/search-result-item/search-result-item.component';
 import { PlaylistErrorViewComponent } from '../../xtream-tauri/playlist-error-view/playlist-error-view.component';
@@ -57,6 +61,7 @@ export class StalkerSearchComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly dataService = inject(DataService);
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly stalkerSession = inject(StalkerSessionService);
     private readonly store = inject(Store);
 
     readonly filters = {
@@ -101,6 +106,21 @@ export class StalkerSearchComponent {
             if (!playlist) return [];
             const { portalUrl, macAddress } = playlist;
 
+            // Get token if it's a full stalker portal
+            let token: string | undefined;
+            let serialNumber: string | undefined;
+            if ((playlist as Playlist).isFullStalkerPortal) {
+                try {
+                    const result = await this.stalkerSession.ensureToken(
+                        playlist as Playlist
+                    );
+                    token = result.token ?? undefined;
+                    serialNumber = (playlist as Playlist).stalkerSerialNumber;
+                } catch (error) {
+                    console.error('Failed to get stalker token:', error);
+                }
+            }
+
             const response = await this.dataService.sendIpcEvent(
                 STALKER_REQUEST,
                 {
@@ -113,6 +133,8 @@ export class StalkerSearchComponent {
                         search: params.search,
                         max_page_items: 100,
                     },
+                    token,
+                    serialNumber,
                 }
             );
             if (response) {
