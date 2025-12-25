@@ -18,11 +18,7 @@ import {
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map, tap } from 'rxjs';
 import { DatabaseService, DataService, SortService } from 'services';
-import {
-    GLOBAL_FAVORITES_PLAYLIST_ID,
-    PLAYLIST_UPDATE,
-    PlaylistMeta,
-} from 'shared-interfaces';
+import { PLAYLIST_UPDATE, PlaylistMeta } from 'shared-interfaces';
 import { DialogService } from '../confirm-dialog/dialog.service';
 import { PlaylistType } from '../add-playlist-menu/add-playlist-menu.component';
 import { EmptyStateComponent } from './empty-state/empty-state.component';
@@ -145,11 +141,6 @@ export class RecentPlaylistsComponent {
                 })),
             })
         );
-    }
-
-    navigateToGlobalFavorites() {
-        this.router.navigate(['playlists', GLOBAL_FAVORITES_PLAYLIST_ID]);
-        this.playlistClicked.emit(GLOBAL_FAVORITES_PLAYLIST_ID);
     }
 
     onAddPlaylist(playlistType: PlaylistType) {

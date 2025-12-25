@@ -34,6 +34,14 @@
             <app-add-playlist-menu
                 (playlistTypeSelected)="openAddPlaylistDialog($event)"
             />
+            <button
+                mat-icon-button
+                (click)="navigateToGlobalFavorites()"
+                [matTooltip]="'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate"
+                data-test-id="global-favorites"
+            >
+                <mat-icon>star</mat-icon>
+            </button>
             <!-- Combined Filter & Sort button -->
             <button
                 mat-icon-button

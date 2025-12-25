@@ -14,23 +14,6 @@
                 }
             } @else {
                 <mat-nav-list class="playlists-list">
-                    <mat-list-item (click)="navigateToGlobalFavorites()">
-                        <mat-icon class="favorites-icon" matListItemIcon
-                            >star</mat-icon
-                        >
-                        <div matListItemTitle>
-                            {{
-                                'HOME.PLAYLISTS.GLOBAL_FAVORITES'
-                                    | translate
-                            }}
-                        </div>
-                        <div matListItemLine class="meta">
-                            {{
-                                'HOME.PLAYLISTS.GLOBAL_FAVORITES_DESCRIPTION'
-                                    | translate
-                            }}
-                        </div>
-                    </mat-list-item>
                     @for (
                         item of data.playlists;
                         track item._id;
