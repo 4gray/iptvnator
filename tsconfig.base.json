@@ -23,7 +23,8 @@
             "services": ["libs/services/src/index.ts"],
             "shared-interfaces": ["libs/shared/interfaces/src/index.ts"],
             "shared-portals": ["libs/ui/shared-portals/src/index.ts"],
-            "remote-control": ["libs/ui/remote-control/src/index.ts"]
+            "remote-control": ["libs/ui/remote-control/src/index.ts"],
+            "database": ["libs/shared/database/src/index.ts"]
         }
     },
     "exclude": ["node_modules", "tmp"],

@@ -1,0 +1,23 @@
+{
+    "name": "database",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/shared/database/src",
+    "projectType": "library",
+    "tags": ["scope:shared", "type:data-access"],
+    "targets": {
+        "build": {
+            "executor": "@nx/esbuild:esbuild",
+            "outputs": ["{options.outputPath}"],
+            "options": {
+                "outputPath": "dist/libs/shared/database",
+                "main": "libs/shared/database/src/index.ts",
+                "tsConfig": "libs/shared/database/tsconfig.lib.json",
+                "assets": ["libs/shared/database/*.md"],
+                "format": ["cjs"]
+            }
+        },
+        "lint": {
+            "command": "eslint libs/shared/database/**/*.ts"
+        }
+    }
+}
