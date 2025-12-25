@@ -5,6 +5,7 @@ import { ipcMain } from 'electron';
     SET_MPV_PLAYER_PATH,
     SET_VLC_PLAYER_PATH,
 } from 'shared-interfaces'; */
+import App from '../app';
 import {
     MPV_PLAYER_PATH,
     MPV_REUSE_INSTANCE,
@@ -26,6 +27,45 @@ export default class PlayerEvents {
 // Keep track of the running MPV process for reuse
 let mpvProcess: ChildProcess | null = null;
 let mpvSocketPath: string | null = null;
+
+// Helper function to send error notifications to the renderer
+function sendPlayerErrorNotification(player: 'MPV' | 'VLC', error: string) {
+    if (App.mainWindow && !App.mainWindow.isDestroyed()) {
+        // Make error message more user-friendly
+        let userMessage = error;
+
+        if (error.includes('Failed to open')) {
+            userMessage =
+                'Failed to open stream. The URL may be invalid or the server is not responding.';
+        } else if (
+            error.includes('Protocol not found') ||
+            error.includes('Unsupported protocol')
+        ) {
+            userMessage =
+                'Unsupported stream protocol. Please check the stream URL.';
+        } else if (
+            error.includes('Connection refused') ||
+            error.includes('Could not connect')
+        ) {
+            userMessage =
+                'Cannot connect to the stream server. Please check your internet connection.';
+        } else if (error.includes('403') || error.includes('Forbidden')) {
+            userMessage =
+                'Access denied. The stream may require valid credentials or headers.';
+        } else if (error.includes('404') || error.includes('Not Found')) {
+            userMessage =
+                'Stream not found. The URL may be incorrect or expired.';
+        } else if (error.includes('Timed out') || error.includes('timeout')) {
+            userMessage = 'Connection timed out. The server is not responding.';
+        }
+
+        App.mainWindow.webContents.send('player-error', {
+            player,
+            error: userMessage,
+            originalError: error,
+        });
+    }
+}
 
 // Helper function to send command to MPV via IPC
 function sendMpvCommand(command: string, args: string[]): Promise<void> {
@@ -140,8 +180,63 @@ ipcMain.handle(
                 const proc = spawn(mpvPath, args, {
                     shell: false,
                     detached: !reuseInstance,
-                    stdio: 'ignore',
+                    // Only pipe stdio when reusing instance; use 'ignore' for detached to allow clean shutdown
+                    stdio: reuseInstance ? ['ignore', 'pipe', 'pipe'] : 'ignore',
                 });
+
+                // Capture stdout
+                if (proc.stdout) {
+                    proc.stdout.on('data', (data) => {
+                        const output = data.toString().trim();
+                        if (output) {
+                            console.log('[MPV stdout]:', output);
+
+                            // MPV sometimes outputs errors to stdout instead of stderr
+                            if (
+                                output.includes('Failed to open') ||
+                                output.includes('Error opening') ||
+                                output.includes('Protocol not found') ||
+                                output.includes('Connection refused') ||
+                                output.includes('error') ||
+                                output.includes('403') ||
+                                output.includes('404')
+                            ) {
+                                console.error(
+                                    '[MPV ERROR from stdout]:',
+                                    output
+                                );
+                                sendPlayerErrorNotification('MPV', output);
+                            }
+                        }
+                    });
+                }
+
+                // Capture stderr (MPV outputs most messages here)
+                if (proc.stderr) {
+                    proc.stderr.on('data', (data) => {
+                        const output = data.toString().trim();
+                        if (output) {
+                            console.error('[MPV stderr]:', output);
+
+                            // Check for common error patterns and send notifications
+                            if (
+                                output.includes('Failed to open') ||
+                                output.includes(
+                                    'Exiting... (Errors when loading file)'
+                                ) ||
+                                output.includes('Error opening') ||
+                                output.includes('Protocol not found') ||
+                                output.includes('Connection refused') ||
+                                output.includes('error') ||
+                                output.includes('403') ||
+                                output.includes('404')
+                            ) {
+                                console.error('[MPV ERROR]:', output);
+                                sendPlayerErrorNotification('MPV', output);
+                            }
+                        }
+                    });
+                }
 
                 proc.on('error', (err) => {
                     console.error('Failed to start MPV player:', err);
@@ -158,6 +253,17 @@ ipcMain.handle(
                     console.log(`MPV exited with code ${code}`);
                     mpvProcess = null;
                     mpvSocketPath = null;
+
+                    // Log non-zero exit codes as errors and notify user
+                    if (code !== 0 && code !== null) {
+                        console.error(
+                            `[MPV ERROR] MPV exited with error code ${code}`
+                        );
+                        sendPlayerErrorNotification(
+                            'MPV',
+                            `MPV player closed unexpectedly (exit code: ${code})`
+                        );
+                    }
                 });
 
                 // Store the process reference if reuse is enabled
@@ -254,8 +360,61 @@ ipcMain.handle(
                 const proc = spawn(vlcPath, args, {
                     shell: false,
                     detached: true,
-                    stdio: 'ignore',
+                    stdio: 'ignore', // Use 'ignore' for detached to allow clean shutdown
                 });
+
+                // Capture stdout
+                if (proc.stdout) {
+                    proc.stdout.on('data', (data) => {
+                        const output = data.toString().trim();
+                        if (output) {
+                            console.log('[VLC stdout]:', output);
+
+                            // VLC sometimes outputs errors to stdout instead of stderr
+                            if (
+                                output.includes('error') ||
+                                output.includes('Error') ||
+                                output.includes('failed') ||
+                                output.includes('Failed') ||
+                                output.includes('cannot open') ||
+                                output.includes('Connection refused') ||
+                                output.includes('403') ||
+                                output.includes('404')
+                            ) {
+                                console.error(
+                                    '[VLC ERROR from stdout]:',
+                                    output
+                                );
+                                sendPlayerErrorNotification('VLC', output);
+                            }
+                        }
+                    });
+                }
+
+                // Capture stderr
+                if (proc.stderr) {
+                    proc.stderr.on('data', (data) => {
+                        const output = data.toString().trim();
+                        if (output) {
+                            console.error('[VLC stderr]:', output);
+
+                            // Check for common error patterns and send notifications
+                            if (
+                                output.includes('error') ||
+                                output.includes('Error') ||
+                                output.includes('failed') ||
+                                output.includes('Failed') ||
+                                output.includes('cannot open') ||
+                                output.includes('Connection refused') ||
+                                output.includes('403') ||
+                                output.includes('404')
+                            ) {
+                                console.error('[VLC ERROR]:', output);
+                                sendPlayerErrorNotification('VLC', output);
+                            }
+                        }
+                    });
+                }
 
                 proc.on('error', (err) => {
                     console.error('Failed to start VLC player:', err);
@@ -268,6 +427,17 @@ ipcMain.handle(
 
                 proc.on('exit', (code) => {
                     console.log(`VLC exited with code ${code}`);
+
+                    // Log non-zero exit codes as errors and notify user
+                    if (code !== 0 && code !== null) {
+                        console.error(
+                            `[VLC ERROR] VLC exited with error code ${code}`
+                        );
+                        sendPlayerErrorNotification(
+                            'VLC',
+                            `VLC player closed unexpectedly (exit code: ${code})`
+                        );
+                    }
                 });
 
                 // Detach the process so it can continue running independently
