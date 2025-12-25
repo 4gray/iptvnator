@@ -1,9 +1,22 @@
-# Minimal configuration for getting started
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
 language: 'en-US'
 
 reviews:
     profile: 'chill'
     high_level_summary: true
-auto_review:
-    enabled: true
-    drafts: false
+    auto_review:
+        enabled: true
+        drafts: false
+
+issue_enrichment:
+    labeling:
+        auto_apply_labels: true
+        labeling_instructions:
+            - label: bug
+              instructions: Issues reporting bugs, errors, crashes, incorrect behavior, or unexpected results. This includes runtime errors, logic errors, broken functionality, regressions, and any deviation from expected or documented behavior.
+            - label: enhancement
+              instructions: Feature requests, improvements to existing functionality, performance optimizations, refactoring suggestions, UI/UX enhancements, and any suggestions to make the project better or add new capabilities.
+            - label: documentation
+              instructions: Documentation updates, additions, corrections, or clarifications needed. This includes missing docs, outdated information, unclear instructions, API documentation, code examples, README improvements, and any requests for better explanations or guides.
+        ​
