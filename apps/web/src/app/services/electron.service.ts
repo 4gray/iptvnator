@@ -27,6 +27,30 @@ export class ElectronService extends DataService {
     constructor() {
         super();
         console.log('Electron service initialized...');
+        this.setupPlayerErrorListener();
+    }
+
+    private setupPlayerErrorListener() {
+        // Listen for player errors from the backend
+        if (window.electron?.onPlayerError) {
+            window.electron.onPlayerError(
+                (data: {
+                    player: string;
+                    error: string;
+                    originalError: string;
+                }) => {
+                    console.error(`${data.player} Error:`, data.originalError);
+                    this.snackBar.open(
+                        `${data.player} Error: ${data.error}`,
+                        'Close',
+                        {
+                            duration: 7000,
+                            panelClass: ['error-snackbar'],
+                        }
+                    );
+                }
+            );
+        }
     }
 
     getAppVersion(): string {
@@ -70,9 +94,13 @@ export class ElectronService extends DataService {
                 /* thumbnail: data.thumbnail ?? '', */
             } catch (error: any) {
                 const errorMessage = error?.message || String(error);
-                this.snackBar.open(`Error launching MPV: ${errorMessage}`, 'Close', {
-                    duration: 5000,
-                });
+                this.snackBar.open(
+                    `Error launching MPV: ${errorMessage}`,
+                    'Close',
+                    {
+                        duration: 5000,
+                    }
+                );
                 console.error('MPV launch error:', error);
                 throw error;
             }
@@ -88,9 +116,13 @@ export class ElectronService extends DataService {
                 );
             } catch (error: any) {
                 const errorMessage = error?.message || String(error);
-                this.snackBar.open(`Error launching VLC: ${errorMessage}`, 'Close', {
-                    duration: 5000,
-                });
+                this.snackBar.open(
+                    `Error launching VLC: ${errorMessage}`,
+                    'Close',
+                    {
+                        duration: 5000,
+                    }
+                );
                 console.error('VLC launch error:', error);
                 throw error;
             }
@@ -230,7 +262,10 @@ export class ElectronService extends DataService {
 
             // Log error to console
             if (isStatusCheck) {
-                console.log('Portal status check failed - portal may be unavailable:', error.message || error);
+                console.log(
+                    'Portal status check failed - portal may be unavailable:',
+                    error.message || error
+                );
             } else {
                 console.error('Xtream request error:', error.message);
             }

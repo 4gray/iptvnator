@@ -79,17 +79,21 @@ declare global {
             dbDeletePlaylist: (
                 playlistId: string
             ) => Promise<{ success: boolean }>;
-            dbDeleteXtreamContent: (
-                playlistId: string
-            ) => Promise<{
+            dbDeleteXtreamContent: (playlistId: string) => Promise<{
                 success: boolean;
                 favoritedXtreamIds: number[];
-                recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[];
+                recentlyViewedXtreamIds: {
+                    xtreamId: number;
+                    viewedAt: string;
+                }[];
             }>;
             dbRestoreXtreamUserData: (
                 playlistId: string,
                 favoritedXtreamIds: number[],
-                recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[]
+                recentlyViewedXtreamIds: {
+                    xtreamId: number;
+                    viewedAt: string;
+                }[]
             ) => Promise<{ success: boolean }>;
             dbHasCategories: (
                 playlistId: string,
@@ -159,6 +163,14 @@ declare global {
             // Remote control
             onChannelChange?: (
                 callback: (data: { direction: 'up' | 'down' }) => void
+            ) => void;
+            // Player error notifications
+            onPlayerError?: (
+                callback: (data: {
+                    player: string;
+                    error: string;
+                    originalError: string;
+                }) => void
             ) => void;
             getLocalIpAddresses: () => Promise<string[]>;
         };

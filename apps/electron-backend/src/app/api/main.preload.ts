@@ -2,8 +2,20 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electron', {
     // Remote control channel change listener
-    onChannelChange: (callback: (data: { direction: 'up' | 'down' }) => void) => {
+    onChannelChange: (
+        callback: (data: { direction: 'up' | 'down' }) => void
+    ) => {
         ipcRenderer.on('CHANNEL_CHANGE', (_event, data) => callback(data));
+    },
+    // Player error listener
+    onPlayerError: (
+        callback: (data: {
+            player: string;
+            error: string;
+            originalError: string;
+        }) => void
+    ) => {
+        ipcRenderer.on('player-error', (_event, data) => callback(data));
     },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     platform: process.platform,
