@@ -25,6 +25,9 @@ export default class EpgEvents {
     private static workers: Map<string, Worker> = new Map();
     private static readonly loggerLabel = '[EPG Events]';
 
+    // Display name index for O(1) lookups (lowercase name -> channel id)
+    private static displayNameIndex: Map<string, string> = new Map();
+
     /**
      * Bootstrap EPG events
      */
@@ -60,6 +63,14 @@ export default class EpgEvents {
             this.fetchedUrls.delete(url);
             return await this.handleFetchEpg([url]);
         });
+
+        // Cleanup expired programs
+        ipcMain.handle(
+            'EPG_CLEANUP_EXPIRED',
+            async (event, hoursToKeep?: number) => {
+                return this.cleanupExpiredPrograms(hoursToKeep);
+            }
+        );
 
         return ipcMain;
     }
@@ -187,6 +198,8 @@ export default class EpgEvents {
                                 message.stats
                             );
                             this.rebuildMergedData();
+                            // Auto-cleanup programs older than 24 hours
+                            this.cleanupExpiredPrograms(24);
                             this.fetchedUrls.add(url);
                             worker.terminate();
                             this.workers.delete(url);
@@ -249,9 +262,22 @@ export default class EpgEvents {
      */
     private static rebuildMergedData(): void {
         this.epgDataMerged.clear();
+        this.displayNameIndex.clear();
 
         // Create channel lookup map for O(1) access
         const channelMap = new Map(this.epgData.channels.map((c) => [c.id, c]));
+
+        // Build display name index for fast lookups
+        for (const channel of this.epgData.channels) {
+            for (const name of channel.displayName) {
+                if (name.value) {
+                    this.displayNameIndex.set(
+                        name.value.toLowerCase(),
+                        channel.id
+                    );
+                }
+            }
+        }
 
         // Group programs by channel in a single pass
         const programsByChannel = new Map<string, EpgProgram[]>();
@@ -274,6 +300,14 @@ export default class EpgEvents {
                 });
             }
         }
+
+        // Free memory - programs are now stored in epgDataMerged
+        this.epgData.programs = [];
+
+        console.log(
+            this.loggerLabel,
+            `Merged data rebuilt: ${this.epgDataMerged.size} channels, ${this.displayNameIndex.size} display names indexed`
+        );
     }
 
     /**
@@ -283,22 +317,21 @@ export default class EpgEvents {
         // First try exact ID match
         let channelData = this.epgDataMerged.get(channelId);
 
-        // If not found, try to find by display name
+        // If not found, try display name index (O(1) lookup)
         if (!channelData) {
-            for (const [, channel] of this.epgDataMerged.entries()) {
-                const displayNames = channel.displayName.map((d) =>
-                    d.value.toLowerCase()
-                );
-                if (
-                    displayNames.some(
-                        (name) =>
-                            name === channelId.toLowerCase() ||
-                            name.includes(channelId.toLowerCase()) ||
-                            channelId.toLowerCase().includes(name)
-                    )
-                ) {
-                    channelData = channel;
-                    break;
+            const indexedId = this.displayNameIndex.get(channelId.toLowerCase());
+            if (indexedId) {
+                channelData = this.epgDataMerged.get(indexedId);
+            }
+        }
+
+        // Fallback: partial match (only if index lookup failed)
+        if (!channelData) {
+            const searchTerm = channelId.toLowerCase();
+            for (const [name, id] of this.displayNameIndex.entries()) {
+                if (name.includes(searchTerm) || searchTerm.includes(name)) {
+                    channelData = this.epgDataMerged.get(id);
+                    if (channelData) break;
                 }
             }
         }
@@ -318,11 +351,38 @@ export default class EpgEvents {
     }
 
     /**
+     * Clean up expired programs (older than specified hours)
+     * Call this periodically to free memory from stale EPG data
+     */
+    static cleanupExpiredPrograms(hoursToKeep = 24): number {
+        const cutoff = new Date(
+            Date.now() - hoursToKeep * 60 * 60 * 1000
+        ).toISOString();
+        let removedCount = 0;
+
+        for (const channel of this.epgDataMerged.values()) {
+            const originalLength = channel.programs.length;
+            channel.programs = channel.programs.filter((p) => p.stop > cutoff);
+            removedCount += originalLength - channel.programs.length;
+        }
+
+        if (removedCount > 0) {
+            console.log(
+                this.loggerLabel,
+                `Cleaned up ${removedCount} expired programs (older than ${hoursToKeep}h)`
+            );
+        }
+
+        return removedCount;
+    }
+
+    /**
      * Clear all EPG data
      */
     static clearEpgData(): void {
         this.epgData = { channels: [], programs: [] };
         this.epgDataMerged.clear();
+        this.displayNameIndex.clear();
         this.fetchedUrls.clear();
 
         // Terminate all workers
