@@ -1,6 +1,11 @@
 import { app, ipcMain } from 'electron';
 import * as path from 'path';
-import { EpgChannelWithPrograms, EpgData, EpgProgram } from 'shared-interfaces';
+import {
+    EpgChannel,
+    EpgChannelWithPrograms,
+    EpgData,
+    EpgProgram,
+} from 'shared-interfaces';
 import { Worker } from 'worker_threads';
 import { pathToFileURL } from 'url';
 
@@ -117,7 +122,13 @@ export default class EpgEvents {
             try {
                 // Worker threads require file:// URLs wrapped in URL object for packaged apps
                 const workerURL = pathToFileURL(workerPath);
-                worker = new Worker(workerURL);
+                worker = new Worker(workerURL, {
+                    // Increase memory limits for large EPG files
+                    resourceLimits: {
+                        maxOldGenerationSizeMb: 4096, // 4GB for parsed data
+                        maxYoungGenerationSizeMb: 512, // 512MB for temporary allocations
+                    },
+                });
             } catch (error) {
                 console.error(
                     this.loggerLabel,
@@ -134,29 +145,64 @@ export default class EpgEvents {
                 'message',
                 (message: {
                     type: string;
-                    data?: EpgData;
+                    channels?: EpgChannel[];
+                    programs?: EpgProgram[];
                     error?: string;
                     url?: string;
+                    stats?: { totalChannels: number; totalPrograms: number };
                 }) => {
-                    if (message.type === 'READY') {
-                        worker.postMessage({ type: 'FETCH_EPG', url });
-                    } else if (message.type === 'EPG_PARSED') {
-                        if (message.data) {
-                            this.mergeEpgData(message.data);
+                    switch (message.type) {
+                        case 'READY':
+                            worker.postMessage({ type: 'FETCH_EPG', url });
+                            break;
+
+                        case 'EPG_CHANNELS_BATCH':
+                            // Add channels incrementally
+                            if (message.channels) {
+                                this.addChannelsBatch(message.channels);
+                            }
+                            break;
+
+                        case 'EPG_PROGRAMS_BATCH':
+                            // Add programs incrementally
+                            if (message.programs) {
+                                this.addProgramsBatch(message.programs);
+                            }
+                            break;
+
+                        case 'EPG_PROGRESS':
+                            // Log progress for large files
+                            if (message.stats) {
+                                console.log(
+                                    this.loggerLabel,
+                                    `Progress: ${message.stats.totalChannels} channels, ${message.stats.totalPrograms} programs`
+                                );
+                            }
+                            break;
+
+                        case 'EPG_COMPLETE':
+                            console.log(
+                                this.loggerLabel,
+                                `EPG parsing complete for ${url}:`,
+                                message.stats
+                            );
+                            this.rebuildMergedData();
                             this.fetchedUrls.add(url);
-                        }
-                        worker.terminate();
-                        this.workers.delete(url);
-                        resolve();
-                    } else if (message.type === 'EPG_ERROR') {
-                        console.error(
-                            this.loggerLabel,
-                            'Worker error:',
-                            message.error
-                        );
-                        worker.terminate();
-                        this.workers.delete(url);
-                        reject(new Error(message.error || 'Unknown error'));
+                            worker.terminate();
+                            this.workers.delete(url);
+                            resolve();
+                            break;
+
+                        case 'EPG_ERROR':
+                            console.error(
+                                this.loggerLabel,
+                                'Worker error:',
+                                message.error
+                            );
+                            worker.terminate();
+                            this.workers.delete(url);
+                            reject(new Error(message.error || 'Unknown error'));
+                            break;
                     }
                 }
             );
@@ -180,29 +226,21 @@ export default class EpgEvents {
     }
 
     /**
-     * Merge EPG data (optimized for large datasets)
+     * Add a batch of channels (streaming mode)
      */
-    private static mergeEpgData(newData: EpgData): void {
-        // Merge channels (avoid duplicates)
-        const existingChannelIds = new Set(
-            this.epgData.channels.map((c) => c.id)
-        );
-        const newChannels = newData.channels.filter(
-            (c) => !existingChannelIds.has(c.id)
-        );
-
-        // Use concat instead of spread for large arrays
+    private static addChannelsBatch(channels: EpgChannel[]): void {
+        // Use Set for O(1) duplicate checking
+        const existingIds = new Set(this.epgData.channels.map((c) => c.id));
+        const newChannels = channels.filter((c) => !existingIds.has(c.id));
         this.epgData.channels = this.epgData.channels.concat(newChannels);
+    }
 
-        // Merge programs in chunks to avoid stack overflow
-        const chunkSize = 10000;
-        for (let i = 0; i < newData.programs.length; i += chunkSize) {
-            const chunk = newData.programs.slice(i, i + chunkSize);
-            this.epgData.programs = this.epgData.programs.concat(chunk);
-        }
-
-        // Rebuild merged data structure
-        this.rebuildMergedData();
+    /**
+     * Add a batch of programs (streaming mode)
+     */
+    private static addProgramsBatch(programs: EpgProgram[]): void {
+        // Simply append programs - no duplicate check needed as each program is unique
+        this.epgData.programs = this.epgData.programs.concat(programs);
     }
 
     /**
@@ -247,7 +285,7 @@ export default class EpgEvents {
 
         // If not found, try to find by display name
         if (!channelData) {
-            for (const [id, channel] of this.epgDataMerged.entries()) {
+            for (const [, channel] of this.epgDataMerged.entries()) {
                 const displayNames = channel.displayName.map((d) =>
                     d.value.toLowerCase()
                 );
