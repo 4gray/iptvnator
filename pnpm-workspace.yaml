@@ -7,5 +7,6 @@ ignoredBuiltDependencies:
   - unrs-resolver
 
 onlyBuiltDependencies:
+  - better-sqlite3
   - electron
   - nx
