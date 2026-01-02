@@ -1,30 +1,78 @@
-import { EpgChannel, EpgProgram } from 'shared-interfaces';
 import { parentPort } from 'worker_threads';
 import { createGunzip } from 'zlib';
 import { SaxesParser, SaxesTagPlain } from 'saxes';
 import { Readable } from 'stream';
+import Database from 'better-sqlite3';
+import { existsSync, mkdirSync } from 'fs';
+import { homedir } from 'os';
+import { join } from 'path';
+
+/**
+ * Internal parsing types with arrays for XML parsing
+ * These are different from the flat EpgProgram interface used by the frontend
+ */
+interface ParsedTextValue {
+    lang: string;
+    value: string;
+}
+
+interface ParsedIcon {
+    src: string;
+    width?: number;
+    height?: number;
+}
+
+interface ParsedRating {
+    system: string;
+    value: string;
+}
+
+interface ParsedEpisodeNum {
+    system: string;
+    value: string;
+}
+
+interface ParsedChannel {
+    id: string;
+    displayName: ParsedTextValue[];
+    icon: ParsedIcon[];
+    url: string[];
+}
+
+interface ParsedProgram {
+    start: string;
+    stop: string;
+    channel: string;
+    title: ParsedTextValue[];
+    desc: ParsedTextValue[];
+    category: ParsedTextValue[];
+    date: string;
+    episodeNum: ParsedEpisodeNum[];
+    icon: ParsedIcon[];
+    rating: ParsedRating[];
+}
 
 /**
  * Streaming EPG Parser Worker
  * Uses SAX parsing to process XML incrementally without loading entire file into memory.
  * Supports both regular and gzipped EPG files.
+ * Performs database operations directly to avoid blocking the main thread.
  */
 
 interface WorkerMessage {
-    type: 'FETCH_EPG' | 'FORCE_FETCH';
-    url: string;
+    type: 'FETCH_EPG' | 'FORCE_FETCH' | 'CLEAR_EPG' | 'CLEANUP_EXPIRED';
+    url?: string;
+    hoursToKeep?: number;
 }
 
 interface WorkerResponse {
     type:
-        | 'EPG_CHANNELS_BATCH'
-        | 'EPG_PROGRAMS_BATCH'
         | 'EPG_COMPLETE'
         | 'EPG_ERROR'
         | 'EPG_PROGRESS'
+        | 'CLEAR_COMPLETE'
+        | 'CLEANUP_COMPLETE'
         | 'READY';
-    channels?: EpgChannel[];
-    programs?: EpgProgram[];
     error?: string;
     url?: string;
     stats?: {
@@ -35,9 +83,173 @@ interface WorkerResponse {
 
 const loggerLabel = '[EPG Worker]';
 
-// Batch size for sending data back to main thread
+// Batch size for database inserts
 const CHANNEL_BATCH_SIZE = 100;
 const PROGRAM_BATCH_SIZE = 1000;
+
+// Skip programs that ended more than this many hours ago
+const SKIP_PROGRAMS_OLDER_THAN_HOURS = 2;
+
+/**
+ * Calculate the cutoff time for filtering old programs
+ * Programs that ended before this time will be skipped
+ */
+function getProgramCutoffTime(): Date {
+    return new Date(Date.now() - SKIP_PROGRAMS_OLDER_THAN_HOURS * 60 * 60 * 1000);
+}
+
+/**
+ * Check if a program has already ended (is expired)
+ * Handles timezone-aware ISO date strings
+ */
+function isProgramExpired(stopTime: string, cutoff: Date): boolean {
+    if (!stopTime) return true; // Skip programs without stop time
+
+    try {
+        const stopDate = new Date(stopTime);
+        // Check if the date is valid
+        if (isNaN(stopDate.getTime())) return false; // Don't skip if we can't parse
+        return stopDate < cutoff;
+    } catch {
+        return false; // Don't skip if parsing fails
+    }
+}
+
+/**
+ * Get database file path (same as main app)
+ */
+function getDatabasePath(): string {
+    const dbDir = join(homedir(), '.iptvnator', 'databases');
+    if (!existsSync(dbDir)) {
+        mkdirSync(dbDir, { recursive: true });
+    }
+    return join(dbDir, 'iptvnator.db');
+}
+
+/**
+ * Database helper class for EPG operations
+ * Creates its own connection to avoid blocking main thread
+ */
+class EpgDatabase {
+    private db: Database.Database;
+    private knownChannelIds: Set<string> = new Set();
+
+    // Prepared statements for better performance
+    private insertChannelStmt: Database.Statement;
+    private insertProgramStmt: Database.Statement;
+    private deleteChannelsStmt: Database.Statement;
+
+    constructor() {
+        const dbPath = getDatabasePath();
+        this.db = new Database(dbPath);
+        this.db.pragma('foreign_keys = ON');
+        this.db.pragma('journal_mode = WAL'); // Better concurrent write performance
+
+        // Prepare statements
+        // Use INSERT OR REPLACE to update existing channels and refresh updated_at
+        // Use strftime with ISO format for consistent date comparison
+        this.insertChannelStmt = this.db.prepare(`
+            INSERT INTO epg_channels (id, display_name, icon_url, url, source_url, updated_at)
+            VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+            ON CONFLICT(id) DO UPDATE SET
+                display_name = excluded.display_name,
+                icon_url = excluded.icon_url,
+                url = excluded.url,
+                source_url = excluded.source_url,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+        `);
+
+        this.insertProgramStmt = this.db.prepare(`
+            INSERT INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        this.deleteChannelsStmt = this.db.prepare(`
+            DELETE FROM epg_channels WHERE source_url = ?
+        `);
+    }
+
+    /**
+     * Clear existing EPG data for a source URL
+     */
+    clearSourceData(sourceUrl: string): void {
+        this.deleteChannelsStmt.run(sourceUrl);
+        this.knownChannelIds.clear();
+    }
+
+    /**
+     * Insert a batch of channels
+     */
+    insertChannels(channels: ParsedChannel[], sourceUrl: string): void {
+        const insertMany = this.db.transaction((channels: ParsedChannel[]) => {
+            for (const channel of channels) {
+                const displayName = channel.displayName?.[0]?.value || channel.id;
+                const iconUrl = channel.icon?.[0]?.src || null;
+                const url = channel.url?.[0] || null;
+
+                this.insertChannelStmt.run(
+                    channel.id,
+                    displayName,
+                    iconUrl,
+                    url,
+                    sourceUrl
+                );
+                this.knownChannelIds.add(channel.id);
+            }
+        });
+
+        insertMany(channels);
+    }
+
+    /**
+     * Insert a batch of programs
+     * Only inserts programs for known channels to avoid FK constraint failures
+     */
+    insertPrograms(programs: ParsedProgram[]): number {
+        let insertedCount = 0;
+
+        const insertMany = this.db.transaction((programs: ParsedProgram[]) => {
+            for (const prog of programs) {
+                // Skip if channel not known
+                if (!this.knownChannelIds.has(prog.channel)) continue;
+
+                const title = prog.title?.[0]?.value || 'Unknown';
+                const description = prog.desc?.[0]?.value || null;
+                const category = prog.category?.[0]?.value || null;
+                const iconUrl = prog.icon?.[0]?.src || null;
+                const rating = prog.rating?.[0]?.value || null;
+                const episodeNum = prog.episodeNum?.[0]?.value || null;
+
+                try {
+                    this.insertProgramStmt.run(
+                        prog.channel,
+                        prog.start,
+                        prog.stop,
+                        title,
+                        description,
+                        category,
+                        iconUrl,
+                        rating,
+                        episodeNum
+                    );
+                    insertedCount++;
+                } catch (err) {
+                    // Skip individual failures (e.g., FK constraint)
+                }
+            }
+        });
+
+        insertMany(programs);
+        return insertedCount;
+    }
+
+    /**
+     * Close the database connection
+     */
+    close(): void {
+        this.db.close();
+    }
+}
 
 /**
  * Parse XMLTV datetime format to ISO string
@@ -46,7 +258,6 @@ const PROGRAM_BATCH_SIZE = 1000;
 function parseXmltvDate(dateStr: string): string {
     if (!dateStr) return '';
 
-    // Extract date parts: 20231225060000 +0000
     const match = dateStr.match(
         /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?$/
     );
@@ -55,11 +266,9 @@ function parseXmltvDate(dateStr: string): string {
 
     const [, year, month, day, hour, minute, second, tz] = match;
 
-    // Build ISO string
     let isoString = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
 
     if (tz) {
-        // Convert +0000 to +00:00
         isoString += `${tz.slice(0, 3)}:${tz.slice(3)}`;
     } else {
         isoString += 'Z';
@@ -73,22 +282,31 @@ function parseXmltvDate(dateStr: string): string {
  */
 class StreamingEpgParser {
     private parser: SaxesParser;
-    private channels: EpgChannel[] = [];
-    private programs: EpgProgram[] = [];
+    private channels: ParsedChannel[] = [];
+    private programs: ParsedProgram[] = [];
     private totalChannels = 0;
     private totalPrograms = 0;
+    private skippedPrograms = 0;
+
+    // Cutoff time for filtering old programs (calculated once at start)
+    private readonly cutoffTime: Date;
 
     // Current element being parsed
-    private currentChannel: Partial<EpgChannel> | null = null;
-    private currentProgram: Partial<EpgProgram> | null = null;
+    private currentChannel: Partial<ParsedChannel> | null = null;
+    private currentProgram: Partial<ParsedProgram> | null = null;
     private currentTextContent = '';
     private currentLang = '';
 
     // For nested elements
     private elementStack: string[] = [];
 
-    constructor(private onChannelsBatch: (channels: EpgChannel[]) => void, private onProgramsBatch: (programs: EpgProgram[]) => void, private onProgress: (channels: number, programs: number) => void) {
+    constructor(
+        private onChannelsBatch: (channels: ParsedChannel[]) => void,
+        private onProgramsBatch: (programs: ParsedProgram[]) => void,
+        private onProgress: (channels: number, programs: number) => void
+    ) {
         this.parser = new SaxesParser();
+        this.cutoffTime = getProgramCutoffTime();
         this.setupParser();
     }
 
@@ -121,12 +339,8 @@ class StreamingEpgParser {
                         category: [],
                         date: '',
                         episodeNum: [],
-                        previouslyShown: [],
-                        subtitles: [],
                         icon: [],
                         rating: [],
-                        credits: [],
-                        audio: [],
                     };
                     break;
 
@@ -163,10 +377,8 @@ class StreamingEpgParser {
 
                 case 'rating':
                     if (this.currentProgram) {
-                        // Rating has system attribute, value comes as child <value> element
                         const system =
                             (tag.attributes['system'] as string) || '';
-                        // We'll complete this when we see the value element
                         this.currentProgram.rating!.push({ system, value: '' });
                     }
                     break;
@@ -203,8 +415,7 @@ class StreamingEpgParser {
                         if (text) this.currentChannel.url!.push(text);
                         break;
                     case 'channel':
-                        // Channel complete, add to batch
-                        this.channels.push(this.currentChannel as EpgChannel);
+                        this.channels.push(this.currentChannel as ParsedChannel);
                         this.totalChannels++;
                         this.currentChannel = null;
 
@@ -239,7 +450,6 @@ class StreamingEpgParser {
                         this.currentProgram.date = text;
                         break;
                     case 'value':
-                        // This is for rating value
                         if (
                             this.elementStack.includes('rating') &&
                             this.currentProgram.rating!.length > 0
@@ -257,14 +467,18 @@ class StreamingEpgParser {
                         }
                         break;
                     case 'programme':
-                        // Program complete, add to batch
-                        this.programs.push(this.currentProgram as EpgProgram);
-                        this.totalPrograms++;
-                        this.currentProgram = null;
+                        // Skip programs that have already ended
+                        if (isProgramExpired(this.currentProgram.stop!, this.cutoffTime)) {
+                            this.skippedPrograms++;
+                        } else {
+                            this.programs.push(this.currentProgram as ParsedProgram);
+                            this.totalPrograms++;
 
-                        if (this.programs.length >= PROGRAM_BATCH_SIZE) {
-                            this.flushPrograms();
+                            if (this.programs.length >= PROGRAM_BATCH_SIZE) {
+                                this.flushPrograms();
+                            }
                         }
+                        this.currentProgram = null;
                         break;
                 }
             }
@@ -298,20 +512,29 @@ class StreamingEpgParser {
         this.parser.write(chunk);
     }
 
-    finish(): { totalChannels: number; totalPrograms: number } {
+    finish(): { totalChannels: number; totalPrograms: number; skippedPrograms: number } {
         this.parser.close();
-        // Flush any remaining data
         this.flushChannels();
         this.flushPrograms();
+
+        if (this.skippedPrograms > 0) {
+            console.log(
+                loggerLabel,
+                `Skipped ${this.skippedPrograms} expired programs (ended more than ${SKIP_PROGRAMS_OLDER_THAN_HOURS}h ago)`
+            );
+        }
+
         return {
             totalChannels: this.totalChannels,
             totalPrograms: this.totalPrograms,
+            skippedPrograms: this.skippedPrograms,
         };
     }
 }
 
 /**
  * Fetches and parses EPG data from URL using streaming
+ * Inserts directly into SQLite to avoid blocking main thread
  */
 async function fetchAndParseEpgStreaming(url: string): Promise<void> {
     const isGzipped = url.endsWith('.gz');
@@ -321,90 +544,176 @@ async function fetchAndParseEpgStreaming(url: string): Promise<void> {
         `Fetching EPG from ${url} (gzipped: ${isGzipped})`
     );
 
-    const response = await fetch(url.trim());
+    // Create database connection in worker
+    const epgDb = new EpgDatabase();
 
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    try {
+        // Clear existing data for this source
+        console.log(loggerLabel, `Clearing existing data for ${url}`);
+        epgDb.clearSourceData(url);
 
-    if (!response.body) {
-        throw new Error('Response body is null');
-    }
+        const response = await fetch(url.trim());
 
-    const parser = new StreamingEpgParser(
-        (channels) => {
-            const response: WorkerResponse = {
-                type: 'EPG_CHANNELS_BATCH',
-                channels,
-            };
-            parentPort?.postMessage(response);
-        },
-        (programs) => {
-            const response: WorkerResponse = {
-                type: 'EPG_PROGRAMS_BATCH',
-                programs,
-            };
-            parentPort?.postMessage(response);
-        },
-        (totalChannels, totalPrograms) => {
-            const response: WorkerResponse = {
-                type: 'EPG_PROGRESS',
-                stats: { totalChannels, totalPrograms },
-            };
-            parentPort?.postMessage(response);
-        }
-    );
-
-    // Convert web stream to Node.js stream
-    const nodeStream = Readable.fromWeb(response.body as any);
-
-    return new Promise((resolve, reject) => {
-        let dataStream: Readable = nodeStream;
-
-        if (isGzipped) {
-            const gunzip = createGunzip();
-            dataStream = nodeStream.pipe(gunzip);
-
-            gunzip.on('error', (err) => {
-                console.error(loggerLabel, 'Gunzip error:', err);
-                reject(err);
-            });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        dataStream.on('data', (chunk: Buffer) => {
-            try {
-                parser.write(chunk.toString('utf-8'));
-            } catch (err) {
-                console.error(loggerLabel, 'Parse error:', err);
-                reject(err);
-            }
-        });
+        if (!response.body) {
+            throw new Error('Response body is null');
+        }
 
-        dataStream.on('end', () => {
-            try {
-                const stats = parser.finish();
-                console.log(
-                    loggerLabel,
-                    `Parsing complete: ${stats.totalChannels} channels, ${stats.totalPrograms} programs`
-                );
-
+        const parser = new StreamingEpgParser(
+            (channels) => {
+                // Insert channels directly into database
+                epgDb.insertChannels(channels, url);
+            },
+            (programs) => {
+                // Insert programs directly into database
+                epgDb.insertPrograms(programs);
+            },
+            (totalChannels, totalPrograms) => {
+                // Send progress to main thread (lightweight)
                 const response: WorkerResponse = {
-                    type: 'EPG_COMPLETE',
-                    url,
-                    stats,
+                    type: 'EPG_PROGRESS',
+                    stats: { totalChannels, totalPrograms },
                 };
                 parentPort?.postMessage(response);
-                resolve();
-            } catch (err) {
-                reject(err);
             }
-        });
+        );
 
-        dataStream.on('error', (err) => {
-            console.error(loggerLabel, 'Stream error:', err);
-            reject(err);
+        // Convert web stream to Node.js stream
+        const nodeStream = Readable.fromWeb(response.body as any);
+
+        return new Promise((resolve, reject) => {
+            let dataStream: Readable = nodeStream;
+
+            if (isGzipped) {
+                const gunzip = createGunzip();
+                dataStream = nodeStream.pipe(gunzip);
+
+                gunzip.on('error', (err) => {
+                    console.error(loggerLabel, 'Gunzip error:', err);
+                    epgDb.close();
+                    reject(err);
+                });
+            }
+
+            dataStream.on('data', (chunk: Buffer) => {
+                try {
+                    parser.write(chunk.toString('utf-8'));
+                } catch (err) {
+                    console.error(loggerLabel, 'Parse error:', err);
+                    epgDb.close();
+                    reject(err);
+                }
+            });
+
+            dataStream.on('end', () => {
+                try {
+                    const stats = parser.finish();
+                    console.log(
+                        loggerLabel,
+                        `Parsing complete: ${stats.totalChannels} channels, ${stats.totalPrograms} programs` +
+                            (stats.skippedPrograms > 0
+                                ? ` (skipped ${stats.skippedPrograms} expired)`
+                                : '')
+                    );
+
+                    // Close database connection
+                    epgDb.close();
+
+                    const response: WorkerResponse = {
+                        type: 'EPG_COMPLETE',
+                        url,
+                        stats: {
+                            totalChannels: stats.totalChannels,
+                            totalPrograms: stats.totalPrograms,
+                        },
+                    };
+                    parentPort?.postMessage(response);
+                    resolve();
+                } catch (err) {
+                    epgDb.close();
+                    reject(err);
+                }
+            });
+
+            dataStream.on('error', (err) => {
+                console.error(loggerLabel, 'Stream error:', err);
+                epgDb.close();
+                reject(err);
+            });
         });
-    });
+    } catch (error) {
+        epgDb.close();
+        throw error;
+    }
+}
+
+/**
+ * Clears all EPG data from the database
+ * Runs in worker thread to avoid blocking main thread
+ */
+function clearAllEpgData(): void {
+    const dbPath = getDatabasePath();
+    const db = new Database(dbPath);
+
+    try {
+        console.log(loggerLabel, 'Clearing all EPG data...');
+
+        // Delete programs first (foreign key constraint)
+        db.exec('DELETE FROM epg_programs');
+        // Then delete channels
+        db.exec('DELETE FROM epg_channels');
+
+        console.log(loggerLabel, 'All EPG data cleared');
+
+        const response: WorkerResponse = { type: 'CLEAR_COMPLETE' };
+        parentPort?.postMessage(response);
+    } catch (error) {
+        console.error(loggerLabel, 'Error clearing EPG data:', error);
+        const errorResponse: WorkerResponse = {
+            type: 'EPG_ERROR',
+            error: error instanceof Error ? error.message : String(error),
+        };
+        parentPort?.postMessage(errorResponse);
+    } finally {
+        db.close();
+    }
+}
+
+/**
+ * Cleans up expired EPG programs from the database
+ * Runs in worker thread to avoid blocking main thread
+ */
+function cleanupExpiredPrograms(hoursToKeep: number): void {
+    const dbPath = getDatabasePath();
+    const db = new Database(dbPath);
+
+    try {
+        const cutoff = new Date(
+            Date.now() - hoursToKeep * 60 * 60 * 1000
+        ).toISOString();
+
+        console.log(loggerLabel, `Cleaning up programs older than ${hoursToKeep}h (before ${cutoff})...`);
+
+        const stmt = db.prepare('DELETE FROM epg_programs WHERE stop <= ?');
+        const result = stmt.run(cutoff);
+
+        console.log(loggerLabel, `Cleaned up ${result.changes} expired programs`);
+
+        const response: WorkerResponse = { type: 'CLEANUP_COMPLETE' };
+        parentPort?.postMessage(response);
+    } catch (error) {
+        console.error(loggerLabel, 'Error cleaning up expired programs:', error);
+        const errorResponse: WorkerResponse = {
+            type: 'EPG_ERROR',
+            error: error instanceof Error ? error.message : String(error),
+        };
+        parentPort?.postMessage(errorResponse);
+    } finally {
+        db.close();
+    }
 }
 
 /**
@@ -417,7 +726,11 @@ if (parentPort) {
                 message.type === 'FETCH_EPG' ||
                 message.type === 'FORCE_FETCH'
             ) {
-                await fetchAndParseEpgStreaming(message.url);
+                await fetchAndParseEpgStreaming(message.url!);
+            } else if (message.type === 'CLEAR_EPG') {
+                clearAllEpgData();
+            } else if (message.type === 'CLEANUP_EXPIRED') {
+                cleanupExpiredPrograms(message.hoursToKeep ?? 24);
             }
         } catch (error) {
             console.error(loggerLabel, 'Worker error:', error);

@@ -57,6 +57,15 @@ declare global {
             forceFetchEpg: (
                 url: string
             ) => Promise<{ success: boolean; message?: string }>;
+            clearEpgData: () => Promise<{ success: boolean }>;
+            checkEpgFreshness: (
+                urls: string[],
+                maxAgeHours?: number
+            ) => Promise<{ staleUrls: string[]; freshUrls: string[] }>;
+            searchEpgPrograms: (
+                searchTerm: string,
+                limit?: number
+            ) => Promise<any[]>;
             updateSettings: (settings: any) => Promise<void>;
             setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
             setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;
@@ -173,6 +182,16 @@ declare global {
                 }) => void
             ) => void;
             getLocalIpAddresses: () => Promise<string[]>;
+            // EPG progress listener
+            onEpgProgress?: (
+                callback: (data: {
+                    url: string;
+                    status: 'loading' | 'complete' | 'error';
+                    stats?: { totalChannels: number; totalPrograms: number };
+                    error?: string;
+                }) => void
+            ) => void;
+            dbDeleteAllPlaylists: () => Promise<{ success: boolean }>;
         };
         process: NodeJS.Process;
         require: NodeRequire;
