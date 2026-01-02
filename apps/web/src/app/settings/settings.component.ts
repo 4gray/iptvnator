@@ -386,6 +386,26 @@ export class SettingsComponent implements OnInit {
         this.settingsForm.markAsDirty();
     }
 
+    /**
+     * Clears all EPG data from database
+     */
+    clearEpgData(): void {
+        this.dialogService.openConfirmDialog({
+            title: this.translate.instant('SETTINGS.CLEAR_EPG_DIALOG.TITLE'),
+            message: this.translate.instant('SETTINGS.CLEAR_EPG_DIALOG.MESSAGE'),
+            onConfirm: async (): Promise<void> => {
+                if (window.electron?.clearEpgData) {
+                    await window.electron.clearEpgData();
+                    this.snackBar.open(
+                        this.translate.instant('SETTINGS.EPG_DATA_CLEARED'),
+                        null,
+                        { duration: 2000, horizontalPosition: 'start' }
+                    );
+                }
+            },
+        });
+    }
+
     exportData() {
         this.playlistsService
             .getAllData()

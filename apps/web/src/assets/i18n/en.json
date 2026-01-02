@@ -150,6 +150,12 @@
         "THEME": "Visual theme",
         "SHOW_CAPTIONS": "Show subtitles",
         "ADD_EPG_SOURCE": "Add EPG source",
+        "CLEAR_EPG_DATA": "Clear EPG data",
+        "CLEAR_EPG_DIALOG": {
+            "TITLE": "Clear EPG data",
+            "MESSAGE": "Are you sure you want to remove all EPG (Electronic Program Guide) data from the database? This will delete all cached program schedules."
+        },
+        "EPG_DATA_CLEARED": "EPG data has been cleared",
         "EPG_URL_ERROR": "The value is not a valid URL",
         "VIDEO_PLAYER_DESCRIPTION": "Select default video player",
         "STREAM_FORMAT_DESCRIPTION": "Select default stream format (xtream)",
@@ -238,12 +244,19 @@
             "PROGRAM_DETAILS": "Details about the TV program",
             "TITLE": "Title",
             "CATEGORY": "Category",
-            "PARENTAL_RATING_SYSTEM": "Television content rating system",
+            "PARENTAL_RATING_SYSTEM": "Rating",
             "DESCRIPTION": "Description",
             "LANGUAGE": "Language",
-            "SHOW_PROGRAM_DETAILS": "Show details about this program"
+            "SHOW_PROGRAM_DETAILS": "Show details about this program",
+            "EPISODE": "Episode",
+            "DURATION": "Duration"
         },
-        "FETCH_SUCCESS": "EPG was fetched successfully"
+        "FETCH_SUCCESS": "EPG was fetched successfully",
+        "IMPORT_PROGRESS": "EPG Import",
+        "CHANNELS": "channels",
+        "PROGRAMS": "programs",
+        "LOADING": "Loading",
+        "QUEUED": "Queued"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

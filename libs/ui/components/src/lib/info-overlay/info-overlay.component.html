@@ -9,7 +9,7 @@
             <div class="epg-layout">
                 <div class="channel-logo">
                     <img
-                        [src]="epgProgram?.icon?.[0]?.src || channel?.tvg?.logo"
+                        [src]="epgProgram?.iconUrl || channel?.tvg?.logo"
                         onerror="this.style.display='none'"
                         alt="channel icon"
                     />
@@ -17,15 +17,15 @@
                 <div class="content">
                     <div class="content-header">
                         <div class="program-title">
-                            {{ epgProgram?.title?.[0]?.value }}
+                            {{ epgProgram?.title }}
                         </div>
                         <div class="channel-name">
                             {{ channel.name }}
                         </div>
                     </div>
-                    @if (epgProgram?.desc?.[0]?.value) {
+                    @if (epgProgram?.desc) {
                         <div class="program-description">
-                            {{ epgProgram?.desc?.[0]?.value }}
+                            {{ epgProgram?.desc }}
                         </div>
                     }
                     <div class="program-timeline">

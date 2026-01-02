@@ -16,8 +16,7 @@
             <div class="program-name">
                 {{
                     playingNow
-                        ? (playingNow.title?.[0]?.value || 'EPG.LIVE_STREAM'
-                          | translate)
+                        ? (playingNow.title || 'EPG.LIVE_STREAM' | translate)
                         : ('EPG.LIVE_STREAM' | translate)
                 }}
             </div>
@@ -64,7 +63,7 @@
                             />
                         </div>
                         <div class="program-title">
-                            {{ program?.title?.[0]?.value }}
+                            {{ program?.title }}
                         </div>
                         @if (isProgramPlaying(program)) {
                             <div class="program-progress">
@@ -101,7 +100,7 @@
                         </div>
                         <div
                             class="program-title"
-                            [innerHTML]="program.title?.[0]?.value"
+                            [innerHTML]="program.title"
                         ></div>
                         @if (isProgramPlaying(program)) {
                             <div class="program-progress">

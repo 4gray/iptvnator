@@ -1,13 +1,300 @@
-.subheading-2 {
-    color: #666;
-    text-decoration: underline;
-    text-transform: uppercase;
-    font-weight: 900;
-    font-size: 0.9em;
+// Broadcast control room palette
+$bg-deep: #0a0a0f;
+$bg-surface: #12121a;
+$bg-elevated: #1a1a24;
+$accent-cyan: #00d4aa;
+$accent-purple: #8b5cf6;
+$text-primary: #f8fafc;
+$text-secondary: rgba(248, 250, 252, 0.7);
+$text-muted: rgba(248, 250, 252, 0.4);
+$border-subtle: rgba(255, 255, 255, 0.08);
+
+.program-dialog {
+    background: linear-gradient(180deg, $bg-surface 0%, $bg-deep 100%);
+    color: $text-primary;
+    min-width: 380px;
+    max-width: 480px;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+
+    // Ambient glow effect
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 120px;
+        background: radial-gradient(
+            ellipse at top center,
+            rgba($accent-cyan, 0.12) 0%,
+            transparent 70%
+        );
+        pointer-events: none;
+    }
 }
 
-::ng-deep {
-    .dark-theme .subheading-2 {
-        color: #bdbdbd;
+// Header with time and channel
+.program-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 24px 24px 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.time-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.time-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+
+    .time-start {
+        color: $accent-cyan;
+        text-shadow: 0 0 20px rgba($accent-cyan, 0.4);
+    }
+
+    .time-separator {
+        color: $text-muted;
+        font-weight: 300;
+    }
+
+    .time-end {
+        color: $text-secondary;
+    }
+}
+
+.date-display {
+    font-size: 13px;
+    color: $text-muted;
+    letter-spacing: 0.02em;
+}
+
+.channel-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgba($accent-purple, 0.15);
+    border: 1px solid rgba($accent-purple, 0.3);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: $text-primary;
+
+    .channel-icon {
+        font-size: 14px;
+    }
+
+    .channel-name {
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+// Title section
+.program-title-section {
+    padding: 0 24px 20px;
+    border-bottom: 1px solid $border-subtle;
+}
+
+.program-title {
+    margin: 0 0 12px;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: $text-primary;
+    letter-spacing: -0.01em;
+}
+
+.category-tag {
+    display: inline-block;
+    padding: 6px 12px;
+    background: rgba($accent-cyan, 0.1);
+    border: 1px solid rgba($accent-cyan, 0.25);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: $accent-cyan;
+}
+
+// Content section
+.program-content {
+    padding: 20px 24px;
+}
+
+.program-description {
+    margin: 0 0 24px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: $text-secondary;
+}
+
+// Meta grid
+.meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px;
+}
+
+.meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px solid $border-subtle;
+}
+
+.meta-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: $text-muted;
+}
+
+.meta-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: $text-primary;
+
+    &.rating {
+        color: $accent-purple;
+    }
+}
+
+// Footer
+.program-footer {
+    padding: 16px 24px 24px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.close-button {
+    padding: 10px 24px;
+    background: transparent;
+    border: 1px solid rgba($accent-cyan, 0.4);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: $accent-cyan;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: rgba($accent-cyan, 0.1);
+        border-color: $accent-cyan;
+        box-shadow: 0 0 20px rgba($accent-cyan, 0.2);
+    }
+}
+
+// Override Material dialog styling
+::ng-deep .mat-mdc-dialog-container {
+    --mdc-dialog-container-color: transparent;
+    --mdc-dialog-container-shape: 16px;
+
+    .mdc-dialog__surface {
+        background: transparent !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6),
+                    0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+    }
+}
+
+// Light theme adjustments
+::ng-deep .light-theme {
+    .program-dialog {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        color: #1e293b;
+
+        &::before {
+            background: radial-gradient(
+                ellipse at top center,
+                rgba(#059669, 0.08) 0%,
+                transparent 70%
+            );
+        }
+    }
+
+    .time-display {
+        .time-start {
+            color: #059669;
+            text-shadow: none;
+        }
+        .time-end {
+            color: #64748b;
+        }
+    }
+
+    .date-display {
+        color: #94a3b8;
+    }
+
+    .channel-badge {
+        background: rgba(#7c3aed, 0.08);
+        border-color: rgba(#7c3aed, 0.2);
+        color: #1e293b;
+    }
+
+    .program-title {
+        color: #0f172a;
+    }
+
+    .program-title-section {
+        border-bottom-color: rgba(0, 0, 0, 0.06);
+    }
+
+    .category-tag {
+        background: rgba(#059669, 0.08);
+        border-color: rgba(#059669, 0.2);
+        color: #059669;
+    }
+
+    .program-description {
+        color: #475569;
+    }
+
+    .meta-item {
+        background: rgba(0, 0, 0, 0.02);
+        border-color: rgba(0, 0, 0, 0.06);
+    }
+
+    .meta-label {
+        color: #94a3b8;
+    }
+
+    .meta-value {
+        color: #1e293b;
+
+        &.rating {
+            color: #7c3aed;
+        }
+    }
+
+    .close-button {
+        border-color: rgba(#059669, 0.4);
+        color: #059669;
+
+        &:hover {
+            background: rgba(#059669, 0.08);
+            border-color: #059669;
+            box-shadow: none;
+        }
     }
 }
