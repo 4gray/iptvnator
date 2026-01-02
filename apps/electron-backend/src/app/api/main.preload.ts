@@ -17,6 +17,17 @@ contextBridge.exposeInMainWorld('electron', {
     ) => {
         ipcRenderer.on('player-error', (_event, data) => callback(data));
     },
+    // EPG progress listener
+    onEpgProgress: (
+        callback: (data: {
+            url: string;
+            status: 'loading' | 'complete' | 'error';
+            stats?: { totalChannels: number; totalPrograms: number };
+            error?: string;
+        }) => void
+    ) => {
+        ipcRenderer.on('EPG_PROGRESS_UPDATE', (_event, data) => callback(data));
+    },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     platform: process.platform,
     fetchPlaylistByUrl: (url: string, title?: string) =>
@@ -72,6 +83,11 @@ contextBridge.exposeInMainWorld('electron', {
     getEpgChannelsByRange: (skip: number, limit: number) =>
         ipcRenderer.invoke('EPG_GET_CHANNELS_BY_RANGE', { skip, limit }),
     forceFetchEpg: (url: string) => ipcRenderer.invoke('EPG_FORCE_FETCH', url),
+    clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),
+    checkEpgFreshness: (urls: string[], maxAgeHours?: number) =>
+        ipcRenderer.invoke('EPG_CHECK_FRESHNESS', { urls, maxAgeHours }),
+    searchEpgPrograms: (searchTerm: string, limit?: number) =>
+        ipcRenderer.invoke('EPG_DB_SEARCH_PROGRAMS', searchTerm, limit),
     setMpvPlayerPath: (mpvPlayerPath: string) =>
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
     setVlcPlayerPath: (vlcPlayerPath: string) =>

@@ -1,42 +1,63 @@
-<h2 mat-dialog-title>
-    {{ 'EPG.PROGRAM_DIALOG.PROGRAM_DETAILS' | translate }}
-</h2>
-<mat-dialog-content class="mat-typography">
-    @if (epgProgram?.title?.length > 0) {
-        <div class="subheading-2">
-            {{ 'EPG.PROGRAM_DIALOG.TITLE' | translate }}
+<div class="program-dialog">
+    <!-- Header with channel and time -->
+    <header class="program-header">
+        <div class="time-block">
+            <div class="time-display">
+                <span class="time-start">{{ formatTime(epgProgram.start) }}</span>
+                <span class="time-separator">—</span>
+                <span class="time-end">{{ formatTime(epgProgram.stop) }}</span>
+            </div>
+            <div class="date-display">{{ formatDate(epgProgram.start) }}</div>
         </div>
-        <p data-test="title">{{ epgProgram.title[0]?.value }}</p>
-        @if (epgProgram.title[0].lang) {
-            <div class="subheading-2">
-                {{ 'EPG.PROGRAM_DIALOG.LANGUAGE' | translate }}
+        @if (channelName) {
+            <div class="channel-badge">
+                <span class="channel-icon">📺</span>
+                <span class="channel-name">{{ channelName }}</span>
             </div>
         }
-        <p data-test="lang">{{ epgProgram.title[0].lang }}</p>
-    }
-    @if (epgProgram?.category?.length > 0) {
-        <div class="subheading-2">
-            {{ 'EPG.PROGRAM_DIALOG.CATEGORY' | translate }}
+    </header>
+
+    <!-- Title section -->
+    <div class="program-title-section">
+        <h1 class="program-title">{{ epgProgram.title }}</h1>
+        @if (epgProgram.category) {
+            <span class="category-tag">{{ epgProgram.category }}</span>
+        }
+    </div>
+
+    <!-- Content -->
+    <div class="program-content">
+        @if (epgProgram.desc) {
+            <p class="program-description">{{ epgProgram.desc }}</p>
+        }
+
+        <!-- Meta info grid -->
+        <div class="meta-grid">
+            @if (epgProgram.episodeNum) {
+                <div class="meta-item">
+                    <span class="meta-label">{{ 'EPG.PROGRAM_DIALOG.EPISODE' | translate }}</span>
+                    <span class="meta-value">{{ epgProgram.episodeNum }}</span>
+                </div>
+            }
+            @if (epgProgram.rating) {
+                <div class="meta-item">
+                    <span class="meta-label">{{ 'EPG.PROGRAM_DIALOG.PARENTAL_RATING_SYSTEM' | translate }}</span>
+                    <span class="meta-value rating">{{ epgProgram.rating }}</span>
+                </div>
+            }
+            @if (duration) {
+                <div class="meta-item">
+                    <span class="meta-label">{{ 'EPG.PROGRAM_DIALOG.DURATION' | translate }}</span>
+                    <span class="meta-value">{{ duration }}</span>
+                </div>
+            }
         </div>
-        <p data-test="category">{{ epgProgram.category[0]?.value }}</p>
-    }
-    @if (epgProgram?.desc?.length > 0) {
-        <div class="subheading-2">
-            {{ 'EPG.PROGRAM_DIALOG.DESCRIPTION' | translate }}
-        </div>
-        <p data-test="desc">{{ epgProgram.desc[0]?.value }}</p>
-    }
-    @if (epgProgram?.rating?.length > 0) {
-        <div class="subheading-2">
-            {{ 'EPG.PROGRAM_DIALOG.PARENTAL_RATING_SYSTEM' | translate }}
-        </div>
-        <p data-test="rating">
-            {{ epgProgram.rating[0].value }} [{{ epgProgram.rating[0].system }}]
-        </p>
-    }
-</mat-dialog-content>
-<mat-dialog-actions align="end">
-    <button mat-button mat-dialog-close cdkFocusInitial color="accent">
-        {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
-    </button>
-</mat-dialog-actions>
+    </div>
+
+    <!-- Footer -->
+    <footer class="program-footer">
+        <button class="close-button" mat-dialog-close>
+            {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
+        </button>
+    </footer>
+</div>

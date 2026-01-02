@@ -123,6 +123,51 @@ export const favorites = sqliteTable(
     })
 );
 
+// EPG Channels table
+export const epgChannels = sqliteTable(
+    'epg_channels',
+    {
+        id: text('id').primaryKey(), // Channel ID from EPG source
+        displayName: text('display_name').notNull(),
+        iconUrl: text('icon_url'),
+        url: text('url'),
+        sourceUrl: text('source_url').notNull(), // Which EPG URL this came from
+        updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+    },
+    (table) => ({
+        sourceIdx: index('idx_epg_channels_source').on(table.sourceUrl),
+        nameIdx: index('idx_epg_channels_name').on(table.displayName),
+    })
+);
+
+// EPG Programs table
+export const epgPrograms = sqliteTable(
+    'epg_programs',
+    {
+        id: integer('id').primaryKey({ autoIncrement: true }),
+        channelId: text('channel_id')
+            .notNull()
+            .references(() => epgChannels.id, { onDelete: 'cascade' }),
+        start: text('start').notNull(), // ISO datetime
+        stop: text('stop').notNull(), // ISO datetime
+        title: text('title').notNull(),
+        description: text('description'),
+        category: text('category'),
+        iconUrl: text('icon_url'),
+        rating: text('rating'),
+        episodeNum: text('episode_num'),
+    },
+    (table) => ({
+        channelIdx: index('idx_epg_programs_channel').on(table.channelId),
+        startIdx: index('idx_epg_programs_start').on(table.start),
+        timeRangeIdx: index('idx_epg_programs_time_range').on(
+            table.channelId,
+            table.start,
+            table.stop
+        ),
+    })
+);
+
 // Type exports for TypeScript
 export type Playlist = typeof playlists.$inferSelect;
 export type NewPlaylist = typeof playlists.$inferInsert;
@@ -138,3 +183,9 @@ export type NewRecentlyViewed = typeof recentlyViewed.$inferInsert;
 
 export type Favorite = typeof favorites.$inferSelect;
 export type NewFavorite = typeof favorites.$inferInsert;
+
+export type EpgChannel = typeof epgChannels.$inferSelect;
+export type NewEpgChannel = typeof epgChannels.$inferInsert;
+
+export type EpgProgramDb = typeof epgPrograms.$inferSelect;
+export type NewEpgProgramDb = typeof epgPrograms.$inferInsert;

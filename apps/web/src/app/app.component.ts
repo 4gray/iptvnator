@@ -100,13 +100,13 @@ export class AppComponent implements OnInit {
 
                     this.translate.use(settings.language ?? this.DEFAULT_LANG);
 
-                    // Fetch EPG if URLs are configured
+                    // Fetch EPG if URLs are configured (only fetch stale data)
                     if (
                         window.electron &&
                         settings.epgUrl?.length > 0 &&
                         settings.epgUrl?.some((u) => u !== '')
                     ) {
-                        this.epgService.fetchEpg(settings.epgUrl);
+                        this.fetchStaleEpgData(settings.epgUrl);
                     }
 
                     if (settings.theme) {
@@ -163,6 +163,33 @@ export class AppComponent implements OnInit {
             hasBackdrop: true,
             disableClose: false,
         });
+    }
+
+    /**
+     * Fetches EPG data only for URLs that have stale or missing data.
+     * Data is considered fresh if updated within the last 12 hours.
+     */
+    private async fetchStaleEpgData(urls: string[]): Promise<void> {
+        try {
+            const result = await window.electron.checkEpgFreshness(urls, 12);
+
+            if (result.freshUrls.length > 0) {
+                console.log(
+                    `EPG: ${result.freshUrls.length} source(s) already fresh, skipping fetch`
+                );
+            }
+
+            if (result.staleUrls.length > 0) {
+                console.log(
+                    `EPG: Fetching ${result.staleUrls.length} stale source(s)`
+                );
+                this.epgService.fetchEpg(result.staleUrls);
+            }
+        } catch (error) {
+            console.error('Error checking EPG freshness, fetching all:', error);
+            // Fallback: fetch all URLs if freshness check fails
+            this.epgService.fetchEpg(urls);
+        }
     }
 
     /**

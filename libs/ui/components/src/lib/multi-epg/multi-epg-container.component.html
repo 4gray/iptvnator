@@ -14,7 +14,7 @@
     <mat-icon>chevron_left</mat-icon>
   </button>
   <div class="today-date">
-    {{ today | momentDate: 'YYYYMMDD' : 'MMMM Do, dddd' }}
+    {{ today() | momentDate: 'YYYYMMDD' : 'MMMM Do, dddd' }}
   </div>
   <button
     [matTooltip]="'EPG.NEXT_DAY' | translate"
@@ -23,16 +23,99 @@
     >
     <mat-icon>chevron_right</mat-icon>
   </button>
-  <button mat-icon-button (click)="zoomOut()" [disabled]="(hourWidth$ | async)! <= 50" matTooltip="Zoom out">
+  <button mat-icon-button (click)="zoomOut()" [disabled]="hourWidth() <= 50" matTooltip="Zoom out">
     <mat-icon>remove</mat-icon>
   </button>
-  <button mat-icon-button (click)="zoomIn()" [disabled]="(hourWidth$ | async)! >= 800" matTooltip="Zoom in">
+  <button mat-icon-button (click)="zoomIn()" [disabled]="hourWidth() >= 800" matTooltip="Zoom in">
     <mat-icon>add</mat-icon>
   </button>
+
+  <div class="search-container" [class.expanded]="isSearchExpanded()">
+    @if (isSearchExpanded()) {
+      <div class="channel-search">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input
+          type="text"
+          [value]="channelFilter()"
+          (input)="onFilterInput($event)"
+          placeholder="Filter channels..."
+          autocomplete="off"
+          #searchInput
+        />
+        @if (channelFilter()) {
+          <button class="clear-btn" (click)="clearFilter()">
+            <mat-icon>clear</mat-icon>
+          </button>
+        }
+      </div>
+      <span class="filter-count">{{ filteredChannels().length }} / {{ channels().length }}</span>
+    }
+    <button
+      mat-icon-button
+      (click)="toggleSearch()"
+      [matTooltip]="isSearchExpanded() ? 'Close filter' : 'Filter channels'"
+      >
+      <mat-icon>{{ isSearchExpanded() ? 'filter_list_off' : 'filter_list' }}</mat-icon>
+    </button>
+  </div>
+
+  <!-- Program Search -->
+  <div class="program-search-container" [class.open]="isProgramSearchOpen()">
+    @if (isProgramSearchOpen()) {
+      <div class="program-search-input">
+        <mat-icon class="search-icon">manage_search</mat-icon>
+        <input
+          type="text"
+          [value]="programSearchQuery()"
+          (input)="onProgramSearchInput($event)"
+          placeholder="Search programs..."
+          autocomplete="off"
+          #programSearchInput
+        />
+        @if (programSearchQuery()) {
+          <button class="clear-btn" (click)="clearProgramSearch()">
+            <mat-icon>clear</mat-icon>
+          </button>
+        }
+        @if (isSearchingPrograms()) {
+          <div class="search-spinner"></div>
+        }
+      </div>
+      @if (programSearchResults().length > 0) {
+        <div class="program-search-results">
+          @for (program of programSearchResults(); track $index) {
+            <button class="search-result-item" (click)="showProgramDetails(program)">
+              <div class="result-info">
+                <span class="result-title">{{ program.title }}</span>
+                <span class="result-meta">
+                  <span class="result-time">{{ formatProgramTime(program) }}</span>
+                  <span class="result-date">{{ formatProgramDate(program) }}</span>
+                </span>
+              </div>
+              <mat-icon class="result-arrow">arrow_forward</mat-icon>
+            </button>
+          }
+        </div>
+      }
+      @if (programSearchQuery().length >= 2 && programSearchResults().length === 0 && !isSearchingPrograms()) {
+        <div class="program-search-empty">
+          <mat-icon>search_off</mat-icon>
+          <span>No programs found</span>
+        </div>
+      }
+    }
+    <button
+      mat-icon-button
+      (click)="toggleProgramSearch()"
+      [matTooltip]="isProgramSearchOpen() ? 'Close program search' : 'Search programs'"
+      >
+      <mat-icon>{{ isProgramSearchOpen() ? 'close' : 'manage_search' }}</mat-icon>
+    </button>
+  </div>
 </div>
 <div class="parent" #epgContainer (scroll)="onScroll($event)">
-  <svg id="channels-column" [attr.height]="(channels$ | async)!.length * barHeight + barHeight + 50">
-    @for (item of channels$ | async; track item.id; let i = $index) {
+  <svg id="channels-column" [attr.height]="filteredChannels().length * barHeight + barHeight + 50">
+    @for (item of filteredChannels(); track item.id; let i = $index) {
       <g>
         <!-- channel name -->
         <g class="channel" [class.active]="item.id === activeChannelId">
@@ -62,20 +145,20 @@
       </g>
     }
   </svg>
-  <div id="epg-container" [style.height.px]="(channels$ | async)!.length * barHeight + barHeight + 50">
-    <svg [attr.width]="(hourWidth$ | async)! * 24" [attr.height]="(channels$ | async)!.length * barHeight + barHeight + 50" id="epg-svg">
+  <div id="epg-container" [style.height.px]="filteredChannels().length * barHeight + barHeight + 50">
+    <svg [attr.width]="hourWidth() * 24" [attr.height]="filteredChannels().length * barHeight + barHeight + 50" id="epg-svg">
       <!-- time headline -->
       @for (hour of timeHeader; track hour) {
         <g>
           <rect
             [matTooltip]="hour + ':00'"
-            [attr.width]="hourWidth$ | async"
+            [attr.width]="hourWidth()"
             [attr.height]="barHeight"
-            [attr.x]="hour * (hourWidth$ | async)!"
+            [attr.x]="hour * hourWidth()"
             fill="#000"
           ></rect>
           <text
-            [attr.x]="hour * (hourWidth$ | async)!"
+            [attr.x]="hour * hourWidth()"
             y="10"
             font-size="14"
             fill="white"
@@ -85,34 +168,35 @@
           </text>
           <!-- vertical hour separator line -->
           <line
-            [attr.x1]="hour * (hourWidth$ | async)!"
+            [attr.x1]="hour * hourWidth()"
             [attr.y1]="barHeight"
-            [attr.x2]="hour * (hourWidth$ | async)!"
-            [attr.y2]="(channels$ | async)!.length * barHeight + barHeight"
+            [attr.x2]="hour * hourWidth()"
+            [attr.y2]="filteredChannels().length * barHeight + barHeight"
             class="hour-separator"
           ></line>
         </g>
       }
 
       <!-- epg channels with programs -->
-      @for (item of channels$ | async; track item.id; let i = $index) {
+      @for (item of filteredChannels(); track item.id; let i = $index) {
         <g [class.active-row]="item.id === activeChannelId">
           @for (program of item.programs; track trackByProgram($index, program)) {
             <g
               [attr.transform]="'translate(' + program.startPosition + ',' + (barHeight * i + barHeight) + ')'"
               class="program"
+              [class.highlighted]="highlightedProgramKey() === getProgramKey(program)"
               (click)="showDescription(program)"
               >
               <rect
                 [attr.width]="program.width"
                 [attr.height]="barHeight"
-                [matTooltip]="program.title[0].value"
+                [matTooltip]="program.title"
               ></rect>
               <foreignObject
                 [attr.width]="program.width"
                 [attr.height]="barHeight"
                 >
-                <div class="program-title">{{ program.title[0]?.value }}</div>
+                <div class="program-title">{{ program.title }}</div>
               </foreignObject>
             </g>
           }
@@ -121,13 +205,22 @@
 
       <!-- current time line -->
       <line
-        [attr.x1]="currentTimeLine"
+        [attr.x1]="currentTimeLine()"
         y1="0"
-        [attr.x2]="currentTimeLine"
-        [attr.y2]="(channels$ | async)!.length * barHeight + barHeight"
+        [attr.x2]="currentTimeLine()"
+        [attr.y2]="filteredChannels().length * barHeight + barHeight"
         stroke="red"
         stroke-width="2"
       ></line>
     </svg>
   </div>
 </div>
+
+<!-- Empty state when no channels match filter -->
+@if (filteredChannels().length === 0 && channelFilter()) {
+  <div class="no-results">
+    <mat-icon>search_off</mat-icon>
+    <p>No channels match "{{ channelFilter() }}"</p>
+    <button mat-button (click)="clearFilter()">Clear filter</button>
+  </div>
+}

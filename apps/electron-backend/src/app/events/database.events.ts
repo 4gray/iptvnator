@@ -7,6 +7,7 @@ import { ipcMain } from 'electron';
 
 import './database/category.events';
 import './database/content.events';
+import './database/epg-db.events';
 import './database/favorites.events';
 import './database/playlist.events';
 import './database/recently-viewed.events';

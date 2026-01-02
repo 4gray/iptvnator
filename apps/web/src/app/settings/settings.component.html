@@ -76,6 +76,14 @@
                         >
                             {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
                         </button>
+                        <button
+                            mat-button
+                            color="warn"
+                            type="button"
+                            (click)="clearEpgData()"
+                        >
+                            {{ 'SETTINGS.CLEAR_EPG_DATA' | translate }}
+                        </button>
                     </div>
                 </div>
                 <mat-divider />

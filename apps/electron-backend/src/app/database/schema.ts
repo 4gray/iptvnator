@@ -10,6 +10,8 @@ export {
   content,
   recentlyViewed,
   favorites,
+  epgChannels,
+  epgPrograms,
   // Types
   type Playlist,
   type NewPlaylist,
@@ -21,5 +23,9 @@ export {
   type NewRecentlyViewed,
   type Favorite,
   type NewFavorite,
+  type EpgChannel,
+  type NewEpgChannel,
+  type EpgProgramDb,
+  type NewEpgProgramDb,
 } from 'database';
 

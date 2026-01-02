@@ -12,6 +12,11 @@ const nodeBuiltins = [
     'v8', 'vm', 'worker_threads', 'zlib'
 ];
 
+// Native modules that must be externalized (loaded at runtime)
+const nativeModules = [
+    'better-sqlite3',
+];
+
 const isProduction = process.env.NODE_ENV === 'production';
 
 async function buildWorker() {
@@ -25,12 +30,17 @@ async function buildWorker() {
             target: 'node18',
             format: 'cjs',
             outfile: path.join(__dirname, '../../dist/apps/electron-backend/workers/epg-parser.worker.js'),
-            external: nodeBuiltins.map(m => `node:${m}`).concat(nodeBuiltins),
+            external: [
+                ...nodeBuiltins.map(m => `node:${m}`),
+                ...nodeBuiltins,
+                ...nativeModules,
+            ],
             sourcemap: !isProduction,
             minify: isProduction,
             // Resolve workspace libraries from tsconfig paths
             alias: {
                 'shared-interfaces': path.join(__dirname, '../../libs/shared/interfaces/src/index.ts'),
+                'database': path.join(__dirname, '../../libs/shared/database/src/index.ts'),
             },
         });
 

@@ -105,6 +105,57 @@ const CREATE_TABLE_STATEMENTS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS recently_viewed_content_playlist_unique ON recently_viewed(content_id, playlist_id)`,
   `CREATE INDEX IF NOT EXISTS recently_viewed_playlist_idx ON recently_viewed(playlist_id)`,
   `CREATE INDEX IF NOT EXISTS recently_viewed_viewed_at_idx ON recently_viewed(viewed_at)`,
+  // EPG tables
+  `CREATE TABLE IF NOT EXISTS epg_channels (
+      id TEXT PRIMARY KEY,
+      display_name TEXT NOT NULL,
+      icon_url TEXT,
+      url TEXT,
+      source_url TEXT NOT NULL,
+      updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS epg_programs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_id TEXT NOT NULL,
+      start TEXT NOT NULL,
+      stop TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      category TEXT,
+      icon_url TEXT,
+      rating TEXT,
+      episode_num TEXT,
+      FOREIGN KEY (channel_id) REFERENCES epg_channels(id) ON DELETE CASCADE
+  )`,
+  // EPG indexes
+  `CREATE INDEX IF NOT EXISTS idx_epg_channels_source ON epg_channels(source_url)`,
+  `CREATE INDEX IF NOT EXISTS idx_epg_channels_name ON epg_channels(display_name)`,
+  `CREATE INDEX IF NOT EXISTS idx_epg_programs_channel ON epg_programs(channel_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_epg_programs_start ON epg_programs(start)`,
+  `CREATE INDEX IF NOT EXISTS idx_epg_programs_time_range ON epg_programs(channel_id, start, stop)`,
+  // FTS5 virtual table for full-text search on EPG programs
+  `CREATE VIRTUAL TABLE IF NOT EXISTS epg_programs_fts USING fts5(
+      title,
+      description,
+      category,
+      content='epg_programs',
+      content_rowid='id'
+  )`,
+  // Triggers to keep FTS index in sync with epg_programs table
+  `CREATE TRIGGER IF NOT EXISTS epg_programs_ai AFTER INSERT ON epg_programs BEGIN
+      INSERT INTO epg_programs_fts(rowid, title, description, category)
+      VALUES (new.id, new.title, new.description, new.category);
+  END`,
+  `CREATE TRIGGER IF NOT EXISTS epg_programs_ad AFTER DELETE ON epg_programs BEGIN
+      INSERT INTO epg_programs_fts(epg_programs_fts, rowid, title, description, category)
+      VALUES ('delete', old.id, old.title, old.description, old.category);
+  END`,
+  `CREATE TRIGGER IF NOT EXISTS epg_programs_au AFTER UPDATE ON epg_programs BEGIN
+      INSERT INTO epg_programs_fts(epg_programs_fts, rowid, title, description, category)
+      VALUES ('delete', old.id, old.title, old.description, old.category);
+      INSERT INTO epg_programs_fts(rowid, title, description, category)
+      VALUES (new.id, new.title, new.description, new.category);
+  END`,
 ];
 
 /**
