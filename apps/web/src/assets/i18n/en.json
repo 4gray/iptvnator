@@ -265,7 +265,10 @@
         "CHANNELS": "channels",
         "PROGRAMS": "programs",
         "LOADING": "Loading",
-        "QUEUED": "Queued"
+        "QUEUED": "Queued",
+        "TOTAL_CHANNELS": "Total channels",
+        "TOTAL_PROGRAMS": "Total programs",
+        "UP_TO_DATE": "EPG is up-to-date, no sync needed"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

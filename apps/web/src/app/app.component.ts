@@ -1,5 +1,6 @@
 import { Component, HostBinding, inject, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
@@ -16,13 +17,14 @@ import {
     Theme,
 } from 'shared-interfaces';
 import { SettingsService } from './services/settings.service';
+import { EpgProgressPanelComponent } from './shared/epg-progress-panel/epg-progress-panel.component';
 import { RecentlyViewedComponent } from './xtream-tauri/recently-viewed/recently-viewed.component';
 import { SearchResultsComponent } from './xtream-tauri/search-results/search-results.component';
 
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
-    imports: [RouterOutlet],
+    imports: [EpgProgressPanelComponent, RouterOutlet],
 })
 export class AppComponent implements OnInit {
     @HostBinding('class.macos-platform') get isMacOS() {
@@ -34,6 +36,7 @@ export class AppComponent implements OnInit {
     private dataService = inject(DataService);
     private dialog = inject(MatDialog);
     private epgService = inject(EpgService);
+    private snackBar = inject(MatSnackBar);
     private router = inject(Router);
     private store = inject(Store);
     private translate = inject(TranslateService);
@@ -62,7 +65,7 @@ export class AppComponent implements OnInit {
                 });
             }
         }
-        /* if (isTauri()) {
+        if (window.electron) {
             document.addEventListener('keydown', (event) => {
                 if (event.ctrlKey || event.metaKey) {
                     if (event.key === 'f') {
@@ -74,7 +77,7 @@ export class AppComponent implements OnInit {
                     }
                 }
             });
-        } */
+        }
     }
 
     ngOnInit() {
@@ -177,6 +180,14 @@ export class AppComponent implements OnInit {
                 console.log(
                     `EPG: ${result.freshUrls.length} source(s) already fresh, skipping fetch`
                 );
+                // Show snackbar if all EPG sources are fresh (no stale URLs)
+                if (result.staleUrls.length === 0) {
+                    this.snackBar.open(
+                        this.translate.instant('EPG.UP_TO_DATE'),
+                        this.translate.instant('CLOSE'),
+                        { duration: 3000 }
+                    );
+                }
             }
 
             if (result.staleUrls.length > 0) {
