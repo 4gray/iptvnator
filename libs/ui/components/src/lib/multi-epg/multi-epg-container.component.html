@@ -14,7 +14,7 @@
     <mat-icon>chevron_left</mat-icon>
   </button>
   <div class="today-date">
-    {{ today() | momentDate: 'YYYYMMDD' : 'MMMM Do, dddd' }}
+    {{ today() | momentDate: 'MMMM Do, dddd' : 'YYYYMMDD' }}
   </div>
   <button
     [matTooltip]="'EPG.NEXT_DAY' | translate"
