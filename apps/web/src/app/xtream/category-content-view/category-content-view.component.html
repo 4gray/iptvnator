@@ -6,26 +6,21 @@
                 | sortBy: sortType();
             track $index
         ) {
+            @let imgSrc = item.stream_icon || item.cover || item.logo;
             <mat-card (click)="itemClicked.emit(item)">
                 <mat-card-content>
-                    @if (item.stream_icon || item.cover || item.logo) {
+                    @if (imgSrc) {
                         <img
                             class="stream-icon"
-                            [ngSrc]="
-                                item.stream_icon || item.cover || item.logo
-                            "
-                            fill
-                            priority
-                            placeholder
-                            placeholder="data:image/png;base64,iVBORw0K..."
+                            [src]="imgSrc"
                             (error)="
                                 $event.target.src =
                                     './assets/images/default-poster.png'
                             "
+                            loading="lazy"
                             alt="channel logo"
                         />
-                    }
-                    @if (!item.stream_icon && !item.cover && !item.logo) {
+                    } @else {
                         <div class="stream-icon-placeholder"></div>
                     }
                     @if (item.rating || item.rating_imdb) {
