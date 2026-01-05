@@ -1,99 +1,76 @@
 @let item = selectedItem();
 @if (item?.info) {
-    <div
-        class="container"
-        [style.background]="
-            item.info?.backdrop_path && item.info.backdrop_path.length > 0
-                ? 'linear-gradient(to top, rgba(29,29,29,1) 0%, rgba(0,0,0,0.5) 100%), url(' +
-                  item.info.backdrop_path[0] +
-                  ') repeat-x'
-                : 'none'
-        "
+    <!-- Hero Section with Backdrop -->
+    <app-content-hero
+        [title]="item.info?.name"
+        [description]="item.info?.plot"
+        [posterUrl]="item.info?.cover"
+        [backdropUrl]="item.info?.backdrop_path?.[0]"
+        (backClicked)="goBack()"
     >
-        <div class="image">
-            @if (item.info?.cover) {
-                <img
-                    [src]="item.info.cover"
-                    (error)="
-                        $event.target.src = './assets/images/default-poster.png'
-                    "
-                />
-            }
-        </div>
-        <div class="details">
-            <h2>{{ item.info?.name }}</h2>
-            @if (item.info?.plot) {
-                <label>
-                    {{ item.info.plot }}
-                </label>
-            }
+        <!-- Tags: Year, Genre, Episode Runtime, Rating -->
+        <ng-container hero-tags>
             @if (item.info?.releaseDate) {
-                <label>
-                    <div class="label">
-                        {{ 'XTREAM.RELEASE_DATE' | translate }}:
-                    </div>
-                    {{ item.info.releaseDate }}
-                </label>
+                <span class="details__tag">{{
+                    item.info.releaseDate | slice: 0 : 4
+                }}</span>
             }
             @if (item.info?.genre) {
-                <label>
-                    <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
-                    {{ item.info.genre }}
-                </label>
+                <span class="details__tag">{{ item.info.genre }}</span>
+            }
+            @if (item.info?.episode_run_time) {
+                <span class="details__tag"
+                    >{{ item.info.episode_run_time }} min/ep</span
+                >
             }
             @if (item.info?.rating) {
-                <label>
-                    <div class="label">{{ 'XTREAM.RATING' | translate }}:</div>
-                    {{ item.info?.rating }}
-                </label>
+                <span class="details__tag details__tag--rating">
+                    ⭐ {{ item.info.rating }}
+                </span>
             }
+        </ng-container>
+
+        <!-- Metadata Grid -->
+        <ng-container hero-meta>
             @if (item.info?.cast) {
-                <div>
-                    <div class="label">{{ 'XTREAM.CAST' | translate }}:</div>
-                    {{ item.info.cast }}
+                <div class="details__meta-item">
+                    <span class="label">{{ 'XTREAM.CAST' | translate }}</span>
+                    <span class="value">{{ item.info.cast }}</span>
                 </div>
             }
             @if (item.info?.director) {
-                <label>
-                    <div class="label">
-                        {{ 'XTREAM.DIRECTOR' | translate }}:
-                    </div>
-                    {{ item.info.director }}
-                </label>
+                <div class="details__meta-item">
+                    <span class="label">{{
+                        'XTREAM.DIRECTOR' | translate
+                    }}</span>
+                    <span class="value">{{ item.info.director }}</span>
+                </div>
             }
-            @if (item.info?.episode_run_time) {
-                <label>
-                    <div class="label">
-                        {{ 'XTREAM.EPISODE_RUN_TIME' | translate }}:
-                    </div>
-                    {{ item.info.episode_run_time }}
-                </label>
+        </ng-container>
+
+        <!-- Action Buttons -->
+        <ng-container hero-actions>
+            @if (!isFavorite()) {
+                <button class="favorite-btn" (click)="toggleFavorite()">
+                    <mat-icon>add</mat-icon>
+                    {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
+                </button>
+            } @else {
+                <button
+                    class="favorite-btn favorite-btn--active"
+                    (click)="toggleFavorite()"
+                >
+                    <mat-icon>check</mat-icon>
+                    {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
+                </button>
             }
-            <div class="action-buttons">
-                @if (!isFavorite()) {
-                    <button
-                        mat-stroked-button
-                        color="accent"
-                        (click)="toggleFavorite()"
-                    >
-                        <mat-icon>star_outline</mat-icon>
-                        {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
-                    </button>
-                } @else {
-                    <button
-                        mat-flat-button
-                        color="accent"
-                        (click)="toggleFavorite()"
-                    >
-                        <mat-icon>star</mat-icon>
-                        {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
-                    </button>
-                }
-            </div>
-        </div>
+        </ng-container>
+
+        <!-- Seasons & Episodes -->
         <app-season-container
             [seasons]="item.episodes"
             (episodeClicked)="playEpisode($event)"
         />
-    </div>
+    </app-content-hero>
 }
+

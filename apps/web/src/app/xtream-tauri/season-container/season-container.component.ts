@@ -1,15 +1,13 @@
 import { KeyValuePipe } from '@angular/common';
 import { Component, EventEmitter, Output, input } from '@angular/core';
-import { MatButton } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
-import { XtreamSerieEpisode } from 'shared-interfaces';
+import { XtreamSerieEpisode, XtreamSerieEpisodeInfo } from 'shared-interfaces';
 
 @Component({
     selector: 'app-season-container',
     templateUrl: './season-container.component.html',
     styleUrls: ['./season-container.component.scss'],
-    imports: [KeyValuePipe, MatCardModule, MatIcon, MatButton],
+    imports: [KeyValuePipe, MatIcon],
 })
 export class SeasonContainerComponent {
     readonly seasons = input.required<Record<string, XtreamSerieEpisode[]>>();
@@ -28,5 +26,18 @@ export class SeasonContainerComponent {
 
     selectEpisode(episode: XtreamSerieEpisode) {
         this.episodeClicked.emit(episode);
+    }
+
+    /**
+     * Safely get episode info - returns undefined if info is an empty array
+     * (Xtream API returns [] when no metadata available instead of null/object)
+     */
+    getEpisodeInfo(
+        episode: XtreamSerieEpisode
+    ): XtreamSerieEpisodeInfo | undefined {
+        if (Array.isArray(episode.info) || !episode.info) {
+            return undefined;
+        }
+        return episode.info;
     }
 }

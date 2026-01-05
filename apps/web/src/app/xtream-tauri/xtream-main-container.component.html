@@ -13,21 +13,20 @@
 </div>
 
 <div class="main-content">
-    <div class="content-header">
-        <h2>
-            @if (xtreamStore.selectedItem()) {
-                <button mat-icon-button (click)="historyBack()">
-                    <mat-icon>chevron_left</mat-icon>
-                </button>
-            } @else {
+    @if (!xtreamStore.selectedItem()) {
+        <div class="content-header">
+            <h2>
                 <button mat-icon-button disabled>
                     <mat-icon>category</mat-icon>
                 </button>
-            }
-            {{ getContentLabel() }}
-        </h2>
-    </div>
-    <div class="scrollable-content">
+                {{ getContentLabel() }}
+            </h2>
+        </div>
+    }
+    <div
+        class="scrollable-content"
+        [class.no-header]="xtreamStore.selectedItem()"
+    >
         <router-outlet />
     </div>
     <!-- <app-mpv-player-bar /> -->

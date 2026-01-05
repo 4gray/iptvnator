@@ -2,25 +2,24 @@ import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { AsyncPipe } from '@angular/common';
 import { Component, effect, inject, input, output } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { PlaylistActions } from 'm3u-state';
+import { TranslateService } from '@ngx-translate/core';
 import {
+    PlaylistActions,
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from 'm3u-state';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
-import { BehaviorSubject, combineLatest, map, tap } from 'rxjs';
+import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { DatabaseService, DataService, SortService } from 'services';
 import { PLAYLIST_UPDATE, PlaylistMeta } from 'shared-interfaces';
-import { DialogService } from '../confirm-dialog/dialog.service';
 import { PlaylistType } from '../add-playlist-menu/add-playlist-menu.component';
+import { DialogService } from '../confirm-dialog/dialog.service';
 import { EmptyStateComponent } from './empty-state/empty-state.component';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
@@ -32,12 +31,10 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
     imports: [
         AsyncPipe,
         EmptyStateComponent,
-        MatIcon,
         MatInputModule,
         MatListModule,
         NgxSkeletonLoaderComponent,
         PlaylistItemComponent,
-        TranslatePipe,
     ],
 })
 export class RecentPlaylistsComponent {
@@ -112,7 +109,7 @@ export class RecentPlaylistsComponent {
 
             return {
                 playlists: sortedPlaylists,
-                totalCount: playlists.length
+                totalCount: playlists.length,
             };
         })
     );

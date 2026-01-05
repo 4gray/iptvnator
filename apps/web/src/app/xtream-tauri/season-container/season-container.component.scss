@@ -1,41 +1,465 @@
-.seasons-container {
+// ============================================================================
+// Netflix-style Seasons & Episodes Component
+// ============================================================================
+
+:host {
+    display: block;
     width: 100%;
+
+    // Default dark theme colors (matches detail-view)
+    --card-bg: rgba(50, 50, 50, 0.8);
+    --card-bg-hover: rgba(70, 70, 70, 0.9);
+    --card-border: rgba(255, 255, 255, 0.15);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.75);
+    --text-muted: rgba(255, 255, 255, 0.55);
+    --accent-color: #e50914;
+    --accent-hover: #f40612;
+}
+
+// Light theme overrides - only when body does NOT have .dark-theme
+:host-context(body:not(.dark-theme)) {
+    --card-bg: rgba(0, 0, 0, 0.06);
+    --card-bg-hover: rgba(0, 0, 0, 0.1);
+    --card-border: rgba(0, 0, 0, 0.12);
+    --text-primary: #1a1a1a;
+    --text-secondary: rgba(26, 26, 26, 0.75);
+    --text-muted: rgba(26, 26, 26, 0.55);
+}
+
+// ============================================================================
+// Section Layout
+// ============================================================================
+
+.seasons-section {
+    margin-top: 32px;
+}
+
+.section-header {
     display: flex;
-    flex-flow: wrap;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #fff; // Force white for dark mode
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff; // Force white for dark mode
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+}
+
+// Light theme overrides for header
+:host-context(body:not(.dark-theme)) {
+    .section-title {
+        color: #1a1a1a;
+    }
+    .back-btn {
+        background: rgba(0, 0, 0, 0.06);
+        border-color: rgba(0, 0, 0, 0.12);
+        color: #1a1a1a;
+
+        &:hover {
+            background: rgba(0, 0, 0, 0.1);
+        }
+    }
+}
+
+// ============================================================================
+// Seasons Grid
+// ============================================================================
+
+.seasons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
     gap: 10px;
 }
 
-.season-item,
-.episode-item {
-    min-height: 100px;
+.season-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    width: 150px;
+    padding: 16px 12px;
+    min-height: 80px;
+    background: rgba(50, 50, 50, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
     cursor: pointer;
-    display: block;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--accent-color);
+        transform: scaleX(0);
+        transition: transform 0.25s ease;
+    }
+
+    &:hover {
+        background: var(--card-bg-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+
+        &::before {
+            transform: scaleX(1);
+        }
+
+        .season-card__arrow {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    &__number {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #fff; // Force white
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+
+    &__label {
+        font-size: 0.6875rem;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.6); // Force light
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    &__episodes {
+        font-size: 0.6875rem;
+        color: rgba(255, 255, 255, 0.7); // Force light
+        margin-top: 6px;
+    }
+
+    &__arrow {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateX(8px) translateY(-50%);
+        opacity: 0;
+        color: var(--accent-color);
+        transition: all 0.25s ease;
+
+        mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+        }
+    }
 }
 
-h3 {
-    font-weight: normal;
+// Light theme overrides for season card
+:host-context(body:not(.dark-theme)) {
+    .season-card {
+        &__number {
+            color: #1a1a1a;
+        }
+        &__label {
+            color: rgba(26, 26, 26, 0.6);
+        }
+        &__episodes {
+            color: rgba(26, 26, 26, 0.7);
+        }
+    }
 }
 
-.episode-item {
-    mat-card-content {
-        padding: 0;
+// ============================================================================
+// Episodes Grid
+// ============================================================================
+
+.episodes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.episode-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+        background: var(--card-bg-hover);
+        transform: scale(1.02);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+
+        .episode-card__overlay {
+            opacity: 1;
+        }
+
+        .episode-card__play {
+            transform: scale(1);
+        }
+
+        .episode-card__thumbnail img {
+            transform: scale(1.05);
+        }
     }
 
-    mat-card-title {
-        padding: 10px;
-    }
-
-    .episode-title {
-        padding: 5px;
-    }
-
-    .episode-cover {
+    &__thumbnail {
+        position: relative;
         width: 100%;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+    }
+
+    &__placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
+
+        mat-icon {
+            font-size: 48px;
+            width: 48px;
+            height: 48px;
+            color: var(--text-muted);
+        }
+    }
+
+    &__overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+
+    &__play {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--accent-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: scale(0.8);
+        transition: transform 0.25s ease;
+        box-shadow: 0 4px 20px rgba(229, 9, 20, 0.4);
+
+        mat-icon {
+            font-size: 32px;
+            width: 32px;
+            height: 32px;
+            color: #fff;
+            margin-left: 3px; // Optical centering for play icon
+        }
+    }
+
+    &__number {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        padding: 4px 10px;
+        background: rgba(0, 0, 0, 0.75);
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #fff; // Always white on dark badge
+        backdrop-filter: blur(4px);
+    }
+
+    &__info {
+        padding: 10px 12px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        background: var(--card-bg); // Ensure background for contrast
+    }
+
+    &__title {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        color: #fff; // Force white in dark mode for readability
+        margin: 0;
+        line-height: 1.3;
+
+        // Truncate long titles
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    &__plot {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.7); // Force light color
+        margin: 0;
+        line-height: 1.4;
+
+        // Truncate plot
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    &__duration {
+        font-size: 0.6875rem;
+        color: rgba(255, 255, 255, 0.55); // Force light color
+        margin-top: auto;
     }
 }
 
-.back-to-seasons {
-    margin-bottom: 5px;
+// Light theme text overrides
+:host-context(body:not(.dark-theme)) {
+    .episode-card__title {
+        color: #1a1a1a;
+    }
+    .episode-card__plot {
+        color: rgba(26, 26, 26, 0.75);
+    }
+    .episode-card__duration {
+        color: rgba(26, 26, 26, 0.55);
+    }
+}
+
+// ============================================================================
+// Mobile Responsive
+// ============================================================================
+
+@media (max-width: 600px) {
+    .seasons-section {
+        margin-top: 24px;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .seasons-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+    }
+
+    .season-card {
+        padding: 16px 12px;
+        min-height: 80px;
+
+        &__number {
+            font-size: 1.5rem;
+        }
+
+        &__arrow {
+            display: none;
+        }
+    }
+
+    .episodes-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .episode-card {
+        flex-direction: row;
+
+        &__thumbnail {
+            width: 140px;
+            flex-shrink: 0;
+            aspect-ratio: 16 / 10;
+        }
+
+        &__info {
+            padding: 12px;
+        }
+
+        &__title {
+            font-size: 0.875rem;
+        }
+
+        &__plot {
+            -webkit-line-clamp: 1;
+        }
+
+        &__number {
+            bottom: 4px;
+            left: 4px;
+            padding: 2px 6px;
+            font-size: 0.625rem;
+        }
+    }
+}
+
+// ============================================================================
+// Animations
+// ============================================================================
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.season-card,
+.episode-card {
+    animation: slideInUp 0.4s ease backwards;
+
+    @for $i from 1 through 12 {
+        &:nth-child(#{$i}) {
+            animation-delay: #{$i * 0.05}s;
+        }
+    }
 }

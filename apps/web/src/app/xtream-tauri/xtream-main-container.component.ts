@@ -38,6 +38,10 @@ export class XtreamMainContainerComponent implements OnInit {
 
     categoryClicked(category: XtreamCategory) {
         const categoryId = (category as any).category_id ?? category.id;
+
+        // Clear any selected item when switching categories
+        this.xtreamStore.setSelectedItem(null);
+
         this.xtreamStore.setSelectedCategory(Number(categoryId));
 
         this.router.navigate([categoryId], {
@@ -58,7 +62,10 @@ export class XtreamMainContainerComponent implements OnInit {
                 : 'Category Content';
 
             // Show page number when viewing category content (not detail view)
-            if (!this.xtreamStore.selectedItem() && this.xtreamStore.getTotalPages() > 1) {
+            if (
+                !this.xtreamStore.selectedItem() &&
+                this.xtreamStore.getTotalPages() > 1
+            ) {
                 const currentPage = this.xtreamStore.page() + 1; // +1 because page is 0-indexed
                 const totalPages = this.xtreamStore.getTotalPages();
                 const pageLabel = this.translateService.instant('PORTALS.PAGE');

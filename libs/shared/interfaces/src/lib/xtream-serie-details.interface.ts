@@ -26,23 +26,25 @@ export interface XtreamSerieEpisode {
     episode_num: number;
     title: string;
     container_extension: string;
-    info: {
-        tmdb_id: number;
-        releasedate: string;
-        plot: string;
-        duration_secs: number;
-        duration: string;
-        movie_image: string;
-        video: Record<string, string>; // TODO
-        audio: Record<string, string>; // TODO
-        bitrate: number;
-        rating: number;
-        season: string;
-    };
+    info: XtreamSerieEpisodeInfo | []; // Can be empty array when no metadata available
     custom_sid: string;
     added: string;
     season: number;
     direct_source: string;
+}
+
+export interface XtreamSerieEpisodeInfo {
+    tmdb_id?: number;
+    releasedate?: string;
+    plot?: string;
+    duration_secs?: number;
+    duration?: string;
+    movie_image?: string;
+    video?: Record<string, string>; // TODO
+    audio?: Record<string, string>; // TODO
+    bitrate?: number;
+    rating?: number;
+    season?: string;
 }
 
 export interface XtreamSerieSeason {

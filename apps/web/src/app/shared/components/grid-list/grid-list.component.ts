@@ -1,4 +1,3 @@
-import { NgOptimizedImage } from '@angular/common';
 import { Component, input, output } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
@@ -20,30 +19,18 @@ import { PlaylistErrorViewComponent } from '../../../xtream-tauri/playlist-error
                     @let i = $any(item);
                     <mat-card (click)="itemClicked.emit(item)">
                         @let poster = i.poster_url ?? i.cover;
-                        @if (poster) {
-                            <img
-                                class="stream-icon"
-                                [ngSrc]="
-                                    poster ??
+                        <img
+                            class="stream-icon"
+                            [src]="
+                                poster || './assets/images/default-poster.png'
+                            "
+                            (error)="
+                                $event.target.src =
                                     './assets/images/default-poster.png'
-                                "
-                                fill
-                                priority
-                                placeholder
-                                placeholder="data:image/png;base64,iVBORw0K..."
-                                (error)="
-                                    $event.target.src =
-                                        './assets/images/default-poster.png'
-                                "
-                                alt="logo"
-                            />
-                        } @else {
-                            <img
-                                class="stream-icon"
-                                src="./assets/images/default-poster.png"
-                                alt="logo"
-                            />
-                        }
+                            "
+                            loading="lazy"
+                            alt="logo"
+                        />
                         @let rating = i.rating ?? i.rating_imdb;
                         @if (rating) {
                             <div
@@ -94,7 +81,6 @@ import { PlaylistErrorViewComponent } from '../../../xtream-tauri/playlist-error
         MatIcon,
         MatProgressSpinner,
         MatTooltip,
-        NgOptimizedImage,
         MatPaginatorModule,
     ],
 })

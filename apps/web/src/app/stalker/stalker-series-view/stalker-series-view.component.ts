@@ -11,6 +11,7 @@ import { MatDivider } from '@angular/material/divider';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../favorites-button/favorites-button.component';
+import { ContentHeroComponent } from 'components';
 import { StalkerStore } from '../stalker.store';
 
 /**
@@ -27,6 +28,16 @@ interface VodSeriesSeason {
 }
 
 /**
+ * Common interface for regular series seasons
+ */
+interface StalkerSeriesSeason {
+    id: string;
+    name: string;
+    cmd?: string;
+    series?: any[];
+}
+
+/**
  * Component for displaying series/episodes for Stalker portal content.
  * Supports three modes:
  * 1. Regular series (type=series): Fetches seasons from API via serialSeasonsResource
@@ -36,9 +47,10 @@ interface VodSeriesSeason {
 @Component({
     selector: 'app-stalker-series-view',
     templateUrl: './stalker-series-view.component.html',
-    styleUrls: ['../../xtream/detail-view.scss'],
+    styleUrls: ['../../xtream-tauri/detail-view.scss'],
     imports: [
         FavoritesButtonComponent,
+        ContentHeroComponent,
         MatButton,
         MatDivider,
         MatProgressSpinner,
@@ -112,9 +124,8 @@ export class StalkerSeriesViewComponent {
     /**
      * For VOD with embedded series, we create a single "season" with the episodes
      * For regular series, we use the API-fetched seasons
-     * For VOD series (is_series=1), we use the fetched seasons with dynamic episode loading
      */
-    readonly seasonsData = computed(() => {
+    readonly regularSeasons = computed<StalkerSeriesSeason[]>(() => {
         const vodItem = this.vodWithSeries();
         if (vodItem?.series?.length > 0) {
             // VOD with embedded series - create a pseudo-season structure
@@ -128,15 +139,8 @@ export class StalkerSeriesViewComponent {
             ];
         }
 
-        // Check if this is a VOD series (is_series=1)
-        const displayItem = this.displayItem();
-        if (displayItem?.is_series === true) {
-            // Return VOD series seasons (episodes loaded dynamically)
-            return this.vodSeriesSeasons();
-        }
-
         // Regular series - use API-fetched seasons
-        return this.stalkerStore.getSerialSeasonsResource();
+        return this.stalkerStore.getSerialSeasonsResource() as unknown as StalkerSeriesSeason[];
     });
 
     /**
@@ -213,7 +217,7 @@ export class StalkerSeriesViewComponent {
     /**
      * Play episode - handles both regular series and VOD series
      */
-    playEpisodeClicked(episode: any, cmd: string) {
+    playEpisodeClicked(episode: any, cmd?: string) {
         const item = this.displayItem();
         this.stalkerStore.createLinkToPlayVod(
             cmd,
@@ -254,5 +258,10 @@ export class StalkerSeriesViewComponent {
 
     removeFromFavorites(serialId: string) {
         this.stalkerStore.removeFromFavorites(serialId);
+    }
+
+    goBack() {
+        // Clear selectedItem to return to category view
+        this.stalkerStore.clearSelectedItem();
     }
 }

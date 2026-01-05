@@ -1,140 +1,360 @@
+// ============================================================================
+// Netflix-style Detail View - Cinematic Streaming Design
+// ============================================================================
+
 :host {
+    --poster-width: 220px;
+    --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+    --content-max-width: 1400px;
+
+    // Light theme colors (default - no .dark-theme class on body)
+    --hero-gradient-start: rgba(255, 250, 245, 0);
+    --hero-gradient-mid: rgba(255, 250, 245, 0.75);
+    --hero-gradient-end: rgba(255, 250, 245, 1);
+    --surface-bg: #fffaf5;
+    --text-primary: #1a1a1a;
+    --text-secondary: rgba(26, 26, 26, 0.75);
+    --text-muted: rgba(26, 26, 26, 0.5);
+    --accent-color: #b81d24;
+    --tag-bg: rgba(0, 0, 0, 0.06);
+    --tag-border: rgba(0, 0, 0, 0.12);
+
     width: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow: auto;
+    height: 100%;
+    display: block;
+    overflow: hidden;
+    background: var(--surface-bg);
+    color: var(--text-primary);
 }
+
+// Dark theme overrides - cinematic dark mode
+:host-context(.dark-theme) {
+    --hero-gradient-start: rgba(20, 20, 20, 0);
+    --hero-gradient-mid: rgba(20, 20, 20, 0.7);
+    --hero-gradient-end: rgba(20, 20, 20, 1);
+    --surface-bg: #141414;
+    --text-primary: #fff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --text-muted: rgba(255, 255, 255, 0.5);
+    --accent-color: #e50914;
+    --tag-bg: rgba(255, 255, 255, 0.1);
+    --tag-border: rgba(255, 255, 255, 0.2);
+    --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+
+// ============================================================================
+// Details Section - Content Elements
+// ============================================================================
 
 .details {
-    h2 {
-        word-wrap: break-word;
-        margin-top: 0;
-    }
-}
+    // Styles for projected content elements
 
-.container {
-    display: grid;
-    grid-gap: 20px;
-    grid-template-columns: minmax(250px, 30%) minmax(300px, 1fr);
-    grid-template-areas:
-        'image details'
-        'seasons seasons';
-    padding: 20px;
-    max-width: 100%;
-    box-sizing: border-box;
-    height: auto;
+    &__tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        background: var(--tag-bg);
+        border: 1px solid var(--tag-border);
+        border-radius: 4px;
+        backdrop-filter: blur(8px);
 
-    &::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        background-size: cover;
-        z-index: -1;
-        background-repeat: no-repeat;
-    }
-}
-
-.seasons {
-    padding: 20px;
-
-    .episodes {
-        margin-bottom: 10px;
-
-        button {
-            margin-top: 5px;
+        &--rating {
+            color: #ffd700;
+            border-color: rgba(255, 215, 0, 0.3);
         }
     }
+
+    &__meta-item {
+        font-size: 0.875rem;
+
+        .label {
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-bottom: 2px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+    }
+}
+
+// ============================================================================
+// Action Buttons - Play, Favorite
+// ============================================================================
+
+.play-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    font-size: 1rem;
+    font-weight: 600;
+    background: #fff;
+    color: #141414;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.85);
+        transform: scale(1.02);
+    }
+
+    mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+    }
+}
+
+.favorite-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    background: rgba(109, 109, 110, 0.7);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: rgba(109, 109, 110, 0.5);
+    }
+
+    &--active {
+        background: rgba(229, 9, 20, 0.8);
+
+        &:hover {
+            background: rgba(229, 9, 20, 0.6);
+        }
+    }
+
+    mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+// ============================================================================
+// Content Sections - Below the hero fold
+// ============================================================================
+
+.content-section {
+    padding: 20px 0;
+    width: 100%;
+    box-sizing: border-box;
+
+    &__title {
+        font-size: 1.375rem;
+        font-weight: 600;
+        margin: 0 0 20px 0;
+        color: var(--text-primary);
+    }
+}
+
+// ============================================================================
+// Seasons & Episodes - Inside details section
+// ============================================================================
+
+.seasons {
+    margin-top: 24px;
+    width: 100%;
+
+    .season-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        cursor: pointer;
+        transition: opacity 0.2s ease;
+
+        &:hover {
+            opacity: 0.8;
+        }
+
+        h4 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .expand-icon {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+    }
+
+    .episodes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 8px 0 16px;
+
+        button {
+            margin: 0;
+            font-weight: 500;
+        }
+    }
+
+    .episodes-loading,
+    .seasons-loading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 20px 0;
+        color: var(--text-secondary);
+    }
+
+    .no-episodes {
+        color: var(--text-muted);
+        font-style: italic;
+        padding: 8px 0;
+    }
+}
+
+// Seasons loading when inside details
+.details .seasons-loading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 0;
+    color: var(--text-secondary);
+    margin-top: 24px;
+}
+
+// Season container when inside details section
+.details app-season-container {
+    display: block;
+    width: 100%;
+    margin-top: 24px;
+    box-sizing: border-box;
+}
+
+// ============================================================================
+// YouTube Trailer Section - Inside details
+// ============================================================================
+
+.youtube-trailer {
+    margin-top: 24px;
+    width: 100%;
+
+    h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin: 0 0 12px 0;
+        color: var(--text-primary);
+    }
+
+    .trailer-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 560px;
+        aspect-ratio: 16 / 9;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+
+        iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    }
+}
+
+// ============================================================================
+// Legacy container support (for gradual migration)
+// ============================================================================
+
+.container {
+    display: contents;
 }
 
 .image {
-    grid-area: image;
-    margin: 0;
-    border-radius: 12px;
-    max-width: 100%;
-
-    img {
-        width: 100%;
-        height: auto;
-        border-radius: 12px;
-        object-fit: cover;
-        max-width: 450px;
-    }
-
-    .placeholder-cover {
-        width: 100%;
-        aspect-ratio: 2/3;
-        background-color: #999;
-        border-radius: 12px;
-
-        &::after {
-            content: 'No cover';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-    }
+    display: none; // Hidden - now using .poster in hero
 }
 
-app-season-container {
-    grid-area: seasons;
-    width: 100%;
-}
+// ============================================================================
+// Mobile Responsive - Option A: Keep poster grid layout
+// ============================================================================
 
 @media (max-width: 800px) {
-    .container {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-            'image'
-            'details'
-            'seasons';
-        padding: 10px;
+    :host {
+        --poster-width: 120px;
     }
 
-    .image,
-    .details {
+    .action-buttons {
         width: 100%;
-        flex: 1 1 100%;
-        display: flex;
-        flex-direction: column;
-        padding: 0;
-
-        img {
-            max-height: 500px;
-            object-fit: contain;
-            border-radius: 0;
-        }
+        // This class is in ContentHeroComponent now, but these rules apply to children?
+        // No, .play-btn is a child of the PROJECTED content.
+        // So we should target the buttons directly for mobile
     }
 
-    .details {
-        padding: 0 10px;
+    .play-btn,
+    .favorite-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 10px 16px;
     }
 
     .youtube-trailer {
-        width: 100% !important;
+        margin-top: 16px;
+
+        .trailer-wrapper {
+            max-width: 100%;
+            border-radius: 4px;
+        }
+    }
+
+    .seasons {
+        padding: 16px 0 0;
     }
 }
 
-.label {
-    font-weight: 100;
-    font-size: 0.9em;
-    padding: 5px 0;
-    text-decoration: underline;
-    opacity: 0.6;
-}
-
-.action-buttons {
-    margin-top: 10px;
-}
+// ============================================================================
+// Animations
+// ============================================================================
 
 .youtube-trailer {
-    display: flex;
-    flex-wrap: wrap;
-    align-self: center;
-    width: 100%;
-    max-width: 650px;
-    margin: 0 auto;
+    animation: fadeInUp 0.5s ease-out 0.4s both;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+// ============================================================================
+// Utility - keep .label for backwards compatibility
+// ============================================================================
+
+.label {
+    font-weight: 400;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 0;
+    opacity: 1;
 }

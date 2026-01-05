@@ -1,115 +1,97 @@
-<div
-    class="container"
-    [style.background]="
-        item?.info?.backdrop_path && item?.info?.backdrop_path.length > 0
-            ? 'linear-gradient(to top, rgba(29,29,29,1) 0%, rgba(0,0,0,0.5) 100%), url(' +
-              item?.info?.backdrop_path[0] +
-              ') repeat-x'
-            : 'none'
-    "
+<!-- Hero Section with Backdrop -->
+<app-content-hero
+    [title]="item.info.name"
+    [description]="item.info.description"
+    [posterUrl]="item.info.movie_image"
+    [backdropUrl]="item.info.backdrop_path?.[0]"
+    (backClicked)="goBack()"
 >
-    <div class="image">
-        @if (item.info?.movie_image) {
-            <img
-                [src]="item.info?.movie_image"
-                (error)="
-                    $event.target.src = './assets/images/default-poster.png'
-                "
-                alt="Movie poster"
-            />
+    <!-- Tags: Year, Genre, Duration, Rating -->
+    <ng-container hero-tags>
+        @if (item.info?.releasedate) {
+            <span class="details__tag">{{
+                item.info.releasedate | slice: 0 : 4
+            }}</span>
+        }
+        @if (item.info?.genre) {
+            <span class="details__tag">{{ item.info.genre }}</span>
+        }
+        @if (item.info?.duration) {
+            <span class="details__tag">{{ item.info.duration }}</span>
+        }
+        @if (item.info?.rating_imdb) {
+            <span class="details__tag details__tag--rating">
+                ⭐ {{ item.info.rating_imdb }}
+            </span>
+        }
+        @if (item.info?.country) {
+            <span class="details__tag">{{ item.info.country }}</span>
+        }
+    </ng-container>
+
+    <!-- Metadata Grid -->
+    <ng-container hero-meta>
+        @if (item.info?.actors) {
+            <div class="details__meta-item">
+                <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
+                <span class="value">{{ item.info.actors }}</span>
+            </div>
+        }
+        @if (item.info?.director) {
+            <div class="details__meta-item">
+                <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
+                <span class="value">{{ item.info.director }}</span>
+            </div>
+        }
+        @if (item.info?.rating_kinopoisk) {
+            <div class="details__meta-item">
+                <span class="label">{{
+                    'XTREAM.KINOPOISK_RATING' | translate
+                }}</span>
+                <span class="value">{{ item.info.rating_kinopoisk }}</span>
+            </div>
+        }
+    </ng-container>
+
+    <!-- Action Buttons -->
+    <ng-container hero-actions>
+        <button class="play-btn" (click)="playClicked.emit(item)">
+            <mat-icon>play_arrow</mat-icon>
+            {{ 'XTREAM.PLAY' | translate }}
+        </button>
+        @if (!isFavorite) {
+            <button class="favorite-btn" (click)="toggleFavorite()">
+                <mat-icon>add</mat-icon>
+                {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
+            </button>
         } @else {
-            <div class="placeholder-cover"></div>
-        }
-    </div>
-    <div class="details">
-        <h2>{{ item.info.name }}</h2>
-        @if (item.info.description) {
-            <div>
-                {{ item.info.description }}
-            </div>
-        }
-        @if (item.info.releasedate) {
-            <div class="label">{{ 'XTREAM.RELEASE_DATE' | translate }}:</div>
-            {{ item.info.releasedate }}
-        }
-        @if (item.info.genre) {
-            <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
-            {{ item.info.genre }}
-        }
-        @if (item.info.country) {
-            <div class="label">{{ 'XTREAM.COUNTRY' | translate }}:</div>
-            {{ item.info.country }}
-        }
-        @if (item.info.actors) {
-            <div>
-                <div class="label">{{ 'XTREAM.ACTORS' | translate }}:</div>
-                {{ item.info.actors }}
-            </div>
-        }
-        @if (item.info.director) {
-            <div class="label">{{ 'XTREAM.DIRECTOR' | translate }}:</div>
-            {{ item.info.director }}
-        }
-        @if (item.info.duration) {
-            <div class="label">{{ 'XTREAM.DURATION' | translate }}:</div>
-            {{ item.info.duration }}
-        }
-        @if (item.info.rating_imdb) {
-            <div class="label">{{ 'XTREAM.IMDB_RATING' | translate }}:</div>
-            {{ item.info.rating_imdb }}
-        }
-        @if (item.info.rating_kinopoisk) {
-            <div class="label">
-                {{ 'XTREAM.KINOPOISK_RATING' | translate }}:
-            </div>
-            {{ item.info.rating_kinopoisk }}
-        }
-        <div class="action-buttons">
             <button
-                mat-flat-button
-                color="accent"
-                (click)="playClicked.emit(item)"
+                class="favorite-btn favorite-btn--active"
+                (click)="toggleFavorite()"
             >
-                <mat-icon>play_arrow</mat-icon>
-                {{ 'XTREAM.PLAY' | translate }}</button
-            >&nbsp;
-            @if (!isFavorite) {
-                <button
-                    mat-stroked-button
-                    color="accent"
-                    (click)="toggleFavorite()"
-                >
-                    <mat-icon>star_outline</mat-icon>
-                    {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
-                </button>
-            } @else {
-                <button
-                    mat-stroked-button
-                    color="accent"
-                    (click)="toggleFavorite()"
-                >
-                    <mat-icon>star</mat-icon>
-                    {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
-                </button>
-            }
+                <mat-icon>check</mat-icon>
+                {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
+            </button>
+        }
+    </ng-container>
+
+    <!-- YouTube Trailer -->
+    @if (item.info?.youtube_trailer) {
+        <div class="youtube-trailer">
+            <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
+            <div class="trailer-wrapper">
+                <iframe
+                    [src]="
+                        'https://www.youtube.com/embed/' +
+                            item.info.youtube_trailer | safe
+                    "
+                    title="YouTube video player"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    allowfullscreen
+                ></iframe>
+            </div>
         </div>
-    </div>
-</div>
-@if (item.info.youtube_trailer) {
-    <div class="youtube-trailer">
-        <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
-        <iframe
-            width="100%"
-            height="450"
-            [src]="
-                'https://www.youtube.com/embed/' + item.info?.youtube_trailer
-                    | safe
-            "
-            title="YouTube video player"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            referrerpolicy="strict-origin-when-cross-origin"
-            allowfullscreen
-        ></iframe>
-    </div>
-}
+    }
+</app-content-hero>
+

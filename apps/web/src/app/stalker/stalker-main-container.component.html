@@ -88,31 +88,32 @@
 </div>
 
 <div class="main-content">
-    <div class="content-header">
-        <h2>
-            @if (stalkerStore.selectedItem()) {
-                <button mat-icon-button (click)="goBackToList()">
-                    <mat-icon>chevron_left</mat-icon>
-                </button>
-            } @else if (!isItvCategorySelected) {
-                <button mat-icon-button disabled>
-                    <mat-icon>category</mat-icon>
-                </button>
-            }
+    @if (!stalkerStore.selectedItem()) {
+        <div class="content-header">
+            <h2>
+                @if (!isItvCategorySelected) {
+                    <button mat-icon-button disabled>
+                        <mat-icon>category</mat-icon>
+                    </button>
+                }
 
-            @if (!isItvCategorySelected) {
-                {{ selectedCategoryTitle() }}
-            }
+                @if (!isItvCategorySelected) {
+                    {{ selectedCategoryTitle() }}
+                }
 
-            @if (!contentItems() && !isContentLoading()) {
-                <h2>
-                    {{ 'PORTALS.SELECT_CATEGORY' | translate }}
-                </h2>
-            }
-        </h2>
-    </div>
+                @if (!contentItems() && !isContentLoading()) {
+                    <h2>
+                        {{ 'PORTALS.SELECT_CATEGORY' | translate }}
+                    </h2>
+                }
+            </h2>
+        </div>
+    }
 
-    <div class="scrollable-content">
+    <div
+        class="scrollable-content"
+        [class.no-header]="stalkerStore.selectedItem()"
+    >
         <router-outlet />
     </div>
     <!-- <app-mpv-player-bar /> -->

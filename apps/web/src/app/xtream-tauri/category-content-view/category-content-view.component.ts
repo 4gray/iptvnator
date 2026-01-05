@@ -46,6 +46,11 @@ export class CategoryContentViewComponent implements OnInit {
 
     ngOnInit() {
         const { categoryId } = this.activatedRoute.snapshot.params;
+
+        // Clear any previous selectedItem when entering category view
+        // This ensures the content-header is visible
+        this.store.setSelectedItem(null);
+
         // Only set category if it's different from the currently selected one
         // This preserves the page state when navigating back from detail view
         if (

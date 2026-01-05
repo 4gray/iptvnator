@@ -1,3 +1,4 @@
+import { Location, SlicePipe } from '@angular/common';
 import {
     Component,
     EventEmitter,
@@ -6,24 +7,26 @@ import {
     Output,
     inject,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { ContentHeroComponent } from 'components';
 import { PlaylistsService } from 'services';
 import { XtreamVodDetails } from 'shared-interfaces';
+import { StalkerStore } from '../../stalker/stalker.store';
 import { SafePipe } from '../../xtream-tauri/vod-details/safe.pipe';
 
 @Component({
     selector: 'app-vod-details',
     templateUrl: './vod-details.component.html',
-    styleUrls: ['../detail-view.scss'],
+    styleUrls: ['../../xtream-tauri/detail-view.scss'],
     imports: [
-        MatButtonModule,
+        ContentHeroComponent,
         MatIcon,
         MatProgressSpinnerModule,
         SafePipe,
+        SlicePipe,
         TranslatePipe,
     ],
 })
@@ -34,11 +37,18 @@ export class VodDetailsComponent implements OnInit {
     @Output() playClicked = new EventEmitter<XtreamVodDetails>();
     @Output() removeFromFavoritesClicked = new EventEmitter<number>();
 
+    private location = inject(Location);
     private playlistService = inject(PlaylistsService);
     private route = inject(ActivatedRoute);
+    private stalkerStore = inject(StalkerStore);
     private portalId =
         this.route.snapshot.paramMap.get('id') ??
         this.route.parent.snapshot.params.id;
+
+    /** Check if this is a Stalker item (has cmd property) */
+    private get isStalker(): boolean {
+        return !!(this.item as any)?.cmd;
+    }
 
     isFavorite = false;
     isLoading = false;
@@ -101,5 +111,15 @@ export class VodDetailsComponent implements OnInit {
             }
         }
         this.isFavorite = !this.isFavorite;
+    }
+
+    goBack() {
+        if (this.isStalker) {
+            // Stalker mode: clear selectedItem to return to category view
+            this.stalkerStore.clearSelectedItem();
+        } else {
+            // Xtream mode: use browser history navigation
+            this.location.back();
+        }
     }
 }

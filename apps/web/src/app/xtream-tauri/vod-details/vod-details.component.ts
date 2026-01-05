@@ -1,9 +1,10 @@
+import { Location, SlicePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
+import { ContentHeroComponent } from 'components';
 import { XtreamVodDetails } from 'shared-interfaces';
 import { SettingsStore } from '../../services/settings-store.service';
 import { XtreamStore } from '../xtream.store';
@@ -13,14 +14,16 @@ import { SafePipe } from './safe.pipe';
     templateUrl: './vod-details.component.html',
     styleUrls: ['../detail-view.scss'],
     imports: [
-        MatButton,
+        ContentHeroComponent,
         MatIcon,
         SafePipe,
+        SlicePipe,
         TranslateModule,
         MatProgressSpinnerModule,
     ],
 })
 export class VodDetailsComponent implements OnInit, OnDestroy {
+    private location = inject(Location);
     private settingsStore = inject(SettingsStore);
     private route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
@@ -66,5 +69,9 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
             contentId: this.route.snapshot.params.vodId,
             playlist: this.xtreamStore.currentPlaylist,
         });
+    }
+
+    goBack() {
+        this.location.back();
     }
 }

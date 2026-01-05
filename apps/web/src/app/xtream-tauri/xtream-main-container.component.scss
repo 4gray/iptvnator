@@ -49,4 +49,9 @@
 .scrollable-content {
     flex: 1;
     overflow-y: auto;
+
+    &.no-header {
+        // When header is hidden, content starts from top
+        margin-top: 0;
+    }
 }
