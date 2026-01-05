@@ -21,7 +21,9 @@
                 (input)="onSearchQueryUpdate(searchInput.value)"
             />
         </div>
-        <div class="menu">
+
+        <!-- Desktop menu buttons -->
+        <div class="menu desktop-menu">
             <button
                 mat-icon-button
                 class="add-playlist-btn"
@@ -42,7 +44,6 @@
             >
                 <mat-icon>star</mat-icon>
             </button>
-            <!-- Combined Filter & Sort button -->
             <button
                 mat-icon-button
                 #filterMenuTrigger="matMenuTrigger"
@@ -71,13 +72,13 @@
             } @else {
                 <button
                     mat-icon-button
-                    [matMenuTriggerFor]="menu"
+                    [matMenuTriggerFor]="pwaMenu"
                     [attr.aria-label]="'MENU.OPEN' | translate"
                     data-test-id="pwa-menu"
                 >
                     <mat-icon>menu</mat-icon>
                 </button>
-                <mat-menu #menu="matMenu">
+                <mat-menu #pwaMenu="matMenu">
                     @if (isHome) {
                         <button
                             mat-menu-item
@@ -128,6 +129,95 @@
                     </button>
                 </mat-menu>
             }
+        </div>
+
+        <!-- Mobile three-dots menu (all buttons consolidated) -->
+        <div class="menu mobile-menu">
+            <button
+                mat-icon-button
+                [matMenuTriggerFor]="mobileActionsMenu"
+                [attr.aria-label]="'MENU.OPEN' | translate"
+                data-test-id="mobile-menu"
+            >
+                <mat-icon>more_vert</mat-icon>
+            </button>
+            <app-add-playlist-menu
+                (playlistTypeSelected)="openAddPlaylistDialog($event)"
+            />
+            <app-filter-sort-menu [menuTrigger]="mobileFilterTrigger" />
+            <mat-menu #mobileActionsMenu="matMenu">
+                <button
+                    mat-menu-item
+                    [matMenuTriggerFor]="addPlaylistMenuComponent().menu()"
+                    data-test-id="mobile-add-playlist"
+                >
+                    <mat-icon>add</mat-icon>
+                    <span>{{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}</span>
+                </button>
+                <button
+                    mat-menu-item
+                    (click)="navigateToGlobalFavorites()"
+                    data-test-id="mobile-global-favorites"
+                >
+                    <mat-icon>star</mat-icon>
+                    <span>{{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}</span>
+                </button>
+                <button
+                    mat-menu-item
+                    #mobileFilterTrigger="matMenuTrigger"
+                    [matMenuTriggerFor]="filterSortMenuComponent().menu()"
+                    data-test-id="mobile-filter-sort"
+                >
+                    <mat-icon
+                        [matBadge]="filterSortMenuComponent().activeFiltersCount"
+                        [matBadgeHidden]="filterSortMenuComponent().activeFiltersCount === 0"
+                        matBadgeSize="small"
+                        matBadgeColor="accent"
+                    >tune</mat-icon>
+                    <span>{{ 'HOME.FILTER_AND_SORT' | translate }}</span>
+                </button>
+                <mat-divider />
+                <button
+                    mat-menu-item
+                    (click)="openSettings()"
+                    data-test-id="mobile-settings"
+                >
+                    <mat-icon>settings</mat-icon>
+                    <span>{{ 'MENU.SETTINGS' | translate }}</span>
+                </button>
+                @if (!isDesktop) {
+                    <mat-divider />
+                    <button
+                        mat-menu-item
+                        (click)="openUrl('https://github.com/4gray/iptvnator')"
+                    >
+                        <mat-icon>recommend</mat-icon>
+                        <span>GitHub</span>
+                    </button>
+                    <button
+                        mat-menu-item
+                        (click)="openUrl('https://github.com/4gray/iptvnator/issues')"
+                    >
+                        <mat-icon>bug_report</mat-icon>
+                        <span>{{ 'MENU.BUG_REPORT' | translate }}</span>
+                    </button>
+                    <button
+                        mat-menu-item
+                        (click)="openUrl('https://github.com/sponsors/4gray')"
+                    >
+                        <mat-icon>savings</mat-icon>
+                        <span>{{ 'MENU.SUPPORT_PROJECT' | translate }}</span>
+                    </button>
+                    <mat-divider />
+                    <button
+                        mat-menu-item
+                        (click)="openAboutDialog()"
+                    >
+                        <mat-icon>info</mat-icon>
+                        <span>{{ 'MENU.ABOUT' | translate }}</span>
+                    </button>
+                }
+            </mat-menu>
         </div>
     }
 </div>

@@ -444,6 +444,15 @@
     }
 }
 
+// Mobile menu visibility
+.mobile-menu {
+    display: none;
+}
+
+.desktop-menu {
+    display: flex;
+}
+
 // Responsive design
 @media (max-width: 899px) {
     .search-container {
@@ -452,42 +461,96 @@
     }
 }
 
-@media (max-width: 599px) {
-    .modern-header {
-        height: 64px;
-        padding-left: 70px; // Reduced padding for smaller screens
+@media (max-width: 768px) {
+    // Hide desktop menu, show mobile menu
+    .desktop-menu {
+        display: none;
+    }
+
+    .mobile-menu {
+        display: flex;
+    }
+
+    // Hide brand text, keep only icon
+    .brand-text {
+        display: none;
     }
 
     .brand-block {
-        padding: 6px 12px 6px 6px;
-        gap: 8px;
+        padding: 6px;
+        border-radius: 50%;
+        gap: 0;
+    }
+
+    // Smaller search bar
+    .search-container {
+        flex: 1;
+        max-width: none;
+        margin: 0 12px;
+        height: 40px;
+        padding: 0 14px;
+        border-radius: 16px;
+
+        .search-input {
+            font-size: 13px;
+
+            &::placeholder {
+                font-size: 13px;
+            }
+        }
+
+        .search-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+        }
+    }
+}
+
+@media (max-width: 599px) {
+    .modern-header {
+        height: 56px;
+        padding: 0 12px;
+    }
+
+    .brand-block {
+        padding: 4px;
     }
 
     .logo-pulse {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
 
         img {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
         }
     }
 
-    .brand-text .title {
-        font-size: 0.95rem;
-    }
-
     .search-container {
-        margin: 0 12px;
-        height: 42px;
-        padding: 0 16px;
+        margin: 0 8px;
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 14px;
 
         .search-input {
-            font-size: 14px;
+            font-size: 12px;
+
+            &::placeholder {
+                font-size: 12px;
+            }
+        }
+
+        .search-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
         }
     }
 
     .menu {
-        gap: 2px;
+        gap: 0;
     }
 }
