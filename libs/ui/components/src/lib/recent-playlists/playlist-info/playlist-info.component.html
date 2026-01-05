@@ -28,6 +28,38 @@
                 <input matInput formControlName="macAddress" />
             </mat-form-field>
         }
+        @if (playlist.portalUrl) {
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.STALKER_PORTAL.SERIAL_NUMBER' | translate
+                }}</mat-label>
+                <input matInput formControlName="stalkerSerialNumber" />
+            </mat-form-field>
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.STALKER_PORTAL.DEVICE_ID_1' | translate
+                }}</mat-label>
+                <input matInput formControlName="stalkerDeviceId1" />
+            </mat-form-field>
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.STALKER_PORTAL.DEVICE_ID_2' | translate
+                }}</mat-label>
+                <input matInput formControlName="stalkerDeviceId2" />
+            </mat-form-field>
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.STALKER_PORTAL.SIGNATURE_1' | translate
+                }}</mat-label>
+                <input matInput formControlName="stalkerSignature1" />
+            </mat-form-field>
+            <mat-form-field class="full-width">
+                <mat-label>{{
+                    'HOME.STALKER_PORTAL.SIGNATURE_2' | translate
+                }}</mat-label>
+                <input matInput formControlName="stalkerSignature2" />
+            </mat-form-field>
+        }
         @if (playlist.serverUrl) {
             <mat-form-field class="full-width">
                 <mat-label>{{

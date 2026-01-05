@@ -100,6 +100,22 @@ export class PlaylistsService {
                     ...(updatedPlaylist.updateDate !== undefined
                         ? { updateDate: updatedPlaylist.updateDate }
                         : {}),
+                    // Stalker portal optional fields
+                    ...(updatedPlaylist.stalkerSerialNumber !== undefined
+                        ? { stalkerSerialNumber: updatedPlaylist.stalkerSerialNumber }
+                        : {}),
+                    ...(updatedPlaylist.stalkerDeviceId1 !== undefined
+                        ? { stalkerDeviceId1: updatedPlaylist.stalkerDeviceId1 }
+                        : {}),
+                    ...(updatedPlaylist.stalkerDeviceId2 !== undefined
+                        ? { stalkerDeviceId2: updatedPlaylist.stalkerDeviceId2 }
+                        : {}),
+                    ...(updatedPlaylist.stalkerSignature1 !== undefined
+                        ? { stalkerSignature1: updatedPlaylist.stalkerSignature1 }
+                        : {}),
+                    ...(updatedPlaylist.stalkerSignature2 !== undefined
+                        ? { stalkerSignature2: updatedPlaylist.stalkerSignature2 }
+                        : {}),
                 })
             )
         );

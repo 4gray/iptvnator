@@ -42,6 +42,40 @@
             margin-top: 5px;
         }
     }
+
+    .season-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        padding: 10px 0;
+
+        &:hover {
+            opacity: 0.8;
+        }
+
+        h4 {
+            margin: 0;
+        }
+
+        .expand-icon {
+            font-size: 12px;
+            margin-right: 10px;
+        }
+    }
+
+    .seasons-loading,
+    .episodes-loading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 20px;
+    }
+
+    .no-episodes {
+        font-style: italic;
+        opacity: 0.7;
+    }
 }
 
 .image {

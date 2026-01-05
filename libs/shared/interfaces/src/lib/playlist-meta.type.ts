@@ -21,4 +21,9 @@ export type PlaylistMeta = Pick<
     | 'macAddress'
     | 'portalUrl'
     | 'recentlyViewed'
+    | 'stalkerSerialNumber'
+    | 'stalkerDeviceId1'
+    | 'stalkerDeviceId2'
+    | 'stalkerSignature1'
+    | 'stalkerSignature2'
 >;

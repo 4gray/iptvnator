@@ -67,12 +67,18 @@ declare global {
                 limit?: number
             ) => Promise<any[]>;
             updateSettings: (settings: any) => Promise<void>;
+            getAiSettings: () => Promise<{
+                aiProvider: string;
+                aiModelName: string;
+                aiApiKey: string;
+            }>;
             setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
             setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;
             stalkerRequest: (payload: {
                 url: string;
                 macAddress: string;
                 params: Record<string, string>;
+                token?: string;
             }) => Promise<any>;
             xtreamRequest: (payload: {
                 url: string;

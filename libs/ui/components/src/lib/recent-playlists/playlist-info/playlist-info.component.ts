@@ -104,6 +104,13 @@ export class PlaylistInfoComponent {
             password: new FormControl(this.playlist.password),
             macAddress: new FormControl(this.playlist.macAddress),
             portalUrl: new FormControl(this.playlist.portalUrl),
+            stalkerSerialNumber: new FormControl(
+                this.playlist.stalkerSerialNumber
+            ),
+            stalkerDeviceId1: new FormControl(this.playlist.stalkerDeviceId1),
+            stalkerDeviceId2: new FormControl(this.playlist.stalkerDeviceId2),
+            stalkerSignature1: new FormControl(this.playlist.stalkerSignature1),
+            stalkerSignature2: new FormControl(this.playlist.stalkerSignature2),
         });
     }
 
@@ -231,7 +238,9 @@ export class PlaylistInfoComponent {
             const success = this.clipboard.copy(url);
             if (success) {
                 this.snackBar.open(
-                    this.translate.instant('HOME.PLAYLISTS.INFO_DIALOG.URL_COPIED'),
+                    this.translate.instant(
+                        'HOME.PLAYLISTS.INFO_DIALOG.URL_COPIED'
+                    ),
                     this.translate.instant('CLOSE'),
                     { duration: 2000 }
                 );

@@ -1,6 +1,6 @@
-@let seasons = seasonsData;
+@let seasons = seasonsData();
 <div class="container">
-    @if (selectedItem(); as serial) {
+    @if (displayItem(); as serial) {
         <div class="image">
             @if (serial.info.movie_image) {
                 <img
@@ -9,6 +9,7 @@
                     (error)="
                         $event.target.src = './assets/images/default-poster.png'
                     "
+                    alt="Series Cover"
                 />
             } @else {
                 <div class="placeholder-cover"></div>
@@ -20,32 +21,48 @@
             <div>
                 {{ serial.info.description }}
             </div>
-            <div>
-                <div class="label">{{ 'XTREAM.DIRECTOR' | translate }}:</div>
-                {{ serial.info.director }}
-            </div>
-            <div>
-                <div class="label">{{ 'XTREAM.ACTORS' | translate }}:</div>
-                {{ serial.info.actors }}
-            </div>
-            <div>
-                <div class="label">{{ 'XTREAM.YEAR' | translate }}:</div>
-                {{ serial.info.releasedate }}
-            </div>
-            <div>
-                <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
-                {{ serial.info.genre }}
-            </div>
-            <div>
-                <div class="label">{{ 'XTREAM.IMDB_RATING' | translate }}:</div>
-                {{ serial.info.rating_imdb }}
-            </div>
-            <div>
-                <div class="label">
-                    {{ 'XTREAM.KINOPOISK_RATING' | translate }}:
+            @if (serial.info.director) {
+                <div>
+                    <div class="label">
+                        {{ 'XTREAM.DIRECTOR' | translate }}:
+                    </div>
+                    {{ serial.info.director }}
                 </div>
-                {{ serial.info.rating_kinopoisk }}
-            </div>
+            }
+            @if (serial.info.actors) {
+                <div>
+                    <div class="label">{{ 'XTREAM.ACTORS' | translate }}:</div>
+                    {{ serial.info.actors }}
+                </div>
+            }
+            @if (serial.info.releasedate || serial.info.year) {
+                <div>
+                    <div class="label">{{ 'XTREAM.YEAR' | translate }}:</div>
+                    {{ serial.info.releasedate || serial.info.year }}
+                </div>
+            }
+            @if (serial.info.genre || serial.info.genres_str) {
+                <div>
+                    <div class="label">{{ 'XTREAM.GENRE' | translate }}:</div>
+                    {{ serial.info.genre || serial.info.genres_str }}
+                </div>
+            }
+            @if (serial.info.rating_imdb) {
+                <div>
+                    <div class="label">
+                        {{ 'XTREAM.IMDB_RATING' | translate }}:
+                    </div>
+                    {{ serial.info.rating_imdb }}
+                </div>
+            }
+            @if (serial.info.rating_kinopoisk) {
+                <div>
+                    <div class="label">
+                        {{ 'XTREAM.KINOPOISK_RATING' | translate }}:
+                    </div>
+                    {{ serial.info.rating_kinopoisk }}
+                </div>
+            }
             <div class="action-buttons">
                 <app-favorites-button
                     [itemId]="serial.id"
@@ -58,19 +75,85 @@
         </div>
     }
 </div>
+
+<!-- Loading state for VOD series seasons -->
+@if (isVodSeries() && isVodSeriesSeasonsLoading()) {
+    <div class="seasons-loading">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>{{ 'PORTALS.LOADING_SEASONS' | translate }}</span>
+    </div>
+}
+
+<!-- Loading state for regular series seasons -->
+@if (!isVodSeries() && isSerialSeasonsLoading()) {
+    <div class="seasons-loading">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>{{ 'PORTALS.LOADING_SEASONS' | translate }}</span>
+    </div>
+}
+
 <div class="seasons">
-    @for (item of seasons(); track $index) {
-        <mat-divider />
-        <h4>{{ item.name }}</h4>
-        <div class="episodes">
-            @for (episode of item.series; track $index) {
-                <button
-                    mat-stroked-button
-                    (click)="playEpisodeClicked(episode, item.cmd)"
-                >
-                    {{ 'XTREAM.EPISODE' | translate }} {{ episode }}
-                </button>
+    @if (isVodSeries()) {
+        <!-- VOD series mode: expandable seasons with dynamic episode loading -->
+        @for (item of vodSeriesSeasons(); track item.id) {
+            <mat-divider />
+            <div class="season-header" (click)="toggleSeasonExpanded(item)">
+                <h4>{{ item.name }}</h4>
+                <span class="expand-icon">{{
+                    item.isExpanded ? '▼' : '►'
+                }}</span>
+            </div>
+
+            @if (item.isExpanded) {
+                @if (item.isLoading) {
+                    <div class="episodes-loading">
+                        <mat-spinner diameter="24"></mat-spinner>
+                    </div>
+                } @else {
+                    <div class="episodes">
+                        @for (
+                            episode of item.episodes;
+                            track episode.id || $index
+                        ) {
+                            <button
+                                mat-stroked-button
+                                (click)="
+                                    playVodSeriesEpisode(episode);
+                                    $event.stopPropagation()
+                                "
+                            >
+                                {{
+                                    episode.name ||
+                                        ('XTREAM.EPISODE' | translate) +
+                                            ' ' +
+                                            episode.series_number
+                                }}
+                            </button>
+                        }
+                        @if (!item.episodes || item.episodes.length === 0) {
+                            <span class="no-episodes">{{
+                                'PORTALS.NO_EPISODES' | translate
+                            }}</span>
+                        }
+                    </div>
+                }
             }
-        </div>
+        }
+    } @else {
+        <!-- Regular series mode: pre-loaded episodes -->
+        @for (item of seasons; track item.id || $index) {
+            <mat-divider />
+            <h4>{{ item.name }}</h4>
+            <div class="episodes">
+                @for (episode of $any(item).series; track $index) {
+                    <button
+                        mat-stroked-button
+                        (click)="playEpisodeClicked(episode, $any(item).cmd)"
+                    >
+                        {{ 'XTREAM.EPISODE' | translate }} {{ episode }}
+                    </button>
+                }
+            </div>
+        }
     }
 </div>
