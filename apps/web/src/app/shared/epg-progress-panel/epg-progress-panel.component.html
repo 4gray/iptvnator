@@ -1,95 +1,117 @@
 @if (isVisible()) {
-<div class="epg-progress-panel">
-    <div class="panel-header">
-        <span class="header-title">
-            <mat-icon>live_tv</mat-icon>
-            {{ 'EPG.IMPORT_PROGRESS' | translate }}
-        </span>
-        @if (imports().length > 1) {
-        <button
-            mat-icon-button
-            class="dismiss-all-btn"
-            (click)="dismissAll()"
-            [attr.aria-label]="'BUTTONS.CLOSE' | translate"
-        >
-            <mat-icon>close</mat-icon>
-        </button>
-        }
-    </div>
-
-    <div class="imports-list">
-        <!-- Active/Completed imports -->
-        @for (item of activeImports; track item.url) {
-        <div class="import-item" [class]="getStatusClass(item.status)">
-            <div class="item-header">
-                <div class="status-icon-wrapper">
-                    <mat-icon [class.spinning]="item.status === 'loading'">
-                        {{ getStatusIcon(item.status) }}
-                    </mat-icon>
-                </div>
-                <span class="item-url" [title]="item.url">
-                    {{ getDisplayUrl(item.url) }}
-                </span>
+    <div class="epg-progress-panel">
+        <div class="panel-header">
+            <span class="header-title">
+                <mat-icon>live_tv</mat-icon>
+                {{ 'EPG.IMPORT_PROGRESS' | translate }}
+            </span>
+            @if (imports().length > 1) {
                 <button
                     mat-icon-button
-                    class="dismiss-btn"
-                    (click)="dismiss(item.url)"
+                    class="dismiss-all-btn"
+                    (click)="dismissAll()"
                     [attr.aria-label]="'BUTTONS.CLOSE' | translate"
                 >
                     <mat-icon>close</mat-icon>
                 </button>
-            </div>
+            }
+        </div>
 
-            @if (item.status === 'loading') {
-            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        <div class="imports-list">
+            <!-- Active/Completed imports -->
+            @for (item of activeImports; track item.url) {
+                <div class="import-item" [class]="getStatusClass(item.status)">
+                    <div class="item-header">
+                        <div class="status-icon-wrapper">
+                            <mat-icon
+                                [class.spinning]="item.status === 'loading'"
+                            >
+                                {{ getStatusIcon(item.status) }}
+                            </mat-icon>
+                        </div>
+                        <span class="item-url" [title]="item.url">
+                            {{ getDisplayUrl(item.url) }}
+                        </span>
+                        <button
+                            mat-icon-button
+                            class="dismiss-btn"
+                            (click)="dismiss(item.url)"
+                            [attr.aria-label]="'BUTTONS.CLOSE' | translate"
+                        >
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    </div>
+
+                    @if (item.status === 'loading') {
+                        <mat-progress-bar mode="indeterminate" />
+                    }
+
+                    <div class="item-stats">
+                        @if (item.stats) {
+                            <span
+                                class="stat-badge"
+                                matTooltip="{{
+                                    'EPG.TOTAL_CHANNELS' | translate
+                                }}"
+                            >
+                                <mat-icon>tv</mat-icon>
+                                {{ item.stats.totalChannels }}
+                            </span>
+                            <span
+                                class="stat-badge"
+                                matTooltip="{{
+                                    'EPG.TOTAL_PROGRAMS' | translate
+                                }}"
+                            >
+                                <mat-icon>event</mat-icon>
+                                {{ item.stats.totalPrograms }}
+                            </span>
+                        } @else if (item.error) {
+                            <span class="error-text">{{ item.error }}</span>
+                        } @else if (item.status === 'loading') {
+                            <span>{{ 'EPG.LOADING' | translate }}...</span>
+                        }
+                    </div>
+                </div>
             }
 
-            <div class="item-stats">
-                @if (item.stats) {
-                <span class="stat-badge">
-                    <mat-icon>tv</mat-icon>
-                    {{ item.stats.totalChannels }}
-                </span>
-                <span class="stat-badge">
-                    <mat-icon>event</mat-icon>
-                    {{ item.stats.totalPrograms }}
-                </span>
-                } @else if (item.error) {
-                <span class="error-text">{{ item.error }}</span>
-                } @else if (item.status === 'loading') {
-                <span>{{ 'EPG.LOADING' | translate }}...</span>
-                }
-            </div>
-        </div>
-        }
-
-        <!-- Queued imports section -->
-        @if (queuedImports.length > 0) {
-        <div class="queue-section">
-            <div class="queue-header">
-                <mat-icon>queue</mat-icon>
-                <span>{{ 'EPG.QUEUED' | translate }} ({{ queuedImports.length }})</span>
-            </div>
-            <div class="queue-list">
-                @for (item of queuedImports; track item.url; let i = $index) {
-                <div class="queue-item">
-                    <span class="queue-position">{{ i + 1 }}</span>
-                    <span class="queue-url" [title]="item.url">
-                        {{ getDisplayUrl(item.url) }}
-                    </span>
-                    <button
-                        mat-icon-button
-                        class="dismiss-btn"
-                        (click)="dismiss(item.url)"
-                        [attr.aria-label]="'BUTTONS.CLOSE' | translate"
-                    >
-                        <mat-icon>close</mat-icon>
-                    </button>
+            <!-- Queued imports section -->
+            @if (queuedImports.length > 0) {
+                <div class="queue-section">
+                    <div class="queue-header">
+                        <mat-icon>queue</mat-icon>
+                        <span
+                            >{{ 'EPG.QUEUED' | translate }} ({{
+                                queuedImports.length
+                            }})</span
+                        >
+                    </div>
+                    <div class="queue-list">
+                        @for (
+                            item of queuedImports;
+                            track item.url;
+                            let i = $index
+                        ) {
+                            <div class="queue-item">
+                                <span class="queue-position">{{ i + 1 }}</span>
+                                <span class="queue-url" [title]="item.url">
+                                    {{ getDisplayUrl(item.url) }}
+                                </span>
+                                <button
+                                    mat-icon-button
+                                    class="dismiss-btn"
+                                    (click)="dismiss(item.url)"
+                                    [attr.aria-label]="
+                                        'BUTTONS.CLOSE' | translate
+                                    "
+                                >
+                                    <mat-icon>close</mat-icon>
+                                </button>
+                            </div>
+                        }
+                    </div>
                 </div>
-                }
-            </div>
+            }
         </div>
-        }
     </div>
-</div>
 }

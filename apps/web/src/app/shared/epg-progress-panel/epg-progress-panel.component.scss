@@ -144,15 +144,11 @@
     .dismiss-all-btn {
         width: 28px;
         height: 28px;
+        padding: 2px;
         line-height: 28px;
         border-radius: 8px;
         transition: all 0.2s ease;
         color: var(--epg-text-tertiary);
-
-        &:hover {
-            background: var(--epg-item-hover);
-            color: var(--epg-text-primary);
-        }
 
         mat-icon {
             font-size: 18px;
@@ -199,11 +195,11 @@
 }
 
 .import-item {
-    padding: 14px 16px;
-    margin: 0 8px;
+    padding: 6px 12px;
     border-radius: 10px;
     transition: all 0.2s ease;
     position: relative;
+    margin: 0 6px;
 
     &:not(:last-child) {
         margin-bottom: 2px;
@@ -252,16 +248,12 @@
         .dismiss-btn {
             width: 26px;
             height: 26px;
+            padding: 2px;
             line-height: 26px;
             border-radius: 6px;
             opacity: 0;
             transition: all 0.2s ease;
             color: var(--epg-text-tertiary);
-
-            &:hover {
-                background: var(--epg-error-glow);
-                color: var(--epg-error);
-            }
 
             mat-icon {
                 font-size: 16px;
@@ -378,7 +370,7 @@
 
 // Queue section styles
 .queue-section {
-    margin: 8px;
+    //margin: 8px;
     padding: 12px;
     border-radius: 10px;
     animation: fadeIn 0.3s ease;
@@ -455,17 +447,13 @@
         .dismiss-btn {
             width: 22px;
             height: 22px;
+            padding: 0;
             line-height: 22px;
             border-radius: 4px;
             opacity: 0;
             transition: all 0.2s ease;
             color: var(--epg-text-tertiary);
             flex-shrink: 0;
-
-            &:hover {
-                background: var(--epg-error-glow);
-                color: var(--epg-error);
-            }
 
             mat-icon {
                 font-size: 14px;

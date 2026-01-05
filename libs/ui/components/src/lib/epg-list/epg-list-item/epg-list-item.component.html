@@ -1,7 +1,7 @@
 <span class="time"
-    >{{ item.start | momentDate: 'YYYYMMDDHHmm ZZ' : 'HH:mm' }}
+    >{{ item.start | momentDate: 'HH:mm' }}
     -
-    {{ item.stop | momentDate: 'YYYYMMDDHHmm ZZ' : 'HH:mm' }}</span
+    {{ item.stop | momentDate: 'HH:mm' }}</span
 >
 @if (timeNow >= item.start && timeNow <= item.stop) {
     <span class="live badge" [matTooltip]="'EPG.LIVE_NOW' | translate"

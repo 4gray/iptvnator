@@ -1,11 +1,11 @@
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
-import { Worker } from 'worker_threads';
+import { EpgProgram } from 'shared-interfaces';
 import { pathToFileURL } from 'url';
+import { Worker } from 'worker_threads';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
-import { EpgProgram } from 'shared-interfaces';
 
 /**
  * EPG Events Handler
@@ -96,7 +96,10 @@ export default class EpgEvents {
                 _event,
                 args: { urls: string[]; maxAgeHours?: number }
             ): Promise<{ staleUrls: string[]; freshUrls: string[] }> => {
-                return this.checkEpgFreshness(args.urls, args.maxAgeHours ?? 12);
+                return this.checkEpgFreshness(
+                    args.urls,
+                    args.maxAgeHours ?? 12
+                );
             }
         );
 
@@ -143,16 +146,26 @@ export default class EpgEvents {
                 }
             }
         } catch (error) {
-            console.error(this.loggerLabel, 'Error checking EPG freshness:', error);
+            console.error(
+                this.loggerLabel,
+                'Error checking EPG freshness:',
+                error
+            );
             return { staleUrls: urls, freshUrls: [] };
         }
 
         // Log summary
         if (freshUrls.length > 0) {
-            console.log(this.loggerLabel, `EPG fresh (skipping): ${freshUrls.length} source(s)`);
+            console.log(
+                this.loggerLabel,
+                `EPG fresh (skipping): ${freshUrls.length} source(s)`
+            );
         }
         if (staleUrls.length > 0) {
-            console.log(this.loggerLabel, `EPG stale (will fetch): ${staleUrls.length} source(s)`);
+            console.log(
+                this.loggerLabel,
+                `EPG stale (will fetch): ${staleUrls.length} source(s)`
+            );
         }
 
         return { staleUrls, freshUrls };
@@ -173,15 +186,28 @@ export default class EpgEvents {
         }
 
         // Check which URLs have fresh data and can be skipped
-        const { staleUrls, freshUrls } = await this.checkEpgFreshness(validUrls, 12);
+        const { staleUrls, freshUrls } = await this.checkEpgFreshness(
+            validUrls,
+            12
+        );
 
         if (staleUrls.length === 0) {
-            return { success: true, message: 'All EPG data is fresh', skipped: freshUrls };
+            return {
+                success: true,
+                message: 'All EPG data is fresh',
+                skipped: freshUrls,
+            };
         }
 
         // Send queued status for all stale URLs first
         staleUrls.forEach((url, index) => {
-            this.sendProgressToRenderer(url, 'queued', undefined, undefined, index + 1);
+            this.sendProgressToRenderer(
+                url,
+                'queued',
+                undefined,
+                undefined,
+                index + 1
+            );
         });
 
         // Process only stale URLs sequentially to avoid database locking
@@ -191,8 +217,14 @@ export default class EpgEvents {
             try {
                 await this.fetchEpgFromUrl(url);
             } catch (error) {
-                console.error(this.loggerLabel, `Error fetching EPG from ${url}:`, error);
-                errors.push(error instanceof Error ? error.message : String(error));
+                console.error(
+                    this.loggerLabel,
+                    `Error fetching EPG from ${url}:`,
+                    error
+                );
+                errors.push(
+                    error instanceof Error ? error.message : String(error)
+                );
             }
         }
 
@@ -214,7 +246,10 @@ export default class EpgEvents {
     private static async fetchEpgFromUrl(url: string): Promise<void> {
         // Skip if already fetched this session
         if (this.fetchedUrls.has(url)) {
-            console.log(this.loggerLabel, `Skipping already fetched URL: ${url}`);
+            console.log(
+                this.loggerLabel,
+                `Skipping already fetched URL: ${url}`
+            );
             return;
         }
 
@@ -232,7 +267,11 @@ export default class EpgEvents {
                     'epg-parser.worker.js'
                 );
             } else {
-                workerPath = path.join(__dirname, 'workers', 'epg-parser.worker.js');
+                workerPath = path.join(
+                    __dirname,
+                    'workers',
+                    'epg-parser.worker.js'
+                );
             }
 
             let worker: Worker;
@@ -245,7 +284,11 @@ export default class EpgEvents {
                     },
                 });
             } catch (error) {
-                console.error(this.loggerLabel, 'Failed to create worker:', error);
+                console.error(
+                    this.loggerLabel,
+                    'Failed to create worker:',
+                    error
+                );
                 reject(error);
                 return;
             }
@@ -264,7 +307,10 @@ export default class EpgEvents {
                         switch (message.type) {
                             case 'READY':
                                 // Notify renderer that loading started
-                                this.sendProgressToRenderer(url, 'loading', { totalChannels: 0, totalPrograms: 0 });
+                                this.sendProgressToRenderer(url, 'loading', {
+                                    totalChannels: 0,
+                                    totalPrograms: 0,
+                                });
                                 worker.postMessage({ type: 'FETCH_EPG', url });
                                 break;
 
@@ -275,7 +321,11 @@ export default class EpgEvents {
                                         `Progress: ${message.stats.totalChannels} channels, ${message.stats.totalPrograms} programs`
                                     );
                                     // Forward progress to renderer
-                                    this.sendProgressToRenderer(url, 'loading', message.stats);
+                                    this.sendProgressToRenderer(
+                                        url,
+                                        'loading',
+                                        message.stats
+                                    );
                                 }
                                 break;
 
@@ -286,10 +336,17 @@ export default class EpgEvents {
                                     message.stats
                                 );
                                 // Notify renderer of completion
-                                this.sendProgressToRenderer(url, 'complete', message.stats);
+                                this.sendProgressToRenderer(
+                                    url,
+                                    'complete',
+                                    message.stats
+                                );
                                 this.fetchedUrls.add(url);
                                 // Trigger cleanup in worker thread (non-blocking)
-                                worker.postMessage({ type: 'CLEANUP_EXPIRED', hoursToKeep: 24 });
+                                worker.postMessage({
+                                    type: 'CLEANUP_EXPIRED',
+                                    hoursToKeep: 24,
+                                });
                                 break;
 
                             case 'CLEANUP_COMPLETE':
@@ -309,14 +366,25 @@ export default class EpgEvents {
                                     message.error
                                 );
                                 // Notify renderer of error
-                                this.sendProgressToRenderer(url, 'error', undefined, message.error);
+                                this.sendProgressToRenderer(
+                                    url,
+                                    'error',
+                                    undefined,
+                                    message.error
+                                );
                                 worker.terminate();
                                 this.workers.delete(url);
-                                reject(new Error(message.error || 'Unknown error'));
+                                reject(
+                                    new Error(message.error || 'Unknown error')
+                                );
                                 break;
                         }
                     } catch (err) {
-                        console.error(this.loggerLabel, 'Error handling message:', err);
+                        console.error(
+                            this.loggerLabel,
+                            'Error handling message:',
+                            err
+                        );
                         reject(err);
                     }
                 }
@@ -371,7 +439,9 @@ export default class EpgEvents {
     /**
      * Get programs for a specific channel from database
      */
-    private static async handleGetChannelPrograms(channelId: string): Promise<EpgProgram[]> {
+    private static async handleGetChannelPrograms(
+        channelId: string
+    ): Promise<EpgProgram[]> {
         try {
             const db = await getDatabase();
             const now = new Date().toISOString();
@@ -420,7 +490,11 @@ export default class EpgEvents {
 
             return [];
         } catch (error) {
-            console.error(this.loggerLabel, 'Error getting channel programs:', error);
+            console.error(
+                this.loggerLabel,
+                'Error getting channel programs:',
+                error
+            );
             return [];
         }
     }
@@ -444,7 +518,11 @@ export default class EpgEvents {
 
             return { channels, programs: [] };
         } catch (error) {
-            console.error(this.loggerLabel, 'Error getting all channels:', error);
+            console.error(
+                this.loggerLabel,
+                'Error getting all channels:',
+                error
+            );
             return { channels: [], programs: [] };
         }
     }
@@ -455,7 +533,14 @@ export default class EpgEvents {
     private static async handleGetChannelsByRange(
         skip: number,
         limit: number
-    ): Promise<Array<{ id: string; displayName: string; iconUrl: string | null; programs: EpgProgram[] }>> {
+    ): Promise<
+        Array<{
+            id: string;
+            displayName: string;
+            iconUrl: string | null;
+            programs: EpgProgram[];
+        }>
+    > {
         try {
             const db = await getDatabase();
             const channels = await db
@@ -487,7 +572,11 @@ export default class EpgEvents {
 
             return channelsWithPrograms;
         } catch (error) {
-            console.error(this.loggerLabel, 'Error getting channels by range:', error);
+            console.error(
+                this.loggerLabel,
+                'Error getting channels by range:',
+                error
+            );
             return [];
         }
     }
@@ -495,7 +584,9 @@ export default class EpgEvents {
     /**
      * Run cleanup in worker thread to avoid blocking main thread
      */
-    private static async runCleanupInWorker(hoursToKeep: number): Promise<{ success: boolean }> {
+    private static async runCleanupInWorker(
+        hoursToKeep: number
+    ): Promise<{ success: boolean }> {
         return new Promise((resolve, reject) => {
             let workerPath: string;
 
@@ -510,7 +601,11 @@ export default class EpgEvents {
                     'epg-parser.worker.js'
                 );
             } else {
-                workerPath = path.join(__dirname, 'workers', 'epg-parser.worker.js');
+                workerPath = path.join(
+                    __dirname,
+                    'workers',
+                    'epg-parser.worker.js'
+                );
             }
 
             let worker: Worker;
@@ -518,26 +613,44 @@ export default class EpgEvents {
                 const workerURL = pathToFileURL(workerPath);
                 worker = new Worker(workerURL);
             } catch (error) {
-                console.error(this.loggerLabel, 'Failed to create worker for cleanup:', error);
+                console.error(
+                    this.loggerLabel,
+                    'Failed to create worker for cleanup:',
+                    error
+                );
                 reject(error);
                 return;
             }
 
-            worker.on('message', (message: { type: string; error?: string }) => {
-                if (message.type === 'READY') {
-                    worker.postMessage({ type: 'CLEANUP_EXPIRED', hoursToKeep });
-                } else if (message.type === 'CLEANUP_COMPLETE') {
-                    worker.terminate();
-                    resolve({ success: true });
-                } else if (message.type === 'EPG_ERROR') {
-                    console.error(this.loggerLabel, 'Worker cleanup error:', message.error);
-                    worker.terminate();
-                    reject(new Error(message.error || 'Cleanup failed'));
+            worker.on(
+                'message',
+                (message: { type: string; error?: string }) => {
+                    if (message.type === 'READY') {
+                        worker.postMessage({
+                            type: 'CLEANUP_EXPIRED',
+                            hoursToKeep,
+                        });
+                    } else if (message.type === 'CLEANUP_COMPLETE') {
+                        worker.terminate();
+                        resolve({ success: true });
+                    } else if (message.type === 'EPG_ERROR') {
+                        console.error(
+                            this.loggerLabel,
+                            'Worker cleanup error:',
+                            message.error
+                        );
+                        worker.terminate();
+                        reject(new Error(message.error || 'Cleanup failed'));
+                    }
                 }
-            });
+            );
 
             worker.on('error', (error) => {
-                console.error(this.loggerLabel, 'Worker error during cleanup:', error);
+                console.error(
+                    this.loggerLabel,
+                    'Worker error during cleanup:',
+                    error
+                );
                 worker.terminate();
                 reject(error);
             });
@@ -562,7 +675,11 @@ export default class EpgEvents {
                     'epg-parser.worker.js'
                 );
             } else {
-                workerPath = path.join(__dirname, 'workers', 'epg-parser.worker.js');
+                workerPath = path.join(
+                    __dirname,
+                    'workers',
+                    'epg-parser.worker.js'
+                );
             }
 
             let worker: Worker;
@@ -570,31 +687,49 @@ export default class EpgEvents {
                 const workerURL = pathToFileURL(workerPath);
                 worker = new Worker(workerURL);
             } catch (error) {
-                console.error(this.loggerLabel, 'Failed to create worker for clear:', error);
+                console.error(
+                    this.loggerLabel,
+                    'Failed to create worker for clear:',
+                    error
+                );
                 reject(error);
                 return;
             }
 
-            worker.on('message', (message: { type: string; error?: string }) => {
-                if (message.type === 'READY') {
-                    worker.postMessage({ type: 'CLEAR_EPG' });
-                } else if (message.type === 'CLEAR_COMPLETE') {
-                    console.log(this.loggerLabel, 'EPG data cleared via worker');
-                    this.fetchedUrls.clear();
-                    // Terminate any running fetch workers
-                    this.workers.forEach((w) => w.terminate());
-                    this.workers.clear();
-                    worker.terminate();
-                    resolve();
-                } else if (message.type === 'EPG_ERROR') {
-                    console.error(this.loggerLabel, 'Worker clear error:', message.error);
-                    worker.terminate();
-                    reject(new Error(message.error || 'Clear failed'));
+            worker.on(
+                'message',
+                (message: { type: string; error?: string }) => {
+                    if (message.type === 'READY') {
+                        worker.postMessage({ type: 'CLEAR_EPG' });
+                    } else if (message.type === 'CLEAR_COMPLETE') {
+                        console.log(
+                            this.loggerLabel,
+                            'EPG data cleared via worker'
+                        );
+                        this.fetchedUrls.clear();
+                        // Terminate any running fetch workers
+                        this.workers.forEach((w) => w.terminate());
+                        this.workers.clear();
+                        worker.terminate();
+                        resolve();
+                    } else if (message.type === 'EPG_ERROR') {
+                        console.error(
+                            this.loggerLabel,
+                            'Worker clear error:',
+                            message.error
+                        );
+                        worker.terminate();
+                        reject(new Error(message.error || 'Clear failed'));
+                    }
                 }
-            });
+            );
 
             worker.on('error', (error) => {
-                console.error(this.loggerLabel, 'Worker error during clear:', error);
+                console.error(
+                    this.loggerLabel,
+                    'Worker error during clear:',
+                    error
+                );
                 worker.terminate();
                 reject(error);
             });

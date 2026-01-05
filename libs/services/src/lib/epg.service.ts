@@ -34,7 +34,6 @@ export class EpgService {
      */
     fetchEpg(urls: string[]): void {
         if (!this.isDesktop) return;
-        this.showFetchSnackbar();
 
         // Filter out empty URLs and send all URLs at once
         const validUrls = urls.filter((url) => url?.trim());
@@ -45,7 +44,6 @@ export class EpgService {
                 tap((result) => {
                     if (result.success) {
                         this.epgAvailable.next(true);
-                        this.showSuccessSnackbar();
                     } else {
                         this.epgAvailable.next(false);
                         this.showErrorSnackbar(result.message);
@@ -92,30 +90,6 @@ export class EpgService {
     }
 
     /**
-     * Shows fetch in progress snackbar
-     */
-    showFetchSnackbar(): void {
-        this.snackBar.open(this.translate.instant('EPG.FETCH_EPG'), undefined, {
-            duration: 2000,
-            horizontalPosition: 'start',
-        });
-    }
-
-    /**
-     * Shows success snackbar
-     */
-    private showSuccessSnackbar(): void {
-        this.snackBar.open(
-            this.translate.instant('EPG.FETCH_SUCCESS'),
-            undefined,
-            {
-                duration: 2000,
-                horizontalPosition: 'start',
-            }
-        );
-    }
-
-    /**
      * Shows error snackbar
      */
     private showErrorSnackbar(message?: string): void {
@@ -131,7 +105,9 @@ export class EpgService {
      * @param channelId Channel ID (tvg-id or channel name)
      * @returns Observable of current program or null
      */
-    getCurrentProgramForChannel(channelId: string): Observable<EpgProgram | null> {
+    getCurrentProgramForChannel(
+        channelId: string
+    ): Observable<EpgProgram | null> {
         if (!this.isDesktop || !channelId) {
             return of(null);
         }
@@ -140,7 +116,7 @@ export class EpgService {
         const cached = this.programCache.get(channelId);
         const now = Date.now();
 
-        if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
             return of(cached.program);
         }
 
@@ -148,7 +124,10 @@ export class EpgService {
         return from(window.electron.getChannelPrograms(channelId)).pipe(
             map((programs: EpgProgram[]) => {
                 if (!programs || programs.length === 0) {
-                    this.programCache.set(channelId, { program: null, timestamp: now });
+                    this.programCache.set(channelId, {
+                        program: null,
+                        timestamp: now,
+                    });
                     return null;
                 }
 
@@ -160,19 +139,23 @@ export class EpgService {
                 }));
 
                 // Find current program from transformed programs
-                const currentProgram = this.findCurrentProgram(transformedPrograms);
+                const currentProgram =
+                    this.findCurrentProgram(transformedPrograms);
 
                 // Cache the result
                 this.programCache.set(channelId, {
                     program: currentProgram,
-                    timestamp: now
+                    timestamp: now,
                 });
 
                 return currentProgram;
             }),
             catchError((err) => {
                 console.error('EPG get current program error:', err);
-                this.programCache.set(channelId, { program: null, timestamp: now });
+                this.programCache.set(channelId, {
+                    program: null,
+                    timestamp: now,
+                });
                 return of(null);
             })
         );
@@ -184,11 +167,13 @@ export class EpgService {
     private findCurrentProgram(programs: EpgProgram[]): EpgProgram | null {
         const now = new Date();
 
-        return programs.find(program => {
-            const start = new Date(program.start);
-            const stop = new Date(program.stop);
-            return start <= now && now <= stop;
-        }) || null;
+        return (
+            programs.find((program) => {
+                const start = new Date(program.start);
+                const stop = new Date(program.stop);
+                return start <= now && now <= stop;
+            }) || null
+        );
     }
 
     /**
@@ -196,7 +181,9 @@ export class EpgService {
      * @param channelIds Array of channel IDs
      * @returns Observable of Map with channelId -> current program
      */
-    getCurrentProgramsForChannels(channelIds: string[]): Observable<Map<string, EpgProgram | null>> {
+    getCurrentProgramsForChannels(
+        channelIds: string[]
+    ): Observable<Map<string, EpgProgram | null>> {
         if (!this.isDesktop) {
             return of(new Map());
         }
@@ -210,9 +197,9 @@ export class EpgService {
         const now = Date.now();
 
         // Check cache for each channel
-        channelIds.forEach(channelId => {
+        channelIds.forEach((channelId) => {
             const cached = this.programCache.get(channelId);
-            if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
+            if (cached && now - cached.timestamp < this.CACHE_TTL) {
                 resultMap.set(channelId, cached.program);
             } else {
                 channelsToFetch.push(channelId);
@@ -225,18 +212,18 @@ export class EpgService {
         }
 
         // Fetch uncached channels with timeout and error handling per request
-        const fetchObservables = channelsToFetch.map(channelId =>
+        const fetchObservables = channelsToFetch.map((channelId) =>
             this.getCurrentProgramForChannel(channelId).pipe(
                 timeout(5000), // 5 second timeout per request
-                map(program => ({ channelId, program })),
+                map((program) => ({ channelId, program })),
                 catchError(() => of({ channelId, program: null }))
             )
         );
 
         // Combine all fetches using forkJoin
         return forkJoin(fetchObservables).pipe(
-            map(results => {
-                results.forEach(result => {
+            map((results) => {
+                results.forEach((result) => {
                     resultMap.set(result.channelId, result.program);
                 });
                 return resultMap;
