@@ -413,7 +413,9 @@
         "SELECT_CATEGORY": "Select a category",
         "PAGE": "Page",
         "CONTENT_NOT_AVAILABLE": "This content is not available on this server",
-        "PLAYBACK_ERROR": "Failed to get playback URL"
+        "PLAYBACK_ERROR": "Failed to get playback URL",
+        "LOADING_SEASONS": "Loading seasons...",
+        "NO_EPISODES": "No episodes available"
     },
     "INFORMATION": "Information",
     "REMOTE_CONTROL": {

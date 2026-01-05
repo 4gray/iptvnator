@@ -43,6 +43,10 @@ interface StalkerState {
     itvCategories: StalkerCategoryItem[];
     hasMoreChannels: boolean;
     itvChannels: any[];
+    /** For VOD items that are actually series (Ministra plugin is_series=1) */
+    vodSeriesSeasons: any[];
+    vodSeriesEpisodes: any[];
+    selectedVodSeriesSeasonId: string;
 }
 
 const initialState: StalkerState = {
@@ -62,6 +66,9 @@ const initialState: StalkerState = {
     itvCategories: [],
     hasMoreChannels: false,
     itvChannels: [],
+    vodSeriesSeasons: [],
+    vodSeriesEpisodes: [],
+    selectedVodSeriesSeasonId: undefined,
 };
 
 function extractNumericValue(str: string) {
@@ -79,6 +86,18 @@ function sortByNumericValue(array: StalkerSeason[]): StalkerSeason[] {
         const numericA = extractNumericValue(a[key]);
         const numericB = extractNumericValue(b[key]);
         return numericA - numericB;
+    });
+}
+
+/**
+ * Sort episodes by series_number in ascending numeric order (1, 2, 3... not "1", "10", "2")
+ */
+function sortEpisodesByNumber(episodes: any[]): any[] {
+    if (!episodes) return [];
+    return episodes.sort((a, b) => {
+        const numA = parseInt(a.series_number, 10) || 0;
+        const numB = parseInt(b.series_number, 10) || 0;
+        return numA - numB;
     });
 }
 
@@ -412,6 +431,72 @@ export const StalkerStore = signalStore(
                     return sortByNumericValue(response.js.data);
                 },
             }),
+            /**
+             * Resource to fetch seasons for VOD items that are actually series (is_series=1)
+             * Used for Ministra plugin where VOD items can contain series/seasons
+             */
+            vodSeriesSeasonsResource: resource({
+                params: () => ({
+                    selectedItem: store.selectedItem(),
+                }),
+                loader: async ({ params }) => {
+                    const item = params.selectedItem;
+                    // Only fetch if item is a VOD series (has is_series flag)
+                    if (!store.currentPlaylist() || !item || !item.is_series) {
+                        return [];
+                    }
+
+                    const playlist = store.currentPlaylist() as Playlist;
+                    const queryParams = {
+                        action: StalkerPortalActions.GetOrderedList,
+                        type: 'vod',
+                        movie_id: item.id,
+                        p: '1',
+                    };
+
+                    console.log(
+                        '[StalkerStore] Fetching VOD series seasons for movie_id:',
+                        item.id
+                    );
+
+                    let response: any;
+                    if (playlist.isFullStalkerPortal) {
+                        response =
+                            await stalkerSession.makeAuthenticatedRequest(
+                                playlist,
+                                queryParams
+                            );
+                    } else {
+                        response = await dataService.sendIpcEvent(
+                            STALKER_REQUEST,
+                            {
+                                url: playlist.portalUrl,
+                                macAddress: playlist.macAddress,
+                                params: queryParams,
+                            }
+                        );
+                    }
+
+                    console.log(
+                        '[StalkerStore] VOD series seasons response:',
+                        response
+                    );
+
+                    if (!response?.js?.data) {
+                        console.warn(
+                            '[StalkerStore] Invalid VOD series seasons response:',
+                            response
+                        );
+                        return [];
+                    }
+
+                    // Filter for season items (is_season: true)
+                    const seasons = response.js.data.filter(
+                        (item: any) => item.is_season === true
+                    );
+                    return sortByNumericValue(seasons);
+                },
+            }),
         })
     ),
     withComputed((store) => ({
@@ -429,6 +514,16 @@ export const StalkerStore = signalStore(
         /** serials */
         getSerialSeasonsResource: computed(() =>
             store.serialSeasonsResource.value()
+        ),
+        isSerialSeasonsLoading: computed(() =>
+            store.serialSeasonsResource.isLoading()
+        ),
+        /** VOD series (Ministra plugin is_series=1) */
+        getVodSeriesSeasonsResource: computed(() =>
+            store.vodSeriesSeasonsResource.value()
+        ),
+        isVodSeriesSeasonsLoading: computed(() =>
+            store.vodSeriesSeasonsResource.isLoading()
         ),
         /** category resource */
         getCategoryResource: computed(() => store.getCategoryResource.value()),
@@ -529,6 +624,76 @@ export const StalkerStore = signalStore(
             },
             setItvChannels(channels: any[]) {
                 patchState(store, { itvChannels: channels });
+            },
+            /**
+             * Fetch episodes for a VOD series season (Ministra plugin)
+             * @param videoId The video_id from the season item
+             * @param seasonId The season id
+             * @returns Array of episode items
+             */
+            async fetchVodSeriesEpisodes(
+                videoId: string,
+                seasonId: string
+            ): Promise<any[]> {
+                const playlist = store.currentPlaylist() as Playlist;
+                if (!playlist) return [];
+
+                const queryParams = {
+                    action: StalkerPortalActions.GetOrderedList,
+                    type: 'vod',
+                    movie_id: videoId,
+                    season_id: seasonId,
+                    p: '1',
+                };
+
+                console.log(
+                    '[StalkerStore] Fetching VOD series episodes for video_id:',
+                    videoId,
+                    'season_id:',
+                    seasonId
+                );
+
+                let response: any;
+                if (playlist.isFullStalkerPortal) {
+                    response = await stalkerSession.makeAuthenticatedRequest(
+                        playlist,
+                        queryParams
+                    );
+                } else {
+                    response = await dataService.sendIpcEvent(STALKER_REQUEST, {
+                        url: playlist.portalUrl,
+                        macAddress: playlist.macAddress,
+                        params: queryParams,
+                    });
+                }
+
+                console.log(
+                    '[StalkerStore] VOD series episodes response:',
+                    response
+                );
+
+                if (!response?.js?.data) {
+                    console.warn(
+                        '[StalkerStore] Invalid VOD series episodes response:',
+                        response
+                    );
+                    return [];
+                }
+
+                // Filter for episode items (is_episode: true) and sort by series_number
+                const episodes = sortEpisodesByNumber(
+                    response.js.data.filter(
+                        (item: any) => item.is_episode === true
+                    )
+                );
+
+                // Store episodes and selected season
+                patchState(store, {
+                    vodSeriesEpisodes: episodes,
+                    selectedVodSeriesSeasonId: seasonId,
+                });
+
+                return episodes;
             },
             /** getters */
             getSelectedCategory() {

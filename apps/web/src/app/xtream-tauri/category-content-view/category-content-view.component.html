@@ -4,6 +4,9 @@
             @if (selectedItem().series?.length > 0) {
                 <!-- VOD item with embedded series (vclub) -->
                 <app-stalker-series-view [vodWithSeries]="selectedItem()" />
+            } @else if (selectedItem().is_series) {
+                <!-- VOD item that is actually a series (Ministra plugin is_series=1) -->
+                <app-stalker-series-view />
             } @else {
                 <app-vod-details
                     [item]="selectedItem()"
@@ -15,7 +18,9 @@
                         )
                     "
                     (addToFavoritesClicked)="addToFavorites($event)"
-                    (removeFromFavoritesClicked)="removeFromFavorites($any($event))"
+                    (removeFromFavoritesClicked)="
+                        removeFromFavorites($any($event))
+                    "
                 />
             }
         } @else if (contentType === 'series') {

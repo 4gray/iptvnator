@@ -48,7 +48,10 @@ export class CategoryContentViewComponent implements OnInit {
         const { categoryId } = this.activatedRoute.snapshot.params;
         // Only set category if it's different from the currently selected one
         // This preserves the page state when navigating back from detail view
-        if (categoryId && this.store.selectedCategoryId() !== Number(categoryId)) {
+        if (
+            categoryId &&
+            this.store.selectedCategoryId() !== Number(categoryId)
+        ) {
             this.store.setSelectedCategory(categoryId);
         }
     }
@@ -67,6 +70,14 @@ export class CategoryContentViewComponent implements OnInit {
             series: item.series,
             // Preserve has_files for cmd transformation during playback
             has_files: item.has_files,
+            // Flag for VOD items that are actually series (Ministra plugin)
+            // is_series can be "1" (string) or 1 (number)
+            // ONLY set this for VOD content type - regular series should use the standard series flow
+            is_series:
+                this.contentType === 'vod' &&
+                (item.is_series === '1' || item.is_series === 1),
+            // Store video_id for season fetching if available
+            video_id: item.video_id,
             info: {
                 movie_image: item.screenshot_uri,
                 description: item.description,
