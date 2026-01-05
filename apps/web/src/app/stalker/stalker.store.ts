@@ -724,8 +724,6 @@ export const StalkerStore = signalStore(
                     ...(series ? { series: String(series) } : {}),
                 };
 
-                console.log('[StalkerStore] series is :', series);
-
                 // Use makeAuthenticatedRequest for automatic retry on auth failure
                 const playlist = store.currentPlaylist() as Playlist;
                 let response: any;
