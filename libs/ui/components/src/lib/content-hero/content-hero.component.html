@@ -1,0 +1,72 @@
+<!-- Hero Section with Backdrop -->
+<section class="hero">
+    <!-- Back Button -->
+    <button class="hero__back-button" (click)="onBack()">
+        <mat-icon>arrow_back</mat-icon>
+    </button>
+
+    <!-- Backdrop Image -->
+    <div
+        class="hero__backdrop"
+        [class.hero__backdrop--blurred]="!backdropUrl"
+        [style.backgroundImage]="
+            backdropUrl
+                ? 'url(' + backdropUrl + ')'
+                : posterUrl
+                  ? 'url(' + posterUrl + ')'
+                  : 'none'
+        "
+    ></div>
+
+    <!-- Gradient Vignette Overlay -->
+    <div class="hero__vignette"></div>
+
+    <!-- Hero Content -->
+    <div class="hero__content">
+        <!-- Poster Card -->
+        <div class="poster">
+            @if (posterUrl) {
+                <img
+                    class="poster__image"
+                    [src]="posterUrl"
+                    (error)="
+                        $event.target.src = './assets/images/default-poster.png'
+                    "
+                    alt="Poster"
+                />
+            } @else {
+                <div class="poster__placeholder">No Poster</div>
+            }
+        </div>
+
+        <!-- Details -->
+        <div class="details">
+            <h1 class="details__title">{{ title }}</h1>
+
+            <!-- Tags Slot -->
+            <div class="details__tags">
+                <ng-content select="[hero-tags]"></ng-content>
+            </div>
+
+            <!-- Description -->
+            @if (description) {
+                <p class="details__description">
+                    {{ description }}
+                </p>
+            }
+
+            <!-- Metadata Grid Slot -->
+            <div class="details__meta">
+                <ng-content select="[hero-meta]"></ng-content>
+            </div>
+
+            <!-- Action Buttons Slot -->
+            <div class="action-buttons">
+                <ng-content select="[hero-actions]"></ng-content>
+            </div>
+
+            <!-- Additional Content (Seasons, Trailers, etc.) -->
+            <ng-content></ng-content>
+        </div>
+    </div>
+</section>
