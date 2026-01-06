@@ -1,18 +1,21 @@
 import { KeyValuePipe } from '@angular/common';
 import { Component, EventEmitter, Output, input } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { XtreamSerieEpisode, XtreamSerieEpisodeInfo } from 'shared-interfaces';
 
 @Component({
     selector: 'app-season-container',
     templateUrl: './season-container.component.html',
     styleUrls: ['./season-container.component.scss'],
-    imports: [KeyValuePipe, MatIcon],
+    imports: [KeyValuePipe, MatIcon, MatProgressSpinnerModule],
 })
 export class SeasonContainerComponent {
     readonly seasons = input.required<Record<string, XtreamSerieEpisode[]>>();
+    readonly isLoading = input<boolean>(false);
 
     @Output() episodeClicked = new EventEmitter<any>();
+    @Output() seasonSelected = new EventEmitter<string>();
 
     selectedSeason: string;
 
@@ -22,6 +25,7 @@ export class SeasonContainerComponent {
 
     selectSeason(seasonKey: string) {
         this.selectedSeason = seasonKey;
+        this.seasonSelected.emit(seasonKey);
     }
 
     selectEpisode(episode: XtreamSerieEpisode) {

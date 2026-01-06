@@ -48,7 +48,13 @@ export class StalkerShellComponent implements OnDestroy {
                 playlistId: this.route.snapshot.params['id'],
             })
         );
-        this.stalkerStore.setSelectedContentType('vod');
+
+        const childRoute = this.route.snapshot.firstChild;
+        const path = childRoute?.url[0]?.path;
+        const validTypes = ['vod', 'series', 'itv'];
+        const initialType = validTypes.includes(path) ? (path as any) : 'vod';
+
+        this.stalkerStore.setSelectedContentType(initialType);
         this.stalkerStore.setSelectedCategory(null);
         effect(() => {
             this.stalkerStore.setCurrentPlaylist(this.currentPlaylist());
