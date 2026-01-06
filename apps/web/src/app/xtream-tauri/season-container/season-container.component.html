@@ -10,7 +10,11 @@
     </div>
 
     <div class="content-container">
-        @if (!selectedSeason) {
+        @if (isLoading()) {
+            <div class="loading-container">
+                <mat-spinner diameter="40"></mat-spinner>
+            </div>
+        } @else if (!selectedSeason) {
             <!-- Seasons Grid -->
             <div class="seasons-grid">
                 @for (

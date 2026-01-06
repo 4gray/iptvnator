@@ -6,13 +6,12 @@ import {
     input,
     signal,
 } from '@angular/core';
-import { MatButton } from '@angular/material/button';
-import { MatDivider } from '@angular/material/divider';
-import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../favorites-button/favorites-button.component';
 import { ContentHeroComponent } from 'components';
 import { StalkerStore } from '../stalker.store';
+import { SeasonContainerComponent } from '../../xtream-tauri/season-container/season-container.component';
+import { XtreamSerieEpisode } from 'shared-interfaces';
 
 /**
  * VOD series season with episodes loaded dynamically
@@ -51,10 +50,8 @@ interface StalkerSeriesSeason {
     imports: [
         FavoritesButtonComponent,
         ContentHeroComponent,
-        MatButton,
-        MatDivider,
-        MatProgressSpinner,
         TranslatePipe,
+        SeasonContainerComponent,
     ],
 })
 export class StalkerSeriesViewComponent {
@@ -151,89 +148,180 @@ export class StalkerSeriesViewComponent {
     });
 
     /**
-     * Toggle season expansion and load episodes if needed (for VOD series)
+     * Adapts both Regular and VOD series data into the format expected by SeasonContainerComponent.
+     * Record<string, XtreamSerieEpisode[]> where string is season number/name.
      */
-    async toggleSeasonExpanded(season: VodSeriesSeason) {
+    readonly mappedSeasons = computed<Record<string, XtreamSerieEpisode[]>>(
+        () => {
+            const mapped: Record<string, XtreamSerieEpisode[]> = {};
+
+            if (this.isVodSeries()) {
+                // Map VOD Series (async loaded)
+                this.vodSeriesSeasons().forEach((season) => {
+                    const seasonKey =
+                        season.season_number || season.name || season.id;
+                    // Map existing episodes or empty array
+                    mapped[seasonKey] = (season.episodes || []).map(
+                        (ep) =>
+                            ({
+                                episode_num:
+                                    ep.series_number || ep.episode_num || 0,
+                                title:
+                                    ep.name ||
+                                    `Episode ${ep.series_number || ep.episode_num}`,
+                                container_extension: 'mpg',
+                                info: {
+                                    movie_image:
+                                        ep.cover ||
+                                        this.displayItem().info.movie_image,
+                                    plot: ep.description || '',
+                                    duration: ep.duration
+                                        ? `${ep.duration} min`
+                                        : '',
+                                },
+                                id: ep.id,
+                                custom_sid: 'vod-series', // marker
+                            }) as unknown as XtreamSerieEpisode
+                    );
+                });
+            } else {
+                // Map Regular Series (just numbers)
+                (this.regularSeasons() || []).forEach((season, index) => {
+                    const seasonKey = (index + 1).toString();
+                    mapped[seasonKey] = (season.series || []).map(
+                        (epNum) =>
+                            ({
+                                episode_num: epNum,
+                                title: `Episode ${epNum}`,
+                                container_extension: '',
+                                info: {
+                                    movie_image:
+                                        this.displayItem().info.movie_image,
+                                },
+                                custom_sid: 'regular-series', // marker
+                                id: season.cmd, // Store cmd in id for playEpisodeClicked
+                            }) as unknown as XtreamSerieEpisode
+                    );
+                });
+            }
+
+            return mapped;
+        }
+    );
+
+    /**
+     * Handles season selection from the container.
+     * For VOD Series, triggers lazy loading of episodes.
+     */
+    onSeasonSelected(seasonKey: string) {
+        if (!this.isVodSeries()) return;
+
+        const seasons = this.vodSeriesSeasons();
+        const season = seasons.find(
+            (s) => (s.season_number || s.name || s.id) == seasonKey
+        );
+
+        if (season && (!season.episodes || season.episodes.length === 0)) {
+            this.loadEpisodesForSeason(season);
+        }
+    }
+
+    /**
+     * Loads episodes for a specific VOD season
+     */
+    async loadEpisodesForSeason(season: VodSeriesSeason) {
+        // Set loading state in local signal
         const seasons = this.vodSeriesSeasons();
         const index = seasons.findIndex((s) => s.id === season.id);
         if (index === -1) return;
 
         const updatedSeasons = [...seasons];
-        const currentSeason = { ...updatedSeasons[index] };
+        updatedSeasons[index] = { ...updatedSeasons[index], isLoading: true };
+        this.vodSeriesSeasons.set(updatedSeasons);
 
-        // Toggle expansion
-        currentSeason.isExpanded = !currentSeason.isExpanded;
+        try {
+            const episodes = await this.stalkerStore.fetchVodSeriesEpisodes(
+                season.video_id,
+                season.id
+            );
 
-        // Load episodes if expanding and not already loaded
-        if (
-            currentSeason.isExpanded &&
-            (!currentSeason.episodes || currentSeason.episodes.length === 0)
-        ) {
-            currentSeason.isLoading = true;
-            updatedSeasons[index] = currentSeason;
-            this.vodSeriesSeasons.set(updatedSeasons);
-
-            try {
-                const episodes = await this.stalkerStore.fetchVodSeriesEpisodes(
-                    currentSeason.video_id,
-                    currentSeason.id
-                );
-                // Update season with loaded episodes
-                const newSeasons = [...this.vodSeriesSeasons()];
-                const seasonIndex = newSeasons.findIndex(
-                    (s) => s.id === season.id
-                );
-                if (seasonIndex !== -1) {
-                    newSeasons[seasonIndex] = {
-                        ...newSeasons[seasonIndex],
-                        episodes: episodes,
-                        isLoading: false,
-                    };
-                    this.vodSeriesSeasons.set(newSeasons);
-                }
-            } catch (error) {
-                console.error(
-                    '[StalkerSeriesViewComponent] Failed to load episodes:',
-                    error
-                );
-                const newSeasons = [...this.vodSeriesSeasons()];
-                const seasonIndex = newSeasons.findIndex(
-                    (s) => s.id === season.id
-                );
-                if (seasonIndex !== -1) {
-                    newSeasons[seasonIndex] = {
-                        ...newSeasons[seasonIndex],
-                        isLoading: false,
-                    };
-                    this.vodSeriesSeasons.set(newSeasons);
-                }
+            // Update with loaded episodes
+            const newSeasons = [...this.vodSeriesSeasons()];
+            const newIndex = newSeasons.findIndex((s) => s.id === season.id);
+            if (newIndex !== -1) {
+                newSeasons[newIndex] = {
+                    ...newSeasons[newIndex],
+                    episodes: episodes,
+                    isLoading: false,
+                };
+                this.vodSeriesSeasons.set(newSeasons);
             }
+        } catch (error) {
+            console.error(
+                '[StalkerSeriesViewComponent] Failed to load episodes:',
+                error
+            );
+            const newSeasons = [...this.vodSeriesSeasons()];
+            const newIndex = newSeasons.findIndex((s) => s.id === season.id);
+            if (newIndex !== -1) {
+                newSeasons[newIndex] = {
+                    ...newSeasons[newIndex],
+                    isLoading: false,
+                };
+                this.vodSeriesSeasons.set(newSeasons);
+            }
+        }
+    }
+
+    /**
+     * Determines if the current selected season is loading
+     */
+    isCurrentSeasonLoading(seasonKey: string): boolean {
+        if (!this.isVodSeries()) return false;
+        const season = this.vodSeriesSeasons().find(
+            (s) => (s.season_number || s.name || s.id) == seasonKey
+        );
+        return season?.isLoading || false;
+    }
+
+    /**
+     * Handles episode click from the container
+     */
+    onEpisodeClicked(episode: XtreamSerieEpisode) {
+        if (episode.custom_sid === 'vod-series') {
+            // It's a VOD series episode
+            // We reconstructed the episode object, but playVodSeriesEpisode expects the raw object
+            // or at least { id, name, series_number }
+            this.playVodSeriesEpisode({
+                id: episode.id,
+                name: episode.title,
+                series_number: episode.episode_num,
+            });
         } else {
-            updatedSeasons[index] = currentSeason;
-            this.vodSeriesSeasons.set(updatedSeasons);
+            // Regular series
+            // episode.id contains the 'cmd' from mapping
+            this.playEpisodeClicked(episode.episode_num, episode.id);
         }
     }
 
     /**
      * Play episode - handles both regular series and VOD series
      */
-    playEpisodeClicked(episode: any, cmd?: string) {
+    playEpisodeClicked(episodeNum: any, cmd?: string) {
         const item = this.displayItem();
         this.stalkerStore.createLinkToPlayVod(
             cmd,
             item.info.name,
             item.info.movie_image,
-            episode
+            episodeNum
         );
     }
 
     /**
      * Play VOD series episode
-     * For VOD series, we need to use a different cmd format
      */
     playVodSeriesEpisode(episode: any) {
         const item = this.displayItem();
-        // For VOD series episodes, the cmd is: /media/file_{episode.id}.mpg
         const cmd = `/media/file_${episode.id}.mpg`;
         const episodeName = episode.name || `Episode ${episode.series_number}`;
 
@@ -261,7 +349,6 @@ export class StalkerSeriesViewComponent {
     }
 
     goBack() {
-        // Clear selectedItem to return to category view
         this.stalkerStore.clearSelectedItem();
     }
 }

@@ -1,0 +1,32 @@
+.favorite-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    background: rgba(109, 109, 110, 0.7);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: rgba(109, 109, 110, 0.5);
+    }
+
+    &--active {
+        background: rgba(229, 9, 20, 0.8);
+
+        &:hover {
+            background: rgba(229, 9, 20, 0.6);
+        }
+    }
+
+    mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+    }
+}

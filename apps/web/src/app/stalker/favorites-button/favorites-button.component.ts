@@ -1,6 +1,5 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject, input, output } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { BehaviorSubject, map, switchMap } from 'rxjs';
@@ -10,7 +9,8 @@ import { StalkerStore } from '../stalker.store';
 @Component({
     selector: 'app-favorites-button',
     templateUrl: './favorites-button.component.html',
-    imports: [AsyncPipe, MatButtonModule, MatIconModule, TranslateModule],
+    styleUrls: ['./favorites-button.component.scss'],
+    imports: [AsyncPipe, MatIconModule, TranslateModule],
 })
 export class FavoritesButtonComponent {
     private playlistService = inject(PlaylistsService);
