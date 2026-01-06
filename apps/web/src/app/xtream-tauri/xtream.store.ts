@@ -639,7 +639,10 @@ export const XtreamStore = signalStore(
                                 );
                                 localStorage.removeItem(restoreKey);
                             } catch (err) {
-                                console.error('Error restoring user data:', err);
+                                console.error(
+                                    'Error restoring user data:',
+                                    err
+                                );
                             }
                         }
                     }
@@ -885,6 +888,33 @@ export const XtreamStore = signalStore(
                 },
                 removeFromFavorites(favoriteId: string) {
                     console.log('not needed now', favoriteId);
+                },
+                /**
+                 * Reload categories from database after visibility changes
+                 */
+                async reloadCategories() {
+                    const playlistId = route.snapshot.params.id;
+                    if (!playlistId) return;
+
+                    try {
+                        const [
+                            liveCategories,
+                            vodCategories,
+                            serialCategories,
+                        ] = await Promise.all([
+                            dbService.getXtreamCategories(playlistId, 'live'),
+                            dbService.getXtreamCategories(playlistId, 'movies'),
+                            dbService.getXtreamCategories(playlistId, 'series'),
+                        ]);
+
+                        patchState(store, {
+                            liveCategories: liveCategories as any,
+                            vodCategories: vodCategories as any,
+                            serialCategories: serialCategories as any,
+                        });
+                    } catch (error) {
+                        console.error('Error reloading categories:', error);
+                    }
                 },
             };
         }

@@ -1,9 +1,15 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { XtreamCategory } from 'shared-interfaces';
+import {
+    CategoryManagementDialogComponent,
+    CategoryManagementDialogData,
+} from './category-management-dialog/category-management-dialog.component';
 import { CategoryViewComponent } from './category-view/category-view.component';
 import { XtreamStore } from './xtream.store';
 
@@ -18,6 +24,7 @@ import { XtreamStore } from './xtream.store';
         /* MpvPlayerBarComponent, */
         MatIcon,
         MatIconButton,
+        MatTooltipModule,
     ],
 })
 export class XtreamMainContainerComponent implements OnInit {
@@ -25,6 +32,7 @@ export class XtreamMainContainerComponent implements OnInit {
     readonly route = inject(ActivatedRoute);
     readonly translateService = inject(TranslateService);
     readonly xtreamStore = inject(XtreamStore);
+    private readonly dialog = inject(MatDialog);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
 
@@ -79,6 +87,32 @@ export class XtreamMainContainerComponent implements OnInit {
     historyBack() {
         this.router.navigate(['.', this.xtreamStore.selectedCategoryId()], {
             relativeTo: this.route,
+        });
+    }
+
+    openCategoryManagement(): void {
+        // The playlist id is in the parent route (xtreams/:id)
+        const playlistId = this.route.parent?.snapshot.params['id'];
+        const contentType = this.xtreamStore.selectedContentType();
+
+        const dialogRef = this.dialog.open<
+            CategoryManagementDialogComponent,
+            CategoryManagementDialogData,
+            boolean
+        >(CategoryManagementDialogComponent, {
+            data: {
+                playlistId,
+                contentType,
+            },
+            width: '500px',
+            maxHeight: '80vh',
+        });
+
+        dialogRef.afterClosed().subscribe((result) => {
+            if (result) {
+                // Reload categories from database to reflect visibility changes
+                this.xtreamStore.reloadCategories();
+            }
         });
     }
 }

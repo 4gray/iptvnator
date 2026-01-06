@@ -123,6 +123,14 @@ declare global {
                 categories: any[],
                 type: string
             ) => Promise<{ success: boolean }>;
+            dbGetAllCategories: (
+                playlistId: string,
+                type: string
+            ) => Promise<any[]>;
+            dbUpdateCategoryVisibility: (
+                categoryIds: number[],
+                hidden: boolean
+            ) => Promise<{ success: boolean }>;
             dbHasContent: (
                 playlistId: string,
                 type: string

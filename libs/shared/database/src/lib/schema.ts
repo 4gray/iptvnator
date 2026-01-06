@@ -49,6 +49,7 @@ export const categories = sqliteTable(
         name: text('name').notNull(),
         type: text('type', { enum: ['live', 'movies', 'series'] }).notNull(),
         xtreamId: integer('xtream_id').notNull(),
+        hidden: integer('hidden', { mode: 'boolean' }).default(false),
     },
     (table) => ({
         playlistIdx: index('idx_categories_playlist').on(table.playlistId),
