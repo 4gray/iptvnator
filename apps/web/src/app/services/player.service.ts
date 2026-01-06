@@ -57,7 +57,7 @@ export class PlayerService {
                 referer: referer,
                 origin: origin,
             });
-        } else if (!isLiveContent) {
+        } else {
             this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
                 PlayerDialogComponent,
                 {
