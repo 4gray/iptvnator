@@ -93,18 +93,6 @@ export class StalkerPortalImportComponent {
             const isFullStalkerPortal =
                 this.isFullStalkerPortalUrl(originalUrl);
 
-            console.log('[StalkerImport] Starting import process');
-            console.log('[StalkerImport] Original URL:', originalUrl);
-            console.log('[StalkerImport] Transformed URL:', transformedUrl);
-            console.log(
-                '[StalkerImport] Is Full Stalker Portal:',
-                isFullStalkerPortal
-            );
-            console.log(
-                '[StalkerImport] MAC Address:',
-                this.form.value.macAddress
-            );
-
             let stalkerToken: string | undefined;
             let stalkerAccountInfo: Playlist['stalkerAccountInfo'] | undefined;
             let stalkerSerialNumber: string | undefined;
@@ -115,21 +103,10 @@ export class StalkerPortalImportComponent {
 
             // For full stalker portal URLs, perform handshake and get profile
             if (isFullStalkerPortal) {
-                console.log(
-                    '[StalkerImport] Full stalker portal detected, starting authentication...'
-                );
-
                 // Use provided serial number or generate a new one
                 stalkerSerialNumber =
                     this.form.value.serialNumber?.trim() ||
                     STALKER_SERIAL_NUMBER;
-                console.log(
-                    '[StalkerImport] Using serial number:',
-                    stalkerSerialNumber,
-                    this.form.value.serialNumber?.trim()
-                        ? '(user provided)'
-                        : '(auto-generated)'
-                );
 
                 // Use provided device IDs if available (64 hex chars each)
                 stalkerDeviceId1 =
@@ -140,34 +117,6 @@ export class StalkerPortalImportComponent {
                     this.form.value.signature1?.trim() || undefined;
                 stalkerSignature2 =
                     this.form.value.signature2?.trim() || undefined;
-                console.log(
-                    '[StalkerImport] Device ID 1:',
-                    stalkerDeviceId1
-                        ? stalkerDeviceId1.substring(0, 16) +
-                              '... (user provided)'
-                        : '(auto-generated)'
-                );
-                console.log(
-                    '[StalkerImport] Device ID 2:',
-                    stalkerDeviceId2
-                        ? stalkerDeviceId2.substring(0, 16) +
-                              '... (user provided)'
-                        : '(auto-generated)'
-                );
-                console.log(
-                    '[StalkerImport] Signature 1:',
-                    stalkerSignature1
-                        ? stalkerSignature1.substring(0, 16) +
-                              '... (user provided)'
-                        : '(not provided)'
-                );
-                console.log(
-                    '[StalkerImport] Signature 2:',
-                    stalkerSignature2
-                        ? stalkerSignature2.substring(0, 16) +
-                              '... (user provided)'
-                        : '(not provided)'
-                );
 
                 try {
                     const authResult =
@@ -180,10 +129,6 @@ export class StalkerPortalImportComponent {
                         );
 
                     stalkerToken = authResult.token;
-                    console.log(
-                        '[StalkerImport] Authentication successful, token received:',
-                        stalkerToken?.substring(0, 10) + '...'
-                    );
 
                     if (authResult.accountInfo) {
                         stalkerAccountInfo = {
@@ -193,10 +138,6 @@ export class StalkerPortalImportComponent {
                                 authResult.accountInfo.tariff_plan_name,
                             status: authResult.accountInfo.status,
                         };
-                        console.log(
-                            '[StalkerImport] Account info received:',
-                            stalkerAccountInfo
-                        );
                     }
 
                     // Show success notification with account info if available
@@ -223,10 +164,6 @@ export class StalkerPortalImportComponent {
                     this.isLoading.set(false);
                     return;
                 }
-            } else {
-                console.log(
-                    '[StalkerImport] Simple portal URL, skipping authentication'
-                );
             }
 
             const playlist: Playlist = {
@@ -241,12 +178,6 @@ export class StalkerPortalImportComponent {
                 stalkerSignature1,
                 stalkerSignature2,
             } as Playlist;
-
-            console.log('[StalkerImport] Creating playlist with config:', {
-                portalUrl: playlist.portalUrl,
-                isFullStalkerPortal: playlist.isFullStalkerPortal,
-                hasToken: !!playlist.stalkerToken,
-            });
 
             this.store.dispatch(PlaylistActions.addPlaylist({ playlist }));
             this.addClicked.emit();

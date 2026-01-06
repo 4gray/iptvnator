@@ -157,10 +157,6 @@ export class StalkerSessionService {
         };
 
         const fullUrl = `${portalUrl}?type=stb&action=handshake&token=&prehash=${prehash}&JsHttpRequest=1-xml`;
-        console.log('[StalkerSession] Performing handshake...');
-        console.log('[StalkerSession] Handshake URL:', fullUrl);
-        console.log('[StalkerSession] MAC Address:', macAddress);
-        console.log('[StalkerSession] Prehash:', prehash);
 
         try {
             const response: StalkerHandshakeResponse =
@@ -170,20 +166,7 @@ export class StalkerSessionService {
                     params,
                 });
 
-            console.log(
-                '[StalkerSession] Handshake response:',
-                JSON.stringify(response, null, 2)
-            );
-
             if (response?.js?.token) {
-                console.log(
-                    '[StalkerSession] Token received:',
-                    response.js.token.substring(0, 10) + '...'
-                );
-                console.log(
-                    '[StalkerSession] Random received:',
-                    response.js.random
-                );
                 return {
                     token: response.js.token,
                     random: response.js.random || generateRandom(),
@@ -255,19 +238,6 @@ export class StalkerSessionService {
             JsHttpRequest: '1-xml',
         };
 
-        console.log('[StalkerSession] Getting profile...');
-        console.log('[StalkerSession] Profile URL:', portalUrl);
-        console.log('[StalkerSession] Token:', token.substring(0, 10) + '...');
-        console.log('[StalkerSession] Serial Number:', serialNumber);
-        console.log(
-            '[StalkerSession] Device ID:',
-            deviceId1.substring(0, 16) + '...'
-        );
-        console.log(
-            '[StalkerSession] Signature:',
-            signature1 ? signature1.substring(0, 16) + '...' : '(empty)'
-        );
-
         try {
             const response: StalkerProfileResponse =
                 await this.dataService.sendIpcEvent(STALKER_REQUEST, {
@@ -277,11 +247,6 @@ export class StalkerSessionService {
                     token,
                     serialNumber,
                 });
-
-            console.log(
-                '[StalkerSession] Profile response:',
-                JSON.stringify(response, null, 2)
-            );
 
             return response;
         } catch (error) {
@@ -308,10 +273,6 @@ export class StalkerSessionService {
             JsHttpRequest: '1-xml',
         };
 
-        console.log('[StalkerSession] Performing do_auth...');
-        console.log('[StalkerSession] do_auth URL:', portalUrl);
-        console.log('[StalkerSession] Token:', token.substring(0, 10) + '...');
-
         try {
             const response = await this.dataService.sendIpcEvent(
                 STALKER_REQUEST,
@@ -323,18 +284,11 @@ export class StalkerSessionService {
                 }
             );
 
-            console.log(
-                '[StalkerSession] do_auth response:',
-                JSON.stringify(response, null, 2)
-            );
-
             // do_auth returns { js: true } on success
             if (response?.js === true) {
-                console.log('[StalkerSession] do_auth successful');
                 return true;
             }
 
-            console.warn('[StalkerSession] do_auth returned:', response?.js);
             return false;
         } catch (error) {
             console.error('[StalkerSession] do_auth error:', error);
@@ -358,50 +312,14 @@ export class StalkerSessionService {
         token: string;
         accountInfo?: StalkerProfileResponse['js']['account_info'];
     }> {
-        console.log('[StalkerSession] Starting full authentication flow...');
-        console.log('[StalkerSession] Portal URL:', portalUrl);
-        console.log('[StalkerSession] MAC Address:', macAddress);
-        console.log('[StalkerSession] Serial Number:', serialNumber);
-        console.log(
-            '[StalkerSession] Device ID 1:',
-            deviceId1
-                ? deviceId1.substring(0, 16) + '... (provided)'
-                : '(will be auto-generated)'
-        );
-        console.log(
-            '[StalkerSession] Device ID 2:',
-            deviceId2
-                ? deviceId2.substring(0, 16) + '... (provided)'
-                : '(will be auto-generated)'
-        );
-        console.log(
-            '[StalkerSession] Signature 1:',
-            signature1
-                ? signature1.substring(0, 16) + '... (provided)'
-                : '(empty)'
-        );
-        console.log(
-            '[StalkerSession] Signature 2:',
-            signature2
-                ? signature2.substring(0, 16) + '... (provided)'
-                : '(empty)'
-        );
-
         // Step 1: Handshake to get token and random
-        console.log('[StalkerSession] Step 1: Performing handshake...');
         const { token, random } = await this.performHandshake(
             portalUrl,
             macAddress
         );
-        console.log(
-            '[StalkerSession] Step 1 complete: Token and random obtained'
-        );
 
         // Step 2: Get profile to activate token and get account info
         // The random from handshake must be used in auth_second_step
-        console.log(
-            '[StalkerSession] Step 2: Getting profile with handshake random (activates token)...'
-        );
         try {
             const profileResponse = await this.getProfile(
                 portalUrl,
@@ -425,10 +343,6 @@ export class StalkerSessionService {
                 throw new Error(`Profile error: ${errorMsg}`);
             }
 
-            console.log(
-                '[StalkerSession] Step 2 complete: Profile obtained, token activated'
-            );
-            console.log('[StalkerSession] Authentication successful!');
             return {
                 token,
                 accountInfo: profileResponse?.js?.account_info,
@@ -448,30 +362,14 @@ export class StalkerSessionService {
     async ensureToken(
         playlist: Playlist
     ): Promise<{ token: string | null; serialNumber?: string }> {
-        console.log(
-            '[StalkerSession] Ensuring token for playlist:',
-            playlist._id
-        );
-        console.log(
-            '[StalkerSession] Is full stalker portal:',
-            playlist.isFullStalkerPortal
-        );
-
         // If not a full stalker portal, no token needed
         if (!playlist.isFullStalkerPortal) {
-            console.log(
-                '[StalkerSession] Not a full stalker portal, no token needed'
-            );
             return { token: null };
         }
 
         // Check in-memory cache first (valid for current session only)
         const cachedToken = this.getCachedToken(playlist._id);
         if (cachedToken) {
-            console.log(
-                '[StalkerSession] Using cached token:',
-                cachedToken.substring(0, 10) + '...'
-            );
             return { token: cachedToken };
         }
 
@@ -496,20 +394,7 @@ export class StalkerSessionService {
         let serialNumber = playlist.stalkerSerialNumber;
         if (!serialNumber) {
             serialNumber = STALKER_SERIAL_NUMBER;
-            console.log(
-                '[StalkerSession] Generated new serial number:',
-                serialNumber
-            );
-        } else {
-            console.log(
-                '[StalkerSession] Using stored serial number:',
-                serialNumber
-            );
         }
-
-        console.log(
-            '[StalkerSession] No cached token, performing full authentication...'
-        );
 
         // Create the authentication promise and store it to prevent concurrent auth attempts
         // Use async/await wrapper to properly clean up on both success and failure
@@ -519,9 +404,6 @@ export class StalkerSessionService {
                     playlist.portalUrl,
                     playlist.macAddress,
                     serialNumber
-                );
-                console.log(
-                    '[StalkerSession] Authentication complete, token cached'
                 );
                 this.setCachedToken(playlist._id, token);
                 return { token, serialNumber };
@@ -586,11 +468,6 @@ export class StalkerSessionService {
         const { token } = await this.ensureToken(playlist);
         const serialNumber = playlist.stalkerSerialNumber;
 
-        console.log(
-            '[StalkerSession] Making authenticated request:',
-            params['action']
-        );
-
         try {
             const response = await this.dataService.sendIpcEvent(
                 STALKER_REQUEST,
@@ -605,15 +482,7 @@ export class StalkerSessionService {
 
             // Check for authorization failure in response
             if (this.isAuthorizationError(response)) {
-                console.warn(
-                    '[StalkerSession] Authorization error detected in response:',
-                    response
-                );
-
                 if (retryOnAuthFailure && playlist.isFullStalkerPortal) {
-                    console.log(
-                        '[StalkerSession] Clearing token and retrying with fresh auth...'
-                    );
                     // Clear cached token to force re-authentication
                     this.clearCachedToken(playlist._id);
                     // Retry once with fresh authentication
@@ -635,9 +504,6 @@ export class StalkerSessionService {
                 retryOnAuthFailure &&
                 playlist.isFullStalkerPortal
             ) {
-                console.log(
-                    '[StalkerSession] Clearing token and retrying with fresh auth (caught error)...'
-                );
                 // Clear cached token and retry with new handshake
                 this.clearCachedToken(playlist._id);
                 return this.makeAuthenticatedRequest<T>(
