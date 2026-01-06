@@ -75,6 +75,11 @@ ipcMain.handle(
         type: 'live' | 'movies' | 'series'
     ) => {
         try {
+            // Skip if no categories to save
+            if (!categories || categories.length === 0) {
+                return { success: true };
+            }
+
             const db = await getDatabase();
             const values = categories.map((cat) => ({
                 playlistId,
