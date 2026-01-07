@@ -25,12 +25,9 @@ export class CategoryViewComponent {
 
     isSelected(item: XtreamCategory): boolean {
         const selectedCategory = this.selectedCategoryId();
-        const itemId = (item as any).category_id ?? item.id;
+        const itemId = Number((item as any).category_id ?? item.id);
 
-        return (
-            selectedCategory !== null &&
-            String(selectedCategory) === String(itemId)
-        );
+        return selectedCategory !== null && selectedCategory === itemId;
     }
 
     getItemCount(item: XtreamCategory): number {
