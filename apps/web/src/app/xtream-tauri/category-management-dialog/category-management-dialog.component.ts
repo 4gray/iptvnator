@@ -11,6 +11,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DatabaseService, XCategoryFromDb } from 'services';
 
@@ -168,6 +169,11 @@ export class CategoryManagementDialogComponent implements OnInit {
             this.dialogRef.close(true);
         } catch (error) {
             console.error('Error saving category visibility:', error);
+            inject(MatSnackBar).open(
+                'Failed to save category visibility',
+                'Close',
+                { duration: 3000 }
+            );
         } finally {
             this.isSaving.set(false);
         }
