@@ -104,6 +104,9 @@ ipcMain.handle(
     'DB_UPDATE_CATEGORY_VISIBILITY',
     async (event, categoryIds: number[], hidden: boolean) => {
         try {
+            if (categoryIds.length === 0) {
+                return { success: true };
+            }
             const db = await getDatabase();
             await db
                 .update(schema.categories)
