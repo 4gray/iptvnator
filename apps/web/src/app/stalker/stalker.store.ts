@@ -454,11 +454,6 @@ export const StalkerStore = signalStore(
                         p: '1',
                     };
 
-                    console.log(
-                        '[StalkerStore] Fetching VOD series seasons for movie_id:',
-                        item.id
-                    );
-
                     let response: any;
                     if (playlist.isFullStalkerPortal) {
                         response =
