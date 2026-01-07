@@ -20,6 +20,7 @@ export class CategoryViewComponent {
     readonly items = input([]);
     readonly selectedCategoryId = input<number>();
     readonly itemCounts = input<Map<number, number>>(new Map());
+    readonly showCounts = input<boolean>(false);
 
     readonly categoryClicked = output<XtreamCategory>();
 

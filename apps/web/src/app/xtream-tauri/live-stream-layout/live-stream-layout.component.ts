@@ -84,6 +84,13 @@ export class LiveStreamLayoutComponent implements OnInit {
     playLive(item: any) {
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
         this.streamUrl = streamUrl;
+        const isEmbeddedPlayer =
+            this.player() === 'videojs' ||
+            this.player() === 'html5' ||
+            this.player() === 'artplayer';
+        if (isEmbeddedPlayer) {
+            return;
+        }
         this.xtreamStore.openPlayer(streamUrl, item.title, item.poster_url);
     }
 
