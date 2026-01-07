@@ -12,12 +12,15 @@ import {
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
+import { TranslateService } from '@ngx-translate/core';
 import {
     ArtPlayerComponent,
     AudioPlayerComponent,
+    CodecError,
     COMPONENT_OVERLAY_REF,
     EpgListComponent,
     HtmlVideoPlayerComponent,
@@ -80,8 +83,10 @@ export class VideoPlayerComponent implements OnInit {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly router = inject(Router);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly snackBar = inject(MatSnackBar);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
+    private readonly translateService = inject(TranslateService);
 
     /** Active selected channel */
     readonly activeChannel$ = this.store
@@ -473,5 +478,66 @@ export class VideoPlayerComponent implements OnInit {
             target instanceof HTMLInputElement ||
             target instanceof HTMLTextAreaElement
         );
+    }
+
+    /**
+     * Get the MIME type for a stream URL based on its extension
+     * @param url Stream URL
+     * @returns MIME type string for Video.js
+     */
+    getMimeType(url: string): string {
+        const extension = url.split(/[#?]/)[0].split('.').pop()?.toLowerCase();
+        switch (extension) {
+            case 'ts':
+                return 'video/mp2t';
+            case 'm3u8':
+                return 'application/x-mpegURL';
+            case 'mp4':
+                return 'video/mp4';
+            case 'webm':
+                return 'video/webm';
+            case 'mkv':
+                return 'video/x-matroska';
+            case 'flv':
+                return 'video/x-flv';
+            default:
+                return 'application/x-mpegURL';
+        }
+    }
+
+    /**
+     * Handle codec error from video players
+     * Shows a snackbar suggesting to use VLC or MPV for unsupported codecs
+     */
+    handleCodecError(error: CodecError): void {
+        console.log('handleCodecError received:', error);
+        const codecName = error.codec || 'unknown';
+        const isAudio = error.type === 'unsupported_audio';
+        const codecType = isAudio ? 'audio' : 'video';
+
+        // Show snackbar with helpful message
+        const message = this.translateService.instant('PLAYER.UNSUPPORTED_CODEC', {
+            codecType: codecType,
+            codec: codecName
+        }) || `Unsupported ${codecType} codec: ${codecName}. Use VLC or MPV for full codec support.`;
+
+        const actionText = this.isDesktop
+            ? this.translateService.instant('PLAYER.SWITCH_TO_VLC') || 'Switch to VLC'
+            : this.translateService.instant('CLOSE') || 'Close';
+
+        const snackBarRef = this.snackBar.open(message, actionText, {
+            duration: 10000,
+            horizontalPosition: 'center',
+            verticalPosition: 'bottom',
+            panelClass: ['codec-error-snackbar']
+        });
+
+        // If on desktop, offer to switch to VLC
+        if (this.isDesktop) {
+            snackBarRef.onAction().subscribe(() => {
+                // Update player setting to VLC
+                this.settingsStore.updateSettings({ player: VideoPlayer.VLC });
+            });
+        }
     }
 }

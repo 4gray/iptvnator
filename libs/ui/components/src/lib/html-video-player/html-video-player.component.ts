@@ -10,6 +10,7 @@ import {
     ViewChild,
 } from '@angular/core';
 import Hls from 'hls.js';
+import mpegts from 'mpegts.js';
 import { getExtensionFromUrl } from 'm3u-utils';
 import { DataService } from 'services';
 import { Channel } from 'shared-interfaces';
@@ -36,6 +37,9 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
 
     /** HLS object */
     hls!: Hls;
+
+    /** MPEG-TS player object for raw .ts streams */
+    mpegtsPlayer: mpegts.Player | null = null;
 
     /** Captions/subtitles indicator */
     @Input() showCaptions!: boolean;
@@ -69,7 +73,13 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * @param channel given channel object
      */
     playChannel(channel: Channel): void {
+        // Clean up existing players
         if (this.hls) this.hls.destroy();
+        if (this.mpegtsPlayer) {
+            this.mpegtsPlayer.destroy();
+            this.mpegtsPlayer = null;
+        }
+
         if (channel.url) {
             const url = channel.url + (channel.epgParams ?? '');
             const extension = getExtensionFromUrl(channel.url);
@@ -82,18 +92,37 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 );
             }
 
-            if (
+            // Use mpegts.js for raw .ts MPEG-TS streams
+            if (extension === 'ts' && mpegts.isSupported()) {
+                console.log(
+                    '... switching channel (mpegts.js) to ',
+                    channel.name,
+                    url
+                );
+                this.mpegtsPlayer = mpegts.createPlayer({
+                    type: 'mpegts',
+                    isLive: true,
+                    url: url,
+                });
+                this.mpegtsPlayer.attachMediaElement(
+                    this.videoPlayer.nativeElement
+                );
+                this.mpegtsPlayer.load();
+                this.handlePlayOperation();
+            } else if (
                 extension !== 'mp4' &&
                 extension !== 'mpv' &&
                 Hls &&
                 Hls.isSupported()
             ) {
-                console.log('... switching channel to ', channel.name, url);
+                // Use HLS.js for .m3u8 and other HLS streams
+                console.log('... switching channel (hls.js) to ', channel.name, url);
                 this.hls = new Hls();
                 this.hls.attachMedia(this.videoPlayer.nativeElement);
                 this.hls.loadSource(url);
                 this.handlePlayOperation();
             } else {
+                // Use native video player for mp4 and other formats
                 console.log('Using native video player...');
                 this.addSourceToVideo(
                     this.videoPlayer.nativeElement,
@@ -155,7 +184,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     /**
-     * Destroy hls instance on component destroy and clean up event listener
+     * Destroy player instances on component destroy and clean up event listener
      */
     ngOnDestroy(): void {
         this.videoPlayer.nativeElement.removeEventListener(
@@ -164,6 +193,10 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         );
         if (this.hls) {
             this.hls.destroy();
+        }
+        if (this.mpegtsPlayer) {
+            this.mpegtsPlayer.destroy();
+            this.mpegtsPlayer = null;
         }
     }
 }

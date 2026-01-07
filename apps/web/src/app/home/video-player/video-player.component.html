@@ -36,12 +36,13 @@
                                     src:
                                         activeChannel.url +
                                         activeChannel.epgParams,
-                                    type: 'application/x-mpegURL',
+                                    type: getMimeType(activeChannel.url),
                                 },
                             ],
                         }"
                         [volume]="volume"
                         [class.hide-captions]="!playerSettings.showCaptions"
+                        (codecError)="handleCodecError($event)"
                     />
                 }
                 <!-- default html player component -->
@@ -58,6 +59,7 @@
                         [channel]="activeChannel"
                         [volume]="volume"
                         [showCaptions]="playerSettings.showCaptions!"
+                        (codecError)="handleCodecError($event)"
                     />
                 }
                 @if (playerSettings.player === 'mpv') {
