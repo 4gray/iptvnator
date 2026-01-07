@@ -1,3 +1,7 @@
+::ng-deep .mat-mdc-dialog-content {
+    overflow: hidden !important;
+}
+
 .loading-container {
     display: flex;
     flex-direction: column;

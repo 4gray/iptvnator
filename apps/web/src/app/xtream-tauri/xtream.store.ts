@@ -87,6 +87,29 @@ export const XtreamStore = signalStore(
                   ? store.vodCategories()
                   : store.serialCategories();
         }),
+        /**
+         * Memoized category item counts map.
+         * Returns a Map<categoryId, count> for the currently selected content type.
+         * The Map is recomputed only when streams or content type changes.
+         */
+        getCategoryItemCounts: computed(() => {
+            const type = store.selectedContentType();
+            const streams =
+                type === 'live'
+                    ? store.liveStreams()
+                    : type === 'vod'
+                      ? store.vodStreams()
+                      : store.serialStreams();
+
+            const countMap = new Map<number, number>();
+            for (const item of streams) {
+                const catId = Number(item.category_id);
+                if (!isNaN(catId)) {
+                    countMap.set(catId, (countMap.get(catId) || 0) + 1);
+                }
+            }
+            return countMap;
+        }),
         getSelectedCategory: computed(() => {
             const categoryId = store.selectedCategoryId();
             return [

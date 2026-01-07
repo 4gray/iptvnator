@@ -16,6 +16,7 @@
     <app-category-view
         [items]="categories()"
         [selectedCategoryId]="selectedCategoryId()"
+        [itemCounts]="categoryItemCounts()"
         (categoryClicked)="categoryClicked($event)"
     />
 </div>

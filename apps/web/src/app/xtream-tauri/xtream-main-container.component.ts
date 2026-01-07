@@ -35,6 +35,7 @@ export class XtreamMainContainerComponent implements OnInit {
     private readonly dialog = inject(MatDialog);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
+    readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
 
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
 

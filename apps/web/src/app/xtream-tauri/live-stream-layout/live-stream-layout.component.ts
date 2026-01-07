@@ -55,6 +55,7 @@ export class LiveStreamLayoutComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
+    readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
     readonly epgItems = this.xtreamStore.epgItems;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
 
@@ -75,7 +76,7 @@ export class LiveStreamLayoutComponent implements OnInit {
                 });
         }
 
-        const { categoryId } = this.route.firstChild.snapshot.params;
+        const categoryId = this.route.firstChild?.snapshot.params['categoryId'];
         if (categoryId)
             this.xtreamStore.setSelectedCategory(Number(categoryId));
     }

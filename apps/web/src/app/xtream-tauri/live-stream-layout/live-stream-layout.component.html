@@ -28,6 +28,7 @@
     } @else {
         <app-category-view
             [items]="categories()"
+            [itemCounts]="categoryItemCounts()"
             (categoryClicked)="selectCategory($event)"
         />
     }

@@ -9,6 +9,7 @@
                 {{
                     item.category_name || $any(item).name || 'No category name'
                 }}
+                <span class="item-count">({{ getItemCount(item) }})</span>
             </mat-list-item>
         } @empty {
             <app-playlist-error-view
