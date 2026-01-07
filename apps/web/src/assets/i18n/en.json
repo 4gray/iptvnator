@@ -421,6 +421,10 @@
         "NO_EPISODES": "No episodes available"
     },
     "INFORMATION": "Information",
+    "PLAYER": {
+        "UNSUPPORTED_CODEC": "Unsupported {{codecType}} codec: {{codec}}. Use VLC or MPV for full codec support.",
+        "SWITCH_TO_VLC": "Switch to VLC"
+    },
     "REMOTE_CONTROL": {
         "TITLE": "Remote control",
         "SUBTITLE": "Control your IPTV player remotely",
