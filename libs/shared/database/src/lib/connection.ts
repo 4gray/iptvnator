@@ -185,8 +185,9 @@ function runMigrations(sqliteDb: Database.Database): void {
         try {
             sqliteDb.exec(stmt);
         } catch (error) {
-            // Ignore errors for migrations that may have already been applied
+            // Log and ignore errors for migrations that may have already been applied
             // (e.g., "duplicate column name" for ALTER TABLE ADD COLUMN)
+            console.debug('Migration already applied or failed:', error);
         }
     }
 }
