@@ -6,15 +6,21 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { XtreamCategory } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
+import {
+    CategoryManagementDialogComponent,
+    CategoryManagementDialogData,
+} from '../category-management-dialog/category-management-dialog.component';
 import { CategoryViewComponent } from '../category-view/category-view.component';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { FavoritesService } from '../services/favorites.service';
@@ -33,6 +39,7 @@ import { XtreamStore } from '../xtream.store';
         MatIconButton,
         MatInputModule,
         MatListModule,
+        MatTooltipModule,
         /* MpvPlayerBarComponent, */
         PortalChannelsListComponent,
         TranslatePipe,
@@ -44,11 +51,13 @@ export class LiveStreamLayoutComponent implements OnInit {
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly dialog = inject(MatDialog);
+    private readonly route = inject(ActivatedRoute);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
+    readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
     readonly epgItems = this.xtreamStore.epgItems;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
-    private readonly route = inject(ActivatedRoute);
 
     readonly player = this.settingsStore.player;
     streamUrl: string;
@@ -67,7 +76,7 @@ export class LiveStreamLayoutComponent implements OnInit {
                 });
         }
 
-        const { categoryId } = this.route.firstChild.snapshot.params;
+        const categoryId = this.route.firstChild?.snapshot.params['categoryId'];
         if (categoryId)
             this.xtreamStore.setSelectedCategory(Number(categoryId));
     }
@@ -75,6 +84,13 @@ export class LiveStreamLayoutComponent implements OnInit {
     playLive(item: any) {
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
         this.streamUrl = streamUrl;
+        const isEmbeddedPlayer =
+            this.player() === 'videojs' ||
+            this.player() === 'html5' ||
+            this.player() === 'artplayer';
+        if (isEmbeddedPlayer) {
+            return;
+        }
         this.xtreamStore.openPlayer(streamUrl, item.title, item.poster_url);
     }
 
@@ -85,5 +101,29 @@ export class LiveStreamLayoutComponent implements OnInit {
 
     backToCategories() {
         this.xtreamStore.setSelectedCategory(null);
+    }
+
+    openCategoryManagement(): void {
+        const playlistId = this.route.parent?.snapshot.params['id'];
+        const contentType = this.xtreamStore.selectedContentType();
+
+        const dialogRef = this.dialog.open<
+            CategoryManagementDialogComponent,
+            CategoryManagementDialogData,
+            boolean
+        >(CategoryManagementDialogComponent, {
+            data: {
+                playlistId,
+                contentType,
+            },
+            width: '500px',
+            maxHeight: '80vh',
+        });
+
+        dialogRef.afterClosed().subscribe((result) => {
+            if (result) {
+                this.xtreamStore.reloadCategories();
+            }
+        });
     }
 }

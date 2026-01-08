@@ -356,6 +356,17 @@
             "HTTP_PORT": "HTTP",
             "HTTPS_PORT": "HTTPS",
             "RTMP_PORT": "RTMP"
+        },
+        "CATEGORY_MANAGEMENT": {
+            "TITLE": "Manage Categories",
+            "LOADING": "Loading categories...",
+            "SELECTED": "Selected",
+            "SELECT_ALL": "Select All",
+            "DESELECT_ALL": "Deselect All",
+            "SEARCH_PLACEHOLDER": "Search categories...",
+            "NO_RESULTS": "No matching categories found",
+            "NO_CATEGORIES": "No categories available",
+            "SAVE": "Save"
         }
     },
     "PORTALS": {

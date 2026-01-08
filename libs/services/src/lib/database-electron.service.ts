@@ -12,6 +12,7 @@ export interface XCategoryFromDb {
     playlist_id: string;
     type: 'movies' | 'live' | 'series';
     xtream_id: number;
+    hidden: boolean;
 }
 
 export interface XtreamContent {
@@ -166,6 +167,35 @@ export class DatabaseService {
         type: 'live' | 'movies' | 'series'
     ): Promise<void> {
         await window.electron.dbSaveCategories(playlistId, categories, type);
+    }
+
+    /**
+     * Get all categories for a playlist (including hidden, for management dialog)
+     */
+    async getAllXtreamCategories(
+        playlistId: string,
+        type: 'live' | 'movies' | 'series'
+    ): Promise<XCategoryFromDb[]> {
+        return await window.electron.dbGetAllCategories(playlistId, type);
+    }
+
+    /**
+     * Update category visibility (show/hide categories)
+     */
+    async updateCategoryVisibility(
+        categoryIds: number[],
+        hidden: boolean
+    ): Promise<boolean> {
+        try {
+            await window.electron.dbUpdateCategoryVisibility(
+                categoryIds,
+                hidden
+            );
+            return true;
+        } catch (error) {
+            console.error('Error updating category visibility:', error);
+            return false;
+        }
     }
 
     /**

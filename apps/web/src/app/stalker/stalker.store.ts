@@ -454,11 +454,6 @@ export const StalkerStore = signalStore(
                         p: '1',
                     };
 
-                    console.log(
-                        '[StalkerStore] Fetching VOD series seasons for movie_id:',
-                        item.id
-                    );
-
                     let response: any;
                     if (playlist.isFullStalkerPortal) {
                         response =
@@ -477,16 +472,7 @@ export const StalkerStore = signalStore(
                         );
                     }
 
-                    console.log(
-                        '[StalkerStore] VOD series seasons response:',
-                        response
-                    );
-
                     if (!response?.js?.data) {
-                        console.warn(
-                            '[StalkerStore] Invalid VOD series seasons response:',
-                            response
-                        );
                         return [];
                     }
 
@@ -646,13 +632,6 @@ export const StalkerStore = signalStore(
                     p: '1',
                 };
 
-                console.log(
-                    '[StalkerStore] Fetching VOD series episodes for video_id:',
-                    videoId,
-                    'season_id:',
-                    seasonId
-                );
-
                 let response: any;
                 if (playlist.isFullStalkerPortal) {
                     response = await stalkerSession.makeAuthenticatedRequest(
@@ -667,16 +646,7 @@ export const StalkerStore = signalStore(
                     });
                 }
 
-                console.log(
-                    '[StalkerStore] VOD series episodes response:',
-                    response
-                );
-
                 if (!response?.js?.data) {
-                    console.warn(
-                        '[StalkerStore] Invalid VOD series episodes response:',
-                        response
-                    );
                     return [];
                 }
 
@@ -899,11 +869,6 @@ export const StalkerStore = signalStore(
                     p: '1',
                 };
 
-                console.log(
-                    '[StalkerStore] Fetching movie files for movie_id:',
-                    movieId
-                );
-
                 let response: any;
                 if (playlist.isFullStalkerPortal) {
                     response = await stalkerSession.makeAuthenticatedRequest(
@@ -918,12 +883,9 @@ export const StalkerStore = signalStore(
                     });
                 }
 
-                console.log('[StalkerStore] Movie files response:', response);
-
                 // Extract id from the first data item
                 if (response?.js?.data?.[0]?.id) {
                     const fileId = response.js.data[0].id;
-                    console.log('[StalkerStore] Found file id:', fileId);
                     return String(fileId);
                 }
 
@@ -947,16 +909,9 @@ export const StalkerStore = signalStore(
                         cmdToUse.includes('/media/') &&
                         !cmdToUse.includes('/media/file_')
                     ) {
-                        console.log(
-                            '[StalkerStore] Item has has_files, fetching file id...'
-                        );
                         const fileId = await this.fetchMovieFileId(item.id);
                         if (fileId) {
                             cmdToUse = `/media/file_${fileId}.mpg`;
-                            console.log(
-                                '[StalkerStore] Transformed cmd with file id:',
-                                cmdToUse
-                            );
                         }
                     }
 
@@ -997,7 +952,6 @@ export const StalkerStore = signalStore(
                 }
             },
             addToRecentlyViewed(item: any) {
-                console.log('Adding to recently viewed', item);
                 playlistService
                     .addPortalRecentlyViewed(this.currentPlaylist()?._id, {
                         ...item,

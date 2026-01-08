@@ -13,6 +13,14 @@
                 <mat-icon>list</mat-icon>
             </button>
             <h2>{{ 'PORTALS.ALL_CATEGORIES' | translate }}</h2>
+            <button
+                mat-icon-button
+                class="manage-categories-btn"
+                (click)="openCategoryManagement()"
+                [matTooltip]="'XTREAM.CATEGORY_MANAGEMENT.TITLE' | translate"
+            >
+                <mat-icon>tune</mat-icon>
+            </button>
         }
     </div>
     @if (selectedCategoryId()) {
@@ -20,7 +28,9 @@
     } @else {
         <app-category-view
             [items]="categories()"
+            [itemCounts]="categoryItemCounts()"
             (categoryClicked)="selectCategory($event)"
+            [showCounts]="true"
         />
     }
 </div>

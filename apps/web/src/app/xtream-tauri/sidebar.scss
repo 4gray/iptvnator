@@ -8,15 +8,23 @@
         padding: 16px;
         border-bottom: 1px solid rgba(0, 0, 0, 0.12);
         app-region: drag;
+        display: flex;
+        align-items: center;
+        gap: 8px;
 
         h2 {
             margin: 0;
             font-size: 1.2rem;
             font-weight: 500;
+            flex: 1;
         }
 
         button {
             app-region: no-drag;
+        }
+
+        .manage-categories-btn {
+            margin-left: auto;
         }
     }
 }

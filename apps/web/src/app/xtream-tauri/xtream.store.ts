@@ -87,6 +87,29 @@ export const XtreamStore = signalStore(
                   ? store.vodCategories()
                   : store.serialCategories();
         }),
+        /**
+         * Memoized category item counts map.
+         * Returns a Map<categoryId, count> for the currently selected content type.
+         * The Map is recomputed only when streams or content type changes.
+         */
+        getCategoryItemCounts: computed(() => {
+            const type = store.selectedContentType();
+            const streams =
+                type === 'live'
+                    ? store.liveStreams()
+                    : type === 'vod'
+                      ? store.vodStreams()
+                      : store.serialStreams();
+
+            const countMap = new Map<number, number>();
+            for (const item of streams) {
+                const catId = Number(item.category_id);
+                if (!isNaN(catId)) {
+                    countMap.set(catId, (countMap.get(catId) || 0) + 1);
+                }
+            }
+            return countMap;
+        }),
         getSelectedCategory: computed(() => {
             const categoryId = store.selectedCategoryId();
             return [
@@ -639,7 +662,10 @@ export const XtreamStore = signalStore(
                                 );
                                 localStorage.removeItem(restoreKey);
                             } catch (err) {
-                                console.error('Error restoring user data:', err);
+                                console.error(
+                                    'Error restoring user data:',
+                                    err
+                                );
                             }
                         }
                     }
@@ -885,6 +911,33 @@ export const XtreamStore = signalStore(
                 },
                 removeFromFavorites(favoriteId: string) {
                     console.log('not needed now', favoriteId);
+                },
+                /**
+                 * Reload categories from database after visibility changes
+                 */
+                async reloadCategories() {
+                    const playlistId = route.snapshot.params.id;
+                    if (!playlistId) return;
+
+                    try {
+                        const [
+                            liveCategories,
+                            vodCategories,
+                            serialCategories,
+                        ] = await Promise.all([
+                            dbService.getXtreamCategories(playlistId, 'live'),
+                            dbService.getXtreamCategories(playlistId, 'movies'),
+                            dbService.getXtreamCategories(playlistId, 'series'),
+                        ]);
+
+                        patchState(store, {
+                            liveCategories: liveCategories as any,
+                            vodCategories: vodCategories as any,
+                            serialCategories: serialCategories as any,
+                        });
+                    } catch (error) {
+                        console.error('Error reloading categories:', error);
+                    }
                 },
             };
         }

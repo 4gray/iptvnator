@@ -19,16 +19,20 @@ import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-erro
 export class CategoryViewComponent {
     readonly items = input([]);
     readonly selectedCategoryId = input<number>();
+    readonly itemCounts = input<Map<number, number>>(new Map());
+    readonly showCounts = input<boolean>(false);
 
     readonly categoryClicked = output<XtreamCategory>();
 
     isSelected(item: XtreamCategory): boolean {
         const selectedCategory = this.selectedCategoryId();
-        const itemId = (item as any).category_id ?? item.id;
+        const itemId = Number((item as any).category_id ?? item.id);
 
-        return (
-            selectedCategory !== null &&
-            String(selectedCategory) === String(itemId)
-        );
+        return selectedCategory !== null && selectedCategory === itemId;
+    }
+
+    getItemCount(item: XtreamCategory): number {
+        const itemId = Number((item as any).category_id ?? item.id);
+        return this.itemCounts().get(itemId) ?? 0;
     }
 }

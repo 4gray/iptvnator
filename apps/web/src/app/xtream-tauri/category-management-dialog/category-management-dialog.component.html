@@ -1,0 +1,97 @@
+<h2 mat-dialog-title>{{ 'XTREAM.CATEGORY_MANAGEMENT.TITLE' | translate }}</h2>
+
+<mat-dialog-content>
+    @if (isLoading()) {
+        <div class="loading-container">
+            <mat-spinner diameter="40" />
+            <p>{{ 'XTREAM.CATEGORY_MANAGEMENT.LOADING' | translate }}</p>
+        </div>
+    } @else {
+        <div class="header-actions">
+            <div class="selection-info">
+                {{ 'XTREAM.CATEGORY_MANAGEMENT.SELECTED' | translate }}:
+                <strong>{{ selectedCount() }}</strong> / {{ totalCount() }}
+            </div>
+            <div class="bulk-actions">
+                <button
+                    mat-stroked-button
+                    (click)="selectAll()"
+                    [disabled]="allSelected()"
+                >
+                    <mat-icon>check_box</mat-icon>
+                    {{ 'XTREAM.CATEGORY_MANAGEMENT.SELECT_ALL' | translate }}
+                </button>
+                <button
+                    mat-stroked-button
+                    (click)="deselectAll()"
+                    [disabled]="selectedCount() === 0"
+                >
+                    <mat-icon>check_box_outline_blank</mat-icon>
+                    {{ 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_ALL' | translate }}
+                </button>
+            </div>
+        </div>
+
+        <mat-form-field appearance="outline" class="search-field">
+            <mat-icon matPrefix>search</mat-icon>
+            <input
+                matInput
+                [ngModel]="searchTerm()"
+                (ngModelChange)="searchTerm.set($event)"
+                placeholder="{{
+                    'XTREAM.CATEGORY_MANAGEMENT.SEARCH_PLACEHOLDER' | translate
+                }}"
+            />
+            @if (searchTerm()) {
+                <button matSuffix mat-icon-button (click)="clearSearch()">
+                    <mat-icon>close</mat-icon>
+                </button>
+            }
+        </mat-form-field>
+
+        <div class="categories-list">
+            @for (category of filteredCategories(); track category.id) {
+                <div class="category-item" (click)="toggleCategory(category)">
+                    <mat-checkbox
+                        [checked]="category.selected"
+                        (click)="$event.stopPropagation()"
+                        (change)="toggleCategory(category)"
+                    >
+                    </mat-checkbox>
+                    <span class="category-name">{{ category.name }}</span>
+                </div>
+            } @empty {
+                <div class="empty-message">
+                    @if (searchTerm()) {
+                        {{
+                            'XTREAM.CATEGORY_MANAGEMENT.NO_RESULTS' | translate
+                        }}
+                    } @else {
+                        {{
+                            'XTREAM.CATEGORY_MANAGEMENT.NO_CATEGORIES'
+                                | translate
+                        }}
+                    }
+                </div>
+            }
+        </div>
+    }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-button (click)="cancel()" [disabled]="isSaving()">
+        {{ 'CLOSE' | translate }}
+    </button>
+    <button
+        mat-flat-button
+        color="primary"
+        (click)="save()"
+        [disabled]="isLoading() || isSaving()"
+    >
+        @if (isSaving()) {
+            <mat-spinner diameter="20" />
+        } @else {
+            {{ 'XTREAM.CATEGORY_MANAGEMENT.SAVE' | translate }}
+        }
+    </button>
+</mat-dialog-actions>

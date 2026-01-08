@@ -1,0 +1,103 @@
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    gap: 16px;
+}
+
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.selection-info {
+    font-size: 13px;
+    color: var(--mat-sys-on-surface-variant);
+
+    strong {
+        color: var(--mat-sys-primary);
+    }
+}
+
+.bulk-actions {
+    display: flex;
+    gap: 8px;
+
+    button {
+        font-size: 12px;
+    }
+}
+
+.search-field {
+    width: 100%;
+
+    mat-icon[matPrefix] {
+        margin-right: 8px;
+        color: var(--mat-sys-on-surface-variant);
+    }
+}
+
+.categories-list {
+    height: 450px;
+    overflow-y: auto;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 8px;
+}
+
+.category-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    cursor: pointer;
+    gap: 8px;
+    transition: background-color 0.12s ease;
+
+    &:hover {
+        background-color: var(--mat-sys-surface-container);
+    }
+
+    &:not(:last-child) {
+        border-bottom: 1px solid var(--mat-sys-surface-container);
+    }
+
+    mat-checkbox {
+        --mdc-checkbox-state-layer-size: 32px;
+    }
+}
+
+.category-name {
+    flex: 1;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.empty-message {
+    padding: 24px;
+    text-align: center;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 13px;
+}
+
+:host ::ng-deep {
+    .mat-mdc-dialog-content {
+        min-width: 480px;
+        max-width: 600px;
+        max-height: 75vh !important;
+    }
+}
+
+mat-dialog-actions {
+    button {
+        mat-spinner {
+            display: inline-block;
+        }
+    }
+}

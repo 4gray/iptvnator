@@ -31,18 +31,6 @@ ipcMain.handle(
         try {
             const { url, macAddress, params, token, serialNumber } = payload;
 
-            console.log('[StalkerEvents] Incoming request');
-            console.log('[StalkerEvents] Base URL:', url);
-            console.log('[StalkerEvents] MAC Address:', macAddress);
-            console.log(
-                '[StalkerEvents] Params:',
-                JSON.stringify(params, null, 2)
-            );
-            console.log(
-                '[StalkerEvents] Token:',
-                token ? token.substring(0, 10) + '...' : 'none'
-            );
-
             // Build URL with query parameters
             // Note: For 'cmd' parameter, we need to use encodeURI (not encodeURIComponent)
             // to preserve forward slashes, matching stalker-to-m3u implementation
@@ -69,7 +57,6 @@ ipcMain.handle(
 
             // Build final URL with manually constructed query string
             const fullUrl = `${urlObject.origin}${urlObject.pathname}?${queryParts.join('&')}`;
-            console.log('[StalkerEvents] Full request URL:', fullUrl);
 
             // Build cookie string matching the working curl example format
             // Format: mac=XX:XX:XX:XX:XX:XX; stb_lang=de_DE; timezone=Europe/Berlin; __cfduid=...
@@ -103,13 +90,7 @@ ipcMain.handle(
             // Add Authorization header if token is provided
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
-                console.log('[StalkerEvents] Authorization header added');
             }
-
-            console.log(
-                '[StalkerEvents] Request headers:',
-                JSON.stringify(headers, null, 2)
-            );
 
             // Determine timeout based on action type
             // create_link requests can take longer as server generates stream URL
@@ -125,13 +106,7 @@ ipcMain.handle(
                 validateStatus: (status) => status < 500, // Don't throw on 4xx errors
             };
 
-            console.log('[StalkerEvents] Sending request...');
             const response = await axios(config);
-            console.log('[StalkerEvents] Response status:', response.status);
-            console.log(
-                '[StalkerEvents] Response data:',
-                JSON.stringify(response.data, null, 2).substring(0, 500) + '...'
-            );
 
             // Check if response is successful
             if (response.status >= 400) {
@@ -161,10 +136,6 @@ ipcMain.handle(
                         'Failed to fetch data from Stalker portal',
                     status: error.response?.status || 500,
                 };
-                console.error(
-                    '[StalkerEvents] Axios error response:',
-                    errorResponse
-                );
                 throw errorResponse;
             } else if (
                 error &&
