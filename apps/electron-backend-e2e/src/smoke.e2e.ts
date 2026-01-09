@@ -72,7 +72,6 @@ test.describe('Electron App Smoke Test', () => {
         console.log(`Web index exists: ${existsSync(webIndexPath)}`);
 
         // Launch the Electron app
-        // Set ELECTRON_IS_DEV=0 to load from built files instead of dev server
         // On Linux CI, we need to disable sandbox due to permission issues
         const args = [electronMainPath];
         if (process.platform === 'linux' && process.env['CI']) {
@@ -94,33 +93,14 @@ test.describe('Electron App Smoke Test', () => {
         // Wait for the window to be fully loaded
         await mainWindow.waitForLoadState('domcontentloaded');
 
-        // Debug: Log the current URL and page content
+        // Debug: Log the current URL
         const url = mainWindow.url();
         console.log(`Page URL: ${url}`);
 
-        // Wait a moment and check the HTML content for debugging
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        const htmlContent = await mainWindow.content();
-        console.log(`HTML content length: ${htmlContent.length}`);
-        console.log(`HTML snippet: ${htmlContent.substring(0, 500)}`);
+        // Wait for Angular to bootstrap and render
+        await mainWindow.waitForSelector('app-root', { timeout: 30000 });
 
-        // Check for any errors in the page
-        const errors: string[] = [];
-        mainWindow.on('pageerror', (error) => {
-            errors.push(error.message);
-            console.log(`Page error: ${error.message}`);
-        });
-
-        // Wait for Angular to bootstrap and render (app-root should have content)
-        try {
-            await mainWindow.waitForSelector('app-root', { timeout: 30000 });
-        } catch (e) {
-            console.log(`Failed to find app-root. Errors: ${errors.join(', ')}`);
-            console.log(`Final HTML: ${await mainWindow.content()}`);
-            throw e;
-        }
-
-        // Wait a bit more for Angular to fully initialize and set the title
+        // Wait for Angular to fully initialize and set the title
         await mainWindow.waitForFunction(
             () => document.title.length > 0,
             { timeout: 30000 }
@@ -130,39 +110,31 @@ test.describe('Electron App Smoke Test', () => {
     });
 
     test.afterAll(async () => {
-        // Close the Electron app
         if (electronApp) {
             await electronApp.close();
         }
     });
 
     test('app should start and display main window', async () => {
-        // Check that we have a window
         expect(mainWindow).toBeTruthy();
 
-        // Take a screenshot of the main window
         await mainWindow.screenshot({
             path: join(screenshotDir, 'smoke-test-screenshot.png'),
             fullPage: true,
         });
 
-        // Verify the window title contains expected text
         const title = await mainWindow.title();
         console.log(`Window title: ${title}`);
-
-        // IPTVnator should be in the title
         expect(title).toContain('IPTVnator');
     });
 
     test('app should have expected window properties', async () => {
-        // Check that the window is visible
         const isVisible = await electronApp.evaluate(({ BrowserWindow }) => {
             const mainWindow = BrowserWindow.getAllWindows()[0];
             return mainWindow ? mainWindow.isVisible() : false;
         });
         expect(isVisible).toBe(true);
 
-        // Check window dimensions are reasonable
         const bounds = await electronApp.evaluate(({ BrowserWindow }) => {
             const mainWindow = BrowserWindow.getAllWindows()[0];
             return mainWindow ? mainWindow.getBounds() : null;
@@ -171,14 +143,13 @@ test.describe('Electron App Smoke Test', () => {
         expect(bounds?.width).toBeGreaterThan(800);
         expect(bounds?.height).toBeGreaterThan(600);
 
-        // Take another screenshot after property checks
         await mainWindow.screenshot({
             path: join(screenshotDir, 'window-properties-screenshot.png'),
         });
     });
 
     test('app should render main content', async () => {
-        // Wait for app-root to have actual content (not just the element)
+        // Wait for app-root to have actual content
         await mainWindow.waitForFunction(
             () => {
                 const appRoot = document.querySelector('app-root');
@@ -187,18 +158,14 @@ test.describe('Electron App Smoke Test', () => {
             { timeout: 30000 }
         );
 
-        // Check that the body has content
         const bodyContent = await mainWindow.locator('body').innerHTML();
         expect(bodyContent.length).toBeGreaterThan(0);
 
-        // Take a final screenshot showing the rendered content
         await mainWindow.screenshot({
             path: join(screenshotDir, 'rendered-content-screenshot.png'),
             fullPage: true,
         });
 
-        console.log(
-            'Smoke test completed successfully - app is starting and rendering'
-        );
+        console.log('Smoke test completed successfully');
     });
 });
