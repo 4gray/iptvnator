@@ -154,8 +154,6 @@
         "ng-mocks": "14.14.0",
         "nx": "22.3.3",
         "nx-electron": "^21.0.1",
-        "playwright": "1.56.1",
-        "playwright-core": "1.56.1",
         "prettier": "^3.6.2",
         "semantic-release": "24.2.9",
         "ts-jest": "^29.4.5",
