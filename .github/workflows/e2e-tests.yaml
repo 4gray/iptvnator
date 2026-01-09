@@ -1,0 +1,63 @@
+name: 'Cross-Platform E2E Tests'
+
+on:
+  push:
+    branches:
+      - nx
+  pull_request:
+    branches:
+      - nx
+
+jobs:
+  e2e-tests:
+    name: E2E on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    env:
+      NX_SKIP_NX_CACHE: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+            version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+            node-version: '22'
+            cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install  
+
+      - name: Build Backend
+        run: npx nx build electron-backend
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run E2E Tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" npx nx run electron-backend-e2e:e2e
+        env:
+          CI: true
+
+      - name: Run E2E Tests (Windows/Mac)
+        if: runner.os != 'Linux'
+        run: npx nx run electron-backend-e2e:e2e
+        env:
+          CI: true
+
+      - name: Upload Test Results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.os }}
+          path: dist/playwright-report/electron-backend-e2e/
+          retention-days: 7
