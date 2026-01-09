@@ -8,7 +8,10 @@
       "Bash(cat:*)",
       "Bash(npx asar:*)",
       "Bash(npm run package:app:*)",
-      "Bash(npm run build:backend:*)"
+      "Bash(npm run build:backend:*)",
+      "Bash(pnpm add:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)"
     ],
     "deny": [],
     "ask": []
