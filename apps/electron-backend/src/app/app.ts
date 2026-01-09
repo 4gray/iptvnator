@@ -156,7 +156,7 @@ export default class App {
 
     private static loadMainWindow() {
         // load the index.html of the app.
-        if (!App.application.isPackaged) {
+        if (App.isDevelopmentMode()) {
             App.mainWindow.loadURL(`http://localhost:${rendererAppPort}`);
             App.mainWindow.webContents.openDevTools();
         } else {
