@@ -5,6 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { PlaylistSwitcherComponent } from 'components';
 import { CategoryViewComponent } from '../../../xtream-tauri/category-view/category-view.component';
 
 @Component({
@@ -20,14 +21,16 @@ import { CategoryViewComponent } from '../../../xtream-tauri/category-view/categ
         MatCardModule,
         MatIcon,
         MatIconButton,
-        /* MpvPlayerBarComponent, */
         MatTooltip,
+        PlaylistSwitcherComponent,
         TranslatePipe,
     ],
 })
 export class FavoritesLayoutComponent {
     readonly categories = input<any[]>([]);
     readonly favorites = input<any[]>([]);
+    readonly playlistSubtitle = input<string>('');
+    readonly playlistTitle = input<string>('Playlist');
     readonly selectedCategoryId = input<string>('movie');
     readonly titleTranslationString = input<string>('CHANNELS.FAVORITES');
 

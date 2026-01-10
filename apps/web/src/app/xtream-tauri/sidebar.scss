@@ -23,6 +23,11 @@
             app-region: no-drag;
         }
 
+        .switcher {
+            flex: 1;
+            min-width: 0;
+        }
+
         .manage-categories-btn {
             margin-left: auto;
         }

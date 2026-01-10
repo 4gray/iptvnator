@@ -5,6 +5,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { PlaylistSwitcherComponent } from 'components';
 import { XtreamCategory } from 'shared-interfaces';
 import {
     CategoryManagementDialogComponent,
@@ -19,12 +20,12 @@ import { XtreamStore } from './xtream.store';
     styleUrls: ['./xtream-main-container.component.scss', './sidebar.scss'],
     imports: [
         CategoryViewComponent,
-        TranslateModule,
-        RouterOutlet,
-        /* MpvPlayerBarComponent, */
         MatIcon,
         MatIconButton,
         MatTooltipModule,
+        PlaylistSwitcherComponent,
+        RouterOutlet,
+        TranslateModule,
     ],
 })
 export class XtreamMainContainerComponent implements OnInit {
@@ -36,7 +37,7 @@ export class XtreamMainContainerComponent implements OnInit {
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
-
+    readonly currentPlaylist = this.xtreamStore.currentPlaylist;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
 
     ngOnInit(): void {

@@ -43,6 +43,8 @@ export class RecentlyViewedComponent {
 
     itemDetails: any = null;
 
+    readonly currentPlaylist = this.stalkerStore.currentPlaylist;
+
     readonly allFavorites = rxResource({
         params: () => ({
             refreshTimestamp: this.refreshTimestamp(),

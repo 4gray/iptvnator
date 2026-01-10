@@ -29,6 +29,8 @@
     <app-favorites-layout
         [categories]="categories() ?? []"
         [favorites]="favoritesToShow() ?? []"
+        [playlistSubtitle]="'Stalker Portal'"
+        [playlistTitle]="currentPlaylist()?.title || 'Portal'"
         [selectedCategoryId]="selectedCategoryId()"
         (categoryClicked)="setCategoryId($event.category_id)"
         (removeFavorite)="removeFromFavorites($event)"
