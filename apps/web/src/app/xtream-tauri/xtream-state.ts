@@ -44,4 +44,5 @@ export interface XtreamState {
     portalStatus: PortalStatusType;
     globalSearchResults: GlobalSearchResult[];
     streamUrl: string;
+    playlistId: string | null;
 }

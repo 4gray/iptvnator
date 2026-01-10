@@ -1,5 +1,4 @@
 import { computed, inject } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
 import {
     patchState,
     signalStore,
@@ -60,6 +59,7 @@ const initialState: XtreamState = {
     portalStatus: 'unavailable',
     globalSearchResults: [],
     streamUrl: null,
+    playlistId: null,
 };
 
 /** to decode epg */
@@ -200,7 +200,6 @@ export const XtreamStore = signalStore(
     withMethods(
         (
             store,
-            route = inject(ActivatedRoute),
             dataService = inject(DataService),
             dbService = inject(DatabaseService),
             oldStore = inject(Store),
@@ -215,7 +214,8 @@ export const XtreamStore = signalStore(
                 >,
                 type: 'live' | 'movies' | 'series'
             ) => {
-                console.log(`Fetching ${type} categories...`);
+                const playlistId = store.playlistId();
+                console.log(`Fetching ${type} categories for playlist ${playlistId}...`);
                 patchState(store, { isLoadingCategories: true });
                 const queryParams = {
                     action,
@@ -224,17 +224,14 @@ export const XtreamStore = signalStore(
                 };
 
                 return from(
-                    dbService.hasXtreamCategories(
-                        route.snapshot.params.id,
-                        type
-                    )
+                    dbService.hasXtreamCategories(playlistId, type)
                 ).pipe(
                     switchMap(async (exists) => {
                         try {
                             if (exists) {
                                 const localData =
                                     await dbService.getXtreamCategories(
-                                        route.snapshot.params.id,
+                                        playlistId,
                                         type
                                     );
                                 patchState(store, {
@@ -253,7 +250,7 @@ export const XtreamStore = signalStore(
 
                             if (remoteData && Array.isArray(remoteData)) {
                                 await dbService.saveXtreamCategories(
-                                    route.snapshot.params.id,
+                                    playlistId,
                                     remoteData,
                                     type
                                 );
@@ -261,7 +258,7 @@ export const XtreamStore = signalStore(
 
                             const localData =
                                 await dbService.getXtreamCategories(
-                                    route.snapshot.params.id,
+                                    playlistId,
                                     type
                                 );
                             patchState(store, {
@@ -290,7 +287,8 @@ export const XtreamStore = signalStore(
                 >,
                 type: 'live' | 'movie' | 'series'
             ) => {
-                console.log(`Fetching ${type} streams...`);
+                const playlistId = store.playlistId();
+                console.log(`Fetching ${type} streams for playlist ${playlistId}...`);
                 patchState(store, { isLoadingContent: true });
                 const queryParams = {
                     action,
@@ -299,14 +297,14 @@ export const XtreamStore = signalStore(
                 };
 
                 return from(
-                    dbService.hasXtreamContent(route.snapshot.params.id, type)
+                    dbService.hasXtreamContent(playlistId, type)
                 ).pipe(
                     switchMap(async (exists) => {
                         try {
                             if (exists) {
                                 const localData =
                                     await dbService.getXtreamContent(
-                                        route.snapshot.params.id,
+                                        playlistId,
                                         type
                                     );
                                 patchState(store, {
@@ -331,7 +329,7 @@ export const XtreamStore = signalStore(
                                 });
                                 const insertedCount =
                                     await dbService.saveXtreamContent(
-                                        route.snapshot.params.id,
+                                        playlistId,
                                         remoteData,
                                         type,
                                         (count) =>
@@ -343,7 +341,7 @@ export const XtreamStore = signalStore(
                             }
 
                             const localData = await dbService.getXtreamContent(
-                                route.snapshot.params.id,
+                                playlistId,
                                 type
                             );
                             patchState(store, {
@@ -363,53 +361,57 @@ export const XtreamStore = signalStore(
 
             const searchContent = async (
                 searchTerm: string,
-                types: string[],
-                route = inject(ActivatedRoute),
-                dbService = inject(DatabaseService)
+                types: string[]
             ) => {
-                if (!route.snapshot.params.id) return;
+                const playlistId = store.playlistId();
+                if (!playlistId) return;
 
                 const results = await dbService.searchXtreamContent(
-                    route.snapshot.params.id,
+                    playlistId,
                     searchTerm,
                     types
                 );
                 return results;
             };
 
-            const fetchXtreamPlaylist = rxMethod<void>(
-                pipe(() => {
-                    const playlistId = route.snapshot.params.id;
-                    if (!playlistId) return EMPTY;
-                    return from(dbService.getPlaylistById(playlistId)).pipe(
-                        switchMap(async (playlist) => {
-                            if (playlist) {
-                                patchState(store, {
-                                    currentPlaylist: playlist,
-                                });
-                            } else {
-                                const playlist = oldStore.selectSignal(
-                                    selectActivePlaylist
-                                )() as Playlist;
-                                if (playlist) {
-                                    await dbService.createPlaylist(playlist);
-                                    patchState(store, {
-                                        currentPlaylist: {
-                                            ...playlist,
-                                            serverUrl: playlist.serverUrl,
-                                            id: playlist._id,
-                                            name: playlist.title,
-                                        },
-                                    });
-                                }
-                            }
-                        }),
-                        tap((res) => {
-                            console.log('Fetched playlist:', res);
-                        })
-                    );
-                })
-            );
+            const fetchXtreamPlaylist = async () => {
+                const playlistId = store.playlistId();
+                console.log('fetchXtreamPlaylist called with playlistId:', playlistId);
+                if (!playlistId) {
+                    console.log('No playlistId, skipping fetch');
+                    return;
+                }
+
+                try {
+                    const playlist = await dbService.getPlaylistById(playlistId);
+                    console.log('Fetched playlist from DB:', playlist);
+
+                    if (playlist) {
+                        patchState(store, {
+                            currentPlaylist: playlist,
+                        });
+                    } else {
+                        const activePlaylist = oldStore.selectSignal(
+                            selectActivePlaylist
+                        )() as Playlist;
+                        console.log('No playlist in DB, using active playlist:', activePlaylist);
+
+                        if (activePlaylist) {
+                            await dbService.createPlaylist(activePlaylist);
+                            patchState(store, {
+                                currentPlaylist: {
+                                    ...activePlaylist,
+                                    serverUrl: activePlaylist.serverUrl,
+                                    id: activePlaylist._id,
+                                    name: activePlaylist.title,
+                                },
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching playlist:', error);
+                }
+            };
 
             const fetchLiveCategories = rxMethod<void>(
                 pipe(
@@ -504,7 +506,7 @@ export const XtreamStore = signalStore(
             }>(
                 pipe(
                     switchMap(({ term, types }) =>
-                        from(searchContent(term, types, route, dbService)).pipe(
+                        from(searchContent(term, types)).pipe(
                             tap((results) => {
                                 patchState(store, {
                                     searchResults: results || [],
@@ -645,9 +647,9 @@ export const XtreamStore = signalStore(
                     console.log('Content initialization completed');
 
                     // Check if we need to restore favorites and recently viewed after refresh
-                    const playlistId = route.snapshot.params.id;
-                    if (playlistId) {
-                        const restoreKey = `xtream-restore-${playlistId}`;
+                    const currentPlaylistId = store.playlistId();
+                    if (currentPlaylistId) {
+                        const restoreKey = `xtream-restore-${currentPlaylistId}`;
                         const restoreData = localStorage.getItem(restoreKey);
                         if (restoreData) {
                             try {
@@ -656,7 +658,7 @@ export const XtreamStore = signalStore(
                                     recentlyViewedXtreamIds,
                                 } = JSON.parse(restoreData);
                                 await dbService.restoreXtreamUserData(
-                                    playlistId,
+                                    currentPlaylistId,
                                     favoritedXtreamIds,
                                     recentlyViewedXtreamIds
                                 );
@@ -761,6 +763,27 @@ export const XtreamStore = signalStore(
                 fetchVodDetailsWithMetadata,
                 fetchSerialDetailsWithMetadata,
                 initializeContent,
+                /**
+                 * Set the current playlist ID
+                 */
+                setPlaylistId(playlistId: string) {
+                    patchState(store, { playlistId });
+                },
+                /**
+                 * Reset store to initial state for switching between playlists
+                 */
+                resetStore(newPlaylistId?: string) {
+                    patchState(store, {
+                        ...initialState,
+                        playlistId: newPlaylistId ?? null,
+                        limit: Number(
+                            localStorage.getItem('xtream-page-size') ?? 25
+                        ),
+                        hideExternalInfoDialog:
+                            localStorage.getItem('hideExternalInfoDialog') ===
+                            'true',
+                    });
+                },
                 updatePlaylist(playlist: any) {
                     patchState(store, {
                         currentPlaylist: {
@@ -916,7 +939,7 @@ export const XtreamStore = signalStore(
                  * Reload categories from database after visibility changes
                  */
                 async reloadCategories() {
-                    const playlistId = route.snapshot.params.id;
+                    const playlistId = store.playlistId();
                     if (!playlistId) return;
 
                     try {

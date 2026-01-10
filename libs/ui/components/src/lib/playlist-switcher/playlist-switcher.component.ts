@@ -9,6 +9,7 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -90,7 +91,10 @@ export class PlaylistSwitcherComponent {
 
         // Listen for route changes
         this.router.events
-            .pipe(filter((event) => event instanceof NavigationEnd))
+            .pipe(
+                filter((event) => event instanceof NavigationEnd),
+                takeUntilDestroyed()
+            )
             .subscribe((event: NavigationEnd) => {
                 this.updateActivePlaylistFromRoute(event.urlAfterRedirects);
             });
@@ -113,21 +117,23 @@ export class PlaylistSwitcherComponent {
     }
 
     private async checkPortalStatuses(playlists: PlaylistMeta[]) {
-        const statusMap = new Map<string, PortalStatus>();
-        for (const playlist of playlists) {
-            if (playlist.serverUrl && playlist.username && playlist.password) {
+        const statusPromises = playlists
+            .filter(playlist => playlist.serverUrl && playlist.username && playlist.password)
+            .map(async (playlist) => {
                 try {
                     const status = await this.portalStatusService.checkPortalStatus(
                         playlist.serverUrl,
                         playlist.username,
                         playlist.password
                     );
-                    statusMap.set(playlist._id, status);
+                    return { id: playlist._id, status };
                 } catch {
-                    statusMap.set(playlist._id, 'unavailable');
+                    return { id: playlist._id, status: 'unavailable' as PortalStatus };
                 }
-            }
-        }
+            });
+
+        const results = await Promise.all(statusPromises);
+        const statusMap = new Map(results.map(r => [r.id, r.status]));
         this.portalStatuses.set(statusMap);
     }
 
@@ -147,8 +153,8 @@ export class PlaylistSwitcherComponent {
             this.router.navigate(['stalker', playlist._id]);
         } else {
             this.router.navigate(['playlists', playlist._id]);
-            this.playlistSelected.emit(playlist._id);
         }
+        this.playlistSelected.emit(playlist._id);
     }
 
     getPlaylistIcon(playlist: PlaylistMeta): string {

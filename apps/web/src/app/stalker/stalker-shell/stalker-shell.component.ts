@@ -1,8 +1,9 @@
 import { Component, effect, inject, OnDestroy } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { PlaylistActions } from 'm3u-state';
-import { selectPlaylistById } from 'm3u-state';
+import { PlaylistActions, selectPlaylistById } from 'm3u-state';
+import { map, switchMap } from 'rxjs';
 import { NavigationComponent } from '../../xtream-tauri/navigation/navigation.component';
 import { NavigationItem } from '../../xtream-tauri/navigation/navigation.interface';
 import { StalkerStore } from '../stalker.store';
@@ -38,24 +39,34 @@ export class StalkerShellComponent implements OnDestroy {
         },
     ];
 
-    readonly currentPlaylist = this.store.selectSignal(
-        selectPlaylistById(this.route.snapshot.params.id)
+    /** Current playlist derived from route params */
+    readonly currentPlaylist = toSignal(
+        this.route.params.pipe(
+            map((params) => params['id']),
+            switchMap((id) => this.store.select(selectPlaylistById(id)))
+        )
     );
 
     constructor() {
-        this.store.dispatch(
-            PlaylistActions.setCurrentPlaylistId({
-                playlistId: this.route.snapshot.params['id'],
-            })
-        );
+        // Subscribe to route params to handle switching between playlists
+        this.route.params.pipe(takeUntilDestroyed()).subscribe((params) => {
+            const playlistId = params['id'];
 
-        const childRoute = this.route.snapshot.firstChild;
-        const path = childRoute?.url[0]?.path;
-        const validTypes = ['vod', 'series', 'itv'];
-        const initialType = validTypes.includes(path) ? (path as any) : 'vod';
+            this.store.dispatch(
+                PlaylistActions.setCurrentPlaylistId({ playlistId })
+            );
 
-        this.stalkerStore.setSelectedContentType(initialType);
-        this.stalkerStore.setSelectedCategory(null);
+            // Reset store state when switching playlists
+            this.stalkerStore.resetCategories();
+            this.stalkerStore.setSelectedCategory(null);
+
+            const childRoute = this.route.snapshot.firstChild;
+            const path = childRoute?.url[0]?.path;
+            const validTypes = ['vod', 'series', 'itv'];
+            const initialType = validTypes.includes(path) ? (path as any) : 'vod';
+            this.stalkerStore.setSelectedContentType(initialType);
+        });
+
         effect(() => {
             this.stalkerStore.setCurrentPlaylist(this.currentPlaylist());
         });
