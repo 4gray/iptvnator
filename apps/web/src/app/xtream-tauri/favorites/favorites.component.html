@@ -1,6 +1,8 @@
 <app-favorites-layout
     [categories]="categories()"
     [favorites]="favoritesToShow()"
+    [playlistSubtitle]="'Xtream Code'"
+    [playlistTitle]="currentPlaylist()?.name || currentPlaylist()?.title || 'Playlist'"
     [selectedCategoryId]="selectedCategoryId()"
     (categoryClicked)="setCategoryId($event.category_id)"
     (removeFavorite)="removeFromFavorites($event)"

@@ -24,6 +24,7 @@ export class FavoritesComponent implements OnInit {
     private xtreamStore = inject(XtreamStore);
 
     readonly categories = signal<XtreamCategory[]>([]);
+    readonly currentPlaylist = this.xtreamStore.currentPlaylist;
 
     readonly series = signal<FavoriteItem[]>([]);
     readonly movies = signal<FavoriteItem[]>([]);

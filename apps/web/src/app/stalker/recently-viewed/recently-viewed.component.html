@@ -31,10 +31,12 @@
     <app-favorites-layout
         [categories]="categories() ?? []"
         [favorites]="itemsToShow() ?? []"
+        [playlistSubtitle]="'Stalker Portal'"
+        [playlistTitle]="currentPlaylist()?.title || 'Portal'"
         [selectedCategoryId]="selectedCategoryId()"
+        [titleTranslationString]="'PORTALS.SIDEBAR.RECENT'"
         (categoryClicked)="setCategoryId($event.category_id)"
         (removeFavorite)="removeFromRecentlyViewed($event)"
-        [titleTranslationString]="'PORTALS.SIDEBAR.RECENT'"
         (openItem)="openItem($event)"
     />
 }

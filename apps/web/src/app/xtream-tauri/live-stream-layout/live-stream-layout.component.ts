@@ -14,6 +14,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { PlaylistSwitcherComponent } from 'components';
 import { XtreamCategory } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
@@ -41,6 +42,7 @@ import { XtreamStore } from '../xtream.store';
         MatListModule,
         MatTooltipModule,
         /* MpvPlayerBarComponent, */
+        PlaylistSwitcherComponent,
         PortalChannelsListComponent,
         TranslatePipe,
         WebPlayerViewComponent,
@@ -56,6 +58,7 @@ export class LiveStreamLayoutComponent implements OnInit {
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
+    readonly currentPlaylist = this.xtreamStore.currentPlaylist;
     readonly epgItems = this.xtreamStore.epgItems;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
 

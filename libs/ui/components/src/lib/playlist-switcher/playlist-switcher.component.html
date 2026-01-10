@@ -1,0 +1,98 @@
+<div
+    class="playlist-switcher-trigger"
+    matRipple
+    [matRippleDisabled]="false"
+    [matMenuTriggerFor]="playlistMenu"
+    #menuTrigger="matMenuTrigger"
+    (menuOpened)="onMenuOpened()"
+    (menuClosed)="onMenuClosed()"
+>
+    <div class="playlist-info">
+        <div class="name">{{ currentTitle() }}</div>
+        <div class="channels-count">{{ subtitle() }}</div>
+    </div>
+    <mat-icon class="dropdown-icon" [class.rotated]="isMenuOpen()">
+        expand_more
+    </mat-icon>
+</div>
+
+<mat-menu
+    #playlistMenu="matMenu"
+    class="playlist-switcher-menu"
+    xPosition="after"
+    yPosition="below"
+>
+    <div class="menu-header">
+        <mat-icon>playlist_play</mat-icon>
+        <span>{{ 'HOME.PLAYLISTS.MY_PLAYLISTS' | translate }}</span>
+    </div>
+
+    <div class="search-container" (click)="$event.stopPropagation()">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input
+            type="text"
+            class="search-input"
+            [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+        />
+        @if (searchQuery()) {
+            <button
+                mat-icon-button
+                class="clear-btn"
+                (click)="searchQuery.set('')"
+            >
+                <mat-icon>close</mat-icon>
+            </button>
+        }
+    </div>
+
+    <div class="menu-content">
+        @for (playlist of filteredPlaylists(); track playlist._id) {
+            <div
+                class="playlist-item"
+                [class.selected]="isSelected(playlist)"
+                (click)="selectPlaylist(playlist)"
+            >
+                @if (isSelected(playlist)) {
+                    <mat-icon class="selected-indicator">check</mat-icon>
+                } @else {
+                    <div class="selected-indicator-placeholder"></div>
+                }
+
+                <div class="playlist-icon-container">
+                    <mat-icon class="playlist-type-icon">
+                        {{ getPlaylistIcon(playlist) }}
+                    </mat-icon>
+                    @if (playlist.serverUrl) {
+                        <span
+                            class="status-dot"
+                            [class]="getStatusClass(playlist._id)"
+                        ></span>
+                    }
+                    @if (playlist.autoRefresh && !playlist.serverUrl && !playlist.macAddress) {
+                        <mat-icon class="auto-refresh-indicator">autorenew</mat-icon>
+                    }
+                </div>
+
+                <div class="playlist-details">
+                    <span class="playlist-title">
+                        {{ playlist.title || playlist.filename }}
+                    </span>
+                    <span class="playlist-meta">
+                        {{ getPlaylistTypeLabel(playlist) }}
+                        @if (playlist.updateDate) {
+                            <span class="separator">|</span>
+                            {{ playlist.updateDate | date: 'MMM d, HH:mm' }}
+                        }
+                    </span>
+                </div>
+            </div>
+        } @empty {
+            <div class="empty-state">
+                <mat-icon>playlist_add</mat-icon>
+                <span>{{ 'HOME.PLAYLISTS.NO_PLAYLISTS' | translate }}</span>
+            </div>
+        }
+    </div>
+</mat-menu>

@@ -1,50 +1,18 @@
 <div class="current-playlist">
-    <div class="left">
-        <button
-            mat-icon-button
-            [matTooltip]="'SETTINGS.BACK_TO_HOME' | translate"
-            (click)="goBack()"
-        >
-            <mat-icon>arrow_back_ios</mat-icon>
-        </button>
-        <div class="playlist-info">
-            <div class="name">
-                @if (sidebarView === 'CHANNELS') {
-                    {{ playlistTitle$ | async }}
-                } @else {
-                    {{ 'HOME.PLAYLISTS.MY_PLAYLISTS' | translate }}
-                }
-            </div>
-            <div class="channels-count">
-                {{
-                    sidebarView === 'CHANNELS'
-                        ? channels()?.length +
-                          ' ' +
-                          ('HOME.PLAYLISTS.CHANNELS' | translate)
-                        : ('HOME.PLAYLISTS.MY_PLAYLISTS_SUBTITLE' | translate)
-                }}
-            </div>
-        </div>
-    </div>
+    <button
+        mat-icon-button
+        routerLink="/"
+        [matTooltip]="'SETTINGS.BACK_TO_HOME' | translate"
+        class="home-btn"
+    >
+        <mat-icon>home</mat-icon>
+    </button>
 
-    @if (sidebarView === 'CHANNELS') {
-        <button
-            mat-icon-button
-            routerLink="/"
-            [matTooltip]="
-                'CHANNELS.UPLOAD_OR_SELECT_OTHER_PLAYLIST' | translate
-            "
-        >
-            <mat-icon>playlist_add</mat-icon>
-        </button>
-    }
-</div>
-@if (sidebarView === 'CHANNELS') {
-    <app-channel-list-container [channelList]="channels()" />
-} @else {
-    <app-recent-playlists
-        class="recent-playlists"
-        [sidebarMode]="true"
-        (playlistClicked)="selectPlaylist()"
+    <app-playlist-switcher
+        class="switcher"
+        [currentTitle]="playlistTitle()"
+        [subtitle]="subtitle()"
     />
-}
+</div>
+
+<app-channel-list-container [channelList]="channels()" />

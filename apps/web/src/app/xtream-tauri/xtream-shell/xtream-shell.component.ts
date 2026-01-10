@@ -1,4 +1,5 @@
 import { Component, effect, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
@@ -48,7 +49,33 @@ export class XtreamShellComponent {
         },
     ];
 
+    private currentPlaylistId: string | null = null;
+    private isFirstLoad = true;
+
     constructor() {
+        // Subscribe to route params to handle switching between playlists
+        this.route.params.pipe(takeUntilDestroyed()).subscribe((params) => {
+            const newPlaylistId = params['id'];
+
+            if (this.isFirstLoad) {
+                // First load - just set the playlist ID without resetting
+                this.xtreamStore.setPlaylistId(newPlaylistId);
+                this.isFirstLoad = false;
+            } else if (this.currentPlaylistId !== newPlaylistId) {
+                // Switching to a different playlist - reset and set new ID
+                this.xtreamStore.resetStore(newPlaylistId);
+            }
+            this.currentPlaylistId = newPlaylistId;
+
+            this.store.dispatch(
+                PlaylistActions.setActivePlaylist({
+                    playlistId: newPlaylistId,
+                })
+            );
+            this.xtreamStore.fetchXtreamPlaylist();
+            this.xtreamStore.checkPortalStatus();
+        });
+
         effect(
             () => {
                 if (this.xtreamStore.currentPlaylist() !== null) {
@@ -56,15 +83,6 @@ export class XtreamShellComponent {
                 }
             },
             { allowSignalWrites: true }
-        );
-    }
-
-    ngOnInit() {
-        this.xtreamStore.checkPortalStatus();
-        this.store.dispatch(
-            PlaylistActions.setActivePlaylist({
-                playlistId: this.route.snapshot.params.id,
-            })
         );
     }
 

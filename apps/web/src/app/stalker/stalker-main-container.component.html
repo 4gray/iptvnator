@@ -9,10 +9,11 @@
             </button>
             <h2>{{ selectedCategoryTitle() }}</h2>
         } @else {
-            <button mat-icon-button disabled>
-                <mat-icon>list</mat-icon>
-            </button>
-            <h2>{{ 'PORTALS.ALL_CATEGORIES' | translate }}</h2>
+            <app-playlist-switcher
+                class="switcher"
+                [currentTitle]="currentPlaylist()?.title || 'Portal'"
+                [subtitle]="'Stalker Portal'"
+            />
         }
     </div>
     @if (isItvCategorySelected) {

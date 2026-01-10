@@ -2,45 +2,21 @@
     display: flex;
     align-items: center;
     padding: 8px;
-    justify-content: space-between;
+    gap: 4px;
     app-region: drag;
-
-    .left {
-        display: flex;
-        gap: 5px;
-    }
 
     button {
         app-region: no-drag;
     }
-}
 
-.playlist-info {
-    flex: 1;
-    max-width: 300px;
-
-    .name {
-        font-size: 1.1em;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    .switcher {
+        flex: 1;
+        min-width: 0;
     }
-
-    .channels-count {
-        font-size: 0.8em;
-    }
-}
-
-.recent-playlists {
-    height: calc(100vh - 60px);
-    overflow: auto;
-    width: 100%;
 }
 
 @media only screen and (max-width: 480px) {
-    .playlist-info {
-        .name {
-            max-width: 105px;
-        }
+    .current-playlist {
+        padding: 6px;
     }
 }
