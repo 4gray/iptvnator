@@ -12,6 +12,7 @@ export * from './lib/html-video-player/html-video-player.component';
 export * from './lib/info-overlay/info-overlay.component';
 export * from './lib/multi-epg/multi-epg-container.component';
 export * from './lib/multi-epg/overlay-ref.token';
+export * from './lib/playlist-switcher/playlist-switcher.component';
 export * from './lib/recent-playlists/playlist-info/playlist-info.component';
 export * from './lib/recent-playlists/playlist-item/playlist-item.component';
 export * from './lib/recent-playlists/recent-playlists.component';

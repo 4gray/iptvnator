@@ -1,0 +1,403 @@
+.playlist-switcher-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: transparent;
+    border: 1px solid transparent;
+    app-region: no-drag;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    &:active {
+        transform: scale(0.98);
+    }
+}
+
+.playlist-info {
+    flex: 1;
+    min-width: 0;
+    max-width: 240px;
+
+    .name {
+        font-size: 1em;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 1.3;
+    }
+
+    .channels-count {
+        font-size: 0.75em;
+        opacity: 0.6;
+        line-height: 1.4;
+    }
+}
+
+.dropdown-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    opacity: 0.7;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-left: auto;
+
+    &.rotated {
+        transform: rotate(180deg);
+    }
+}
+
+// Light theme
+@media (prefers-color-scheme: light) {
+    .playlist-switcher-trigger:hover {
+        background: rgba(0, 0, 0, 0.04);
+        border-color: rgba(0, 0, 0, 0.06);
+    }
+}
+
+// Menu styles (global)
+::ng-deep .playlist-switcher-menu {
+    min-width: 320px !important;
+    max-width: 400px !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+
+    .mat-mdc-menu-content {
+        padding: 0 !important;
+    }
+}
+
+.menu-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.85em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.7;
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    .menu-header {
+        border-bottom-color: rgba(0, 0, 0, 0.08);
+    }
+}
+
+.search-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin: 0 8px 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+
+    &:focus-within {
+        border-color: rgba(139, 92, 246, 0.5);
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .search-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        opacity: 0.5;
+    }
+
+    .search-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 0.85em;
+        color: inherit;
+        min-width: 0;
+
+        &::placeholder {
+            opacity: 0.5;
+        }
+    }
+
+    .clear-btn {
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        padding: 0;
+
+        mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+        }
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    .search-container {
+        background: rgba(0, 0, 0, 0.04);
+
+        &:focus-within {
+            background: rgba(0, 0, 0, 0.06);
+        }
+    }
+}
+
+.menu-content {
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 8px 0;
+
+    // Custom scrollbar
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 3px;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    .menu-content::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.15);
+
+        &:hover {
+            background: rgba(0, 0, 0, 0.25);
+        }
+    }
+}
+
+.playlist-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    min-height: 52px;
+    transition: all 0.15s ease;
+    position: relative;
+    cursor: pointer;
+
+    &.selected {
+        background: rgba(139, 92, 246, 0.1);
+
+        .playlist-title {
+            color: #a78bfa;
+        }
+    }
+
+    &:hover:not(.selected) {
+        background: rgba(255, 255, 255, 0.04);
+    }
+}
+
+.selected-indicator {
+    color: #8b5cf6;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.selected-indicator-placeholder {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+@media (prefers-color-scheme: light) {
+    .playlist-item {
+        &.selected {
+            background: rgba(139, 92, 246, 0.08);
+
+            .playlist-title {
+                color: #7c3aed;
+            }
+        }
+
+        &:hover:not(.selected) {
+            background: rgba(0, 0, 0, 0.04);
+        }
+    }
+}
+
+.playlist-icon-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+}
+
+@media (prefers-color-scheme: light) {
+    .playlist-icon-container {
+        background: rgba(0, 0, 0, 0.04);
+    }
+}
+
+.playlist-type-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    opacity: 0.8;
+}
+
+.status-dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    right: -2px;
+    bottom: -2px;
+    border: 2px solid var(--mat-menu-container-color, #2a2a2e);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.status-active {
+    background-color: #4caf50;
+    box-shadow: 0 0 6px rgba(76, 175, 80, 0.4);
+}
+
+.status-inactive {
+    background-color: #f44336;
+    box-shadow: 0 0 6px rgba(244, 67, 54, 0.4);
+}
+
+.status-expired {
+    background-color: #ff9800;
+    box-shadow: 0 0 6px rgba(255, 152, 0, 0.4);
+}
+
+.status-unavailable {
+    background-color: #666666;
+}
+
+.auto-refresh-indicator {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    font-size: 12px !important;
+    width: 14px !important;
+    height: 14px !important;
+    color: #4caf50;
+    background-color: var(--mat-menu-container-color, #2a2a2e);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+@media (prefers-color-scheme: light) {
+    .auto-refresh-indicator,
+    .status-dot {
+        border-color: var(--mat-menu-container-color, #fff);
+        background-color: var(--mat-menu-container-color, #fff);
+    }
+
+    .auto-refresh-indicator {
+        background-color: var(--mat-menu-container-color, #fff);
+    }
+}
+
+.playlist-details {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.playlist-title {
+    font-size: 0.9em;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.15s ease;
+}
+
+.playlist-meta {
+    font-size: 0.75em;
+    opacity: 0.55;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    .separator {
+        opacity: 0.4;
+    }
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    gap: 12px;
+    opacity: 0.5;
+
+    mat-icon {
+        font-size: 36px;
+        width: 36px;
+        height: 36px;
+    }
+
+    span {
+        font-size: 0.85em;
+    }
+}
+
+// Responsive adjustments
+@media only screen and (max-width: 480px) {
+    .playlist-info {
+        max-width: 140px;
+
+        .name {
+            font-size: 0.9em;
+        }
+    }
+
+    ::ng-deep .playlist-switcher-menu {
+        min-width: 280px !important;
+    }
+
+    .playlist-icon-container {
+        display: none;
+    }
+}
