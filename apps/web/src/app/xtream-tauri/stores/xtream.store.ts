@@ -6,9 +6,7 @@ import {
 } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { selectActivePlaylist } from 'm3u-state';
-import { DataService } from 'services';
 import {
-    XtreamCodeActions,
     XtreamSerieDetails,
     XtreamVodDetails,
 } from 'shared-interfaces';
@@ -16,6 +14,9 @@ import {
 // Import existing features that are already separate
 import { withFavorites } from '../with-favorites.feature';
 import { withRecentItems } from '../with-recent-items';
+
+// Import service
+import { XtreamApiService } from '../services/xtream-api.service';
 
 // Import new feature stores
 import {
@@ -75,8 +76,10 @@ export const XtreamStore = signalStore(
 
     // Cross-feature methods & orchestration
     withMethods((store) => {
-        const dataService = inject(DataService);
+        const xtreamApiService = inject(XtreamApiService);
         const ngrxStore = inject(Store);
+        const searchContent = (store as any)
+            .searchContent as (term: string, types: string[]) => Promise<unknown>;
 
         return {
             /**
@@ -122,15 +125,11 @@ export const XtreamStore = signalStore(
                 if (!playlist) return;
 
                 store.setIsLoadingDetails(true);
-                dataService.fetchData(
-                    `${playlist.serverUrl}/player_api.php`,
-                    {
-                        action: XtreamCodeActions.GetVodInfo,
-                        username: playlist.username,
-                        password: playlist.password,
-                        vod_id: params.vodId,
-                    }
-                ).then((vodDetails: XtreamVodDetails) => {
+                xtreamApiService.getVodInfo({
+                    serverUrl: playlist.serverUrl,
+                    username: playlist.username,
+                    password: playlist.password,
+                }, params.vodId).then((vodDetails: XtreamVodDetails) => {
                     store.setSelectedCategory(params.categoryId);
                     store.setSelectedItem({
                         ...vodDetails,
@@ -154,15 +153,11 @@ export const XtreamStore = signalStore(
                 if (!playlist) return;
 
                 store.setIsLoadingDetails(true);
-                dataService.fetchData(
-                    `${playlist.serverUrl}/player_api.php`,
-                    {
-                        action: XtreamCodeActions.GetSeriesInfo,
-                        username: playlist.username,
-                        password: playlist.password,
-                        series_id: params.serialId,
-                    }
-                ).then((serialDetails: XtreamSerieDetails) => {
+                xtreamApiService.getSeriesInfo({
+                    serverUrl: playlist.serverUrl,
+                    username: playlist.username,
+                    password: playlist.password,
+                }, params.serialId).then((serialDetails: XtreamSerieDetails) => {
                     store.setSelectedCategory(params.categoryId);
                     store.setSelectedItem({
                         ...serialDetails,
@@ -221,7 +216,7 @@ export const XtreamStore = signalStore(
              */
             searchContent(params: { term: string; types: string[] }): void {
                 // Call the underlying search method from withSearch
-                (store as any).searchContent(params.term, params.types);
+                void searchContent(params.term, params.types);
             },
         };
     })

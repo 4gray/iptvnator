@@ -5,7 +5,7 @@ import { MatListModule } from '@angular/material/list';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { selectActivePlaylist } from 'm3u-state';
-import { DataService } from 'services';
+import { XtreamApiService } from '../services/xtream-api.service';
 import { XtreamAccountInfo } from './account-info.interface';
 
 @Component({
@@ -20,7 +20,7 @@ export class AccountInfoComponent {
         liveStreamsCount: number;
         seriesCount: number;
     }>(MAT_DIALOG_DATA);
-    private readonly dataService = inject(DataService);
+    private readonly xtreamApiService = inject(XtreamApiService);
     private readonly store = inject(Store);
 
     accountInfo: XtreamAccountInfo;
@@ -44,14 +44,11 @@ export class AccountInfoComponent {
         if (!playlist) return;
 
         try {
-            this.accountInfo = await this.dataService.fetchData(
-                `${playlist.serverUrl}/player_api.php`,
-                {
-                    username: playlist.username,
-                    password: playlist.password,
-                    action: 'get_account_info',
-                }
-            );
+            this.accountInfo = await this.xtreamApiService.getAccountInfo({
+                serverUrl: playlist.serverUrl,
+                username: playlist.username,
+                password: playlist.password,
+            });
 
             if (this.accountInfo) {
                 this.formattedExpDate = new Date(

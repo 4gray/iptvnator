@@ -285,8 +285,4 @@ export class PwaService extends DataService {
     getAppEnvironment(): string {
         return 'pwa';
     }
-
-    fetchData(url: string, queryParams: Params) {
-        // not implemented
-    }
 }
