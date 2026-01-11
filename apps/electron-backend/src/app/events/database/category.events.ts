@@ -62,6 +62,7 @@ ipcMain.handle(
 
 /**
  * Save categories in bulk
+ * Optionally accepts hidden category data to restore visibility preferences
  */
 ipcMain.handle(
     'DB_SAVE_CATEGORIES',
@@ -72,7 +73,8 @@ ipcMain.handle(
             category_name: string;
             category_id: number;
         }>,
-        type: 'live' | 'movies' | 'series'
+        type: 'live' | 'movies' | 'series',
+        hiddenCategoryXtreamIds?: number[]
     ) => {
         try {
             // Skip if no categories to save
@@ -81,11 +83,17 @@ ipcMain.handle(
             }
 
             const db = await getDatabase();
+
+            // Create a Set of hidden xtreamIds for efficient lookup
+            const hiddenSet = new Set(hiddenCategoryXtreamIds || []);
+
             const values = categories.map((cat) => ({
                 playlistId,
                 name: cat.category_name,
                 type,
                 xtreamId: cat.category_id,
+                // Restore hidden status if the category was previously hidden
+                hidden: hiddenSet.has(cat.category_id),
             }));
 
             await db.insert(schema.categories).values(values);

@@ -222,11 +222,14 @@ export class RecentPlaylistsComponent {
             onConfirm: async () => {
                 try {
                     // Delete all content and categories for this playlist
-                    // This returns the xtreamIds of favorites and recently viewed items
-                    const { favoritedXtreamIds, recentlyViewedXtreamIds } =
-                        await this.databaseService.deleteXtreamPlaylistContent(
-                            item._id
-                        );
+                    // This returns the xtreamIds of favorites, recently viewed items, and hidden categories
+                    const {
+                        favoritedXtreamIds,
+                        recentlyViewedXtreamIds,
+                        hiddenCategories,
+                    } = await this.databaseService.deleteXtreamPlaylistContent(
+                        item._id
+                    );
 
                     const updateDate = Date.now();
 
@@ -250,6 +253,7 @@ export class RecentPlaylistsComponent {
                         JSON.stringify({
                             favoritedXtreamIds,
                             recentlyViewedXtreamIds,
+                            hiddenCategories,
                         })
                     );
 

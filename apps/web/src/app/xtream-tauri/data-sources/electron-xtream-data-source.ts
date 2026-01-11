@@ -98,15 +98,54 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         );
 
         if (remoteData && Array.isArray(remoteData) && remoteData.length > 0) {
+            // Check if there are saved hidden categories to restore
+            const hiddenCategoryXtreamIds =
+                this.getHiddenCategoryXtreamIds(playlistId, dbType);
+
             await this.dbService.saveXtreamCategories(
                 playlistId,
                 remoteData,
-                dbType
+                dbType,
+                hiddenCategoryXtreamIds
             );
         }
 
         // Return from cache (now populated)
         return this.dbService.getXtreamCategories(playlistId, dbType);
+    }
+
+    /**
+     * Get hidden category xtreamIds from localStorage for a specific playlist and type
+     * Used to restore visibility preferences after playlist refresh
+     */
+    private getHiddenCategoryXtreamIds(
+        playlistId: string,
+        type: 'live' | 'movies' | 'series'
+    ): number[] | undefined {
+        const restoreKey = `xtream-restore-${playlistId}`;
+        const restoreDataStr = localStorage.getItem(restoreKey);
+
+        if (!restoreDataStr) {
+            return undefined;
+        }
+
+        try {
+            const restoreData = JSON.parse(restoreDataStr);
+            const hiddenCategories = restoreData.hiddenCategories as
+                | { xtreamId: number; type: string }[]
+                | undefined;
+
+            if (!hiddenCategories || hiddenCategories.length === 0) {
+                return undefined;
+            }
+
+            // Filter for the specific type and return xtreamIds
+            return hiddenCategories
+                .filter((cat) => cat.type === type)
+                .map((cat) => cat.xtreamId);
+        } catch {
+            return undefined;
+        }
     }
 
     async getAllCategories(
