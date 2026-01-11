@@ -111,6 +111,80 @@ This is an Nx monorepo with the following structure:
 - Entity adapter pattern for managing playlists collection
 - Router store integration for route-based state
 
+**XtreamStore Architecture** (Signal Store with Feature Composition):
+
+The Xtream Codes module uses NgRx Signal Store with a layered architecture:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        PRESENTATION LAYER                        │
+│              Components use XtreamStore (facade)                 │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         FACADE LAYER                             │
+│                         XtreamStore                              │
+│            (Composes feature stores, unified API)                │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+        ┌────────────┬────────────┼────────────┬────────────┐
+        ▼            ▼            ▼            ▼            ▼
+┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐
+│  withPortal│ │withContent │ │withSelection│ │ withSearch │ │ withPlayer │
+└────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘
+        │                           │              │
+        └───────────────────────────┼──────────────┘
+                                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    DATA SOURCE LAYER                             │
+│                   IXtreamDataSource                              │
+│         ┌───────────────────┬───────────────────┐               │
+│         ▼                   ▼                                    │
+│  ElectronDataSource    PwaDataSource                            │
+│  (DB-first + API)      (API-only)                               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+File structure:
+```
+apps/web/src/app/xtream-tauri/
+├── stores/
+│   ├── features/
+│   │   ├── with-portal.feature.ts      # Playlist & portal status
+│   │   ├── with-content.feature.ts     # Categories & streams
+│   │   ├── with-selection.feature.ts   # UI selection & pagination
+│   │   ├── with-search.feature.ts      # Search functionality
+│   │   ├── with-epg.feature.ts         # EPG data
+│   │   ├── with-player.feature.ts      # Stream URLs & player
+│   │   └── index.ts
+│   ├── xtream.store.ts                 # Facade composing all features
+│   └── index.ts
+├── services/
+│   ├── xtream-api.service.ts           # Xtream Codes API calls
+│   ├── xtream-url.service.ts           # Stream URL construction
+│   └── index.ts
+├── data-sources/
+│   ├── xtream-data-source.interface.ts # Abstract interface + types
+│   ├── electron-xtream-data-source.ts  # DB-first implementation
+│   ├── pwa-xtream-data-source.ts       # API-only implementation
+│   └── index.ts                        # Factory provider
+└── with-favorites.feature.ts           # Favorites (existing)
+└── with-recent-items.ts                # Recently viewed (existing)
+```
+
+Key patterns:
+- **Feature stores**: Each `with*.feature.ts` uses `signalStoreFeature()` for focused functionality
+- **Facade pattern**: `XtreamStore` composes all features, maintaining backward compatibility
+- **Data source abstraction**: `IXtreamDataSource` interface with environment-specific implementations
+- **Factory injection**: `provideXtreamDataSource()` selects Electron or PWA implementation at runtime
+
+Data strategies by environment:
+| Environment | Strategy |
+|-------------|----------|
+| **Electron** | DB-first: Check DB → fetch API if missing → cache to DB |
+| **PWA** | API-only: Always fetch from API, store in memory |
+
 **Routing**: Lazy-loaded routes in `apps/web/src/app/app.routes.ts`
 
 - Home/playlists overview: `/`
