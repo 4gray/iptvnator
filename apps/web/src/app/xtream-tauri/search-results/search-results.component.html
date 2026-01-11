@@ -1,24 +1,43 @@
 <div class="search-page">
-    <div class="header">
-        <h2>{{ 'PORTALS.SIDEBAR.SEARCH' | translate }}</h2>
-        @if (isGlobalSearch) {
-        <button mat-icon-button (click)="dialogRef.close()">
-            <mat-icon>close</mat-icon>
-        </button>
-        }
-    </div>
+    <div class="header sticky-header">
+        <div class="header-top">
+            <div class="header-left">
+                <h2>{{ 'PORTALS.SIDEBAR.SEARCH' | translate }}</h2>
+                
+                <div class="type-filters">
+                    @for (filter of filterConfig; track filter.key) {
+                        <mat-checkbox
+                            [(ngModel)]="filters[filter.key]"
+                            (ngModelChange)="executeSearch()"
+                        >
+                            {{ filter.translationKey | translate }}
+                        </mat-checkbox>
+                    }
+                </div>
+            </div>
 
-    <app-search-form
-        [(searchTerm)]="searchTerm"
-        [filters]="filters"
-        [filterConfig]="filterConfig"
-    />
+            <div class="header-right">
+                @if (!isGlobalSearch && xtreamStore.searchResults().length > 0) {
+                    <div class="results-count">
+                        Found {{ xtreamStore.searchResults().length }} results
+                    </div>
+                }
+                @if (isGlobalSearch) {
+                    <button mat-icon-button (click)="dialogRef.close()">
+                        <mat-icon>close</mat-icon>
+                    </button>
+                }
+            </div>
+        </div>
 
-    @if (!isGlobalSearch && xtreamStore.searchResults().length > 0) {
-    <div class="results-count">
-        Found {{ xtreamStore.searchResults().length }} results
+        <div class="search-input-container">
+            <app-search-form
+                [(searchTerm)]="searchTerm"
+                [filters]="filters"
+                [filterConfig]="[]"
+            />
+        </div>
     </div>
-    }
 
     <div class="results-container">
         @if (xtreamStore.searchResults().length > 0) { @if (isGlobalSearch) {
@@ -93,10 +112,22 @@
             </mat-card>
             }
         </div>
-        } } @else if (searchTerm && searchTerm.length >= 3) {
+        } } @else if (searchTerm() && searchTerm().length >= 3) {
         <div class="no-items">
             <mat-icon>search_off</mat-icon>
-            <p>No results found for "{{ searchTerm() }}"</p>
+            <div class="no-items-content">
+                <h3>{{ 'PORTALS.EMPTY_LIST_VIEW.TITLE' | translate }}</h3>
+                <p>{{ 'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate }}</p>
+                <p class="search-term-note">No results found for "{{ searchTerm() }}"</p>
+            </div>
+        </div>
+        } @else {
+        <div class="no-items initial-state">
+            <mat-icon>search</mat-icon>
+            <div class="no-items-content">
+                <h3>{{ 'PORTALS.SEARCH_VIEW.INITIAL_TITLE' | translate }}</h3>
+                <p>{{ 'PORTALS.SEARCH_VIEW.INITIAL_DESCRIPTION' | translate }}</p>
+            </div>
         </div>
         }
     </div>
