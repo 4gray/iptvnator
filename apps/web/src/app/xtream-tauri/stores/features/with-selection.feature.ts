@@ -50,7 +50,9 @@ export function withSelection() {
              */
             getSelectedCategory: computed(() => {
                 const categoryId = store.selectedCategoryId();
-                if (!categoryId) return null;
+                if (!categoryId) {
+                    return { id: 0, name: 'All Items', type: store.selectedContentType() };
+                }
 
                 // Access parent store categories (from withContent)
                 const storeAny = store as any;
@@ -98,9 +100,6 @@ export function withSelection() {
                 const startIndex = store.page() * store.limit();
                 const endIndex = startIndex + store.limit();
                 const categoryId = store.selectedCategoryId();
-
-                if (!categoryId) return [];
-
                 const categoryType = store.selectedContentType();
 
                 // Access parent store content (from withContent)
@@ -112,9 +111,20 @@ export function withSelection() {
                           ? storeAny.vodStreams?.() || []
                           : storeAny.serialStreams?.() || [];
 
-                return content
-                    .filter((item: any) => Number(item.category_id) === categoryId)
-                    .slice(startIndex, endIndex);
+                let filteredContent = content;
+                if (categoryId) {
+                    filteredContent = content.filter((item: any) => Number(item.category_id) === categoryId);
+                } else {
+                    // Filter nothing (all items), sort by added
+                    // Clone to avoid mutation
+                    filteredContent = [...content].sort((a: any, b: any) => {
+                        const dateA = parseInt(categoryType === 'series' ? a.last_modified : a.added) || 0;
+                        const dateB = parseInt(categoryType === 'series' ? b.last_modified : b.added) || 0;
+                        return dateB - dateA;
+                    });
+                }
+
+                return filteredContent.slice(startIndex, endIndex);
             }),
 
             /**
@@ -124,8 +134,6 @@ export function withSelection() {
                 const categoryId = store.selectedCategoryId();
                 const categoryType = store.selectedContentType();
 
-                if (!categoryId) return [];
-
                 // Access parent store content (from withContent)
                 const storeAny = store as any;
                 const content =
@@ -134,6 +142,15 @@ export function withSelection() {
                         : categoryType === 'vod'
                           ? storeAny.vodStreams?.() || []
                           : storeAny.serialStreams?.() || [];
+
+                if (!categoryId) {
+                    // Return all items sorted by added
+                    return [...content].sort((a: any, b: any) => {
+                        const dateA = parseInt(categoryType === 'series' ? a.last_modified : a.added) || 0;
+                        const dateB = parseInt(categoryType === 'series' ? b.last_modified : b.added) || 0;
+                        return dateB - dateA;
+                    });
+                }
 
                 return content.filter(
                     (item: any) => Number(item.category_id) === categoryId
@@ -145,8 +162,6 @@ export function withSelection() {
              */
             getTotalPages: computed(() => {
                 const categoryId = store.selectedCategoryId();
-                if (!categoryId) return 0;
-
                 const categoryType = store.selectedContentType();
 
                 // Access parent store content (from withContent)
@@ -158,9 +173,14 @@ export function withSelection() {
                           ? storeAny.vodStreams?.() || []
                           : storeAny.serialStreams?.() || [];
 
-                const totalItems = content.filter(
-                    (item: any) => Number(item.category_id) === categoryId
-                ).length;
+                let totalItems = 0;
+                if (categoryId) {
+                    totalItems = content.filter(
+                        (item: any) => Number(item.category_id) === categoryId
+                    ).length;
+                } else {
+                    totalItems = content.length;
+                }
 
                 return Math.ceil(totalItems / store.limit());
             }),
@@ -230,9 +250,9 @@ export function withSelection() {
             /**
              * Set the selected category
              */
-            setSelectedCategory(categoryId: number): void {
+            setSelectedCategory(categoryId: number | null): void {
                 patchState(store, {
-                    selectedCategoryId: Number(categoryId),
+                    selectedCategoryId: categoryId !== null ? Number(categoryId) : null,
                     page: 0,
                 });
             },

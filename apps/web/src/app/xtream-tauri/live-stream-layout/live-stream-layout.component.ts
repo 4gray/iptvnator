@@ -118,6 +118,7 @@ export class LiveStreamLayoutComponent implements OnInit {
             data: {
                 playlistId,
                 contentType,
+                itemCounts: this.categoryItemCounts(),
             },
             width: '500px',
             maxHeight: '80vh',

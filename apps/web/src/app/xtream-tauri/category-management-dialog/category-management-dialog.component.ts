@@ -18,6 +18,7 @@ import { DatabaseService, XCategoryFromDb } from 'services';
 export interface CategoryManagementDialogData {
     playlistId: string;
     contentType: 'live' | 'vod' | 'series';
+    itemCounts: Map<number, number>;
 }
 
 interface CategoryWithSelection extends XCategoryFromDb {
@@ -102,6 +103,12 @@ export class CategoryManagementDialogComponent implements OnInit {
 
     clearSearch(): void {
         this.searchTerm.set('');
+    }
+
+    getItemCount(category: CategoryWithSelection): number {
+        // content.category_id references categories.id (internal DB id), not xtream_id
+        const categoryId = Number(category.id);
+        return this.data.itemCounts.get(categoryId) ?? 0;
     }
 
     private getDbType(): 'live' | 'movies' | 'series' {

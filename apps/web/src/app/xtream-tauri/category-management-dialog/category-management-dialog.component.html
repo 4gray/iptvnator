@@ -59,6 +59,7 @@
                     >
                     </mat-checkbox>
                     <span class="category-name">{{ category.name }}</span>
+                    <span class="item-count">({{ getItemCount(category) }})</span>
                 </div>
             } @empty {
                 <div class="empty-message">

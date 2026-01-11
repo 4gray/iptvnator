@@ -79,6 +79,12 @@
     text-overflow: ellipsis;
 }
 
+.item-count {
+    opacity: 0.6;
+    font-size: 12px;
+    color: var(--mat-sys-on-surface-variant);
+}
+
 .empty-message {
     padding: 24px;
     text-align: center;
