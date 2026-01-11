@@ -8,7 +8,7 @@ import { XtreamCategory } from 'shared-interfaces';
 import { FavoritesLayoutComponent } from '../../shared/components/favorites-layout/favorites-layout.component';
 import { FavoriteItem } from '../services/favorite-item.interface';
 import { FavoritesService } from '../services/favorites.service';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 
 @Component({
     selector: 'app-favorites',

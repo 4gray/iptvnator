@@ -8,7 +8,7 @@ import { StalkerSeriesViewComponent } from '../../stalker/stalker-series-view/st
 import { StalkerStore } from '../../stalker/stalker.store';
 import { VodDetailsComponent } from '../../xtream/vod-details/vod-details.component';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 
 @Component({
     selector: 'app-category-content-view',

@@ -11,7 +11,7 @@ import { selectPlaylistById } from 'm3u-state';
 import { Playlist } from 'shared-interfaces';
 import { SettingsComponent } from '../../settings/settings.component';
 import { AccountInfoComponent } from '../account-info/account-info.component';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 import { NavigationItem } from './navigation.interface';
 
 @Component({

@@ -7,7 +7,7 @@ import { PlaylistActions } from 'm3u-state';
 import { LoadingOverlayComponent } from '../loading-overlay/loading-overlay.component';
 import { NavigationComponent } from '../navigation/navigation.component';
 import { NavigationItem } from '../navigation/navigation.interface';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 
 @Component({
     templateUrl: './xtream-shell.component.html',

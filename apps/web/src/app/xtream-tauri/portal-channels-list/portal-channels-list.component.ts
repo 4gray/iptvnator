@@ -26,7 +26,7 @@ import { FilterPipe } from '@iptvnator/pipes';
 import { TranslatePipe } from '@ngx-translate/core';
 import { XtreamCategory, XtreamItem } from 'shared-interfaces';
 import { FavoritesService } from '../services/favorites.service';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 
 interface EpgProgram {
     id: string;
