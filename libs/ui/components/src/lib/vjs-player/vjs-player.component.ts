@@ -12,7 +12,7 @@ import {
 import '@yangkghjh/videojs-aspect-ratio-panel';
 import videoJs from 'video.js';
 import 'videojs-contrib-quality-levels';
-//import 'videojs-hls-quality-selector';
+import 'videojs-hls-quality-selector';
 
 /**
  * This component contains the implementation of video player that is based on video.js library
