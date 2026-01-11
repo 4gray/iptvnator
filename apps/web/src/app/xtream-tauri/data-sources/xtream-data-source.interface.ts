@@ -199,11 +199,15 @@ export interface IXtreamDataSource {
 
     /**
      * Get content/streams for a playlist and type
+     * @param onProgress - Optional callback for import progress (count)
+     * @param onTotal - Optional callback for total items to import
      */
     getContent(
         playlistId: string,
         credentials: XtreamCredentials,
-        type: StreamType
+        type: StreamType,
+        onProgress?: ProgressCallback,
+        onTotal?: (total: number) => void
     ): Promise<XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[] | XtreamContentItem[]>;
 
     /**

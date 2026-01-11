@@ -184,8 +184,8 @@ ipcMain.handle(
                 );
                 totalInserted += chunk.length;
 
-                // Send progress update
-                event.sender.send('DB_SAVE_CONTENT_PROGRESS', totalInserted);
+                // Send incremental progress update (chunk size, not cumulative total)
+                event.sender.send('DB_SAVE_CONTENT_PROGRESS', chunk.length);
             }
 
             return { success: true, count: totalInserted };

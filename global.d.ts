@@ -210,6 +210,9 @@ declare global {
                     error?: string;
                 }) => void
             ) => void;
+            // DB save content progress listener
+            onDbSaveContentProgress: (callback: (count: number) => void) => void;
+            removeDbSaveContentProgress: () => void;
             dbDeleteAllPlaylists: () => Promise<{ success: boolean }>;
         };
         process: NodeJS.Process;

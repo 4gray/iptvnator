@@ -184,7 +184,9 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async getContent(
         playlistId: string,
         credentials: XtreamCredentials,
-        type: StreamType
+        type: StreamType,
+        onProgress?: (count: number) => void,
+        onTotal?: (total: number) => void
     ): Promise<XtreamContentItem[]> {
         // Check if we have cached data
         const exists = await this.dbService.hasXtreamContent(playlistId, type);
@@ -198,11 +200,17 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         const remoteData = await this.apiService.getStreams(credentials, type);
 
         if (remoteData && Array.isArray(remoteData) && remoteData.length > 0) {
-            // Save to cache
+            // Report total items to import
+            if (onTotal) {
+                onTotal(remoteData.length);
+            }
+
+            // Save to cache with progress tracking
             await this.dbService.saveXtreamContent(
                 playlistId,
                 remoteData as any[],
-                type
+                type,
+                onProgress
             );
         }
 

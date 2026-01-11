@@ -181,7 +181,7 @@ export function withContent() {
                 },
 
                 /**
-                 * Fetch all content/streams in parallel
+                 * Fetch all content/streams in parallel with progress tracking
                  */
                 async fetchAllContent(): Promise<void> {
                     const ctx = getCredentialsFromStore();
@@ -189,22 +189,42 @@ export function withContent() {
 
                     patchState(store, { isLoadingContent: true });
 
+                    // Track combined progress across all content types
+                    let totalItems = 0;
+                    let importedItems = 0;
+
+                    const onTotal = (count: number) => {
+                        totalItems += count;
+                        patchState(store, { itemsToImport: totalItems });
+                    };
+
+                    const onProgress = (count: number) => {
+                        importedItems += count;
+                        patchState(store, { importCount: importedItems });
+                    };
+
                     try {
                         const [live, vod, series] = await Promise.all([
                             dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
-                                'live'
+                                'live',
+                                onProgress,
+                                onTotal
                             ),
                             dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
-                                'movie'
+                                'movie',
+                                onProgress,
+                                onTotal
                             ),
                             dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
-                                'series'
+                                'series',
+                                onProgress,
+                                onTotal
                             ),
                         ]);
 
@@ -227,13 +247,13 @@ export function withContent() {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
 
-                    patchState(store, { isImporting: true, importCount: 0 });
+                    patchState(store, { isImporting: true, importCount: 0, itemsToImport: 0 });
 
                     try {
                         // Fetch categories first
                         await this.fetchAllCategories();
 
-                        // Then fetch content
+                        // Then fetch content (with progress tracking)
                         await this.fetchAllContent();
 
                         // Restore user data if needed
