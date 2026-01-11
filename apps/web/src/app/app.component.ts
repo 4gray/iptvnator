@@ -18,8 +18,8 @@ import {
 } from 'shared-interfaces';
 import { SettingsService } from './services/settings.service';
 import { EpgProgressPanelComponent } from './shared/epg-progress-panel/epg-progress-panel.component';
-import { RecentlyViewedComponent } from './xtream-tauri/recently-viewed/recently-viewed.component';
-import { SearchResultsComponent } from './xtream-tauri/search-results/search-results.component';
+import { GlobalRecentlyViewedComponent } from './xtream-tauri/recently-viewed/global-recently-viewed.component';
+import { GlobalSearchResultsComponent } from './xtream-tauri/search-results/global-search-results.component';
 
 @Component({
     selector: 'app-root',
@@ -147,7 +147,7 @@ export class AppComponent implements OnInit {
     }
 
     openGlobalSearch(): void {
-        this.dialog.open(SearchResultsComponent, {
+        this.dialog.open(GlobalSearchResultsComponent, {
             width: '100%',
             height: '100%',
             maxWidth: '100%',
@@ -157,7 +157,7 @@ export class AppComponent implements OnInit {
     }
 
     openGlobalRecent(): void {
-        this.dialog.open(RecentlyViewedComponent, {
+        this.dialog.open(GlobalRecentlyViewedComponent, {
             width: '100%',
             height: '100%',
             maxWidth: '100%',
