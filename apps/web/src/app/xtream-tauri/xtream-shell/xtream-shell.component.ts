@@ -7,7 +7,7 @@ import { PlaylistActions } from 'm3u-state';
 import { LoadingOverlayComponent } from '../loading-overlay/loading-overlay.component';
 import { NavigationComponent } from '../navigation/navigation.component';
 import { NavigationItem } from '../navigation/navigation.interface';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 
 @Component({
     templateUrl: './xtream-shell.component.html',
@@ -54,7 +54,7 @@ export class XtreamShellComponent {
 
     constructor() {
         // Subscribe to route params to handle switching between playlists
-        this.route.params.pipe(takeUntilDestroyed()).subscribe((params) => {
+        this.route.params.pipe(takeUntilDestroyed()).subscribe(async (params) => {
             const newPlaylistId = params['id'];
 
             if (this.isFirstLoad) {
@@ -72,8 +72,11 @@ export class XtreamShellComponent {
                     playlistId: newPlaylistId,
                 })
             );
-            this.xtreamStore.fetchXtreamPlaylist();
-            this.xtreamStore.checkPortalStatus();
+
+            // Must await fetchXtreamPlaylist before checking status
+            // because checkPortalStatus needs currentPlaylist to be set
+            await this.xtreamStore.fetchXtreamPlaylist();
+            await this.xtreamStore.checkPortalStatus();
         });
 
         effect(

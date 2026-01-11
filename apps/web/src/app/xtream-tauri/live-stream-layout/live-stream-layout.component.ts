@@ -25,7 +25,7 @@ import {
 import { CategoryViewComponent } from '../category-view/category-view.component';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { FavoritesService } from '../services/favorites.service';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 
 @Component({
     selector: 'app-live-stream-layout',

@@ -72,5 +72,7 @@
             (episodeClicked)="playEpisode($event)"
         />
     </app-content-hero>
+} @else {
+    <app-content-hero [isLoading]="true" (backClicked)="goBack()" />
 }
 

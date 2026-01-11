@@ -68,12 +68,13 @@ export class DatabaseService {
     /**
      * Delete all content and categories for an Xtream playlist (for refresh)
      * Keeps the playlist entry but removes all imported data
-     * Returns saved favorites and recently viewed xtreamIds for restoration
+     * Returns saved favorites, recently viewed xtreamIds, and hidden categories for restoration
      */
     async deleteXtreamPlaylistContent(playlistId: string): Promise<{
         success: boolean;
         favoritedXtreamIds: number[];
         recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[];
+        hiddenCategories: { xtreamId: number; type: string }[];
     }> {
         return await window.electron.dbDeleteXtreamContent(playlistId);
     }
@@ -160,13 +161,20 @@ export class DatabaseService {
 
     /**
      * Save categories in bulk
+     * Optionally accepts hidden category xtreamIds to restore visibility preferences
      */
     async saveXtreamCategories(
         playlistId: string,
         categories: any[],
-        type: 'live' | 'movies' | 'series'
+        type: 'live' | 'movies' | 'series',
+        hiddenCategoryXtreamIds?: number[]
     ): Promise<void> {
-        await window.electron.dbSaveCategories(playlistId, categories, type);
+        await window.electron.dbSaveCategories(
+            playlistId,
+            categories,
+            type,
+            hiddenCategoryXtreamIds
+        );
     }
 
     /**

@@ -101,6 +101,10 @@ declare global {
                     xtreamId: number;
                     viewedAt: string;
                 }[];
+                hiddenCategories: {
+                    xtreamId: number;
+                    type: string;
+                }[];
             }>;
             dbRestoreXtreamUserData: (
                 playlistId: string,
@@ -121,7 +125,8 @@ declare global {
             dbSaveCategories: (
                 playlistId: string,
                 categories: any[],
-                type: string
+                type: string,
+                hiddenCategoryXtreamIds?: number[]
             ) => Promise<{ success: boolean }>;
             dbGetAllCategories: (
                 playlistId: string,

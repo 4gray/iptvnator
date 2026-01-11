@@ -18,13 +18,26 @@ ipcMain.handle(
         try {
             const db = await getDatabase();
 
-            // First, get all category IDs for this playlist
+            // First, get all categories for this playlist (including hidden status)
             const categories = await db
-                .select({ id: schema.categories.id })
+                .select({
+                    id: schema.categories.id,
+                    xtreamId: schema.categories.xtreamId,
+                    type: schema.categories.type,
+                    hidden: schema.categories.hidden,
+                })
                 .from(schema.categories)
                 .where(eq(schema.categories.playlistId, playlistId));
 
             const categoryIds = categories.map((c) => c.id);
+
+            // Save hidden categories info to restore after refresh
+            const hiddenCategories = categories
+                .filter((c) => c.hidden)
+                .map((c) => ({
+                    xtreamId: c.xtreamId,
+                    type: c.type,
+                }));
 
             // Before deleting content, save xtreamIds of favorited and recently viewed items
             // so they can be restored after refresh
@@ -89,11 +102,12 @@ ipcMain.handle(
                 .delete(schema.categories)
                 .where(eq(schema.categories.playlistId, playlistId));
 
-            // Return the saved xtreamIds so favorites and recently viewed can be restored
+            // Return the saved xtreamIds so favorites, recently viewed, and hidden categories can be restored
             return {
                 success: true,
                 favoritedXtreamIds,
                 recentlyViewedXtreamIds,
+                hiddenCategories,
             };
         } catch (error) {
             console.error('Error deleting Xtream content:', error);

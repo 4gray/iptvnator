@@ -471,3 +471,30 @@
 .hero__content {
     animation: fadeInUp 0.6s ease-out 0.2s both;
 }
+
+// Skeleton Loader Overrides
+ngx-skeleton-loader {
+    display: block;
+    width: 100%;
+
+    // Ensure the loader inside poster takes up the correct aspect ratio space
+    ::ng-deep .loader {
+        display: block;
+        height: 100%;
+    }
+}
+
+:host-context(.dark-theme) {
+    ngx-skeleton-loader {
+        ::ng-deep .loader {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+    }
+}
+
+.poster {
+    // ... existing styles ...
+    // Ensure poster container has height/ratio for skeleton
+    min-height: 330px; // Fallback
+    aspect-ratio: 2 / 3;
+}

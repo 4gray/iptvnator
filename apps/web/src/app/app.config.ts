@@ -26,6 +26,7 @@ import { AppConfig } from '../environments/environment';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
 import { PwaService } from './services/pwa.service';
+import { provideXtreamDataSource } from './xtream-tauri/data-sources';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -84,5 +85,6 @@ export const appConfig: ApplicationConfig = {
             useFactory: DataFactory,
             deps: [NgxIndexedDBService, HttpClient],
         },
+        ...provideXtreamDataSource(),
     ],
 };

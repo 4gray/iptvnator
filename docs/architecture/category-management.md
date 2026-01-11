@@ -84,9 +84,20 @@ Added `reloadCategories()` method to refresh categories from database after visi
 ## Behavior Notes
 
 - **New categories**: When a playlist is refreshed, new categories from the remote API are added with `hidden = false` (visible by default)
-- **Persistence**: Visibility settings survive playlist refresh
+- **Persistence**: Visibility settings survive playlist refresh (see below)
 - **Per-playlist, per-type**: Categories are managed per playlist and per content type (live/movies/series)
 - **No content deletion**: Hiding a category only affects sidebar visibility; the category and its content remain in the database
+
+### Visibility Preservation During Refresh
+
+When a user refreshes an Xtream playlist, hidden category preferences are preserved through the following mechanism:
+
+1. **Before deletion**: The `DB_DELETE_XTREAM_CONTENT` handler extracts and returns the `hidden` status of all categories (keyed by `xtreamId` and `type`)
+2. **Temporary storage**: The hidden categories are stored in `localStorage` under key `xtream-restore-{playlistId}` along with favorites and recently viewed data
+3. **During re-import**: When categories are saved via `DB_SAVE_CATEGORIES`, the data source checks `localStorage` for saved hidden category xtreamIds
+4. **Restoration**: Categories matching the saved xtreamIds are inserted with `hidden = true`, preserving the user's visibility preferences
+
+This ensures that users don't lose their category visibility customizations when refreshing playlists to get updated content.
 
 ## Files Changed
 
@@ -96,17 +107,23 @@ libs/shared/database/src/lib/
 └── connection.ts                # Added migration for existing databases
 
 apps/electron-backend/src/app/
-├── events/database/category.events.ts  # New IPC handlers
-└── api/main.preload.ts                 # Exposed new IPC methods
+├── events/database/category.events.ts  # IPC handlers (including hidden category restoration)
+├── events/database/xtream.events.ts    # Returns hidden categories during content deletion
+└── api/main.preload.ts                 # Exposed new IPC methods (with hidden category params)
 
 libs/services/src/lib/
-└── database-electron.service.ts  # New service methods
+└── database-electron.service.ts  # Service methods (with hidden category support)
+
+libs/ui/components/src/lib/recent-playlists/
+└── recent-playlists.component.ts  # Stores hidden categories to localStorage on refresh
 
 apps/web/src/app/xtream-tauri/
-├── category-management-dialog/   # New dialog component
+├── category-management-dialog/   # Dialog component
 │   ├── category-management-dialog.component.ts
 │   ├── category-management-dialog.component.html
 │   └── category-management-dialog.component.scss
+├── data-sources/
+│   └── electron-xtream-data-source.ts  # Reads/passes hidden categories on save
 ├── xtream-main-container.component.ts   # Added button & dialog
 ├── xtream-main-container.component.html
 ├── live-stream-layout/
@@ -118,7 +135,7 @@ apps/web/src/app/xtream-tauri/
 apps/web/src/assets/i18n/
 └── en.json                      # Added translation keys
 
-global.d.ts                      # TypeScript types for new IPC methods
+global.d.ts                      # TypeScript types for IPC methods
 ```
 
 ## Translation Keys

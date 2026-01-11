@@ -12,7 +12,7 @@ import {
     CategoryManagementDialogData,
 } from './category-management-dialog/category-management-dialog.component';
 import { CategoryViewComponent } from './category-view/category-view.component';
-import { XtreamStore } from './xtream.store';
+import { XtreamStore } from './stores/xtream.store';
 
 @Component({
     selector: 'app-xtream-main-container',

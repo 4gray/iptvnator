@@ -25,10 +25,11 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import groupBy from 'lodash/groupBy';
 import { DatabaseService } from 'services';
-import { XtreamItem } from 'shared-interfaces';
+import { XtreamContentItem } from '../data-sources/xtream-data-source.interface';
+import { ContentType } from '../xtream-state';
 import { SearchFormComponent } from '../../shared/components/search-form/search-form.component';
 import { SearchResultItemComponent } from '../../shared/components/search-result-item/search-result-item.component';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 
 interface SearchResultsData {
     isGlobalSearch: boolean;
@@ -49,6 +50,9 @@ interface SearchResultsData {
         SearchFormComponent,
         SearchResultItemComponent,
         TranslatePipe,
+    ],
+    providers: [
+      XtreamStore
     ],
     templateUrl: './search-results.component.html',
     styleUrls: ['./search-results.component.scss'],
@@ -138,9 +142,7 @@ export class SearchResultsComponent implements AfterViewInit {
         }
     }
 
-    selectItem(
-        item: XtreamItem & { playlist_id?: string; playlist_name?: string }
-    ) {
+    selectItem(item: XtreamContentItem) {
         if (this.isGlobalSearch && item.playlist_id) {
             this.dialogRef?.close();
             const type = item.type === 'movie' ? 'vod' : item.type;
@@ -152,7 +154,7 @@ export class SearchResultsComponent implements AfterViewInit {
                 item.xtream_id,
             ]);
         } else {
-            const type = item.type === 'movie' ? 'vod' : item.type;
+            const type = (item.type === 'movie' ? 'vod' : item.type) as ContentType;
             this.xtreamStore.resetSearchResults();
             this.xtreamStore.setSelectedContentType(type);
 

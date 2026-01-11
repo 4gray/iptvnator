@@ -7,7 +7,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { ContentHeroComponent } from 'components';
 import { XtreamVodDetails } from 'shared-interfaces';
 import { SettingsStore } from '../../services/settings-store.service';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 import { SafePipe } from './safe.pipe';
 
 @Component({

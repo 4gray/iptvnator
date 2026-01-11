@@ -129,8 +129,19 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('DB_HAS_CATEGORIES', playlistId, type),
     dbGetCategories: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_GET_CATEGORIES', playlistId, type),
-    dbSaveCategories: (playlistId: string, categories: any[], type: string) =>
-        ipcRenderer.invoke('DB_SAVE_CATEGORIES', playlistId, categories, type),
+    dbSaveCategories: (
+        playlistId: string,
+        categories: any[],
+        type: string,
+        hiddenCategoryXtreamIds?: number[]
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SAVE_CATEGORIES',
+            playlistId,
+            categories,
+            type,
+            hiddenCategoryXtreamIds
+        ),
     dbGetAllCategories: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_GET_ALL_CATEGORIES', playlistId, type),
     dbUpdateCategoryVisibility: (categoryIds: number[], hidden: boolean) =>

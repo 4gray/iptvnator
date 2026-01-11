@@ -6,7 +6,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ContentHeroComponent } from 'components';
 import { XtreamSerieEpisode } from 'shared-interfaces';
 import { SeasonContainerComponent } from '../season-container/season-container.component';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 
 @Component({
     selector: 'app-serial-details',

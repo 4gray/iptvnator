@@ -6,7 +6,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import groupBy from 'lodash/groupBy';
-import { XtreamStore } from '../xtream.store';
+import { XtreamStore } from '../stores/xtream.store';
 
 @Component({
     selector: 'app-recently-viewed',
@@ -19,6 +19,9 @@ import { XtreamStore } from '../xtream.store';
         MatIconButton,
         MatIconButton,
         TitleCasePipe,
+    ],
+    providers: [
+        XtreamStore
     ],
     templateUrl: './recently-viewed.component.html',
     styleUrl: './recently-viewed.component.scss',

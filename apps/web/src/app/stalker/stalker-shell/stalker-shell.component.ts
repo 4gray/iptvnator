@@ -6,14 +6,15 @@ import { PlaylistActions, selectPlaylistById } from 'm3u-state';
 import { map, switchMap } from 'rxjs';
 import { NavigationComponent } from '../../xtream-tauri/navigation/navigation.component';
 import { NavigationItem } from '../../xtream-tauri/navigation/navigation.interface';
+import { XtreamStore } from '../../xtream-tauri/stores/xtream.store';
 import { StalkerStore } from '../stalker.store';
 
 @Component({
     selector: 'app-stalker-shell',
     templateUrl: './stalker-shell.component.html',
     styleUrls: ['./stalker-shell.component.scss'],
-    standalone: true,
-    imports: [NavigationComponent, RouterOutlet, NavigationComponent],
+    imports: [NavigationComponent, RouterOutlet],
+    providers: [XtreamStore],
 })
 export class StalkerShellComponent implements OnDestroy {
     private readonly route = inject(ActivatedRoute);
