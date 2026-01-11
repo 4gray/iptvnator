@@ -96,12 +96,6 @@ export class PlaylistSwitcherComponent {
             .subscribe((event: NavigationEnd) => {
                 this.updateActivePlaylistFromRoute(event.urlAfterRedirects);
             });
-
-        // Check portal status for Xtream playlists when playlists load
-        effect(() => {
-            const allPlaylists = this.playlists();
-            this.checkPortalStatuses(allPlaylists);
-        });
     }
 
     private updateActivePlaylistFromRoute(url: string) {
@@ -137,6 +131,7 @@ export class PlaylistSwitcherComponent {
 
     onMenuOpened() {
         this.isMenuOpen.set(true);
+        this.checkPortalStatuses(this.playlists());
     }
 
     onMenuClosed() {
