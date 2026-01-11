@@ -38,15 +38,12 @@ import { StalkerStore } from '../stalker.store';
     templateUrl: './stalker-search.component.html',
     styles: `
         :host {
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            height: 100%;
             width: 100%;
         }
 
         .search-page {
             padding: 20px;
+            width: 100%;
         }
 
         .results-grid {
