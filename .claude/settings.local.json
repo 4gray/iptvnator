@@ -11,7 +11,13 @@
       "Bash(npm run build:backend:*)",
       "Bash(pnpm add:*)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:www.npmjs.com)"
+      "WebFetch(domain:www.npmjs.com)",
+      "Skill(example-skills:frontend-design)",
+      "Bash(npm run test:frontend:*)",
+      "Bash(nx lint:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find:*)",
+      "Bash(xargs sed:*)"
     ],
     "deny": [],
     "ask": []
