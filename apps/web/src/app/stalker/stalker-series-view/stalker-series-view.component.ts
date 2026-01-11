@@ -4,6 +4,7 @@ import {
     effect,
     inject,
     input,
+    output,
     signal,
 } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -56,6 +57,7 @@ interface StalkerSeriesSeason {
 })
 export class StalkerSeriesViewComponent {
     readonly stalkerStore = inject(StalkerStore);
+    readonly backClicked = output<void>();
 
     /**
      * Optional input for VOD items with embedded series array (vclub mode)
@@ -349,6 +351,7 @@ export class StalkerSeriesViewComponent {
     }
 
     goBack() {
+        this.backClicked.emit();
         this.stalkerStore.clearSelectedItem();
     }
 }

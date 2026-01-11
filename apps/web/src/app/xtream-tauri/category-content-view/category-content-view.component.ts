@@ -96,8 +96,9 @@ export class CategoryContentViewComponent implements OnInit {
             },
         };
 
-        this.store.setSelectedItem(selectedItem);
-        if (!this.isStalker) {
+        if (this.isStalker) {
+            this.store.setSelectedItem(selectedItem);
+        } else {
             this.router.navigate([item.xtream_id], {
                 relativeTo: this.activatedRoute,
             });
