@@ -14,10 +14,7 @@ import { StalkerStore } from '../stalker.store';
     templateUrl: './stalker-favorites.component.html',
     imports: [
         FavoritesLayoutComponent,
-        MatButton,
-        MatIcon,
         StalkerSeriesViewComponent,
-        TranslatePipe,
         VodDetailsComponent,
     ],
     styles: [
@@ -128,25 +125,61 @@ export class StalkerFavoritesComponent {
 
     openItem(item: any) {
         console.debug('Open item', item);
+        const normalizedItem = this.normalizeFavoriteItem(item);
+
         switch (item.category_id) {
             case 'itv':
                 this.stalkerStore.setSelectedContentType('itv');
                 this.createLinkToPlayVodItv(item.cmd, item.name, item.logo);
                 break;
             case 'vod':
-                this.itemDetails = item;
-                this.stalkerStore.setSelectedItem(item);
+                this.itemDetails = normalizedItem;
+                this.stalkerStore.setSelectedItem(normalizedItem.details);
                 this.stalkerStore.setSelectedContentType('vod');
                 break;
             case 'series':
-                this.itemDetails = item;
-
-                this.stalkerStore.setSelectedItem(item);
+                this.itemDetails = normalizedItem;
+                this.stalkerStore.setSelectedItem(normalizedItem.details);
                 this.stalkerStore.setSelectedContentType('series');
                 break;
             default:
                 break;
         }
+    }
+
+    private normalizeFavoriteItem(item: any): any {
+        if (item.details && item.details.info) {
+            return item;
+        }
+
+        const source = item.details || item;
+        const info = source.info || {
+            name: item.name || item.title || 'Unknown',
+            movie_image: item.cover || item.screenshot_uri || item.logo,
+            description: item.description,
+            releasedate: item.releasedate || item.year,
+            genre: item.genre || item.genres_str,
+            duration: item.duration,
+            rating_imdb: item.rating_imdb || item.rating,
+            country: item.country,
+            actors: item.actors,
+            director: item.director,
+            backdrop_path:
+                item.backdrop_path ||
+                [item.cover, item.screenshot_uri].filter(Boolean),
+        };
+
+        return {
+            ...item,
+            details: {
+                ...source,
+                info: info,
+                cmd: item.cmd || source.cmd,
+                id: item.stream_id || item.id || source.id,
+                series: item.series || source.series,
+                is_series: item.is_series || source.is_series,
+            },
+        };
     }
 
     async createLinkToPlayVodItv(

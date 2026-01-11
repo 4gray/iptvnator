@@ -1,13 +1,4 @@
 @if (itemDetails) {
-    <button
-        mat-button
-        (click)="itemDetails = null"
-        [attr.aria-label]="'SETTINGS.BACK_TO_HOME' | translate"
-        class="back-button"
-    >
-        <mat-icon>arrow_back</mat-icon>
-        {{ 'SETTINGS.BACK_TO_HOME' | translate }}
-    </button>
     @switch (itemDetails.category_id) {
         @case ('vod') {
             <app-vod-details
@@ -19,10 +10,11 @@
                         itemDetails.details.info.movie_image
                     )
                 "
+                (backClicked)="itemDetails = null"
             />
         }
         @case ('series') {
-            <app-stalker-series-view />
+            <app-stalker-series-view (backClicked)="itemDetails = null" />
         }
     }
 } @else {

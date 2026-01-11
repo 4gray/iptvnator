@@ -243,7 +243,13 @@ ipcMain.handle(
     async (event, playlistId: string, searchTerm: string, types: string[]) => {
         try {
             const db = await getDatabase();
-            const result = await db
+            // Note: SQLite's LOWER() only handles ASCII characters, not Unicode/Cyrillic.
+            // We use a two-step approach:
+            // 1. SQL filters by playlist and type
+            // 2. JavaScript filters by title using proper Unicode toLowerCase()
+            const searchTermLower = searchTerm.toLowerCase();
+
+            const candidates = await db
                 .select({
                     id: schema.content.id,
                     category_id: schema.content.categoryId,
@@ -262,14 +268,18 @@ ipcMain.handle(
                 .where(
                     and(
                         eq(schema.categories.playlistId, playlistId),
-                        sql`LOWER(${schema.content.title}) LIKE ${'%' + escapeLikePattern(searchTerm.toLowerCase()) + '%'} ESCAPE '\\'`,
                         inArray(
                             schema.content.type,
                             types as Array<'live' | 'movie' | 'series'>
                         )
                     )
-                )
-                .limit(50);
+                );
+
+            // Filter in JavaScript for proper Unicode case-insensitive search
+            const result = candidates
+                .filter(item => item.title?.toLowerCase().includes(searchTermLower))
+                .slice(0, 50);
+
             return result;
         } catch (error) {
             console.error('Error searching content:', error);
@@ -286,7 +296,13 @@ ipcMain.handle(
     async (event, searchTerm: string, types: string[]) => {
         try {
             const db = await getDatabase();
-            const result = await db
+            // Note: SQLite's LOWER() only handles ASCII characters, not Unicode/Cyrillic.
+            // We use a two-step approach:
+            // 1. SQL filters by type only
+            // 2. JavaScript filters by title using proper Unicode toLowerCase()
+            const searchTermLower = searchTerm.toLowerCase();
+
+            const candidates = await db
                 .select({
                     id: schema.content.id,
                     category_id: schema.content.categoryId,
@@ -309,16 +325,18 @@ ipcMain.handle(
                     eq(schema.categories.playlistId, schema.playlists.id)
                 )
                 .where(
-                    and(
-                        sql`LOWER(${schema.content.title}) LIKE ${'%' + escapeLikePattern(searchTerm.toLowerCase()) + '%'} ESCAPE '\\'`,
-                        inArray(
-                            schema.content.type,
-                            types as Array<'live' | 'movie' | 'series'>
-                        )
+                    inArray(
+                        schema.content.type,
+                        types as Array<'live' | 'movie' | 'series'>
                     )
-                )
-                .orderBy(schema.content.title)
-                .limit(50);
+                );
+
+            // Filter in JavaScript for proper Unicode case-insensitive search
+            const result = candidates
+                .filter(item => item.title?.toLowerCase().includes(searchTermLower))
+                .sort((a, b) => a.title.localeCompare(b.title))
+                .slice(0, 50);
+
             return result;
         } catch (error) {
             console.error('Error in global search:', error);

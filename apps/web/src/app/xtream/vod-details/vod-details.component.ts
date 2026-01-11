@@ -36,6 +36,7 @@ export class VodDetailsComponent implements OnInit {
     @Output() addToFavoritesClicked = new EventEmitter<any>();
     @Output() playClicked = new EventEmitter<XtreamVodDetails>();
     @Output() removeFromFavoritesClicked = new EventEmitter<number>();
+    @Output() backClicked = new EventEmitter<void>();
 
     private location = inject(Location);
     private playlistService = inject(PlaylistsService);
@@ -114,6 +115,7 @@ export class VodDetailsComponent implements OnInit {
     }
 
     goBack() {
+        this.backClicked.emit();
         if (this.isStalker) {
             // Stalker mode: clear selectedItem to return to category view
             this.stalkerStore.clearSelectedItem();
