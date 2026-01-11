@@ -51,6 +51,9 @@ interface SearchResultsData {
         SearchResultItemComponent,
         TranslatePipe,
     ],
+    providers: [
+      XtreamStore
+    ],
     templateUrl: './search-results.component.html',
     styleUrls: ['./search-results.component.scss'],
 })
