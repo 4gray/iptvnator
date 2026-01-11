@@ -2,11 +2,17 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 
 @Component({
     selector: 'app-content-hero',
     standalone: true,
-    imports: [CommonModule, MatIconModule, MatButtonModule],
+    imports: [
+        CommonModule,
+        MatIconModule,
+        MatButtonModule,
+        NgxSkeletonLoaderComponent,
+    ],
     templateUrl: './content-hero.component.html',
     styleUrls: ['./content-hero.component.scss'],
 })
@@ -15,6 +21,7 @@ export class ContentHeroComponent {
     @Input() description: string | undefined;
     @Input() posterUrl: string | undefined;
     @Input() backdropUrl: string | undefined;
+    @Input() isLoading = false;
 
     @Output() backClicked = new EventEmitter<void>();
 

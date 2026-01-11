@@ -4,69 +4,148 @@
     <button class="hero__back-button" (click)="onBack()">
         <mat-icon>arrow_back</mat-icon>
     </button>
-
-    <!-- Backdrop Image -->
-    <div
-        class="hero__backdrop"
-        [class.hero__backdrop--blurred]="!backdropUrl"
-        [style.backgroundImage]="
-            backdropUrl
-                ? 'url(' + backdropUrl + ')'
-                : posterUrl
-                  ? 'url(' + posterUrl + ')'
-                  : 'none'
-        "
-    ></div>
-
-    <!-- Gradient Vignette Overlay -->
-    <div class="hero__vignette"></div>
-
-    <!-- Hero Content -->
-    <div class="hero__content">
-        <!-- Poster Card -->
-        <div class="poster">
-            @if (posterUrl) {
-                <img
-                    class="poster__image"
-                    [src]="posterUrl"
-                    (error)="
-                        $event.target.src = './assets/images/default-poster.png'
-                    "
-                    alt="Poster"
+    @if (isLoading) {
+        <div class="hero__content">
+            <!-- Skeleton Poster -->
+            <div class="poster">
+                <ngx-skeleton-loader
+                    count="1"
+                    [theme]="{
+                        height: '100%',
+                        width: '100%',
+                        'border-radius': '8px',
+                        'aspect-ratio': '2/3',
+                        display: 'block'
+                    }"
                 />
-            } @else {
-                <div class="poster__placeholder">No Poster</div>
-            }
+            </div>
+
+            <!-- Skeleton Details -->
+            <div class="details">
+                <!-- Title -->
+                <ngx-skeleton-loader
+                    count="1"
+                    [theme]="{
+                        height: '40px',
+                        width: '60%',
+                        'margin-bottom': '16px',
+                        display: 'block'
+                    }"
+                />
+
+                <!-- Tags -->
+                <div style="display: flex; gap: 8px; margin-bottom: 16px">
+                    <ngx-skeleton-loader
+                        count="3"
+                        [theme]="{
+                            height: '24px',
+                            width: '60px',
+                            display: 'block'
+                        }"
+                    />
+                </div>
+
+                <!-- Description -->
+                <ngx-skeleton-loader
+                    count="3"
+                    [theme]="{
+                        height: '16px',
+                        'margin-bottom': '8px',
+                        width: '100%',
+                        display: 'block'
+                    }"
+                />
+
+                <!-- Meta -->
+                <div style="margin-top: 20px; display: flex; gap: 32px">
+                    <ngx-skeleton-loader
+                        count="2"
+                        [theme]="{
+                            height: '40px',
+                            width: '100px',
+                            display: 'block'
+                        }"
+                    />
+                </div>
+
+                <!-- Buttons -->
+                <div style="margin-top: 24px; display: flex; gap: 12px">
+                    <ngx-skeleton-loader
+                        count="2"
+                        [theme]="{
+                            height: '48px',
+                            width: '140px',
+                            display: 'block'
+                        }"
+                    />
+                </div>
+            </div>
         </div>
+    } @else {
+        <!-- Backdrop Image -->
+        <div
+            class="hero__backdrop"
+            [class.hero__backdrop--blurred]="!backdropUrl"
+            [style.backgroundImage]="
+                backdropUrl
+                    ? 'url(' + backdropUrl + ')'
+                    : posterUrl
+                      ? 'url(' + posterUrl + ')'
+                      : 'none'
+            "
+        ></div>
 
-        <!-- Details -->
-        <div class="details">
-            <h1 class="details__title">{{ title }}</h1>
+        <!-- Gradient Vignette Overlay -->
+        <div class="hero__vignette"></div>
 
-            <!-- Tags Slot -->
-            <div class="details__tags">
-                <ng-content select="[hero-tags]"></ng-content>
+        <!-- Hero Content -->
+        <div class="hero__content">
+            <!-- Poster Card -->
+            <div class="poster">
+                @if (posterUrl) {
+                    <img
+                        class="poster__image"
+                        [src]="posterUrl"
+                        (error)="
+                            $event.target.src =
+                                './assets/images/default-poster.png'
+                        "
+                        alt="Poster"
+                    />
+                } @else {
+                    <div class="poster__placeholder">No Poster</div>
+                }
             </div>
 
-            <!-- Description -->
-            @if (description) {
-                <p class="details__description">
-                    {{ description }}
-                </p>
-            }
+            <!-- Details -->
+            <div class="details">
+                <h1 class="details__title">{{ title }}</h1>
 
-            <!-- Metadata Grid Slot -->
-            <div class="details__meta">
-                <ng-content select="[hero-meta]"></ng-content>
+                <!-- Tags Slot -->
+                <div class="details__tags">
+                    <ng-content select="[hero-tags]"></ng-content>
+                </div>
+
+                <!-- Description -->
+                @if (description) {
+                    <p class="details__description">
+                        {{ description }}
+                    </p>
+                }
+
+                <!-- Metadata Grid Slot -->
+                <div class="details__meta">
+                    <ng-content select="[hero-meta]"></ng-content>
+                </div>
+
+                <!-- Action Buttons Slot -->
+                <div class="action-buttons">
+                    <ng-content select="[hero-actions]"></ng-content>
+                </div>
+
+                <!-- Additional Content (Seasons, Trailers, etc.) -->
+                <ng-content></ng-content>
             </div>
-
-            <!-- Action Buttons Slot -->
-            <div class="action-buttons">
-                <ng-content select="[hero-actions]"></ng-content>
-            </div>
-
-            <!-- Additional Content (Seasons, Trailers, etc.) -->
-            <ng-content></ng-content>
         </div>
-    </div>
+    }
 </section>

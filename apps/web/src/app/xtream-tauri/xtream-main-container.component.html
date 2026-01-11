@@ -24,7 +24,7 @@
 </div>
 
 <div class="main-content">
-    @if (!xtreamStore.selectedItem()) {
+    @if (!xtreamStore.selectedItem() && !xtreamStore.isLoadingDetails()) {
         <div class="content-header">
             <h2>
                 <button mat-icon-button disabled>
@@ -36,7 +36,7 @@
     }
     <div
         class="scrollable-content"
-        [class.no-header]="xtreamStore.selectedItem()"
+        [class.no-header]="xtreamStore.selectedItem() || xtreamStore.isLoadingDetails()"
     >
         <router-outlet />
     </div>

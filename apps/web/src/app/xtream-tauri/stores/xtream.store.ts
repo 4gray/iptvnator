@@ -121,6 +121,7 @@ export const XtreamStore = signalStore(
                 const playlist = ngrxStore.selectSignal(selectActivePlaylist)();
                 if (!playlist) return;
 
+                store.setIsLoadingDetails(true);
                 dataService.fetchData(
                     `${playlist.serverUrl}/player_api.php`,
                     {
@@ -137,6 +138,8 @@ export const XtreamStore = signalStore(
                     });
                 }).catch((error: unknown) => {
                     console.error('Error fetching VOD details:', error);
+                }).finally(() => {
+                    store.setIsLoadingDetails(false);
                 });
             },
 
@@ -150,6 +153,7 @@ export const XtreamStore = signalStore(
                 const playlist = ngrxStore.selectSignal(selectActivePlaylist)();
                 if (!playlist) return;
 
+                store.setIsLoadingDetails(true);
                 dataService.fetchData(
                     `${playlist.serverUrl}/player_api.php`,
                     {
@@ -166,6 +170,8 @@ export const XtreamStore = signalStore(
                     });
                 }).catch((error: unknown) => {
                     console.error('Error fetching series details:', error);
+                }).finally(() => {
+                    store.setIsLoadingDetails(false);
                 });
             },
 
