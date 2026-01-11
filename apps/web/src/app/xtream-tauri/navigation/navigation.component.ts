@@ -37,7 +37,7 @@ export class NavigationComponent {
     readonly selectedContentType = input<string>();
 
     readonly categoryClick = output<string>();
-    readonly pageClicked = output<'search' | 'recent' | 'favorites'>();
+    readonly pageClicked = output<'search' | 'recent' | 'favorites' | 'recently-added'>();
 
     readonly currentPlaylist = this.store.selectSignal(
         selectPlaylistById(this.activatedRoute.snapshot.params.id)
@@ -113,7 +113,7 @@ export class NavigationComponent {
         });
     }
 
-    pageSwitch(page: 'search' | 'recent' | 'favorites') {
+    pageSwitch(page: 'search' | 'recent' | 'favorites' | 'recently-added') {
         this.pageClicked.emit(page);
         this.xtreamStore.setSelectedContentType(undefined);
     }

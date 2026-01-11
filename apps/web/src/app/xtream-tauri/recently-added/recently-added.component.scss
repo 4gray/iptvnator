@@ -1,0 +1,37 @@
+:host {
+    display: block;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.recently-added-page {
+    padding: 20px;
+}
+
+h2 {
+    margin-bottom: 24px;
+}
+
+.section {
+    margin-bottom: 32px;
+
+    h3 {
+        margin-bottom: 16px;
+        opacity: 0.8;
+    }
+}
+
+.carousel {
+    display: flex;
+    overflow-x: auto;
+    gap: 16px;
+    padding-bottom: 16px;
+    
+    scrollbar-width: thin;
+    
+    .carousel-item {
+        min-width: 160px;
+        width: 160px;
+        flex-shrink: 0;
+    }
+}

@@ -61,6 +61,18 @@
         {{ 'PORTALS.SIDEBAR.LIBRARY' | translate }}
     </div> -->
     <mat-nav-list>
+        @if (!isStalkerPlaylist()) {
+            <a
+                mat-list-item
+                routerLink="./recently-added"
+                routerLinkActive="active"
+                [matTooltip]="'PORTALS.SIDEBAR.RECENTLY_ADDED' | translate"
+                matTooltipPosition="right"
+                (click)="pageSwitch('recently-added')"
+            >
+                <mat-icon matListItemIcon>new_releases</mat-icon>
+            </a>
+        }
         <a
             mat-list-item
             routerLink="./search"

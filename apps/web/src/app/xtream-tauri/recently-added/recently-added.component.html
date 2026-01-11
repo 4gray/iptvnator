@@ -1,0 +1,57 @@
+<div class="recently-added-page">
+    <h2>{{ 'PORTALS.SIDEBAR.RECENTLY_ADDED' | translate }}</h2>
+
+    @if (recentlyAddedVod().length > 0) {
+        <div class="section">
+            <h3>{{ 'PORTALS.SIDEBAR.MOVIES' | translate }}</h3>
+            <div class="carousel">
+                @for (item of recentlyAddedVod(); track item.xtream_id) {
+                    <app-search-result-item
+                        class="carousel-item"
+                        [title]="item.title || item.name"
+                        [description]="getDate(item) | date : 'mediumDate'"
+                        [posterUrl]="item.poster_url || item.stream_icon"
+                        [type]="'movie'"
+                        (itemClick)="openItem(item, 'vod')"
+                    />
+                }
+            </div>
+        </div>
+    }
+
+    @if (recentlyAddedSeries().length > 0) {
+        <div class="section">
+            <h3>{{ 'PORTALS.SIDEBAR.SERIES' | translate }}</h3>
+            <div class="carousel">
+                @for (item of recentlyAddedSeries(); track item.xtream_id) {
+                    <app-search-result-item
+                        class="carousel-item"
+                        [title]="item.title || item.name"
+                        [description]="getDate(item) | date : 'mediumDate'"
+                        [posterUrl]="item.poster_url || item.cover"
+                        [type]="'series'"
+                        (itemClick)="openItem(item, 'series')"
+                    />
+                }
+            </div>
+        </div>
+    }
+
+    @if (recentlyAddedLive().length > 0) {
+        <div class="section">
+            <h3>{{ 'PORTALS.SIDEBAR.LIVE_TV' | translate }}</h3>
+            <div class="carousel">
+                @for (item of recentlyAddedLive(); track item.xtream_id) {
+                    <app-search-result-item
+                        class="carousel-item"
+                        [title]="item.title || item.name"
+                        [description]="getDate(item) | date : 'mediumDate'"
+                        [posterUrl]="item.poster_url || item.stream_icon"
+                        [type]="'live'"
+                        (itemClick)="openItem(item, 'live')"
+                    />
+                }
+            </div>
+        </div>
+    }
+</div>

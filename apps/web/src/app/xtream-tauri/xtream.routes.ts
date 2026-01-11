@@ -37,6 +37,13 @@ export const xtreamRoutes: Route[] = [
                     ),
                 children: [
                     {
+                        path: '',
+                        loadComponent: () =>
+                            import(
+                                './category-content-view/category-content-view.component'
+                            ).then((c) => c.CategoryContentViewComponent),
+                    },
+                    {
                         path: ':categoryId',
                         loadComponent: () =>
                             import(
@@ -59,6 +66,13 @@ export const xtreamRoutes: Route[] = [
                         (c) => c.XtreamMainContainerComponent
                     ),
                 children: [
+                    {
+                        path: '',
+                        loadComponent: () =>
+                            import(
+                                './category-content-view/category-content-view.component'
+                            ).then((c) => c.CategoryContentViewComponent),
+                    },
                     {
                         path: ':categoryId',
                         loadComponent: () =>
@@ -94,6 +108,13 @@ export const xtreamRoutes: Route[] = [
                 loadComponent: () =>
                     import('./search-results/search-results.component').then(
                         (c) => c.SearchResultsComponent
+                    ),
+            },
+            {
+                path: 'recently-added',
+                loadComponent: () =>
+                    import('./recently-added/recently-added.component').then(
+                        (c) => c.RecentlyAddedComponent
                     ),
             },
         ],
