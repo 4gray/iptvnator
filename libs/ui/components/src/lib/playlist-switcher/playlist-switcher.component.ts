@@ -16,7 +16,6 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenu, MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatRippleModule } from '@angular/material/core';
-import { MatTooltip } from '@angular/material/tooltip';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -37,7 +36,6 @@ import { PlaylistMeta } from 'shared-interfaces';
         MatInputModule,
         MatMenuModule,
         MatRippleModule,
-        MatTooltip,
         TranslatePipe,
     ],
 })
