@@ -44,39 +44,10 @@ export function withSelection() {
     return signalStoreFeature(
         withState<SelectionState>(initialSelectionState),
 
-        withComputed((store) => ({
-            /**
-             * Get the selected category from the parent store's categories
-             */
-            getSelectedCategory: computed(() => {
-                const categoryId = store.selectedCategoryId();
-                if (!categoryId) {
-                    return { id: 0, name: 'All Items', type: store.selectedContentType() };
-                }
-
-                // Access parent store categories (from withContent)
-                const storeAny = store as any;
-                const allCategories = [
-                    ...(storeAny.vodCategories?.() || []),
-                    ...(storeAny.liveCategories?.() || []),
-                    ...(storeAny.serialCategories?.() || []),
-                ];
-
-                return allCategories.find(
-                    (c: any) => c.id === categoryId || c.category_id === String(categoryId)
-                );
-            }),
-
-            /**
-             * Get the selected item by ID from content
-             */
-            getSelectedItemById: computed(() => {
+        withComputed((store) => {
+            // Memoized sorted content - only recalculates when content/type changes
+            const sortedContent = computed(() => {
                 const categoryType = store.selectedContentType();
-                const selectedItem = store.selectedItem();
-
-                if (!selectedItem) return null;
-
-                // Access parent store content (from withContent)
                 const storeAny = store as any;
                 const content =
                     categoryType === 'live'
@@ -85,155 +56,213 @@ export function withSelection() {
                           ? storeAny.vodStreams?.() || []
                           : storeAny.serialStreams?.() || [];
 
-                return content.find(
-                    (item: any) =>
-                        item.stream_id === selectedItem.stream_id ||
-                        item.id === selectedItem.id ||
-                        item.series_id === selectedItem.series_id
-                );
-            }),
+                return [...content].sort((a: any, b: any) => {
+                    const dateA =
+                        parseInt(
+                            categoryType === 'series'
+                                ? a.last_modified
+                                : a.added
+                        ) || 0;
+                    const dateB =
+                        parseInt(
+                            categoryType === 'series'
+                                ? b.last_modified
+                                : b.added
+                        ) || 0;
+                    return dateB - dateA;
+                });
+            });
 
-            /**
-             * Get paginated content for the selected category
-             */
-            getPaginatedContent: computed(() => {
-                const startIndex = store.page() * store.limit();
-                const endIndex = startIndex + store.limit();
-                const categoryId = store.selectedCategoryId();
-                const categoryType = store.selectedContentType();
-
-                // Access parent store content (from withContent)
-                const storeAny = store as any;
-                const content =
-                    categoryType === 'live'
-                        ? storeAny.liveStreams?.() || []
-                        : categoryType === 'vod'
-                          ? storeAny.vodStreams?.() || []
-                          : storeAny.serialStreams?.() || [];
-
-                let filteredContent = content;
-                if (categoryId) {
-                    filteredContent = content.filter((item: any) => Number(item.category_id) === categoryId);
-                } else {
-                    // Filter nothing (all items), sort by added
-                    // Clone to avoid mutation
-                    filteredContent = [...content].sort((a: any, b: any) => {
-                        const dateA = parseInt(categoryType === 'series' ? a.last_modified : a.added) || 0;
-                        const dateB = parseInt(categoryType === 'series' ? b.last_modified : b.added) || 0;
-                        return dateB - dateA;
-                    });
-                }
-
-                return filteredContent.slice(startIndex, endIndex);
-            }),
-
-            /**
-             * Get all items from the selected category (without pagination)
-             */
-            selectItemsFromSelectedCategory: computed(() => {
-                const categoryId = store.selectedCategoryId();
-                const categoryType = store.selectedContentType();
-
-                // Access parent store content (from withContent)
-                const storeAny = store as any;
-                const content =
-                    categoryType === 'live'
-                        ? storeAny.liveStreams?.() || []
-                        : categoryType === 'vod'
-                          ? storeAny.vodStreams?.() || []
-                          : storeAny.serialStreams?.() || [];
-
-                if (!categoryId) {
-                    // Return all items sorted by added
-                    return [...content].sort((a: any, b: any) => {
-                        const dateA = parseInt(categoryType === 'series' ? a.last_modified : a.added) || 0;
-                        const dateB = parseInt(categoryType === 'series' ? b.last_modified : b.added) || 0;
-                        return dateB - dateA;
-                    });
-                }
-
-                return content.filter(
-                    (item: any) => Number(item.category_id) === categoryId
-                );
-            }),
-
-            /**
-             * Get total pages for the selected category
-             */
-            getTotalPages: computed(() => {
-                const categoryId = store.selectedCategoryId();
-                const categoryType = store.selectedContentType();
-
-                // Access parent store content (from withContent)
-                const storeAny = store as any;
-                const content =
-                    categoryType === 'live'
-                        ? storeAny.liveStreams?.() || []
-                        : categoryType === 'vod'
-                          ? storeAny.vodStreams?.() || []
-                          : storeAny.serialStreams?.() || [];
-
-                let totalItems = 0;
-                if (categoryId) {
-                    totalItems = content.filter(
-                        (item: any) => Number(item.category_id) === categoryId
-                    ).length;
-                } else {
-                    totalItems = content.length;
-                }
-
-                return Math.ceil(totalItems / store.limit());
-            }),
-
-            /**
-             * Check if paginated content is loading
-             */
-            isPaginatedContentLoading: computed(() => {
-                // Access parent store loading state (from withContent)
-                const storeAny = store as any;
-                return storeAny.isLoadingContent?.() || false;
-            }),
-
-            /**
-             * Memoized category item counts map
-             */
-            getCategoryItemCounts: computed(() => {
-                const type = store.selectedContentType();
-
-                // Access parent store content (from withContent)
-                const storeAny = store as any;
-                const streams =
-                    type === 'live'
-                        ? storeAny.liveStreams?.() || []
-                        : type === 'vod'
-                          ? storeAny.vodStreams?.() || []
-                          : storeAny.serialStreams?.() || [];
-
-                const countMap = new Map<number, number>();
-                for (const item of streams) {
-                    const catId = Number(item.category_id);
-                    if (!isNaN(catId)) {
-                        countMap.set(catId, (countMap.get(catId) || 0) + 1);
+            return {
+                /**
+                 * Get the selected category from the parent store's categories
+                 */
+                getSelectedCategory: computed(() => {
+                    const categoryId = store.selectedCategoryId();
+                    if (!categoryId) {
+                        return {
+                            id: 0,
+                            name: 'All Items',
+                            type: store.selectedContentType(),
+                        };
                     }
-                }
-                return countMap;
-            }),
 
-            /**
-             * Get categories for the currently selected content type
-             */
-            getCategoriesBySelectedType: computed(() => {
-                const type = store.selectedContentType();
+                    // Access parent store categories (from withContent)
+                    const storeAny = store as any;
+                    const allCategories = [
+                        ...(storeAny.vodCategories?.() || []),
+                        ...(storeAny.liveCategories?.() || []),
+                        ...(storeAny.serialCategories?.() || []),
+                    ];
 
-                // Access parent store categories (from withContent)
-                const storeAny = store as any;
-                return type === 'live'
-                    ? storeAny.liveCategories?.() || []
-                    : type === 'vod'
-                      ? storeAny.vodCategories?.() || []
-                      : storeAny.serialCategories?.() || [];
-            }),
-        })),
+                    return allCategories.find(
+                        (c: any) =>
+                            c.id === categoryId ||
+                            c.category_id === String(categoryId)
+                    );
+                }),
+
+                /**
+                 * Get the selected item by ID from content
+                 */
+                getSelectedItemById: computed(() => {
+                    const categoryType = store.selectedContentType();
+                    const selectedItem = store.selectedItem();
+
+                    if (!selectedItem) return null;
+
+                    // Access parent store content (from withContent)
+                    const storeAny = store as any;
+                    const content =
+                        categoryType === 'live'
+                            ? storeAny.liveStreams?.() || []
+                            : categoryType === 'vod'
+                              ? storeAny.vodStreams?.() || []
+                              : storeAny.serialStreams?.() || [];
+
+                    return content.find(
+                        (item: any) =>
+                            item.stream_id === selectedItem.stream_id ||
+                            item.id === selectedItem.id ||
+                            item.series_id === selectedItem.series_id
+                    );
+                }),
+
+                /**
+                 * Get paginated content for the selected category
+                 */
+                getPaginatedContent: computed(() => {
+                    const startIndex = store.page() * store.limit();
+                    const endIndex = startIndex + store.limit();
+                    const categoryId = store.selectedCategoryId();
+                    const categoryType = store.selectedContentType();
+
+                    // Access parent store content (from withContent)
+                    const storeAny = store as any;
+                    const content =
+                        categoryType === 'live'
+                            ? storeAny.liveStreams?.() || []
+                            : categoryType === 'vod'
+                              ? storeAny.vodStreams?.() || []
+                              : storeAny.serialStreams?.() || [];
+
+                    let filteredContent = content;
+                    if (categoryId) {
+                        filteredContent = content.filter(
+                            (item: any) =>
+                                Number(item.category_id) === categoryId
+                        );
+                    } else {
+                        filteredContent = sortedContent();
+                    }
+
+                    return filteredContent.slice(startIndex, endIndex);
+                }),
+
+                /**
+                 * Get all items from the selected category (without pagination)
+                 */
+                selectItemsFromSelectedCategory: computed(() => {
+                    const categoryId = store.selectedCategoryId();
+                    const categoryType = store.selectedContentType();
+
+                    // Access parent store content (from withContent)
+                    const storeAny = store as any;
+                    const content =
+                        categoryType === 'live'
+                            ? storeAny.liveStreams?.() || []
+                            : categoryType === 'vod'
+                              ? storeAny.vodStreams?.() || []
+                              : storeAny.serialStreams?.() || [];
+
+                    if (!categoryId) {
+                        return sortedContent();
+                    }
+
+                    return content.filter(
+                        (item: any) => Number(item.category_id) === categoryId
+                    );
+                }),
+
+                /**
+                 * Get total pages for the selected category
+                 */
+                getTotalPages: computed(() => {
+                    const categoryId = store.selectedCategoryId();
+                    const categoryType = store.selectedContentType();
+
+                    // Access parent store content (from withContent)
+                    const storeAny = store as any;
+                    const content =
+                        categoryType === 'live'
+                            ? storeAny.liveStreams?.() || []
+                            : categoryType === 'vod'
+                              ? storeAny.vodStreams?.() || []
+                              : storeAny.serialStreams?.() || [];
+
+                    let totalItems = 0;
+                    if (categoryId) {
+                        totalItems = content.filter(
+                            (item: any) =>
+                                Number(item.category_id) === categoryId
+                        ).length;
+                    } else {
+                        totalItems = content.length;
+                    }
+
+                    return Math.ceil(totalItems / store.limit());
+                }),
+
+                /**
+                 * Check if paginated content is loading
+                 */
+                isPaginatedContentLoading: computed(() => {
+                    // Access parent store loading state (from withContent)
+                    const storeAny = store as any;
+                    return storeAny.isLoadingContent?.() || false;
+                }),
+
+                /**
+                 * Memoized category item counts map
+                 */
+                getCategoryItemCounts: computed(() => {
+                    const type = store.selectedContentType();
+
+                    // Access parent store content (from withContent)
+                    const storeAny = store as any;
+                    const streams =
+                        type === 'live'
+                            ? storeAny.liveStreams?.() || []
+                            : type === 'vod'
+                              ? storeAny.vodStreams?.() || []
+                              : storeAny.serialStreams?.() || [];
+
+                    const countMap = new Map<number, number>();
+                    for (const item of streams) {
+                        const catId = Number(item.category_id);
+                        if (!isNaN(catId)) {
+                            countMap.set(catId, (countMap.get(catId) || 0) + 1);
+                        }
+                    }
+                    return countMap;
+                }),
+
+                /**
+                 * Get categories for the currently selected content type
+                 */
+                getCategoriesBySelectedType: computed(() => {
+                    const type = store.selectedContentType();
+
+                    // Access parent store categories (from withContent)
+                    const storeAny = store as any;
+                    return type === 'live'
+                        ? storeAny.liveCategories?.() || []
+                        : type === 'vod'
+                          ? storeAny.vodCategories?.() || []
+                          : storeAny.serialCategories?.() || [];
+                }),
+            };
+        }),
 
         withMethods((store) => ({
             /**
@@ -252,7 +281,8 @@ export function withSelection() {
              */
             setSelectedCategory(categoryId: number | null): void {
                 patchState(store, {
-                    selectedCategoryId: categoryId !== null ? Number(categoryId) : null,
+                    selectedCategoryId:
+                        categoryId !== null ? Number(categoryId) : null,
                     page: 0,
                 });
             },
@@ -292,7 +322,9 @@ export function withSelection() {
             resetSelection(): void {
                 patchState(store, {
                     ...initialSelectionState,
-                    limit: Number(localStorage.getItem('xtream-page-size') ?? 25),
+                    limit: Number(
+                        localStorage.getItem('xtream-page-size') ?? 25
+                    ),
                 });
             },
         }))
