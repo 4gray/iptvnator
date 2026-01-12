@@ -39,7 +39,6 @@ import { StalkerStore } from '../stalker.store';
 
         .search-page {
             padding: 20px;
-            width: 100%;
         }
 
         .results-grid {
