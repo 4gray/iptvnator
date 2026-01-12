@@ -3,10 +3,10 @@ name: 'Cross-Platform E2E Tests'
 on:
   push:
     branches:
-      - nx
+      - master
   pull_request:
     branches:
-      - nx
+      - master
 
 jobs:
   e2e-tests:

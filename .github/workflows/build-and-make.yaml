@@ -3,14 +3,12 @@ name: Build and Make Electron App
 on:
     push:
         branches:
-            - nx
-            # - master  # Uncomment this when ready to run on master branch
+            - master
         tags:
             - 'v*.*.*'
     pull_request:
         branches:
-            - nx
-            # - master  # Uncomment this when ready to run on master branch
+            - master
     workflow_dispatch:
 
 jobs:
