@@ -63,17 +63,22 @@ export class PlaylistSwitcherComponent {
     /** All playlists from store */
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
 
-    /** Filtered playlists based on search query */
+    /** Filtered playlists based on search query, sorted by importDate (newest first) */
     readonly filteredPlaylists = computed(() => {
         const query = this.searchQuery().toLowerCase().trim();
         const allPlaylists = this.playlists();
-        if (!query) {
-            return allPlaylists;
-        }
-        return allPlaylists.filter(
-            (p) =>
-                p.title?.toLowerCase().includes(query) ||
-                p.filename?.toLowerCase().includes(query)
+        const filtered = query
+            ? allPlaylists.filter(
+                  (p) =>
+                      p.title?.toLowerCase().includes(query) ||
+                      p.filename?.toLowerCase().includes(query)
+              )
+            : allPlaylists;
+
+        return [...filtered].sort(
+            (a, b) =>
+                new Date(b.importDate ?? 0).getTime() -
+                new Date(a.importDate ?? 0).getTime()
         );
     });
 
