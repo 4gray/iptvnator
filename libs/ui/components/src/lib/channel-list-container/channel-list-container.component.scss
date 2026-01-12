@@ -1,7 +1,7 @@
 @use '@angular/material' as mat;
 
 .scroll-viewport {
-    min-height: calc(100vh - 159px);
+    min-height: calc(100vh - 190px);
     overflow-x: hidden;
 }
 
@@ -13,7 +13,7 @@
 
 .search-bar {
     @include mat.form-field-density(-5);
-    
+
     & {
         width: 96%;
     }
@@ -36,7 +36,8 @@
         }
     }
 
-    div[matformfieldlineripple], .mat-mdc-form-field-subscript-wrapper {
+    div[matformfieldlineripple],
+    .mat-mdc-form-field-subscript-wrapper {
         display: none;
     }
 
