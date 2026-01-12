@@ -1,8 +1,12 @@
 import { inject } from '@angular/core';
-import { patchState, signalStoreFeature, withMethods, withState } from '@ngrx/signals';
+import {
+    patchState,
+    signalStoreFeature,
+    withMethods,
+    withState,
+} from '@ngrx/signals';
 import { GlobalSearchResult } from 'services';
 import {
-    IXtreamDataSource,
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '../../data-sources/xtream-data-source.interface';

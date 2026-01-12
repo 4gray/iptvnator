@@ -1,15 +1,22 @@
 import { inject } from '@angular/core';
-import { patchState, signalStoreFeature, withMethods, withState } from '@ngrx/signals';
+import {
+    patchState,
+    signalStoreFeature,
+    withMethods,
+    withState,
+} from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { selectActivePlaylist } from 'm3u-state';
 import { Playlist } from 'shared-interfaces';
-import { PortalStatusType } from '../../xtream-state';
-import { XtreamApiService, XtreamCredentials } from '../../services/xtream-api.service';
 import {
-    IXtreamDataSource,
     XTREAM_DATA_SOURCE,
     XtreamPlaylistData,
 } from '../../data-sources/xtream-data-source.interface';
+import {
+    XtreamApiService,
+    XtreamCredentials,
+} from '../../services/xtream-api.service';
+import { PortalStatusType } from '../../xtream-state';
 
 /**
  * Portal state for managing playlist and portal status
@@ -63,7 +70,8 @@ export function withPortal() {
                     }
 
                     try {
-                        const playlist = await dataSource.getPlaylist(playlistId);
+                        const playlist =
+                            await dataSource.getPlaylist(playlistId);
 
                         if (playlist) {
                             patchState(store, { currentPlaylist: playlist });
@@ -84,7 +92,9 @@ export function withPortal() {
                                 };
 
                                 await dataSource.createPlaylist(newPlaylist);
-                                patchState(store, { currentPlaylist: newPlaylist });
+                                patchState(store, {
+                                    currentPlaylist: newPlaylist,
+                                });
                             }
                         }
                     } catch (error) {
@@ -109,7 +119,8 @@ export function withPortal() {
                     };
 
                     try {
-                        const response = await apiService.getAccountInfo(credentials);
+                        const response =
+                            await apiService.getAccountInfo(credentials);
 
                         if (!response?.user_info?.status) {
                             patchState(store, { portalStatus: 'unavailable' });

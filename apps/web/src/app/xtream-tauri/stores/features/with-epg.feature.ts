@@ -1,7 +1,15 @@
 import { inject } from '@angular/core';
-import { patchState, signalStoreFeature, withMethods, withState } from '@ngrx/signals';
+import {
+    patchState,
+    signalStoreFeature,
+    withMethods,
+    withState,
+} from '@ngrx/signals';
 import { EpgItem } from 'shared-interfaces';
-import { XtreamApiService, XtreamCredentials } from '../../services/xtream-api.service';
+import {
+    XtreamApiService,
+    XtreamCredentials,
+} from '../../services/xtream-api.service';
 
 /**
  * EPG state for managing Electronic Program Guide data
@@ -105,7 +113,11 @@ export function withEpg() {
                     }
 
                     try {
-                        return await apiService.getShortEpg(credentials, streamId, 1);
+                        return await apiService.getShortEpg(
+                            credentials,
+                            streamId,
+                            1
+                        );
                     } catch (error) {
                         console.error('Error loading channel EPG:', error);
                         return [];

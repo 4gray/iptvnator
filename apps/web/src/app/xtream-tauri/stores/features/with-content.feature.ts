@@ -12,13 +12,12 @@ import {
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
-import { ContentType } from '../../xtream-state';
-import { XtreamCredentials } from '../../services/xtream-api.service';
 import {
-    IXtreamDataSource,
     XTREAM_DATA_SOURCE,
     XtreamCategoryFromDb,
 } from '../../data-sources/xtream-data-source.interface';
+import { XtreamCredentials } from '../../services/xtream-api.service';
+import { ContentType } from '../../xtream-state';
 
 /**
  * Content state for managing categories and streams
@@ -247,7 +246,11 @@ export function withContent() {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
 
-                    patchState(store, { isImporting: true, importCount: 0, itemsToImport: 0 });
+                    patchState(store, {
+                        isImporting: true,
+                        importCount: 0,
+                        itemsToImport: 0,
+                    });
 
                     try {
                         // Fetch categories first
@@ -261,8 +264,10 @@ export function withContent() {
                         const restoreData = localStorage.getItem(restoreKey);
                         if (restoreData) {
                             try {
-                                const { favoritedXtreamIds, recentlyViewedXtreamIds } =
-                                    JSON.parse(restoreData);
+                                const {
+                                    favoritedXtreamIds,
+                                    recentlyViewedXtreamIds,
+                                } = JSON.parse(restoreData);
                                 await dataSource.restoreUserData(
                                     ctx.playlistId,
                                     favoritedXtreamIds,
@@ -270,7 +275,10 @@ export function withContent() {
                                 );
                                 localStorage.removeItem(restoreKey);
                             } catch (err) {
-                                console.error('Error restoring user data:', err);
+                                console.error(
+                                    'Error restoring user data:',
+                                    err
+                                );
                             }
                         }
                     } finally {
@@ -318,7 +326,9 @@ export function withContent() {
                  * Update import progress
                  */
                 setImportProgress(count: number, total?: number): void {
-                    const updates: Partial<ContentState> = { importCount: count };
+                    const updates: Partial<ContentState> = {
+                        importCount: count,
+                    };
                     if (total !== undefined) {
                         updates.itemsToImport = total;
                     }
