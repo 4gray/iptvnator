@@ -1,3 +1,13 @@
+::ng-deep .mat-mdc-dialog-content {
+    overflow: hidden !important;
+}
+
+.mat-mdc-dialog-content {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
 .loading-container {
     display: flex;
     flex-direction: column;
@@ -11,7 +21,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
     flex-wrap: wrap;
     gap: 12px;
 }
@@ -53,7 +62,7 @@
 .category-item {
     display: flex;
     align-items: center;
-    padding: 6px 12px;
+    padding: 2px 10px;
     cursor: pointer;
     gap: 8px;
     transition: background-color 0.12s ease;
@@ -77,12 +86,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.item-count {
-    opacity: 0.6;
-    font-size: 12px;
-    color: var(--mat-sys-on-surface-variant);
 }
 
 .empty-message {
