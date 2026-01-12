@@ -67,7 +67,7 @@
 // Menu styles (global)
 ::ng-deep .playlist-switcher-menu {
     min-width: 320px !important;
-    max-width: 400px !important;
+    max-width: 320px !important;
     border-radius: 12px !important;
     overflow: hidden !important;
 
@@ -81,7 +81,6 @@
     align-items: center;
     gap: 10px;
     padding: 14px 16px 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     font-size: 0.85em;
     font-weight: 600;
     text-transform: uppercase;
@@ -201,7 +200,7 @@
     flex-direction: row;
     align-items: center;
     gap: 10px;
-    padding: 10px 16px;
+    padding: 4px 12px;
     min-height: 52px;
     transition: all 0.15s ease;
     position: relative;
@@ -220,7 +219,7 @@
     }
 }
 
-.selected-indicator {
+/* .selected-indicator {
     color: #8b5cf6;
     font-size: 18px;
     width: 18px;
@@ -232,7 +231,7 @@
     width: 18px;
     height: 18px;
     flex-shrink: 0;
-}
+} */
 
 @media (prefers-color-scheme: light) {
     .playlist-item {
