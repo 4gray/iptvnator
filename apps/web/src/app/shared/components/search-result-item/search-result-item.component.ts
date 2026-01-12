@@ -25,9 +25,6 @@ import { MatIconModule } from '@angular/material/icon';
             @if (description) {
                 <p>{{ description }}</p>
             }
-            @if (type) {
-                <div class="type-badge" [class]="type">{{ type }}</div>
-            }
             @if (showPlaylistInfo && playlistName) {
                 <div class="playlist-badge">
                     <mat-icon>playlist_play</mat-icon>
@@ -40,46 +37,92 @@ import { MatIconModule } from '@angular/material/icon';
         `
             :host {
                 display: block;
+                height: 100%;
             }
 
             mat-card {
                 cursor: pointer;
-            }
-
-            h4 {
-                margin: 0;
-                padding: 8px;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                position: relative;
+                overflow: hidden;
+                background: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
             }
 
             .poster {
                 width: 100%;
+                aspect-ratio: 2/3;
                 object-fit: cover;
+                display: block;
+                border-radius: 8px;
             }
 
             .poster-placeholder {
                 width: 100%;
-                height: 200px;
+                aspect-ratio: 2/3;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                background: rgba(0, 0, 0, 0.05);
+                border-radius: 8px;
+
+                mat-icon {
+                    font-size: 48px;
+                    width: 48px;
+                    height: 48px;
+                    opacity: 0.3;
+                }
             }
 
-            .type-badge {
-                position: absolute;
-                top: 8px;
-                right: 8px;
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 12px;
-                text-transform: uppercase;
+            h4 {
+                margin: 0;
+                padding: 10px 0 2px 0;
+                font-size: 0.9rem;
+                font-weight: 500;
+                line-height: 1.3em;
+                height: 2.6em; /* Fixed height for 2 lines */
+                color: var(--text-color, #fff);
+
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            p {
+                margin: 0;
+                padding: 0 0 10px 0;
+                font-size: 0.75rem;
+                line-height: 1.2em;
+                height: 1.2em; /* Fixed height for 1 line */
+                color: var(--text-color-secondary, rgba(255, 255, 255, 0.7));
+                opacity: 0.9; /* Improved readability */
+
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
 
             .playlist-badge {
                 display: flex;
                 align-items: center;
                 gap: 4px;
-                margin-top: 8px;
-                font-size: 12px;
+                margin-top: auto;
+                padding: 0 0 10px 0;
+                font-size: 11px;
+                opacity: 0.8;
+                color: var(--text-color-secondary, inherit);
+
+                mat-icon {
+                    font-size: 14px;
+                    width: 14px;
+                    height: 14px;
+                }
             }
         `,
     ],

@@ -9,6 +9,7 @@ import {
     XtreamSerieItem,
     XtreamVodDetails,
     XtreamVodStream,
+    XTREAM_REQUEST,
 } from 'shared-interfaces';
 import { XtreamAccountInfo } from '../account-info/account-info.interface';
 
@@ -65,8 +66,8 @@ export class XtreamApiService {
     async getAccountInfo(
         credentials: XtreamCredentials
     ): Promise<XtreamAccountInfo> {
-        return this.dataService.fetchData(
-            `${credentials.serverUrl}/player_api.php`,
+        return this.sendRequest(
+            credentials.serverUrl,
             {
                 username: credentials.username,
                 password: credentials.password,
@@ -88,8 +89,8 @@ export class XtreamApiService {
             series: XtreamCodeActions.GetSeriesCategories,
         };
 
-        const response = await this.dataService.fetchData(
-            `${credentials.serverUrl}/player_api.php`,
+        const response = await this.sendRequest(
+            credentials.serverUrl,
             {
                 action: actionMap[type],
                 username: credentials.username,
@@ -106,8 +107,8 @@ export class XtreamApiService {
     async getLiveStreams(
         credentials: XtreamCredentials
     ): Promise<XtreamLiveStream[]> {
-        const response = await this.dataService.fetchData(
-            `${credentials.serverUrl}/player_api.php`,
+        const response = await this.sendRequest(
+            credentials.serverUrl,
             {
                 action: XtreamCodeActions.GetLiveStreams,
                 username: credentials.username,
@@ -124,8 +125,8 @@ export class XtreamApiService {
     async getVodStreams(
         credentials: XtreamCredentials
     ): Promise<XtreamVodStream[]> {
-        const response = await this.dataService.fetchData(
-            `${credentials.serverUrl}/player_api.php`,
+        const response = await this.sendRequest(
+            credentials.serverUrl,
             {
                 action: XtreamCodeActions.GetVodStreams,
                 username: credentials.username,
@@ -142,8 +143,8 @@ export class XtreamApiService {
     async getSeriesStreams(
         credentials: XtreamCredentials
     ): Promise<XtreamSerieItem[]> {
-        const response = await this.dataService.fetchData(
-            `${credentials.serverUrl}/player_api.php`,
+        const response = await this.sendRequest(
+            credentials.serverUrl,
             {
                 action: XtreamCodeActions.GetSeries,
                 username: credentials.username,
@@ -178,8 +179,8 @@ export class XtreamApiService {
         credentials: XtreamCredentials,
         vodId: string | number
     ): Promise<XtreamVodDetails> {
-        return this.dataService.fetchData(
-            `${credentials.serverUrl}/player_api.php`,
+        return this.sendRequest(
+            credentials.serverUrl,
             {
                 action: XtreamCodeActions.GetVodInfo,
                 username: credentials.username,
@@ -196,8 +197,8 @@ export class XtreamApiService {
         credentials: XtreamCredentials,
         seriesId: string | number
     ): Promise<XtreamSerieDetails> {
-        return this.dataService.fetchData(
-            `${credentials.serverUrl}/player_api.php`,
+        return this.sendRequest(
+            credentials.serverUrl,
             {
                 action: XtreamCodeActions.GetSeriesInfo,
                 username: credentials.username,
@@ -216,8 +217,8 @@ export class XtreamApiService {
         streamId: number,
         limit: number = 10
     ): Promise<EpgItem[]> {
-        const response: EpgResponse = await this.dataService.fetchData(
-            `${credentials.serverUrl}/player_api.php`,
+        const response: EpgResponse = await this.sendRequest(
+            credentials.serverUrl,
             {
                 action: XtreamCodeActions.GetShortEpg,
                 username: credentials.username,
@@ -255,5 +256,21 @@ export class XtreamApiService {
         } catch {
             return str;
         }
+    }
+
+    /**
+     * Send request via IPC to avoid CORS issues
+     */
+    private async sendRequest(url: string, params: Record<string, string | number>): Promise<any> {
+        const serializedParams: Record<string, string> = {};
+        Object.entries(params).forEach(([key, value]) => {
+            serializedParams[key] = String(value);
+        });
+
+        const response = await this.dataService.sendIpcEvent(XTREAM_REQUEST, {
+            url,
+            params: serializedParams,
+        });
+        return response?.payload;
     }
 }

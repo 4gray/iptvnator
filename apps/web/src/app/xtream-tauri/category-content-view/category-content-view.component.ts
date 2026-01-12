@@ -53,11 +53,15 @@ export class CategoryContentViewComponent implements OnInit {
 
         // Only set category if it's different from the currently selected one
         // This preserves the page state when navigating back from detail view
-        if (
-            categoryId &&
-            this.store.selectedCategoryId() !== Number(categoryId)
-        ) {
-            this.store.setSelectedCategory(categoryId);
+        if (categoryId) {
+            if (this.store.selectedCategoryId() !== Number(categoryId)) {
+                this.store.setSelectedCategory(categoryId);
+            }
+        } else {
+            // No categoryId in route means "All Items"
+            if (this.store.selectedCategoryId() !== null) {
+                this.store.setSelectedCategory(null);
+            }
         }
     }
 
@@ -99,9 +103,17 @@ export class CategoryContentViewComponent implements OnInit {
         if (this.isStalker) {
             this.store.setSelectedItem(selectedItem);
         } else {
-            this.router.navigate([item.xtream_id], {
-                relativeTo: this.activatedRoute,
-            });
+            // When viewing "Recently Added" (no category selected), include category_id in path
+            const categoryId = this.store.selectedCategoryId();
+            if (categoryId) {
+                this.router.navigate([item.xtream_id], {
+                    relativeTo: this.activatedRoute,
+                });
+            } else {
+                this.router.navigate([item.category_id, item.xtream_id], {
+                    relativeTo: this.activatedRoute,
+                });
+            }
         }
     }
 

@@ -237,19 +237,22 @@ export class DatabaseService {
     ): Promise<number> {
         // Setup progress listener if callback provided
         if (onProgress) {
-            window.addEventListener('message', (event) => {
-                if (event.data.type === 'DB_SAVE_CONTENT_PROGRESS') {
-                    onProgress(event.data.count);
-                }
-            });
+            window.electron.onDbSaveContentProgress(onProgress);
         }
 
-        const result = await window.electron.dbSaveContent(
-            playlistId,
-            streams,
-            type
-        );
-        return result.count;
+        try {
+            const result = await window.electron.dbSaveContent(
+                playlistId,
+                streams,
+                type
+            );
+            return result.count;
+        } finally {
+            // Clean up the listener
+            if (onProgress) {
+                window.electron.removeDbSaveContentProgress();
+            }
+        }
     }
 
     /**

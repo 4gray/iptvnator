@@ -20,9 +20,7 @@ import { XtreamStore } from '../stores/xtream.store';
         MatIconButton,
         TitleCasePipe,
     ],
-    providers: [
-        XtreamStore
-    ],
+    providers: [],
     templateUrl: './recently-viewed.component.html',
     styleUrl: './recently-viewed.component.scss',
 })

@@ -1,3 +1,13 @@
+::ng-deep .mat-mdc-dialog-content {
+    overflow: hidden !important;
+}
+
+.mat-mdc-dialog-content {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
 .loading-container {
     display: flex;
     flex-direction: column;
@@ -11,7 +21,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
     flex-wrap: wrap;
     gap: 12px;
 }
@@ -53,7 +62,7 @@
 .category-item {
     display: flex;
     align-items: center;
-    padding: 6px 12px;
+    padding: 2px 10px;
     cursor: pointer;
     gap: 8px;
     transition: background-color 0.12s ease;

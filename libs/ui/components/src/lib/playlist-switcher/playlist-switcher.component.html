@@ -54,11 +54,11 @@
                 [class.selected]="isSelected(playlist)"
                 (click)="selectPlaylist(playlist)"
             >
-                @if (isSelected(playlist)) {
+                <!-- @if (isSelected(playlist)) {
                     <mat-icon class="selected-indicator">check</mat-icon>
                 } @else {
                     <div class="selected-indicator-placeholder"></div>
-                }
+                } -->
 
                 <div class="playlist-icon-container">
                     <mat-icon class="playlist-type-icon">
@@ -70,8 +70,14 @@
                             [class]="getStatusClass(playlist._id)"
                         ></span>
                     }
-                    @if (playlist.autoRefresh && !playlist.serverUrl && !playlist.macAddress) {
-                        <mat-icon class="auto-refresh-indicator">autorenew</mat-icon>
+                    @if (
+                        playlist.autoRefresh &&
+                        !playlist.serverUrl &&
+                        !playlist.macAddress
+                    ) {
+                        <mat-icon class="auto-refresh-indicator"
+                            >autorenew</mat-icon
+                        >
                     }
                 </div>
 

@@ -167,7 +167,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getContent(
         playlistId: string,
         credentials: XtreamCredentials,
-        type: StreamType
+        type: StreamType,
+        onProgress?: (count: number) => void,
+        onTotal?: (total: number) => void
     ): Promise<XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[]> {
         const cacheKey = `${playlistId}-${type}-content`;
 
@@ -178,6 +180,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
         // Fetch from API
         const content = await this.apiService.getStreams(credentials, type);
+
+        // Report total and progress (PWA doesn't have incremental save, so report all at once)
+        if (onTotal) {
+            onTotal(content.length);
+        }
+        if (onProgress) {
+            onProgress(content.length);
+        }
 
         // Cache in memory
         this.contentCache.set(cacheKey, content);

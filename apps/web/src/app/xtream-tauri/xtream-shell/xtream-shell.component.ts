@@ -57,11 +57,16 @@ export class XtreamShellComponent {
         this.route.params.pipe(takeUntilDestroyed()).subscribe(async (params) => {
             const newPlaylistId = params['id'];
 
+            // Skip if playlist ID hasn't changed (after first load)
+            if (!this.isFirstLoad && this.currentPlaylistId === newPlaylistId) {
+                return;
+            }
+
             if (this.isFirstLoad) {
                 // First load - just set the playlist ID without resetting
                 this.xtreamStore.setPlaylistId(newPlaylistId);
                 this.isFirstLoad = false;
-            } else if (this.currentPlaylistId !== newPlaylistId) {
+            } else {
                 // Switching to a different playlist - reset and set new ID
                 this.xtreamStore.resetStore(newPlaylistId);
             }
@@ -85,7 +90,6 @@ export class XtreamShellComponent {
                     this.xtreamStore.initializeContent();
                 }
             },
-            { allowSignalWrites: true }
         );
     }
 
@@ -96,7 +100,7 @@ export class XtreamShellComponent {
         });
     }
 
-    handlePageClick(page: 'search' | 'recent' | 'favorites') {
+    handlePageClick(page: 'search' | 'recent' | 'favorites' | 'recently-added') {
         this.xtreamStore.setSelectedContentType(undefined);
         this.router.navigate([page], {
             relativeTo: this.route,

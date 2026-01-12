@@ -12,6 +12,7 @@ import {
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
     XTREAM_RESPONSE,
+    XTREAM_REQUEST,
 } from 'shared-interfaces';
 import { AppConfig } from '../../environments/environment';
 
@@ -69,7 +70,7 @@ export class ElectronService extends DataService {
                     title: string;
                 }
             );
-        } else if (type === 'XTREAM_REQUEST') {
+        } else if (type === XTREAM_REQUEST) {
             return await this.forwardXtreamRequest(
                 payload as { url: string; params: Record<string, string> }
             );
@@ -321,21 +322,5 @@ export class ElectronService extends DataService {
 
     getAppEnvironment(): string {
         return 'electron';
-    }
-
-    async fetchData(url: string, queryParams: Params) {
-        const urlObject = new URL(url);
-        Object.entries(queryParams).forEach(([key, value]) => {
-            urlObject.searchParams.append(key, value);
-        });
-        const response = await fetch(urlObject.toString());
-        if (!response.ok) {
-            throw new Error(
-                `Error: ${response.statusText} (Status: ${response.status})`
-            );
-        }
-
-        const result = await response.json();
-        return result;
     }
 }

@@ -89,14 +89,11 @@ export class PortalChannelsListComponent implements AfterViewInit {
             this.favoritesService
                 .getFavorites(playlist.id)
                 .subscribe((favorites) => {
-                    // Map using content.id instead of xtream_id
                     favorites.forEach((fav: any) => {
                         this.favorites.set(fav.xtream_id, true);
                     });
-                    console.log(this.favorites);
                 });
         }
-        // Removed loadCurrentEpgData() call since we're using virtual scroll
     }
 
     ngAfterViewInit() {

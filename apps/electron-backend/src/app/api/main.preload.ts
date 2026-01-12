@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld('electron', {
     ) => {
         ipcRenderer.on('EPG_PROGRESS_UPDATE', (_event, data) => callback(data));
     },
+    // DB save content progress listener
+    onDbSaveContentProgress: (callback: (count: number) => void) => {
+        ipcRenderer.on('DB_SAVE_CONTENT_PROGRESS', (_event, count) =>
+            callback(count)
+        );
+    },
+    // Remove DB save content progress listener
+    removeDbSaveContentProgress: () => {
+        ipcRenderer.removeAllListeners('DB_SAVE_CONTENT_PROGRESS');
+    },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     platform: process.platform,
     fetchPlaylistByUrl: (url: string, title?: string) =>

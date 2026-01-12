@@ -12,13 +12,12 @@ import {
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
-import { ContentType } from '../../xtream-state';
-import { XtreamCredentials } from '../../services/xtream-api.service';
 import {
-    IXtreamDataSource,
     XTREAM_DATA_SOURCE,
     XtreamCategoryFromDb,
 } from '../../data-sources/xtream-data-source.interface';
+import { XtreamCredentials } from '../../services/xtream-api.service';
+import { ContentType } from '../../xtream-state';
 
 /**
  * Content state for managing categories and streams
@@ -181,7 +180,7 @@ export function withContent() {
                 },
 
                 /**
-                 * Fetch all content/streams in parallel
+                 * Fetch all content/streams in parallel with progress tracking
                  */
                 async fetchAllContent(): Promise<void> {
                     const ctx = getCredentialsFromStore();
@@ -189,22 +188,42 @@ export function withContent() {
 
                     patchState(store, { isLoadingContent: true });
 
+                    // Track combined progress across all content types
+                    let totalItems = 0;
+                    let importedItems = 0;
+
+                    const onTotal = (count: number) => {
+                        totalItems += count;
+                        patchState(store, { itemsToImport: totalItems });
+                    };
+
+                    const onProgress = (count: number) => {
+                        importedItems += count;
+                        patchState(store, { importCount: importedItems });
+                    };
+
                     try {
                         const [live, vod, series] = await Promise.all([
                             dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
-                                'live'
+                                'live',
+                                onProgress,
+                                onTotal
                             ),
                             dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
-                                'movie'
+                                'movie',
+                                onProgress,
+                                onTotal
                             ),
                             dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
-                                'series'
+                                'series',
+                                onProgress,
+                                onTotal
                             ),
                         ]);
 
@@ -227,13 +246,17 @@ export function withContent() {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
 
-                    patchState(store, { isImporting: true, importCount: 0 });
+                    patchState(store, {
+                        isImporting: true,
+                        importCount: 0,
+                        itemsToImport: 0,
+                    });
 
                     try {
                         // Fetch categories first
                         await this.fetchAllCategories();
 
-                        // Then fetch content
+                        // Then fetch content (with progress tracking)
                         await this.fetchAllContent();
 
                         // Restore user data if needed
@@ -241,8 +264,10 @@ export function withContent() {
                         const restoreData = localStorage.getItem(restoreKey);
                         if (restoreData) {
                             try {
-                                const { favoritedXtreamIds, recentlyViewedXtreamIds } =
-                                    JSON.parse(restoreData);
+                                const {
+                                    favoritedXtreamIds,
+                                    recentlyViewedXtreamIds,
+                                } = JSON.parse(restoreData);
                                 await dataSource.restoreUserData(
                                     ctx.playlistId,
                                     favoritedXtreamIds,
@@ -250,7 +275,10 @@ export function withContent() {
                                 );
                                 localStorage.removeItem(restoreKey);
                             } catch (err) {
-                                console.error('Error restoring user data:', err);
+                                console.error(
+                                    'Error restoring user data:',
+                                    err
+                                );
                             }
                         }
                     } finally {
@@ -298,7 +326,9 @@ export function withContent() {
                  * Update import progress
                  */
                 setImportProgress(count: number, total?: number): void {
-                    const updates: Partial<ContentState> = { importCount: count };
+                    const updates: Partial<ContentState> = {
+                        importCount: count,
+                    };
                     if (total !== undefined) {
                         updates.itemsToImport = total;
                     }

@@ -32,7 +32,11 @@
             </div>
         </div>
 
-        <mat-form-field appearance="outline" class="search-field">
+        <mat-form-field
+            appearance="outline"
+            class="search-field"
+            subscriptSizing="dynamic"
+        >
             <mat-icon matPrefix>search</mat-icon>
             <input
                 matInput
@@ -59,6 +63,9 @@
                     >
                     </mat-checkbox>
                     <span class="category-name">{{ category.name }}</span>
+                    <span class="item-count"
+                        >({{ getItemCount(category) }})</span
+                    >
                 </div>
             } @empty {
                 <div class="empty-message">

@@ -1,7 +1,5 @@
 import { Component, inject, resource, signal } from '@angular/core';
-import { MatButton } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -25,8 +23,6 @@ import { StalkerStore } from '../stalker.store';
     selector: 'app-stalker-search',
     imports: [
         MatCardModule,
-        MatButton,
-        MatIcon,
         MatProgressSpinner,
         PlaylistErrorViewComponent,
         SearchFormComponent,
@@ -38,10 +34,6 @@ import { StalkerStore } from '../stalker.store';
     templateUrl: './stalker-search.component.html',
     styles: `
         :host {
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            height: 100%;
             width: 100%;
         }
 

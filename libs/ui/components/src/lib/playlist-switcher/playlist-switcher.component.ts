@@ -2,7 +2,6 @@ import { DatePipe } from '@angular/common';
 import {
     Component,
     computed,
-    effect,
     inject,
     input,
     output,
@@ -12,10 +11,10 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
+import { MatRippleModule } from '@angular/material/core';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenu, MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
-import { MatRippleModule } from '@angular/material/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -63,17 +62,22 @@ export class PlaylistSwitcherComponent {
     /** All playlists from store */
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
 
-    /** Filtered playlists based on search query */
+    /** Filtered playlists based on search query, sorted by importDate (newest first) */
     readonly filteredPlaylists = computed(() => {
         const query = this.searchQuery().toLowerCase().trim();
         const allPlaylists = this.playlists();
-        if (!query) {
-            return allPlaylists;
-        }
-        return allPlaylists.filter(
-            (p) =>
-                p.title?.toLowerCase().includes(query) ||
-                p.filename?.toLowerCase().includes(query)
+        const filtered = query
+            ? allPlaylists.filter(
+                  (p) =>
+                      p.title?.toLowerCase().includes(query) ||
+                      p.filename?.toLowerCase().includes(query)
+              )
+            : allPlaylists;
+
+        return [...filtered].sort(
+            (a, b) =>
+                new Date(b.importDate ?? 0).getTime() -
+                new Date(a.importDate ?? 0).getTime()
         );
     });
 
@@ -96,12 +100,6 @@ export class PlaylistSwitcherComponent {
             .subscribe((event: NavigationEnd) => {
                 this.updateActivePlaylistFromRoute(event.urlAfterRedirects);
             });
-
-        // Check portal status for Xtream playlists when playlists load
-        effect(() => {
-            const allPlaylists = this.playlists();
-            this.checkPortalStatuses(allPlaylists);
-        });
     }
 
     private updateActivePlaylistFromRoute(url: string) {
@@ -116,27 +114,35 @@ export class PlaylistSwitcherComponent {
 
     private async checkPortalStatuses(playlists: PlaylistMeta[]) {
         const statusPromises = playlists
-            .filter(playlist => playlist.serverUrl && playlist.username && playlist.password)
+            .filter(
+                (playlist) =>
+                    playlist.serverUrl && playlist.username && playlist.password
+            )
             .map(async (playlist) => {
                 try {
-                    const status = await this.portalStatusService.checkPortalStatus(
-                        playlist.serverUrl,
-                        playlist.username,
-                        playlist.password
-                    );
+                    const status =
+                        await this.portalStatusService.checkPortalStatus(
+                            playlist.serverUrl,
+                            playlist.username,
+                            playlist.password
+                        );
                     return { id: playlist._id, status };
                 } catch {
-                    return { id: playlist._id, status: 'unavailable' as PortalStatus };
+                    return {
+                        id: playlist._id,
+                        status: 'unavailable' as PortalStatus,
+                    };
                 }
             });
 
         const results = await Promise.all(statusPromises);
-        const statusMap = new Map(results.map(r => [r.id, r.status]));
+        const statusMap = new Map(results.map((r) => [r.id, r.status]));
         this.portalStatuses.set(statusMap);
     }
 
     onMenuOpened() {
         this.isMenuOpen.set(true);
+        this.checkPortalStatuses(this.playlists());
     }
 
     onMenuClosed() {

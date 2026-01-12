@@ -1,38 +1,31 @@
-<div class="search-page">
-    <div class="header">
-        <h2>{{ 'PORTALS.SIDEBAR.SEARCH' | translate }}</h2>
-    </div>
-
-    @if (itemDetails) {
-        <button
-            mat-button
-            (click)="itemDetails = null"
-            [attr.aria-label]="'SETTINGS.BACK_TO_HOME' | translate"
-            class="back-button"
-        >
-            <mat-icon>arrow_back</mat-icon>
-            {{ 'SETTINGS.BACK_TO_HOME' | translate }}
-        </button>
-        @switch (selectedFilterType()) {
-            @case ('vod') {
-                <app-vod-details
-                    [item]="itemDetails"
-                    (playClicked)="
-                        createLinkToPlayVodItv(
-                            itemDetails.cmd,
-                            itemDetails.info.name,
-                            itemDetails.info.movie_image
-                        )
-                    "
-                    (addToFavoritesClicked)="addToFavorites($event)"
-                    (removeFromFavoritesClicked)="removeFromFavorites($any($event))"
-                />
-            }
-            @case ('series') {
-                <app-stalker-series-view />
-            }
+@if (itemDetails) {
+    @switch (selectedFilterType()) {
+        @case ('vod') {
+            <app-vod-details
+                [item]="itemDetails"
+                (playClicked)="
+                    createLinkToPlayVodItv(
+                        itemDetails.cmd,
+                        itemDetails.info.name,
+                        itemDetails.info.movie_image
+                    )
+                "
+                (addToFavoritesClicked)="addToFavorites($event)"
+                (removeFromFavoritesClicked)="removeFromFavorites($any($event))"
+                (backClicked)="itemDetails = null"
+            />
         }
-    } @else {
+        @case ('series') {
+            <app-stalker-series-view (backClicked)="itemDetails = null" />
+        }
+    }
+}
+
+<div class="search-page">
+    @if (!itemDetails) {
+        <div class="header">
+            <h2>{{ 'PORTALS.SIDEBAR.SEARCH' | translate }}</h2>
+        </div>
         <app-search-form
             [singleSelection]="true"
             [(searchTerm)]="searchTerm"

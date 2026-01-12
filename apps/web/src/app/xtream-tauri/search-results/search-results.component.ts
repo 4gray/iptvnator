@@ -51,9 +51,7 @@ interface SearchResultsData {
         SearchResultItemComponent,
         TranslatePipe,
     ],
-    providers: [
-      XtreamStore
-    ],
+    providers: [],
     templateUrl: './search-results.component.html',
     styleUrls: ['./search-results.component.scss'],
 })
@@ -112,7 +110,7 @@ export class SearchResultsComponent implements AfterViewInit {
         });
     }
 
-    private executeSearch() {
+    executeSearch() {
         const types = Object.entries(this.filters)
             .filter(([_, enabled]) => enabled)
             .map(([type]) => type);

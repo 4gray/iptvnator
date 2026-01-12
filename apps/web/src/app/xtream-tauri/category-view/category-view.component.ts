@@ -32,7 +32,9 @@ export class CategoryViewComponent {
     }
 
     getItemCount(item: XtreamCategory): number {
-        const itemId = Number((item as any).category_id ?? item.id);
+        // content.category_id references categories.id (internal DB id)
+        // For DB format categories, use id; for API format, use category_id
+        const itemId = Number(item.id ?? (item as any).category_id);
         return this.itemCounts().get(itemId) ?? 0;
     }
 }

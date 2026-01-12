@@ -60,30 +60,43 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     getContentLabel(): string {
-        if (
-            this.xtreamStore.getSelectedCategory() === null ||
-            this.xtreamStore.getSelectedCategory() === undefined
-        ) {
-            return this.translateService.instant('PORTALS.SELECT_CATEGORY');
-        } else {
-            const selectedCategory = this.xtreamStore.getSelectedCategory();
-            const categoryName = selectedCategory
-                ? (selectedCategory as any).name
-                : 'Category Content';
+        const selectedCategoryId = this.xtreamStore.selectedCategoryId();
 
-            // Show page number when viewing category content (not detail view)
+        // When no category is selected, show "Recently Added"
+        if (selectedCategoryId === null || selectedCategoryId === undefined) {
+            const recentlyAddedLabel = this.translateService.instant('PORTALS.SIDEBAR.RECENTLY_ADDED');
+
+            // Show page number when viewing recently added (not detail view)
             if (
                 !this.xtreamStore.selectedItem() &&
                 this.xtreamStore.getTotalPages() > 1
             ) {
-                const currentPage = this.xtreamStore.page() + 1; // +1 because page is 0-indexed
+                const currentPage = this.xtreamStore.page() + 1;
                 const totalPages = this.xtreamStore.getTotalPages();
                 const pageLabel = this.translateService.instant('PORTALS.PAGE');
-                return `${categoryName} (${pageLabel} ${currentPage}/${totalPages})`;
+                return `${recentlyAddedLabel} (${pageLabel} ${currentPage}/${totalPages})`;
             }
 
-            return `Content for ${categoryName}`;
+            return recentlyAddedLabel;
         }
+
+        const selectedCategory = this.xtreamStore.getSelectedCategory();
+        const categoryName = selectedCategory
+            ? (selectedCategory as any).name
+            : 'Category Content';
+
+        // Show page number when viewing category content (not detail view)
+        if (
+            !this.xtreamStore.selectedItem() &&
+            this.xtreamStore.getTotalPages() > 1
+        ) {
+            const currentPage = this.xtreamStore.page() + 1; // +1 because page is 0-indexed
+            const totalPages = this.xtreamStore.getTotalPages();
+            const pageLabel = this.translateService.instant('PORTALS.PAGE');
+            return `${categoryName} (${pageLabel} ${currentPage}/${totalPages})`;
+        }
+
+        return categoryName;
     }
 
     historyBack() {
@@ -105,6 +118,7 @@ export class XtreamMainContainerComponent implements OnInit {
             data: {
                 playlistId,
                 contentType,
+                itemCounts: this.categoryItemCounts(),
             },
             width: '500px',
             maxHeight: '80vh',

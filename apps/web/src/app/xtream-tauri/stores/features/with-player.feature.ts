@@ -1,9 +1,14 @@
 import { inject } from '@angular/core';
-import { patchState, signalStoreFeature, withMethods, withState } from '@ngrx/signals';
+import {
+    patchState,
+    signalStoreFeature,
+    withMethods,
+    withState,
+} from '@ngrx/signals';
 import { XtreamSerieEpisode, XtreamVodDetails } from 'shared-interfaces';
 import { PlayerService } from '../../../services/player.service';
-import { XtreamUrlService } from '../../services/xtream-url.service';
 import { XtreamCredentials } from '../../services/xtream-api.service';
+import { XtreamUrlService } from '../../services/xtream-url.service';
 
 /**
  * Player state for managing stream URLs and player settings
@@ -100,7 +105,10 @@ export function withPlayer() {
                         return '';
                     }
 
-                    const streamUrl = urlService.constructVodUrl(credentials, vodItem);
+                    const streamUrl = urlService.constructVodUrl(
+                        credentials,
+                        vodItem
+                    );
                     patchState(store, { streamUrl });
                     return streamUrl;
                 },
@@ -132,13 +140,15 @@ export function withPlayer() {
                 ): void {
                     const playlist = getPlaylistFromStore();
                     const storeAny = store as any;
-                    const contentType = storeAny.selectedContentType?.() || 'vod';
+                    const contentType =
+                        storeAny.selectedContentType?.() || 'vod';
 
                     playerService.openPlayer(
                         streamUrl,
                         title,
                         thumbnail,
-                        localStorage.getItem('hideExternalInfoDialog') === 'true',
+                        localStorage.getItem('hideExternalInfoDialog') ===
+                            'true',
                         contentType === 'live',
                         playlist?.userAgent,
                         playlist?.referrer,
@@ -150,7 +160,10 @@ export function withPlayer() {
                  * Set hide external info dialog preference
                  */
                 setHideExternalInfoDialog(hide: boolean): void {
-                    localStorage.setItem('hideExternalInfoDialog', String(hide));
+                    localStorage.setItem(
+                        'hideExternalInfoDialog',
+                        String(hide)
+                    );
                     patchState(store, { hideExternalInfoDialog: hide });
                 },
 
@@ -161,7 +174,8 @@ export function withPlayer() {
                     patchState(store, {
                         streamUrl: null,
                         hideExternalInfoDialog:
-                            localStorage.getItem('hideExternalInfoDialog') === 'true',
+                            localStorage.getItem('hideExternalInfoDialog') ===
+                            'true',
                     });
                 },
             };

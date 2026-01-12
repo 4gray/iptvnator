@@ -384,6 +384,7 @@
             "LIBRARY": "Library",
             "SEARCH": "Search",
             "RECENT": "Recent",
+            "RECENTLY_ADDED": "Recently added",
             "FAVORITES": "Favorites",
             "HOME": "Home",
             "PLAYLIST_INFO": "Playlist info",
@@ -421,6 +422,10 @@
         "EMPTY_LIST_VIEW": {
             "TITLE": "No results found",
             "NO_SEARCH_RESULTS": "Nothing found, try to change you search request"
+        },
+        "SEARCH_VIEW": {
+            "INITIAL_TITLE": "Search for content",
+            "INITIAL_DESCRIPTION": "Enter at least 3 characters to search across live TV, movies and series."
         },
         "STREAM_URL_COPIED": "Stream URL copied to clipboard",
         "COPY_STREAM_URL": "Copy Stream URL",

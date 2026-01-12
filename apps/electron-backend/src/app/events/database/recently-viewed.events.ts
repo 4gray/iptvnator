@@ -87,11 +87,7 @@ ipcMain.handle('DB_GET_RECENT_ITEMS', async (event, playlistId: string) => {
                 schema.content,
                 eq(schema.recentlyViewed.contentId, schema.content.id)
             )
-            .innerJoin(
-                schema.categories,
-                eq(schema.content.categoryId, schema.categories.id)
-            )
-            .where(eq(schema.categories.playlistId, playlistId))
+            .where(eq(schema.recentlyViewed.playlistId, playlistId))
             .orderBy(desc(schema.recentlyViewed.viewedAt))
             .limit(100);
         return result;
