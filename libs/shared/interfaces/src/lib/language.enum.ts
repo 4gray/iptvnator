@@ -19,4 +19,5 @@ export enum Language {
     BELARUSIAN = 'by',
     POLISH = 'pl',
     PORTUGUESE = 'pt',
+    GREEK = 'el',
 }
