@@ -1,6 +1,5 @@
-import { BrowserWindow, Menu, screen, shell } from 'electron';
+import { app, BrowserWindow, Menu, screen, shell } from 'electron';
 import { join } from 'path';
-import { environment } from '../environments/environment';
 import { rendererAppName, rendererAppPort } from './constants';
 import { store, WINDOW_BOUNDS } from './services/store.service';
 
@@ -12,11 +11,14 @@ export default class App {
     static BrowserWindow;
 
     public static isDevelopmentMode() {
-        const isEnvironmentSet: boolean = 'ELECTRON_IS_DEV' in process.env;
-        const getFromEnvironment: boolean =
-            parseInt(process.env.ELECTRON_IS_DEV, 10) === 1;
-
-        return isEnvironmentSet ? getFromEnvironment : !environment.production;
+        // First check ELECTRON_IS_DEV environment variable (used by E2E tests)
+        // This allows E2E tests to run in production mode without packaging
+        if ('ELECTRON_IS_DEV' in process.env) {
+            return parseInt(process.env.ELECTRON_IS_DEV, 10) === 1;
+        }
+        // Fall back to Electron's built-in app.isPackaged
+        // This is the most reliable way to detect if the app is packaged
+        return !app.isPackaged;
     }
 
     private static onWindowAllClosed() {
