@@ -277,11 +277,17 @@ export default class EpgEvents {
             let worker: Worker;
             try {
                 const workerURL = pathToFileURL(workerPath);
+                // In packaged app, native modules are in app.asar.unpacked/node_modules
+                // which is separate from the worker location in extraResources
+                const nativeModulesPath = app.isPackaged
+                    ? path.join(path.dirname(app.getAppPath()), 'app.asar.unpacked', 'node_modules')
+                    : undefined;
                 worker = new Worker(workerURL, {
                     resourceLimits: {
                         maxOldGenerationSizeMb: 4096,
                         maxYoungGenerationSizeMb: 512,
                     },
+                    workerData: { nativeModulesPath },
                 });
             } catch (error) {
                 console.error(
@@ -611,7 +617,13 @@ export default class EpgEvents {
             let worker: Worker;
             try {
                 const workerURL = pathToFileURL(workerPath);
-                worker = new Worker(workerURL);
+                // In packaged app, native modules are in app.asar.unpacked/node_modules
+                const nativeModulesPath = app.isPackaged
+                    ? path.join(path.dirname(app.getAppPath()), 'app.asar.unpacked', 'node_modules')
+                    : undefined;
+                worker = new Worker(workerURL, {
+                    workerData: { nativeModulesPath },
+                });
             } catch (error) {
                 console.error(
                     this.loggerLabel,
@@ -685,7 +697,13 @@ export default class EpgEvents {
             let worker: Worker;
             try {
                 const workerURL = pathToFileURL(workerPath);
-                worker = new Worker(workerURL);
+                // In packaged app, native modules are in app.asar.unpacked/node_modules
+                const nativeModulesPath = app.isPackaged
+                    ? path.join(path.dirname(app.getAppPath()), 'app.asar.unpacked', 'node_modules')
+                    : undefined;
+                worker = new Worker(workerURL, {
+                    workerData: { nativeModulesPath },
+                });
             } catch (error) {
                 console.error(
                     this.loggerLabel,

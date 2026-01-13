@@ -1,11 +1,25 @@
-import { parentPort } from 'worker_threads';
+import { parentPort, workerData } from 'worker_threads';
 import { createGunzip } from 'zlib';
 import { SaxesParser, SaxesTagPlain } from 'saxes';
 import { Readable } from 'stream';
-import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { homedir } from 'os';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { createRequire } from 'module';
+import type BetterSqlite3 from 'better-sqlite3';
+
+// In packaged app, native modules are in app.asar.unpacked/node_modules
+// which is separate from the worker location in extraResources
+let Database: typeof BetterSqlite3;
+if (workerData?.nativeModulesPath) {
+    // Create a require function that resolves from the unpacked node_modules
+    const nativeRequire = createRequire(join(workerData.nativeModulesPath, 'index.js'));
+    Database = nativeRequire('better-sqlite3');
+} else {
+    // Development mode - use normal require
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Database = require('better-sqlite3');
+}
 
 /**
  * Internal parsing types with arrays for XML parsing
@@ -131,13 +145,13 @@ function getDatabasePath(): string {
  * Creates its own connection to avoid blocking main thread
  */
 class EpgDatabase {
-    private db: Database.Database;
+    private db: BetterSqlite3.Database;
     private knownChannelIds: Set<string> = new Set();
 
     // Prepared statements for better performance
-    private insertChannelStmt: Database.Statement;
-    private insertProgramStmt: Database.Statement;
-    private deleteChannelsStmt: Database.Statement;
+    private insertChannelStmt: BetterSqlite3.Statement;
+    private insertProgramStmt: BetterSqlite3.Statement;
+    private deleteChannelsStmt: BetterSqlite3.Statement;
 
     constructor() {
         const dbPath = getDatabasePath();
