@@ -11,15 +11,38 @@ import type BetterSqlite3 from 'better-sqlite3';
 // In packaged app, native modules are in app.asar.unpacked/node_modules
 // which is separate from the worker location in extraResources
 let Database: typeof BetterSqlite3;
-if (workerData?.nativeModulesPath) {
-    // Create a require function that resolves from the unpacked node_modules
-    const nativeRequire = createRequire(join(workerData.nativeModulesPath, 'index.js'));
-    Database = nativeRequire('better-sqlite3');
-} else {
-    // Development mode - use normal require
+
+function loadBetterSqlite3(): typeof BetterSqlite3 {
+    // Try workerData path first (passed from main process)
+    if (workerData?.nativeModulesPath && existsSync(workerData.nativeModulesPath)) {
+        try {
+            const nativeRequire = createRequire(join(workerData.nativeModulesPath, 'index.js'));
+            return nativeRequire('better-sqlite3');
+        } catch (e) {
+            console.error('[EPG Worker] Failed to load from workerData path:', e);
+        }
+    }
+
+    // Try process.resourcesPath (available in packaged Electron apps)
+    if ((process as NodeJS.Process & { resourcesPath?: string }).resourcesPath) {
+        const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath!;
+        const unpackedPath = join(resourcesPath, 'app.asar.unpacked', 'node_modules');
+        if (existsSync(unpackedPath)) {
+            try {
+                const nativeRequire = createRequire(join(unpackedPath, 'index.js'));
+                return nativeRequire('better-sqlite3');
+            } catch (e) {
+                console.error('[EPG Worker] Failed to load from resourcesPath:', e);
+            }
+        }
+    }
+
+    // Fallback to regular require (development mode)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Database = require('better-sqlite3');
+    return require('better-sqlite3');
 }
+
+Database = loadBetterSqlite3();
 
 /**
  * Internal parsing types with arrays for XML parsing
