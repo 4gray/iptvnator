@@ -1,11 +1,48 @@
-import { parentPort } from 'worker_threads';
+import { parentPort, workerData } from 'worker_threads';
 import { createGunzip } from 'zlib';
 import { SaxesParser, SaxesTagPlain } from 'saxes';
 import { Readable } from 'stream';
-import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { homedir } from 'os';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { createRequire } from 'module';
+import type BetterSqlite3 from 'better-sqlite3';
+
+// In packaged app, native modules are in app.asar.unpacked/node_modules
+// which is separate from the worker location in extraResources
+let Database: typeof BetterSqlite3;
+
+function loadBetterSqlite3(): typeof BetterSqlite3 {
+    // Try workerData path first (passed from main process)
+    if (workerData?.nativeModulesPath && existsSync(workerData.nativeModulesPath)) {
+        try {
+            const nativeRequire = createRequire(join(workerData.nativeModulesPath, 'index.js'));
+            return nativeRequire('better-sqlite3');
+        } catch (e) {
+            console.error('[EPG Worker] Failed to load from workerData path:', e);
+        }
+    }
+
+    // Try process.resourcesPath (available in packaged Electron apps)
+    if ((process as NodeJS.Process & { resourcesPath?: string }).resourcesPath) {
+        const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath!;
+        const unpackedPath = join(resourcesPath, 'app.asar.unpacked', 'node_modules');
+        if (existsSync(unpackedPath)) {
+            try {
+                const nativeRequire = createRequire(join(unpackedPath, 'index.js'));
+                return nativeRequire('better-sqlite3');
+            } catch (e) {
+                console.error('[EPG Worker] Failed to load from resourcesPath:', e);
+            }
+        }
+    }
+
+    // Fallback to regular require (development mode)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('better-sqlite3');
+}
+
+Database = loadBetterSqlite3();
 
 /**
  * Internal parsing types with arrays for XML parsing
@@ -131,13 +168,13 @@ function getDatabasePath(): string {
  * Creates its own connection to avoid blocking main thread
  */
 class EpgDatabase {
-    private db: Database.Database;
+    private db: BetterSqlite3.Database;
     private knownChannelIds: Set<string> = new Set();
 
     // Prepared statements for better performance
-    private insertChannelStmt: Database.Statement;
-    private insertProgramStmt: Database.Statement;
-    private deleteChannelsStmt: Database.Statement;
+    private insertChannelStmt: BetterSqlite3.Statement;
+    private insertProgramStmt: BetterSqlite3.Statement;
+    private deleteChannelsStmt: BetterSqlite3.Statement;
 
     constructor() {
         const dbPath = getDatabasePath();

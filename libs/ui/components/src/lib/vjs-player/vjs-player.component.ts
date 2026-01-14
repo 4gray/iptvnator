@@ -12,7 +12,7 @@ import {
 import '@yangkghjh/videojs-aspect-ratio-panel';
 import videoJs from 'video.js';
 import 'videojs-contrib-quality-levels';
-import 'videojs-hls-quality-selector';
+import 'videojs-quality-selector-hls';
 
 /**
  * This component contains the implementation of video player that is based on video.js library
@@ -56,10 +56,22 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 });
             }
         );
-        this.player.hlsQualitySelector({
-            displayCurrentQuality: true,
-        });
-        this.player['aspectRatioPanel']();
+        try {
+            if (typeof this.player.qualitySelectorHls === 'function') {
+                this.player.qualitySelectorHls({
+                    displayCurrentQuality: true,
+                });
+            }
+        } catch (e) {
+            console.warn('qualitySelectorHls plugin failed to initialize:', e);
+        }
+        try {
+            if (typeof this.player['aspectRatioPanel'] === 'function') {
+                this.player['aspectRatioPanel']();
+            }
+        } catch (e) {
+            console.warn('aspectRatioPanel plugin failed to initialize:', e);
+        }
     }
 
     /**

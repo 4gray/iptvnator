@@ -287,7 +287,8 @@
         "DUTCH": "Nederlands",
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
-        "PORTUGUESE": "Português"
+        "PORTUGUESE": "Português",
+        "GREEK": "Ελληνικά"
     },
     "YES": "Yes",
     "NO": "No",
@@ -332,6 +333,13 @@
         "AGE": "Age",
         "YOUTUBE_TRAILER": "YouTube Trailer",
         "EPISODE": "Episode",
+        "RESUME": "Resume",
+        "RESTART": "Start Over",
+        "CONTINUE_WATCHING": "Continue Watching",
+        "WATCHED": "Watched",
+        "IN_PROGRESS": "In Progress",
+        "MARK_UNWATCHED": "Mark as Unwatched",
+        "EPISODES_WATCHED": "{{count}} of {{total}} episodes watched",
         "ACCOUNT_INFO": {
             "TITLE": "Account Information",
             "USER_INFO": "User Information",

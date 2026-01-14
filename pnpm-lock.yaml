@@ -137,9 +137,9 @@ importers:
       videojs-contrib-quality-levels:
         specifier: 4.1.0
         version: 4.1.0(video.js@8.23.4)
-      videojs-hls-quality-selector:
-        specifier: 2.0.0
-        version: 2.0.0
+      videojs-quality-selector-hls:
+        specifier: 1.1.1
+        version: 1.1.1
       zone.js:
         specifier: ~0.15.1
         version: 0.15.1
@@ -267,9 +267,6 @@ importers:
       '@types/video.js':
         specifier: 7.3.29
         version: 7.3.29
-      '@types/videojs-hls-quality-selector':
-        specifier: 1.1.0
-        version: 1.1.0
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.46.2
         version: 8.51.0(@typescript-eslint/parser@8.51.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
@@ -3821,9 +3818,6 @@ packages:
 
   '@types/video.js@7.3.29':
     resolution: {integrity: sha512-7xP5O3tQC6dm5xljwwvDvMKTumlu/cag4k5FwezMUazoCAbni0t3NB5ToavQlNAH5OKLLP3/ZEJbPqP6ShocIA==}
-
-  '@types/videojs-hls-quality-selector@1.1.0':
-    resolution: {integrity: sha512-ZArUmr6fsd+KMb10B7F5B/eLZrw+J50DwY892NQdrkGx8hIrplVRyrWXMlzn6Khk6Bu2IMJcG91+xZHysYukZA==}
 
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
@@ -9976,9 +9970,9 @@ packages:
   videojs-font@4.2.0:
     resolution: {integrity: sha512-YPq+wiKoGy2/M7ccjmlvwi58z2xsykkkfNMyIg4xb7EZQQNwB71hcSsB3o75CqQV7/y5lXkXhI/rsGAS7jfEmQ==}
 
-  videojs-hls-quality-selector@2.0.0:
-    resolution: {integrity: sha512-x0AQKGwryDdD94s1it+Jolb6j1mg4Q+c7g1PlCIG6dXBdipVPaZmg71fxaFZJgx1k326DFnRaWrLxQ72/TKd2A==}
-    engines: {node: '>=14', npm: '>=6'}
+  videojs-quality-selector-hls@1.1.1:
+    resolution: {integrity: sha512-GR7Bs/pL4nioq+jlSASqy4nUlnnmY7NnjXY6vBPlmBJA7OuYD80ceyejuCbNeaXX7cC11WOtKTeC8QBJcKuMtA==}
+    engines: {node: '>=18', npm: '>=9'}
 
   videojs-vtt.js@0.15.5:
     resolution: {integrity: sha512-yZbBxvA7QMYn15Lr/ZfhhLPrNpI/RmCSCqgIff57GC2gIrV5YfyzLfLyZMj0NnZSAz8syB4N0nHXpZg9MyrMOQ==}
@@ -14435,10 +14429,6 @@ snapshots:
     optional: true
 
   '@types/video.js@7.3.29': {}
-
-  '@types/videojs-hls-quality-selector@1.1.0':
-    dependencies:
-      '@types/video.js': 7.3.29
 
   '@types/ws@8.18.1':
     dependencies:
@@ -21588,10 +21578,11 @@ snapshots:
 
   videojs-font@4.2.0: {}
 
-  videojs-hls-quality-selector@2.0.0:
+  videojs-quality-selector-hls@1.1.1:
     dependencies:
       global: 4.4.0
       video.js: 8.23.4
+      videojs-contrib-quality-levels: 4.1.0(video.js@8.23.4)
 
   videojs-vtt.js@0.15.5:
     dependencies:

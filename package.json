@@ -23,7 +23,7 @@
         "postinstall": "electron-builder install-app-deps",
         "build:frontend": "nx build web",
         "build:frontend:pwa": "nx build web --configuration=pwa",
-        "build:backend": "nx build electron-backend",
+        "build:backend": "nx build electron-backend --configuration=production",
         "serve:frontend": "nx serve web --no-tui",
         "serve:frontend:pwa": "nx serve web --configuration=pwa --no-tui",
         "serve:backend": "nx serve electron-backend",
@@ -77,7 +77,7 @@
         "uuid": "9.0.0",
         "video.js": "8.23.4",
         "videojs-contrib-quality-levels": "4.1.0",
-        "videojs-hls-quality-selector": "2.0.0",
+        "videojs-quality-selector-hls": "1.1.1",
         "zone.js": "~0.15.1"
     },
     "devDependencies": {
@@ -129,7 +129,6 @@
         "@types/node": "20.19.9",
         "@types/uuid": "^10.0.0",
         "@types/video.js": "7.3.29",
-        "@types/videojs-hls-quality-selector": "1.1.0",
         "@typescript-eslint/eslint-plugin": "^8.46.2",
         "@typescript-eslint/parser": "^8.46.2",
         "@typescript-eslint/utils": "^8.46.2",

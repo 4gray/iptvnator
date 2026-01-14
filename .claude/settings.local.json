@@ -17,7 +17,8 @@
       "Bash(nx lint:*)",
       "Bash(npx tsc:*)",
       "Bash(find:*)",
-      "Bash(xargs sed:*)"
+      "Bash(xargs sed:*)",
+      "Skill(frontend-design)"
     ],
     "deny": [],
     "ask": []

@@ -16,7 +16,11 @@
         "web/**/*",
         "!**/*.map"
     ],
-    "asarUnpack": ["**/better-sqlite3/**"],
+    "asarUnpack": [
+        "**/better-sqlite3/**",
+        "**/bindings/**",
+        "**/file-uri-to-path/**"
+    ],
     "extraMetadata": {
         "main": "electron-backend/main.js"
     },
