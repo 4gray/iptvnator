@@ -169,6 +169,48 @@ export const epgPrograms = sqliteTable(
     })
 );
 
+// Playback Positions table
+export const playbackPositions = sqliteTable(
+    'playback_positions',
+    {
+        id: integer('id').primaryKey({ autoIncrement: true }),
+        playlistId: text('playlist_id')
+            .notNull()
+            .references(() => playlists.id, { onDelete: 'cascade' }),
+        // For VOD: store xtream_id of the movie
+        // For Series: store episode ID (from XtreamSerieEpisode.id)
+        contentXtreamId: integer('content_xtream_id').notNull(),
+        // 'vod' | 'episode'
+        contentType: text('content_type', {
+            enum: ['vod', 'episode'],
+        }).notNull(),
+        // For episodes: store series xtream_id for grouping
+        seriesXtreamId: integer('series_xtream_id'),
+        // For episodes: store season and episode numbers for display
+        seasonNumber: integer('season_number'),
+        episodeNumber: integer('episode_number'),
+        // Playback position in seconds
+        positionSeconds: integer('position_seconds').notNull().default(0),
+        // Total duration in seconds (for percentage calculation)
+        durationSeconds: integer('duration_seconds'),
+        // Last updated timestamp
+        updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+    },
+    (table) => ({
+        // Unique constraint: one position per content per playlist
+        contentPlaylistUnique: uniqueIndex(
+            'playback_positions_content_playlist_unique'
+        ).on(table.contentXtreamId, table.playlistId, table.contentType),
+        playlistIdx: index('playback_positions_playlist_idx').on(
+            table.playlistId
+        ),
+        seriesIdx: index('playback_positions_series_idx').on(
+            table.seriesXtreamId
+        ),
+        updatedIdx: index('playback_positions_updated_idx').on(table.updatedAt),
+    })
+);
+
 // Type exports for TypeScript
 export type Playlist = typeof playlists.$inferSelect;
 export type NewPlaylist = typeof playlists.$inferInsert;
@@ -190,3 +232,6 @@ export type NewEpgChannel = typeof epgChannels.$inferInsert;
 
 export type EpgProgramDb = typeof epgPrograms.$inferSelect;
 export type NewEpgProgramDb = typeof epgPrograms.$inferInsert;
+
+export type PlaybackPosition = typeof playbackPositions.$inferSelect;
+export type NewPlaybackPosition = typeof playbackPositions.$inferInsert;

@@ -136,7 +136,9 @@ export function withPlayer() {
                 openPlayer(
                     streamUrl: string,
                     title: string,
-                    thumbnail: string | null = null
+                    thumbnail: string | null = null,
+                    startTime?: number,
+                    contentInfo?: any
                 ): void {
                     const playlist = getPlaylistFromStore();
                     const storeAny = store as any;
@@ -152,7 +154,9 @@ export function withPlayer() {
                         contentType === 'live',
                         playlist?.userAgent,
                         playlist?.referrer,
-                        playlist?.origin
+                        playlist?.origin,
+                        contentInfo,
+                        startTime
                     );
                 },
 

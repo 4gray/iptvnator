@@ -7,10 +7,13 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { WebPlayerViewComponent } from 'shared-portals';
+import { XtreamStore } from '../stores/xtream.store';
 
 export interface PlayerDialogData {
     streamUrl: string;
     title: string;
+    contentInfo?: any;
+    startTime?: number;
 }
 
 @Component({
@@ -31,13 +34,31 @@ export class PlayerDialogComponent {
     readonly data = inject<PlayerDialogData>(MAT_DIALOG_DATA);
     private snackBar = inject(MatSnackBar);
     private translateService = inject(TranslateService);
+    private readonly xtreamStore = inject(XtreamStore);
 
     readonly title: string;
     readonly streamUrl: string;
 
+    private lastSaveTime = 0;
+
     constructor() {
         this.streamUrl = this.data.streamUrl;
         this.title = this.data.title;
+    }
+
+    handleTimeUpdate(event: { currentTime: number; duration: number }) {
+        if (!this.data.contentInfo) return;
+
+        const now = Date.now();
+        // Save every 15 seconds
+        if (now - this.lastSaveTime > 15000) {
+            this.lastSaveTime = now;
+            this.xtreamStore.savePosition(this.data.contentInfo.playlistId, {
+                ...this.data.contentInfo,
+                positionSeconds: Math.floor(event.currentTime),
+                durationSeconds: Math.floor(event.duration),
+            });
+        }
     }
 
     showCopyNotification() {

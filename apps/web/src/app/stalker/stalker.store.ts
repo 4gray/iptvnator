@@ -929,6 +929,13 @@ export const StalkerStore = signalStore(
                         title,
                     });
                     const playlist = this.currentPlaylist();
+                    const contentInfo = {
+                        playlistId: playlist._id,
+                        contentXtreamId: Number(item.id),
+                        contentType: episode ? 'episode' : 'vod',
+                        seriesXtreamId: episode ? Number(item.id) : undefined, // For Stalker VOD series, use item.id as series ID
+                    };
+
                     playerService.openPlayer(
                         url,
                         title,
@@ -937,7 +944,8 @@ export const StalkerStore = signalStore(
                         false,
                         playlist?.userAgent,
                         playlist?.referrer,
-                        playlist?.origin
+                        playlist?.origin,
+                        contentInfo
                     );
                 } catch (error) {
                     console.error(

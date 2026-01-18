@@ -9,6 +9,7 @@ import './database/category.events';
 import './database/content.events';
 import './database/epg-db.events';
 import './database/favorites.events';
+import './database/playback-position.events';
 import './database/playlist.events';
 import './database/recently-viewed.events';
 import './database/xtream.events';

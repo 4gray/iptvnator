@@ -39,6 +39,10 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             serialId,
             this.xtreamStore.currentPlaylist().id
         );
+        this.xtreamStore.loadSeriesPositions(
+            this.xtreamStore.currentPlaylist().id,
+            Number(serialId)
+        );
     }
 
     ngOnDestroy(): void {
@@ -49,10 +53,25 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         this.addToRecentlyViewed(this.route.snapshot.params.serialId);
 
         const streamUrl = this.xtreamStore.constructEpisodeStreamUrl(episode);
+        const contentInfo = {
+            playlistId: this.xtreamStore.currentPlaylist().id,
+            contentXtreamId: Number(episode.id),
+            contentType: 'episode',
+            seriesXtreamId: Number(this.selectedItem().series_id),
+            seasonNumber: Number(episode.season),
+            episodeNumber: Number(episode.episode_num),
+        };
+
+        const position = this.xtreamStore
+            .playbackPositions()
+            .get(`episode_${episode.id}`);
+
         this.xtreamStore.openPlayer(
             streamUrl,
             episode.title,
-            this.selectedItem().info.cover
+            this.selectedItem().info.cover,
+            position?.positionSeconds,
+            contentInfo
         );
     }
 

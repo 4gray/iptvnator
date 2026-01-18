@@ -29,7 +29,9 @@ export class PlayerService {
         isLiveContent = false,
         userAgent?: string,
         referer?: string,
-        origin?: string
+        origin?: string,
+        contentInfo?: any,
+        startTime?: number
     ) {
         const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
 
@@ -44,6 +46,8 @@ export class PlayerService {
                 'user-agent': userAgent,
                 referer: referer,
                 origin: origin,
+                contentInfo,
+                startTime,
             });
         } else if (player === VideoPlayer.VLC) {
             if (!hideExternalInfoDialog) {
@@ -56,12 +60,14 @@ export class PlayerService {
                 'user-agent': userAgent,
                 referer: referer,
                 origin: origin,
+                contentInfo,
+                startTime,
             });
         } else {
             this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
                 PlayerDialogComponent,
                 {
-                    data: { streamUrl, title },
+                    data: { streamUrl, title, contentInfo, startTime },
                     width: '80%',
                     maxWidth: '1200px',
                     maxHeight: '90vh',

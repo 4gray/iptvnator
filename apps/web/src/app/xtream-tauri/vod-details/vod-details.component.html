@@ -61,10 +61,27 @@
 
         <!-- Action Buttons -->
         <ng-container hero-actions>
-            <button class="play-btn" (click)="playVod(item)">
-                <mat-icon>play_arrow</mat-icon>
-                {{ 'XTREAM.PLAY' | translate }}
-            </button>
+            @if (hasPlaybackPosition()) {
+                <button
+                    class="play-btn play-btn--resume"
+                    (click)="resumeVod(item)"
+                >
+                    <mat-icon>play_arrow</mat-icon>
+                    {{ 'XTREAM.RESUME' | translate }} {{ formatPosition() }}
+                </button>
+                <button
+                    class="play-btn play-btn--restart"
+                    (click)="playVod(item)"
+                >
+                    <mat-icon>replay</mat-icon>
+                    {{ 'XTREAM.RESTART' | translate }}
+                </button>
+            } @else {
+                <button class="play-btn" (click)="playVod(item)">
+                    <mat-icon>play_arrow</mat-icon>
+                    {{ 'XTREAM.PLAY' | translate }}
+                </button>
+            }
             @if (!isFavorite()) {
                 <button class="favorite-btn" (click)="toggleFavorite()">
                     <mat-icon>add</mat-icon>

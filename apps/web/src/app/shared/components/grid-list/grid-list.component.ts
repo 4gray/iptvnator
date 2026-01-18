@@ -6,6 +6,8 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistErrorViewComponent } from '../../../xtream-tauri/playlist-error-view/playlist-error-view.component';
+import { ProgressCapsuleComponent } from '../../../xtream-tauri/shared/progress-capsule/progress-capsule.component';
+import { WatchedBadgeComponent } from '../../../xtream-tauri/shared/watched-badge/watched-badge.component';
 
 @Component({
     selector: 'app-grid-list',
@@ -19,18 +21,35 @@ import { PlaylistErrorViewComponent } from '../../../xtream-tauri/playlist-error
                     @let i = $any(item);
                     <mat-card (click)="itemClicked.emit(item)">
                         @let poster = i.poster_url ?? i.cover;
-                        <img
-                            class="stream-icon"
-                            [src]="
-                                poster || './assets/images/default-poster.png'
-                            "
-                            (error)="
-                                $event.target.src =
+                        <div class="card-thumbnail-container">
+                            <img
+                                class="stream-icon"
+                                [src]="
+                                    poster ||
                                     './assets/images/default-poster.png'
-                            "
-                            loading="lazy"
-                            alt="logo"
-                        />
+                                "
+                                (error)="
+                                    $event.target.src =
+                                        './assets/images/default-poster.png'
+                                "
+                                loading="lazy"
+                                alt="logo"
+                            />
+                            @if (i.progress && i.progress > 0) {
+                                <app-progress-capsule [progress]="i.progress" />
+                            }
+                            @if (i.isWatched) {
+                                <app-watched-badge
+                                    [isWatched]="true"
+                                    icon="check_circle"
+                                />
+                            } @else if (i.hasSeriesProgress) {
+                                <app-watched-badge
+                                    [isWatched]="true"
+                                    icon="remove_red_eye"
+                                />
+                            }
+                        </div>
                         @let rating = i.rating ?? i.rating_imdb;
                         @if (rating) {
                             <div
@@ -82,6 +101,8 @@ import { PlaylistErrorViewComponent } from '../../../xtream-tauri/playlist-error
         MatProgressSpinner,
         MatTooltip,
         MatPaginatorModule,
+        ProgressCapsuleComponent,
+        WatchedBadgeComponent,
     ],
 })
 export class GridListComponent {

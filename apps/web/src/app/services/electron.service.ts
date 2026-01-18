@@ -90,7 +90,9 @@ export class ElectronService extends DataService {
                     data.title ?? '',
                     data['user-agent'] ?? undefined,
                     data.referer ?? undefined,
-                    data.origin ?? undefined
+                    data.origin ?? undefined,
+                    data.contentInfo,
+                    data.startTime
                 );
                 /* thumbnail: data.thumbnail ?? '', */
             } catch (error: any) {
@@ -113,7 +115,9 @@ export class ElectronService extends DataService {
                     data.title ?? '',
                     data['user-agent'] ?? undefined,
                     data.referer ?? undefined,
-                    data.origin ?? undefined
+                    data.origin ?? undefined,
+                    data.contentInfo,
+                    data.startTime
                 );
             } catch (error: any) {
                 const errorMessage = error?.message || String(error);

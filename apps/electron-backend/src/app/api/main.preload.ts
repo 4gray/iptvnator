@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld('electron', {
     ) => {
         ipcRenderer.on('EPG_PROGRESS_UPDATE', (_event, data) => callback(data));
     },
+    // Playback position update listener
+    onPlaybackPositionUpdate: (callback: (data: any) => void) => {
+        ipcRenderer.on('playback-position-update', (_event, data) =>
+            callback(data)
+        );
+    },
+    // Remove playback position listener
+    removePlaybackPositionListener: () => {
+        ipcRenderer.removeAllListeners('playback-position-update');
+    },
     // DB save content progress listener
     onDbSaveContentProgress: (callback: (count: number) => void) => {
         ipcRenderer.on('DB_SAVE_CONTENT_PROGRESS', (_event, count) =>
@@ -58,7 +68,9 @@ contextBridge.exposeInMainWorld('electron', {
         title: string,
         userAgent: string,
         referer?: string,
-        origin?: string
+        origin?: string,
+        contentInfo?: any,
+        startTime?: number
     ) =>
         ipcRenderer.invoke(
             'OPEN_MPV_PLAYER',
@@ -66,14 +78,18 @@ contextBridge.exposeInMainWorld('electron', {
             title,
             userAgent,
             referer,
-            origin
+            origin,
+            contentInfo,
+            startTime
         ),
     openInVlc: (
         url: string,
         title: string,
         userAgent: string,
         referer?: string,
-        origin?: string
+        origin?: string,
+        contentInfo?: any,
+        startTime?: number
     ) =>
         ipcRenderer.invoke(
             'OPEN_VLC_PLAYER',
@@ -81,7 +97,9 @@ contextBridge.exposeInMainWorld('electron', {
             title,
             userAgent,
             referer,
-            origin
+            origin,
+            contentInfo,
+            startTime
         ),
     autoUpdatePlaylists: (playlists) =>
         ipcRenderer.invoke('AUTO_UPDATE', playlists),
@@ -196,5 +214,47 @@ contextBridge.exposeInMainWorld('electron', {
     dbGetContentByXtreamId: (xtreamId: number, playlistId: string) =>
         ipcRenderer.invoke('DB_GET_CONTENT_BY_XTREAM_ID', xtreamId, playlistId),
     dbDeleteAllPlaylists: () => ipcRenderer.invoke('DB_DELETE_ALL_PLAYLISTS'),
+    // Playback Positions
+    dbSavePlaybackPosition: (playlistId: string, data: any) =>
+        ipcRenderer.invoke('DB_SAVE_PLAYBACK_POSITION', playlistId, data),
+    dbGetPlaybackPosition: (
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: 'vod' | 'episode'
+    ) =>
+        ipcRenderer.invoke(
+            'DB_GET_PLAYBACK_POSITION',
+            playlistId,
+            contentXtreamId,
+            contentType
+        ),
+    dbGetSeriesPlaybackPositions: (
+        playlistId: string,
+        seriesXtreamId: number
+    ) =>
+        ipcRenderer.invoke(
+            'DB_GET_SERIES_PLAYBACK_POSITIONS',
+            playlistId,
+            seriesXtreamId
+        ),
+    dbGetRecentPlaybackPositions: (playlistId: string, limit?: number) =>
+        ipcRenderer.invoke(
+            'DB_GET_RECENT_PLAYBACK_POSITIONS',
+            playlistId,
+            limit
+        ),
+    dbGetAllPlaybackPositions: (playlistId: string) =>
+        ipcRenderer.invoke('DB_GET_ALL_PLAYBACK_POSITIONS', playlistId),
+    dbClearPlaybackPosition: (
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: 'vod' | 'episode'
+    ) =>
+        ipcRenderer.invoke(
+            'DB_CLEAR_PLAYBACK_POSITION',
+            playlistId,
+            contentXtreamId,
+            contentType
+        ),
     getLocalIpAddresses: () => ipcRenderer.invoke('get-local-ip-addresses'),
 });

@@ -67,7 +67,7 @@
 }
 
 .episodes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 }
 
 // Season Card
@@ -75,7 +75,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 16px;
+    padding: 12px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
@@ -99,19 +99,63 @@
         }
     }
 
-    &__number {
-        font-size: 1.75rem !important;
-        font-weight: 800;
-        color: rgba(255, 255, 255, 0.05);
-        line-height: 1;
-        transition: color 0.3s ease;
+    &__progress-ring {
+        position: relative;
+        width: 42px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+
+        svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring__bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.1);
+            stroke-width: 3;
+        }
+
+        .progress-ring__fill {
+            fill: none;
+            stroke: var(--accent-color);
+            stroke-width: 3;
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.5s ease-out;
+        }
+
+        .season-card__number {
+            position: absolute;
+            font-size: 1rem !important;
+            color: var(--text-primary);
+            font-weight: 700;
+            opacity: 1;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+        }
+    }
+
+    &__info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
     }
 
     &__label {
         font-size: 0.9375rem !important;
         font-weight: 600;
         color: var(--text-primary);
-        flex: 1;
+    }
+
+    &__progress-text {
+        font-size: 0.75rem;
+        color: var(--text-muted);
     }
 
     &__episodes {
@@ -133,10 +177,16 @@
     }
 
     &--has-episodes {
+        /* background: rgba(var(--accent-color-rgb), 0.1);
+        border-color: rgba(var(--accent-color-rgb), 0.3); */
+
         .season-card__number {
-            color: var(--accent-color);
-            opacity: 0.4; // More subtle
+            color: var(--text-primary);
         }
+
+        /* .season-card__label {
+            color: var(--accent-color);
+        } */
     }
 }
 
@@ -148,6 +198,42 @@
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
+
+    // In-progress state
+    &--in-progress {
+        border-color: rgba(229, 9, 20, 0.6);
+        background: rgba(229, 9, 20, 0.05);
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                135deg,
+                rgba(229, 9, 20, 0.1) 0%,
+                transparent 50%
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+    }
+
+    // Watched state
+    &--watched {
+        opacity: 0.7;
+
+        &:hover {
+            opacity: 1;
+        }
+
+        .episode-card__title::after {
+            content: ' ✓';
+            color: #46d369;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+    }
 
     &:hover {
         transform: translateY(-2px);
@@ -176,6 +262,20 @@
         }
     }
 
+    &__position-text {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        background: rgba(0, 0, 0, 0.75);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: white;
+        backdrop-filter: blur(4px);
+        z-index: 2;
+    }
+
     &__placeholder {
         width: 100%;
         height: 100%;
@@ -202,6 +302,41 @@
         justify-content: center;
         opacity: 0;
         transition: opacity 0.2s ease;
+        z-index: 1;
+    }
+
+    &__actions {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        z-index: 2;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+
+        .toggle-watched-btn {
+            color: rgba(255, 255, 255, 0.7);
+            background: rgba(0, 0, 0, 0.5);
+            width: 32px;
+            height: 32px;
+            padding: 4px;
+
+            &:hover {
+                color: white;
+                background: rgba(0, 0, 0, 0.8);
+            }
+
+            mat-icon {
+                font-size: 20px;
+                width: 20px;
+                height: 20px;
+            }
+        }
+    }
+
+    &:hover {
+        .episode-card__actions {
+            opacity: 1;
+        }
     }
 
     &__play {

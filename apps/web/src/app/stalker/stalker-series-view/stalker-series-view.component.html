@@ -62,6 +62,7 @@
         @if (mappedSeasons()) {
             <app-season-container
                 [seasons]="mappedSeasons()"
+                [seriesId]="serial.id"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
                     (seasonContainer?.selectedSeason &&

@@ -338,6 +338,7 @@
         "CONTINUE_WATCHING": "Continue Watching",
         "WATCHED": "Watched",
         "IN_PROGRESS": "In Progress",
+        "MARK_WATCHED": "Mark as Watched",
         "MARK_UNWATCHED": "Mark as Unwatched",
         "EPISODES_WATCHED": "{{count}} of {{total}} episodes watched",
         "ACCOUNT_INFO": {
