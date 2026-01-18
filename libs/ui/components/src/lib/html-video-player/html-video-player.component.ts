@@ -1,11 +1,13 @@
 import {
     Component,
     ElementRef,
+    EventEmitter,
     inject,
     Input,
     OnChanges,
     OnDestroy,
     OnInit,
+    Output,
     SimpleChanges,
     ViewChild,
 } from '@angular/core';
@@ -27,6 +29,11 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     /** Channel to play  */
     @Input() channel!: Channel;
     @Input() volume = 1;
+    @Input() startTime = 0;
+    @Output() timeUpdate = new EventEmitter<{
+        currentTime: number;
+        duration: number;
+    }>();
 
     private readonly dataService = inject(DataService);
 
@@ -43,6 +50,19 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     ngOnInit() {
         this.videoPlayer.nativeElement.addEventListener('volumechange', () => {
             this.onVolumeChange();
+        });
+
+        this.videoPlayer.nativeElement.addEventListener('loadedmetadata', () => {
+            if (this.startTime > 0) {
+                this.videoPlayer.nativeElement.currentTime = this.startTime;
+            }
+        });
+
+        this.videoPlayer.nativeElement.addEventListener('timeupdate', () => {
+            this.timeUpdate.emit({
+                currentTime: this.videoPlayer.nativeElement.currentTime,
+                duration: this.videoPlayer.nativeElement.duration,
+            });
         });
     }
 

@@ -1,11 +1,13 @@
 import {
     Component,
     ElementRef,
+    EventEmitter,
     inject,
     Input,
     OnChanges,
     OnDestroy,
     OnInit,
+    Output,
     SimpleChanges,
 } from '@angular/core';
 import Artplayer from 'artplayer';
@@ -36,6 +38,11 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     @Input() channel!: Channel;
     @Input() volume = 1;
     @Input() showCaptions = false;
+    @Input() startTime = 0;
+    @Output() timeUpdate = new EventEmitter<{
+        currentTime: number;
+        duration: number;
+    }>();
 
     private player!: Artplayer;
     private hls: Hls | null = null;
@@ -120,6 +127,19 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                     };
                 },
             },
+        });
+
+        if (this.startTime > 0) {
+            this.player.on('ready', () => {
+                this.player.seek = this.startTime;
+            });
+        }
+
+        this.player.on('video:timeupdate', () => {
+            this.timeUpdate.emit({
+                currentTime: this.player.currentTime,
+                duration: this.player.duration,
+            });
         });
     }
 

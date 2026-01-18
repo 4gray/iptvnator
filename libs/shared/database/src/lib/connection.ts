@@ -157,6 +157,24 @@ const CREATE_TABLE_STATEMENTS = [
       INSERT INTO epg_programs_fts(rowid, title, description, category)
       VALUES (new.id, new.title, new.description, new.category);
   END`,
+    // Playback Positions table
+    `CREATE TABLE IF NOT EXISTS playback_positions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      playlist_id TEXT NOT NULL,
+      content_xtream_id INTEGER NOT NULL,
+      content_type TEXT NOT NULL CHECK (content_type IN ('vod', 'episode')),
+      series_xtream_id INTEGER,
+      season_number INTEGER,
+      episode_number INTEGER,
+      position_seconds INTEGER NOT NULL DEFAULT 0,
+      duration_seconds INTEGER,
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+  )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS playback_positions_content_playlist_unique ON playback_positions(content_xtream_id, playlist_id, content_type)`,
+    `CREATE INDEX IF NOT EXISTS playback_positions_playlist_idx ON playback_positions(playlist_id)`,
+    `CREATE INDEX IF NOT EXISTS playback_positions_series_idx ON playback_positions(series_xtream_id)`,
+    `CREATE INDEX IF NOT EXISTS playback_positions_updated_idx ON playback_positions(updated_at)`,
 ];
 
 /**

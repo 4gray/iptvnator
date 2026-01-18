@@ -1,10 +1,12 @@
 import {
     Component,
     ElementRef,
+    EventEmitter,
     Input,
     OnChanges,
     OnDestroy,
     OnInit,
+    Output,
     SimpleChanges,
     ViewChild,
     ViewEncapsulation,
@@ -32,6 +34,11 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     /** VideoJs object */
     player!: any;
     @Input() volume = 1;
+    @Input() startTime = 0;
+    @Output() timeUpdate = new EventEmitter<{
+        currentTime: number;
+        duration: number;
+    }>();
 
     /**
      * Instantiate Video.js on component init
@@ -50,9 +57,22 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 );
                 this.player.volume(this.volume);
 
+                this.player.on('loadedmetadata', () => {
+                    if (this.startTime > 0) {
+                        this.player.currentTime(this.startTime);
+                    }
+                });
+
                 this.player.on('volumechange', () => {
                     const currentVolume = this.player.volume();
                     localStorage.setItem('volume', currentVolume.toString());
+                });
+
+                this.player.on('timeupdate', () => {
+                    this.timeUpdate.emit({
+                        currentTime: this.player.currentTime(),
+                        duration: this.player.duration(),
+                    });
                 });
             }
         );

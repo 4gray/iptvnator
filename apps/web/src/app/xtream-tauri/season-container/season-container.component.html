@@ -52,6 +52,12 @@
                     <article
                         class="episode-card"
                         (click)="selectEpisode(episode)"
+                        [class.episode-card--watched]="
+                            isEpisodeWatched(episode)
+                        "
+                        [class.episode-card--in-progress]="
+                            isEpisodeInProgress(episode)
+                        "
                     >
                         <div class="episode-card__thumbnail">
                             @if (episodeInfo?.movie_image) {
@@ -69,6 +75,37 @@
                                     <mat-icon>play_circle_outline</mat-icon>
                                 </div>
                             }
+                            @if (getEpisodeProgress(episode) > 0) {
+                                <app-progress-capsule
+                                    [progress]="getEpisodeProgress(episode)"
+                                />
+                                @if (getEpisodePositionText(episode); as time) {
+                                    <div class="episode-card__position-text">
+                                        {{ time }}
+                                    </div>
+                                }
+                            }
+                            <app-watched-badge
+                                [isWatched]="isEpisodeWatched(episode)"
+                            />
+                            <div class="episode-card__actions">
+                                <button
+                                    mat-icon-button
+                                    class="toggle-watched-btn"
+                                    (click)="toggleWatched($event, episode)"
+                                    [matTooltip]="
+                                        (isEpisodeWatched(episode)
+                                            ? 'XTREAM.MARK_UNWATCHED'
+                                            : 'XTREAM.MARK_WATCHED') | translate
+                                    "
+                                >
+                                    <mat-icon>{{
+                                        isEpisodeWatched(episode)
+                                            ? 'check_circle'
+                                            : 'radio_button_unchecked'
+                                    }}</mat-icon>
+                                </button>
+                            </div>
                             <div class="episode-card__overlay">
                                 <div class="episode-card__play">
                                     <mat-icon>play_arrow</mat-icon>

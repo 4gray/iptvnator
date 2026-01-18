@@ -26,6 +26,7 @@ import {
     withSearch,
     withEpg,
     withPlayer,
+    withPlaybackPositions,
 } from './features';
 
 /**
@@ -42,12 +43,12 @@ import {
  * - withPlayer: Stream URL construction and player integration
  * - withFavorites: Favorites management
  * - withRecentItems: Recently viewed items
+ * - withPlaybackPositions: Playback position tracking
  *
  * @see docs/XTREAM_STORE_REFACTORING_PLAN.md
  */
 export const XtreamStore = signalStore(
-    // Note: NOT providedIn: 'root' because shell provides it
-    // This matches the original behavior
+    { providedIn: 'root' },
 
     // Compose all features
     withPortal(),
@@ -58,6 +59,7 @@ export const XtreamStore = signalStore(
     withPlayer(),
     withFavorites(),
     withRecentItems(),
+    withPlaybackPositions(),
 
     // Cross-feature computed properties
     withComputed((store) => ({
@@ -105,6 +107,10 @@ export const XtreamStore = signalStore(
                 await store.fetchPlaylist();
                 await store.checkPortalStatus();
                 await store.initializeContent();
+                const playlist = store.currentPlaylist();
+                if (playlist) {
+                    store.loadAllPositions(playlist.id);
+                }
             },
 
             /**

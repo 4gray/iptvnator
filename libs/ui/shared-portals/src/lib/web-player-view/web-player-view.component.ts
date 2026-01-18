@@ -1,5 +1,7 @@
 import {
     Component,
+    EventEmitter,
+    Output,
     Signal,
     ViewEncapsulation,
     effect,
@@ -27,6 +29,11 @@ export class WebPlayerViewComponent {
     storage = inject(StorageMap);
 
     streamUrl = input.required<string>();
+    startTime = input<number>(0);
+    @Output() timeUpdate = new EventEmitter<{
+        currentTime: number;
+        duration: number;
+    }>();
 
     settings = toSignal(
         this.storage.get(STORE_KEY.Settings)

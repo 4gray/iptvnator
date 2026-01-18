@@ -25,6 +25,13 @@ mat-card:hover {
             margin: 0;
         }
 
+        .card-thumbnail-container {
+            position: relative;
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
         .stream-icon {
             width: 100%;
             position: relative !important;

@@ -1,6 +1,10 @@
 <h2 mat-dialog-title>{{ title }}</h2>
 <mat-dialog-content class="content">
-    <app-web-player-view [streamUrl]="streamUrl" />
+    <app-web-player-view
+        [streamUrl]="streamUrl"
+        [startTime]="data.startTime || 0"
+        (timeUpdate)="handleTimeUpdate($event)"
+    />
 </mat-dialog-content>
 <mat-dialog-actions class="align-actions">
     <button

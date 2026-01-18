@@ -18,7 +18,6 @@ import { XtreamStore } from '../stores/xtream.store';
         RouterOutlet,
         TranslateModule,
     ],
-    providers: [XtreamStore],
 })
 export class XtreamShellComponent {
     private readonly route = inject(ActivatedRoute);
