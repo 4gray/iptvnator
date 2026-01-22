@@ -10,6 +10,7 @@ export * from './lib/ipc-command.class';
 export * from './lib/ipc-commands';
 export * from './lib/language.enum';
 export * from './lib/parsed-playlist.interface';
+export * from './lib/playback-position.interface';
 export * from './lib/playlist-meta.type';
 export * from './lib/playlist.interface';
 export * from './lib/settings.interface';

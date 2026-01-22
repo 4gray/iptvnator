@@ -318,6 +318,7 @@ export function withPlaybackPositions() {
 
                         if (duration === 0) duration = 1; // Fallback
 
+                        // Setting position = duration indicates episode is fully watched
                         const data: PlaybackPositionData = {
                             contentXtreamId: id,
                             contentType: 'episode',

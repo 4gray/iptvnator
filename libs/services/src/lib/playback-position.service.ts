@@ -1,10 +1,14 @@
 import { Injectable } from '@angular/core';
+import { PlaybackPositionData } from 'shared-interfaces';
 
 @Injectable({
     providedIn: 'root',
 })
 export class PlaybackPositionService {
-    async savePlaybackPosition(playlistId: string, data: any): Promise<void> {
+    async savePlaybackPosition(
+        playlistId: string,
+        data: PlaybackPositionData
+    ): Promise<void> {
         try {
             await window.electron.dbSavePlaybackPosition(playlistId, data);
         } catch (error) {
@@ -16,7 +20,7 @@ export class PlaybackPositionService {
         playlistId: string,
         contentXtreamId: number,
         contentType: 'vod' | 'episode'
-    ): Promise<any | null> {
+    ): Promise<PlaybackPositionData | null> {
         try {
             return await window.electron.dbGetPlaybackPosition(
                 playlistId,
@@ -32,7 +36,7 @@ export class PlaybackPositionService {
     async getSeriesPlaybackPositions(
         playlistId: string,
         seriesXtreamId: number
-    ): Promise<any[]> {
+    ): Promise<PlaybackPositionData[]> {
         try {
             return await window.electron.dbGetSeriesPlaybackPositions(
                 playlistId,
@@ -47,7 +51,7 @@ export class PlaybackPositionService {
     async getRecentPlaybackPositions(
         playlistId: string,
         limit?: number
-    ): Promise<any[]> {
+    ): Promise<PlaybackPositionData[]> {
         try {
             return await window.electron.dbGetRecentPlaybackPositions(
                 playlistId,
@@ -59,7 +63,7 @@ export class PlaybackPositionService {
         }
     }
 
-    async getAllPlaybackPositions(playlistId: string): Promise<any[]> {
+    async getAllPlaybackPositions(playlistId: string): Promise<PlaybackPositionData[]> {
         try {
             return await window.electron.dbGetAllPlaybackPositions(playlistId);
         } catch (error) {

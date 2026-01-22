@@ -1,10 +1,14 @@
 import { InjectionToken } from '@angular/core';
 import {
+    PlaybackPositionData,
     XtreamCategory,
     XtreamLiveStream,
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
+
+// Re-export for backward compatibility
+export { PlaybackPositionData };
 import { XtreamCredentials, CategoryType, StreamType } from '../services/xtream-api.service';
 
 /**
@@ -73,21 +77,6 @@ export interface XtreamCategoryFromDb {
  */
 export interface RecentlyViewedItem extends XtreamContentItem {
     viewed_at: string;
-}
-
-/**
- * Playback position data for resume functionality
- */
-export interface PlaybackPositionData {
-    contentXtreamId: number;
-    contentType: 'vod' | 'episode';
-    seriesXtreamId?: number;
-    seasonNumber?: number;
-    episodeNumber?: number;
-    positionSeconds: number;
-    durationSeconds?: number;
-    playlistId?: string;
-    updatedAt?: string;
 }
 
 /**
