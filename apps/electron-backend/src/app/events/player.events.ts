@@ -87,15 +87,20 @@ async function getMpvProperty(
             client.write(request);
         });
 
+        const timeoutHandle = setTimeout(() => {
+            client.destroy();
+            resolve(null);
+        }, 2000);
+
         client.on('data', (chunk) => {
             data += chunk.toString();
             if (data.includes('\n')) {
+                clearTimeout(timeoutHandle);
                 try {
                     const lines = data.split('\n');
                     for (const line of lines) {
                         if (!line.trim()) continue;
                         const response = JSON.parse(line);
-                        // console.log('[PlayerEvents] MPV IPC response:', response);
                         if (response.data !== undefined) {
                             client.destroy();
                             resolve(response.data);
@@ -103,17 +108,17 @@ async function getMpvProperty(
                         }
                     }
                 } catch (e) {
-                    // console.error('[PlayerEvents] MPV IPC parse error:', e, data);
+                    // ignore parse errors
                 }
             }
         });
 
         client.on('end', () => {
+            clearTimeout(timeoutHandle);
             // Fallback if no newline was detected but connection closed
             if (data && !data.includes('\n')) {
-                 try {
+                try {
                     const response = JSON.parse(data);
-                    // console.log('[PlayerEvents] MPV IPC response (end):', response);
                     resolve(response.data ?? null);
                 } catch (e) {
                     resolve(null);
@@ -122,15 +127,9 @@ async function getMpvProperty(
         });
 
         client.on('error', (err) => {
-            // console.error('[PlayerEvents] MPV IPC error:', err.message);
+            clearTimeout(timeoutHandle);
             resolve(null);
         });
-
-        setTimeout(() => {
-            client.destroy();
-            // Don't resolve null here immediately, let the logic handle it or just timeout
-            // resolving null here might race with successful data
-        }, 2000);
     });
 }
 

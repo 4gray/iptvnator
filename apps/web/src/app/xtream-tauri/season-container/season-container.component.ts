@@ -112,12 +112,13 @@ export class SeasonContainerComponent {
             suffix = ' left';
         }
 
-        const date = new Date(0);
-        date.setSeconds(seconds);
-        const timeString = date.toISOString().substr(11, 8);
-        const formatted = timeString.startsWith('00:')
-            ? timeString.substr(3)
-            : timeString;
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        const formatted = [hours, minutes, secs]
+            .map((n) => String(n).padStart(2, '0'))
+            .filter((v, i) => (i === 0 ? v !== '00' : true))
+            .join(':');
         return `${formatted}${suffix}`;
     }
 
