@@ -195,6 +195,17 @@ async function getVlcProperty(port: number, command: string): Promise<string> {
     return new Promise((resolve) => {
         const client = createConnection({ port, host: '127.0.0.1' });
         let data = '';
+        let resolved = false;
+
+        const done = (result: string) => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(timeoutHandle);
+            if (!client.destroyed) client.destroy();
+            resolve(result);
+        };
+
+        const timeoutHandle = setTimeout(() => done(''), 2000);
 
         client.on('connect', () => {
             client.write(command + '\n');
@@ -202,31 +213,15 @@ async function getVlcProperty(port: number, command: string): Promise<string> {
 
         client.on('data', (chunk) => {
             data += chunk.toString();
+            // VLC prompt '>' means command finished
             if (data.includes('>')) {
-                // VLC prompt means command finished
-                client.destroy();
+                // Parse: find numeric value (for get_time/get_length)
+                const match = data.match(/^(\d+(\.\d+)?)\s*$/m);
+                done(match ? match[1] : '');
             }
         });
 
-        client.on('close', () => {
-            // Parse data
-            const lines = data
-                .split('\n')
-                .map((l) => l.trim())
-                .filter(
-                    (l) => l && !l.includes('>') && !l.startsWith(command)
-                );
-            // The result should be one of the lines
-            const result = lines.length > 0 ? lines[0] : '';
-            resolve(result);
-        });
-
-        client.on('error', () => resolve(''));
-
-        setTimeout(() => {
-            if (!client.destroyed) client.destroy();
-            resolve('');
-        }, 1000);
+        client.on('error', () => done(''));
     });
 }
 
