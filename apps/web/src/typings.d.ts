@@ -17,8 +17,7 @@ interface Window {
         onEpgProgress: (callback: (data: { url: string; status: 'loading' | 'complete' | 'error'; stats?: { totalChannels: number; totalPrograms: number }; error?: string }) => void) => void;
         onDbSaveContentProgress: (callback: (count: number) => void) => void;
         removeDbSaveContentProgress: () => void;
-        onPlaybackPositionUpdate: (callback: (data: any) => void) => void;
-        removePlaybackPositionListener: () => void;
+        onPlaybackPositionUpdate: (callback: (data: any) => void) => () => void;
 
         // Files & System
         saveFileDialog: (defaultPath: string, filters?: { name: string; extensions: string[] }[]) => Promise<any>;

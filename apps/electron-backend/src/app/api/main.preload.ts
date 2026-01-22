@@ -28,15 +28,12 @@ contextBridge.exposeInMainWorld('electron', {
     ) => {
         ipcRenderer.on('EPG_PROGRESS_UPDATE', (_event, data) => callback(data));
     },
-    // Playback position update listener
+    // Playback position update listener - returns unsubscribe function
     onPlaybackPositionUpdate: (callback: (data: any) => void) => {
-        ipcRenderer.on('playback-position-update', (_event, data) =>
-            callback(data)
-        );
-    },
-    // Remove playback position listener
-    removePlaybackPositionListener: () => {
-        ipcRenderer.removeAllListeners('playback-position-update');
+        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
+            callback(data);
+        ipcRenderer.on('playback-position-update', handler);
+        return () => ipcRenderer.off('playback-position-update', handler);
     },
     // DB save content progress listener
     onDbSaveContentProgress: (callback: (count: number) => void) => {

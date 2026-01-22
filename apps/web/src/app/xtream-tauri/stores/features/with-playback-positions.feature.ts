@@ -365,31 +365,35 @@ export function withPlaybackPositions() {
             };
         }),
 
-        withHooks({
-            onInit(store) {
-                if (window.electron?.onPlaybackPositionUpdate) {
-                    window.electron.onPlaybackPositionUpdate((data: any) => {
-                        console.log(
-                            '[withPlaybackPositions] Received update:',
-                            data
+        withHooks((store) => {
+            let unsubscribe: (() => void) | undefined;
+
+            return {
+                onInit() {
+                    if (window.electron?.onPlaybackPositionUpdate) {
+                        unsubscribe = window.electron.onPlaybackPositionUpdate(
+                            (data: any) => {
+                                console.log(
+                                    '[withPlaybackPositions] Received update:',
+                                    data
+                                );
+                                // Ensure playlistId is present
+                                if (data.playlistId) {
+                                    store.savePosition(data.playlistId, data);
+                                } else {
+                                    console.warn(
+                                        '[withPlaybackPositions] Missing playlistId in update',
+                                        data
+                                    );
+                                }
+                            }
                         );
-                        // Ensure playlistId is present
-                        if (data.playlistId) {
-                            store.savePosition(data.playlistId, data);
-                        } else {
-                            console.warn(
-                                '[withPlaybackPositions] Missing playlistId in update',
-                                data
-                            );
-                        }
-                    });
-                }
-            },
-            onDestroy(store) {
-                if (window.electron?.removePlaybackPositionListener) {
-                    window.electron.removePlaybackPositionListener();
-                }
-            },
+                    }
+                },
+                onDestroy() {
+                    unsubscribe?.();
+                },
+            };
         })
     );
 }
