@@ -1,6 +1,6 @@
 @if (selectedCategory()) {
     @if (isStalker && selectedItem()) {
-        @if (contentType === 'vod') {
+        @if (contentType() === 'vod') {
             @if (selectedItem().series?.length > 0) {
                 <!-- VOD item with embedded series (vclub) -->
                 <app-stalker-series-view [vodWithSeries]="selectedItem()" />
@@ -23,13 +23,13 @@
                     "
                 />
             }
-        } @else if (contentType === 'series') {
+        } @else if (contentType() === 'series') {
             <app-stalker-series-view />
         }
     } @else {
         <app-grid-list
             [isLoading]="isPaginatedContentLoading()"
-            [items]="paginatedContent()"
+            [items]="contentWithProgress()"
             (itemClicked)="onItemClick($event)"
             [pageIndex]="pageIndex()"
             [totalPages]="totalPages()"

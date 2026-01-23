@@ -69,6 +69,7 @@
         <!-- Seasons & Episodes -->
         <app-season-container
             [seasons]="item.episodes"
+            [seriesId]="item.series_id"
             (episodeClicked)="playEpisode($event)"
         />
     </app-content-hero>

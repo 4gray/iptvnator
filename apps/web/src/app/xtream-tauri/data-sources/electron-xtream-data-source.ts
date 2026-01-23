@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { DatabaseService } from 'services';
+import { DatabaseService, PlaybackPositionService } from 'services';
 import {
     XtreamCategory,
     XtreamLiveStream,
@@ -24,6 +24,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class ElectronXtreamDataSource implements IXtreamDataSource {
     private readonly dbService = inject(DatabaseService);
+    private readonly playbackService = inject(PlaybackPositionService);
     private readonly apiService = inject(XtreamApiService);
 
     // =========================================================================
@@ -296,6 +297,65 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string
     ): Promise<XtreamContentItem | null> {
         return this.dbService.getContentByXtreamId(xtreamId, playlistId);
+    }
+
+    // =========================================================================
+    // Playback Position Operations
+    // =========================================================================
+
+    async savePlaybackPosition(
+        playlistId: string,
+        data: any
+    ): Promise<void> {
+        await this.playbackService.savePlaybackPosition(playlistId, data);
+    }
+
+    async getPlaybackPosition(
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: 'vod' | 'episode'
+    ): Promise<any | null> {
+        return this.playbackService.getPlaybackPosition(
+            playlistId,
+            contentXtreamId,
+            contentType
+        );
+    }
+
+    async getSeriesPlaybackPositions(
+        playlistId: string,
+        seriesXtreamId: number
+    ): Promise<any[]> {
+        return this.playbackService.getSeriesPlaybackPositions(
+            playlistId,
+            seriesXtreamId
+        );
+    }
+
+    async getRecentPlaybackPositions(
+        playlistId: string,
+        limit?: number
+    ): Promise<any[]> {
+        return this.playbackService.getRecentPlaybackPositions(
+            playlistId,
+            limit
+        );
+    }
+
+    async getAllPlaybackPositions(playlistId: string): Promise<any[]> {
+        return this.playbackService.getAllPlaybackPositions(playlistId);
+    }
+
+    async clearPlaybackPosition(
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: 'vod' | 'episode'
+    ): Promise<void> {
+        await this.playbackService.clearPlaybackPosition(
+            playlistId,
+            contentXtreamId,
+            contentType
+        );
     }
 
     // =========================================================================

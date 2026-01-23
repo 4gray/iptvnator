@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, computed } from '@angular/core';
 import { PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -27,16 +27,55 @@ export class CategoryContentViewComponent implements OnInit {
     private readonly router = inject(Router);
 
     readonly isStalker = this.activatedRoute.snapshot.data['api'] === 'stalker';
-    readonly contentType = this.activatedRoute.snapshot.data['contentType'];
     private readonly store = this.isStalker
         ? inject(StalkerStore)
         : inject(XtreamStore);
+
+    readonly contentType = this.store.selectedContentType;
 
     readonly limit = this.store.limit;
     readonly pageIndex = this.store.page;
     readonly pageSizeOptions = this.isStalker ? [14] : [10, 25, 50, 100];
     readonly selectedCategory = this.store.getSelectedCategory;
     readonly paginatedContent = this.store.getPaginatedContent;
+
+    readonly contentWithProgress = computed(() => {
+        const items = this.store.getPaginatedContent();
+        if (!items) return [];
+
+        if (this.isStalker) return items;
+
+        const xtreamStore = this.store as any;
+        if (!xtreamStore.getProgressPercent) return items;
+
+        return items.map((item: any) => {
+            const isSeries = this.contentType() === 'series';
+            // Use xtream_id (DB) or series_id/stream_id (API)
+            const id = Number(
+                item.xtream_id || item.series_id || item.stream_id
+            );
+
+            // console.log(`[CategoryContent] Processing item ${id}. isSeries=${isSeries}`);
+
+            if (isSeries) {
+                const hasProgress = xtreamStore.hasSeriesProgress(id);
+                console.log(
+                    `[CategoryContent] Checking series ${id} (xtream_id=${item.xtream_id}, series_id=${item.series_id}). Has progress: ${hasProgress}`
+                );
+                return {
+                    ...item,
+                    hasSeriesProgress: hasProgress,
+                };
+            } else {
+                return {
+                    ...item,
+                    progress: xtreamStore.getProgressPercent(id, 'vod'),
+                    isWatched: xtreamStore.isWatched(id, 'vod'),
+                };
+            }
+        });
+    });
+
     readonly isPaginatedContentLoading = this.store.isPaginatedContentLoading;
     readonly selectedItem = this.store.selectedItem;
     readonly totalPages = this.store.getTotalPages;
@@ -46,6 +85,17 @@ export class CategoryContentViewComponent implements OnInit {
 
     ngOnInit() {
         const { categoryId } = this.activatedRoute.snapshot.params;
+        console.log(
+            `[CategoryContent] ngOnInit. contentType=${this.contentType()}, isStalker=${this.isStalker}, categoryId=${categoryId}`
+        );
+
+        // Ensure playback positions are loaded (Xtream only)
+        if (!this.isStalker) {
+            const xtreamStore = this.store as any;
+            if (xtreamStore.currentPlaylist()?.id) {
+                xtreamStore.loadAllPositions(xtreamStore.currentPlaylist().id);
+            }
+        }
 
         // Clear any previous selectedItem when entering category view
         // This ensures the content-header is visible
@@ -83,7 +133,7 @@ export class CategoryContentViewComponent implements OnInit {
             // is_series can be "1" (string) or 1 (number)
             // ONLY set this for VOD content type - regular series should use the standard series flow
             is_series:
-                this.contentType === 'vod' &&
+                this.contentType() === 'vod' &&
                 (item.is_series === '1' || item.is_series === 1),
             // Store video_id for season fetching if available
             video_id: item.video_id,

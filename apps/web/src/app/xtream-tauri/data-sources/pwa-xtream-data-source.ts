@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
     FAVORITES: 'xtream-favorites',
     RECENT_ITEMS: 'xtream-recent-items',
     PLAYLISTS: 'xtream-playlists',
+    PLAYBACK_POSITIONS: 'xtream-playback-positions',
 };
 
 /**
@@ -72,6 +73,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Also clear favorites and recent items for this playlist
         this.clearFavoritesForPlaylist(playlistId);
         this.clearRecentItemsForPlaylist(playlistId);
+        this.clearPlaybackPositionsForPlaylist(playlistId);
 
         // Clear cache
         this.clearCacheForPlaylist(playlistId);
@@ -310,6 +312,127 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const allFavorites = this.getFavoritesFromStorage();
         delete allFavorites[playlistId];
         this.saveFavoritesToStorage(allFavorites);
+    }
+
+    // =========================================================================
+    // Playback Position Operations (localStorage)
+    // =========================================================================
+
+    async savePlaybackPosition(playlistId: string, data: any): Promise<void> {
+        const allPositions = this.getPlaybackPositionsFromStorage();
+        if (!allPositions[playlistId]) {
+            allPositions[playlistId] = [];
+        }
+
+        // Remove existing entry if present
+        allPositions[playlistId] = allPositions[playlistId].filter(
+            (p: any) =>
+                !(
+                    p.contentXtreamId === data.contentXtreamId &&
+                    p.contentType === data.contentType
+                )
+        );
+
+        // Add new entry
+        allPositions[playlistId].push({
+            ...data,
+            updatedAt: new Date().toISOString(),
+        });
+
+        this.savePlaybackPositionsToStorage(allPositions);
+    }
+
+    async getPlaybackPosition(
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: 'vod' | 'episode'
+    ): Promise<any | null> {
+        const allPositions = this.getPlaybackPositionsFromStorage();
+        const playlistPositions = allPositions[playlistId] || [];
+
+        return (
+            playlistPositions.find(
+                (p: any) =>
+                    p.contentXtreamId === contentXtreamId &&
+                    p.contentType === contentType
+            ) || null
+        );
+    }
+
+    async getSeriesPlaybackPositions(
+        playlistId: string,
+        seriesXtreamId: number
+    ): Promise<any[]> {
+        const allPositions = this.getPlaybackPositionsFromStorage();
+        const playlistPositions = allPositions[playlistId] || [];
+
+        return playlistPositions.filter(
+            (p: any) =>
+                p.contentType === 'episode' && p.seriesXtreamId === seriesXtreamId
+        );
+    }
+
+    async getRecentPlaybackPositions(
+        playlistId: string,
+        limit?: number
+    ): Promise<any[]> {
+        const allPositions = this.getPlaybackPositionsFromStorage();
+        const playlistPositions = allPositions[playlistId] || [];
+
+        // Sort by updatedAt descending
+        playlistPositions.sort(
+            (a: any, b: any) =>
+                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+
+        return limit ? playlistPositions.slice(0, limit) : playlistPositions;
+    }
+
+    async getAllPlaybackPositions(playlistId: string): Promise<any[]> {
+        const allPositions = this.getPlaybackPositionsFromStorage();
+        return allPositions[playlistId] || [];
+    }
+
+    async clearPlaybackPosition(
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: 'vod' | 'episode'
+    ): Promise<void> {
+        const allPositions = this.getPlaybackPositionsFromStorage();
+        if (allPositions[playlistId]) {
+            allPositions[playlistId] = allPositions[playlistId].filter(
+                (p: any) =>
+                    !(
+                        p.contentXtreamId === contentXtreamId &&
+                        p.contentType === contentType
+                    )
+            );
+            this.savePlaybackPositionsToStorage(allPositions);
+        }
+    }
+
+    private getPlaybackPositionsFromStorage(): Record<string, any[]> {
+        try {
+            const data = localStorage.getItem(STORAGE_KEYS.PLAYBACK_POSITIONS);
+            return data ? JSON.parse(data) : {};
+        } catch {
+            return {};
+        }
+    }
+
+    private savePlaybackPositionsToStorage(
+        positions: Record<string, any[]>
+    ): void {
+        localStorage.setItem(
+            STORAGE_KEYS.PLAYBACK_POSITIONS,
+            JSON.stringify(positions)
+        );
+    }
+
+    private clearPlaybackPositionsForPlaylist(playlistId: string): void {
+        const allPositions = this.getPlaybackPositionsFromStorage();
+        delete allPositions[playlistId];
+        this.savePlaybackPositionsToStorage(allPositions);
     }
 
     // =========================================================================

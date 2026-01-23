@@ -1,10 +1,14 @@
 import { InjectionToken } from '@angular/core';
 import {
+    PlaybackPositionData,
     XtreamCategory,
     XtreamLiveStream,
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
+
+// Re-export for backward compatibility
+export { PlaybackPositionData };
 import { XtreamCredentials, CategoryType, StreamType } from '../services/xtream-api.service';
 
 /**
@@ -292,6 +296,57 @@ export interface IXtreamDataSource {
         xtreamId: number,
         playlistId: string
     ): Promise<XtreamContentItem | null>;
+
+    // =========================================================================
+    // Playback Position Operations
+    // =========================================================================
+
+    /**
+     * Save/update playback position for content
+     */
+    savePlaybackPosition(
+        playlistId: string,
+        data: PlaybackPositionData
+    ): Promise<void>;
+
+    /**
+     * Get playback position for a specific content item
+     */
+    getPlaybackPosition(
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: 'vod' | 'episode'
+    ): Promise<PlaybackPositionData | null>;
+
+    /**
+     * Get all episode positions for a series (for highlighting watched episodes)
+     */
+    getSeriesPlaybackPositions(
+        playlistId: string,
+        seriesXtreamId: number
+    ): Promise<PlaybackPositionData[]>;
+
+    /**
+     * Get recently watched items with positions (for "Continue Watching" section)
+     */
+    getRecentPlaybackPositions(
+        playlistId: string,
+        limit?: number
+    ): Promise<PlaybackPositionData[]>;
+
+    /**
+     * Get all playback positions for a playlist (for grid view)
+     */
+    getAllPlaybackPositions(playlistId: string): Promise<PlaybackPositionData[]>;
+
+    /**
+     * Clear playback position (mark as unwatched)
+     */
+    clearPlaybackPosition(
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: 'vod' | 'episode'
+    ): Promise<void>;
 
     // =========================================================================
     // Cleanup Operations
