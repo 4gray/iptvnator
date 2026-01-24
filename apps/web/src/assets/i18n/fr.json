@@ -350,6 +350,30 @@
         "SELECT_CATEGORY": "Sélectionner une catégorie"
     },
     "INFORMATION": "Information",
+    "DOWNLOADS": {
+        "TITLE": "Téléchargements",
+        "DOWNLOAD": "Télécharger",
+        "PLAY_LOCAL": "Lire local",
+        "EMPTY": "Aucun téléchargement",
+        "EMPTY_HINT": "Téléchargez des films et épisodes pour les regarder hors ligne",
+        "NOT_AVAILABLE": "Téléchargements non disponibles",
+        "DESKTOP_ONLY": "Cette fonctionnalité n'est disponible que dans l'application de bureau",
+        "NO_FOLDER": "Aucun dossier de téléchargement sélectionné",
+        "CHANGE_FOLDER": "Changer de dossier",
+        "CLEAR_COMPLETED": "Effacer terminés",
+        "CANCEL": "Annuler",
+        "RETRY": "Réessayer",
+        "REMOVE": "Supprimer",
+        "PLAY": "Lire",
+        "REVEAL": "Afficher dans le dossier",
+        "STATUS": {
+            "QUEUED": "En attente",
+            "DOWNLOADING": "En cours",
+            "COMPLETED": "Terminé",
+            "FAILED": "Échec",
+            "CANCELED": "Annulé"
+        }
+    },
     "REMOTE_CONTROL": {
         "TITLE": "Télécommande",
         "UP_CHANNEL": "Chaîne précédente",

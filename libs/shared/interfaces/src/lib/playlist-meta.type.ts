@@ -9,6 +9,8 @@ export type PlaylistMeta = Pick<
     | 'url'
     | 'importDate'
     | 'userAgent'
+    | 'referrer'
+    | 'origin'
     | 'filePath'
     | 'updateDate'
     | 'updateState'

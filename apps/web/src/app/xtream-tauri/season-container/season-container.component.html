@@ -89,6 +89,36 @@
                                 [isWatched]="isEpisodeWatched(episode)"
                             />
                             <div class="episode-card__actions">
+                                @if (isElectron()) {
+                                    @if (isEpisodeDownloaded(episode)) {
+                                        <button
+                                            mat-icon-button
+                                            class="download-btn download-btn--completed"
+                                            (click)="playFromLocal($event, episode)"
+                                            [matTooltip]="'DOWNLOADS.PLAY_LOCAL' | translate"
+                                        >
+                                            <mat-icon>play_circle</mat-icon>
+                                        </button>
+                                    } @else if (isEpisodeDownloading(episode)) {
+                                        <button
+                                            mat-icon-button
+                                            class="download-btn download-btn--downloading"
+                                            disabled
+                                            [matTooltip]="'DOWNLOADS.STATUS.DOWNLOADING' | translate"
+                                        >
+                                            <mat-icon>downloading</mat-icon>
+                                        </button>
+                                    } @else {
+                                        <button
+                                            mat-icon-button
+                                            class="download-btn"
+                                            (click)="downloadEpisode($event, episode)"
+                                            [matTooltip]="'DOWNLOADS.DOWNLOAD' | translate"
+                                        >
+                                            <mat-icon>download</mat-icon>
+                                        </button>
+                                    }
+                                }
                                 <button
                                     mat-icon-button
                                     class="toggle-watched-btn"

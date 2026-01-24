@@ -3,6 +3,10 @@ import fixPath from 'fix-path';
 import App from './app/app';
 import { initDatabase } from './app/database/connection';
 import DatabaseEvents from './app/events/database.events';
+import {
+    resetStaleDownloads,
+    setMainWindow as setDownloadsMainWindow,
+} from './app/events/database/downloads.events';
 import ElectronEvents from './app/events/electron.events';
 import EpgEvents from './app/events/epg.events';
 import PlayerEvents from './app/events/player.events';
@@ -42,6 +46,12 @@ export default class Main {
         DatabaseEvents.bootstrapDatabaseEvents();
         EpgEvents.bootstrapEpgEvents();
         RemoteControlEvents.bootstrapRemoteControlEvents();
+
+        // Set main window for downloads and reset stale downloads
+        if (App.mainWindow) {
+            setDownloadsMainWindow(App.mainWindow);
+        }
+        await resetStaleDownloads();
 
         // initialize auto updater service
         if (!App.isDevelopmentMode()) {

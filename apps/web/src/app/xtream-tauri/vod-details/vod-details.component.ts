@@ -6,6 +6,7 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { ContentHeroComponent } from 'components';
 import { XtreamVodDetails } from 'shared-interfaces';
+import { DownloadsService } from '../../services/downloads.service';
 import { SettingsStore } from '../../services/settings-store.service';
 import { XtreamStore } from '../stores/xtream.store';
 import { SafePipe } from './safe.pipe';
@@ -27,8 +28,10 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
     private settingsStore = inject(SettingsStore);
     private route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly downloadsService = inject(DownloadsService);
 
     readonly theme = this.settingsStore.theme;
+    readonly isElectron = this.downloadsService.isAvailable;
 
     readonly isFavorite = this.xtreamStore.isFavorite;
     readonly selectedItem = this.xtreamStore.selectedItem;
@@ -40,6 +43,26 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
             `[VodDetails] hasPlaybackPosition check: vodId=${vodId}, inProgress=${inProgress}`
         );
         return inProgress;
+    });
+
+    /** Check if VOD is already downloaded */
+    readonly isDownloaded = computed(() => {
+        const vodId = Number(this.route.snapshot.params.vodId);
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId) return false;
+        // Access downloads signal to make this reactive
+        this.downloadsService.downloads();
+        return this.downloadsService.isDownloaded(vodId, playlistId, 'vod');
+    });
+
+    /** Check if VOD is currently downloading */
+    readonly isDownloading = computed(() => {
+        const vodId = Number(this.route.snapshot.params.vodId);
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId) return false;
+        // Access downloads signal to make this reactive
+        this.downloadsService.downloads();
+        return this.downloadsService.isDownloading(vodId, playlistId, 'vod');
     });
 
     ngOnInit(): void {
@@ -139,5 +162,45 @@ export class VodDetailsComponent implements OnInit, OnDestroy {
 
     goBack() {
         this.location.back();
+    }
+
+    async downloadVod(vodItem: XtreamVodDetails) {
+        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
+        const routeVodId = this.route.snapshot.params.vodId;
+        const id = routeVodId
+            ? Number(routeVodId)
+            : Number(vodItem.movie_data?.stream_id || (vodItem as any).stream_id);
+
+        const playlist = this.xtreamStore.currentPlaylist();
+
+        await this.downloadsService.startDownload({
+            playlistId: playlist.id,
+            xtreamId: id,
+            contentType: 'vod',
+            title: vodItem.info?.name || vodItem?.movie_data?.name || 'Unknown',
+            url: streamUrl,
+            posterUrl: vodItem.info?.movie_image,
+            headers: {
+                userAgent: playlist.userAgent,
+                referer: playlist.referrer,
+                origin: playlist.origin,
+            },
+        });
+    }
+
+    async playFromLocal() {
+        const vodId = Number(this.route.snapshot.params.vodId);
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId) return;
+
+        const filePath = this.downloadsService.getDownloadedFilePath(
+            vodId,
+            playlistId,
+            'vod'
+        );
+
+        if (filePath) {
+            await this.downloadsService.playDownload(filePath);
+        }
     }
 }

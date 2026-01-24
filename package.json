@@ -64,6 +64,7 @@
         "drizzle-orm": "0.44.6",
         "electron-builder-sandbox-fix": "1.1.1",
         "electron-conf": "1.3.0",
+        "electron-dl": "4.0.0",
         "fix-path": "5.0.0",
         "hls.js": "1.6.13",
         "iptv-playlist-parser": "github:4gray/iptv-playlist-parser",

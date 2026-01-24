@@ -175,6 +175,31 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS playback_positions_playlist_idx ON playback_positions(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS playback_positions_series_idx ON playback_positions(series_xtream_id)`,
     `CREATE INDEX IF NOT EXISTS playback_positions_updated_idx ON playback_positions(updated_at)`,
+    // Downloads table
+    `CREATE TABLE IF NOT EXISTS downloads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      playlist_id TEXT NOT NULL,
+      xtream_id INTEGER NOT NULL,
+      content_type TEXT NOT NULL CHECK (content_type IN ('vod', 'episode')),
+      series_xtream_id INTEGER,
+      season_number INTEGER,
+      episode_number INTEGER,
+      title TEXT NOT NULL,
+      url TEXT NOT NULL,
+      file_name TEXT,
+      file_path TEXT,
+      poster_url TEXT,
+      status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'downloading', 'completed', 'failed', 'canceled')),
+      bytes_downloaded INTEGER DEFAULT 0,
+      total_bytes INTEGER,
+      error_message TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+  )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS downloads_xtream_playlist_unique ON downloads(xtream_id, playlist_id, content_type)`,
+    `CREATE INDEX IF NOT EXISTS downloads_playlist_idx ON downloads(playlist_id)`,
+    `CREATE INDEX IF NOT EXISTS downloads_status_idx ON downloads(status)`,
 ];
 
 /**

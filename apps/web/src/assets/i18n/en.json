@@ -446,6 +446,30 @@
         "NO_EPISODES": "No episodes available"
     },
     "INFORMATION": "Information",
+    "DOWNLOADS": {
+        "TITLE": "Downloads",
+        "DOWNLOAD": "Download",
+        "PLAY_LOCAL": "Play Local",
+        "EMPTY": "No downloads yet",
+        "EMPTY_HINT": "Download movies and episodes to watch offline",
+        "NOT_AVAILABLE": "Downloads not available",
+        "DESKTOP_ONLY": "This feature is only available in the desktop app",
+        "NO_FOLDER": "No download folder selected",
+        "CHANGE_FOLDER": "Change Folder",
+        "CLEAR_COMPLETED": "Clear Completed",
+        "CANCEL": "Cancel",
+        "RETRY": "Retry",
+        "REMOVE": "Remove",
+        "PLAY": "Play",
+        "REVEAL": "Show in Folder",
+        "STATUS": {
+            "QUEUED": "Queued",
+            "DOWNLOADING": "Downloading",
+            "COMPLETED": "Completed",
+            "FAILED": "Failed",
+            "CANCELED": "Canceled"
+        }
+    },
     "REMOTE_CONTROL": {
         "TITLE": "Remote control",
         "SUBTITLE": "Control your IPTV player remotely",

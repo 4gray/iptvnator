@@ -87,6 +87,13 @@ export const stalkerRoutes: Route[] = [
                         (c) => c.StalkerSearchComponent
                     ),
             },
+            {
+                path: 'downloads',
+                loadComponent: () =>
+                    import(
+                        '../xtream-tauri/downloads/downloads.component'
+                    ).then((c) => c.DownloadsComponent),
+            },
         ],
     },
 ];
