@@ -60,6 +60,44 @@ export class SeasonContainerComponent {
         return this.xtreamStore.currentPlaylist()?.id;
     }
 
+    /**
+     * Get a stable numeric ID for an episode (used for downloads tracking)
+     * For regular-series, episode.id contains cmd string, so we extract ID from it
+     * For vod-series and xtream, episode.id is already numeric
+     */
+    private getEpisodeDownloadId(episode: XtreamSerieEpisode): number {
+        const customSid = (episode as any).custom_sid;
+
+        if (customSid === 'regular-series') {
+            // For regular-series, episode.id is cmd like "/media/file_123.mpg"
+            // Extract the numeric part if possible
+            const cmd = episode.id as unknown as string;
+            const match = cmd?.match(/file_(\d+)/);
+            if (match) {
+                return Number(match[1]);
+            }
+            // Fallback: hash the cmd string to get a consistent number
+            return this.hashString(cmd || '');
+        }
+
+        // For vod-series and xtream, use the numeric id directly
+        const numId = Number(episode.id);
+        return isNaN(numId) ? this.hashString(String(episode.id)) : numId;
+    }
+
+    /**
+     * Simple string hash function to generate consistent numeric IDs
+     */
+    private hashString(str: string): number {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = (hash << 5) - hash + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        return Math.abs(hash);
+    }
+
     @Output() episodeClicked = new EventEmitter<any>();
     @Output() seasonSelected = new EventEmitter<string>();
 
@@ -259,7 +297,7 @@ export class SeasonContainerComponent {
 
         await this.downloadsService.startDownload({
             playlistId: playlist._id,
-            xtreamId: Number(episode.id) || Date.now(), // Use timestamp if id is not numeric
+            xtreamId: this.getEpisodeDownloadId(episode),
             contentType: 'episode',
             title: episodeTitle,
             url,
@@ -287,7 +325,7 @@ export class SeasonContainerComponent {
         // Access downloads signal to make this reactive
         this.downloadsService.downloads();
         return this.downloadsService.isDownloaded(
-            Number(episode.id),
+            this.getEpisodeDownloadId(episode),
             playlistId,
             'episode'
         );
@@ -300,7 +338,7 @@ export class SeasonContainerComponent {
         // Access downloads signal to make this reactive
         this.downloadsService.downloads();
         return this.downloadsService.isDownloading(
-            Number(episode.id),
+            this.getEpisodeDownloadId(episode),
             playlistId,
             'episode'
         );
@@ -314,7 +352,7 @@ export class SeasonContainerComponent {
         if (!playlistId) return;
 
         const filePath = this.downloadsService.getDownloadedFilePath(
-            Number(episode.id),
+            this.getEpisodeDownloadId(episode),
             playlistId,
             'episode'
         );

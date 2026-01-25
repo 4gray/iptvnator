@@ -17,50 +17,41 @@
         }
     </div>
     @if (isItvCategorySelected) {
-        <mat-nav-list style="overflow: auto; flex: 1">
-            @for (item of itvChannels(); track $index) {
-                <mat-list-item (click)="createLinkToPlayItv(item)">
-                    <img
-                        matListItemAvatar
-                        class="stream-icon"
-                        [src]="item.logo"
-                        (error)="
-                            $event.target.src =
-                                './assets/images/default-poster.png'
-                        "
-                        alt="logo"
-                    />
-                    {{ item.name }}
-                    <button
-                        mat-icon-button
-                        matListItemMeta
-                        (click)="toggleFavorite(item); $event.stopPropagation()"
-                    >
-                        <mat-icon>{{
-                            favorites.get(item.id) ? 'star' : 'star_outline'
-                        }}</mat-icon>
-                    </button>
-                </mat-list-item>
-            }
-        </mat-nav-list>
+        <div #itvScrollContainer style="overflow: auto; flex: 1">
+            <mat-nav-list>
+                @for (item of itvChannels(); track $index) {
+                    <mat-list-item (click)="createLinkToPlayItv(item)">
+                        <img
+                            matListItemAvatar
+                            class="stream-icon"
+                            [src]="item.logo"
+                            (error)="
+                                $event.target.src =
+                                    './assets/images/default-poster.png'
+                            "
+                            alt="logo"
+                        />
+                        {{ item.name }}
+                        <button
+                            mat-icon-button
+                            matListItemMeta
+                            (click)="toggleFavorite(item); $event.stopPropagation()"
+                        >
+                            <mat-icon>{{
+                                favorites.get(item.id) ? 'star' : 'star_outline'
+                            }}</mat-icon>
+                        </button>
+                    </mat-list-item>
+                }
+            </mat-nav-list>
 
-        @if (hasMoreItems() && !isContentLoading()) {
-            <mat-divider />
-            <div>
-                <button
-                    mat-button
-                    (click)="loadMore()"
-                    [disabled]="isLoadingMore()"
-                    style="width: 100%"
-                >
-                    @if (isLoadingMore()) {
-                        Loading page {{ pageIndex() + 1 }}...
-                    } @else {
-                        Load More (Page {{ pageIndex() + 1 }})
-                    }
-                </button>
-            </div>
-        }
+            <!-- Loading indicator for infinite scroll -->
+            @if (isLoadingMore()) {
+                <div style="display: flex; justify-content: center; padding: 16px">
+                    <mat-spinner diameter="24" />
+                </div>
+            }
+        </div>
     } @else {
         @if (isCategoryLoading()) {
             <ngx-skeleton-loader
