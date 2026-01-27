@@ -63,6 +63,7 @@
             <app-season-container
                 [seasons]="mappedSeasons()"
                 [seriesId]="serial.id"
+                [seriesTitle]="serial.info?.name"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
                     (seasonContainer?.selectedSeason &&

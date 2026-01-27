@@ -117,6 +117,13 @@ export const xtreamRoutes: Route[] = [
                         (c) => c.RecentlyAddedComponent
                     ),
             },
+            {
+                path: 'downloads',
+                loadComponent: () =>
+                    import('./downloads/downloads.component').then(
+                        (c) => c.DownloadsComponent
+                    ),
+            },
         ],
     },
 ];

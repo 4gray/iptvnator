@@ -79,7 +79,12 @@ export const SettingsStore = signalStore(
                 remoteControl: store.remoteControl(),
                 remoteControlPort: store.remoteControlPort(),
                 epgUrl: store.epgUrl(),
+                downloadFolder: store.downloadFolder?.(),
             };
+        },
+
+        getDownloadFolder() {
+            return store.downloadFolder?.();
         },
 
         getPlayer() {

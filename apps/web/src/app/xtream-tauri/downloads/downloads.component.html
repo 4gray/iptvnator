@@ -1,0 +1,214 @@
+<div class="downloads">
+    <header class="downloads__header">
+        <div class="downloads__header-left">
+            <button mat-icon-button (click)="goBack()" class="back-btn">
+                <mat-icon>arrow_back</mat-icon>
+            </button>
+            <h1>{{ 'DOWNLOADS.TITLE' | translate }}</h1>
+            @if (activeCount() > 0) {
+                <span class="downloads__badge">{{ activeCount() }}</span>
+            }
+        </div>
+        <div class="downloads__header-actions">
+            @if (hasDownloads()) {
+                <button
+                    mat-stroked-button
+                    (click)="clearCompleted()"
+                    [matTooltip]="'DOWNLOADS.CLEAR_COMPLETED' | translate"
+                >
+                    <mat-icon>delete_sweep</mat-icon>
+                    {{ 'DOWNLOADS.CLEAR_COMPLETED' | translate }}
+                </button>
+            }
+        </div>
+    </header>
+
+    <div class="downloads__folder">
+        <mat-icon>folder</mat-icon>
+        <span class="downloads__folder-path">{{ downloadFolder() || ('DOWNLOADS.NO_FOLDER' | translate) }}</span>
+        <button mat-stroked-button (click)="changeFolder()">
+            {{ 'DOWNLOADS.CHANGE_FOLDER' | translate }}
+        </button>
+    </div>
+
+    @if (!isAvailable()) {
+        <div class="downloads__empty">
+            <mat-icon>desktop_access_disabled</mat-icon>
+            <p>{{ 'DOWNLOADS.NOT_AVAILABLE' | translate }}</p>
+            <span>{{ 'DOWNLOADS.DESKTOP_ONLY' | translate }}</span>
+        </div>
+    } @else if (!hasDownloads()) {
+        <div class="downloads__empty">
+            <mat-icon>download</mat-icon>
+            <p>{{ 'DOWNLOADS.EMPTY' | translate }}</p>
+            <span>{{ 'DOWNLOADS.EMPTY_HINT' | translate }}</span>
+        </div>
+    } @else {
+        <div class="downloads__list-wrapper">
+            <div class="downloads__list">
+                @for (item of filteredDownloads(); track item.id) {
+                    <div
+                        class="downloads__item"
+                        [class]="getStatusColor(item.status)"
+                    >
+                        <div class="downloads__item-poster">
+                            @if (item.posterUrl) {
+                                <img
+                                    [src]="item.posterUrl"
+                                    [alt]="item.title"
+                                    loading="lazy"
+                                />
+                            } @else {
+                                <mat-icon>movie</mat-icon>
+                            }
+                        </div>
+
+                        <div class="downloads__item-info">
+                            <div class="downloads__item-title">
+                                {{ item.title }}
+                                @if (item.contentType === 'episode') {
+                                    <span class="downloads__episode-badge">
+                                        {{ formatEpisodeLabel(item) }}
+                                    </span>
+                                }
+                            </div>
+
+                            <div class="downloads__item-meta">
+                                <span
+                                    class="downloads__item-status"
+                                    [class]="getStatusColor(item.status)"
+                                >
+                                    <mat-icon>{{
+                                        getStatusIcon(item.status)
+                                    }}</mat-icon>
+                                    {{ 'DOWNLOADS.STATUS.' + item.status.toUpperCase() | translate }}
+                                </span>
+
+                                @if (
+                                    item.status === 'downloading' ||
+                                    item.status === 'completed'
+                                ) {
+                                    <span class="downloads__item-size">
+                                        {{ formatBytes(item.bytesDownloaded) }}
+                                        @if (item.totalBytes) {
+                                            / {{ formatBytes(item.totalBytes) }}
+                                        }
+                                    </span>
+                                }
+
+                                @if (item.errorMessage) {
+                                    <span class="downloads__item-error">
+                                        {{ item.errorMessage }}
+                                    </span>
+                                }
+                            </div>
+
+                            @if (item.status === 'downloading') {
+                                <mat-progress-bar
+                                    mode="determinate"
+                                    [value]="getProgress(item)"
+                                ></mat-progress-bar>
+                            }
+                        </div>
+
+                        <div class="downloads__item-actions">
+                            @switch (item.status) {
+                                @case ('queued') {
+                                    <button
+                                        mat-icon-button
+                                        (click)="cancel(item)"
+                                        [matTooltip]="
+                                            'DOWNLOADS.CANCEL' | translate
+                                        "
+                                    >
+                                        <mat-icon>close</mat-icon>
+                                    </button>
+                                }
+                                @case ('downloading') {
+                                    <button
+                                        mat-icon-button
+                                        (click)="cancel(item)"
+                                        [matTooltip]="
+                                            'DOWNLOADS.CANCEL' | translate
+                                        "
+                                    >
+                                        <mat-icon>close</mat-icon>
+                                    </button>
+                                }
+                                @case ('completed') {
+                                    <button
+                                        mat-icon-button
+                                        (click)="play(item)"
+                                        [matTooltip]="
+                                            'DOWNLOADS.PLAY' | translate
+                                        "
+                                    >
+                                        <mat-icon>play_arrow</mat-icon>
+                                    </button>
+                                    <button
+                                        mat-icon-button
+                                        (click)="reveal(item)"
+                                        [matTooltip]="
+                                            'DOWNLOADS.REVEAL' | translate
+                                        "
+                                    >
+                                        <mat-icon>folder_open</mat-icon>
+                                    </button>
+                                    <button
+                                        mat-icon-button
+                                        (click)="remove(item)"
+                                        [matTooltip]="
+                                            'DOWNLOADS.REMOVE' | translate
+                                        "
+                                    >
+                                        <mat-icon>delete</mat-icon>
+                                    </button>
+                                }
+                                @case ('failed') {
+                                    <button
+                                        mat-icon-button
+                                        (click)="retry(item)"
+                                        [matTooltip]="
+                                            'DOWNLOADS.RETRY' | translate
+                                        "
+                                    >
+                                        <mat-icon>refresh</mat-icon>
+                                    </button>
+                                    <button
+                                        mat-icon-button
+                                        (click)="remove(item)"
+                                        [matTooltip]="
+                                            'DOWNLOADS.REMOVE' | translate
+                                        "
+                                    >
+                                        <mat-icon>delete</mat-icon>
+                                    </button>
+                                }
+                                @case ('canceled') {
+                                    <button
+                                        mat-icon-button
+                                        (click)="retry(item)"
+                                        [matTooltip]="
+                                            'DOWNLOADS.RETRY' | translate
+                                        "
+                                    >
+                                        <mat-icon>refresh</mat-icon>
+                                    </button>
+                                    <button
+                                        mat-icon-button
+                                        (click)="remove(item)"
+                                        [matTooltip]="
+                                            'DOWNLOADS.REMOVE' | translate
+                                        "
+                                    >
+                                        <mat-icon>delete</mat-icon>
+                                    </button>
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>

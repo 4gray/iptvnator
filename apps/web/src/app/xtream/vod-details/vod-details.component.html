@@ -73,6 +73,24 @@
                 {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
             </button>
         }
+        @if (isElectron) {
+            @if (isDownloaded) {
+                <button class="download-btn download-btn--completed" (click)="playFromLocal()">
+                    <mat-icon>play_circle</mat-icon>
+                    {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
+                </button>
+            } @else if (isDownloading) {
+                <button class="download-btn download-btn--downloading" disabled>
+                    <mat-icon>downloading</mat-icon>
+                    {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
+                </button>
+            } @else {
+                <button class="download-btn" (click)="downloadVod()">
+                    <mat-icon>download</mat-icon>
+                    {{ 'DOWNLOADS.DOWNLOAD' | translate }}
+                </button>
+            }
+        }
     </ng-container>
 
     <!-- YouTube Trailer -->

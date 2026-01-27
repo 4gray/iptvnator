@@ -13,6 +13,7 @@ export {
   epgChannels,
   epgPrograms,
   playbackPositions,
+  downloads,
   // Types
   type Playlist,
   type NewPlaylist,
@@ -30,5 +31,7 @@ export {
   type NewEpgProgramDb,
   type PlaybackPosition,
   type NewPlaybackPosition,
+  type Download,
+  type NewDownload,
 } from 'database';
 

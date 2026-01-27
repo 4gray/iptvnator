@@ -49,6 +49,9 @@ export class NavigationComponent {
 
     readonly navigationItems = input<NavigationItem[]>();
 
+    /** Check if running in Electron (downloads only available in desktop) */
+    readonly isElectron = !!window.electron;
+
     getStatusColor(): string {
         if (this.isStalkerPlaylist()) return 'status-active';
 

@@ -312,7 +312,10 @@
         z-index: 2;
         opacity: 0;
         transition: opacity 0.2s ease;
+        display: flex;
+        gap: 4px;
 
+        .download-btn,
         .toggle-watched-btn {
             color: rgba(255, 255, 255, 0.7);
             background: rgba(0, 0, 0, 0.5);
@@ -330,6 +333,23 @@
                 width: 20px;
                 height: 20px;
             }
+        }
+
+        .download-btn:hover {
+            background: rgba(25, 118, 210, 0.8);
+        }
+
+        .download-btn--completed {
+            color: #4caf50 !important;
+
+            &:hover {
+                background: rgba(76, 175, 80, 0.8);
+            }
+        }
+
+        .download-btn--downloading {
+            color: rgba(255, 255, 255, 0.5) !important;
+            cursor: not-allowed;
         }
     }
 

@@ -70,6 +70,7 @@
         <app-season-container
             [seasons]="item.episodes"
             [seriesId]="item.series_id"
+            [seriesTitle]="item.info?.name"
             (episodeClicked)="playEpisode($event)"
         />
     </app-content-hero>

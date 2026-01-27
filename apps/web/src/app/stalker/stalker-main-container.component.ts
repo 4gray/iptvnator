@@ -1,8 +1,18 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import {
+    Component,
+    effect,
+    inject,
+    signal,
+    viewChild,
+    ElementRef,
+    AfterViewInit,
+    OnDestroy,
+} from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -28,6 +38,7 @@ import { StalkerStore } from './stalker.store';
         MatIconButton,
         MatListModule,
         MatPaginatorModule,
+        MatProgressSpinnerModule,
         NgxSkeletonLoaderModule,
         PlaylistErrorViewComponent,
         PlaylistSwitcherComponent,
@@ -35,7 +46,7 @@ import { StalkerStore } from './stalker.store';
         TranslatePipe,
     ],
 })
-export class StalkerMainContainerComponent {
+export class StalkerMainContainerComponent implements AfterViewInit, OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
 
     currentLayout:
@@ -53,6 +64,10 @@ export class StalkerMainContainerComponent {
     /* load more functionality */
     readonly hasMoreItems = this.stalkerStore.hasMoreChannels;
     readonly itvChannels = this.stalkerStore.itvChannels;
+
+    /** Scrollable container for ITV channels */
+    readonly itvScrollContainer = viewChild<ElementRef>('itvScrollContainer');
+    private scrollListener: (() => void) | null = null;
 
     readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
     readonly currentPlaylist = this.stalkerStore.currentPlaylist;
@@ -158,10 +173,22 @@ export class StalkerMainContainerComponent {
             //this.hasMoreItems.set(false);
         });
 
-        // reset loading state when content resource changes
+        // reset loading state when content resource changes and check if we need more
         effect(() => {
             if (this.contentItems() !== undefined) {
                 this.isLoadingMore.set(false);
+                // Check if we need to load more to fill the viewport
+                this.checkIfNeedsMoreContent();
+            }
+        });
+
+        // Also check when ITV channels are loaded
+        effect(() => {
+            const channels = this.itvChannels();
+            if (channels.length > 0) {
+                this.isLoadingMore.set(false);
+                // Small delay to allow DOM to update before checking
+                setTimeout(() => this.checkIfNeedsMoreContent(), 100);
             }
         });
 
@@ -172,6 +199,66 @@ export class StalkerMainContainerComponent {
                     this.favorites.set(fav.id, true);
                 });
             });
+
+        // Setup scroll listener when container becomes available
+        effect(() => {
+            const scrollContainer = this.itvScrollContainer();
+            if (scrollContainer) {
+                this.setupScrollListener();
+            }
+        });
+    }
+
+    ngAfterViewInit() {
+        this.setupScrollListener();
+    }
+
+    ngOnDestroy() {
+        this.removeScrollListener();
+    }
+
+    private setupScrollListener() {
+        this.removeScrollListener();
+
+        const container = this.itvScrollContainer()?.nativeElement;
+        if (!container) return;
+
+        const onScroll = () => {
+            if (this.isLoadingMore() || !this.hasMoreItems()) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = container;
+            const scrollThreshold = 150; // pixels from bottom to trigger load
+
+            if (scrollHeight - scrollTop - clientHeight <= scrollThreshold) {
+                this.loadMore();
+            }
+        };
+
+        container.addEventListener('scroll', onScroll, { passive: true });
+        this.scrollListener = () => container.removeEventListener('scroll', onScroll);
+    }
+
+    /**
+     * Check if the container needs more content to become scrollable.
+     * If content doesn't fill the viewport and there are more items, load more.
+     */
+    private checkIfNeedsMoreContent() {
+        const container = this.itvScrollContainer()?.nativeElement;
+        if (!container) return;
+        if (this.isLoadingMore() || !this.hasMoreItems()) return;
+
+        const { scrollHeight, clientHeight } = container;
+        // If content doesn't fill the container (no scrollbar), load more
+        if (scrollHeight <= clientHeight) {
+            this.loadMore();
+        }
+    }
+
+    private removeScrollListener() {
+        if (this.scrollListener) {
+            this.scrollListener();
+            this.scrollListener = null;
+        }
     }
 
     handshake() {

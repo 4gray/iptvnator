@@ -28,4 +28,6 @@ export interface Settings {
     vlcPlayerPath: string;
     remoteControl: boolean;
     remoteControlPort: number;
+    /** Custom download folder path (uses system Downloads folder if not set) */
+    downloadFolder?: string;
 }

@@ -35,14 +35,18 @@ declare global {
                 title: string,
                 userAgent: string,
                 referer?: string,
-                origin?: string
+                origin?: string,
+                contentInfo?: any,
+                startTime?: number
             ) => void;
             openInVlc: (
                 url: string,
                 title: string,
                 userAgent: string,
                 referer?: string,
-                origin?: string
+                origin?: string,
+                contentInfo?: any,
+                startTime?: number
             ) => void;
             autoUpdatePlaylists: (playlists: Playlist[]) => Promise<Playlist[]>;
             fetchEpg: (
@@ -214,9 +218,106 @@ declare global {
             onDbSaveContentProgress: (callback: (count: number) => void) => void;
             removeDbSaveContentProgress: () => void;
             dbDeleteAllPlaylists: () => Promise<{ success: boolean }>;
+            // Playback positions
+            dbSavePlaybackPosition: (
+                playlistId: string,
+                data: any
+            ) => Promise<{ success: boolean }>;
+            dbGetPlaybackPosition: (
+                playlistId: string,
+                contentXtreamId: number,
+                contentType: 'vod' | 'episode'
+            ) => Promise<any | null>;
+            dbGetSeriesPlaybackPositions: (
+                playlistId: string,
+                seriesXtreamId: number
+            ) => Promise<any[]>;
+            dbGetRecentPlaybackPositions: (
+                playlistId: string,
+                limit?: number
+            ) => Promise<any[]>;
+            dbGetAllPlaybackPositions: (
+                playlistId: string
+            ) => Promise<any[]>;
+            dbClearPlaybackPosition: (
+                playlistId: string,
+                contentXtreamId: number,
+                contentType: 'vod' | 'episode'
+            ) => Promise<{ success: boolean }>;
+            onPlaybackPositionUpdate: (callback: (data: any) => void) => () => void;
+            // Downloads
+            downloadsStart: (data: {
+                playlistId: string;
+                xtreamId: number;
+                contentType: 'vod' | 'episode';
+                title: string;
+                url: string;
+                posterUrl?: string;
+                downloadFolder: string;
+                headers?: {
+                    userAgent?: string;
+                    referer?: string;
+                    origin?: string;
+                };
+                seriesXtreamId?: number;
+                seasonNumber?: number;
+                episodeNumber?: number;
+                // Playlist info for auto-creation if needed
+                playlistName?: string;
+                playlistType?: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
+                serverUrl?: string;
+                portalUrl?: string;
+                macAddress?: string;
+            }) => Promise<{ success: boolean; id?: number; error?: string }>;
+            downloadsCancel: (
+                downloadId: number
+            ) => Promise<{ success: boolean; error?: string }>;
+            downloadsRetry: (
+                downloadId: number,
+                downloadFolder: string
+            ) => Promise<{ success: boolean; error?: string }>;
+            downloadsRemove: (
+                downloadId: number
+            ) => Promise<{ success: boolean; error?: string }>;
+            downloadsGetList: (playlistId?: string) => Promise<DownloadItem[]>;
+            downloadsGet: (downloadId: number) => Promise<DownloadItem | null>;
+            downloadsGetDefaultFolder: () => Promise<string>;
+            downloadsSelectFolder: () => Promise<string | null>;
+            downloadsRevealFile: (
+                filePath: string
+            ) => Promise<{ success: boolean; error?: string }>;
+            downloadsPlayFile: (
+                filePath: string
+            ) => Promise<{ success: boolean; error?: string }>;
+            downloadsClearCompleted: (
+                playlistId?: string
+            ) => Promise<{ success: boolean }>;
+            onDownloadsUpdate: (callback: () => void) => () => void;
         };
         process: NodeJS.Process;
         require: NodeRequire;
+    }
+
+    /** Download item from the database */
+    interface DownloadItem {
+        id: number;
+        playlistId: string;
+        xtreamId: number;
+        contentType: 'vod' | 'episode';
+        seriesXtreamId?: number;
+        seasonNumber?: number;
+        episodeNumber?: number;
+        title: string;
+        url: string;
+        fileName?: string;
+        filePath?: string;
+        posterUrl?: string;
+        status: 'queued' | 'downloading' | 'completed' | 'failed' | 'canceled';
+        bytesDownloaded?: number;
+        totalBytes?: number;
+        errorMessage?: string;
+        createdAt?: string;
+        updatedAt?: string;
     }
 }
 

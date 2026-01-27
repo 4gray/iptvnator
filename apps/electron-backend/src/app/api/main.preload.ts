@@ -254,4 +254,48 @@ contextBridge.exposeInMainWorld('electron', {
             contentType
         ),
     getLocalIpAddresses: () => ipcRenderer.invoke('get-local-ip-addresses'),
+    // Downloads
+    downloadsStart: (data: {
+        playlistId: string;
+        xtreamId: number;
+        contentType: 'vod' | 'episode';
+        title: string;
+        url: string;
+        posterUrl?: string;
+        downloadFolder: string;
+        headers?: { userAgent?: string; referer?: string; origin?: string };
+        seriesXtreamId?: number;
+        seasonNumber?: number;
+        episodeNumber?: number;
+        // Playlist info for auto-creation if needed
+        playlistName?: string;
+        playlistType?: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
+        serverUrl?: string;
+        portalUrl?: string;
+        macAddress?: string;
+    }) => ipcRenderer.invoke('DOWNLOADS_START', data),
+    downloadsCancel: (downloadId: number) =>
+        ipcRenderer.invoke('DOWNLOADS_CANCEL', downloadId),
+    downloadsRetry: (downloadId: number, downloadFolder: string) =>
+        ipcRenderer.invoke('DOWNLOADS_RETRY', downloadId, downloadFolder),
+    downloadsRemove: (downloadId: number) =>
+        ipcRenderer.invoke('DOWNLOADS_REMOVE', downloadId),
+    downloadsGetList: (playlistId?: string) =>
+        ipcRenderer.invoke('DOWNLOADS_GET_LIST', playlistId),
+    downloadsGet: (downloadId: number) =>
+        ipcRenderer.invoke('DOWNLOADS_GET', downloadId),
+    downloadsGetDefaultFolder: () =>
+        ipcRenderer.invoke('DOWNLOADS_GET_DEFAULT_FOLDER'),
+    downloadsSelectFolder: () => ipcRenderer.invoke('DOWNLOADS_SELECT_FOLDER'),
+    downloadsRevealFile: (filePath: string) =>
+        ipcRenderer.invoke('DOWNLOADS_REVEAL_FILE', filePath),
+    downloadsPlayFile: (filePath: string) =>
+        ipcRenderer.invoke('DOWNLOADS_PLAY_FILE', filePath),
+    downloadsClearCompleted: (playlistId?: string) =>
+        ipcRenderer.invoke('DOWNLOADS_CLEAR_COMPLETED', playlistId),
+    onDownloadsUpdate: (callback: () => void) => {
+        const handler = () => callback();
+        ipcRenderer.on('DOWNLOADS_UPDATE_EVENT', handler);
+        return () => ipcRenderer.off('DOWNLOADS_UPDATE_EVENT', handler);
+    },
 });

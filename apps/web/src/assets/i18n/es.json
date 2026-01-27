@@ -281,5 +281,30 @@
         "BUY_ME_A_COFFEE_TOOLTIP": "Buy me a coffee"
     },
     "REFRESH": "Actualizar",
-    "UPDATE_AVAILABLE": "Actualización disponible"
+    "UPDATE_AVAILABLE": "Actualización disponible",
+    "INFORMATION": "Información",
+    "DOWNLOADS": {
+        "TITLE": "Descargas",
+        "DOWNLOAD": "Descargar",
+        "PLAY_LOCAL": "Reproducir local",
+        "EMPTY": "Sin descargas aún",
+        "EMPTY_HINT": "Descarga películas y episodios para ver sin conexión",
+        "NOT_AVAILABLE": "Descargas no disponibles",
+        "DESKTOP_ONLY": "Esta función solo está disponible en la aplicación de escritorio",
+        "NO_FOLDER": "No se ha seleccionado carpeta de descarga",
+        "CHANGE_FOLDER": "Cambiar carpeta",
+        "CLEAR_COMPLETED": "Limpiar completados",
+        "CANCEL": "Cancelar",
+        "RETRY": "Reintentar",
+        "REMOVE": "Eliminar",
+        "PLAY": "Reproducir",
+        "REVEAL": "Mostrar en carpeta",
+        "STATUS": {
+            "QUEUED": "En cola",
+            "DOWNLOADING": "Descargando",
+            "COMPLETED": "Completado",
+            "FAILED": "Fallido",
+            "CANCELED": "Cancelado"
+        }
+    }
 }

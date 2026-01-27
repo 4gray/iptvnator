@@ -103,6 +103,17 @@
         >
             <mat-icon matListItemIcon>favorite</mat-icon>
         </a>
+        @if (isElectron) {
+            <a
+                mat-list-item
+                routerLink="./downloads"
+                routerLinkActive="active"
+                [matTooltip]="'DOWNLOADS.TITLE' | translate"
+                matTooltipPosition="right"
+            >
+                <mat-icon matListItemIcon>download</mat-icon>
+            </a>
+        }
     </mat-nav-list>
 </div>
 

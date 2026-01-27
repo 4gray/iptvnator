@@ -115,7 +115,8 @@
     }
 }
 
-.favorite-btn {
+.favorite-btn,
+.download-btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -133,6 +134,14 @@
         background: rgba(109, 109, 110, 0.5);
     }
 
+    mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.favorite-btn {
     &--active {
         background: rgba(229, 9, 20, 0.8);
 
@@ -140,11 +149,31 @@
             background: rgba(229, 9, 20, 0.6);
         }
     }
+}
 
-    mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
+.download-btn {
+    background: rgba(33, 150, 243, 0.8);
+
+    &:hover {
+        background: rgba(33, 150, 243, 0.6);
+    }
+
+    &--completed {
+        background: rgba(76, 175, 80, 0.8);
+
+        &:hover {
+            background: rgba(76, 175, 80, 0.6);
+        }
+    }
+
+    &--downloading {
+        background: rgba(109, 109, 110, 0.5);
+        cursor: not-allowed;
+        opacity: 0.7;
+
+        &:hover {
+            background: rgba(109, 109, 110, 0.5);
+        }
     }
 }
 
@@ -307,7 +336,8 @@
     }
 
     .play-btn,
-    .favorite-btn {
+    .favorite-btn,
+    .download-btn {
         flex: 1;
         justify-content: center;
         padding: 10px 16px;

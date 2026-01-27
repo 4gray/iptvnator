@@ -394,6 +394,30 @@
     "REFRESH": "Aktualisieren",
     "UPDATE_AVAILABLE": "Update verfügbar",
     "INFORMATION": "Information",
+    "DOWNLOADS": {
+        "TITLE": "Downloads",
+        "DOWNLOAD": "Herunterladen",
+        "PLAY_LOCAL": "Lokal abspielen",
+        "EMPTY": "Noch keine Downloads",
+        "EMPTY_HINT": "Filme und Episoden zum Offline-Ansehen herunterladen",
+        "NOT_AVAILABLE": "Downloads nicht verfügbar",
+        "DESKTOP_ONLY": "Diese Funktion ist nur in der Desktop-App verfügbar",
+        "NO_FOLDER": "Kein Download-Ordner ausgewählt",
+        "CHANGE_FOLDER": "Ordner ändern",
+        "CLEAR_COMPLETED": "Abgeschlossene löschen",
+        "CANCEL": "Abbrechen",
+        "RETRY": "Wiederholen",
+        "REMOVE": "Entfernen",
+        "PLAY": "Abspielen",
+        "REVEAL": "Im Ordner anzeigen",
+        "STATUS": {
+            "QUEUED": "In Warteschlange",
+            "DOWNLOADING": "Wird heruntergeladen",
+            "COMPLETED": "Abgeschlossen",
+            "FAILED": "Fehlgeschlagen",
+            "CANCELED": "Abgebrochen"
+        }
+    },
     "REMOTE_CONTROL": {
         "TITLE": "Fernbedienung",
         "UP_CHANNEL": "Sender aufwärts",
