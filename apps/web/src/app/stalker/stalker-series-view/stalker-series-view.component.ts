@@ -13,6 +13,7 @@ import { ContentHeroComponent } from 'components';
 import { StalkerStore } from '../stalker.store';
 import { SeasonContainerComponent } from '../../xtream-tauri/season-container/season-container.component';
 import { XtreamSerieEpisode } from 'shared-interfaces';
+import { XtreamStore } from '../../xtream-tauri/stores/xtream.store';
 
 /**
  * VOD series season with episodes loaded dynamically
@@ -57,6 +58,7 @@ interface StalkerSeriesSeason {
 })
 export class StalkerSeriesViewComponent {
     readonly stalkerStore = inject(StalkerStore);
+    private readonly xtreamStore = inject(XtreamStore);
     readonly backClicked = output<void>();
 
     /**
@@ -74,10 +76,15 @@ export class StalkerSeriesViewComponent {
 
     /**
      * Indicates if this is a VOD series item (Ministra is_series=1)
+     * Note: is_series can be true, 1, or "1" depending on the source
      */
     readonly isVodSeries = computed(() => {
         const item = this.displayItem();
-        return item?.is_series === true;
+        return (
+            item?.is_series === true ||
+            item?.is_series === 1 ||
+            item?.is_series === '1'
+        );
     });
 
     /**
@@ -95,7 +102,11 @@ export class StalkerSeriesViewComponent {
         // Effect to load VOD series seasons when a VOD series item is selected
         effect(() => {
             const item = this.displayItem();
-            if (item?.is_series === true) {
+            const isSeries =
+                item?.is_series === true ||
+                item?.is_series === 1 ||
+                item?.is_series === '1';
+            if (isSeries) {
                 // Get seasons from the resource
                 const seasons = this.stalkerStore.getVodSeriesSeasonsResource();
                 if (seasons && seasons.length > 0) {
@@ -116,6 +127,22 @@ export class StalkerSeriesViewComponent {
                 }
             } else {
                 this.vodSeriesSeasons.set([]);
+            }
+        });
+
+        // Effect to load playback positions for Stalker series
+        effect(() => {
+            const item = this.displayItem();
+            const playlist = this.stalkerStore.currentPlaylist();
+            if (item && playlist?._id) {
+                const seriesId = Number(item.id);
+                console.log(
+                    `[StalkerSeriesView] Loading positions for series: id=${item.id}, seriesId=${seriesId}, is_series=${item.is_series}`
+                );
+                if (!isNaN(seriesId)) {
+                    // Load playback positions from the XtreamStore (works for any playlist type)
+                    this.xtreamStore.loadSeriesPositions(playlist._id, seriesId);
+                }
             }
         });
     }
@@ -150,6 +177,42 @@ export class StalkerSeriesViewComponent {
     });
 
     /**
+     * Simple hash function to generate consistent numeric IDs from strings
+     */
+    private hashString(str: string): number {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = (hash << 5) - hash + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        return Math.abs(hash);
+    }
+
+    /**
+     * Generate a unique episode ID for Stalker episodes.
+     * For VOD series: ALWAYS hash with season + episode number because
+     * the API returns the same ID (series/movie ID) for all episodes.
+     * For regular series: hash the cmd + episode number
+     */
+    private generateEpisodeId(
+        episodeId: any,
+        episodeNum: number,
+        seasonKey: string,
+        isVodSeries: boolean
+    ): number {
+        if (isVodSeries) {
+            // For VOD series, ALWAYS create unique ID from season + episode number
+            // The API-provided ep.id is the same for all episodes (it's the series ID)
+            return this.hashString(`vod_${seasonKey}_${episodeNum}`);
+        } else {
+            // For regular series, create unique ID from cmd + episode number
+            const cmd = String(episodeId || '');
+            return this.hashString(`${cmd}_ep_${episodeNum}`);
+        }
+    }
+
+    /**
      * Adapts both Regular and VOD series data into the format expected by SeasonContainerComponent.
      * Record<string, XtreamSerieEpisode[]> where string is season number/name.
      */
@@ -164,13 +227,13 @@ export class StalkerSeriesViewComponent {
                         season.season_number || season.name || season.id;
                     // Map existing episodes or empty array
                     mapped[seasonKey] = (season.episodes || []).map(
-                        (ep) =>
-                            ({
-                                episode_num:
-                                    ep.series_number || ep.episode_num || 0,
+                        (ep) => {
+                            const episodeNum = ep.series_number || ep.episode_num || 0;
+                            return {
+                                episode_num: episodeNum,
                                 title:
                                     ep.name ||
-                                    `Episode ${ep.series_number || ep.episode_num}`,
+                                    `Episode ${episodeNum}`,
                                 container_extension: 'mpg',
                                 info: {
                                     movie_image:
@@ -181,9 +244,13 @@ export class StalkerSeriesViewComponent {
                                         ? `${ep.duration} min`
                                         : '',
                                 },
-                                id: ep.id,
+                                // Use unique ID for watched status tracking
+                                id: this.generateEpisodeId(ep.id, episodeNum, seasonKey, true),
+                                // Store original API id for playback
+                                originalId: ep.id,
                                 custom_sid: 'vod-series', // marker
-                            }) as unknown as XtreamSerieEpisode
+                            } as unknown as XtreamSerieEpisode;
+                        }
                     );
                 });
             } else {
@@ -201,7 +268,10 @@ export class StalkerSeriesViewComponent {
                                         this.displayItem().info.movie_image,
                                 },
                                 custom_sid: 'regular-series', // marker
-                                id: season.cmd, // Store cmd in id for playEpisodeClicked
+                                // Use unique ID for watched status tracking
+                                id: this.generateEpisodeId(season.cmd, epNum, seasonKey, false),
+                                // Store cmd for playback
+                                originalCmd: season.cmd,
                             }) as unknown as XtreamSerieEpisode
                     );
                 });
@@ -290,32 +360,49 @@ export class StalkerSeriesViewComponent {
      * Handles episode click from the container
      */
     onEpisodeClicked(episode: XtreamSerieEpisode) {
-        if (episode.custom_sid === 'vod-series') {
-            // It's a VOD series episode
-            // We reconstructed the episode object, but playVodSeriesEpisode expects the raw object
-            // or at least { id, name, series_number }
+        if ((episode as any).custom_sid === 'vod-series') {
+            // It's a VOD series episode (is_series=1 mode)
+            // Use originalId for playback URL, but use generated id for tracking
             this.playVodSeriesEpisode({
-                id: episode.id,
+                originalId: (episode as any).originalId, // For constructing playback URL
+                trackingId: episode.id, // The generated unique ID for position tracking
                 name: episode.title,
                 series_number: episode.episode_num,
             });
         } else {
-            // Regular series
-            // episode.id contains the 'cmd' from mapping
-            this.playEpisodeClicked(episode.episode_num, episode.id);
+            // Regular series or vclub mode (VOD with embedded series array)
+            // Use originalCmd for playback, episode.id for tracking
+            const trackingId = Number(episode.id);
+            this.playEpisodeClicked(
+                episode.episode_num,
+                (episode as any).originalCmd,
+                trackingId
+            );
         }
     }
 
     /**
-     * Play episode - handles both regular series and VOD series
+     * Play episode - handles regular series and vclub mode
      */
-    playEpisodeClicked(episodeNum: any, cmd?: string) {
+    playEpisodeClicked(episodeNum: any, cmd?: string, trackingId?: number) {
         const item = this.displayItem();
+        console.log(
+            `[StalkerSeriesView] playEpisodeClicked: episodeNum=${episodeNum}, cmd=${cmd}, trackingId=${trackingId}, seriesId=${item.id}`
+        );
+
+        // Get playback position from XtreamStore if available
+        const position = trackingId
+            ? this.xtreamStore.playbackPositions().get(`episode_${trackingId}`)
+            : undefined;
+        const startTime = position?.positionSeconds;
+
         this.stalkerStore.createLinkToPlayVod(
             cmd,
             item.info.name,
             item.info.movie_image,
-            episodeNum
+            episodeNum,
+            trackingId, // unique episode ID for playback tracking
+            startTime
         );
     }
 
@@ -324,13 +411,29 @@ export class StalkerSeriesViewComponent {
      */
     playVodSeriesEpisode(episode: any) {
         const item = this.displayItem();
-        const cmd = `/media/file_${episode.id}.mpg`;
+        // Use originalId for playback URL (this is what the Stalker API expects)
+        const cmd = `/media/file_${episode.originalId}.mpg`;
         const episodeName = episode.name || `Episode ${episode.series_number}`;
+        // Use trackingId (generated unique ID) for playback position tracking
+        const trackingId = Number(episode.trackingId);
+
+        console.log(
+            `[StalkerSeriesView] playVodSeriesEpisode: originalId=${episode.originalId}, trackingId=${trackingId}, seriesId=${item.id}, episodeName=${episodeName}`
+        );
+
+        // Get playback position from XtreamStore if available
+        const position = this.xtreamStore
+            .playbackPositions()
+            .get(`episode_${trackingId}`);
+        const startTime = position?.positionSeconds;
 
         this.stalkerStore.createLinkToPlayVod(
             cmd,
             `${item.info.name} - ${episodeName}`,
-            item.info.movie_image
+            item.info.movie_image,
+            episode.series_number, // episode number for API
+            trackingId, // unique episode ID for playback tracking
+            startTime
         );
     }
 

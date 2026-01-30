@@ -1,19 +1,14 @@
 @if (itemDetails) {
     @switch (selectedFilterType()) {
         @case ('vod') {
-            <app-vod-details
-                [item]="itemDetails"
-                (playClicked)="
-                    createLinkToPlayVodItv(
-                        itemDetails.cmd,
-                        itemDetails.info.name,
-                        itemDetails.info.movie_image
-                    )
-                "
-                (addToFavoritesClicked)="addToFavorites($event)"
-                (removeFromFavoritesClicked)="removeFromFavorites($any($event))"
-                (backClicked)="itemDetails = null"
-            />
+            @if (vodDetailsItem) {
+                <app-vod-details
+                    [item]="vodDetailsItem"
+                    (playClicked)="onVodPlay($event)"
+                    (favoriteToggled)="onVodFavoriteToggled($event)"
+                    (backClicked)="onVodBack()"
+                />
+            }
         }
         @case ('series') {
             <app-stalker-series-view (backClicked)="itemDetails = null" />

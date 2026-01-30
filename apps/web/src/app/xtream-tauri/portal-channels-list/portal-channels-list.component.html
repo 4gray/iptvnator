@@ -11,32 +11,28 @@
     </mat-form-field>
 </div>
 
-<mat-nav-list>
+<div class="channels-list">
     <cdk-virtual-scroll-viewport
-        [itemSize]="48"
+        [itemSize]="68"
         class="scroll-viewport-portals"
     >
-        <mat-list-item
+        <div
             *cdkVirtualFor="
                 let item of channels() | filterBy: searchString() : 'title';
                 trackBy: trackBy;
                 templateCacheSize: 0
             "
-            templateCacheSize="200"
+            class="channel-item"
+            [class.active]="xtreamStore.selectedItem()?.xtream_id === item.xtream_id"
             (click)="playClicked.emit(item)"
-            [activated]="
-                xtreamStore.selectedItem()?.xtream_id === item.xtream_id
-            "
         >
             <img
-                matListItemAvatar
                 class="stream-icon"
                 [src]="item.stream_icon ?? item.poster_url"
-                (error)="
-                    $event.target.src = './assets/images/default-poster.png'
-                "
+                (error)="$event.target.src = './assets/images/default-poster.png'"
+                alt="channel icon"
             />
-            <div matListItemTitle class="channel-info">
+            <div class="channel-info">
                 <div class="title">{{ item.title }}</div>
                 @if (currentPrograms.get(item.xtream_id)) {
                     <div class="program-info">
@@ -53,9 +49,7 @@
                                     <div
                                         class="progress"
                                         [style.width.%]="
-                                            currentProgramsProgress.get(
-                                                item.xtream_id
-                                            )
+                                            currentProgramsProgress.get(item.xtream_id)
                                         "
                                     ></div>
                                 </div>
@@ -78,16 +72,13 @@
                 }
             </div>
             <button
-                mat-icon-button
-                matListItemMeta
+                class="favorite-btn"
                 (click)="toggleFavorite($event, item)"
             >
                 <mat-icon>
-                    {{
-                        favorites.get(item.xtream_id) ? 'star' : 'star_outline'
-                    }}
+                    {{ favorites.get(item.xtream_id) ? 'star' : 'star_outline' }}
                 </mat-icon>
             </button>
-        </mat-list-item>
+        </div>
     </cdk-virtual-scroll-viewport>
-</mat-nav-list>
+</div>

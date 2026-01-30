@@ -1,8 +1,13 @@
 .sidebar {
+    // Width is controlled by the resizable directive
+    // Default fallback if directive not applied
     width: 400px;
+    min-width: 250px;
+    max-width: 600px;
     border-right: 1px solid #333;
     display: flex;
     flex-direction: column;
+    flex-shrink: 0; // Prevent sidebar from shrinking
 
     .sidebar-header {
         padding: 16px;

@@ -5,7 +5,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { PlaylistSwitcherComponent } from 'components';
+import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { XtreamCategory } from 'shared-interfaces';
 import {
     CategoryManagementDialogComponent,
@@ -24,6 +24,7 @@ import { XtreamStore } from './stores/xtream.store';
         MatIconButton,
         MatTooltipModule,
         PlaylistSwitcherComponent,
+        ResizableDirective,
         RouterOutlet,
         TranslateModule,
     ],

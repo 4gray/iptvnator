@@ -9,10 +9,20 @@ import { XtreamVodDetails } from 'shared-interfaces';
 import { DownloadsService } from '../../services/downloads.service';
 import { SettingsStore } from '../../services/settings-store.service';
 import { XtreamStore } from '../stores/xtream.store';
-import { SafePipe } from './safe.pipe';
+import { SafePipe } from '@iptvnator/pipes';
 
+/**
+ * Route-based VOD details container for Xtream.
+ *
+ * This is a "smart" component that:
+ * - Reads route params (vodId, categoryId)
+ * - Fetches data via XtreamStore
+ * - Manages playback and favorites
+ *
+ * Used for route-based navigation: /xtreams/:id/vod/:categoryId/:vodId
+ */
 @Component({
-    templateUrl: './vod-details.component.html',
+    templateUrl: './vod-details-route.component.html',
     styleUrls: ['../detail-view.scss'],
     imports: [
         ContentHeroComponent,
@@ -23,7 +33,7 @@ import { SafePipe } from './safe.pipe';
         MatProgressSpinnerModule,
     ],
 })
-export class VodDetailsComponent implements OnInit, OnDestroy {
+export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private location = inject(Location);
     private settingsStore = inject(SettingsStore);
     private route = inject(ActivatedRoute);

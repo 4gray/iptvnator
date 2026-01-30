@@ -1,4 +1,11 @@
-<div class="sidebar" style="display: flex; flex-direction: column">
+<div
+    class="sidebar"
+    appResizable
+    [minWidth]="250"
+    [maxWidth]="600"
+    [defaultWidth]="400"
+    storageKey="sidebar-width"
+>
     <div class="sidebar-header">
         @let isItvCategorySelected =
             stalkerStore.selectedCategoryId() &&

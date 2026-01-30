@@ -1,6 +1,7 @@
 import { KeyValuePipe } from '@angular/common';
-import { Component, EventEmitter, Output, input, inject } from '@angular/core';
+import { Component, EventEmitter, Output, input, inject, signal, OnInit } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -12,6 +13,9 @@ import { ProgressCapsuleComponent } from '../shared/progress-capsule/progress-ca
 import { WatchedBadgeComponent } from '../shared/watched-badge/watched-badge.component';
 import { DownloadsService } from '../../services/downloads.service';
 
+type EpisodeViewMode = 'grid' | 'list';
+const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
+
 @Component({
     selector: 'app-season-container',
     templateUrl: './season-container.component.html',
@@ -19,6 +23,7 @@ import { DownloadsService } from '../../services/downloads.service';
     imports: [
         KeyValuePipe,
         MatButtonModule,
+        MatButtonToggleModule,
         MatIcon,
         MatProgressSpinnerModule,
         MatTooltipModule,
@@ -27,7 +32,7 @@ import { DownloadsService } from '../../services/downloads.service';
         WatchedBadgeComponent,
     ],
 })
-export class SeasonContainerComponent {
+export class SeasonContainerComponent implements OnInit {
     private readonly xtreamStore = inject(XtreamStore);
     private readonly stalkerStore = inject(StalkerStore);
     private readonly downloadsService = inject(DownloadsService);
@@ -38,6 +43,23 @@ export class SeasonContainerComponent {
     readonly isLoading = input<boolean>(false);
 
     readonly isElectron = this.downloadsService.isAvailable;
+
+    /** Current view mode for episodes (grid or list) */
+    readonly viewMode = signal<EpisodeViewMode>('grid');
+
+    ngOnInit() {
+        // Load saved view mode preference
+        const savedMode = localStorage.getItem(EPISODE_VIEW_MODE_KEY) as EpisodeViewMode;
+        if (savedMode === 'grid' || savedMode === 'list') {
+            this.viewMode.set(savedMode);
+        }
+    }
+
+    /** Toggle between grid and list view modes */
+    setViewMode(mode: EpisodeViewMode) {
+        this.viewMode.set(mode);
+        localStorage.setItem(EPISODE_VIEW_MODE_KEY, mode);
+    }
 
     /**
      * Detect if episode is from Stalker portal based on custom_sid marker
@@ -61,26 +83,61 @@ export class SeasonContainerComponent {
     }
 
     /**
+     * Get the content ID for playback position lookup.
+     * For Stalker VOD series, use the generated unique ID (episode.id).
+     * The API-provided originalId is the same for all episodes (it's the series ID),
+     * so we use the hash-generated ID which is unique per episode.
+     * For Xtream episodes, use episode.id directly.
+     */
+    private getEpisodeContentId(episode: XtreamSerieEpisode): number {
+        const customSid = (episode as any).custom_sid;
+
+        if (customSid === 'vod-series') {
+            // For vod-series, use the generated unique ID (episode.id)
+            // NOT originalId, which is the same for all episodes (series ID)
+            return Number(episode.id);
+        }
+
+        if (customSid === 'regular-series') {
+            // For regular-series, the hashed id is used for tracking
+            // (regular series don't have individual episode IDs from API)
+            return Number(episode.id);
+        }
+
+        // For xtream (non-Stalker), use episode.id directly
+        return Number(episode.id);
+    }
+
+    /**
      * Get a stable numeric ID for an episode (used for downloads tracking)
-     * For regular-series, episode.id contains cmd string, so we extract ID from it
-     * For vod-series and xtream, episode.id is already numeric
+     * For Stalker episodes, use originalCmd/originalId; for Xtream use episode.id
      */
     private getEpisodeDownloadId(episode: XtreamSerieEpisode): number {
         const customSid = (episode as any).custom_sid;
 
         if (customSid === 'regular-series') {
-            // For regular-series, episode.id is cmd like "/media/file_123.mpg"
-            // Extract the numeric part if possible
-            const cmd = episode.id as unknown as string;
-            const match = cmd?.match(/file_(\d+)/);
-            if (match) {
-                return Number(match[1]);
+            // For regular-series, use originalCmd (like "/media/file_123.mpg")
+            const cmd = (episode as any).originalCmd as string;
+            if (cmd) {
+                const match = cmd.match(/file_(\d+)/);
+                if (match) {
+                    return Number(match[1]);
+                }
+                // Fallback: hash the cmd string to get a consistent number
+                return this.hashString(cmd);
             }
-            // Fallback: hash the cmd string to get a consistent number
-            return this.hashString(cmd || '');
+            // Final fallback: use the hashed id
+            return Number(episode.id);
         }
 
-        // For vod-series and xtream, use the numeric id directly
+        if (customSid === 'vod-series') {
+            // For vod-series, use originalId from the API
+            const originalId = (episode as any).originalId;
+            const numId = Number(originalId);
+            return isNaN(numId) ? this.hashString(String(originalId)) : numId;
+        }
+
+        // For xtream (non-Stalker), use the numeric id directly
         const numId = Number(episode.id);
         return isNaN(numId) ? this.hashString(String(episode.id)) : numId;
     }
@@ -118,10 +175,23 @@ export class SeasonContainerComponent {
 
     toggleWatched(event: Event, episode: XtreamSerieEpisode) {
         event.stopPropagation();
-        const playlistId = this.xtreamStore.currentPlaylist().id;
+        const playlistId = this.getPlaylistId(episode);
+        if (!playlistId) {
+            console.warn('[SeasonContainer] Cannot toggle watched: no playlist ID');
+            return;
+        }
+
+        // For Stalker episodes, we need to use the content ID that matches
+        // what the player uses (originalId for vod-series)
+        const contentId = this.getEpisodeContentId(episode);
+        const episodeWithCorrectId = {
+            ...episode,
+            id: String(contentId),
+        } as XtreamSerieEpisode;
+
         this.xtreamStore.toggleEpisodeWatched(
             playlistId,
-            episode,
+            episodeWithCorrectId,
             this.seriesId()
         );
     }
@@ -140,26 +210,33 @@ export class SeasonContainerComponent {
     }
 
     isEpisodeWatched(episode: XtreamSerieEpisode) {
-        return this.xtreamStore.isWatched(Number(episode.id), 'episode');
+        const contentId = this.getEpisodeContentId(episode);
+        return this.xtreamStore.isWatched(contentId, 'episode');
     }
 
     isEpisodeInProgress(episode: XtreamSerieEpisode) {
-        return this.xtreamStore.isInProgress(Number(episode.id), 'episode');
+        const contentId = this.getEpisodeContentId(episode);
+        const inProgress = this.xtreamStore.isInProgress(contentId, 'episode');
+        if (inProgress) {
+            console.log(
+                `[SeasonContainer] Episode ${episode.title} (contentId=${contentId}, originalId=${(episode as any).originalId}) is IN PROGRESS`
+            );
+        }
+        return inProgress;
     }
 
     getEpisodeProgress(episode: XtreamSerieEpisode) {
-        return this.xtreamStore.getProgressPercent(
-            Number(episode.id),
-            'episode'
-        );
+        const contentId = this.getEpisodeContentId(episode);
+        return this.xtreamStore.getProgressPercent(contentId, 'episode');
     }
 
     getEpisodePositionText(episode: XtreamSerieEpisode): string | null {
         if (this.isEpisodeWatched(episode)) return null;
 
+        const contentId = this.getEpisodeContentId(episode);
         const position = this.xtreamStore
             .playbackPositions()
-            .get(`episode_${episode.id}`);
+            .get(`episode_${contentId}`);
         if (!position || !position.positionSeconds) return null;
 
         let seconds = position.positionSeconds;
@@ -258,11 +335,12 @@ export class SeasonContainerComponent {
         let cmd: string;
 
         if (customSid === 'vod-series') {
-            // VOD series episode - construct the cmd using episode id
-            cmd = `/media/file_${episode.id}.mpg`;
+            // VOD series episode - use originalId for the cmd
+            const originalId = (episode as any).originalId;
+            cmd = `/media/file_${originalId}.mpg`;
         } else {
-            // Regular series - episode.id contains the cmd
-            cmd = episode.id as unknown as string;
+            // Regular series - use originalCmd for the cmd
+            cmd = (episode as any).originalCmd as string;
         }
 
         // Resolve the actual stream URL via Stalker API

@@ -9,6 +9,14 @@
     justify-content: space-between;
     margin-bottom: 20px;
     min-height: 32px;
+    gap: 16px;
+
+    &__left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex: 1;
+    }
 
     .section-title {
         font-size: 1.25rem;
@@ -42,6 +50,56 @@
             font-size: 18px;
             width: 18px;
             height: 18px;
+        }
+    }
+
+    .view-toggle {
+        mat-button-toggle-group {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.03);
+
+            ::ng-deep {
+                .mat-button-toggle {
+                    background: transparent;
+
+                    .mat-button-toggle-button {
+                        padding: 0 8px;
+                        height: 32px;
+                    }
+
+                    mat-icon {
+                        font-size: 18px;
+                        width: 18px;
+                        height: 18px;
+                        color: var(--text-secondary);
+                    }
+
+                    &.mat-button-toggle-checked {
+                        background: rgba(255, 255, 255, 0.1);
+
+                        mat-icon {
+                            color: var(--accent-color);
+                        }
+                    }
+
+                    &:hover:not(.mat-button-toggle-checked) {
+                        background: rgba(255, 255, 255, 0.05);
+                    }
+                }
+
+                .mat-button-toggle-appearance-standard {
+                    .mat-button-toggle-label-content {
+                        line-height: 32px;
+                        padding: 0;
+                    }
+                }
+
+                .mat-button-toggle + .mat-button-toggle {
+                    border-left: 1px solid rgba(255, 255, 255, 0.1);
+                }
+            }
         }
     }
 }
@@ -424,5 +482,206 @@
         padding: 1px 6px;
         background: rgba(255, 255, 255, 0.08);
         border-radius: 10px;
+    }
+}
+
+// Episodes List View
+.episodes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+}
+
+.episode-list-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.08);
+
+        .episode-list-item__actions {
+            opacity: 1;
+        }
+    }
+
+    &--watched {
+        opacity: 0.6;
+
+        &:hover {
+            opacity: 1;
+        }
+    }
+
+    &--in-progress {
+        border-color: rgba(229, 9, 20, 0.4);
+        background: rgba(229, 9, 20, 0.05);
+
+        &:hover {
+            border-color: rgba(229, 9, 20, 0.6);
+            background: rgba(229, 9, 20, 0.08);
+        }
+    }
+
+    &__number {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+    }
+
+    &__content {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    &__title {
+        margin: 0;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        .watched-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+            color: #46d369;
+        }
+    }
+
+    &__meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+    }
+
+    &__duration {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        padding: 2px 8px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+    }
+
+    &__progress-text {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #e50914;
+        padding: 2px 8px;
+        background: rgba(229, 9, 20, 0.15);
+        border-radius: 10px;
+    }
+
+    &__description {
+        margin: 0;
+        font-size: 0.8125rem;
+        color: var(--text-secondary);
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    &__progress-bar {
+        height: 3px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 4px;
+    }
+
+    &__progress-fill {
+        height: 100%;
+        background: #e50914;
+        border-radius: 2px;
+        transition: width 0.3s ease;
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+
+        .action-btn {
+            width: 36px;
+            height: 36px;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+
+            mat-icon {
+                font-size: 20px;
+                width: 20px;
+                height: 20px;
+            }
+
+            &:hover {
+                color: var(--text-primary);
+                background: rgba(255, 255, 255, 0.1);
+            }
+
+            &.play-btn {
+                color: var(--accent-color);
+
+                &:hover {
+                    background: rgba(var(--accent-color-rgb), 0.15);
+                }
+            }
+
+            &--success {
+                color: #46d369;
+
+                &:hover {
+                    background: rgba(70, 211, 105, 0.15);
+                }
+            }
+
+            &:disabled {
+                color: var(--text-muted);
+                cursor: not-allowed;
+                opacity: 0.5;
+            }
+        }
+    }
+
+    // Always show actions on touch devices
+    @media (hover: none) {
+        .episode-list-item__actions {
+            opacity: 1;
+        }
     }
 }

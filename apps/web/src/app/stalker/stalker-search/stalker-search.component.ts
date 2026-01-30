@@ -10,6 +10,9 @@ import {
     Playlist,
     STALKER_REQUEST,
     StalkerPortalActions,
+    VodDetailsItem,
+    StalkerVodDetails,
+    createStalkerVodItem,
 } from 'shared-interfaces';
 import { SearchFormComponent } from '../../shared/components/search-form/search-form.component';
 import { SearchResultItemComponent } from '../../shared/components/search-result-item/search-result-item.component';
@@ -82,7 +85,8 @@ export class StalkerSearchComponent {
 
     readonly selectedFilterType = signal('vod');
 
-    itemDetails = null;
+    itemDetails: any = null;
+    vodDetailsItem: VodDetailsItem | null = null;
 
     readonly searchResultsResource = resource({
         params: () => ({
@@ -153,6 +157,12 @@ export class StalkerSearchComponent {
         switch (this.selectedFilterType()) {
             case 'vod':
                 this.stalkerStore.setSelectedContentType('vod');
+                // Create VodDetailsItem for the component
+                const playlist = this.currentPlaylist();
+                this.vodDetailsItem = createStalkerVodItem(
+                    this.itemDetails as StalkerVodDetails,
+                    playlist?._id ?? ''
+                );
                 break;
             case 'series':
                 this.stalkerStore.setSelectedContentType('series');
@@ -160,6 +170,40 @@ export class StalkerSearchComponent {
             default:
                 break;
         }
+    }
+
+    /** Handle play from vod-details component */
+    onVodPlay(item: VodDetailsItem): void {
+        if (item.type === 'stalker') {
+            this.createLinkToPlayVodItv(
+                item.cmd,
+                item.data.info?.name,
+                item.data.info?.movie_image
+            );
+        }
+    }
+
+    /** Handle favorite toggle from vod-details component */
+    onVodFavoriteToggled(event: { item: VodDetailsItem; isFavorite: boolean }): void {
+        if (event.item.type === 'stalker') {
+            if (event.isFavorite) {
+                this.removeFromFavorites(event.item.data.id);
+            } else {
+                this.addToFavorites({
+                    ...event.item.data,
+                    category_id: 'vod',
+                    title: event.item.data.info?.name,
+                    cover: event.item.data.info?.movie_image,
+                    added_at: new Date().toISOString(),
+                });
+            }
+        }
+    }
+
+    /** Handle back from vod-details component */
+    onVodBack(): void {
+        this.itemDetails = null;
+        this.vodDetailsItem = null;
     }
 
     onFiltersChange(event: { vod: boolean; live: boolean; series: boolean }) {

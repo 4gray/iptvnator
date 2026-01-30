@@ -891,11 +891,22 @@ export const StalkerStore = signalStore(
 
                 return null;
             },
+            /**
+             * Play VOD or episode content
+             * @param cmd The media command/path
+             * @param title Display title
+             * @param thumbnail Thumbnail URL
+             * @param episodeNum Episode number (for series param in API)
+             * @param episodeId Optional episode ID for playback tracking (defaults to item.id)
+             * @param startTime Optional start time in seconds for resume playback
+             */
             async createLinkToPlayVod(
                 cmd?: string,
                 title?: string,
                 thumbnail?: string,
-                episode?: number
+                episodeNum?: number,
+                episodeId?: number,
+                startTime?: number
             ) {
                 try {
                     const item = this.selectedItem();
@@ -919,7 +930,7 @@ export const StalkerStore = signalStore(
                         this.currentPlaylist().portalUrl,
                         this.currentPlaylist().macAddress,
                         cmdToUse,
-                        episode
+                        episodeNum
                     );
                     this.addToRecentlyViewed({
                         ...item,
@@ -929,11 +940,13 @@ export const StalkerStore = signalStore(
                         title,
                     });
                     const playlist = this.currentPlaylist();
+                    const isEpisode = episodeNum !== undefined || episodeId !== undefined;
                     const contentInfo = {
                         playlistId: playlist._id,
-                        contentXtreamId: Number(item.id),
-                        contentType: episode ? 'episode' : 'vod',
-                        seriesXtreamId: episode ? Number(item.id) : undefined, // For Stalker VOD series, use item.id as series ID
+                        // For episodes, use episodeId if provided, otherwise fall back to item.id
+                        contentXtreamId: isEpisode && episodeId ? episodeId : Number(item.id),
+                        contentType: isEpisode ? 'episode' : 'vod',
+                        seriesXtreamId: isEpisode ? Number(item.id) : undefined,
                     };
 
                     playerService.openPlayer(
@@ -945,7 +958,8 @@ export const StalkerStore = signalStore(
                         playlist?.userAgent,
                         playlist?.referrer,
                         playlist?.origin,
-                        contentInfo
+                        contentInfo,
+                        startTime
                     );
                 } catch (error) {
                     console.error(

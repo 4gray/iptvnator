@@ -3,6 +3,11 @@ import { PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import {
+    VodDetailsItem,
+    StalkerVodDetails,
+    createStalkerVodItem,
+} from 'shared-interfaces';
 import { GridListComponent } from '../../shared/components/grid-list/grid-list.component';
 import { StalkerSeriesViewComponent } from '../../stalker/stalker-series-view/stalker-series-view.component';
 import { StalkerStore } from '../../stalker/stalker.store';
@@ -80,6 +85,20 @@ export class CategoryContentViewComponent implements OnInit {
     readonly selectedItem = this.store.selectedItem;
     readonly totalPages = this.store.getTotalPages;
     readonly bigStore = inject(Store);
+
+    /** Computed VodDetailsItem for the vod-details component */
+    readonly vodDetailsItem = computed<VodDetailsItem | null>(() => {
+        const item = this.selectedItem();
+        if (!item || !this.isStalker) return null;
+        // Access currentPlaylist from the store (type-safe since we're in stalker mode)
+        const stalkerStore = this.store as unknown as {
+            currentPlaylist: () => { _id: string } | null;
+        };
+        return createStalkerVodItem(
+            item as StalkerVodDetails,
+            stalkerStore.currentPlaylist()?._id ?? ''
+        );
+    });
 
     seasons = [];
 
@@ -183,5 +202,41 @@ export class CategoryContentViewComponent implements OnInit {
     removeFromFavorites(favoriteId: string) {
         console.debug('Remove from favorites', favoriteId);
         this.store.removeFromFavorites(favoriteId);
+    }
+
+    /** Handle play from vod-details component */
+    onVodPlay(item: VodDetailsItem): void {
+        if (item.type === 'stalker') {
+            this.createLinkToPlayVod(
+                item.cmd,
+                item.data.info?.name,
+                item.data.info?.movie_image
+            );
+        }
+    }
+
+    /** Handle favorite toggle from vod-details component */
+    onVodFavoriteToggled(event: {
+        item: VodDetailsItem;
+        isFavorite: boolean;
+    }): void {
+        if (event.item.type === 'stalker') {
+            if (event.isFavorite) {
+                this.removeFromFavorites(event.item.data.id);
+            } else {
+                this.addToFavorites({
+                    ...event.item.data,
+                    category_id: 'vod',
+                    title: event.item.data.info?.name,
+                    cover: event.item.data.info?.movie_image,
+                    added_at: new Date().toISOString(),
+                });
+            }
+        }
+    }
+
+    /** Handle back from vod-details component */
+    onVodBack(): void {
+        this.store.setSelectedItem(null);
     }
 }

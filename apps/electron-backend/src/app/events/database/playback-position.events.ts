@@ -117,6 +117,9 @@ ipcMain.handle(
     'DB_GET_SERIES_PLAYBACK_POSITIONS',
     async (event, playlistId: string, seriesXtreamId: number) => {
         try {
+            console.log(
+                `[DatabaseEvents] Getting series playback positions: playlistId=${playlistId}, seriesXtreamId=${seriesXtreamId}`
+            );
             const db = await getDatabase();
             const result = await db
                 .select()
@@ -131,6 +134,15 @@ ipcMain.handle(
                         eq(schema.playbackPositions.contentType, 'episode')
                     )
                 );
+
+            console.log(
+                `[DatabaseEvents] Found ${result.length} positions for series ${seriesXtreamId}:`,
+                result.map((r) => ({
+                    contentXtreamId: r.contentXtreamId,
+                    seriesXtreamId: r.seriesXtreamId,
+                    position: r.positionSeconds,
+                }))
+            );
 
             return result;
         } catch (error) {

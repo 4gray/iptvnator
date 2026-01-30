@@ -56,10 +56,9 @@
         }
         @case ('vod-details') {
             <app-vod-details
-                [item]="$any(vodDetails)"
-                (playClicked)="playVod($event)"
-                (addToFavoritesClicked)="addToFavorites($event)"
-                (removeFromFavoritesClicked)="removeFromFavorites($event)"
+                [item]="getVodDetailsItem()"
+                (playClicked)="onVodPlay($event)"
+                (favoriteToggled)="onVodFavoriteToggled($event)"
             />
         }
         @case ('serie-details') {

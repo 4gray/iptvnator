@@ -1,7 +1,11 @@
+:host {
+    width: 100%;
+}
+
 .downloads {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: calc(100vh - 20px);
     padding: 1rem;
     overflow: hidden;
 

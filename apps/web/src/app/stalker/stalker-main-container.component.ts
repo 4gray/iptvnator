@@ -8,7 +8,7 @@ import {
     AfterViewInit,
     OnDestroy,
 } from '@angular/core';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatPaginatorModule } from '@angular/material/paginator';
@@ -18,7 +18,7 @@ import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { PlaylistsService } from 'services';
-import { PlaylistSwitcherComponent } from 'components';
+import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { CategoryViewComponent } from '../xtream-tauri/category-view/category-view.component';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { StalkerStore } from './stalker.store';
@@ -33,7 +33,6 @@ import { StalkerStore } from './stalker.store';
     ],
     imports: [
         CategoryViewComponent,
-        MatButton,
         MatIcon,
         MatIconButton,
         MatListModule,
@@ -42,6 +41,7 @@ import { StalkerStore } from './stalker.store';
         NgxSkeletonLoaderModule,
         PlaylistErrorViewComponent,
         PlaylistSwitcherComponent,
+        ResizableDirective,
         RouterOutlet,
         TranslatePipe,
     ],

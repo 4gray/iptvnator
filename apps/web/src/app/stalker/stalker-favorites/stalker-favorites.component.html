@@ -1,17 +1,31 @@
 @if (itemDetails) {
     @switch (itemDetails.category_id) {
         @case ('vod') {
-            <app-vod-details
-                [item]="itemDetails.details"
-                (playClicked)="
-                    createLinkToPlayVodItv(
-                        itemDetails.details.cmd,
-                        itemDetails.details.info.name,
-                        itemDetails.details.info.movie_image
-                    )
-                "
-                (backClicked)="itemDetails = null"
-            />
+            @if (itemDetails.details?.series?.length > 0) {
+                <!-- VOD item with embedded series (vclub) -->
+                <app-stalker-series-view
+                    [vodWithSeries]="itemDetails.details"
+                    (backClicked)="itemDetails = null; vodDetailsItem = null"
+                />
+            } @else if (
+                itemDetails.details?.is_series === true ||
+                itemDetails.details?.is_series === 1 ||
+                itemDetails.details?.is_series === '1'
+            ) {
+                <!-- VOD item that is actually a series (Ministra plugin is_series=1) -->
+                <app-stalker-series-view
+                    (backClicked)="itemDetails = null; vodDetailsItem = null"
+                />
+            } @else if (vodDetailsItem) {
+                <!-- Regular VOD item -->
+                <app-vod-details
+                    [item]="vodDetailsItem"
+                    [isFavorite]="true"
+                    (playClicked)="onVodPlay($event)"
+                    (favoriteToggled)="onVodFavoriteToggled($event)"
+                    (backClicked)="onVodBack()"
+                />
+            }
         }
         @case ('series') {
             <app-stalker-series-view (backClicked)="itemDetails = null" />

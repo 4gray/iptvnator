@@ -15,6 +15,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { FilterPipe } from '@iptvnator/pipes';
 import { TranslateModule } from '@ngx-translate/core';
+import { ResizableDirective } from 'components';
 import { EpgItem, VideoPlayer, XtreamItem } from 'shared-interfaces';
 import { EpgViewComponent } from '../epg-view/epg-view.component';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
@@ -32,6 +33,7 @@ import { WebPlayerViewComponent } from '../web-player-view/web-player-view.compo
         MatInputModule,
         MatFormFieldModule,
         NgIf,
+        ResizableDirective,
         ScrollingModule,
         WebPlayerViewComponent,
         TranslateModule,

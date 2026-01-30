@@ -1,65 +1,77 @@
+@let meta = normalizedMeta();
+
 <!-- Hero Section with Backdrop -->
 <app-content-hero
-    [title]="item.info.name"
-    [description]="item.info.description"
-    [posterUrl]="item.info.movie_image"
-    [backdropUrl]="item.info.backdrop_path?.[0]"
+    [title]="meta.title"
+    [description]="meta.description"
+    [posterUrl]="meta.posterUrl"
+    [backdropUrl]="meta.backdropUrl"
     (backClicked)="goBack()"
 >
     <!-- Tags: Year, Genre, Duration, Rating -->
     <ng-container hero-tags>
-        @if (item.info?.releasedate) {
-            <span class="details__tag">{{
-                item.info.releasedate | slice: 0 : 4
-            }}</span>
+        @if (meta.year) {
+            <span class="details__tag">{{ meta.year }}</span>
         }
-        @if (item.info?.genre) {
-            <span class="details__tag">{{ item.info.genre }}</span>
+        @if (meta.genre) {
+            <span class="details__tag">{{ meta.genre }}</span>
         }
-        @if (item.info?.duration) {
-            <span class="details__tag">{{ item.info.duration }}</span>
+        @if (meta.duration) {
+            <span class="details__tag">{{ meta.duration }}</span>
         }
-        @if (item.info?.rating_imdb) {
+        @if (meta.ratingImdb) {
             <span class="details__tag details__tag--rating">
-                ⭐ {{ item.info.rating_imdb }}
+                ⭐ {{ meta.ratingImdb }}
             </span>
         }
-        @if (item.info?.country) {
-            <span class="details__tag">{{ item.info.country }}</span>
+        @if (meta.country) {
+            <span class="details__tag">{{ meta.country }}</span>
         }
     </ng-container>
 
     <!-- Metadata Grid -->
     <ng-container hero-meta>
-        @if (item.info?.actors) {
+        @if (meta.actors) {
             <div class="details__meta-item">
                 <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
-                <span class="value">{{ item.info.actors }}</span>
+                <span class="value">{{ meta.actors }}</span>
             </div>
         }
-        @if (item.info?.director) {
+        @if (meta.director) {
             <div class="details__meta-item">
                 <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
-                <span class="value">{{ item.info.director }}</span>
+                <span class="value">{{ meta.director }}</span>
             </div>
         }
-        @if (item.info?.rating_kinopoisk) {
+        @if (meta.ratingKinopoisk) {
             <div class="details__meta-item">
-                <span class="label">{{
-                    'XTREAM.KINOPOISK_RATING' | translate
-                }}</span>
-                <span class="value">{{ item.info.rating_kinopoisk }}</span>
+                <span class="label">{{ 'XTREAM.KINOPOISK_RATING' | translate }}</span>
+                <span class="value">{{ meta.ratingKinopoisk }}</span>
             </div>
         }
     </ng-container>
 
     <!-- Action Buttons -->
     <ng-container hero-actions>
-        <button class="play-btn" (click)="playClicked.emit(item)">
-            <mat-icon>play_arrow</mat-icon>
-            {{ 'XTREAM.PLAY' | translate }}
-        </button>
-        @if (!isFavorite) {
+        <!-- Resume/Play buttons -->
+        @if (hasPlaybackPosition()) {
+            <button class="play-btn play-btn--resume" (click)="onResume()">
+                <mat-icon>play_arrow</mat-icon>
+                {{ 'XTREAM.RESUME' | translate }} {{ formattedPosition() }}
+            </button>
+            <button class="play-btn play-btn--restart" (click)="onPlay()">
+                <mat-icon>replay</mat-icon>
+                {{ 'XTREAM.RESTART' | translate }}
+            </button>
+        } @else {
+            <button class="play-btn" (click)="onPlay()">
+                <mat-icon>play_arrow</mat-icon>
+                {{ 'XTREAM.PLAY' | translate }}
+            </button>
+        }
+
+        <!-- Favorites button -->
+        @if (!isFavorite()) {
             <button class="favorite-btn" (click)="toggleFavorite()">
                 <mat-icon>add</mat-icon>
                 {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
@@ -73,19 +85,21 @@
                 {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
             </button>
         }
-        @if (isElectron) {
-            @if (isDownloaded) {
+
+        <!-- Download buttons (Electron only) -->
+        @if (isElectron()) {
+            @if (isDownloaded()) {
                 <button class="download-btn download-btn--completed" (click)="playFromLocal()">
                     <mat-icon>play_circle</mat-icon>
                     {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
                 </button>
-            } @else if (isDownloading) {
+            } @else if (isDownloading()) {
                 <button class="download-btn download-btn--downloading" disabled>
                     <mat-icon>downloading</mat-icon>
                     {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
                 </button>
             } @else {
-                <button class="download-btn" (click)="downloadVod()">
+                <button class="download-btn" (click)="onDownload()">
                     <mat-icon>download</mat-icon>
                     {{ 'DOWNLOADS.DOWNLOAD' | translate }}
                 </button>
@@ -93,16 +107,13 @@
         }
     </ng-container>
 
-    <!-- YouTube Trailer -->
-    @if (item.info?.youtube_trailer) {
+    <!-- YouTube Trailer (Xtream only) -->
+    @if (meta.youtubeTrailer) {
         <div class="youtube-trailer">
             <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
             <div class="trailer-wrapper">
                 <iframe
-                    [src]="
-                        'https://www.youtube.com/embed/' +
-                            item.info.youtube_trailer | safe
-                    "
+                    [src]="'https://www.youtube.com/embed/' + meta.youtubeTrailer | safe"
                     title="YouTube video player"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerpolicy="strict-origin-when-cross-origin"
@@ -112,4 +123,3 @@
         </div>
     }
 </app-content-hero>
-

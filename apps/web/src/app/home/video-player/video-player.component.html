@@ -1,6 +1,18 @@
-<mat-drawer-container class="main-container">
+<mat-drawer-container class="main-container" autosize>
     <!-- sidebar content -->
-    <mat-drawer #drawer mode="side" opened disableClose class="mat-drawer">
+    <mat-drawer
+        #drawer
+        mode="side"
+        opened
+        disableClose
+        class="mat-drawer"
+        appResizable
+        [minWidth]="200"
+        [maxWidth]="600"
+        [defaultWidth]="350"
+        storageKey="iptvnator_video_sidebar_width"
+        handlePosition="right"
+    >
         @defer {
             <app-sidebar [channels]="(channels$ | async)!" />
         } @loading {
