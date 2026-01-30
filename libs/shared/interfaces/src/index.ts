@@ -27,3 +27,11 @@ export * from './lib/xtream-serie-details.interface';
 export * from './lib/xtream-serie-item.interface';
 export * from './lib/xtream-vod-details.interface';
 export * from './lib/xtream-vod-stream.interface';
+
+// Stalker interfaces
+export * from './lib/stalker-vod-details.interface';
+export * from './lib/stalker-serial-details.interface';
+
+// Unified VOD details (discriminated union + adapters)
+export * from './lib/vod-details-item.interface';
+export * from './lib/vod-details-adapters';
