@@ -1,0 +1,184 @@
+/**
+ * Resizable Directive Styles
+ *
+ * A refined, subtle resize handle that provides clear affordance
+ * without being visually intrusive. Uses a vertical grip pattern
+ * that becomes more prominent on hover/active states.
+ */
+
+// Prevent text selection during resize
+body.resizing-active {
+    user-select: none !important;
+    cursor: col-resize !important;
+
+    * {
+        cursor: col-resize !important;
+    }
+}
+
+// Base element styles
+.resizable-element {
+    // Smooth transition when not actively resizing
+    &:not(.is-resizing) {
+        transition: width 0.15s ease-out;
+    }
+
+    &.is-resizing {
+        transition: none;
+    }
+}
+
+// Resize handle base styles
+.resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 12px;
+    z-index: 100;
+    cursor: col-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    // Visual feedback on hover/active
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: transparent;
+        transition: background-color 0.2s ease;
+        border-radius: 2px;
+    }
+
+    &:hover::before,
+    &:active::before {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    &:active::before {
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    // Position variants
+    &--right {
+        right: -6px;
+
+        &::before {
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    }
+
+    &--left {
+        left: -6px;
+
+        &::before {
+            right: 50%;
+            transform: translateX(50%);
+        }
+    }
+
+    // The main visible line
+    &__line {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: rgba(255, 255, 255, 0.12);
+        transition: all 0.2s ease;
+    }
+
+    &:hover &__line {
+        width: 2px;
+        background: rgba(255, 255, 255, 0.25);
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+    }
+
+    &:active &__line {
+        width: 2px;
+        background: var(--mdc-theme-primary, #6366f1);
+        box-shadow: 0 0 12px rgba(99, 102, 241, 0.3);
+    }
+
+    // Grip dots indicator
+    &__grip {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        z-index: 1;
+
+        span {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transition: all 0.15s ease;
+        }
+    }
+
+    &:hover &__grip {
+        opacity: 1;
+
+        span {
+            background: rgba(255, 255, 255, 0.6);
+        }
+    }
+
+    &:active &__grip {
+        opacity: 1;
+
+        span {
+            background: var(--mdc-theme-primary, #6366f1);
+            transform: scale(1.2);
+        }
+    }
+}
+
+// Light theme adjustments (if needed)
+.light-theme {
+    .resize-handle {
+        &::before {
+            background: transparent;
+        }
+
+        &:hover::before,
+        &:active::before {
+            background: rgba(0, 0, 0, 0.04);
+        }
+
+        &:active::before {
+            background: rgba(0, 0, 0, 0.08);
+        }
+
+        &__line {
+            background: rgba(0, 0, 0, 0.12);
+        }
+
+        &:hover &__line {
+            background: rgba(0, 0, 0, 0.25);
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
+        }
+
+        &:active &__line {
+            background: var(--mdc-theme-primary, #6366f1);
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+        }
+
+        &__grip {
+            span {
+                background: rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        &:hover &__grip {
+            span {
+                background: rgba(0, 0, 0, 0.5);
+            }
+        }
+    }
+}
