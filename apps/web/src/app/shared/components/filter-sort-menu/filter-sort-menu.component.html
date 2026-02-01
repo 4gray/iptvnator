@@ -112,6 +112,26 @@
                 >check</mat-icon
             >
         </button>
+        <button
+            mat-menu-item
+            (click)="
+                setSortOptions(SortBy.CUSTOM, SortOrder.ASC);
+                $event.stopPropagation()
+            "
+            [class.active-option]="isSortActive(SortBy.CUSTOM, SortOrder.ASC)"
+        >
+            <mat-icon>drag_indicator</mat-icon>
+            <span class="menu-item-text">{{
+                'HOME.SORT_OPTIONS.CUSTOM_ORDER' | translate
+            }}</span>
+            <mat-icon
+                class="check-icon"
+                [class.check-visible]="
+                    isSortActive(SortBy.CUSTOM, SortOrder.ASC)
+                "
+                >check</mat-icon
+            >
+        </button>
     </section>
 
     <!-- Close button -->

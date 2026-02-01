@@ -13,7 +13,12 @@
                     <app-empty-state [type]="'no-results'" />
                 }
             } @else {
-                <mat-nav-list class="playlists-list">
+                <mat-nav-list
+                    class="playlists-list"
+                    cdkDropList
+                    [cdkDropListDisabled]="!isCustomSortActive()"
+                    (cdkDropListDropped)="drop($event, data.playlists)"
+                >
                     @for (
                         item of data.playlists;
                         track item._id;
@@ -22,6 +27,7 @@
                         <app-playlist-item
                             [item]="item"
                             [showActions]="!sidebarMode()"
+                            [isDraggable]="isCustomSortActive()"
                             (editPlaylistClicked)="openInfoDialog($event)"
                             (playlistClicked)="getPlaylist(item)"
                             (refreshClicked)="refreshPlaylist($event)"

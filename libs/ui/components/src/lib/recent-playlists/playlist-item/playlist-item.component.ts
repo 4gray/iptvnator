@@ -1,3 +1,4 @@
+import { DragDropModule } from '@angular/cdk/drag-drop';
 import { DatePipe } from '@angular/common';
 import { Component, Input, OnInit, inject, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
@@ -14,6 +15,7 @@ import { PlaylistMeta } from 'shared-interfaces';
     styleUrls: ['./playlist-item.component.scss'],
     imports: [
         DatePipe,
+        DragDropModule,
         MatIconButton,
         MatIcon,
         MatListModule,
@@ -24,6 +26,7 @@ import { PlaylistMeta } from 'shared-interfaces';
 export class PlaylistItemComponent implements OnInit {
     @Input() item!: PlaylistMeta;
     readonly showActions = input(true);
+    readonly isDraggable = input(false);
 
     readonly editPlaylistClicked = output<PlaylistMeta>();
     readonly playlistClicked = output<string>();

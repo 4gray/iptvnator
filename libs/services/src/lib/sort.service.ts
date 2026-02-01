@@ -5,6 +5,7 @@ import { PlaylistMeta } from 'shared-interfaces';
 export enum SortBy {
     DATE_ADDED = 'date',
     NAME = 'name',
+    CUSTOM = 'custom',
 }
 
 export enum SortOrder {
@@ -53,7 +54,8 @@ export class SortService {
             // Validate that the saved options match our expected types
             if (
                 (parsedOptions.by === SortBy.DATE_ADDED ||
-                    parsedOptions.by === SortBy.NAME) &&
+                    parsedOptions.by === SortBy.NAME ||
+                    parsedOptions.by === SortBy.CUSTOM) &&
                 (parsedOptions.order === SortOrder.ASC ||
                     parsedOptions.order === SortOrder.DESC)
             ) {
@@ -98,9 +100,20 @@ export class SortService {
                 const dateA = new Date(a.importDate).getTime();
                 const dateB = new Date(b.importDate).getTime();
                 comparison = dateA - dateB;
+            } else if (by === SortBy.CUSTOM) {
+                // Sort by position field (lower position comes first)
+                const posA = a.position ?? Number.MAX_SAFE_INTEGER;
+                const posB = b.position ?? Number.MAX_SAFE_INTEGER;
+                comparison = posA - posB;
+                // Custom sort always uses ASC order
+                return comparison;
             }
 
             return order === SortOrder.ASC ? comparison : -comparison;
         });
+    }
+
+    isCustomSort(): boolean {
+        return this.sortOptions.getValue().by === SortBy.CUSTOM;
     }
 }

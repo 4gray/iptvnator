@@ -47,6 +47,12 @@ mat-list-item {
 .drag-icon {
     cursor: move;
     margin-right: 0;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+
+    &:hover {
+        opacity: 1;
+    }
 }
 
 ::ng-deep {
