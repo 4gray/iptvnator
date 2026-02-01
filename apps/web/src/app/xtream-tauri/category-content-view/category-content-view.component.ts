@@ -376,8 +376,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     }): void {
         if (event.item.type === 'stalker') {
             if (event.isFavorite) {
-                this.removeFromFavorites(event.item.data.id);
-            } else {
                 this.addToFavorites({
                     ...event.item.data,
                     category_id: 'vod',
@@ -385,6 +383,8 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
                     cover: event.item.data.info?.movie_image,
                     added_at: new Date().toISOString(),
                 });
+            } else {
+                this.removeFromFavorites(event.item.data.id);
             }
         }
     }

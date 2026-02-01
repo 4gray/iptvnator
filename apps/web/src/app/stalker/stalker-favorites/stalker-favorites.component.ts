@@ -184,7 +184,7 @@ export class StalkerFavoritesComponent {
 
     /** Handle favorite toggle from vod-details component */
     onVodFavoriteToggled(event: { item: VodDetailsItem; isFavorite: boolean }): void {
-        if (event.isFavorite && event.item.type === 'stalker') {
+        if (!event.isFavorite && event.item.type === 'stalker') {
             this.removeFromFavorites({ id: event.item.data.id });
         }
     }

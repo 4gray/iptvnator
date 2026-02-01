@@ -416,8 +416,6 @@ export class XtreamMainContainerComponent implements OnInit, OnDestroy {
     onVodFavoriteToggled(event: { item: VodDetailsItem; isFavorite: boolean }): void {
         if (event.item.type === 'xtream') {
             if (event.isFavorite) {
-                this.removeFromFavorites(event.item.vodId);
-            } else {
                 this.addToFavorites({
                     name: event.item.data.movie_data.name,
                     stream_id: event.item.data.movie_data.stream_id,
@@ -425,6 +423,8 @@ export class XtreamMainContainerComponent implements OnInit, OnDestroy {
                     cover: event.item.data.info.movie_image,
                     stream_type: 'movie',
                 });
+            } else {
+                this.removeFromFavorites(event.item.vodId);
             }
         }
     }

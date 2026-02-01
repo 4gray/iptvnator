@@ -163,11 +163,11 @@ export class VodDetailsComponent implements OnDestroy {
         }
     }
 
-    /** Handle favorite toggle */
+    /** Handle favorite toggle - emits the desired new state */
     toggleFavorite(): void {
         this.favoriteToggled.emit({
             item: this.item(),
-            isFavorite: this.isFavorite(),
+            isFavorite: !this.isFavorite(),
         });
     }
 
