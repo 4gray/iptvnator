@@ -1,4 +1,3 @@
-import { Location } from '@angular/common';
 import {
     Component,
     computed,
@@ -82,7 +81,6 @@ export class VodDetailsComponent implements OnDestroy {
 
     // ============ Services ============
 
-    private readonly location = inject(Location);
     private readonly downloadsService = inject(DownloadsService);
     private readonly stalkerStore = inject(StalkerStore);
 
@@ -173,14 +171,9 @@ export class VodDetailsComponent implements OnDestroy {
         });
     }
 
-    /** Handle back navigation */
+    /** Handle back navigation - emit event for parent to handle */
     goBack(): void {
         this.backClicked.emit();
-        // For Stalker items, parent handles navigation by clearing selectedItem
-        // For Xtream items, use browser history navigation
-        if (!this.isStalkerItem()) {
-            this.location.back();
-        }
     }
 
     /** Handle download request */
