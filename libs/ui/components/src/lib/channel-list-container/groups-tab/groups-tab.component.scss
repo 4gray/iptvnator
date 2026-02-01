@@ -1,0 +1,49 @@
+#groups-list {
+    height: calc(100vh - 105px);
+    overflow-x: hidden;
+}
+
+.channel-list {
+    overflow-x: hidden;
+}
+
+::ng-deep {
+    .mat-expansion-panel-body {
+        padding: 0 !important;
+    }
+
+    .mat-expansion-panel {
+        border-radius: 0 !important;
+    }
+}
+
+.scroll-sentinel {
+    padding: 16px;
+    display: flex;
+    justify-content: center;
+}
+
+.loading-more {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--mdc-theme-primary, #90caf9);
+    font-size: 0.875rem;
+    opacity: 0.8;
+}
+
+.loading-more-spinner {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}

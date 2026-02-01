@@ -1,0 +1,55 @@
+<div class="search-panel">
+    <mat-form-field class="search-bar">
+        <input
+            matInput
+            class="full-width"
+            type="search"
+            spellcheck="false"
+            autocomplete="off"
+            #search
+            [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
+            (input)="onSearchInput($any($event.target).value)"
+        />
+    </mat-form-field>
+</div>
+<div id="all-channels" class="channel-list">
+    @if (enrichedChannels().length === 0 && searchTerm()) {
+        <div class="no-results">
+            <mat-icon class="no-results-icon">search_off</mat-icon>
+            <div class="no-results-title">
+                {{ 'CHANNELS.NO_SEARCH_RESULTS' | translate }}
+            </div>
+            <div class="no-results-hint">
+                {{ 'CHANNELS.TRY_DIFFERENT_SEARCH' | translate }}
+            </div>
+        </div>
+    } @else {
+        <cdk-virtual-scroll-viewport
+            [itemSize]="itemSize()"
+            class="scroll-viewport"
+        >
+            <app-channel-list-item
+                *cdkVirtualFor="
+                    let channel of enrichedChannels();
+                    index as i;
+                    trackBy: trackByFn
+                "
+                [name]="
+                    i +
+                    1 +
+                    '. ' +
+                    (channel?.name || 'CHANNELS.UNNAMED_CHANNEL' | translate)
+                "
+                [logo]="channel?.tvg?.logo"
+                [showEpg]="shouldShowEpg()"
+                [epgProgram]="channel.epgProgram"
+                [progressPercentage]="channel.progressPercentage"
+                (clicked)="onChannelClick(channel)"
+                [selected]="activeChannelUrl() === channel?.url"
+                [showFavoriteButton]="true"
+                [isFavorite]="favoriteIds().has(channel?.url)"
+                (favoriteToggled)="onFavoriteToggle(channel, $event)"
+            />
+        </cdk-virtual-scroll-viewport>
+    }
+</div>

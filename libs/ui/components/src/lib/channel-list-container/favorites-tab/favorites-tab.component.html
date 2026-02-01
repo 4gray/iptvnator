@@ -1,0 +1,40 @@
+<div
+    class="channel-list"
+    cdkDropList
+    (cdkDropListDropped)="onDrop($event)"
+    id="favorites-list"
+>
+    @if (enrichedFavorites().length > 0) {
+        @for (
+            channel of enrichedFavorites();
+            track trackByFn($index, channel);
+            let i = $index
+        ) {
+            <app-channel-list-item
+                [name]="
+                    i +
+                    1 +
+                    '. ' +
+                    (channel?.name || 'CHANNELS.UNNAMED_CHANNEL' | translate)
+                "
+                [isDraggable]="true"
+                [logo]="channel?.tvg?.logo"
+                [showEpg]="shouldShowEpg()"
+                [epgProgram]="channel.epgProgram"
+                [progressPercentage]="channel.progressPercentage"
+                (clicked)="onChannelClick(channel)"
+                [selected]="activeChannelUrl() === channel?.url"
+                [showFavoriteButton]="true"
+                [isFavorite]="true"
+                (favoriteToggled)="onFavoriteToggle(channel, $event)"
+            />
+        }
+    } @else {
+        <div class="empty-favorites">
+            <strong>{{ 'CHANNELS.NO_FAVORITES' | translate }}</strong>
+        </div>
+        <div class="empty-favorites-hint">
+            {{ 'CHANNELS.USE_STAR_TO_FAVORITE' | translate }}
+        </div>
+    }
+</div>

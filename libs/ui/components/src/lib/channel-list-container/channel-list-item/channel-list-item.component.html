@@ -1,44 +1,44 @@
 <div
     class="channel-list-item"
-    [class.compact]="!showEpg"
+    [class.compact]="!showEpg()"
     cdkDrag
-    [cdkDragDisabled]="!isDraggable"
+    [cdkDragDisabled]="!isDraggable()"
     cdkDragPreviewContainer="parent"
-    [class.active]="selected"
+    [class.active]="selected()"
     (click)="clicked.emit()"
     data-test-id="channel-item"
 >
-    @if (isDraggable) {
+    @if (isDraggable()) {
         <mat-icon cdkDragHandle class="drag-icon">drag_indicator</mat-icon>
     }
     <div class="channel-content">
-        @if (logo) {
+        @if (logo()) {
             <img
                 class="channel-logo"
-                [src]="logo"
-                onerror="this.style.display='none'"
+                [src]="logo()"
+                onerror="this.style.display = 'none'"
                 alt="Channel Logo"
             />
         }
         <div class="channel-details">
-            <div class="channel-name">{{ name }}</div>
-            @if (showEpg) {
+            <div class="channel-name">{{ name() }}</div>
+            @if (showEpg()) {
                 <div class="epg-container">
                     <div class="epg-content">
-                        @if (epgProgram) {
+                        @if (epgProgram(); as program) {
                             <div class="epg-title">
-                                {{ epgProgram.title }}
+                                {{ program.title }}
                             </div>
                             <div class="epg-timeline">
                                 <span class="epg-time"
-                                    >{{ formatTime(epgProgram.start) }} -
-                                    {{ formatTime(epgProgram.stop) }}</span
+                                    >{{ formatTime(program.start) }} -
+                                    {{ formatTime(program.stop) }}</span
                                 >
                                 <div class="epg-progress-track">
                                     <div
                                         class="epg-progress-fill"
                                         [ngStyle]="{
-                                            width: progressPercentage + '%',
+                                            width: progressPercentage() + '%',
                                         }"
                                     ></div>
                                 </div>
@@ -49,32 +49,41 @@
                             </div>
                         }
                     </div>
-                    @if (epgProgram) {
-                        <button
-                            mat-icon-button
-                            class="program-info-button"
-                            [matTooltip]="
-                                'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS'
-                                    | translate
-                            "
-                            (click)="showProgramDescription(epgProgram, $event)"
-                        >
-                            <mat-icon>info</mat-icon>
-                        </button>
-                    }
                 </div>
             }
         </div>
     </div>
-    @if (showFavoriteButton) {
-        <button
-            mat-icon-button
-            class="favorite-button"
-            color="primary"
-            [matTooltip]="'CHANNELS.REMOVE_FAVORITE' | translate"
-            (click)="favoriteToggled.emit($event)"
-        >
-            <mat-icon color="accent">star</mat-icon>
-        </button>
-    }
+    <!-- Action buttons column -->
+    <div class="action-buttons">
+        @if (showEpg() && epgProgram(); as program) {
+            <button
+                mat-icon-button
+                class="program-info-button"
+                [matTooltip]="
+                    'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
+                "
+                (click)="showProgramDescription(program, $event)"
+            >
+                <mat-icon>info</mat-icon>
+            </button>
+        }
+        @if (showFavoriteButton()) {
+            <button
+                mat-icon-button
+                class="favorite-button"
+                color="primary"
+                [matTooltip]="
+                    (isFavorite()
+                        ? 'CHANNELS.REMOVE_FAVORITE'
+                        : 'CHANNELS.ADD_FAVORITE'
+                    ) | translate
+                "
+                (click)="favoriteToggled.emit($event)"
+            >
+                <mat-icon [color]="isFavorite() ? 'accent' : ''">{{
+                    isFavorite() ? 'star' : 'star_border'
+                }}</mat-icon>
+            </button>
+        }
+    </div>
 </div>
