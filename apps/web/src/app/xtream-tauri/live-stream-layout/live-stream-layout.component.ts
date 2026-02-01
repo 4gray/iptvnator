@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     inject,
     OnInit,
 } from '@angular/core';
@@ -14,7 +15,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistSwitcherComponent } from 'components';
+import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { XtreamCategory } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
@@ -44,6 +45,7 @@ import { XtreamStore } from '../stores/xtream.store';
         /* MpvPlayerBarComponent, */
         PlaylistSwitcherComponent,
         PortalChannelsListComponent,
+        ResizableDirective,
         TranslatePipe,
         WebPlayerViewComponent,
     ],
@@ -61,6 +63,22 @@ export class LiveStreamLayoutComponent implements OnInit {
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
     readonly epgItems = this.xtreamStore.epgItems;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
+
+    readonly selectedCategoryInfo = computed(() => {
+        const categoryId = this.selectedCategoryId();
+        if (!categoryId) return null;
+
+        const categories = this.categories();
+        const category = categories?.find(
+            (c: any) => (c.category_id ?? c.id) === categoryId
+        );
+        const count = this.categoryItemCounts()?.get(categoryId) ?? 0;
+
+        return {
+            name: category?.category_name ?? category?.name ?? 'Channels',
+            count,
+        };
+    });
 
     readonly player = this.settingsStore.player;
     streamUrl: string;

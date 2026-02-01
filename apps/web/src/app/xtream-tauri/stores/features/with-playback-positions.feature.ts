@@ -130,22 +130,16 @@ export function withPlaybackPositions() {
                         playlistId
                     );
 
-                    console.log(
-                        `[withPlaybackPositions] Loaded all positions (${positions.length})`
-                    );
-
                     const positionsMap = new Map<string, PlaybackPositionData>();
                     const seriesMap = new Map<number, PlaybackPositionData[]>();
 
                     positions.forEach((pos) => {
-                        // Populate playbackPositions map
                         const key = getPositionKey(
                             pos.contentType,
                             pos.contentXtreamId
                         );
                         positionsMap.set(key, pos);
 
-                        // Populate seriesPositions map
                         if (
                             pos.contentType === 'episode' &&
                             pos.seriesXtreamId
@@ -156,10 +150,6 @@ export function withPlaybackPositions() {
                             seriesMap.set(pos.seriesXtreamId, existing);
                         }
                     });
-
-                    console.log(
-                        `[withPlaybackPositions] Series map populated: ${seriesMap.size} series`
-                    );
 
                     patchState(store, {
                         playbackPositions: positionsMap,
@@ -174,13 +164,7 @@ export function withPlaybackPositions() {
                     const positions = store
                         .seriesPositions()
                         .get(seriesXtreamId);
-
-                    if (positions && positions.length > 0) {
-                        console.log(`[withPlaybackPositions] Series ${seriesXtreamId} HAS progress`);
-                        return true;
-                    }
-                    // console.log(`[withPlaybackPositions] Series ${seriesXtreamId} NO progress`);
-                    return false;
+                    return positions !== undefined && positions.length > 0;
                 },
 
                 /**
@@ -194,11 +178,6 @@ export function withPlaybackPositions() {
                         playlistId,
                         vodXtreamId,
                         'vod'
-                    );
-
-                    console.log(
-                        `[withPlaybackPositions] Loaded VOD position for ${vodXtreamId}:`,
-                        position
                     );
 
                     if (position) {
@@ -219,11 +198,6 @@ export function withPlaybackPositions() {
                     const positions = await dataSource.getSeriesPlaybackPositions(
                         playlistId,
                         seriesXtreamId
-                    );
-
-                    console.log(
-                        `[withPlaybackPositions] Loaded series positions for ${seriesXtreamId}:`,
-                        positions
                     );
 
                     const updated = new Map(store.seriesPositions());
@@ -254,10 +228,6 @@ export function withPlaybackPositions() {
                     const key = getPositionKey(
                         data.contentType,
                         data.contentXtreamId
-                    );
-                    console.log(
-                        `[withPlaybackPositions] Saving position for ${key}:`,
-                        data
                     );
                     const updated = new Map(store.playbackPositions());
                     updated.set(key, data);
@@ -373,18 +343,8 @@ export function withPlaybackPositions() {
                     if (window.electron?.onPlaybackPositionUpdate) {
                         unsubscribe = window.electron.onPlaybackPositionUpdate(
                             (data: any) => {
-                                console.log(
-                                    '[withPlaybackPositions] Received update:',
-                                    data
-                                );
-                                // Ensure playlistId is present
                                 if (data.playlistId) {
                                     store.savePosition(data.playlistId, data);
-                                } else {
-                                    console.warn(
-                                        '[withPlaybackPositions] Missing playlistId in update',
-                                        data
-                                    );
                                 }
                             }
                         );

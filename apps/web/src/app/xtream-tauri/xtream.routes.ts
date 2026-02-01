@@ -53,9 +53,9 @@ export const xtreamRoutes: Route[] = [
                     {
                         path: ':categoryId/:vodId',
                         loadComponent: () =>
-                            import('./vod-details/vod-details.component').then(
-                                (c) => c.VodDetailsComponent
-                            ),
+                            import(
+                                './vod-details/vod-details-route.component'
+                            ).then((c) => c.VodDetailsRouteComponent),
                     },
                 ],
             },

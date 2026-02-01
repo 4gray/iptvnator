@@ -9,9 +9,29 @@
 }
 
 .sidebar {
-    width: 300px;
-    min-width: 300px;
+    // Width controlled by resizable directive
+    width: 400px; // Default, will be overridden by directive
+    min-width: 250px;
+    max-width: 600px;
     border-right: 1px solid #111;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+
+    app-portal-channels-list {
+        flex: 1;
+        overflow: hidden;
+        width: 100%;
+    }
+
+    app-category-view {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        margin-right: 2px;
+    }
 }
 
 .content-container {

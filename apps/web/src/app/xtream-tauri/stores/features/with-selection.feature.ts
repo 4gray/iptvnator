@@ -278,13 +278,20 @@ export function withSelection() {
 
             /**
              * Set the selected category
+             * Only resets page to 0 when category actually changes
              */
             setSelectedCategory(categoryId: number | null): void {
-                patchState(store, {
-                    selectedCategoryId:
-                        categoryId !== null ? Number(categoryId) : null,
-                    page: 0,
-                });
+                const newCategoryId =
+                    categoryId !== null ? Number(categoryId) : null;
+                const currentCategoryId = store.selectedCategoryId();
+
+                // Only reset page if category actually changed
+                if (currentCategoryId !== newCategoryId) {
+                    patchState(store, {
+                        selectedCategoryId: newCategoryId,
+                        page: 0,
+                    });
+                }
             },
 
             /**

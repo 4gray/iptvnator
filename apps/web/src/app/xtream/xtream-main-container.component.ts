@@ -37,6 +37,8 @@ import {
     XtreamSerieDetails,
     XtreamSerieEpisode,
     XtreamVodDetails,
+    VodDetailsItem,
+    createXtreamVodItem,
 } from 'shared-interfaces';
 import { LiveStreamLayoutComponent } from 'shared-portals';
 import { SettingsStore } from '../services/settings-store.service';
@@ -391,6 +393,40 @@ export class XtreamMainContainerComponent implements OnInit, OnDestroy {
         const streamUrl = `${serverUrl}/movie/${username}/${password}/${vodItem.movie_data.stream_id}.${vodItem.movie_data.container_extension}`;
 
         this.openPlayer(streamUrl, vodItem.info.name);
+    }
+
+    /** Creates a VodDetailsItem for the shared vod-details component */
+    getVodDetailsItem(): VodDetailsItem {
+        const playlist = this.currentPlaylist() as Playlist;
+        return createXtreamVodItem(
+            this.vodDetails as XtreamVodDetails,
+            playlist?._id ?? '',
+            this.contentId
+        );
+    }
+
+    /** Handle play from vod-details component */
+    onVodPlay(item: VodDetailsItem): void {
+        if (item.type === 'xtream') {
+            this.playVod(item.data);
+        }
+    }
+
+    /** Handle favorite toggle from vod-details component */
+    onVodFavoriteToggled(event: { item: VodDetailsItem; isFavorite: boolean }): void {
+        if (event.item.type === 'xtream') {
+            if (event.isFavorite) {
+                this.addToFavorites({
+                    name: event.item.data.movie_data.name,
+                    stream_id: event.item.data.movie_data.stream_id,
+                    container_extension: event.item.data.movie_data.container_extension,
+                    cover: event.item.data.info.movie_image,
+                    stream_type: 'movie',
+                });
+            } else {
+                this.removeFromFavorites(event.item.vodId);
+            }
+        }
     }
 
     playEpisode(episode: XtreamSerieEpisode) {

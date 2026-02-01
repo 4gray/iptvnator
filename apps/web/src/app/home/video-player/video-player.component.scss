@@ -4,6 +4,7 @@
     bottom: 0;
     left: 0;
     right: 0;
+    overflow: hidden; // Prevent horizontal scrollbar from resize handle
 }
 
 .mat-drawer-content {
@@ -13,8 +14,18 @@
 }
 
 .mat-drawer {
-    width: 400px;
-    min-width: 400px;
+    // Width is controlled by appResizable directive
+    // Default: 350px, min: 200px, max: 600px
+    overflow-x: hidden !important; // Hide horizontal scrollbar
+
+    .resize-handle--right {
+        right: 0;
+    }
+}
+
+// Ensure mat-drawer inner container fills the drawer width
+::ng-deep .mat-drawer-inner-container {
+    width: 100% !important;
 }
 
 .custom-player {

@@ -1,13 +1,20 @@
 @let isEmbeddedPlayer =
     player() === 'videojs' || player() === 'html5' || player() === 'artplayer';
 
-<div class="sidebar">
+<div
+    class="sidebar"
+    appResizable
+    [minWidth]="250"
+    [maxWidth]="600"
+    [defaultWidth]="400"
+    storageKey="sidebar-width"
+>
     <div class="sidebar-header">
         @if (selectedCategoryId()) {
             <button mat-icon-button (click)="backToCategories()">
                 <mat-icon>chevron_left</mat-icon>
             </button>
-            <h2>{{ 'HOME.PLAYLISTS.CHANNELS' | translate }}</h2>
+            <h2>{{ selectedCategoryInfo()?.name }} ({{ selectedCategoryInfo()?.count }})</h2>
         } @else {
             <app-playlist-switcher
                 class="switcher"

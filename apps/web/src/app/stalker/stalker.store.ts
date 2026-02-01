@@ -441,8 +441,15 @@ export const StalkerStore = signalStore(
                 }),
                 loader: async ({ params }) => {
                     const item = params.selectedItem;
+                    // Debug logging
+                    console.log('[StalkerStore] vodSeriesSeasonsResource loader called');
+                    console.log('[StalkerStore] item:', item);
+                    console.log('[StalkerStore] item?.is_series:', item?.is_series);
+                    console.log('[StalkerStore] currentPlaylist:', store.currentPlaylist());
+
                     // Only fetch if item is a VOD series (has is_series flag)
                     if (!store.currentPlaylist() || !item || !item.is_series) {
+                        console.log('[StalkerStore] vodSeriesSeasonsResource - early return, conditions not met');
                         return [];
                     }
 
@@ -473,13 +480,17 @@ export const StalkerStore = signalStore(
                     }
 
                     if (!response?.js?.data) {
+                        console.log('[StalkerStore] vodSeriesSeasonsResource - no response data');
                         return [];
                     }
+
+                    console.log('[StalkerStore] vodSeriesSeasonsResource - response.js.data:', response.js.data);
 
                     // Filter for season items (is_season: true)
                     const seasons = response.js.data.filter(
                         (item: any) => item.is_season === true
                     );
+                    console.log('[StalkerStore] vodSeriesSeasonsResource - filtered seasons:', seasons);
                     return sortByNumericValue(seasons);
                 },
             }),
@@ -572,8 +583,40 @@ export const StalkerStore = signalStore(
             setPage(page: number) {
                 patchState(store, { page });
             },
-            setCurrentPlaylist(playlist: PlaylistMeta | undefined) {
+            async setCurrentPlaylist(playlist: PlaylistMeta | undefined) {
                 patchState(store, { currentPlaylist: playlist });
+
+                // Ensure Stalker playlist exists in SQLite for playback positions
+                // Only sync if this is actually a Stalker playlist (has macAddress and portalUrl)
+                if (
+                    playlist &&
+                    dataService.isElectron &&
+                    playlist._id &&
+                    playlist.macAddress &&
+                    playlist.portalUrl
+                ) {
+                    try {
+                        const playlistId = String(playlist._id);
+                        // Check if playlist exists in SQLite
+                        const existing =
+                            await window.electron.dbGetPlaylist(playlistId);
+                        if (!existing) {
+                            // Create playlist in SQLite
+                            await window.electron.dbCreatePlaylist({
+                                id: playlistId,
+                                name: playlist.title || '',
+                                macAddress: playlist.macAddress || '',
+                                url: playlist.portalUrl || '',
+                                type: 'stalker',
+                            });
+                        }
+                    } catch (error) {
+                        console.error(
+                            'Error syncing Stalker playlist to SQLite:',
+                            error
+                        );
+                    }
+                }
             },
             setSelectedItem(selectedItem: any) {
                 // TODO: check the item type and proper property either selectedVodId or serialsId etc
@@ -666,9 +709,31 @@ export const StalkerStore = signalStore(
                 return episodes;
             },
             /** getters */
-            getSelectedCategory() {
-                return signal<string>(store.selectedCategoryId());
-            },
+            getSelectedCategory: computed(() => {
+                const categoryId = store.selectedCategoryId();
+                if (!categoryId) {
+                    return {
+                        id: 0,
+                        name: 'All Items',
+                        type: store.selectedContentType(),
+                    };
+                }
+
+                // Get categories based on content type
+                const contentType = store.selectedContentType();
+                let categories: any[] = [];
+                if (contentType === 'vod') {
+                    categories = store.vodCategories();
+                } else if (contentType === 'series') {
+                    categories = store.seriesCategories();
+                } else if (contentType === 'itv') {
+                    categories = store.itvCategories();
+                }
+
+                return categories.find(
+                    (c: any) => String(c.category_id) === String(categoryId)
+                ) || { id: categoryId, name: '', type: contentType };
+            }),
             /** API */
             async fetchLinkToPlay(
                 portalUrl: string,
@@ -891,11 +956,22 @@ export const StalkerStore = signalStore(
 
                 return null;
             },
+            /**
+             * Play VOD or episode content
+             * @param cmd The media command/path
+             * @param title Display title
+             * @param thumbnail Thumbnail URL
+             * @param episodeNum Episode number (for series param in API)
+             * @param episodeId Optional episode ID for playback tracking (defaults to item.id)
+             * @param startTime Optional start time in seconds for resume playback
+             */
             async createLinkToPlayVod(
                 cmd?: string,
                 title?: string,
                 thumbnail?: string,
-                episode?: number
+                episodeNum?: number,
+                episodeId?: number,
+                startTime?: number
             ) {
                 try {
                     const item = this.selectedItem();
@@ -919,7 +995,7 @@ export const StalkerStore = signalStore(
                         this.currentPlaylist().portalUrl,
                         this.currentPlaylist().macAddress,
                         cmdToUse,
-                        episode
+                        episodeNum
                     );
                     this.addToRecentlyViewed({
                         ...item,
@@ -929,11 +1005,13 @@ export const StalkerStore = signalStore(
                         title,
                     });
                     const playlist = this.currentPlaylist();
+                    const isEpisode = episodeNum !== undefined || episodeId !== undefined;
                     const contentInfo = {
                         playlistId: playlist._id,
-                        contentXtreamId: Number(item.id),
-                        contentType: episode ? 'episode' : 'vod',
-                        seriesXtreamId: episode ? Number(item.id) : undefined, // For Stalker VOD series, use item.id as series ID
+                        // For episodes, use episodeId if provided, otherwise fall back to item.id
+                        contentXtreamId: isEpisode && episodeId ? episodeId : Number(item.id),
+                        contentType: isEpisode ? 'episode' : 'vod',
+                        seriesXtreamId: isEpisode ? Number(item.id) : undefined,
                     };
 
                     playerService.openPlayer(
@@ -945,7 +1023,8 @@ export const StalkerStore = signalStore(
                         playlist?.userAgent,
                         playlist?.referrer,
                         playlist?.origin,
-                        contentInfo
+                        contentInfo,
+                        startTime
                     );
                 } catch (error) {
                     console.error(

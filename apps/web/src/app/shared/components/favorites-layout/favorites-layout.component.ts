@@ -5,7 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistSwitcherComponent } from 'components';
+import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { CategoryViewComponent } from '../../../xtream-tauri/category-view/category-view.component';
 
 @Component({
@@ -23,6 +23,7 @@ import { CategoryViewComponent } from '../../../xtream-tauri/category-view/categ
         MatIconButton,
         MatTooltip,
         PlaylistSwitcherComponent,
+        ResizableDirective,
         TranslatePipe,
     ],
 })

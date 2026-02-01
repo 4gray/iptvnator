@@ -6,7 +6,8 @@
 
 .itv-container {
     display: grid;
-    grid-template-columns: 330px 1fr 1fr;
+    // Use auto for sidebar to respect the directive's width
+    grid-template-columns: auto 1fr 1fr;
     grid-template-rows: 50% 50%;
     gap: 0 0;
     grid-auto-flow: row;
@@ -18,7 +19,8 @@
 
 .itv-container-epg {
     display: grid;
-    grid-template-columns: 330px 1fr 1fr;
+    // Use auto for sidebar to respect the directive's width
+    grid-template-columns: auto 1fr 1fr;
     grid-template-rows: 1fr 1fr 1fr;
     gap: 0 0;
     grid-auto-flow: row;
@@ -29,7 +31,18 @@
     height: 100%;
 }
 
-.sidebar { grid-area: sidebar; }
+.sidebar {
+    grid-area: sidebar;
+    // Default width (controlled by resizable directive)
+    width: 400px;
+    min-width: 250px;
+    max-width: 600px;
+    flex-shrink: 0;
+    position: relative;
+    border-right: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+}
 
 .video-player { grid-area: video-player; }
 
@@ -66,7 +79,7 @@
 }
 
 mat-list-option {
-    width: 320px;
+    width: 100%;
 }
 
 ::ng-deep {

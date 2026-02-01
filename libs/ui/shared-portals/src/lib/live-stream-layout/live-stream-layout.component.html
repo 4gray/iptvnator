@@ -5,7 +5,14 @@
             : 'itv-container-epg'
     "
 >
-    <div class="sidebar">
+    <div
+        class="sidebar"
+        appResizable
+        [minWidth]="250"
+        [maxWidth]="600"
+        [defaultWidth]="400"
+        storageKey="sidebar-width"
+    >
         <div class="sidebar-content">
             <div class="search-panel">
                 <mat-form-field class="search-bar">

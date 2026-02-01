@@ -59,7 +59,7 @@ import { WatchedBadgeComponent } from '../../../xtream-tauri/shared/watched-badg
                                 <mat-icon>star</mat-icon>{{ rating }}
                             </div>
                         }
-                        @let title = i.title ?? i.name;
+                        @let title = i.title ?? i.o_name ?? i.name;
                         <mat-card-actions>
                             <div class="title">
                                 {{ title || 'No name' }}

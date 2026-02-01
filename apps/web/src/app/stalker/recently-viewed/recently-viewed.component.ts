@@ -1,9 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButton } from '@angular/material/button';
-import { MatIcon } from '@angular/material/icon';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from 'services';
+import {
+    VodDetailsItem,
+    StalkerVodDetails,
+    createStalkerVodItem,
+} from 'shared-interfaces';
 import { FavoritesLayoutComponent } from '../../shared/components/favorites-layout/favorites-layout.component';
 import { VodDetailsComponent } from '../../xtream/vod-details/vod-details.component';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
@@ -14,10 +17,7 @@ import { StalkerStore } from '../stalker.store';
     templateUrl: './recently-viewed.component.html',
     imports: [
         FavoritesLayoutComponent,
-        MatButton,
-        MatIcon,
         StalkerSeriesViewComponent,
-        TranslatePipe,
         VodDetailsComponent,
     ],
     styles: [
@@ -42,6 +42,7 @@ export class RecentlyViewedComponent {
     private readonly translate = inject(TranslateService);
 
     itemDetails: any = null;
+    vodDetailsItem: VodDetailsItem | null = null;
 
     readonly currentPlaylist = this.stalkerStore.currentPlaylist;
 
@@ -130,9 +131,30 @@ export class RecentlyViewedComponent {
         this.stalkerStore.setSelectedContentType(item.category_id);
         switch (item.category_id) {
             case 'itv':
-                this.createLinkToPlayVodItv(item.cmd, item.name, item.logo);
+                this.createLinkToPlayVodItv(item.cmd, item.o_name || item.name, item.logo);
                 break;
             case 'vod':
+                // Normalize the item to ensure is_series flag is properly set
+                const normalizedItem = this.normalizeRecentItem(item);
+                this.itemDetails = normalizedItem;
+                this.stalkerStore.setSelectedItem(normalizedItem);
+
+                // Check if this VOD item is actually a series (Ministra is_series=1)
+                const isVodSeries =
+                    normalizedItem.is_series === true ||
+                    normalizedItem.series?.length > 0;
+
+                if (isVodSeries) {
+                    // VOD series - will be rendered as series view
+                    this.vodDetailsItem = null;
+                } else {
+                    // Regular VOD - create VodDetailsItem for the component
+                    this.vodDetailsItem = createStalkerVodItem(
+                        normalizedItem as StalkerVodDetails,
+                        this.currentPlaylist()?._id ?? ''
+                    );
+                }
+                break;
             case 'series':
                 this.itemDetails = item;
                 this.stalkerStore.setSelectedItem(item);
@@ -140,6 +162,40 @@ export class RecentlyViewedComponent {
             default:
                 break;
         }
+    }
+
+    /** Handle play from vod-details component */
+    onVodPlay(item: VodDetailsItem): void {
+        if (item.type === 'stalker') {
+            this.createLinkToPlayVodItv(
+                item.cmd,
+                item.data.info?.name,
+                item.data.info?.movie_image
+            );
+        }
+    }
+
+    /** Handle favorite toggle from vod-details component */
+    onVodFavoriteToggled(event: { item: VodDetailsItem; isFavorite: boolean }): void {
+        if (event.item.type === 'stalker') {
+            if (event.isFavorite) {
+                this.addToFavorites({
+                    ...event.item.data,
+                    category_id: 'vod',
+                    title: event.item.data.info?.name,
+                    cover: event.item.data.info?.movie_image,
+                    added_at: new Date().toISOString(),
+                });
+            } else {
+                this.removeFromFavorites(event.item.data.id);
+            }
+        }
+    }
+
+    /** Handle back from vod-details component */
+    onVodBack(): void {
+        this.itemDetails = null;
+        this.vodDetailsItem = null;
     }
 
     async createLinkToPlayVodItv(
@@ -157,5 +213,34 @@ export class RecentlyViewedComponent {
 
     removeFromFavorites(favoriteId: string) {
         this.stalkerStore.removeFromFavorites(favoriteId);
+    }
+
+    /**
+     * Normalize recent item to ensure is_series flag is properly set
+     * and all required fields are present for the series view
+     */
+    private normalizeRecentItem(item: any): any {
+        // Normalize is_series to boolean true (can be 1, "1", or true)
+        const rawIsSeries = item.is_series;
+        const normalizedIsSeries =
+            rawIsSeries === true ||
+            rawIsSeries === 1 ||
+            rawIsSeries === '1';
+
+        // Ensure info object exists
+        const info = item.info || {
+            name: item.o_name || item.name || item.title || 'Unknown',
+            o_name: item.o_name,
+            movie_image: item.cover || item.screenshot_uri || item.logo,
+            description: item.description,
+        };
+
+        return {
+            ...item,
+            info: info,
+            is_series: normalizedIsSeries ? true : undefined,
+            // Preserve video_id for season fetching
+            video_id: item.video_id,
+        };
     }
 }

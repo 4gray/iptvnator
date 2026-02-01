@@ -300,7 +300,7 @@ export class PlaylistEffects {
                 }),
                 map(async (playlist) => {
                     if (playlist.serverUrl && this.dataService.isElectron) {
-                        // Use Electron database API
+                        // Create Xtream playlist in SQLite
                         await window.electron.dbCreatePlaylist({
                             id: playlist._id.toString(),
                             name: playlist.title || '',
@@ -309,8 +309,16 @@ export class PlaylistEffects {
                             password: playlist.password || '',
                             type: 'xtream',
                         });
-                        console.log('Playlist created in database');
                         this.router.navigate(['/xtreams/', playlist._id]);
+                    } else if (playlist.macAddress && this.dataService.isElectron) {
+                        // Create Stalker playlist in SQLite
+                        await window.electron.dbCreatePlaylist({
+                            id: playlist._id.toString(),
+                            name: playlist.title || '',
+                            macAddress: playlist.macAddress || '',
+                            url: playlist.portalUrl || '',
+                            type: 'stalker',
+                        });
                     }
                 })
             );

@@ -18,7 +18,14 @@
       "Bash(npx tsc:*)",
       "Bash(find:*)",
       "Bash(xargs sed:*)",
-      "Skill(frontend-design)"
+      "Skill(frontend-design)",
+      "mcp__angular-cli__get_best_practices",
+      "mcp__nx-mcp__nx_workspace",
+      "Bash(grep:*)",
+      "Bash(npx nx lint:*)",
+      "Bash(npx nx build:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx nx run:*)"
     ],
     "deny": [],
     "ask": []

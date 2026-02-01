@@ -1,5 +1,6 @@
 // @import 'themes/';
 @import '@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
+@import '../../../libs/ui/components/src/lib/resizable/resizable.scss';
 
 // macOS specific styles - space for traffic lights
 app-root.macos-platform app-header .modern-header {

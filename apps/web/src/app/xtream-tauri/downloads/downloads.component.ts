@@ -40,11 +40,19 @@ export class DownloadsComponent implements OnInit {
     readonly hasDownloads = this.downloadsService.hasDownloads;
     readonly activeCount = this.downloadsService.activeCount;
 
-    /** Filter downloads for current playlist */
+    /** Filter downloads for current playlist and sort by newest first */
     readonly filteredDownloads = computed(() => {
         const playlistId = this.route.snapshot.params['id'];
-        if (!playlistId) return this.downloads();
-        return this.downloads().filter((d) => d.playlistId === playlistId);
+        const downloads = playlistId
+            ? this.downloads().filter((d) => d.playlistId === playlistId)
+            : this.downloads();
+
+        // Sort by createdAt descending (newest first)
+        return [...downloads].sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
+        });
     });
 
     ngOnInit() {

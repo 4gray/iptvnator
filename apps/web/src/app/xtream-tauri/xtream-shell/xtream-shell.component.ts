@@ -49,26 +49,20 @@ export class XtreamShellComponent {
     ];
 
     private currentPlaylistId: string | null = null;
-    private isFirstLoad = true;
 
     constructor() {
         // Subscribe to route params to handle switching between playlists
         this.route.params.pipe(takeUntilDestroyed()).subscribe(async (params) => {
             const newPlaylistId = params['id'];
 
-            // Skip if playlist ID hasn't changed (after first load)
-            if (!this.isFirstLoad && this.currentPlaylistId === newPlaylistId) {
+            // Skip if playlist ID hasn't changed
+            if (this.currentPlaylistId === newPlaylistId) {
                 return;
             }
 
-            if (this.isFirstLoad) {
-                // First load - just set the playlist ID without resetting
-                this.xtreamStore.setPlaylistId(newPlaylistId);
-                this.isFirstLoad = false;
-            } else {
-                // Switching to a different playlist - reset and set new ID
-                this.xtreamStore.resetStore(newPlaylistId);
-            }
+            // Always reset the store when playlist changes to prevent stale data
+            // from previous sessions showing up (the store is a singleton)
+            this.xtreamStore.resetStore(newPlaylistId);
             this.currentPlaylistId = newPlaylistId;
 
             this.store.dispatch(
@@ -83,13 +77,16 @@ export class XtreamShellComponent {
             await this.xtreamStore.checkPortalStatus();
         });
 
-        effect(
-            () => {
-                if (this.xtreamStore.currentPlaylist() !== null) {
-                    this.xtreamStore.initializeContent();
-                }
-            },
-        );
+        effect(() => {
+            const playlist = this.xtreamStore.currentPlaylist();
+            const playlistId = this.xtreamStore.playlistId();
+
+            // Only initialize content when playlist is loaded AND matches the current playlistId
+            // This prevents stale data from a previous session from being used
+            if (playlist !== null && playlist.id === playlistId) {
+                this.xtreamStore.initializeContent();
+            }
+        });
     }
 
     handleCategoryClick(category: 'vod' | 'live' | 'series') {
