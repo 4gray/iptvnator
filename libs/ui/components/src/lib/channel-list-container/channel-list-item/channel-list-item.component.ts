@@ -2,16 +2,11 @@ import { DragDropModule } from '@angular/cdk/drag-drop';
 import { NgStyle } from '@angular/common';
 import {
     ChangeDetectionStrategy,
-    ChangeDetectorRef,
     Component,
     EventEmitter,
     inject,
     Input,
-    OnChanges,
-    OnDestroy,
-    OnInit,
     Output,
-    SimpleChanges,
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -35,8 +30,7 @@ import { EpgItemDescriptionComponent } from '../../epg-list/epg-item-description
         TranslatePipe,
     ],
 })
-export class ChannelListItemComponent implements OnInit, OnChanges, OnDestroy {
-    private readonly cdr = inject(ChangeDetectorRef);
+export class ChannelListItemComponent {
     private readonly dialog = inject(MatDialog);
 
     @Input() isDraggable = false;
@@ -46,56 +40,11 @@ export class ChannelListItemComponent implements OnInit, OnChanges, OnDestroy {
     @Input() selected = false;
     @Input() showEpg = true;
     @Input() epgProgram?: EpgProgram | null;
+    /** Progress percentage pre-computed by parent for performance */
+    @Input() progressPercentage = 0;
 
     @Output() clicked = new EventEmitter<void>();
     @Output() favoriteToggled = new EventEmitter<MouseEvent>();
-
-    progressPercentage = 0;
-    private progressInterval?: number;
-
-    ngOnInit(): void {
-        this.calculateProgress();
-        // Update progress every 30 seconds
-        this.progressInterval = window.setInterval(() => {
-            this.calculateProgress();
-        }, 30000);
-    }
-
-    ngOnChanges(changes: SimpleChanges): void {
-        // Recalculate progress when epgProgram changes
-        if (changes['epgProgram']) {
-            this.calculateProgress();
-        }
-    }
-
-    ngOnDestroy(): void {
-        if (this.progressInterval) {
-            clearInterval(this.progressInterval);
-        }
-    }
-
-    /**
-     * Calculates the progress percentage for the EPG program
-     */
-    private calculateProgress(): void {
-        if (!this.epgProgram) {
-            this.progressPercentage = 0;
-            return;
-        }
-
-        const now = new Date().getTime();
-        const start = new Date(this.epgProgram.start).getTime();
-        const stop = new Date(this.epgProgram.stop).getTime();
-
-        const total = stop - start;
-        const elapsed = now - start;
-
-        this.progressPercentage = Math.min(
-            100,
-            Math.max(0, (elapsed / total) * 100)
-        );
-        this.cdr.markForCheck();
-    }
 
     /**
      * Formats time for display (HH:mm)
