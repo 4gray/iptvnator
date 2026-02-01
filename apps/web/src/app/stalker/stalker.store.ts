@@ -587,14 +587,23 @@ export const StalkerStore = signalStore(
                 patchState(store, { currentPlaylist: playlist });
 
                 // Ensure Stalker playlist exists in SQLite for playback positions
-                if (playlist && dataService.isElectron && playlist._id) {
+                // Only sync if this is actually a Stalker playlist (has macAddress and portalUrl)
+                if (
+                    playlist &&
+                    dataService.isElectron &&
+                    playlist._id &&
+                    playlist.macAddress &&
+                    playlist.portalUrl
+                ) {
                     try {
+                        const playlistId = String(playlist._id);
                         // Check if playlist exists in SQLite
-                        const existing = await window.electron.dbGetPlaylist(playlist._id);
+                        const existing =
+                            await window.electron.dbGetPlaylist(playlistId);
                         if (!existing) {
                             // Create playlist in SQLite
                             await window.electron.dbCreatePlaylist({
-                                id: playlist._id,
+                                id: playlistId,
                                 name: playlist.title || '',
                                 macAddress: playlist.macAddress || '',
                                 url: playlist.portalUrl || '',
@@ -602,7 +611,10 @@ export const StalkerStore = signalStore(
                             });
                         }
                     } catch (error) {
-                        console.error('Error syncing Stalker playlist to SQLite:', error);
+                        console.error(
+                            'Error syncing Stalker playlist to SQLite:',
+                            error
+                        );
                     }
                 }
             },
