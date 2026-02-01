@@ -1,0 +1,24 @@
+#favorites-list {
+    height: calc(100vh - 105px);
+    overflow-x: hidden;
+}
+
+.channel-list {
+    overflow-x: hidden;
+}
+
+.empty-favorites,
+.empty-favorites-hint {
+    padding: 16px 24px;
+    text-align: center;
+}
+
+.empty-favorites {
+    margin-top: 40px;
+    font-size: 1rem;
+}
+
+.empty-favorites-hint {
+    opacity: 0.7;
+    font-size: 0.9rem;
+}
