@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS: Settings = {
     remoteControl: false,
     remoteControlPort: 8765,
     epgUrl: [],
+    downloadFolder: '',
 };
 
 export const SettingsStore = signalStore(
@@ -79,12 +80,12 @@ export const SettingsStore = signalStore(
                 remoteControl: store.remoteControl(),
                 remoteControlPort: store.remoteControlPort(),
                 epgUrl: store.epgUrl(),
-                downloadFolder: store.downloadFolder?.(),
+                downloadFolder: store.downloadFolder(),
             };
         },
 
         getDownloadFolder() {
-            return store.downloadFolder?.();
+            return store.downloadFolder();
         },
 
         getPlayer() {

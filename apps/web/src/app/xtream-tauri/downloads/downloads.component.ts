@@ -6,9 +6,9 @@ import {
     OnInit,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIcon } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -23,9 +23,9 @@ import {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         MatButtonModule,
-        MatIconModule,
+        MatIcon,
         MatProgressBarModule,
-        MatTooltipModule,
+        MatTooltip,
         TranslatePipe,
     ],
 })
