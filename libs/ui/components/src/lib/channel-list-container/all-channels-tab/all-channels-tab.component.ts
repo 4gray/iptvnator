@@ -59,8 +59,17 @@ export class AllChannelsTabComponent implements OnDestroy {
     /** Currently active channel URL */
     readonly activeChannelUrl = input<string | undefined>();
 
+    /** Set of favorite channel URLs */
+    readonly favoriteIds = input<Set<string>>(new Set());
+
     /** Emits when a channel is selected */
     readonly channelSelected = output<Channel>();
+
+    /** Emits when favorite is toggled */
+    readonly favoriteToggled = output<{
+        channel: Channel;
+        event: MouseEvent;
+    }>();
 
     /** Search term signal for debounced filtering */
     readonly searchTerm = signal('');
@@ -93,13 +102,13 @@ export class AllChannelsTabComponent implements OnDestroy {
 
         // Filter if search term exists
         if (term) {
-            result = channels.filter(ch =>
+            result = channels.filter((ch) =>
                 ch.name?.toLowerCase().includes(term)
             );
         }
 
         // Enrich with EPG data and pre-calculate progress
-        return result.map(channel => {
+        return result.map((channel) => {
             const channelId = channel?.tvg?.id?.trim() || channel?.name?.trim();
             const epgProgram = channelId ? epgMap.get(channelId) : null;
             return {
@@ -123,7 +132,9 @@ export class AllChannelsTabComponent implements OnDestroy {
     /**
      * Calculates progress percentage for an EPG program
      */
-    private calculateProgress(epgProgram: EpgProgram | null | undefined): number {
+    private calculateProgress(
+        epgProgram: EpgProgram | null | undefined
+    ): number {
         if (!epgProgram) {
             return 0;
         }
@@ -144,6 +155,10 @@ export class AllChannelsTabComponent implements OnDestroy {
 
     onChannelClick(channel: Channel): void {
         this.channelSelected.emit(channel);
+    }
+
+    onFavoriteToggle(channel: Channel, event: MouseEvent): void {
+        this.favoriteToggled.emit({ channel, event });
     }
 
     ngOnDestroy(): void {

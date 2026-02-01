@@ -15,8 +15,8 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Channel, EpgProgram } from 'shared-interfaces';
-import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 import { EnrichedChannel } from '../all-channels-tab/all-channels-tab.component';
+import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 
 @Component({
     selector: 'app-groups-tab',
@@ -51,8 +51,17 @@ export class GroupsTabComponent implements AfterViewInit, OnDestroy {
     /** Currently active channel URL */
     readonly activeChannelUrl = input<string | undefined>();
 
+    /** Set of favorite channel URLs */
+    readonly favoriteIds = input<Set<string>>(new Set());
+
     /** Emits when a channel is selected */
     readonly channelSelected = output<Channel>();
+
+    /** Emits when favorite is toggled */
+    readonly favoriteToggled = output<{
+        channel: Channel;
+        event: MouseEvent;
+    }>();
 
     /** IntersectionObserver for infinite scroll in groups */
     private groupScrollObserver?: IntersectionObserver;
@@ -74,7 +83,10 @@ export class GroupsTabComponent implements AfterViewInit, OnDestroy {
                     if (entry.isIntersecting) {
                         const element = entry.target as HTMLElement;
                         const groupKey = element.dataset['groupKey'];
-                        const totalInGroup = parseInt(element.dataset['totalInGroup'] || '0', 10);
+                        const totalInGroup = parseInt(
+                            element.dataset['totalInGroup'] || '0',
+                            10
+                        );
 
                         if (groupKey) {
                             // Run inside NgZone to trigger change detection
@@ -105,7 +117,9 @@ export class GroupsTabComponent implements AfterViewInit, OnDestroy {
      * Gets the current limit for a group, or returns default
      */
     getGroupLimit(groupKey: string): number {
-        return this.expandedGroupLimits().get(groupKey) ?? this.DEFAULT_GROUP_LIMIT;
+        return (
+            this.expandedGroupLimits().get(groupKey) ?? this.DEFAULT_GROUP_LIMIT
+        );
     }
 
     /**
@@ -125,7 +139,11 @@ export class GroupsTabComponent implements AfterViewInit, OnDestroy {
     /**
      * Sets up IntersectionObserver for a group's sentinel element.
      */
-    private observeGroupSentinel(element: HTMLElement, groupKey: string, totalInGroup: number): void {
+    private observeGroupSentinel(
+        element: HTMLElement,
+        groupKey: string,
+        totalInGroup: number
+    ): void {
         if (!element || this.observedSentinels.has(element)) {
             return;
         }
@@ -144,9 +162,15 @@ export class GroupsTabComponent implements AfterViewInit, OnDestroy {
     onGroupPanelOpened(groupKey: string, totalInGroup: number): void {
         // Use setTimeout to ensure the panel content is rendered
         setTimeout(() => {
-            const sentinel = document.querySelector(`[data-sentinel-group="${groupKey}"]`);
+            const sentinel = document.querySelector(
+                `[data-sentinel-group="${groupKey}"]`
+            );
             if (sentinel) {
-                this.observeGroupSentinel(sentinel as HTMLElement, groupKey, totalInGroup);
+                this.observeGroupSentinel(
+                    sentinel as HTMLElement,
+                    groupKey,
+                    totalInGroup
+                );
             }
         }, 50);
     }
@@ -159,7 +183,7 @@ export class GroupsTabComponent implements AfterViewInit, OnDestroy {
         // Read progressTick to create dependency for progress refresh
         this.progressTick();
 
-        return channels.map(channel => {
+        return channels.map((channel) => {
             const channelId = channel?.tvg?.id?.trim() || channel?.name?.trim();
             const epgProgram = channelId ? epgMap.get(channelId) : null;
             return {
@@ -173,7 +197,9 @@ export class GroupsTabComponent implements AfterViewInit, OnDestroy {
     /**
      * Calculates progress percentage for an EPG program
      */
-    private calculateProgress(epgProgram: EpgProgram | null | undefined): number {
+    private calculateProgress(
+        epgProgram: EpgProgram | null | undefined
+    ): number {
         if (!epgProgram) {
             return 0;
         }
@@ -194,6 +220,10 @@ export class GroupsTabComponent implements AfterViewInit, OnDestroy {
 
     onChannelClick(channel: Channel): void {
         this.channelSelected.emit(channel);
+    }
+
+    onFavoriteToggle(channel: Channel, event: MouseEvent): void {
+        this.favoriteToggled.emit({ channel, event });
     }
 
     /**

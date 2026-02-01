@@ -15,9 +15,7 @@
                     i +
                     1 +
                     '. ' +
-                    (channel?.name ||
-                        'CHANNELS.UNNAMED_CHANNEL'
-                        | translate)
+                    (channel?.name || 'CHANNELS.UNNAMED_CHANNEL' | translate)
                 "
                 [isDraggable]="true"
                 [logo]="channel?.tvg?.logo"
@@ -27,6 +25,7 @@
                 (clicked)="onChannelClick(channel)"
                 [selected]="activeChannelUrl() === channel?.url"
                 [showFavoriteButton]="true"
+                [isFavorite]="true"
                 (favoriteToggled)="onFavoriteToggle(channel, $event)"
             />
         }

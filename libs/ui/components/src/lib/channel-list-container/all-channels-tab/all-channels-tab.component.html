@@ -38,8 +38,7 @@
                     i +
                     1 +
                     '. ' +
-                    (channel?.name || 'CHANNELS.UNNAMED_CHANNEL'
-                        | translate)
+                    (channel?.name || 'CHANNELS.UNNAMED_CHANNEL' | translate)
                 "
                 [logo]="channel?.tvg?.logo"
                 [showEpg]="shouldShowEpg()"
@@ -47,6 +46,9 @@
                 [progressPercentage]="channel.progressPercentage"
                 (clicked)="onChannelClick(channel)"
                 [selected]="activeChannelUrl() === channel?.url"
+                [showFavoriteButton]="true"
+                [isFavorite]="favoriteIds().has(channel?.url)"
+                (favoriteToggled)="onFavoriteToggle(channel, $event)"
             />
         </cdk-virtual-scroll-viewport>
     }

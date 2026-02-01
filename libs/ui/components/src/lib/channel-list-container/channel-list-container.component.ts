@@ -16,8 +16,9 @@ import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import * as _ from 'lodash';
-import { ChannelActions, FavoritesActions } from 'm3u-state';
 import {
+    ChannelActions,
+    FavoritesActions,
     selectActive,
     selectActivePlaylistId,
     selectFavorites,
@@ -67,7 +68,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     readonly shouldShowEpg = signal(false);
 
     /** Item size for virtual scroll - compact when no EPG */
-    readonly itemSize = computed(() => this.shouldShowEpg() ? 68 : 48);
+    readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 48));
 
     /** Channels array */
     _channelList: Channel[] = [];
@@ -103,12 +104,17 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             )
         );
 
+    /** Set of favorite channel URLs for quick lookup */
+    readonly favoriteIds = signal<Set<string>>(new Set());
+
     /** List with favorites */
     favorites$ = combineLatest([
         this.store.select(selectFavorites),
         this.channelList$,
     ]).pipe(
         map(([favoriteChannelIds, channelList]) => {
+            // Update the favoriteIds signal for quick lookup
+            this.favoriteIds.set(new Set(favoriteChannelIds));
             return favoriteChannelIds
                 .map((favoriteChannelId) =>
                     channelList.find(
@@ -145,7 +151,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
         // Set up global progress update interval (every 30 seconds)
         this.progressInterval = window.setInterval(() => {
-            this.progressTick.update(v => v + 1);
+            this.progressTick.update((v) => v + 1);
         }, 30000);
     }
 
@@ -204,7 +210,9 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             undefined,
             { duration: 2000 }
         );
-        this.store.dispatch(FavoritesActions.updateFavorites({ channel: event.channel }));
+        this.store.dispatch(
+            FavoritesActions.updateFavorites({ channel: event.channel })
+        );
     }
 
     /**

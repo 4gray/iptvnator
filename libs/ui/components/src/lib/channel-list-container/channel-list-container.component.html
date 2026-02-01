@@ -15,7 +15,9 @@
                 [shouldShowEpg]="shouldShowEpg()"
                 [itemSize]="itemSize()"
                 [activeChannelUrl]="activeChannelUrl()"
+                [favoriteIds]="favoriteIds()"
                 (channelSelected)="onChannelSelected($event)"
+                (favoriteToggled)="onFavoriteToggled($event)"
             />
         </mat-tab>
 
@@ -33,7 +35,9 @@
                 [progressTick]="progressTick()"
                 [shouldShowEpg]="shouldShowEpg()"
                 [activeChannelUrl]="activeChannelUrl()"
+                [favoriteIds]="favoriteIds()"
                 (channelSelected)="onChannelSelected($event)"
+                (favoriteToggled)="onFavoriteToggled($event)"
             />
         </mat-tab>
 

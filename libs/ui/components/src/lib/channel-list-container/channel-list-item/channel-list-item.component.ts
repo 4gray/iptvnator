@@ -3,10 +3,9 @@ import { NgStyle } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
-    EventEmitter,
     inject,
-    Input,
-    Output,
+    input,
+    output,
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -33,18 +32,19 @@ import { EpgItemDescriptionComponent } from '../../epg-list/epg-item-description
 export class ChannelListItemComponent {
     private readonly dialog = inject(MatDialog);
 
-    @Input() isDraggable = false;
-    @Input() logo!: string;
-    @Input() name = '';
-    @Input() showFavoriteButton = false;
-    @Input() selected = false;
-    @Input() showEpg = true;
-    @Input() epgProgram?: EpgProgram | null;
+    readonly isDraggable = input(false);
+    readonly logo = input.required<string>();
+    readonly name = input('');
+    readonly showFavoriteButton = input(false);
+    readonly isFavorite = input(false);
+    readonly selected = input(false);
+    readonly showEpg = input(true);
+    readonly epgProgram = input<EpgProgram | null | undefined>();
     /** Progress percentage pre-computed by parent for performance */
-    @Input() progressPercentage = 0;
+    readonly progressPercentage = input(0);
 
-    @Output() clicked = new EventEmitter<void>();
-    @Output() favoriteToggled = new EventEmitter<MouseEvent>();
+    readonly clicked = output<void>();
+    readonly favoriteToggled = output<MouseEvent>();
 
     /**
      * Formats time for display (HH:mm)

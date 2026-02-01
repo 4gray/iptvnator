@@ -6,23 +6,28 @@
         ) {
             @if (groups.value.length > 0) {
                 <mat-expansion-panel
-                    (afterExpand)="onGroupPanelOpened(groups.key, groups.value.length)"
+                    (afterExpand)="
+                        onGroupPanelOpened(groups.key, groups.value.length)
+                    "
                 >
                     <mat-expansion-panel-header>
                         {{
-                            groups.key ||
-                                ('CHANNELS.UNGROUPED' | translate)
+                            groups.key || ('CHANNELS.UNGROUPED' | translate)
                                 | titlecase
                         }}
                         ({{ groups.value.length }})
                     </mat-expansion-panel-header>
 
                     <ng-template matExpansionPanelContent>
-                        @let enrichedGroupChannels = getEnrichedGroupChannels(groups.value);
+                        @let enrichedGroupChannels =
+                            getEnrichedGroupChannels(groups.value);
                         @let limit = getGroupLimit(groups.key);
                         <div class="group-channels">
                             @for (
-                                channel of enrichedGroupChannels.slice(0, limit);
+                                channel of enrichedGroupChannels.slice(
+                                    0,
+                                    limit
+                                );
                                 track trackByFn($index, channel);
                                 let i = $index
                             ) {
@@ -38,10 +43,19 @@
                                     [logo]="channel?.tvg?.logo"
                                     [showEpg]="shouldShowEpg()"
                                     [epgProgram]="channel.epgProgram"
-                                    [progressPercentage]="channel.progressPercentage"
+                                    [progressPercentage]="
+                                        channel.progressPercentage
+                                    "
                                     (clicked)="onChannelClick(channel)"
                                     [selected]="
                                         activeChannelUrl() === channel?.url
+                                    "
+                                    [showFavoriteButton]="true"
+                                    [isFavorite]="
+                                        favoriteIds().has(channel?.url)
+                                    "
+                                    (favoriteToggled)="
+                                        onFavoriteToggle(channel, $event)
                                     "
                                 ></app-channel-list-item>
                             }
@@ -52,8 +66,12 @@
                                     [attr.data-sentinel-group]="groups.key"
                                 >
                                     <div class="loading-more">
-                                        <mat-icon class="loading-more-spinner">sync</mat-icon>
-                                        <span>{{ 'CHANNELS.LOADING_MORE' | translate }}</span>
+                                        <mat-icon class="loading-more-spinner"
+                                            >sync</mat-icon
+                                        >
+                                        <span>{{
+                                            'CHANNELS.LOADING_MORE' | translate
+                                        }}</span>
                                     </div>
                                 </div>
                             }
