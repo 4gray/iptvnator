@@ -1,5 +1,5 @@
 import { KeyValuePipe } from '@angular/common';
-import { Component, EventEmitter, Output, input, inject, signal, OnInit } from '@angular/core';
+import { Component, input, inject, output, signal, OnInit } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIcon } from '@angular/material/icon';
@@ -155,8 +155,8 @@ export class SeasonContainerComponent implements OnInit {
         return Math.abs(hash);
     }
 
-    @Output() episodeClicked = new EventEmitter<any>();
-    @Output() seasonSelected = new EventEmitter<string>();
+    readonly episodeClicked = output<any>();
+    readonly seasonSelected = output<string>();
 
     selectedSeason: string;
 
