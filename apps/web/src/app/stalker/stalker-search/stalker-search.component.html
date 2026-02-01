@@ -1,7 +1,17 @@
 @if (itemDetails) {
     @switch (selectedFilterType()) {
         @case ('vod') {
-            @if (vodDetailsItem) {
+            @if (itemDetails.series?.length > 0) {
+                <!-- VOD item with embedded series (vclub or Ministra) -->
+                <app-stalker-series-view
+                    [vodWithSeries]="itemDetails"
+                    (backClicked)="onVodBack()"
+                />
+            } @else if (itemDetails.is_series === true) {
+                <!-- VOD item that is actually a series (Ministra plugin is_series=1) -->
+                <app-stalker-series-view (backClicked)="onVodBack()" />
+            } @else if (vodDetailsItem) {
+                <!-- Regular VOD item -->
                 <app-vod-details
                     [item]="vodDetailsItem"
                     (playClicked)="onVodPlay($event)"
@@ -38,7 +48,7 @@
                         track item.id
                     ) {
                         <app-search-result-item
-                            [title]="item.name"
+                            [title]="item.o_name || item.name"
                             [posterUrl]="item.screenshot_uri"
                             [type]="item.type"
                             (itemClick)="selectItem(item)"

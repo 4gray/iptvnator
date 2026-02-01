@@ -134,7 +134,11 @@ export class StalkerSearchComponent {
                 }
             );
             if (response) {
-                return response.js?.data;
+                // Process items to convert relative URLs to absolute
+                const items = response.js?.data || [];
+                return items.map((item: any) =>
+                    this.processItemUrls(item, portalUrl)
+                );
             } else {
                 throw new Error(
                     `Error: ${response.message} (Status: ${response.status})`
@@ -148,21 +152,62 @@ export class StalkerSearchComponent {
     }
 
     selectItem(item: any) {
+        // Check if item has embedded series data (vclub mode or Ministra with episodes)
+        const hasEmbeddedSeries = item.series?.length > 0;
+
+        // Detect if this VOD item is a series that needs API fetch (Ministra is_series flag WITHOUT embedded series)
+        // Only set is_series when we need to fetch seasons from API
+        const needsSeriesFetch =
+            this.selectedFilterType() === 'vod' &&
+            !hasEmbeddedSeries &&
+            (item.is_series === '1' || item.is_series === 1);
+
+        // Structure item exactly like category-content-view does
         this.itemDetails = {
-            ...item,
-            info: { ...item, movie_image: item.screenshot_uri },
+            id: item.id,
+            cmd: item.cmd,
+            // For VOD items with embedded series array (Stalker vclub or Ministra with episode numbers)
+            series: item.series,
+            // Preserve has_files for cmd transformation during playback
+            has_files: item.has_files,
+            // Flag for VOD items that need to fetch seasons from API (Ministra plugin without embedded series)
+            is_series: needsSeriesFetch ? true : undefined,
+            // Store video_id for season fetching if available
+            video_id: item.video_id,
+            info: {
+                movie_image: item.screenshot_uri,
+                description: item.description,
+                name: item.o_name || item.name,
+                o_name: item.o_name,
+                director: item.director,
+                releasedate: item.year,
+                genre: item.genres_str,
+                actors: item.actors,
+                rating_imdb: item.rating_imdb,
+                rating_kinopoisk: item.rating_kinopoisk,
+            },
         };
+
+        // Debug logging
+        console.log('[StalkerSearch] selectItem - hasEmbeddedSeries:', hasEmbeddedSeries);
+        console.log('[StalkerSearch] selectItem - needsSeriesFetch:', needsSeriesFetch);
+        console.log('[StalkerSearch] selectItem - itemDetails:', this.itemDetails);
+
         this.stalkerStore.setSelectedItem(this.itemDetails);
 
         switch (this.selectedFilterType()) {
             case 'vod':
                 this.stalkerStore.setSelectedContentType('vod');
-                // Create VodDetailsItem for the component
-                const playlist = this.currentPlaylist();
-                this.vodDetailsItem = createStalkerVodItem(
-                    this.itemDetails as StalkerVodDetails,
-                    playlist?._id ?? ''
-                );
+                // Only create VodDetailsItem for regular VODs (not series of any kind)
+                if (!hasEmbeddedSeries && !needsSeriesFetch) {
+                    const playlist = this.currentPlaylist();
+                    this.vodDetailsItem = createStalkerVodItem(
+                        this.itemDetails as StalkerVodDetails,
+                        playlist?._id ?? ''
+                    );
+                } else {
+                    this.vodDetailsItem = null;
+                }
                 break;
             case 'series':
                 this.stalkerStore.setSelectedContentType('series');
@@ -221,5 +266,48 @@ export class StalkerSearchComponent {
     removeFromFavorites(favoriteId: string) {
         console.debug('Remove from favorites', favoriteId);
         this.stalkerStore.removeFromFavorites(favoriteId);
+    }
+
+    /**
+     * Convert relative URLs to absolute URLs using the portal base URL.
+     * Ministra portals often return relative paths for screenshot_uri.
+     */
+    private processItemUrls(item: any, portalUrl: string): any {
+        const processed = { ...item };
+
+        // Convert screenshot_uri to absolute URL
+        if (processed.screenshot_uri) {
+            processed.screenshot_uri = this.makeAbsoluteUrl(
+                portalUrl,
+                processed.screenshot_uri
+            );
+        }
+
+        return processed;
+    }
+
+    /**
+     * Convert relative URL to absolute using portal base URL
+     */
+    private makeAbsoluteUrl(baseUrl: string, relativePath: string): string {
+        if (!relativePath) return '';
+        // Already absolute URL
+        if (
+            relativePath.startsWith('http://') ||
+            relativePath.startsWith('https://')
+        ) {
+            return relativePath;
+        }
+        // Parse the base URL to get origin
+        try {
+            const url = new URL(baseUrl);
+            // Ensure the relative path starts with /
+            const path = relativePath.startsWith('/')
+                ? relativePath
+                : `/${relativePath}`;
+            return `${url.origin}${path}`;
+        } catch {
+            return relativePath;
+        }
     }
 }
