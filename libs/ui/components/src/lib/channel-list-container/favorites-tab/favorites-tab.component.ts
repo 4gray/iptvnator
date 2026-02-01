@@ -6,24 +6,21 @@ import {
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     input,
     output,
 } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Channel, EpgProgram } from 'shared-interfaces';
-import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 import { EnrichedChannel } from '../all-channels-tab/all-channels-tab.component';
+import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 
 @Component({
     selector: 'app-favorites-tab',
     templateUrl: './favorites-tab.component.html',
     styleUrls: ['./favorites-tab.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [
-        ChannelListItemComponent,
-        DragDropModule,
-        TranslatePipe,
-    ],
+    imports: [ChannelListItemComponent, DragDropModule, TranslatePipe],
 })
 export class FavoritesTabComponent {
     /** Favorite channels */
@@ -45,21 +42,24 @@ export class FavoritesTabComponent {
     readonly channelSelected = output<Channel>();
 
     /** Emits when favorite is toggled (removed) */
-    readonly favoriteToggled = output<{ channel: Channel; event: MouseEvent }>();
+    readonly favoriteToggled = output<{
+        channel: Channel;
+        event: MouseEvent;
+    }>();
 
     /** Emits when favorites order changes via drag-drop */
     readonly favoritesReordered = output<string[]>();
 
     /**
-     * Gets enriched favorites with EPG data
+     * Computed signal for enriched favorites with EPG data
      */
-    get enrichedFavorites(): EnrichedChannel[] {
+    readonly enrichedFavorites = computed(() => {
         const favorites = this.favorites();
         const epgMap = this.channelEpgMap();
         // Read progressTick to trigger recalculation
         this.progressTick();
 
-        return favorites.map(channel => {
+        return favorites.map((channel) => {
             const channelId = channel?.tvg?.id?.trim() || channel?.name?.trim();
             const epgProgram = channelId ? epgMap.get(channelId) : null;
             return {
@@ -68,12 +68,14 @@ export class FavoritesTabComponent {
                 progressPercentage: this.calculateProgress(epgProgram),
             } as EnrichedChannel;
         });
-    }
+    });
 
     /**
      * Calculates progress percentage for an EPG program
      */
-    private calculateProgress(epgProgram: EpgProgram | null | undefined): number {
+    private calculateProgress(
+        epgProgram: EpgProgram | null | undefined
+    ): number {
         if (!epgProgram) {
             return 0;
         }
@@ -103,6 +105,6 @@ export class FavoritesTabComponent {
     onDrop(event: CdkDragDrop<Channel[]>): void {
         const favorites = [...this.favorites()];
         moveItemInArray(favorites, event.previousIndex, event.currentIndex);
-        this.favoritesReordered.emit(favorites.map(item => item.url));
+        this.favoritesReordered.emit(favorites.map((item) => item.url));
     }
 }

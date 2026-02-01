@@ -139,14 +139,26 @@ export class AllChannelsTabComponent implements OnDestroy {
             return 0;
         }
 
-        const now = new Date().getTime();
+        const now = Date.now();
         const start = new Date(epgProgram.start).getTime();
         const stop = new Date(epgProgram.stop).getTime();
 
-        const total = stop - start;
-        const elapsed = now - start;
+        // Validate start/stop are finite numbers
+        if (!Number.isFinite(start) || !Number.isFinite(stop)) {
+            return 0;
+        }
 
-        return Math.min(100, Math.max(0, (elapsed / total) * 100));
+        const total = stop - start;
+
+        // Bail out if duration is zero or negative
+        if (total <= 0) {
+            return 0;
+        }
+
+        // Clamp elapsed to [0, total]
+        const elapsed = Math.min(total, Math.max(0, now - start));
+
+        return Math.round((elapsed / total) * 100);
     }
 
     trackByFn(_: number, channel: Channel): string {

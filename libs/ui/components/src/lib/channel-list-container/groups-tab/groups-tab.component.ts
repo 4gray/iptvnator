@@ -4,6 +4,7 @@ import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
+    computed,
     inject,
     input,
     NgZone,
@@ -176,13 +177,46 @@ export class GroupsTabComponent implements AfterViewInit, OnDestroy {
     }
 
     /**
-     * Gets enriched channels for a specific group
+     * Computed signal that memoizes enriched channels for all groups
      */
-    getEnrichedGroupChannels(channels: Channel[]): EnrichedChannel[] {
+    private readonly enrichedGroupChannelsMap = computed(() => {
+        const grouped = this.groupedChannels();
         const epgMap = this.channelEpgMap();
         // Read progressTick to create dependency for progress refresh
         this.progressTick();
 
+        const result = new Map<string, EnrichedChannel[]>();
+        for (const [groupKey, channels] of Object.entries(grouped)) {
+            result.set(
+                groupKey,
+                channels.map((channel) => {
+                    const channelId =
+                        channel?.tvg?.id?.trim() || channel?.name?.trim();
+                    const epgProgram = channelId ? epgMap.get(channelId) : null;
+                    return {
+                        ...channel,
+                        epgProgram,
+                        progressPercentage: this.calculateProgress(epgProgram),
+                    } as EnrichedChannel;
+                })
+            );
+        }
+        return result;
+    });
+
+    /**
+     * Gets enriched channels for a specific group from the memoized map
+     */
+    getEnrichedGroupChannels(
+        channels: Channel[],
+        groupKey?: string
+    ): EnrichedChannel[] {
+        // If groupKey provided, use memoized map
+        if (groupKey !== undefined) {
+            return this.enrichedGroupChannelsMap().get(groupKey) || [];
+        }
+        // Fallback for direct channel array (shouldn't happen with proper template usage)
+        const epgMap = this.channelEpgMap();
         return channels.map((channel) => {
             const channelId = channel?.tvg?.id?.trim() || channel?.name?.trim();
             const epgProgram = channelId ? epgMap.get(channelId) : null;

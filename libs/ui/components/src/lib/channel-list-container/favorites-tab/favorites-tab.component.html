@@ -4,9 +4,9 @@
     (cdkDropListDropped)="onDrop($event)"
     id="favorites-list"
 >
-    @if (enrichedFavorites.length > 0) {
+    @if (enrichedFavorites().length > 0) {
         @for (
-            channel of enrichedFavorites;
+            channel of enrichedFavorites();
             track trackByFn($index, channel);
             let i = $index
         ) {

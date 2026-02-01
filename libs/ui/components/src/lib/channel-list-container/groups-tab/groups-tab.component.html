@@ -20,7 +20,7 @@
 
                     <ng-template matExpansionPanelContent>
                         @let enrichedGroupChannels =
-                            getEnrichedGroupChannels(groups.value);
+                            getEnrichedGroupChannels(groups.value, groups.key);
                         @let limit = getGroupLimit(groups.key);
                         <div class="group-channels">
                             @for (
