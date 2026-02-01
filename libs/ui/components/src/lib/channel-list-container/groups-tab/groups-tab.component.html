@@ -1,0 +1,66 @@
+<div id="groups-list" class="channel-list">
+    <mat-accordion multi>
+        @for (
+            groups of groupedChannels() | keyvalue: groupsComparator;
+            track $index
+        ) {
+            @if (groups.value.length > 0) {
+                <mat-expansion-panel
+                    (afterExpand)="onGroupPanelOpened(groups.key, groups.value.length)"
+                >
+                    <mat-expansion-panel-header>
+                        {{
+                            groups.key ||
+                                ('CHANNELS.UNGROUPED' | translate)
+                                | titlecase
+                        }}
+                        ({{ groups.value.length }})
+                    </mat-expansion-panel-header>
+
+                    <ng-template matExpansionPanelContent>
+                        @let enrichedGroupChannels = getEnrichedGroupChannels(groups.value);
+                        @let limit = getGroupLimit(groups.key);
+                        <div class="group-channels">
+                            @for (
+                                channel of enrichedGroupChannels.slice(0, limit);
+                                track trackByFn($index, channel);
+                                let i = $index
+                            ) {
+                                <app-channel-list-item
+                                    [name]="
+                                        i +
+                                        1 +
+                                        '. ' +
+                                        (channel?.name ||
+                                            'CHANNELS.UNNAMED_CHANNEL'
+                                            | translate)
+                                    "
+                                    [logo]="channel?.tvg?.logo"
+                                    [showEpg]="shouldShowEpg()"
+                                    [epgProgram]="channel.epgProgram"
+                                    [progressPercentage]="channel.progressPercentage"
+                                    (clicked)="onChannelClick(channel)"
+                                    [selected]="
+                                        activeChannelUrl() === channel?.url
+                                    "
+                                ></app-channel-list-item>
+                            }
+                            <!-- Infinite scroll sentinel - triggers loading more when visible -->
+                            @if (groups.value.length > limit) {
+                                <div
+                                    class="scroll-sentinel"
+                                    [attr.data-sentinel-group]="groups.key"
+                                >
+                                    <div class="loading-more">
+                                        <mat-icon class="loading-more-spinner">sync</mat-icon>
+                                        <span>{{ 'CHANNELS.LOADING_MORE' | translate }}</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </ng-template>
+                </mat-expansion-panel>
+            }
+        }
+    </mat-accordion>
+</div>
