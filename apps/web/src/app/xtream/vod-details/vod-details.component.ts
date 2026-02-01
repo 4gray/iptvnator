@@ -87,7 +87,7 @@ export class VodDetailsComponent implements OnDestroy {
     // ============ Computed State ============
 
     /** Whether running in Electron (downloads available) */
-    readonly isElectron = this.downloadsService.isAvailable;
+    readonly isElectron = computed(() => this.downloadsService.isAvailable());
 
     /** Normalized metadata for display */
     readonly normalizedMeta = computed(() => {
