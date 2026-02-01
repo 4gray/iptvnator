@@ -131,7 +131,7 @@ export class RecentlyViewedComponent {
         this.stalkerStore.setSelectedContentType(item.category_id);
         switch (item.category_id) {
             case 'itv':
-                this.createLinkToPlayVodItv(item.cmd, item.name, item.logo);
+                this.createLinkToPlayVodItv(item.cmd, item.o_name || item.name, item.logo);
                 break;
             case 'vod':
                 // Normalize the item to ensure is_series flag is properly set
@@ -229,7 +229,8 @@ export class RecentlyViewedComponent {
 
         // Ensure info object exists
         const info = item.info || {
-            name: item.name || item.title || 'Unknown',
+            name: item.o_name || item.name || item.title || 'Unknown',
+            o_name: item.o_name,
             movie_image: item.cover || item.screenshot_uri || item.logo,
             description: item.description,
         };

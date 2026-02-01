@@ -16,8 +16,10 @@ export interface StalkerVodInfo {
     movie_image: string;
     /** Plot description */
     description: string;
-    /** Movie title */
+    /** Formatted/system title (often generic like "video_name_format") */
     name: string;
+    /** Original title (preferred, more descriptive) */
+    o_name?: string;
     /** Comma-separated list of actors */
     actors: string;
     /** Director name */

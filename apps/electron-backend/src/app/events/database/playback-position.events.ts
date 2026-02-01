@@ -9,18 +9,41 @@ import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 
 /**
+ * Ensure playlist exists in SQLite (auto-create if missing)
+ * This handles legacy playlists that weren't synced to SQLite
+ */
+async function ensurePlaylistExists(
+    db: any,
+    playlistId: string,
+    playlistType: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url' = 'stalker'
+): Promise<void> {
+    const existing = await db
+        .select()
+        .from(schema.playlists)
+        .where(eq(schema.playlists.id, playlistId))
+        .limit(1);
+
+    if (existing.length === 0) {
+        // Create a minimal placeholder entry for the playlist
+        await db.insert(schema.playlists).values({
+            id: playlistId,
+            name: 'Imported Playlist',
+            type: playlistType,
+        });
+    }
+}
+
+/**
  * Save/update playback position for content
  */
 ipcMain.handle(
     'DB_SAVE_PLAYBACK_POSITION',
     async (event, playlistId: string, data: any) => {
         try {
-            console.log(
-                '[DatabaseEvents] Saving playback position:',
-                playlistId,
-                data
-            );
             const db = await getDatabase();
+
+            // Ensure playlist exists (handles legacy playlists not in SQLite)
+            await ensurePlaylistExists(db, playlistId, data.playlistType);
 
             // Prepare values
             const values = {
@@ -83,9 +106,6 @@ ipcMain.handle(
         contentType: 'vod' | 'episode'
     ) => {
         try {
-            console.log(
-                `[DatabaseEvents] Getting playback position: playlistId=${playlistId}, id=${contentXtreamId}, type=${contentType}`
-            );
             const db = await getDatabase();
             const result = await db
                 .select()
@@ -117,9 +137,6 @@ ipcMain.handle(
     'DB_GET_SERIES_PLAYBACK_POSITIONS',
     async (event, playlistId: string, seriesXtreamId: number) => {
         try {
-            console.log(
-                `[DatabaseEvents] Getting series playback positions: playlistId=${playlistId}, seriesXtreamId=${seriesXtreamId}`
-            );
             const db = await getDatabase();
             const result = await db
                 .select()
@@ -134,15 +151,6 @@ ipcMain.handle(
                         eq(schema.playbackPositions.contentType, 'episode')
                     )
                 );
-
-            console.log(
-                `[DatabaseEvents] Found ${result.length} positions for series ${seriesXtreamId}:`,
-                result.map((r) => ({
-                    contentXtreamId: r.contentXtreamId,
-                    seriesXtreamId: r.seriesXtreamId,
-                    position: r.positionSeconds,
-                }))
-            );
 
             return result;
         } catch (error) {

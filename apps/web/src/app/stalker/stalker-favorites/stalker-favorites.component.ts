@@ -134,7 +134,7 @@ export class StalkerFavoritesComponent {
         switch (item.category_id) {
             case 'itv':
                 this.stalkerStore.setSelectedContentType('itv');
-                this.createLinkToPlayVodItv(item.cmd, item.name, item.logo);
+                this.createLinkToPlayVodItv(item.cmd, item.o_name || item.name, item.logo);
                 break;
             case 'vod':
                 this.itemDetails = normalizedItem;
@@ -202,7 +202,8 @@ export class StalkerFavoritesComponent {
 
         const source = item.details || item;
         const info = source.info || {
-            name: item.name || item.title || 'Unknown',
+            name: item.o_name || item.name || item.title || 'Unknown',
+            o_name: item.o_name,
             movie_image: item.cover || item.screenshot_uri || item.logo,
             description: item.description,
             releasedate: item.releasedate || item.year,

@@ -15,7 +15,7 @@ import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { PlaylistsService } from 'services';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
@@ -48,6 +48,7 @@ import { StalkerStore } from './stalker.store';
 })
 export class StalkerMainContainerComponent implements AfterViewInit, OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
+    private readonly translateService = inject(TranslateService);
 
     currentLayout:
         | 'category_content'
@@ -282,7 +283,7 @@ export class StalkerMainContainerComponent implements AfterViewInit, OnDestroy {
 
     createLinkToPlayItv(item: any) {
         this.stalkerStore.setSelectedItem(item);
-        this.stalkerStore.createLinkToPlayVod(item.cmd, item.name, item.logo);
+        this.stalkerStore.createLinkToPlayVod(item.cmd, item.o_name || item.name, item.logo);
     }
 
     toggleFavorite(item: any) {
@@ -296,7 +297,7 @@ export class StalkerMainContainerComponent implements AfterViewInit, OnDestroy {
             this.stalkerStore.addToFavorites({
                 ...item,
                 category_id: 'itv',
-                title: item.name,
+                title: item.o_name || item.name,
                 cover: item.logo,
                 added_at: new Date().toISOString(),
             });
@@ -328,5 +329,22 @@ export class StalkerMainContainerComponent implements AfterViewInit, OnDestroy {
 
     goBackToList() {
         this.stalkerStore.clearSelectedItem();
+    }
+
+    getContentLabel(): string {
+        const categoryName = this.stalkerStore.getSelectedCategoryName();
+
+        // Show page number when viewing category content (not detail view)
+        if (
+            !this.stalkerStore.selectedItem() &&
+            this.stalkerStore.getTotalPages() > 1
+        ) {
+            const currentPage = this.stalkerStore.page() + 1;
+            const totalPages = this.stalkerStore.getTotalPages();
+            const pageLabel = this.translateService.instant('PORTALS.PAGE');
+            return `${categoryName} (${pageLabel} ${currentPage}/${totalPages})`;
+        }
+
+        return categoryName;
     }
 }

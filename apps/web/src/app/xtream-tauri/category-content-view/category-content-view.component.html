@@ -2,7 +2,7 @@
     @if (isStalker && selectedItem()) {
         @if (contentType() === 'vod') {
             @if (selectedItem().series?.length > 0) {
-                <!-- VOD item with embedded series (vclub) -->
+                <!-- VOD item with embedded series (vclub or Ministra) -->
                 <app-stalker-series-view [vodWithSeries]="selectedItem()" />
             } @else if (selectedItem().is_series) {
                 <!-- VOD item that is actually a series (Ministra plugin is_series=1) -->
@@ -11,7 +11,9 @@
                 @if (vodDetailsItem()) {
                     <app-vod-details
                         [item]="vodDetailsItem()!"
+                        [playbackPosition]="selectedVodPlaybackPosition()"
                         (playClicked)="onVodPlay($event)"
+                        (resumeClicked)="onVodResume($event)"
                         (favoriteToggled)="onVodFavoriteToggled($event)"
                         (backClicked)="onVodBack()"
                     />

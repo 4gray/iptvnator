@@ -176,8 +176,11 @@ export class VodDetailsComponent implements OnDestroy {
     /** Handle back navigation */
     goBack(): void {
         this.backClicked.emit();
-        // Also handle navigation internally for convenience
-        this.location.back();
+        // For Stalker items, parent handles navigation by clearing selectedItem
+        // For Xtream items, use browser history navigation
+        if (!this.isStalkerItem()) {
+            this.location.back();
+        }
     }
 
     /** Handle download request */

@@ -21,6 +21,8 @@ ipcMain.handle(
             serverUrl?: string;
             username?: string;
             password?: string;
+            macAddress?: string;
+            url?: string;
             type: string;
         }
     ) => {
@@ -32,6 +34,8 @@ ipcMain.handle(
                 serverUrl: playlist.serverUrl,
                 username: playlist.username,
                 password: playlist.password,
+                macAddress: playlist.macAddress,
+                url: playlist.url,
                 // enforce supported types
                 type: playlist.type as
                     | 'xtream'

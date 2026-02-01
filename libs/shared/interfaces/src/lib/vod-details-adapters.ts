@@ -35,12 +35,13 @@ export function normalizeXtreamVod(item: XtreamVodDetails): NormalizedVodMeta {
 /**
  * Normalizes Stalker VOD details into a display-friendly format.
  * Stalker has fewer metadata fields than Xtream.
+ * Prefers o_name (original title) over name (often formatted/generic).
  */
 export function normalizeStalkerVod(item: StalkerVodDetails): NormalizedVodMeta {
     const info = item?.info;
 
     return {
-        title: info?.name || 'Unknown',
+        title: info?.o_name || info?.name || 'Unknown',
         description: info?.description,
         posterUrl: info?.movie_image,
         backdropUrl: undefined, // Stalker doesn't provide backdrop
