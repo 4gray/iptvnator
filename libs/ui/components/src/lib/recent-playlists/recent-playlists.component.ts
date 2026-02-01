@@ -1,6 +1,11 @@
-import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import {
+    CdkDragDrop,
+    DragDropModule,
+    moveItemInArray,
+} from '@angular/cdk/drag-drop';
 import { AsyncPipe } from '@angular/common';
 import { Component, effect, inject, input, output } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
@@ -16,7 +21,7 @@ import {
 } from 'm3u-state';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
-import { DatabaseService, DataService, SortService } from 'services';
+import { DatabaseService, DataService, SortBy, SortService } from 'services';
 import { PLAYLIST_UPDATE, PlaylistMeta } from 'shared-interfaces';
 import { PlaylistType } from '../add-playlist-menu/add-playlist-menu.component';
 import { DialogService } from '../confirm-dialog/dialog.service';
@@ -30,6 +35,7 @@ import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
     styleUrls: ['./recent-playlists.component.scss'],
     imports: [
         AsyncPipe,
+        DragDropModule,
         EmptyStateComponent,
         MatInputModule,
         MatListModule,
@@ -56,6 +62,14 @@ export class RecentPlaylistsComponent {
     readonly allPlaylistsLoaded = this.store.selectSignal(
         selectPlaylistsLoadingFlag
     );
+
+    private readonly currentSortOptions = toSignal(
+        this.sortService.getSortOptions(),
+        { requireSync: true }
+    );
+
+    readonly isCustomSortActive = () =>
+        this.currentSortOptions().by === SortBy.CUSTOM;
 
     readonly searchQuery = new BehaviorSubject<string>('');
 

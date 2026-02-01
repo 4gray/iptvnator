@@ -1,4 +1,14 @@
-<mat-list-item (click)="playlistClicked.emit(item._id)">
+<mat-list-item
+    cdkDrag
+    [cdkDragDisabled]="!isDraggable()"
+    cdkDragPreviewContainer="parent"
+    (click)="playlistClicked.emit(item._id)"
+>
+    @if (isDraggable()) {
+        <mat-icon cdkDragHandle class="drag-icon" matListItemIcon
+            >drag_indicator</mat-icon
+        >
+    }
     @if (item.url) {
         <div class="icon-container" matListItemIcon>
             <mat-icon

@@ -129,7 +129,8 @@
             "NAME_ASC": "Name (A-Z)",
             "NAME_DESC": "Name (Z-A)",
             "NEWEST": "Date added (Newest first)",
-            "OLDEST": "Date added (Oldest first)"
+            "OLDEST": "Date added (Oldest first)",
+            "CUSTOM_ORDER": "Custom order (Drag & Drop)"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (local, url, text)",
