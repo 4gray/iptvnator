@@ -227,7 +227,13 @@
         "SORT_BY": "Sort by",
         "SORT_BY_DATE": "Sort by Date Added (Newest First)",
         "SORT_BY_RATING": "Sort by Rating",
-        "SORT_BY_NAME": "Sort by Name (A-Z)"
+        "SORT_BY_NAME": "Sort by Name (A-Z)",
+        "LOAD_MORE": "Load more",
+        "REMAINING": "remaining",
+        "LOADING": "Loading channels...",
+        "LOADING_MORE": "Loading more...",
+        "NO_SEARCH_RESULTS": "No channels found",
+        "TRY_DIFFERENT_SEARCH": "Try a different search term"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Open channel list",
