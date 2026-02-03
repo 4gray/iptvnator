@@ -1,12 +1,12 @@
-import { parentPort, workerData } from 'worker_threads';
-import { createGunzip } from 'zlib';
+import type BetterSqlite3 from 'better-sqlite3';
+import { existsSync, mkdirSync } from 'fs';
+import { createRequire } from 'module';
+import { homedir } from 'os';
+import { join } from 'path';
 import { SaxesParser, SaxesTagPlain } from 'saxes';
 import { Readable } from 'stream';
-import { existsSync, mkdirSync } from 'fs';
-import { homedir } from 'os';
-import { join, dirname } from 'path';
-import { createRequire } from 'module';
-import type BetterSqlite3 from 'better-sqlite3';
+import { parentPort, workerData } from 'worker_threads';
+import { createGunzip } from 'zlib';
 
 // In packaged app, native modules are in app.asar.unpacked/node_modules
 // which is separate from the worker location in extraResources
@@ -14,25 +14,46 @@ let Database: typeof BetterSqlite3;
 
 function loadBetterSqlite3(): typeof BetterSqlite3 {
     // Try workerData path first (passed from main process)
-    if (workerData?.nativeModulesPath && existsSync(workerData.nativeModulesPath)) {
+    if (
+        workerData?.nativeModulesPath &&
+        existsSync(workerData.nativeModulesPath)
+    ) {
         try {
-            const nativeRequire = createRequire(join(workerData.nativeModulesPath, 'index.js'));
+            const nativeRequire = createRequire(
+                join(workerData.nativeModulesPath, 'index.js')
+            );
             return nativeRequire('better-sqlite3');
         } catch (e) {
-            console.error('[EPG Worker] Failed to load from workerData path:', e);
+            console.error(
+                '[EPG Worker] Failed to load from workerData path:',
+                e
+            );
         }
     }
 
     // Try process.resourcesPath (available in packaged Electron apps)
-    if ((process as NodeJS.Process & { resourcesPath?: string }).resourcesPath) {
-        const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath!;
-        const unpackedPath = join(resourcesPath, 'app.asar.unpacked', 'node_modules');
+    if (
+        (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath
+    ) {
+        const resourcesPath = (
+            process as NodeJS.Process & { resourcesPath?: string }
+        ).resourcesPath!;
+        const unpackedPath = join(
+            resourcesPath,
+            'app.asar.unpacked',
+            'node_modules'
+        );
         if (existsSync(unpackedPath)) {
             try {
-                const nativeRequire = createRequire(join(unpackedPath, 'index.js'));
+                const nativeRequire = createRequire(
+                    join(unpackedPath, 'index.js')
+                );
                 return nativeRequire('better-sqlite3');
             } catch (e) {
-                console.error('[EPG Worker] Failed to load from resourcesPath:', e);
+                console.error(
+                    '[EPG Worker] Failed to load from resourcesPath:',
+                    e
+                );
             }
         }
     }
@@ -97,9 +118,8 @@ interface ParsedProgram {
  */
 
 interface WorkerMessage {
-    type: 'FETCH_EPG' | 'FORCE_FETCH' | 'CLEAR_EPG' | 'CLEANUP_EXPIRED';
+    type: 'FETCH_EPG' | 'FORCE_FETCH' | 'CLEAR_EPG';
     url?: string;
-    hoursToKeep?: number;
 }
 
 interface WorkerResponse {
@@ -108,7 +128,6 @@ interface WorkerResponse {
         | 'EPG_ERROR'
         | 'EPG_PROGRESS'
         | 'CLEAR_COMPLETE'
-        | 'CLEANUP_COMPLETE'
         | 'READY';
     error?: string;
     url?: string;
@@ -123,34 +142,6 @@ const loggerLabel = '[EPG Worker]';
 // Batch size for database inserts
 const CHANNEL_BATCH_SIZE = 100;
 const PROGRAM_BATCH_SIZE = 1000;
-
-// Skip programs that ended more than this many hours ago
-const SKIP_PROGRAMS_OLDER_THAN_HOURS = 2;
-
-/**
- * Calculate the cutoff time for filtering old programs
- * Programs that ended before this time will be skipped
- */
-function getProgramCutoffTime(): Date {
-    return new Date(Date.now() - SKIP_PROGRAMS_OLDER_THAN_HOURS * 60 * 60 * 1000);
-}
-
-/**
- * Check if a program has already ended (is expired)
- * Handles timezone-aware ISO date strings
- */
-function isProgramExpired(stopTime: string, cutoff: Date): boolean {
-    if (!stopTime) return true; // Skip programs without stop time
-
-    try {
-        const stopDate = new Date(stopTime);
-        // Check if the date is valid
-        if (isNaN(stopDate.getTime())) return false; // Don't skip if we can't parse
-        return stopDate < cutoff;
-    } catch {
-        return false; // Don't skip if parsing fails
-    }
-}
 
 /**
  * Get database file path (same as main app)
@@ -220,7 +211,8 @@ class EpgDatabase {
     insertChannels(channels: ParsedChannel[], sourceUrl: string): void {
         const insertMany = this.db.transaction((channels: ParsedChannel[]) => {
             for (const channel of channels) {
-                const displayName = channel.displayName?.[0]?.value || channel.id;
+                const displayName =
+                    channel.displayName?.[0]?.value || channel.id;
                 const iconUrl = channel.icon?.[0]?.src || null;
                 const url = channel.url?.[0] || null;
 
@@ -323,10 +315,6 @@ class StreamingEpgParser {
     private programs: ParsedProgram[] = [];
     private totalChannels = 0;
     private totalPrograms = 0;
-    private skippedPrograms = 0;
-
-    // Cutoff time for filtering old programs (calculated once at start)
-    private readonly cutoffTime: Date;
 
     // Current element being parsed
     private currentChannel: Partial<ParsedChannel> | null = null;
@@ -343,7 +331,6 @@ class StreamingEpgParser {
         private onProgress: (channels: number, programs: number) => void
     ) {
         this.parser = new SaxesParser();
-        this.cutoffTime = getProgramCutoffTime();
         this.setupParser();
     }
 
@@ -452,7 +439,9 @@ class StreamingEpgParser {
                         if (text) this.currentChannel.url!.push(text);
                         break;
                     case 'channel':
-                        this.channels.push(this.currentChannel as ParsedChannel);
+                        this.channels.push(
+                            this.currentChannel as ParsedChannel
+                        );
                         this.totalChannels++;
                         this.currentChannel = null;
 
@@ -504,16 +493,13 @@ class StreamingEpgParser {
                         }
                         break;
                     case 'programme':
-                        // Skip programs that have already ended
-                        if (isProgramExpired(this.currentProgram.stop!, this.cutoffTime)) {
-                            this.skippedPrograms++;
-                        } else {
-                            this.programs.push(this.currentProgram as ParsedProgram);
-                            this.totalPrograms++;
+                        this.programs.push(
+                            this.currentProgram as ParsedProgram
+                        );
+                        this.totalPrograms++;
 
-                            if (this.programs.length >= PROGRAM_BATCH_SIZE) {
-                                this.flushPrograms();
-                            }
+                        if (this.programs.length >= PROGRAM_BATCH_SIZE) {
+                            this.flushPrograms();
                         }
                         this.currentProgram = null;
                         break;
@@ -549,22 +535,14 @@ class StreamingEpgParser {
         this.parser.write(chunk);
     }
 
-    finish(): { totalChannels: number; totalPrograms: number; skippedPrograms: number } {
+    finish(): { totalChannels: number; totalPrograms: number } {
         this.parser.close();
         this.flushChannels();
         this.flushPrograms();
 
-        if (this.skippedPrograms > 0) {
-            console.log(
-                loggerLabel,
-                `Skipped ${this.skippedPrograms} expired programs (ended more than ${SKIP_PROGRAMS_OLDER_THAN_HOURS}h ago)`
-            );
-        }
-
         return {
             totalChannels: this.totalChannels,
             totalPrograms: this.totalPrograms,
-            skippedPrograms: this.skippedPrograms,
         };
     }
 }
@@ -650,10 +628,7 @@ async function fetchAndParseEpgStreaming(url: string): Promise<void> {
                     const stats = parser.finish();
                     console.log(
                         loggerLabel,
-                        `Parsing complete: ${stats.totalChannels} channels, ${stats.totalPrograms} programs` +
-                            (stats.skippedPrograms > 0
-                                ? ` (skipped ${stats.skippedPrograms} expired)`
-                                : '')
+                        `Parsing complete: ${stats.totalChannels} channels, ${stats.totalPrograms} programs`
                     );
 
                     // Close database connection
@@ -720,40 +695,6 @@ function clearAllEpgData(): void {
 }
 
 /**
- * Cleans up expired EPG programs from the database
- * Runs in worker thread to avoid blocking main thread
- */
-function cleanupExpiredPrograms(hoursToKeep: number): void {
-    const dbPath = getDatabasePath();
-    const db = new Database(dbPath);
-
-    try {
-        const cutoff = new Date(
-            Date.now() - hoursToKeep * 60 * 60 * 1000
-        ).toISOString();
-
-        console.log(loggerLabel, `Cleaning up programs older than ${hoursToKeep}h (before ${cutoff})...`);
-
-        const stmt = db.prepare('DELETE FROM epg_programs WHERE stop <= ?');
-        const result = stmt.run(cutoff);
-
-        console.log(loggerLabel, `Cleaned up ${result.changes} expired programs`);
-
-        const response: WorkerResponse = { type: 'CLEANUP_COMPLETE' };
-        parentPort?.postMessage(response);
-    } catch (error) {
-        console.error(loggerLabel, 'Error cleaning up expired programs:', error);
-        const errorResponse: WorkerResponse = {
-            type: 'EPG_ERROR',
-            error: error instanceof Error ? error.message : String(error),
-        };
-        parentPort?.postMessage(errorResponse);
-    } finally {
-        db.close();
-    }
-}
-
-/**
  * Worker message handler
  */
 if (parentPort) {
@@ -766,8 +707,6 @@ if (parentPort) {
                 await fetchAndParseEpgStreaming(message.url!);
             } else if (message.type === 'CLEAR_EPG') {
                 clearAllEpgData();
-            } else if (message.type === 'CLEANUP_EXPIRED') {
-                cleanupExpiredPrograms(message.hoursToKeep ?? 24);
             }
         } catch (error) {
             console.error(loggerLabel, 'Worker error:', error);

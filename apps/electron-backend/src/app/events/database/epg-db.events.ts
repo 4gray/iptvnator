@@ -128,12 +128,8 @@ ipcMain.handle(
     async (_event, channelId: string, fromTime?: string, toTime?: string) => {
         try {
             const db = await getDatabase();
-            const now = new Date().toISOString();
 
-            let query = db
-                .select()
-                .from(schema.epgPrograms)
-                .where(eq(schema.epgPrograms.channelId, channelId));
+            let query;
 
             // Apply time filters if provided
             if (fromTime && toTime) {
@@ -148,16 +144,11 @@ ipcMain.handle(
                         )
                     );
             } else {
-                // Default: from now onwards
+                // Return all programs for this channel
                 query = db
                     .select()
                     .from(schema.epgPrograms)
-                    .where(
-                        and(
-                            eq(schema.epgPrograms.channelId, channelId),
-                            gte(schema.epgPrograms.stop, now)
-                        )
-                    );
+                    .where(eq(schema.epgPrograms.channelId, channelId));
             }
 
             const results = await query.orderBy(schema.epgPrograms.start);
@@ -176,29 +167,32 @@ ipcMain.handle(
 /**
  * Get current program for a channel (what's on now)
  */
-ipcMain.handle('EPG_DB_GET_CURRENT_PROGRAM', async (_event, channelId: string) => {
-    try {
-        const db = await getDatabase();
-        const now = new Date().toISOString();
+ipcMain.handle(
+    'EPG_DB_GET_CURRENT_PROGRAM',
+    async (_event, channelId: string) => {
+        try {
+            const db = await getDatabase();
+            const now = new Date().toISOString();
 
-        const result = await db
-            .select()
-            .from(schema.epgPrograms)
-            .where(
-                and(
-                    eq(schema.epgPrograms.channelId, channelId),
-                    lte(schema.epgPrograms.start, now),
-                    gte(schema.epgPrograms.stop, now)
+            const result = await db
+                .select()
+                .from(schema.epgPrograms)
+                .where(
+                    and(
+                        eq(schema.epgPrograms.channelId, channelId),
+                        lte(schema.epgPrograms.start, now),
+                        gte(schema.epgPrograms.stop, now)
+                    )
                 )
-            )
-            .limit(1);
+                .limit(1);
 
-        return result[0] || null;
-    } catch (error) {
-        console.error(loggerLabel, 'Error getting current program:', error);
-        throw error;
+            return result[0] || null;
+        } catch (error) {
+            console.error(loggerLabel, 'Error getting current program:', error);
+            throw error;
+        }
     }
-});
+);
 
 /**
  * Full-text search EPG programs using FTS5 with LIKE fallback
@@ -210,7 +204,6 @@ ipcMain.handle(
     async (_event, searchTerm: string, limit = 50) => {
         try {
             const db = await getDatabase();
-            const now = new Date().toISOString();
             const trimmedTerm = searchTerm.trim();
 
             if (!trimmedTerm) {
@@ -222,6 +215,7 @@ ipcMain.handle(
             const likePattern = `%${trimmedTerm}%`;
 
             // JOIN with epg_channels to get channel display name
+            // Include all programs (past and future) for catchup/archive feature
             const results = await db.all(sql`
                 SELECT
                     p.*,
@@ -233,7 +227,6 @@ ipcMain.handle(
                     OR p.description LIKE ${likePattern}
                     OR p.category LIKE ${likePattern}
                 )
-                AND p.stop >= ${now}
                 ORDER BY p.start
                 LIMIT ${limit}
             `);
@@ -266,59 +259,37 @@ ipcMain.handle('EPG_DB_GET_CHANNELS', async () => {
 /**
  * Get channel by ID or display name
  */
-ipcMain.handle('EPG_DB_GET_CHANNEL', async (_event, channelIdOrName: string) => {
-    try {
-        const db = await getDatabase();
+ipcMain.handle(
+    'EPG_DB_GET_CHANNEL',
+    async (_event, channelIdOrName: string) => {
+        try {
+            const db = await getDatabase();
 
-        // Try exact ID match first
-        let result = await db
-            .select()
-            .from(schema.epgChannels)
-            .where(eq(schema.epgChannels.id, channelIdOrName))
-            .limit(1);
+            // Try exact ID match first
+            let result = await db
+                .select()
+                .from(schema.epgChannels)
+                .where(eq(schema.epgChannels.id, channelIdOrName))
+                .limit(1);
 
-        if (result.length > 0) return result[0];
+            if (result.length > 0) return result[0];
 
-        // Try display name match (case-insensitive)
-        result = await db
-            .select()
-            .from(schema.epgChannels)
-            .where(
-                sql`LOWER(${schema.epgChannels.displayName}) = LOWER(${channelIdOrName})`
-            )
-            .limit(1);
+            // Try display name match (case-insensitive)
+            result = await db
+                .select()
+                .from(schema.epgChannels)
+                .where(
+                    sql`LOWER(${schema.epgChannels.displayName}) = LOWER(${channelIdOrName})`
+                )
+                .limit(1);
 
-        return result[0] || null;
-    } catch (error) {
-        console.error(loggerLabel, 'Error getting EPG channel:', error);
-        throw error;
+            return result[0] || null;
+        } catch (error) {
+            console.error(loggerLabel, 'Error getting EPG channel:', error);
+            throw error;
+        }
     }
-});
-
-/**
- * Cleanup expired programs (older than specified hours)
- */
-ipcMain.handle('EPG_DB_CLEANUP_EXPIRED', async (_event, hoursToKeep = 24) => {
-    try {
-        const db = await getDatabase();
-        const cutoff = new Date(
-            Date.now() - hoursToKeep * 60 * 60 * 1000
-        ).toISOString();
-
-        const result = await db
-            .delete(schema.epgPrograms)
-            .where(lte(schema.epgPrograms.stop, cutoff));
-
-        console.log(
-            loggerLabel,
-            `Cleaned up expired programs (older than ${hoursToKeep}h)`
-        );
-        return { success: true };
-    } catch (error) {
-        console.error(loggerLabel, 'Error cleaning up EPG programs:', error);
-        throw error;
-    }
-});
+);
 
 /**
  * Clear all EPG data for a specific source URL

@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
 import { EpgProgram } from 'shared-interfaces';
@@ -74,14 +74,6 @@ export default class EpgEvents {
             this.fetchedUrls.delete(url);
             return await this.handleFetchEpg([url]);
         });
-
-        // Cleanup expired programs (uses worker thread)
-        ipcMain.handle(
-            'EPG_CLEANUP_EXPIRED',
-            async (_event, hoursToKeep?: number) => {
-                return this.runCleanupInWorker(hoursToKeep ?? 24);
-            }
-        );
 
         // Clear all EPG data
         ipcMain.handle('EPG_CLEAR_ALL', async () => {
@@ -280,7 +272,11 @@ export default class EpgEvents {
                 // In packaged app, native modules are in app.asar.unpacked/node_modules
                 // which is separate from the worker location in extraResources
                 const nativeModulesPath = app.isPackaged
-                    ? path.join(path.dirname(app.getAppPath()), 'app.asar.unpacked', 'node_modules')
+                    ? path.join(
+                          path.dirname(app.getAppPath()),
+                          'app.asar.unpacked',
+                          'node_modules'
+                      )
                     : undefined;
                 worker = new Worker(workerURL, {
                     resourceLimits: {
@@ -348,18 +344,6 @@ export default class EpgEvents {
                                     message.stats
                                 );
                                 this.fetchedUrls.add(url);
-                                // Trigger cleanup in worker thread (non-blocking)
-                                worker.postMessage({
-                                    type: 'CLEANUP_EXPIRED',
-                                    hoursToKeep: 24,
-                                });
-                                break;
-
-                            case 'CLEANUP_COMPLETE':
-                                console.log(
-                                    this.loggerLabel,
-                                    'Cleanup complete, terminating worker'
-                                );
                                 worker.terminate();
                                 this.workers.delete(url);
                                 resolve();
@@ -450,20 +434,14 @@ export default class EpgEvents {
     ): Promise<EpgProgram[]> {
         try {
             const db = await getDatabase();
-            const now = new Date().toISOString();
 
             // Try exact channel ID match first
             let results = await db
                 .select()
                 .from(schema.epgPrograms)
-                .where(
-                    and(
-                        eq(schema.epgPrograms.channelId, channelId),
-                        gte(schema.epgPrograms.stop, now)
-                    )
-                )
+                .where(eq(schema.epgPrograms.channelId, channelId))
                 .orderBy(schema.epgPrograms.start)
-                .limit(100);
+                .limit(500);
 
             if (results.length > 0) {
                 return results.map(this.transformDbRowToEpgProgram);
@@ -482,14 +460,9 @@ export default class EpgEvents {
                 results = await db
                     .select()
                     .from(schema.epgPrograms)
-                    .where(
-                        and(
-                            eq(schema.epgPrograms.channelId, channel[0].id),
-                            gte(schema.epgPrograms.stop, now)
-                        )
-                    )
+                    .where(eq(schema.epgPrograms.channelId, channel[0].id))
                     .orderBy(schema.epgPrograms.start)
-                    .limit(100);
+                    .limit(500);
 
                 return results.map(this.transformDbRowToEpgProgram);
             }
@@ -588,88 +561,6 @@ export default class EpgEvents {
     }
 
     /**
-     * Run cleanup in worker thread to avoid blocking main thread
-     */
-    private static async runCleanupInWorker(
-        hoursToKeep: number
-    ): Promise<{ success: boolean }> {
-        return new Promise((resolve, reject) => {
-            let workerPath: string;
-
-            if (app.isPackaged) {
-                const resourcesPath = path.dirname(app.getAppPath());
-                workerPath = path.join(
-                    resourcesPath,
-                    'dist',
-                    'apps',
-                    'electron-backend',
-                    'workers',
-                    'epg-parser.worker.js'
-                );
-            } else {
-                workerPath = path.join(
-                    __dirname,
-                    'workers',
-                    'epg-parser.worker.js'
-                );
-            }
-
-            let worker: Worker;
-            try {
-                const workerURL = pathToFileURL(workerPath);
-                // In packaged app, native modules are in app.asar.unpacked/node_modules
-                const nativeModulesPath = app.isPackaged
-                    ? path.join(path.dirname(app.getAppPath()), 'app.asar.unpacked', 'node_modules')
-                    : undefined;
-                worker = new Worker(workerURL, {
-                    workerData: { nativeModulesPath },
-                });
-            } catch (error) {
-                console.error(
-                    this.loggerLabel,
-                    'Failed to create worker for cleanup:',
-                    error
-                );
-                reject(error);
-                return;
-            }
-
-            worker.on(
-                'message',
-                (message: { type: string; error?: string }) => {
-                    if (message.type === 'READY') {
-                        worker.postMessage({
-                            type: 'CLEANUP_EXPIRED',
-                            hoursToKeep,
-                        });
-                    } else if (message.type === 'CLEANUP_COMPLETE') {
-                        worker.terminate();
-                        resolve({ success: true });
-                    } else if (message.type === 'EPG_ERROR') {
-                        console.error(
-                            this.loggerLabel,
-                            'Worker cleanup error:',
-                            message.error
-                        );
-                        worker.terminate();
-                        reject(new Error(message.error || 'Cleanup failed'));
-                    }
-                }
-            );
-
-            worker.on('error', (error) => {
-                console.error(
-                    this.loggerLabel,
-                    'Worker error during cleanup:',
-                    error
-                );
-                worker.terminate();
-                reject(error);
-            });
-        });
-    }
-
-    /**
      * Clear all EPG data using worker thread to avoid blocking main thread
      */
     static async clearEpgData(): Promise<void> {
@@ -699,7 +590,11 @@ export default class EpgEvents {
                 const workerURL = pathToFileURL(workerPath);
                 // In packaged app, native modules are in app.asar.unpacked/node_modules
                 const nativeModulesPath = app.isPackaged
-                    ? path.join(path.dirname(app.getAppPath()), 'app.asar.unpacked', 'node_modules')
+                    ? path.join(
+                          path.dirname(app.getAppPath()),
+                          'app.asar.unpacked',
+                          'node_modules'
+                      )
                     : undefined;
                 worker = new Worker(workerURL, {
                     workerData: { nativeModulesPath },
