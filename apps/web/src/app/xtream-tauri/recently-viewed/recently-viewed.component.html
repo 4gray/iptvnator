@@ -32,36 +32,39 @@
             </h3>
             <div class="items-grid">
                 @for (item of $any(group).value; track item.id) {
-                <mat-card class="item-card" (click)="openItem(item)">
-                    <button
-                        mat-icon-button
-                        class="remove-button"
-                        (click)="removeItem($event, item.id)"
-                    >
-                        <mat-icon>close</mat-icon>
-                    </button>
-                    <img
-                        [src]="
-                            item.poster_url ||
-                            './assets/images/default-poster.png'
-                        "
-                        (error)="
-                            $event.target.src =
+                <div class="item-card" (click)="openItem(item)">
+                    <div class="thumbnail-wrapper">
+                        <button
+                            mat-icon-button
+                            class="remove-button"
+                            matTooltip="Remove from history"
+                            (click)="removeItem($event, item.id)"
+                        >
+                            <mat-icon>close</mat-icon>
+                        </button>
+                        <img
+                            [src]="
+                                item.poster_url ||
                                 './assets/images/default-poster.png'
-                        "
-                        [alt]="item.title"
-                        class="poster"
-                    />
+                            "
+                            (error)="
+                                $event.target.src =
+                                    './assets/images/default-poster.png'
+                            "
+                            [alt]="item.title"
+                            class="poster"
+                        />
+                        <span class="type-badge" [class]="item.type">
+                            {{ item.type }}
+                        </span>
+                    </div>
                     <div class="item-info">
                         <h3>{{ item.title }}</h3>
-                        <p [class]="item.type" class="type-badge">
-                            {{ item.type | titlecase }}
-                        </p>
                         <p class="viewed-at">
-                            {{ item.viewed_at | date : 'd MMMM, y, HH:mm' }}
+                            {{ item.viewed_at | date : 'd MMM, HH:mm' }}
                         </p>
                     </div>
-                </mat-card>
+                </div>
                 }
             </div>
         </div>
@@ -70,32 +73,35 @@
     } @else {
     <div class="items-grid">
         @for (item of recentItems(); track item.id) {
-        <mat-card class="item-card" (click)="openItem(item)">
-            <button
-                mat-icon-button
-                class="remove-button"
-                (click)="removeItem($event, item.id)"
-            >
-                <mat-icon>close</mat-icon>
-            </button>
-            <img
-                [src]="item.poster_url || './assets/images/default-poster.png'"
-                (error)="
-                    $event.target.src = './assets/images/default-poster.png'
-                "
-                [alt]="item.title"
-                class="poster"
-            />
+        <div class="item-card" (click)="openItem(item)">
+            <div class="thumbnail-wrapper">
+                <button
+                    mat-icon-button
+                    class="remove-button"
+                    matTooltip="Remove from history"
+                    (click)="removeItem($event, item.id)"
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+                <img
+                    [src]="item.poster_url || './assets/images/default-poster.png'"
+                    (error)="
+                        $event.target.src = './assets/images/default-poster.png'
+                    "
+                    [alt]="item.title"
+                    class="poster"
+                />
+                <span class="type-badge" [class]="item.type">
+                    {{ item.type }}
+                </span>
+            </div>
             <div class="item-info">
                 <h3>{{ item.title }}</h3>
-                <p [class]="item.type" class="type-badge">
-                    {{ item.type | titlecase }}
-                </p>
                 <p class="viewed-at">
-                    {{ item.viewed_at | date : 'd MMMM, y, hh:mm' }}
+                    {{ item.viewed_at | date : 'd MMM, HH:mm' }}
                 </p>
             </div>
-        </mat-card>
+        </div>
         }
     </div>
     } } @else {

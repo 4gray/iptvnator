@@ -38,46 +38,40 @@
         @if (favorites().length) {
             <div class="items-grid">
                 @for (item of favorites(); track $index) {
-                    <mat-card class="item-card" (click)="openFavorite(item)">
-                        <img
-                            [src]="
-                                item.poster_url ||
-                                item.cover ||
-                                'assets/default-' +
-                                    selectedCategoryId() +
-                                    '.png'
-                            "
-                            (error)="
-                                $event.target.src =
+                    <div class="item-card" (click)="openFavorite(item)">
+                        <div class="thumbnail-wrapper">
+                            <button
+                                mat-icon-button
+                                class="remove-button"
+                                [matTooltip]="'CHANNELS.REMOVE_FAVORITE' | translate"
+                                (click)="$event.stopPropagation(); removeFromFavorites(item)"
+                            >
+                                <mat-icon>close</mat-icon>
+                            </button>
+                            <img
+                                [src]="
+                                    item.poster_url ||
+                                    item.cover ||
                                     './assets/images/default-poster.png'
-                            "
-                            [alt]="item.title"
-                            class="item-image"
-                        />
-                        <mat-card-content>
-                            <h3>
-                                {{ item?.title || item?.details?.info?.name }}
-                            </h3>
+                                "
+                                (error)="
+                                    $event.target.src =
+                                        './assets/images/default-poster.png'
+                                "
+                                [alt]="item.title"
+                                class="poster"
+                            />
+                            <span class="type-badge" [class]="item.type">
+                                {{ item.type }}
+                            </span>
+                        </div>
+                        <div class="item-info">
+                            <h3>{{ item?.title || item?.details?.info?.name }}</h3>
                             <p class="added-date">
-                                Added:
-                                {{ item?.added_at | date: 'd MMMM, y, HH:MM' }}
+                                {{ item?.added_at | date: 'd MMM, HH:mm' }}
                             </p>
-                        </mat-card-content>
-                        <button
-                            mat-icon-button
-                            color="warn"
-                            class="favorite-button"
-                            [matTooltip]="
-                                'CHANNELS.REMOVE_FAVORITE' | translate
-                            "
-                            (click)="
-                                $event.stopPropagation();
-                                removeFromFavorites(item)
-                            "
-                        >
-                            <mat-icon>delete</mat-icon>
-                        </button>
-                    </mat-card>
+                        </div>
+                    </div>
                 }
             </div>
         } @else {

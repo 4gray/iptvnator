@@ -1,9 +1,9 @@
-import { DatePipe, KeyValuePipe, TitleCasePipe } from '@angular/common';
+import { DatePipe, KeyValuePipe } from '@angular/common';
 import { Component, computed, inject, Optional } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
-import { MatCard } from '@angular/material/card';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import groupBy from 'lodash/groupBy';
 import { XtreamStore } from '../stores/xtream.store';
@@ -14,11 +14,9 @@ import { XtreamStore } from '../stores/xtream.store';
         DatePipe,
         KeyValuePipe,
         MatButton,
-        MatCard,
         MatIcon,
         MatIconButton,
-        MatIconButton,
-        TitleCasePipe,
+        MatTooltip,
     ],
     providers: [],
     templateUrl: './recently-viewed.component.html',
