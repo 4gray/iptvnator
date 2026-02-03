@@ -12,18 +12,40 @@ import {
 } from '../../data-sources/xtream-data-source.interface';
 
 /**
+ * Search filters configuration
+ */
+export interface SearchFilters {
+    live: boolean;
+    movie: boolean;
+    series: boolean;
+}
+
+/**
  * Search state for managing search results
  */
 export interface SearchState {
+    searchTerm: string;
+    searchFilters: SearchFilters;
     searchResults: XtreamContentItem[];
     globalSearchResults: GlobalSearchResult[];
     isSearching: boolean;
 }
 
 /**
+ * Initial search filters
+ */
+const initialSearchFilters: SearchFilters = {
+    live: true,
+    movie: true,
+    series: true,
+};
+
+/**
  * Initial search state
  */
 const initialSearchState: SearchState = {
+    searchTerm: '',
+    searchFilters: initialSearchFilters,
     searchResults: [],
     globalSearchResults: [],
     isSearching: false,
@@ -91,6 +113,35 @@ export function withSearch() {
                     patchState(store, {
                         searchResults: results as any,
                         globalSearchResults: results,
+                    });
+                },
+
+                /**
+                 * Set the search term
+                 */
+                setSearchTerm(term: string): void {
+                    patchState(store, { searchTerm: term });
+                },
+
+                /**
+                 * Set search filters
+                 */
+                setSearchFilters(filters: SearchFilters): void {
+                    patchState(store, { searchFilters: filters });
+                },
+
+                /**
+                 * Update a single filter
+                 */
+                updateSearchFilter(
+                    key: keyof SearchFilters,
+                    value: boolean
+                ): void {
+                    patchState(store, {
+                        searchFilters: {
+                            ...store.searchFilters(),
+                            [key]: value,
+                        },
                     });
                 },
 

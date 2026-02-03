@@ -7,8 +7,8 @@
                 <div class="type-filters">
                     @for (filter of filterConfig; track filter.key) {
                         <mat-checkbox
-                            [(ngModel)]="filters[filter.key]"
-                            (ngModelChange)="executeSearch()"
+                            [ngModel]="filters()[filter.key]"
+                            (ngModelChange)="updateFilter(filter.key, $event)"
                         >
                             {{ filter.translationKey | translate }}
                         </mat-checkbox>
@@ -32,9 +32,8 @@
 
         <div class="search-input-container">
             <app-search-form
-                [(searchTerm)]="searchTerm"
-                [filters]="filters"
-                [filterConfig]="[]"
+                [searchTerm]="searchTerm()"
+                (searchTermChange)="updateSearchTerm($event)"
             />
         </div>
     </div>
@@ -76,8 +75,8 @@
         <!-- Playlist-level Search Results -->
         <div class="results-grid">
             @for (item of xtreamStore.searchResults(); track item.id) {
-            <mat-card (click)="selectItem(item)">
-                <mat-card-content>
+            <div class="result-card" (click)="selectItem(item)">
+                <div class="thumbnail-wrapper">
                     @if (item.poster_url) {
                     <img
                         [src]="item.poster_url"
@@ -88,28 +87,19 @@
                         "
                         class="poster"
                     />
-                    } @if (!item.poster_url) {
+                    } @else {
                     <div class="poster-placeholder">
-                        <mat-icon>movie</mat-icon>
+                        <mat-icon>{{ item.type === 'live' ? 'live_tv' : item.type === 'series' ? 'tv' : 'movie' }}</mat-icon>
                     </div>
                     }
-                    <h3>{{ item.title }}</h3>
-                    <p>{{ item.description }}</p>
-                    <div class="type-badge" [class]="item.type">
+                    <span class="type-badge" [class]="item.type">
                         {{ item.type }}
-                    </div>
-                    @if (item.playlist_id && isGlobalSearch) {
-                    <div class="playlist-badge">
-                        {{ item.playlist_name }}
-                    </div>
-                    } @if (isGlobalSearch && item.playlist_name) {
-                    <div class="playlist-badge">
-                        <mat-icon>playlist_play</mat-icon>
-                        <span>{{ item.playlist_name }}</span>
-                    </div>
-                    }
-                </mat-card-content>
-            </mat-card>
+                    </span>
+                </div>
+                <div class="card-info">
+                    <h3>{{ item.title }}</h3>
+                </div>
+            </div>
             }
         </div>
         } } @else if (searchTerm() && searchTerm().length >= 3) {
