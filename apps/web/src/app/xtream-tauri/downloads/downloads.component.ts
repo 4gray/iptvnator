@@ -9,7 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltip } from '@angular/material/tooltip';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     DownloadItem,
@@ -31,7 +31,6 @@ import {
 })
 export class DownloadsComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
-    private readonly router = inject(Router);
     readonly downloadsService = inject(DownloadsService);
 
     readonly downloads = this.downloadsService.downloads;
@@ -133,10 +132,6 @@ export class DownloadsComponent implements OnInit {
     async clearCompleted() {
         const playlistId = this.route.snapshot.params['id'];
         await this.downloadsService.clearCompleted(playlistId);
-    }
-
-    goBack() {
-        this.router.navigate(['..'], { relativeTo: this.route });
     }
 
     formatEpisodeLabel(item: DownloadItem): string {
