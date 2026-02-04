@@ -27,8 +27,8 @@ export class ContentCardComponent {
     /** Content type (live, movie, series) */
     readonly type = input<string>();
 
-    /** Optional date to display */
-    readonly date = input<Date | string>();
+    /** Optional date to display (Date, string, or timestamp number) */
+    readonly date = input<Date | string | number>();
 
     /** Whether to show the remove button */
     readonly showRemoveButton = input<boolean>(false);

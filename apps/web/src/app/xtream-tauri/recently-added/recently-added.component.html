@@ -6,13 +6,13 @@
             <h3>{{ 'PORTALS.SIDEBAR.MOVIES' | translate }}</h3>
             <div class="carousel">
                 @for (item of recentlyAddedVod(); track item.xtream_id) {
-                    <app-search-result-item
+                    <app-content-card
                         class="carousel-item"
                         [title]="item.title || item.name"
-                        [description]="getDate(item) | date : 'mediumDate'"
                         [posterUrl]="item.poster_url || item.stream_icon"
                         [type]="'movie'"
-                        (itemClick)="openItem(item, 'vod')"
+                        [date]="getDate(item)"
+                        (cardClick)="openItem(item, 'vod')"
                     />
                 }
             </div>
@@ -24,13 +24,13 @@
             <h3>{{ 'PORTALS.SIDEBAR.SERIES' | translate }}</h3>
             <div class="carousel">
                 @for (item of recentlyAddedSeries(); track item.xtream_id) {
-                    <app-search-result-item
+                    <app-content-card
                         class="carousel-item"
                         [title]="item.title || item.name"
-                        [description]="getDate(item) | date : 'mediumDate'"
                         [posterUrl]="item.poster_url || item.cover"
                         [type]="'series'"
-                        (itemClick)="openItem(item, 'series')"
+                        [date]="getDate(item)"
+                        (cardClick)="openItem(item, 'series')"
                     />
                 }
             </div>
@@ -42,13 +42,13 @@
             <h3>{{ 'PORTALS.SIDEBAR.LIVE_TV' | translate }}</h3>
             <div class="carousel">
                 @for (item of recentlyAddedLive(); track item.xtream_id) {
-                    <app-search-result-item
+                    <app-content-card
                         class="carousel-item"
                         [title]="item.title || item.name"
-                        [description]="getDate(item) | date : 'mediumDate'"
                         [posterUrl]="item.poster_url || item.stream_icon"
                         [type]="'live'"
-                        (itemClick)="openItem(item, 'live')"
+                        [date]="getDate(item)"
+                        (cardClick)="openItem(item, 'live')"
                     />
                 }
             </div>
