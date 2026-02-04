@@ -1,22 +1,21 @@
-import { DatePipe, KeyValuePipe } from '@angular/common';
+import { KeyValuePipe } from '@angular/common';
 import { Component, computed, inject, Optional } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
-import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import groupBy from 'lodash/groupBy';
+import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import { XtreamStore } from '../stores/xtream.store';
 
 @Component({
     selector: 'app-recently-viewed',
     imports: [
-        DatePipe,
+        ContentCardComponent,
         KeyValuePipe,
         MatButton,
         MatIcon,
         MatIconButton,
-        MatTooltip,
     ],
     providers: [],
     templateUrl: './recently-viewed.component.html',
@@ -88,8 +87,7 @@ export class RecentlyViewedComponent {
         }
     }
 
-    removeItem(event: Event, itemId: number) {
-        event.stopPropagation();
+    onRemoveItem(itemId: number) {
         this.xtreamStore.removeRecentItem({
             itemId,
             playlistId: this.currentPlaylist().id,

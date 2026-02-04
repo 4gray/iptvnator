@@ -75,31 +75,13 @@
         <!-- Playlist-level Search Results -->
         <div class="results-grid">
             @for (item of xtreamStore.searchResults(); track item.id) {
-            <div class="result-card" (click)="selectItem(item)">
-                <div class="thumbnail-wrapper">
-                    @if (item.poster_url) {
-                    <img
-                        [src]="item.poster_url"
-                        [alt]="item.title"
-                        (error)="
-                            $event.target.src =
-                                './assets/images/default-poster.png'
-                        "
-                        class="poster"
-                    />
-                    } @else {
-                    <div class="poster-placeholder">
-                        <mat-icon>{{ item.type === 'live' ? 'live_tv' : item.type === 'series' ? 'tv' : 'movie' }}</mat-icon>
-                    </div>
-                    }
-                    <span class="type-badge" [class]="item.type">
-                        {{ item.type }}
-                    </span>
-                </div>
-                <div class="card-info">
-                    <h3>{{ item.title }}</h3>
-                </div>
-            </div>
+                <app-content-card
+                    [posterUrl]="item.poster_url"
+                    [title]="item.title"
+                    [type]="item.type"
+                    [showPlaceholder]="true"
+                    (cardClick)="selectItem(item)"
+                />
             }
         </div>
         } } @else if (searchTerm() && searchTerm().length >= 3) {

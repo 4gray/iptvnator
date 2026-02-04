@@ -38,40 +38,16 @@
         @if (favorites().length) {
             <div class="items-grid">
                 @for (item of favorites(); track $index) {
-                    <div class="item-card" (click)="openFavorite(item)">
-                        <div class="thumbnail-wrapper">
-                            <button
-                                mat-icon-button
-                                class="remove-button"
-                                [matTooltip]="'CHANNELS.REMOVE_FAVORITE' | translate"
-                                (click)="$event.stopPropagation(); removeFromFavorites(item)"
-                            >
-                                <mat-icon>close</mat-icon>
-                            </button>
-                            <img
-                                [src]="
-                                    item.poster_url ||
-                                    item.cover ||
-                                    './assets/images/default-poster.png'
-                                "
-                                (error)="
-                                    $event.target.src =
-                                        './assets/images/default-poster.png'
-                                "
-                                [alt]="item.title"
-                                class="poster"
-                            />
-                            <span class="type-badge" [class]="item.type">
-                                {{ item.type }}
-                            </span>
-                        </div>
-                        <div class="item-info">
-                            <h3>{{ item?.title || item?.details?.info?.name }}</h3>
-                            <p class="added-date">
-                                {{ item?.added_at | date: 'd MMM, HH:mm' }}
-                            </p>
-                        </div>
-                    </div>
+                    <app-content-card
+                        [posterUrl]="item.poster_url || item.cover"
+                        [title]="item?.title || item?.details?.info?.name || 'Unknown'"
+                        [type]="item.type"
+                        [date]="item.added_at"
+                        [showRemoveButton]="true"
+                        [removeTooltip]="'CHANNELS.REMOVE_FAVORITE' | translate"
+                        (cardClick)="openFavorite(item)"
+                        (remove)="removeFromFavorites(item)"
+                    />
                 }
             </div>
         } @else {

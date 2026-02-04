@@ -1,12 +1,9 @@
-import { DatePipe } from '@angular/common';
 import { Component, input, output } from '@angular/core';
-import { MatIconButton } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
-import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { CategoryViewComponent } from '../../../xtream-tauri/category-view/category-view.component';
+import { ContentCardComponent } from '../content-card/content-card.component';
 
 @Component({
     selector: 'app-favorites-layout',
@@ -17,11 +14,8 @@ import { CategoryViewComponent } from '../../../xtream-tauri/category-view/categ
     ],
     imports: [
         CategoryViewComponent,
-        DatePipe,
-        MatCardModule,
+        ContentCardComponent,
         MatIcon,
-        MatIconButton,
-        MatTooltip,
         PlaylistSwitcherComponent,
         ResizableDirective,
         TranslatePipe,

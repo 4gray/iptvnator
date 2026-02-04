@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
     MAT_DIALOG_DATA,
@@ -26,6 +25,7 @@ import groupBy from 'lodash/groupBy';
 import { DatabaseService } from 'services';
 import { XtreamContentItem } from '../data-sources/xtream-data-source.interface';
 import { ContentType } from '../xtream-state';
+import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import { SearchFormComponent } from '../../shared/components/search-form/search-form.component';
 import { SearchResultItemComponent } from '../../shared/components/search-result-item/search-result-item.component';
 import { XtreamStore } from '../stores/xtream.store';
@@ -38,9 +38,9 @@ interface SearchResultsData {
 @Component({
     selector: 'app-search-results',
     imports: [
+        ContentCardComponent,
         FormsModule,
         KeyValuePipe,
-        MatCardModule,
         MatCheckboxModule,
         MatDialogModule,
         MatFormFieldModule,
