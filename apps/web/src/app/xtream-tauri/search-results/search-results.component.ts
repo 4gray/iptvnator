@@ -9,16 +9,13 @@ import {
     viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
     MAT_DIALOG_DATA,
     MatDialogModule,
     MatDialogRef,
 } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import groupBy from 'lodash/groupBy';
@@ -26,7 +23,7 @@ import { DatabaseService } from 'services';
 import { XtreamContentItem } from '../data-sources/xtream-data-source.interface';
 import { ContentType } from '../xtream-state';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
-import { SearchFormComponent } from '../../shared/components/search-form/search-form.component';
+import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
 import { SearchResultItemComponent } from '../../shared/components/search-result-item/search-result-item.component';
 import { XtreamStore } from '../stores/xtream.store';
 import { SearchFilters } from '../stores/features/with-search.feature';
@@ -43,11 +40,8 @@ interface SearchResultsData {
         KeyValuePipe,
         MatCheckboxModule,
         MatDialogModule,
-        MatFormFieldModule,
         MatIcon,
-        MatIconButton,
-        MatInputModule,
-        SearchFormComponent,
+        SearchLayoutComponent,
         SearchResultItemComponent,
         TranslatePipe,
     ],
@@ -56,7 +50,7 @@ interface SearchResultsData {
     styleUrls: ['./search-results.component.scss'],
 })
 export class SearchResultsComponent implements AfterViewInit {
-    readonly searchFormComponent = viewChild(SearchFormComponent);
+    readonly searchLayoutComponent = viewChild(SearchLayoutComponent);
     readonly xtreamStore = inject(XtreamStore);
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
@@ -99,7 +93,6 @@ export class SearchResultsComponent implements AfterViewInit {
             if (term.length >= 3) {
                 this.executeSearch();
             } else if (term.length === 0) {
-                // Only clear results when search term is completely empty
                 this.clearResultsOnly();
             }
         });
@@ -108,7 +101,7 @@ export class SearchResultsComponent implements AfterViewInit {
     ngAfterViewInit() {
         this.xtreamStore.setSelectedContentType(undefined);
         setTimeout(() => {
-            this.searchFormComponent()?.focusSearchInput();
+            this.searchLayoutComponent()?.focusSearchInput();
         });
     }
 
@@ -140,7 +133,6 @@ export class SearchResultsComponent implements AfterViewInit {
      */
     updateFilter(key: keyof SearchFilters, value: boolean) {
         this.xtreamStore.updateSearchFilter(key, value);
-        // Re-execute search when filter changes
         if (this.searchTerm().length >= 3) {
             this.executeSearch();
         }
@@ -181,7 +173,6 @@ export class SearchResultsComponent implements AfterViewInit {
             ]);
         } else {
             const type = (item.type === 'movie' ? 'vod' : item.type) as ContentType;
-            // Don't reset search results - preserve them for back navigation
             this.xtreamStore.setSelectedContentType(type);
 
             this.router.navigate(
@@ -192,6 +183,11 @@ export class SearchResultsComponent implements AfterViewInit {
             );
         }
     }
+
+    onCloseDialog() {
+        this.dialogRef?.close();
+    }
+
     getGroupedResults() {
         const results = this.xtreamStore.searchResults();
         if (!this.isGlobalSearch) return { default: results };

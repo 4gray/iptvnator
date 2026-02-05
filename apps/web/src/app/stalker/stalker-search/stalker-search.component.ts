@@ -1,6 +1,6 @@
 import { Component, inject, resource, signal } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
-import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { FormsModule } from '@angular/forms';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -10,47 +10,36 @@ import {
     Playlist,
     STALKER_REQUEST,
     StalkerPortalActions,
-    VodDetailsItem,
     StalkerVodDetails,
+    VodDetailsItem,
     createStalkerVodItem,
 } from 'shared-interfaces';
-import { SearchFormComponent } from '../../shared/components/search-form/search-form.component';
-import { SearchResultItemComponent } from '../../shared/components/search-result-item/search-result-item.component';
-import { PlaylistErrorViewComponent } from '../../xtream-tauri/playlist-error-view/playlist-error-view.component';
+import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
+import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
 import { VodDetailsComponent } from '../../xtream/vod-details/vod-details.component';
 import { StalkerContentTypes } from '../stalker-content-types';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerStore } from '../stalker.store';
 
+interface StalkerFilter {
+    key: string;
+    label: string;
+    translationKey: string;
+}
+
 @Component({
     selector: 'app-stalker-search',
     imports: [
-        MatCardModule,
-        MatProgressSpinner,
-        PlaylistErrorViewComponent,
-        SearchFormComponent,
-        TranslatePipe,
-        SearchResultItemComponent,
+        ContentCardComponent,
+        FormsModule,
+        MatCheckboxModule,
+        SearchLayoutComponent,
         StalkerSeriesViewComponent,
+        TranslatePipe,
         VodDetailsComponent,
     ],
     templateUrl: './stalker-search.component.html',
-    styles: `
-        :host {
-            width: 100%;
-        }
-
-        .search-page {
-            padding: 20px;
-        }
-
-        .results-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 1rem;
-            padding-bottom: 1rem;
-        }
-    `,
+    styleUrl: './stalker-search.component.scss',
 })
 export class StalkerSearchComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
@@ -59,12 +48,12 @@ export class StalkerSearchComponent {
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly store = inject(Store);
 
-    readonly filters = {
+    readonly filters = signal({
         series: false,
         vod: true,
-    };
+    });
 
-    readonly filterConfig = [
+    readonly filterConfig: StalkerFilter[] = [
         {
             key: 'vod',
             label: 'Movies',
@@ -102,7 +91,6 @@ export class StalkerSearchComponent {
             if (!playlist) return [];
             const { portalUrl, macAddress } = playlist;
 
-            // Get token if it's a full stalker portal
             let token: string | undefined;
             let serialNumber: string | undefined;
             if ((playlist as Playlist).isFullStalkerPortal) {
@@ -134,7 +122,6 @@ export class StalkerSearchComponent {
                 }
             );
             if (response) {
-                // Process items to convert relative URLs to absolute
                 const items = response.js?.data || [];
                 return items.map((item: any) =>
                     this.processItemUrls(item, portalUrl)
@@ -147,32 +134,51 @@ export class StalkerSearchComponent {
         },
     });
 
+    /** Check if showing item details */
+    get showingDetails(): boolean {
+        return this.itemDetails !== null;
+    }
+
+    /** Get results count for layout */
+    get resultsCount(): number {
+        return this.searchResultsResource.value()?.length ?? 0;
+    }
+
     createLinkToPlayVodItv(cmd?: string, title?: string, thumbnail?: string) {
         this.stalkerStore.createLinkToPlayVod(cmd, title, thumbnail);
     }
 
-    selectItem(item: any) {
-        // Check if item has embedded series data (vclub mode or Ministra with episodes)
-        const hasEmbeddedSeries = item.series?.length > 0;
+    updateSearchTerm(term: string) {
+        this.searchTerm.set(term);
+    }
 
-        // Detect if this VOD item is a series that needs API fetch (Ministra is_series flag WITHOUT embedded series)
-        // Only set is_series when we need to fetch seasons from API
+    updateFilter(key: string, value: boolean) {
+        if (value) {
+            // Single selection mode - set clicked filter, disable others
+            this.selectedFilterType.set(key);
+            this.filters.update((f) => {
+                const newFilters: Record<string, boolean> = {};
+                Object.keys(f).forEach((k) => {
+                    newFilters[k] = k === key;
+                });
+                return newFilters as typeof f;
+            });
+        }
+    }
+
+    selectItem(item: any) {
+        const hasEmbeddedSeries = item.series?.length > 0;
         const needsSeriesFetch =
             this.selectedFilterType() === 'vod' &&
             !hasEmbeddedSeries &&
             (item.is_series === '1' || item.is_series === 1);
 
-        // Structure item exactly like category-content-view does
         this.itemDetails = {
             id: item.id,
             cmd: item.cmd,
-            // For VOD items with embedded series array (Stalker vclub or Ministra with episode numbers)
             series: item.series,
-            // Preserve has_files for cmd transformation during playback
             has_files: item.has_files,
-            // Flag for VOD items that need to fetch seasons from API (Ministra plugin without embedded series)
             is_series: needsSeriesFetch ? true : undefined,
-            // Store video_id for season fetching if available
             video_id: item.video_id,
             info: {
                 movie_image: item.screenshot_uri,
@@ -188,17 +194,11 @@ export class StalkerSearchComponent {
             },
         };
 
-        // Debug logging
-        console.log('[StalkerSearch] selectItem - hasEmbeddedSeries:', hasEmbeddedSeries);
-        console.log('[StalkerSearch] selectItem - needsSeriesFetch:', needsSeriesFetch);
-        console.log('[StalkerSearch] selectItem - itemDetails:', this.itemDetails);
-
         this.stalkerStore.setSelectedItem(this.itemDetails);
 
         switch (this.selectedFilterType()) {
             case 'vod':
                 this.stalkerStore.setSelectedContentType('vod');
-                // Only create VodDetailsItem for regular VODs (not series of any kind)
                 if (!hasEmbeddedSeries && !needsSeriesFetch) {
                     const playlist = this.currentPlaylist();
                     this.vodDetailsItem = createStalkerVodItem(
@@ -217,7 +217,6 @@ export class StalkerSearchComponent {
         }
     }
 
-    /** Handle play from vod-details component */
     onVodPlay(item: VodDetailsItem): void {
         if (item.type === 'stalker') {
             this.createLinkToPlayVodItv(
@@ -228,8 +227,10 @@ export class StalkerSearchComponent {
         }
     }
 
-    /** Handle favorite toggle from vod-details component */
-    onVodFavoriteToggled(event: { item: VodDetailsItem; isFavorite: boolean }): void {
+    onVodFavoriteToggled(event: {
+        item: VodDetailsItem;
+        isFavorite: boolean;
+    }): void {
         if (event.item.type === 'stalker') {
             if (event.isFavorite) {
                 this.addToFavorites({
@@ -245,37 +246,22 @@ export class StalkerSearchComponent {
         }
     }
 
-    /** Handle back from vod-details component */
     onVodBack(): void {
         this.itemDetails = null;
         this.vodDetailsItem = null;
     }
 
-    onFiltersChange(event: { vod: boolean; live: boolean; series: boolean }) {
-        const selectedFilter = Object.keys(event).find((key) => event[key]);
-        if (selectedFilter) {
-            this.selectedFilterType.set(selectedFilter);
-        }
-    }
-
     addToFavorites(item: any) {
-        console.debug('Add to favorites', item);
         this.stalkerStore.addToFavorites(item);
     }
 
     removeFromFavorites(favoriteId: string) {
-        console.debug('Remove from favorites', favoriteId);
         this.stalkerStore.removeFromFavorites(favoriteId);
     }
 
-    /**
-     * Convert relative URLs to absolute URLs using the portal base URL.
-     * Ministra portals often return relative paths for screenshot_uri.
-     */
     private processItemUrls(item: any, portalUrl: string): any {
         const processed = { ...item };
 
-        // Convert screenshot_uri to absolute URL
         if (processed.screenshot_uri) {
             processed.screenshot_uri = this.makeAbsoluteUrl(
                 portalUrl,
@@ -286,22 +272,16 @@ export class StalkerSearchComponent {
         return processed;
     }
 
-    /**
-     * Convert relative URL to absolute using portal base URL
-     */
     private makeAbsoluteUrl(baseUrl: string, relativePath: string): string {
         if (!relativePath) return '';
-        // Already absolute URL
         if (
             relativePath.startsWith('http://') ||
             relativePath.startsWith('https://')
         ) {
             return relativePath;
         }
-        // Parse the base URL to get origin
         try {
             const url = new URL(baseUrl);
-            // Ensure the relative path starts with /
             const path = relativePath.startsWith('/')
                 ? relativePath
                 : `/${relativePath}`;
