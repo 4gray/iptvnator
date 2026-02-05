@@ -1,9 +1,13 @@
 import {
+    afterNextRender,
     ChangeDetectionStrategy,
     Component,
     computed,
+    ElementRef,
     inject,
+    Injector,
     OnInit,
+    viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
@@ -23,7 +27,9 @@ import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
 } from '../category-management-dialog/category-management-dialog.component';
-import { CategoryViewComponent } from '../category-view/category-view.component';
+import {
+    CategoryViewComponent,
+} from '../category-view/category-view.component';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../stores/xtream.store';
@@ -80,6 +86,12 @@ export class LiveStreamLayoutComponent implements OnInit {
         };
     });
 
+    private readonly injector = inject(Injector);
+    private readonly categoryView = viewChild(CategoryViewComponent, {
+        read: ElementRef,
+    });
+    private categoryScrollTop = 0;
+
     readonly player = this.settingsStore.player;
     streamUrl: string;
     favorites = new Map<number, boolean>();
@@ -116,12 +128,25 @@ export class LiveStreamLayoutComponent implements OnInit {
     }
 
     selectCategory(category: XtreamCategory) {
+        const el = this.categoryView()?.nativeElement;
+        if (el) {
+            this.categoryScrollTop = el.scrollTop;
+        }
         const categoryId = (category as any).category_id ?? category.id;
         this.xtreamStore.setSelectedCategory(categoryId);
     }
 
     backToCategories() {
         this.xtreamStore.setSelectedCategory(null);
+        afterNextRender(
+            () => {
+                const el = this.categoryView()?.nativeElement;
+                if (el) {
+                    el.scrollTop = this.categoryScrollTop;
+                }
+            },
+            { injector: this.injector }
+        );
     }
 
     openCategoryManagement(): void {
