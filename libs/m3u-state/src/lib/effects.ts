@@ -57,6 +57,10 @@ export class PlaylistEffects {
                     this.store.select(selectFavorites),
                     this.store.select(selectActivePlaylistId)
                 ),
+                filter(
+                    ([, , playlistId]) =>
+                        playlistId !== GLOBAL_FAVORITES_PLAYLIST_ID
+                ),
                 switchMap(([, favorites, playlistId]) =>
                     this.playlistsService.updateFavorites(playlistId, favorites)
                 ),

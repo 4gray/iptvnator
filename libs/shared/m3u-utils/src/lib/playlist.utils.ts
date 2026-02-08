@@ -44,6 +44,7 @@ export function createFavoritesPlaylist(
         playlist: {
             items: channels,
         },
+        favorites: channels.map((channel) => channel.url),
         filename: 'Global favorites',
     };
 }

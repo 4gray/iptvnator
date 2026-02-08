@@ -1,4 +1,5 @@
 import { Component, input, output } from '@angular/core';
+import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
@@ -16,6 +17,7 @@ import { ContentCardComponent } from '../content-card/content-card.component';
         CategoryViewComponent,
         ContentCardComponent,
         MatIcon,
+        MatIconButton,
         PlaylistSwitcherComponent,
         ResizableDirective,
         TranslatePipe,

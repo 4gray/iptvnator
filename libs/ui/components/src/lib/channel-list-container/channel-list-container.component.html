@@ -1,4 +1,4 @@
-@if (_channelList) {
+@if (displayedChannels().length) {
     <mat-tab-group color="primary" backgroundColor="primary">
         <!-- All Channels Tab -->
         <mat-tab>
@@ -9,7 +9,7 @@
                 </div>
             </ng-template>
             <app-all-channels-tab
-                [channels]="_channelList"
+                [channels]="displayedChannels()"
                 [channelEpgMap]="channelEpgMap()"
                 [progressTick]="progressTick()"
                 [shouldShowEpg]="shouldShowEpg()"
@@ -30,7 +30,7 @@
                 </div>
             </ng-template>
             <app-groups-tab
-                [groupedChannels]="groupedChannels"
+                [groupedChannels]="groupedChannels()"
                 [channelEpgMap]="channelEpgMap()"
                 [progressTick]="progressTick()"
                 [shouldShowEpg]="shouldShowEpg()"
