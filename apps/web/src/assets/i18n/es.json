@@ -273,8 +273,8 @@
         "REMOVED_FROM_FAVORITES": "Eliminado de favoritos",
         "ADDED_TO_FAVORITES": "Añadido a favoritos",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "Se encontraron {{count}} resultados",
+            "NO_RESULTS_FOR": "No se encontraron resultados para \"{{term}}\""
         }
     },
     "ABOUT": {

@@ -316,8 +316,8 @@
         "STREAM_URL_COPIED": "تم نسخ رابط البث إلى الحافظة",
         "COPY_STREAM_URL": "نسخ رابط البث",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "تم العثور على {{count}} نتيجة",
+            "NO_RESULTS_FOR": "لم يتم العثور على نتائج لـ \"{{term}}\""
         }
     },
     "INFORMATION": "معلومات",

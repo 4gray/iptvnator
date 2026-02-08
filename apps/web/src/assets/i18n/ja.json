@@ -296,8 +296,8 @@
         "STREAM_URL_COPIED": "ストリームURLがクリップボードにコピーされました",
         "COPY_STREAM_URL": "ストリームURLをコピー",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "{{count}}件の結果が見つかりました",
+            "NO_RESULTS_FOR": "「{{term}}」に一致する結果は見つかりませんでした"
         }
     },
     "INFORMATION": "情報",

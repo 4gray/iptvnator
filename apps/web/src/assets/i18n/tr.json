@@ -296,8 +296,8 @@
         "STREAM_URL_COPIED": "Yayın URL'si panoya kopyalandı",
         "COPY_STREAM_URL": "Yayın URL'sini kopyala",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "{{count}} sonuç bulundu",
+            "NO_RESULTS_FOR": "\"{{term}}\" için sonuç bulunamadı"
         }
     },
     "INFORMATION": "Bilgi",

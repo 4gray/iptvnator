@@ -346,8 +346,8 @@
         "COPY_STREAM_URL": "Copiar URL do Stream",
         "SELECT_CATEGORY": "Selecione uma categoria",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "{{count}} resultados encontrados",
+            "NO_RESULTS_FOR": "Nenhum resultado encontrado para \"{{term}}\""
         }
     },
     "INFORMATION": "Informação",

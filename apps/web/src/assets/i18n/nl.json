@@ -308,8 +308,8 @@
         "STREAM_URL_COPIED": "Stream URL Gekopieërd",
         "COPY_STREAM_URL": "Kopieër Stream URL",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "{{count}} resultaten gevonden",
+            "NO_RESULTS_FOR": "Geen resultaten gevonden voor \"{{term}}\""
         }
     },
     "INFORMATION": "Informatie",

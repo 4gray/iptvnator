@@ -326,8 +326,8 @@
         "COPY_STREAM_URL": "複製串流網址",
         "SELECT_CATEGORY": "選擇類別",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "找到 {{count}} 筆結果",
+            "NO_RESULTS_FOR": "找不到與「{{term}}」相符的結果"
         }
     },
     "INFORMATION": "資訊",

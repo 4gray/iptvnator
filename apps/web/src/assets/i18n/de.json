@@ -383,8 +383,8 @@
         "SELECT_CATEGORY": "Wählen Sie eine Kategorie aus",
         "PAGE": "Seite",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "{{count}} Ergebnisse gefunden",
+            "NO_RESULTS_FOR": "Keine Ergebnisse für \"{{term}}\" gefunden"
         }
     },
     "ABOUT": {

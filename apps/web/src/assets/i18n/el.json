@@ -427,8 +427,8 @@
         "SEARCH_VIEW": {
             "INITIAL_TITLE": "Αναζήτηση περιεχομένου",
             "INITIAL_DESCRIPTION": "Εισαγάγετε τουλάχιστον 3 χαρακτήρες για αναζήτηση σε ζωντανές τηλεοπτικές μεταδόσεις, ταινίες και σειρές.",
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "Βρέθηκαν {{count}} αποτελέσματα",
+            "NO_RESULTS_FOR": "Δεν βρέθηκαν αποτελέσματα για \"{{term}}\""
         },
         "STREAM_URL_COPIED": "Η διεύθυνση URL ροής αντιγράφηκε στο πρόχειρο",
         "COPY_STREAM_URL": "Αντιγραφή διεύθηνσης URL ροής",

@@ -306,8 +306,8 @@
         "STREAM_URL_COPIED": "URL streaming copiato negli appunti",
         "COPY_STREAM_URL": "Copia URL streaming",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "Trovati {{count}} risultati",
+            "NO_RESULTS_FOR": "Nessun risultato trovato per \"{{term}}\""
         }
     },
     "INFORMATION": "Informazioni",

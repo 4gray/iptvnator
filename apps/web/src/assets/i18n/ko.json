@@ -244,8 +244,8 @@
         "REMOVED_FROM_FAVORITES": "즐겨찾기에서 삭제됨",
         "ADDED_TO_FAVORITES": "즐겨찾기에 추가됨",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "{{count}}개의 결과를 찾았습니다",
+            "NO_RESULTS_FOR": "\"{{term}}\"에 대한 결과를 찾을 수 없습니다"
         }
     },
     "ABOUT": {

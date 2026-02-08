@@ -393,8 +393,8 @@
         "SELECT_CATEGORY": "Выберите категорию",
         "PAGE": "Страница",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "Найдено {{count}} результатов",
+            "NO_RESULTS_FOR": "Нет результатов по запросу \"{{term}}\""
         }
     },
     "INFORMATION": "Инфо",

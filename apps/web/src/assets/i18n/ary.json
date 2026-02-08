@@ -308,8 +308,8 @@
         "STREAM_URL_COPIED": "رابط البث تنقل للحافظة",
         "COPY_STREAM_URL": "نسخ رابط البث",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "تلقاو {{count}} ديال النتايج",
+            "NO_RESULTS_FOR": "ما تلقاو حتى نتيجة لـ \"{{term}}\""
         }
     },
     "INFORMATION": "معلومات",

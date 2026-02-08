@@ -308,8 +308,8 @@
         "STREAM_URL_COPIED": "URL strumienia skopiowany do schowka",
         "COPY_STREAM_URL": "Kopiuj URL strumienia",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "Znaleziono {{count}} wyników",
+            "NO_RESULTS_FOR": "Brak wyników dla „{{term}}”"
         }
     },
     "INFORMATION": "Informacje",

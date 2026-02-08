@@ -349,8 +349,8 @@
         "COPY_STREAM_URL": "Copier l'URL du flux",
         "SELECT_CATEGORY": "Sélectionner une catégorie",
         "SEARCH_VIEW": {
-            "RESULTS_FOUND": "Found {{count}} results",
-            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+            "RESULTS_FOUND": "{{count}} résultats trouvés",
+            "NO_RESULTS_FOR": "Aucun résultat trouvé pour \"{{term}}\""
         }
     },
     "INFORMATION": "Information",
