@@ -14,7 +14,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
-import * as _ from 'lodash';
+import groupBy from 'lodash/groupBy';
 import {
     ChannelActions,
     FavoritesActions,
@@ -91,8 +91,9 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     /** Active playlist ID as signal */
-    private readonly activePlaylistIdSignal =
-        this.store.selectSignal(selectActivePlaylistId);
+    private readonly activePlaylistIdSignal = this.store.selectSignal(
+        selectActivePlaylistId
+    );
 
     /** Displayed channels - filters out unfavorited channels in global favorites view */
     readonly displayedChannels = computed(() => {
@@ -105,7 +106,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Object with channels sorted by groups */
     readonly groupedChannels = computed(() =>
-        _.default.groupBy(this.displayedChannels(), 'group.title')
+        groupBy(this.displayedChannels(), 'group.title')
     );
 
     /** Selected channel */
