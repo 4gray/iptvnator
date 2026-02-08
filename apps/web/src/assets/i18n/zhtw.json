@@ -324,7 +324,11 @@
         },
         "STREAM_URL_COPIED": "串流網址已複製到剪貼簿",
         "COPY_STREAM_URL": "複製串流網址",
-        "SELECT_CATEGORY": "選擇類別"
+        "SELECT_CATEGORY": "選擇類別",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "Found {{count}} results",
+            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+        }
     },
     "INFORMATION": "資訊",
     "REMOTE_CONTROL": {
