@@ -10,6 +10,7 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
@@ -111,6 +112,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         // Load favorites for current playlist
         this.playlistService
             .getPortalFavorites(this.stalkerStore.currentPlaylist()?._id)
+            .pipe(takeUntilDestroyed())
             .subscribe((favs) => {
                 favs.forEach((fav: any) => {
                     this.favorites.set(fav.id, true);
