@@ -344,7 +344,11 @@
         },
         "STREAM_URL_COPIED": "URL do stream copiado para a área de transferência",
         "COPY_STREAM_URL": "Copiar URL do Stream",
-        "SELECT_CATEGORY": "Selecione uma categoria"
+        "SELECT_CATEGORY": "Selecione uma categoria",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "Found {{count}} results",
+            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+        }
     },
     "INFORMATION": "Informação",
     "REMOTE_CONTROL": {

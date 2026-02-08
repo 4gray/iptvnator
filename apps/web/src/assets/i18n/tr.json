@@ -294,7 +294,11 @@
             "NO_SEARCH_RESULTS": "Arama sonuçları yok, lütfen arama talebinizi değiştirin"
         },
         "STREAM_URL_COPIED": "Yayın URL'si panoya kopyalandı",
-        "COPY_STREAM_URL": "Yayın URL'sini kopyala"
+        "COPY_STREAM_URL": "Yayın URL'sini kopyala",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "Found {{count}} results",
+            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+        }
     },
     "INFORMATION": "Bilgi",
     "REMOTE_CONTROL": {

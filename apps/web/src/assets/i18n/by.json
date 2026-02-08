@@ -281,7 +281,11 @@
             "NO_SEARCH_RESULTS": "Нічога не знойдзена, паспрабуйце змяніць пошукавы запыт"
         },
         "REMOVED_FROM_FAVORITES": "Выдалена з выбранага",
-        "ADDED_TO_FAVORITES": "Дададзена ў выбранае"
+        "ADDED_TO_FAVORITES": "Дададзена ў выбранае",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "Found {{count}} results",
+            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+        }
     },
     "INFORMATION": "Інфармацыя"
 }

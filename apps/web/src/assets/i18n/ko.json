@@ -242,7 +242,11 @@
             "NO_SEARCH_RESULTS": "아무것도 찾지 못했습니다. 검색 요청을 변경해 보세요."
         },
         "REMOVED_FROM_FAVORITES": "즐겨찾기에서 삭제됨",
-        "ADDED_TO_FAVORITES": "즐겨찾기에 추가됨"
+        "ADDED_TO_FAVORITES": "즐겨찾기에 추가됨",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "Found {{count}} results",
+            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+        }
     },
     "ABOUT": {
         "TITLE": "IPTVnator 소개",

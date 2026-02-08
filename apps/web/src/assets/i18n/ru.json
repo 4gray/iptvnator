@@ -391,7 +391,11 @@
         "REMOVED_FROM_FAVORITES": "Удалено из избранного",
         "ADDED_TO_FAVORITES": "Добавлено в избранное",
         "SELECT_CATEGORY": "Выберите категорию",
-        "PAGE": "Страница"
+        "PAGE": "Страница",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "Found {{count}} results",
+            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+        }
     },
     "INFORMATION": "Инфо",
     "REMOTE_CONTROL": {

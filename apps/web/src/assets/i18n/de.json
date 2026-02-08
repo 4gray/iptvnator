@@ -381,7 +381,11 @@
         "REMOVED_FROM_FAVORITES": "Aus den Favoriten entfernt",
         "ADDED_TO_FAVORITES": "Zu den Favoriten hinzugefügt",
         "SELECT_CATEGORY": "Wählen Sie eine Kategorie aus",
-        "PAGE": "Seite"
+        "PAGE": "Seite",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "Found {{count}} results",
+            "NO_RESULTS_FOR": "No results found for \"{{term}}\""
+        }
     },
     "ABOUT": {
         "TITLE": "Über IPTVnator",
