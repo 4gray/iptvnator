@@ -32,36 +32,16 @@
             </h3>
             <div class="items-grid">
                 @for (item of $any(group).value; track item.id) {
-                <mat-card class="item-card" (click)="openItem(item)">
-                    <button
-                        mat-icon-button
-                        class="remove-button"
-                        (click)="removeItem($event, item.id)"
-                    >
-                        <mat-icon>close</mat-icon>
-                    </button>
-                    <img
-                        [src]="
-                            item.poster_url ||
-                            './assets/images/default-poster.png'
-                        "
-                        (error)="
-                            $event.target.src =
-                                './assets/images/default-poster.png'
-                        "
-                        [alt]="item.title"
-                        class="poster"
+                    <app-content-card
+                        [posterUrl]="item.poster_url"
+                        [title]="item.title"
+                        [type]="item.type"
+                        [date]="item.viewed_at"
+                        [showRemoveButton]="true"
+                        [removeTooltip]="'Remove from history'"
+                        (cardClick)="openItem(item)"
+                        (remove)="onRemoveItem(item.id)"
                     />
-                    <div class="item-info">
-                        <h3>{{ item.title }}</h3>
-                        <p [class]="item.type" class="type-badge">
-                            {{ item.type | titlecase }}
-                        </p>
-                        <p class="viewed-at">
-                            {{ item.viewed_at | date : 'd MMMM, y, HH:mm' }}
-                        </p>
-                    </div>
-                </mat-card>
                 }
             </div>
         </div>
@@ -70,32 +50,16 @@
     } @else {
     <div class="items-grid">
         @for (item of recentItems(); track item.id) {
-        <mat-card class="item-card" (click)="openItem(item)">
-            <button
-                mat-icon-button
-                class="remove-button"
-                (click)="removeItem($event, item.id)"
-            >
-                <mat-icon>close</mat-icon>
-            </button>
-            <img
-                [src]="item.poster_url || './assets/images/default-poster.png'"
-                (error)="
-                    $event.target.src = './assets/images/default-poster.png'
-                "
-                [alt]="item.title"
-                class="poster"
+            <app-content-card
+                [posterUrl]="item.poster_url"
+                [title]="item.title"
+                [type]="item.type"
+                [date]="item.viewed_at"
+                [showRemoveButton]="true"
+                [removeTooltip]="'Remove from history'"
+                (cardClick)="openItem(item)"
+                (remove)="onRemoveItem(item.id)"
             />
-            <div class="item-info">
-                <h3>{{ item.title }}</h3>
-                <p [class]="item.type" class="type-badge">
-                    {{ item.type | titlecase }}
-                </p>
-                <p class="viewed-at">
-                    {{ item.viewed_at | date : 'd MMMM, y, hh:mm' }}
-                </p>
-            </div>
-        </mat-card>
         }
     </div>
     } } @else {

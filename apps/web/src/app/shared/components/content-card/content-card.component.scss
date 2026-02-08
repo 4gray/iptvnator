@@ -1,0 +1,21 @@
+@use '../../styles/content-grid' as grid;
+
+.content-card {
+    @include grid.content-card;
+
+    .thumbnail-wrapper {
+        @include grid.thumbnail-wrapper;
+
+        .remove-button {
+            @include grid.remove-button;
+        }
+
+        .type-badge {
+            @include grid.type-badge;
+        }
+    }
+
+    .card-info {
+        @include grid.card-info;
+    }
+}

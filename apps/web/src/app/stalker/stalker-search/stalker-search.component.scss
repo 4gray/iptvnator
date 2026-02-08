@@ -1,0 +1,20 @@
+@use '../../shared/styles/content-grid' as grid;
+
+:host {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    height: 100%;
+    width: 100%;
+}
+
+.details-view {
+    height: 100%;
+    width: 100%;
+    overflow-y: auto;
+}
+
+.results-grid {
+    @include grid.content-grid(140px, 20px);
+    padding-bottom: 1rem;
+}

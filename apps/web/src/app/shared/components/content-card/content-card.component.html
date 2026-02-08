@@ -1,0 +1,48 @@
+<div class="content-card" (click)="onCardClick()">
+    <div class="thumbnail-wrapper">
+        @if (showRemoveButton()) {
+            <button
+                mat-icon-button
+                class="remove-button"
+                [matTooltip]="removeTooltip()"
+                (click)="onRemoveClick($event)"
+            >
+                <mat-icon>close</mat-icon>
+            </button>
+        }
+
+        @if (posterUrl()) {
+            <img
+                [src]="posterUrl()"
+                [alt]="title()"
+                (error)="onImageError($event)"
+                class="poster"
+            />
+        } @else if (showPlaceholder()) {
+            <div class="poster-placeholder">
+                <mat-icon>{{ getPlaceholderIcon() }}</mat-icon>
+            </div>
+        } @else {
+            <img
+                src="./assets/images/default-poster.png"
+                [alt]="title()"
+                class="poster"
+            />
+        }
+
+        @if (type()) {
+            <span class="type-badge" [class]="type()">
+                {{ type() }}
+            </span>
+        }
+    </div>
+
+    <div class="card-info">
+        <h3>{{ title() }}</h3>
+        @if (date()) {
+            <p class="date-info">
+                {{ date() | date: 'd MMM, HH:mm' }}
+            </p>
+        }
+    </div>
+</div>
