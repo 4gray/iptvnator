@@ -23,6 +23,8 @@
 
 @mixin thumbnail-wrapper {
     position: relative;
+    border-radius: 8px;
+    overflow: hidden;
 
     .poster {
         width: 100%;
