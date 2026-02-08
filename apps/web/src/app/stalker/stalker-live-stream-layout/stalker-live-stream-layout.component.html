@@ -1,0 +1,168 @@
+@let isEmbeddedPlayer =
+    player() === 'videojs' || player() === 'html5' || player() === 'artplayer';
+
+<div
+    class="sidebar"
+    appResizable
+    [minWidth]="250"
+    [maxWidth]="600"
+    [defaultWidth]="400"
+    storageKey="sidebar-width"
+>
+    <div class="sidebar-header">
+        @if (stalkerStore.selectedCategoryId()) {
+            <button mat-icon-button (click)="backToCategories()">
+                <mat-icon>chevron_left</mat-icon>
+            </button>
+            <h2>{{ selectedCategoryTitle() }}</h2>
+        } @else {
+            <app-playlist-switcher
+                class="switcher"
+                [currentTitle]="currentPlaylist()?.title || 'Portal'"
+                [subtitle]="'Stalker Portal'"
+            />
+        }
+    </div>
+
+    @if (stalkerStore.selectedCategoryId()) {
+        <!-- <div class="search-panel">
+            <mat-form-field class="search-bar" subscriptSizing="dynamic">
+                <mat-icon matPrefix>search</mat-icon>
+                <input
+                    matInput
+                    [placeholder]="'PORTALS.SIDEBAR.SEARCH' | translate"
+                    [ngModel]="searchString()"
+                    (ngModelChange)="searchString.set($event)"
+                />
+                @if (searchString()) {
+                    <button matSuffix mat-icon-button (click)="searchString.set('')">
+                        <mat-icon>close</mat-icon>
+                    </button>
+                }
+            </mat-form-field>
+        </div> -->
+        <div #scrollContainer class="channels-list">
+            @for (item of itvChannels(); track item.id ?? $index) {
+                <div
+                    class="channel-item"
+                    [class.active]="stalkerStore.selectedItem()?.id === item.id"
+                    (click)="playChannel(item)"
+                >
+                    <img
+                        class="stream-icon"
+                        [src]="item.logo"
+                        (error)="
+                            $event.target.src =
+                                './assets/images/default-poster.png'
+                        "
+                        alt=""
+                    />
+                    <div class="channel-info">
+                        <span class="title">{{
+                            item.o_name || item.name
+                        }}</span>
+                        @if (currentPrograms.get(item.id)) {
+                            <div class="program-info">
+                                <div class="current-program">
+                                    {{ currentPrograms.get(item.id) }}
+                                </div>
+                                @if (currentProgramsProgress.has(item.id)) {
+                                    <div class="progress-container">
+                                        <span>{{
+                                            programTimings.get(item.id)?.start
+                                                | date: 'HH:mm'
+                                        }}</span>
+                                        <div class="progress-bar">
+                                            <div
+                                                class="progress"
+                                                [style.width.%]="
+                                                    currentProgramsProgress.get(item.id)
+                                                "
+                                            ></div>
+                                        </div>
+                                        <span>{{
+                                            programTimings.get(item.id)?.end
+                                                | date: 'HH:mm'
+                                        }}</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <button
+                        class="favorite-btn"
+                        (click)="toggleFavorite(item); $event.stopPropagation()"
+                    >
+                        <mat-icon>{{
+                            favorites.get(item.id) ? 'star' : 'star_outline'
+                        }}</mat-icon>
+                    </button>
+                </div>
+            }
+
+            @if (isLoadingMore()) {
+                <div class="loading-indicator">
+                    <mat-spinner diameter="24" />
+                </div>
+            }
+        </div>
+    } @else {
+        @if (isCategoryLoading()) {
+            <ngx-skeleton-loader
+                count="20"
+                [theme]="{
+                    width: '95%',
+                    height: '48px',
+                    borderRadius: '40px',
+                }"
+            />
+        } @else if (isCategoryFailed()) {
+            <app-playlist-error-view
+                [title]="'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE' | translate"
+                [description]="
+                    'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION' | translate
+                "
+            />
+        } @else {
+            <app-category-view
+                [items]="categories()"
+                [selectedCategoryId]="$any(stalkerStore.selectedCategoryId())"
+                (categoryClicked)="selectCategory($event)"
+            />
+        }
+    }
+</div>
+
+<div class="content-container">
+    @if (streamUrl && isEmbeddedPlayer) {
+        <div class="video-player">
+            <app-web-player-view [streamUrl]="streamUrl" />
+        </div>
+    }
+    @if (stalkerStore.selectedItem()) {
+        <div class="epg">
+            <div class="epg-content">
+                <app-epg-view [epgItems]="epgItems()" />
+                @if (isLoadingEpg()) {
+                    <div class="loading-indicator">
+                        <mat-spinner diameter="24" />
+                    </div>
+                }
+                @if (hasMoreEpg() && !isLoadingEpg()) {
+                    <div class="load-more-epg">
+                        <button mat-button (click)="loadMoreEpg()">
+                            {{ 'CHANNELS.LOAD_MORE' | translate }}
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    } @else {
+        <div class="no-channel-selected">
+            <button mat-icon-button disabled>
+                <mat-icon>category</mat-icon>
+            </button>
+            {{ 'PORTALS.SELECT_CATEGORY' | translate }}
+        </div>
+    }
+</div>
