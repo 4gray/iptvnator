@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -33,6 +34,7 @@ export interface SearchFilter {
         MatInputModule,
         MatIconModule,
         MatCheckboxModule,
+        MatButtonModule,
         TranslatePipe,
     ],
     templateUrl: './search-form.component.html',
@@ -74,6 +76,11 @@ export class SearchFormComponent {
         setTimeout(() => {
             this.searchTerm.set(this.searchInput.nativeElement.value);
         }, 500);
+    }
+
+    clearSearch() {
+        this.searchInput.nativeElement.value = '';
+        this.searchTerm.set('');
     }
 
     focusSearchInput() {

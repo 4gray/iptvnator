@@ -1,5 +1,9 @@
 <div class="search-container">
-    <mat-form-field appearance="outline" class="search-field">
+    <mat-form-field
+        appearance="outline"
+        class="search-field"
+        subscriptSizing="dynamic"
+    >
         <mat-label>{{ placeholder }}</mat-label>
         <input
             #searchInput
@@ -8,7 +12,13 @@
             [ngModel]="searchTerm()"
             (ngModelChange)="onSearchTermChange()"
         />
-        <mat-icon matSuffix>search</mat-icon>
+        @if (searchTerm()) {
+            <button mat-icon-button matSuffix (click)="clearSearch()">
+                <mat-icon>close</mat-icon>
+            </button>
+        } @else {
+            <mat-icon matSuffix>search</mat-icon>
+        }
     </mat-form-field>
 
     @if (filterConfig.length > 0) {
