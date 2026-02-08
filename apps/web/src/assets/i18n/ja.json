@@ -294,7 +294,11 @@
             "NO_SEARCH_RESULTS": "何も見つかりませんでした。検索リクエストを変更してみてください"
         },
         "STREAM_URL_COPIED": "ストリームURLがクリップボードにコピーされました",
-        "COPY_STREAM_URL": "ストリームURLをコピー"
+        "COPY_STREAM_URL": "ストリームURLをコピー",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "{{count}}件の結果が見つかりました",
+            "NO_RESULTS_FOR": "「{{term}}」に一致する結果は見つかりませんでした"
+        }
     },
     "INFORMATION": "情報",
     "REMOTE_CONTROL": {

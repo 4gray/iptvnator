@@ -347,7 +347,11 @@
         },
         "STREAM_URL_COPIED": "URL du flux copiée dans le presse-papiers",
         "COPY_STREAM_URL": "Copier l'URL du flux",
-        "SELECT_CATEGORY": "Sélectionner une catégorie"
+        "SELECT_CATEGORY": "Sélectionner une catégorie",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "{{count}} résultats trouvés",
+            "NO_RESULTS_FOR": "Aucun résultat trouvé pour \"{{term}}\""
+        }
     },
     "INFORMATION": "Information",
     "DOWNLOADS": {

@@ -6,4 +6,6 @@ export enum StalkerPortalActions {
     Favorites = 'favorites',
     Handshake = 'handshake',
     DoAuth = 'do_auth',
+    GetShortEpg = 'get_short_epg',
+    GetEpgInfo = 'get_epg_info',
 }

@@ -10,12 +10,11 @@ import {
     signal,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import * as _ from 'lodash';
+import { TranslatePipe } from '@ngx-translate/core';
+import groupBy from 'lodash/groupBy';
 import {
     ChannelActions,
     FavoritesActions,
@@ -25,7 +24,13 @@ import {
 } from 'm3u-state';
 import { BehaviorSubject, combineLatest, map, skipWhile } from 'rxjs';
 import { EpgService } from 'services';
-import { Channel, EpgProgram, Settings, STORE_KEY } from 'shared-interfaces';
+import {
+    Channel,
+    EpgProgram,
+    GLOBAL_FAVORITES_PLAYLIST_ID,
+    Settings,
+    STORE_KEY,
+} from 'shared-interfaces';
 import { AllChannelsTabComponent } from './all-channels-tab/all-channels-tab.component';
 import { FavoritesTabComponent } from './favorites-tab/favorites-tab.component';
 import { GroupsTabComponent } from './groups-tab/groups-tab.component';
@@ -47,10 +52,8 @@ import { GroupsTabComponent } from './groups-tab/groups-tab.component';
 })
 export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly epgService = inject(EpgService);
-    private readonly snackBar = inject(MatSnackBar);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
-    private readonly translateService = inject(TranslateService);
 
     /** Map of channel ID to current EPG program */
     readonly channelEpgMap = signal(new Map<string, EpgProgram | null>());
@@ -72,6 +75,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Channels array */
     _channelList: Channel[] = [];
+    private readonly channelListSignal = signal<Channel[]>([]);
     private channelList$ = new BehaviorSubject<Channel[]>([]);
 
     get channelList(): Channel[] {
@@ -81,13 +85,29 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     @Input()
     set channelList(value: Channel[]) {
         this._channelList = value;
+        this.channelListSignal.set(value);
         this.channelList$.next(value);
-        this.groupedChannels = _.default.groupBy(value, 'group.title');
         this.fetchEpgForChannels(value);
     }
 
+    /** Active playlist ID as signal */
+    private readonly activePlaylistIdSignal = this.store.selectSignal(
+        selectActivePlaylistId
+    );
+
+    /** Displayed channels - filters out unfavorited channels in global favorites view */
+    readonly displayedChannels = computed(() => {
+        const channels = this.channelListSignal();
+        if (this.activePlaylistIdSignal() === GLOBAL_FAVORITES_PLAYLIST_ID) {
+            return channels.filter((ch) => this.favoriteIds().has(ch.url));
+        }
+        return channels;
+    });
+
     /** Object with channels sorted by groups */
-    groupedChannels: { [key: string]: Channel[] } = {};
+    readonly groupedChannels = computed(() =>
+        groupBy(this.displayedChannels(), 'group.title')
+    );
 
     /** Selected channel */
     readonly activeChannel = this.store.selectSignal(selectActive);
@@ -105,7 +125,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         );
 
     /** Set of favorite channel URLs for quick lookup */
-    readonly favoriteIds = signal<Set<string>>(new Set());
+    private readonly _favorites = this.store.selectSignal(selectFavorites);
+    readonly favoriteIds = computed(() => new Set(this._favorites()));
 
     /** List with favorites */
     favorites$ = combineLatest([
@@ -113,8 +134,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         this.channelList$,
     ]).pipe(
         map(([favoriteChannelIds, channelList]) => {
-            // Update the favoriteIds signal for quick lookup
-            this.favoriteIds.set(new Set(favoriteChannelIds));
             return favoriteChannelIds
                 .map((favoriteChannelId) =>
                     channelList.find(
@@ -205,11 +224,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      */
     onFavoriteToggled(event: { channel: Channel; event: MouseEvent }): void {
         event.event.stopPropagation();
-        this.snackBar.open(
-            this.translateService.instant('CHANNELS.FAVORITES_UPDATED'),
-            undefined,
-            { duration: 2000 }
-        );
         this.store.dispatch(
             FavoritesActions.updateFavorites({ channel: event.channel })
         );

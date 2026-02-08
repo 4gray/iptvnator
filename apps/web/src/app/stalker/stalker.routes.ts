@@ -42,9 +42,9 @@ export const stalkerRoutes: Route[] = [
             {
                 path: 'itv',
                 loadComponent: () =>
-                    import('./stalker-main-container.component').then(
-                        (c) => c.StalkerMainContainerComponent
-                    ),
+                    import(
+                        './stalker-live-stream-layout/stalker-live-stream-layout.component'
+                    ).then((c) => c.StalkerLiveStreamLayoutComponent),
             },
             {
                 path: 'series',

@@ -113,7 +113,15 @@ export function withSearch() {
                     patchState(store, {
                         searchResults: results as any,
                         globalSearchResults: results,
+                        isSearching: false,
                     });
+                },
+
+                /**
+                 * Set the searching state
+                 */
+                setIsSearching(value: boolean): void {
+                    patchState(store, { isSearching: value });
                 },
 
                 /**

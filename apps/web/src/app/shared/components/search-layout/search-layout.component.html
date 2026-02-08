@@ -17,7 +17,10 @@
                 <div class="header-right">
                     @if (showResultsCount() && resultsCount() > 0) {
                         <div class="results-count">
-                            Found {{ resultsCount() }} results
+                            {{
+                                'PORTALS.SEARCH_VIEW.RESULTS_FOUND'
+                                    | translate: { count: resultsCount() }
+                            }}
                         </div>
                     }
                     @if (showCloseButton()) {
@@ -36,6 +39,9 @@
                     (searchTermChange)="onSearchTermChange($event)"
                 />
             </div>
+
+            <!-- Subheader slot (info notes, secondary controls) -->
+            <ng-content select="[subheader]" />
         </div>
 
         <div class="results-container">
@@ -52,7 +58,12 @@
                     <div class="no-items-content">
                         <h3>{{ 'PORTALS.EMPTY_LIST_VIEW.TITLE' | translate }}</h3>
                         <p>{{ 'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate }}</p>
-                        <p class="search-term-note">No results found for "{{ searchTerm() }}"</p>
+                        <p class="search-term-note">
+                            {{
+                                'PORTALS.SEARCH_VIEW.NO_RESULTS_FOR'
+                                    | translate: { term: searchTerm() }
+                            }}
+                        </p>
                     </div>
                 </div>
             } @else if (showInitialState) {

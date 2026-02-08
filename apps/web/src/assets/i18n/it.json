@@ -304,7 +304,11 @@
             "NO_SEARCH_RESULTS": "Nessun risultato, prova a modificare la richiesta di ricerca"
         },
         "STREAM_URL_COPIED": "URL streaming copiato negli appunti",
-        "COPY_STREAM_URL": "Copia URL streaming"
+        "COPY_STREAM_URL": "Copia URL streaming",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "Trovati {{count}} risultati",
+            "NO_RESULTS_FOR": "Nessun risultato trovato per \"{{term}}\""
+        }
     },
     "INFORMATION": "Informazioni",
     "REMOTE_CONTROL": {

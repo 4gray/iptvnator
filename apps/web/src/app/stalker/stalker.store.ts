@@ -11,6 +11,7 @@ import {
 import { TranslateService } from '@ngx-translate/core';
 import { DataService, PlaylistsService, StalkerSessionService } from 'services';
 import {
+    EpgItem,
     Playlist,
     PlaylistMeta,
     STALKER_REQUEST,
@@ -289,7 +290,8 @@ export const StalkerStore = signalStore(
                     }
                     // VOD uses 'genre' param, series uses 'category' param, itv uses both
                     // Based on stalker-to-m3u implementation
-                    const categoryParam = params.category ?? '';
+                    // Use "*" for categories without an ID (e.g. "All") to fetch all items
+                    const categoryParam = params.category || '*';
                     const queryParams: Record<string, string | number> = {
                         action: StalkerContentTypes[params.contentType]
                             .getContentAction,
@@ -562,9 +564,12 @@ export const StalkerStore = signalStore(
             setSelectedContentType(type: 'vod' | 'itv' | 'series') {
                 patchState(store, { selectedContentType: type });
             },
-            setSelectedCategory(id: number) {
+            setSelectedCategory(id: string | number | null) {
                 patchState(store, {
-                    selectedCategoryId: id !== null ? String(id) : null,
+                    selectedCategoryId:
+                        id !== null && id !== undefined
+                            ? String(id)
+                            : null,
                     page: 0,
                 });
             },
@@ -653,6 +658,9 @@ export const StalkerStore = signalStore(
             },
             setItvChannels(channels: any[]) {
                 patchState(store, { itvChannels: channels });
+            },
+            setSearchPhrase(phrase: string) {
+                patchState(store, { searchPhrase: phrase, page: 0 });
             },
             /**
              * Fetch episodes for a VOD series season (Ministra plugin)
@@ -1054,6 +1062,60 @@ export const StalkerStore = signalStore(
                         itemId
                     )
                     .subscribe();
+            },
+            async fetchChannelEpg(
+                channelId: number | string,
+                size = 10
+            ): Promise<EpgItem[]> {
+                const playlist = store.currentPlaylist() as Playlist;
+                if (!playlist) return [];
+
+                const queryParams: Record<string, string> = {
+                    action: StalkerPortalActions.GetShortEpg,
+                    type: 'itv',
+                    ch_id: String(channelId),
+                    size: String(size),
+                };
+
+                let response: any;
+                if (playlist.isFullStalkerPortal) {
+                    response =
+                        await stalkerSession.makeAuthenticatedRequest(
+                            playlist,
+                            queryParams
+                        );
+                } else {
+                    response = await dataService.sendIpcEvent(
+                        STALKER_REQUEST,
+                        {
+                            url: playlist.portalUrl,
+                            macAddress: playlist.macAddress,
+                            params: queryParams,
+                        }
+                    );
+                }
+
+                const epgData =
+                    response?.js?.data ?? response?.js ?? [];
+                const items = Array.isArray(epgData) ? epgData : [];
+
+                return items.map((item) => ({
+                    id: String(item.id ?? ''),
+                    epg_id: '',
+                    title: item.name ?? '',
+                    description: item.descr ?? '',
+                    lang: '',
+                    start: item.time ?? '',
+                    end: item.time_to ?? '',
+                    stop: item.time_to ?? '',
+                    channel_id: String(item.ch_id ?? channelId),
+                    start_timestamp: String(
+                        item.start_timestamp ?? ''
+                    ),
+                    stop_timestamp: String(
+                        item.stop_timestamp ?? ''
+                    ),
+                }));
             },
         })
     )

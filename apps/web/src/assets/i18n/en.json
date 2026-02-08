@@ -442,7 +442,11 @@
         },
         "SEARCH_VIEW": {
             "INITIAL_TITLE": "Search for content",
-            "INITIAL_DESCRIPTION": "Enter at least 3 characters to search across live TV, movies and series."
+            "INITIAL_DESCRIPTION": "Enter at least 3 characters to search across live TV, movies and series.",
+            "RESULTS_FOUND": "Found {{count}} results",
+            "NO_RESULTS_FOR": "No results found for \"{{term}}\"",
+            "GROUP_BY_PLAYLIST": "Group results by playlist",
+            "XTREAM_ONLY_NOTE": "Global search is currently available for Xtream playlists only."
         },
         "STREAM_URL_COPIED": "Stream URL copied to clipboard",
         "COPY_STREAM_URL": "Copy Stream URL",

@@ -241,7 +241,11 @@
             "NO_SEARCH_RESULTS": "未找到任何内容，请尝试更改您的搜索请求"
         },
         "REMOVED_FROM_FAVORITES": "已从收藏夹中删除",
-        "ADDED_TO_FAVORITES": "已添加至收藏夹"
+        "ADDED_TO_FAVORITES": "已添加至收藏夹",
+        "SEARCH_VIEW": {
+            "RESULTS_FOUND": "找到 {{count}} 条结果",
+            "NO_RESULTS_FOR": "未找到与“{{term}}”匹配的结果"
+        }
     },
     "ABOUT": {
         "TITLE": "关于 IPTVnator",

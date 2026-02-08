@@ -55,6 +55,33 @@
     }
 }
 
+// Subheader row for global search (note + grouping toggle)
+.global-search-subheader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+
+    .global-search-note {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        opacity: 0.55;
+
+        mat-icon {
+            font-size: 15px;
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+        }
+    }
+
+    ::ng-deep mat-checkbox {
+        flex-shrink: 0;
+    }
+}
+
 // Playlist grouping styles for global search
 .playlist-group {
     margin-bottom: 2rem;

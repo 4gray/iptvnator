@@ -2,10 +2,12 @@ import { KeyValuePipe } from '@angular/common';
 import {
     AfterViewInit,
     Component,
+    computed,
     effect,
     inject,
     Inject,
     Optional,
+    signal,
     viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -24,7 +26,6 @@ import { XtreamContentItem } from '../data-sources/xtream-data-source.interface'
 import { ContentType } from '../xtream-state';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
-import { SearchResultItemComponent } from '../../shared/components/search-result-item/search-result-item.component';
 import { XtreamStore } from '../stores/xtream.store';
 import { SearchFilters } from '../stores/features/with-search.feature';
 
@@ -42,7 +43,6 @@ interface SearchResultsData {
         MatDialogModule,
         MatIcon,
         SearchLayoutComponent,
-        SearchResultItemComponent,
         TranslatePipe,
     ],
     providers: [],
@@ -62,7 +62,14 @@ export class SearchResultsComponent implements AfterViewInit {
     /** Search filters from store */
     readonly filters = this.xtreamStore.searchFilters;
 
+    private static readonly GROUP_BY_STORAGE_KEY = 'global-search-group-by-playlist';
+
     isGlobalSearch = false;
+
+    /** Whether to group global search results by playlist */
+    readonly groupByPlaylist = signal(
+        localStorage.getItem(SearchResultsComponent.GROUP_BY_STORAGE_KEY) !== 'false'
+    );
 
     readonly filterConfig = [
         {
@@ -82,16 +89,24 @@ export class SearchResultsComponent implements AfterViewInit {
         },
     ];
 
+    /** Grouped results computed once per result change (avoids recalculating on every CD cycle) */
+    readonly groupedResults = computed(() => {
+        const results = this.xtreamStore.searchResults();
+        if (!this.isGlobalSearch) return { default: results };
+        return groupBy(results, 'playlist_name');
+    });
+
     constructor(
         @Optional() @Inject(MAT_DIALOG_DATA) data: SearchResultsData,
         @Optional() public dialogRef: MatDialogRef<SearchResultsComponent>
     ) {
         this.isGlobalSearch = data?.isGlobalSearch || false;
 
-        effect(() => {
+        effect((onCleanup) => {
             const term = this.searchTerm();
             if (term.length >= 3) {
-                this.executeSearch();
+                const timeout = setTimeout(() => this.executeSearch(), 300);
+                onCleanup(() => clearTimeout(timeout));
             } else if (term.length === 0) {
                 this.clearResultsOnly();
             }
@@ -146,6 +161,7 @@ export class SearchResultsComponent implements AfterViewInit {
     }
 
     async searchGlobal(term: string, types: string[]) {
+        this.xtreamStore.setIsSearching(true);
         try {
             const results = await this.databaseService.globalSearchContent(
                 term,
@@ -153,6 +169,8 @@ export class SearchResultsComponent implements AfterViewInit {
             );
             if (results && Array.isArray(results)) {
                 this.xtreamStore.setGlobalSearchResults(results);
+            } else {
+                this.xtreamStore.setIsSearching(false);
             }
         } catch (error) {
             console.error('Error in global search:', error);
@@ -188,9 +206,12 @@ export class SearchResultsComponent implements AfterViewInit {
         this.dialogRef?.close();
     }
 
+    toggleGroupByPlaylist(value: boolean) {
+        this.groupByPlaylist.set(value);
+        localStorage.setItem(SearchResultsComponent.GROUP_BY_STORAGE_KEY, String(value));
+    }
+
     getGroupedResults() {
-        const results = this.xtreamStore.searchResults();
-        if (!this.isGlobalSearch) return { default: results };
-        return groupBy(results, 'playlist_name');
+        return this.groupedResults();
     }
 }

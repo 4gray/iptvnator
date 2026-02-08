@@ -1,0 +1,275 @@
+@use '@angular/material' as mat;
+
+:host {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+}
+
+.sidebar {
+    width: 400px;
+    min-width: 250px;
+    max-width: 600px;
+    border-right: 1px solid #111;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    container-type: inline-size;
+
+    app-category-view {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        margin-right: 2px;
+    }
+}
+
+.content-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.video-player {
+    flex: 1;
+    height: 50%;
+}
+
+.epg {
+    flex: 1;
+    height: 50%;
+    overflow: hidden;
+}
+
+.epg-content {
+    height: 100%;
+    overflow-y: auto;
+    padding-bottom: 20px;
+}
+
+.no-channel-selected {
+    padding: 16px;
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+// Channel list
+.search-panel {
+    padding: 8px 12px;
+    flex-shrink: 0;
+    height: 56px;
+    box-sizing: border-box;
+}
+
+.search-bar {
+    width: 100%;
+    @include mat.form-field-density(-5);
+}
+
+::ng-deep {
+    .search-bar {
+        div {
+            border-radius: 20px;
+        }
+    }
+
+    div[matformfieldlineripple] {
+        display: none;
+    }
+}
+
+.channels-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 0;
+}
+
+.channel-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    margin: 2px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    min-height: 48px;
+    box-sizing: border-box;
+    gap: 8px;
+    width: calc(100% - 8px);
+    min-width: 0;
+    overflow: hidden;
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+
+        .title {
+            color: #1db954;
+        }
+    }
+
+    &.active {
+        background-color: rgba(29, 185, 84, 0.2);
+
+        .title {
+            color: #1db954;
+        }
+    }
+}
+
+.stream-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.channel-info {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    .title {
+        font-weight: 600;
+        font-size: 14px;
+        transition: color 0.2s ease;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .current-program {
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        opacity: 0.8;
+    }
+
+    .progress-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        opacity: 0.6;
+
+        span {
+            flex-shrink: 0;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            min-width: 20px;
+
+            .progress {
+                height: 100%;
+                background: #1db954;
+                transition: width 1s linear;
+            }
+        }
+    }
+}
+
+.favorite-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        opacity: 1;
+    }
+
+    mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.loading-indicator {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+}
+
+.load-more-epg {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+}
+
+// Container queries for responsive behavior
+@container (max-width: 350px) {
+    .channel-item {
+        gap: 6px;
+        padding: 6px;
+    }
+
+    .stream-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .favorite-btn {
+        padding: 4px;
+
+        mat-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+        }
+    }
+}
+
+@container (max-width: 300px) {
+    .stream-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .favorite-btn {
+        display: none;
+    }
+}
+
+@container (max-width: 260px) {
+    .stream-icon {
+        display: none;
+    }
+}
+
+::ng-deep {
+    .video-player
+        > app-web-player-view
+        > app-art-player
+        > .artplayer-container {
+        height: 100% !important;
+        width: 100% !important;
+    }
+}

@@ -7,82 +7,34 @@
     storageKey="sidebar-width"
 >
     <div class="sidebar-header">
-        @let isItvCategorySelected =
-            stalkerStore.selectedCategoryId() &&
-            stalkerStore.selectedContentType() === 'itv';
-        @if (isItvCategorySelected) {
-            <button mat-icon-button (click)="backToCategories()">
-                <mat-icon>chevron_left</mat-icon>
-            </button>
-            <h2>{{ selectedCategoryTitle() }}</h2>
-        } @else {
-            <app-playlist-switcher
-                class="switcher"
-                [currentTitle]="currentPlaylist()?.title || 'Portal'"
-                [subtitle]="'Stalker Portal'"
-            />
-        }
+        <app-playlist-switcher
+            class="switcher"
+            [currentTitle]="currentPlaylist()?.title || 'Portal'"
+            [subtitle]="'Stalker Portal'"
+        />
     </div>
-    @if (isItvCategorySelected) {
-        <div #itvScrollContainer style="overflow: auto; flex: 1">
-            <mat-nav-list>
-                @for (item of itvChannels(); track $index) {
-                    <mat-list-item (click)="createLinkToPlayItv(item)">
-                        <img
-                            matListItemAvatar
-                            class="stream-icon"
-                            [src]="item.logo"
-                            (error)="
-                                $event.target.src =
-                                    './assets/images/default-poster.png'
-                            "
-                            alt="logo"
-                        />
-                        {{ item.o_name || item.name }}
-                        <button
-                            mat-icon-button
-                            matListItemMeta
-                            (click)="toggleFavorite(item); $event.stopPropagation()"
-                        >
-                            <mat-icon>{{
-                                favorites.get(item.id) ? 'star' : 'star_outline'
-                            }}</mat-icon>
-                        </button>
-                    </mat-list-item>
-                }
-            </mat-nav-list>
-
-            <!-- Loading indicator for infinite scroll -->
-            @if (isLoadingMore()) {
-                <div style="display: flex; justify-content: center; padding: 16px">
-                    <mat-spinner diameter="24" />
-                </div>
-            }
-        </div>
+    @if (isCategoryLoading()) {
+        <ngx-skeleton-loader
+            count="20"
+            [theme]="{
+                width: '95%',
+                height: '48px',
+                borderRadius: '40px',
+            }"
+        />
+    } @else if (isCategoryFailed()) {
+        <app-playlist-error-view
+            [title]="'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE' | translate"
+            [description]="
+                'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION' | translate
+            "
+        />
     } @else {
-        @if (isCategoryLoading()) {
-            <ngx-skeleton-loader
-                count="20"
-                [theme]="{
-                    width: '95%',
-                    height: '48px',
-                    borderRadius: '40px',
-                }"
-            />
-        } @else if (isCategoryFailed()) {
-            <app-playlist-error-view
-                [title]="'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE' | translate"
-                [description]="
-                    'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION' | translate
-                "
-            />
-        } @else {
-            <app-category-view
-                [items]="categories()"
-                [selectedCategoryId]="$any(stalkerStore.selectedCategoryId())"
-                (categoryClicked)="categoryClicked($event)"
-            />
-        }
+        <app-category-view
+            [items]="categories()"
+            [selectedCategoryId]="$any(stalkerStore.selectedCategoryId())"
+            (categoryClicked)="categoryClicked($event)"
+        />
     }
 </div>
 
@@ -90,15 +42,11 @@
     @if (!stalkerStore.selectedItem()) {
         <div class="content-header">
             <h2>
-                @if (!isItvCategorySelected) {
-                    <button mat-icon-button disabled>
-                        <mat-icon>category</mat-icon>
-                    </button>
-                }
+                <button mat-icon-button disabled>
+                    <mat-icon>category</mat-icon>
+                </button>
 
-                @if (!isItvCategorySelected) {
-                    {{ getContentLabel() }}
-                }
+                {{ getContentLabel() }}
 
                 @if (!contentItems() && !isContentLoading()) {
                     <h2>
@@ -115,5 +63,4 @@
     >
         <router-outlet />
     </div>
-    <!-- <app-mpv-player-bar /> -->
 </div>
