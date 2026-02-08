@@ -37,14 +37,16 @@ export class NavigationComponent {
     readonly selectedContentType = input<string>();
 
     readonly categoryClick = output<string>();
-    readonly pageClicked = output<'search' | 'recent' | 'favorites' | 'recently-added'>();
+    readonly pageClicked = output<
+        'search' | 'recent' | 'favorites' | 'recently-added'
+    >();
 
     readonly currentPlaylist = this.store.selectSignal(
         selectPlaylistById(this.activatedRoute.snapshot.params.id)
     );
 
     readonly isStalkerPlaylist = computed(
-        () => (this.currentPlaylist() as Playlist).macAddress
+        () => (this.currentPlaylist() as Playlist)?.macAddress
     );
 
     readonly navigationItems = input<NavigationItem[]>();

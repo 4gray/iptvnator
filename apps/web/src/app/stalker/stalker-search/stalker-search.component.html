@@ -1,76 +1,65 @@
-@if (itemDetails) {
-    @switch (selectedFilterType()) {
-        @case ('vod') {
-            @if (itemDetails.series?.length > 0) {
-                <!-- VOD item with embedded series (vclub or Ministra) -->
-                <app-stalker-series-view
-                    [vodWithSeries]="itemDetails"
-                    (backClicked)="onVodBack()"
-                />
-            } @else if (itemDetails.is_series === true) {
-                <!-- VOD item that is actually a series (Ministra plugin is_series=1) -->
-                <app-stalker-series-view (backClicked)="onVodBack()" />
-            } @else if (vodDetailsItem) {
-                <!-- Regular VOD item -->
-                <app-vod-details
-                    [item]="vodDetailsItem"
-                    (playClicked)="onVodPlay($event)"
-                    (favoriteToggled)="onVodFavoriteToggled($event)"
-                    (backClicked)="onVodBack()"
-                />
-            }
-        }
-        @case ('series') {
-            <app-stalker-series-view (backClicked)="itemDetails = null" />
-        }
-    }
-}
-
-<div class="search-page">
-    @if (!itemDetails) {
-        <div class="header">
-            <h2>{{ 'PORTALS.SIDEBAR.SEARCH' | translate }}</h2>
-        </div>
-        <app-search-form
-            [singleSelection]="true"
-            [(searchTerm)]="searchTerm"
-            [filters]="filters"
-            [filterConfig]="filterConfig"
-            (filtersChange)="onFiltersChange($any($event))"
-        />
-        <div class="results-container">
-            @if (searchResultsResource.isLoading()) {
-                <mat-spinner />
-            } @else {
-                <div class="results-grid">
-                    @for (
-                        item of searchResultsResource.value();
-                        track item.id
-                    ) {
-                        <app-search-result-item
-                            [title]="item.o_name || item.name"
-                            [posterUrl]="item.screenshot_uri"
-                            [type]="item.type"
-                            (itemClick)="selectItem(item)"
-                        />
-                    }
-                </div>
-                @if (searchResultsResource.value().length === 0) {
-                    <div class="no-results">
-                        <app-playlist-error-view
-                            [title]="
-                                'PORTALS.EMPTY_LIST_VIEW.TITLE' | translate
-                            "
-                            [description]="
-                                'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
-                                    | translate
-                            "
-                            [showActionButtons]="false"
-                            [viewType]="'NO_SEARCH_RESULTS'"
-                        />
-                    </div>
+@if (showingDetails) {
+    <!-- Inline details view -->
+    <div class="details-view">
+        @switch (selectedFilterType()) {
+            @case ('vod') {
+                @if (itemDetails.series?.length > 0) {
+                    <!-- VOD item with embedded series (vclub or Ministra) -->
+                    <app-stalker-series-view
+                        [vodWithSeries]="itemDetails"
+                        (backClicked)="onVodBack()"
+                    />
+                } @else if (itemDetails.is_series === true) {
+                    <!-- VOD item that is actually a series (Ministra plugin is_series=1) -->
+                    <app-stalker-series-view (backClicked)="onVodBack()" />
+                } @else if (vodDetailsItem) {
+                    <!-- Regular VOD item -->
+                    <app-vod-details
+                        [item]="vodDetailsItem"
+                        (playClicked)="onVodPlay($event)"
+                        (favoriteToggled)="onVodFavoriteToggled($event)"
+                        (backClicked)="onVodBack()"
+                    />
                 }
             }
-        </div>
-    }
-</div>
+            @case ('series') {
+                <app-stalker-series-view (backClicked)="itemDetails = null" />
+            }
+        }
+    </div>
+} @else {
+    <app-search-layout
+        [searchTerm]="searchTerm()"
+        [resultsCount]="resultsCount"
+        [isLoading]="searchResultsResource.isLoading()"
+        [showResultsCount]="true"
+        (searchTermChange)="updateSearchTerm($event)"
+    >
+        <!-- Filters (single selection mode for stalker) -->
+        <ng-container filters>
+            @for (filter of filterConfig; track filter.key) {
+                <mat-checkbox
+                    [ngModel]="filters()[filter.key]"
+                    (ngModelChange)="updateFilter(filter.key, $event)"
+                >
+                    {{ filter.translationKey | translate }}
+                </mat-checkbox>
+            }
+        </ng-container>
+
+        <!-- Results -->
+        <ng-container results>
+            <div class="results-grid">
+                @for (item of searchResultsResource.value(); track item.id) {
+                    <app-content-card
+                        [title]="item.o_name || item.name"
+                        [posterUrl]="item.screenshot_uri"
+                        [type]="selectedFilterType() === 'vod' ? 'movie' : 'series'"
+                        [showPlaceholder]="true"
+                        (cardClick)="selectItem(item)"
+                    />
+                }
+            </div>
+        </ng-container>
+    </app-search-layout>
+}

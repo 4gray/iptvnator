@@ -6,30 +6,27 @@ import {
     inject,
     Inject,
     Optional,
-    signal,
-    ViewChild,
+    viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatIconButton } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
     MAT_DIALOG_DATA,
     MatDialogModule,
     MatDialogRef,
 } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import groupBy from 'lodash/groupBy';
 import { DatabaseService } from 'services';
 import { XtreamContentItem } from '../data-sources/xtream-data-source.interface';
 import { ContentType } from '../xtream-state';
-import { SearchFormComponent } from '../../shared/components/search-form/search-form.component';
+import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
+import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
 import { SearchResultItemComponent } from '../../shared/components/search-result-item/search-result-item.component';
 import { XtreamStore } from '../stores/xtream.store';
+import { SearchFilters } from '../stores/features/with-search.feature';
 
 interface SearchResultsData {
     isGlobalSearch: boolean;
@@ -38,16 +35,13 @@ interface SearchResultsData {
 @Component({
     selector: 'app-search-results',
     imports: [
+        ContentCardComponent,
         FormsModule,
         KeyValuePipe,
-        MatCardModule,
         MatCheckboxModule,
         MatDialogModule,
-        MatFormFieldModule,
         MatIcon,
-        MatIconButton,
-        MatInputModule,
-        SearchFormComponent,
+        SearchLayoutComponent,
         SearchResultItemComponent,
         TranslatePipe,
     ],
@@ -56,32 +50,33 @@ interface SearchResultsData {
     styleUrls: ['./search-results.component.scss'],
 })
 export class SearchResultsComponent implements AfterViewInit {
-    @ViewChild(SearchFormComponent) searchFormComponent!: SearchFormComponent;
+    readonly searchLayoutComponent = viewChild(SearchLayoutComponent);
     readonly xtreamStore = inject(XtreamStore);
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
-    searchTerm = signal('');
-    filters = {
-        live: true,
-        movie: true,
-        series: true,
-    };
+
+    /** Search term from store */
+    readonly searchTerm = this.xtreamStore.searchTerm;
+
+    /** Search filters from store */
+    readonly filters = this.xtreamStore.searchFilters;
+
     isGlobalSearch = false;
 
     readonly filterConfig = [
         {
-            key: 'live',
+            key: 'live' as keyof SearchFilters,
             label: 'Live TV',
             translationKey: 'PORTALS.SIDEBAR.LIVE_TV',
         },
         {
-            key: 'movie',
+            key: 'movie' as keyof SearchFilters,
             label: 'Movies',
             translationKey: 'PORTALS.SIDEBAR.MOVIES',
         },
         {
-            key: 'series',
+            key: 'series' as keyof SearchFilters,
             label: 'Series',
             translationKey: 'PORTALS.SIDEBAR.SERIES',
         },
@@ -94,11 +89,11 @@ export class SearchResultsComponent implements AfterViewInit {
         this.isGlobalSearch = data?.isGlobalSearch || false;
 
         effect(() => {
-            this.searchTerm();
-            if (this.searchTerm().length >= 3) {
+            const term = this.searchTerm();
+            if (term.length >= 3) {
                 this.executeSearch();
-            } else {
-                this.xtreamStore.resetSearchResults();
+            } else if (term.length === 0) {
+                this.clearResultsOnly();
             }
         });
     }
@@ -106,12 +101,13 @@ export class SearchResultsComponent implements AfterViewInit {
     ngAfterViewInit() {
         this.xtreamStore.setSelectedContentType(undefined);
         setTimeout(() => {
-            this.searchFormComponent?.focusSearchInput();
+            this.searchLayoutComponent()?.focusSearchInput();
         });
     }
 
     executeSearch() {
-        const types = Object.entries(this.filters)
+        const filters = this.filters();
+        const types = Object.entries(filters)
             .filter(([_, enabled]) => enabled)
             .map(([type]) => type);
 
@@ -123,6 +119,30 @@ export class SearchResultsComponent implements AfterViewInit {
                 types,
             });
         }
+    }
+
+    /**
+     * Update search term in the store
+     */
+    updateSearchTerm(term: string) {
+        this.xtreamStore.setSearchTerm(term);
+    }
+
+    /**
+     * Update a single filter in the store
+     */
+    updateFilter(key: keyof SearchFilters, value: boolean) {
+        this.xtreamStore.updateSearchFilter(key, value);
+        if (this.searchTerm().length >= 3) {
+            this.executeSearch();
+        }
+    }
+
+    /**
+     * Clear only the results, not the search term/filters
+     */
+    private clearResultsOnly() {
+        this.xtreamStore.setGlobalSearchResults([]);
     }
 
     async searchGlobal(term: string, types: string[]) {
@@ -153,7 +173,6 @@ export class SearchResultsComponent implements AfterViewInit {
             ]);
         } else {
             const type = (item.type === 'movie' ? 'vod' : item.type) as ContentType;
-            this.xtreamStore.resetSearchResults();
             this.xtreamStore.setSelectedContentType(type);
 
             this.router.navigate(
@@ -164,6 +183,11 @@ export class SearchResultsComponent implements AfterViewInit {
             );
         }
     }
+
+    onCloseDialog() {
+        this.dialogRef?.close();
+    }
+
     getGroupedResults() {
         const results = this.xtreamStore.searchResults();
         if (!this.isGlobalSearch) return { default: results };

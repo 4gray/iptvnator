@@ -1,0 +1,71 @@
+<div class="search-page">
+    <!-- Inline details slot (for stalker) - shown above everything when active -->
+    <ng-content select="[details]" />
+
+    <div class="search-content">
+        <div class="header sticky-header">
+            <div class="header-top">
+                <div class="header-left">
+                    <h2>{{ title() | translate }}</h2>
+
+                    <!-- Filters slot -->
+                    <div class="type-filters">
+                        <ng-content select="[filters]" />
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    @if (showResultsCount() && resultsCount() > 0) {
+                        <div class="results-count">
+                            Found {{ resultsCount() }} results
+                        </div>
+                    }
+                    @if (showCloseButton()) {
+                        <button mat-icon-button (click)="onCloseClick()">
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    }
+                    <!-- Extra header actions slot -->
+                    <ng-content select="[header-actions]" />
+                </div>
+            </div>
+
+            <div class="search-input-container">
+                <app-search-form
+                    [searchTerm]="searchTerm()"
+                    (searchTermChange)="onSearchTermChange($event)"
+                />
+            </div>
+        </div>
+
+        <div class="results-container">
+            @if (isLoading()) {
+                <div class="loading-state">
+                    <mat-spinner diameter="48" />
+                </div>
+            } @else if (showResults) {
+                <!-- Results slot -->
+                <ng-content select="[results]" />
+            } @else if (showNoResults) {
+                <div class="no-items">
+                    <mat-icon>search_off</mat-icon>
+                    <div class="no-items-content">
+                        <h3>{{ 'PORTALS.EMPTY_LIST_VIEW.TITLE' | translate }}</h3>
+                        <p>{{ 'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate }}</p>
+                        <p class="search-term-note">No results found for "{{ searchTerm() }}"</p>
+                    </div>
+                </div>
+            } @else if (showInitialState) {
+                <div class="no-items initial-state">
+                    <mat-icon>search</mat-icon>
+                    <div class="no-items-content">
+                        <h3>{{ 'PORTALS.SEARCH_VIEW.INITIAL_TITLE' | translate }}</h3>
+                        <p>{{ 'PORTALS.SEARCH_VIEW.INITIAL_DESCRIPTION' | translate }}</p>
+                    </div>
+                </div>
+            }
+            <!-- Custom empty state slot (optional override) -->
+            <ng-content select="[empty]" />
+        </div>
+    </div>
+</div>

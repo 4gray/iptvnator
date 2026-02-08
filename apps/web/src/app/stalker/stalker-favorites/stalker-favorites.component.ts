@@ -47,13 +47,16 @@ export class StalkerFavoritesComponent {
     readonly currentPlaylist = this.stalkerStore.currentPlaylist;
 
     readonly allFavorites = rxResource({
-        params: () => ({
-            refreshTimestamp: this.refreshTimestamp(),
-        }),
-        stream: () =>
-            this.playlistService.getPortalFavorites(
-                this.stalkerStore.currentPlaylist()?._id
-            ),
+        params: () => {
+            const portalId = this.stalkerStore.currentPlaylist()?._id;
+            if (!portalId) return undefined;
+            return {
+                portalId,
+                refreshTimestamp: this.refreshTimestamp(),
+            };
+        },
+        stream: ({ params }) =>
+            this.playlistService.getPortalFavorites(params.portalId),
     });
 
     readonly categories = computed(() => [

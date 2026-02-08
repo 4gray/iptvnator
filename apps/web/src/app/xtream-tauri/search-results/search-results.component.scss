@@ -1,3 +1,5 @@
+@use '../../shared/styles/content-grid' as grid;
+
 :host {
     display: flex;
     flex-direction: column;
@@ -6,231 +8,21 @@
     width: 100%;
 }
 
-.search-page {
-    padding: 0 20px 20px 20px;
+// Results grid styling
+.results-grid {
+    @include grid.content-grid(140px, 20px);
+    padding-bottom: 1rem;
 }
 
-.header {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    // Use theme background variable or fallback
-    background: var(--background, var(--mat-sidenav-content-background-color, #fff));
-    padding: 20px 0 10px 0;
-    margin-bottom: 20px;
-    // Subtle shadow or border for separation
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
-    
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-
-    .header-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 20px;
-    }
-
-    .header-left {
-        display: flex;
-        align-items: center;
-        gap: 32px;
-        flex: 1;
-        flex-wrap: wrap;
-
-        h2 {
-            margin: 0;
-            white-space: nowrap;
-        }
-
-        .type-filters {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-            
-            mat-checkbox {
-                margin: 0;
-            }
-        }
-    }
-
-    .header-right {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-
-        .results-count {
-            font-size: 0.85rem;
-            color: var(--text-color-secondary, rgba(0,0,0,0.7));
-            background: rgba(0, 0, 0, 0.06);
-            padding: 6px 12px;
-            border-radius: 16px;
-            white-space: nowrap;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-        }
-    }
-
-    .search-input-container {
-        margin-bottom: 0;
-    }
-}
-
-.results-container {
-    flex: 1;
-    overflow-y: auto;
-
-    .results-grid {
-        display: grid;
-        grid-template-columns: repeat(
-            auto-fill,
-            minmax(200px, 1fr)
-        );
-        gap: 1rem;
-        padding-bottom: 1rem;
-
-        mat-card {
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-
-            &:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            }
-
-            .poster,
-            .poster-placeholder {
-                border-radius: 8px;
-                width: 100%;
-                aspect-ratio: 2/3;
-                object-fit: cover;
-                margin-bottom: 0.75rem;
-            }
-            .poster-placeholder {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: rgba(0,0,0,0.05);
-                
-                mat-icon {
-                    font-size: 48px;
-                    width: 48px;
-                    height: 48px;
-                    opacity: 0.3;
-                }
-            }
-            h3 {
-                margin: 0.5rem 0;
-                font-size: 1rem;
-                font-weight: 500;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            p {
-                font-size: 0.85rem;
-                color: var(--text-color-secondary, rgba(0, 0, 0, 0.6));
-                margin: 0 0 0.75rem 0;
-                line-height: 1.4;
-                display: -webkit-box;
-                -webkit-line-clamp: 2;
-                -webkit-box-orient: vertical;
-                overflow: hidden;
-            }
-            .type-badge {
-                display: inline-block;
-                padding: 0.25rem 0.5rem;
-                border-radius: 4px;
-                font-size: 0.75rem;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-
-                &.live {
-                    background: rgba(229, 57, 53, 0.1);
-                    color: #e53935;
-                }
-                &.movie {
-                    background: rgba(30, 136, 229, 0.1);
-                    color: #1e88e5;
-                }
-                &.series {
-                    background: rgba(67, 160, 71, 0.1);
-                    color: #43a047;
-                }
-            }
-        }
-    }
-}
-
-.no-items {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 4rem 2rem;
-    text-align: center;
-
-    mat-icon {
-        font-size: 64px;
-        width: 64px;
-        height: 64px;
-        margin-bottom: 1.5rem;
-        opacity: 0.5;
-    }
-
-    .no-items-content {
-        h3 {
-            margin: 0 0 0.5rem;
-            font-size: 1.5rem;
-            font-weight: 500;
-            color: var(--text-color);
-        }
-
-        p {
-            font-size: 1.1rem;
-            margin: 0;
-            opacity: 0.8;
-        }
-
-        .search-term-note {
-            margin-top: 1rem;
-            font-size: 0.9rem;
-            font-style: italic;
-            opacity: 0.6;
-        }
-    }
-
-    &.initial-state {
-        opacity: 0.8;
-        mat-icon {
-            color: var(--primary-color);
-            opacity: 0.6;
-        }
-    }
-}
-
+// Global search overlay styles
 :host-context(.global-search-overlay) {
-    .search-page {
-        background: var(--background);
-        height: 100vh;
-    }
-
-    /* Ensure sticky header background matches overlay background */
-    .header {
-        background: var(--background);
-    }
-
     .results-grid {
         mat-card {
             position: relative;
-            
+
             .poster,
             .poster-placeholder {
-                margin-top: 24px; // Add space for the playlist badge
+                margin-top: 24px;
             }
 
             .playlist-badge {
@@ -263,6 +55,7 @@
     }
 }
 
+// Playlist grouping styles for global search
 .playlist-group {
     margin-bottom: 2rem;
 
@@ -305,7 +98,7 @@
             .playlist-badge {
                 display: none;
             }
-            
+
             .poster,
             .poster-placeholder {
                 margin-top: 0;

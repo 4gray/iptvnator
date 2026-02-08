@@ -1,8 +1,7 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { SearchResultItemComponent } from '../../shared/components/search-result-item/search-result-item.component';
+import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import { XtreamStore } from '../stores/xtream.store';
 import { ContentType } from '../xtream-state';
 
@@ -10,7 +9,7 @@ import { ContentType } from '../xtream-state';
     selector: 'app-recently-added',
     templateUrl: './recently-added.component.html',
     styleUrls: ['./recently-added.component.scss'],
-    imports: [DatePipe, SearchResultItemComponent, TranslatePipe],
+    imports: [ContentCardComponent, TranslatePipe],
 })
 export class RecentlyAddedComponent {
     private readonly xtreamStore = inject(XtreamStore);

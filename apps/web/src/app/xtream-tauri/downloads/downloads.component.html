@@ -1,9 +1,6 @@
 <div class="downloads">
     <header class="downloads__header">
         <div class="downloads__header-left">
-            <button mat-icon-button (click)="goBack()" class="back-btn">
-                <mat-icon>arrow_back</mat-icon>
-            </button>
             <h1>{{ 'DOWNLOADS.TITLE' | translate }}</h1>
             @if (activeCount() > 0) {
                 <span class="downloads__badge">{{ activeCount() }}</span>
@@ -25,7 +22,9 @@
 
     <div class="downloads__folder">
         <mat-icon>folder</mat-icon>
-        <span class="downloads__folder-path">{{ downloadFolder() || ('DOWNLOADS.NO_FOLDER' | translate) }}</span>
+        <span class="downloads__folder-path">{{
+            downloadFolder() || ('DOWNLOADS.NO_FOLDER' | translate)
+        }}</span>
         <button mat-stroked-button (click)="changeFolder()">
             {{ 'DOWNLOADS.CHANGE_FOLDER' | translate }}
         </button>
@@ -81,7 +80,11 @@
                                     <mat-icon>{{
                                         getStatusIcon(item.status)
                                     }}</mat-icon>
-                                    {{ 'DOWNLOADS.STATUS.' + item.status.toUpperCase() | translate }}
+                                    {{
+                                        'DOWNLOADS.STATUS.' +
+                                            item.status.toUpperCase()
+                                            | translate
+                                    }}
                                 </span>
 
                                 @if (
