@@ -234,7 +234,8 @@ export interface IXtreamDataSource {
     searchContent(
         playlistId: string,
         searchTerm: string,
-        types: string[]
+        types: string[],
+        excludeHidden?: boolean
     ): Promise<XtreamContentItem[]>;
 
     // =========================================================================

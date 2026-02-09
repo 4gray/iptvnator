@@ -184,10 +184,11 @@ contextBridge.exposeInMainWorld('electron', {
     dbSearchContent: (
         playlistId: string,
         searchTerm: string,
-        types: string[]
-    ) => ipcRenderer.invoke('DB_SEARCH_CONTENT', playlistId, searchTerm, types),
-    dbGlobalSearch: (searchTerm: string, types: string[]) =>
-        ipcRenderer.invoke('DB_GLOBAL_SEARCH', searchTerm, types),
+        types: string[],
+        excludeHidden?: boolean
+    ) => ipcRenderer.invoke('DB_SEARCH_CONTENT', playlistId, searchTerm, types, excludeHidden),
+    dbGlobalSearch: (searchTerm: string, types: string[], excludeHidden?: boolean) =>
+        ipcRenderer.invoke('DB_GLOBAL_SEARCH', searchTerm, types, excludeHidden),
     dbGetRecentlyViewed: () => ipcRenderer.invoke('DB_GET_RECENTLY_VIEWED'),
     dbClearRecentlyViewed: () => ipcRenderer.invoke('DB_CLEAR_RECENTLY_VIEWED'),
     // Favorites

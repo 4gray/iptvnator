@@ -318,10 +318,6 @@ export default class EpgEvents {
 
                             case 'EPG_PROGRESS':
                                 if (message.stats) {
-                                    console.log(
-                                        this.loggerLabel,
-                                        `Progress: ${message.stats.totalChannels} channels, ${message.stats.totalPrograms} programs`
-                                    );
                                     // Forward progress to renderer
                                     this.sendProgressToRenderer(
                                         url,
