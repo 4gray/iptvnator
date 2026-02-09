@@ -1,26 +1,10 @@
-<div class="portal-status-container" [class]="getStatusColor()">
-    <div class="portal-status-wrapper">
-        <div class="portal-header">
-            <div
-                class="portal-icon"
-                [class]="getStatusColor()"
-                [matTooltip]="xtreamStore.portalStatus()"
-                matTooltipPosition="right"
-            >
-                <mat-icon>{{ getStatusIcon() }}</mat-icon>
-            </div>
-        </div>
-        <!-- <div class="portal-info">
-            <span class="portal-name">{{
-                currentPlaylist()?.title || 'Unknown Portal'
-            }}</span>
-            @if (!isStalkerPlaylist()) {
-                <span class="portal-label">{{
-                    xtreamStore.portalStatus()
-                }}</span>
-            }
-        </div> -->
-    </div>
+<div
+    class="portal-status-container"
+    [class]="getStatusColor()"
+    [matTooltip]="xtreamStore.portalStatus()"
+    matTooltipPosition="right"
+>
+    <mat-icon class="status-watermark">{{ getStatusIcon() }}</mat-icon>
 </div>
 <div class="nav-section">
     <!-- <div class="nav-group-label">{{ 'PORTALS.SIDEBAR.MAIN' | translate }}</div> -->

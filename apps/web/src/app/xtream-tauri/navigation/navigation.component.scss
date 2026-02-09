@@ -1,21 +1,48 @@
 :host {
-    padding: 10px;
+    padding: 4px;
     display: flex;
     flex-direction: column;
     height: 100%;
 }
 
-.portal-status-container {
-    app-region: drag;
+.mdc-list {
+    padding: 2px 0;
 }
 
 .mat-nav-list {
-    padding-top: 0;
+    padding: 0;
+    margin: 0;
+
+    .mdc-list-item {
+        min-height: 28px;
+        height: 28px;
+        padding: 0 !important;
+        border-radius: 4px;
+        margin: 2px 0;
+        display: flex;
+        justify-content: center;
+
+        .mdc-list-item__start {
+            margin-inline-end: 0 !important;
+            margin-inline-start: 0 !important;
+        }
+
+        .mdc-list-item__content {
+            display: none;
+        }
+    }
+
+    mat-icon.mat-mdc-list-item-icon,
+    mat-icon {
+        font-size: 18px !important;
+        width: 18px !important;
+        height: 18px !important;
+    }
 }
 
 .navigation-bottom {
     margin-top: auto;
-    padding-bottom: 16px;
+    padding-bottom: 2px;
 }
 
 .active {
@@ -29,155 +56,111 @@
 }
 
 mat-divider {
-    margin: 8px 0;
+    margin: 1px 0;
 }
 
 mat-icon {
-    margin-right: 8px;
+    margin-right: 0;
+    font-size: 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+}
+
+a.mat-mdc-list-item.mdc-list-item {
+    padding-right: 0;
 }
 
 .portal-status-container {
-    margin: -10px -10px 0px;
-    padding: 16px;
+    app-region: drag;
+    margin: -4px -4px 0;
     position: relative;
-    overflow: hidden;
-    background: linear-gradient(
-        to bottom,
-        rgba(18, 18, 18, 0.8) 0%,
-        transparent 100%
-    );
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    min-height: 50px;
+    overflow: visible;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
 
+    // Gradient layer that bleeds below the container
     &::before {
         content: '';
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        bottom: 0;
-        z-index: -1;
-        opacity: 0.8;
-        transition: background 0.3s ease;
+        bottom: -16px;
+        opacity: 0.9;
+        transition: background 0.4s ease;
+        pointer-events: none;
     }
 
+    // Status-specific gradients
     &.status-active::before {
         background: linear-gradient(
-            135deg,
-            rgba(76, 175, 80, 0.3) 0%,
+            to bottom,
+            rgba(76, 175, 80, 0.35) 0%,
+            rgba(46, 125, 50, 0.18) 50%,
             transparent 100%
         );
     }
+
+    &.status-active .status-watermark {
+        color: rgba(76, 175, 80, 0.18);
+    }
+
     &.status-inactive::before,
     &.status-unavailable::before {
         background: linear-gradient(
-            135deg,
-            rgba(244, 67, 54, 0.3) 0%,
+            to bottom,
+            rgba(244, 67, 54, 0.35) 0%,
+            rgba(183, 28, 28, 0.18) 50%,
             transparent 100%
         );
     }
+
+    &.status-inactive .status-watermark,
+    &.status-unavailable .status-watermark {
+        color: rgba(244, 67, 54, 0.18);
+    }
+
     &.status-expired::before {
         background: linear-gradient(
-            135deg,
-            rgba(255, 152, 0, 0.3) 0%,
+            to bottom,
+            rgba(255, 152, 0, 0.35) 0%,
+            rgba(230, 81, 0, 0.18) 50%,
             transparent 100%
         );
     }
 
-    .portal-status-wrapper {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        height: 100%;
-        min-width: 0;
-        width: 100%;
+    &.status-expired .status-watermark {
+        color: rgba(255, 152, 0, 0.18);
     }
 
-    .portal-header {
-        display: flex;
-        justify-content: center;
-        margin-bottom: 4px;
+    // The oversized decorative watermark icon
+    .status-watermark {
+        position: absolute;
+        font-size: 48px !important;
+        width: 48px !important;
+        height: 48px !important;
+        transform: rotate(-12deg);
+        pointer-events: none;
+        z-index: 0;
+        transition: color 0.4s ease, transform 0.4s ease;
+        margin: 0;
     }
 
-    .portal-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        background: rgba(255, 255, 255, 0.1);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-
-        mat-icon {
-            font-size: 28px;
-            width: 28px;
-            height: 28px;
-            margin: 0;
-        }
-
-        &.status-active {
-            color: #4caf50;
-        }
-        &.status-inactive,
-        &.status-unavailable {
-            color: #f44336;
-        }
-        &.status-expired {
-            color: #ff9800;
-        }
-    }
-
-    .portal-info {
-        text-align: center;
-
-        .portal-name {
-            font-size: 16px;
-            font-weight: 600;
-            display: block;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            color: rgba(255, 255, 255, 0.95);
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 4px;
-        }
-
-        .portal-label {
-            font-size: 12px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
-            color: rgba(255, 255, 255, 0.7);
-        }
-    }
-
-    .info-button {
-        opacity: 0.7;
-        margin-left: 8px;
-        &:hover {
-            opacity: 1;
-        }
+    &:hover .status-watermark {
+        transform: rotate(-8deg) scale(1.05);
     }
 }
 
 .nav-section {
-    .nav-group-label {
-        padding: 0 16px 0;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 500;
-        opacity: 0.7;
-    }
-
     .mat-nav-list {
         padding: 0;
+        margin: 0;
         background: rgba(255, 255, 255, 0.03);
-        border-radius: 8px;
+        border-radius: 2px;
         overflow: hidden;
     }
 }
