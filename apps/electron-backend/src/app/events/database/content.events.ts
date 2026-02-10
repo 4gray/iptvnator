@@ -261,6 +261,7 @@ ipcMain.handle(
     'DB_SEARCH_CONTENT',
     async (event, playlistId: string, searchTerm: string, types: string[], excludeHidden = false) => {
         try {
+            if (!types || types.length === 0) return [];
             const db = await getDatabase();
             const searchTermLower = searchTerm.toLocaleLowerCase();
             const likePatterns = buildLikePatterns(searchTerm);
@@ -325,6 +326,7 @@ ipcMain.handle(
     'DB_GLOBAL_SEARCH',
     async (event, searchTerm: string, types: string[], excludeHidden = false) => {
         try {
+            if (!types || types.length === 0) return [];
             const db = await getDatabase();
             const searchTermLower = searchTerm.toLocaleLowerCase();
             const likePatterns = buildLikePatterns(searchTerm);
