@@ -63,12 +63,18 @@ export class SearchResultsComponent implements AfterViewInit {
     readonly filters = this.xtreamStore.searchFilters;
 
     private static readonly GROUP_BY_STORAGE_KEY = 'global-search-group-by-playlist';
+    private static readonly EXCLUDE_HIDDEN_STORAGE_KEY = 'xtream-search-exclude-hidden';
 
     isGlobalSearch = false;
 
     /** Whether to group global search results by playlist */
     readonly groupByPlaylist = signal(
         localStorage.getItem(SearchResultsComponent.GROUP_BY_STORAGE_KEY) !== 'false'
+    );
+
+    /** Whether to exclude content from hidden categories */
+    readonly excludeHidden = signal(
+        localStorage.getItem(SearchResultsComponent.EXCLUDE_HIDDEN_STORAGE_KEY) === 'true'
     );
 
     readonly filterConfig = [
@@ -125,13 +131,15 @@ export class SearchResultsComponent implements AfterViewInit {
         const types = Object.entries(filters)
             .filter(([_, enabled]) => enabled)
             .map(([type]) => type);
+        const excludeHidden = this.excludeHidden();
 
         if (this.isGlobalSearch) {
-            this.searchGlobal(this.searchTerm(), types);
+            this.searchGlobal(this.searchTerm(), types, excludeHidden);
         } else {
             this.xtreamStore.searchContent({
                 term: this.searchTerm(),
                 types,
+                excludeHidden,
             });
         }
     }
@@ -160,12 +168,13 @@ export class SearchResultsComponent implements AfterViewInit {
         this.xtreamStore.setGlobalSearchResults([]);
     }
 
-    async searchGlobal(term: string, types: string[]) {
+    async searchGlobal(term: string, types: string[], excludeHidden?: boolean) {
         this.xtreamStore.setIsSearching(true);
         try {
             const results = await this.databaseService.globalSearchContent(
                 term,
-                types
+                types,
+                excludeHidden
             );
             if (results && Array.isArray(results)) {
                 this.xtreamStore.setGlobalSearchResults(results);
@@ -209,6 +218,14 @@ export class SearchResultsComponent implements AfterViewInit {
     toggleGroupByPlaylist(value: boolean) {
         this.groupByPlaylist.set(value);
         localStorage.setItem(SearchResultsComponent.GROUP_BY_STORAGE_KEY, String(value));
+    }
+
+    toggleExcludeHidden(value: boolean) {
+        this.excludeHidden.set(value);
+        localStorage.setItem(SearchResultsComponent.EXCLUDE_HIDDEN_STORAGE_KEY, String(value));
+        if (this.searchTerm().length >= 3) {
+            this.executeSearch();
+        }
     }
 
     getGroupedResults() {

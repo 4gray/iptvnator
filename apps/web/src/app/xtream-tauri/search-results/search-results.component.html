@@ -19,6 +19,15 @@
         }
     </ng-container>
 
+    <ng-container header-actions>
+        <mat-checkbox
+            [ngModel]="excludeHidden()"
+            (ngModelChange)="toggleExcludeHidden($event)"
+        >
+            {{ 'PORTALS.SEARCH_VIEW.VISIBLE_CATEGORIES_ONLY' | translate }}
+        </mat-checkbox>
+    </ng-container>
+
     <ng-container subheader>
         @if (isGlobalSearch) {
             <div class="global-search-subheader">

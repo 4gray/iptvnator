@@ -70,7 +70,8 @@ export function withSearch() {
                  */
                 async searchContent(
                     searchTerm: string,
-                    types: string[]
+                    types: string[],
+                    excludeHidden?: boolean
                 ): Promise<XtreamContentItem[]> {
                     // Access parent store's playlistId (from withPortal)
                     const storeAny = store as any;
@@ -87,7 +88,8 @@ export function withSearch() {
                         const results = await dataSource.searchContent(
                             playlistId,
                             searchTerm,
-                            types
+                            types,
+                            excludeHidden
                         );
 
                         patchState(store, {

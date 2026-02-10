@@ -259,8 +259,9 @@ ipcMain.handle(
  */
 ipcMain.handle(
     'DB_SEARCH_CONTENT',
-    async (event, playlistId: string, searchTerm: string, types: string[]) => {
+    async (event, playlistId: string, searchTerm: string, types: string[], excludeHidden = false) => {
         try {
+            if (!types || types.length === 0) return [];
             const db = await getDatabase();
             const searchTermLower = searchTerm.toLocaleLowerCase();
             const likePatterns = buildLikePatterns(searchTerm);
@@ -270,6 +271,19 @@ ipcMain.handle(
 
             // Pre-filter with SQL LIKE (case-insensitive for ASCII, handled in native C code).
             // This avoids loading the entire content table into JS memory.
+            const conditions = [
+                eq(schema.categories.playlistId, playlistId),
+                inArray(
+                    schema.content.type,
+                    types as Array<'live' | 'movie' | 'series'>
+                ),
+                or(...likeConditions),
+            ];
+
+            if (excludeHidden) {
+                conditions.push(eq(schema.categories.hidden, false));
+            }
+
             const candidates = await db
                 .select({
                     id: schema.content.id,
@@ -286,16 +300,7 @@ ipcMain.handle(
                     schema.categories,
                     eq(schema.content.categoryId, schema.categories.id)
                 )
-                .where(
-                    and(
-                        eq(schema.categories.playlistId, playlistId),
-                        inArray(
-                            schema.content.type,
-                            types as Array<'live' | 'movie' | 'series'>
-                        ),
-                        or(...likeConditions)
-                    )
-                )
+                .where(and(...conditions))
                 .limit(200);
 
             // Post-filter for proper Unicode case-insensitive matching
@@ -319,8 +324,9 @@ ipcMain.handle(
  */
 ipcMain.handle(
     'DB_GLOBAL_SEARCH',
-    async (event, searchTerm: string, types: string[]) => {
+    async (event, searchTerm: string, types: string[], excludeHidden = false) => {
         try {
+            if (!types || types.length === 0) return [];
             const db = await getDatabase();
             const searchTermLower = searchTerm.toLocaleLowerCase();
             const likePatterns = buildLikePatterns(searchTerm);
@@ -332,6 +338,18 @@ ipcMain.handle(
             // This avoids loading the entire content table into JS memory.
             // Previously this query loaded ALL content rows (potentially 100k+),
             // created JS objects for each, then filtered in JS — blocking the main process.
+            const conditions = [
+                inArray(
+                    schema.content.type,
+                    types as Array<'live' | 'movie' | 'series'>
+                ),
+                or(...likeConditions),
+            ];
+
+            if (excludeHidden) {
+                conditions.push(eq(schema.categories.hidden, false));
+            }
+
             const candidates = await db
                 .select({
                     id: schema.content.id,
@@ -354,15 +372,7 @@ ipcMain.handle(
                     schema.playlists,
                     eq(schema.categories.playlistId, schema.playlists.id)
                 )
-                .where(
-                    and(
-                        inArray(
-                            schema.content.type,
-                            types as Array<'live' | 'movie' | 'series'>
-                        ),
-                        or(...likeConditions)
-                    )
-                )
+                .where(and(...conditions))
                 .orderBy(schema.content.title)
                 .limit(200);
 

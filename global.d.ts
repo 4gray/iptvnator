@@ -153,11 +153,13 @@ declare global {
             dbSearchContent: (
                 playlistId: string,
                 searchTerm: string,
-                types: string[]
+                types: string[],
+                excludeHidden?: boolean
             ) => Promise<any[]>;
             dbGlobalSearch: (
                 searchTerm: string,
-                types: string[]
+                types: string[],
+                excludeHidden?: boolean
             ) => Promise<any[]>;
             dbGetRecentlyViewed: () => Promise<any[]>;
             dbClearRecentlyViewed: () => Promise<{ success: boolean }>;

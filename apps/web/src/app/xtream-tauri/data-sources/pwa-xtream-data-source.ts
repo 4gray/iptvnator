@@ -221,7 +221,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async searchContent(
         playlistId: string,
         searchTerm: string,
-        types: string[]
+        types: string[],
+        _excludeHidden?: boolean
     ): Promise<XtreamContentItem[]> {
         const results: any[] = [];
         const searchLower = searchTerm.toLowerCase();

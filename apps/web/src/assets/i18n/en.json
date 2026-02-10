@@ -446,7 +446,8 @@
             "RESULTS_FOUND": "Found {{count}} results",
             "NO_RESULTS_FOR": "No results found for \"{{term}}\"",
             "GROUP_BY_PLAYLIST": "Group results by playlist",
-            "XTREAM_ONLY_NOTE": "Global search is currently available for Xtream playlists only."
+            "XTREAM_ONLY_NOTE": "Global search is currently available for Xtream playlists only.",
+            "VISIBLE_CATEGORIES_ONLY": "Visible categories only"
         },
         "STREAM_URL_COPIED": "Stream URL copied to clipboard",
         "COPY_STREAM_URL": "Copy Stream URL",

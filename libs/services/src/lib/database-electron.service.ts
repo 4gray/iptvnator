@@ -261,12 +261,14 @@ export class DatabaseService {
     async searchXtreamContent(
         playlistId: string,
         searchTerm: string,
-        types: string[]
+        types: string[],
+        excludeHidden?: boolean
     ): Promise<XtreamContent[]> {
         return await window.electron.dbSearchContent(
             playlistId,
             searchTerm,
-            types
+            types,
+            excludeHidden
         );
     }
 
@@ -275,9 +277,10 @@ export class DatabaseService {
      */
     async globalSearchContent(
         searchTerm: string,
-        types: string[]
+        types: string[],
+        excludeHidden?: boolean
     ): Promise<GlobalSearchResult[]> {
-        return await window.electron.dbGlobalSearch(searchTerm, types);
+        return await window.electron.dbGlobalSearch(searchTerm, types, excludeHidden);
     }
 
     /**
