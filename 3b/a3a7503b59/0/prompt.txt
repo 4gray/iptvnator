@@ -1,0 +1,144 @@
+Implement the following plan:
+
+# Plan: Throttled EPG Loading for Portal Channels List
+
+## Context
+
+The `PortalChannelsListComponent` fetches EPG data for every visible channel individually via the Xtream `get_short_epg` API. When a category has many channels and the user scrolls, dozens of simultaneous HTTP requests fire against the Xtream server. This triggers rate-limiting/banning on many providers, locking the user out of the portal temporarily.
+
+**Root cause**: No request throttling, no scroll debouncing, no caching. The Xtream API only supports single `stream_id` per `get_short_epg` call (no batch endpoint), so we must rate-limit on the client side.
+
+## Approach: Request Queue with Concurrency Control + Scroll Debounce + In-Memory Cache
+
+### 1. Create an EPG Request Queue Service
+
+**New file**: `apps/web/src/app/xtream-tauri/services/epg-queue.service.ts`
+
+A lightweight service that:
+- Maintains an internal queue of pending `stream_id` requests
+- Processes requests with **max concurrency of 2** (only 2 in-flight requests at a time)
+- Adds a **200ms delay** between each request to space them out
+- Supports **cancellation**: when new visible channels arrive, stale queued (not in-flight) requests for channels no longer visible are dropped
+- Maintains an **in-memory cache** (`Map<number, EpgItem[]>`) with a 5-minute TTL so re-scrolling doesn't re-fetch
+- Returns cached data immediately if available
+
+Key API:
+```typescript
+@Injectable({ providedIn: 'root' })
+export class EpgQueueService {
+  private cache = new Map<number, { data: EpgItem[]; timestamp: number }>();
+  private queue: number[] = [];
+  private inFlight = new Set<number>();
+  private maxConcurrency = 2;
+  private delayMs = 200;
+  private cacheTtlMs = 5 * 60 * 1000; // 5 minutes
+
+  getCached(streamId: number): EpgItem[] | null { ... }
+  enqueue(streamIds: number[], visibleSet: Set<number>): void { ... }
+  // Emits results as they come in
+  readonly epgResult$ = new Subject<{ streamId: number; items: EpgItem[] }>();
+}
+```
+
+### 2. Debounce Scroll Events in Component
+
+**File**: `apps/web/src/app/xtream-tauri/portal-channels-list/portal-channels-list.component.ts`
+
+- Add **300ms debounce** to `renderedRangeStream` subscription before calling EPG load
+- This prevents rapid scroll movements from queuing hundreds of requests
+- Use `debounceTime` from RxJS on the stream
+
+### 3. Integrate Queue into Component
+
+Replace the current `loadEpgForVisibleChannels()` loop with:
+1. Collect visible `stream_id`s from the range
+2. Immediately populate channels that have cached data
+3. Pass remaining uncached IDs to `EpgQueueService.enqueue()`
+4. Subscribe to `epgResult$` to update `currentPrograms` map as results arrive
+5. On each new scroll range, pass the new visible set so stale queued requests are dropped
+
+### 4. Clean Up Store Method
+
+The `loadChannelEpg()` in `with-epg.feature.ts` stays as-is (it's a simple pass-through). The queue service calls it internally. No store changes needed.
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `apps/web/src/app/xtream-tauri/services/epg-queue.service.ts` | **NEW** - Request queue with concurrency control, delay, caching |
+| `apps/web/src/app/xtream-tauri/portal-channels-list/portal-channels-list.component.ts` | Debounce scroll, use queue service, subscribe to results |
+
+## Implementation Details
+
+### EpgQueueService (`epg-queue.service.ts`)
+
+```
+enqueue(streamIds, visibleSet):
+  1. Filter out IDs that are cached or already in-flight
+  2. Replace queue with new IDs (drop stale ones not in visibleSet)
+  3. Start processing if not already running
+
+processQueue():
+  while (queue.length > 0 && inFlight.size < maxConcurrency):
+    streamId = queue.shift()
+    if streamId not in current visibleSet → skip (stale)
+    inFlight.add(streamId)
+    fetch EPG → cache result → emit via epgResult$ → inFlight.delete
+    await delay(200ms)
+    continue processing
+```
+
+### Component Changes
+
+```typescript
+// In ngAfterViewInit:
+this.viewport.renderedRangeStream.pipe(
+  debounceTime(300)  // Wait for scroll to settle
+).subscribe((range) => {
+  const visibleChannels = this.channels().slice(range.start, range.end);
+  this.loadEpgForVisibleChannels(visibleChannels);
+});
+
+// In loadEpgForVisibleChannels:
+// 1. Apply cached results immediately
+// 2. Enqueue uncached IDs via EpgQueueService
+// 3. Results arrive via subscription to epgResult$
+```
+
+### Remove from component:
+- `requestedChannels` Set (replaced by queue service's cache + in-flight tracking)
+- Direct `await xtreamStore.loadChannelEpg()` calls (replaced by queue service)
+
+## Verification
+
+1. **Functional test**: Open a live category with 50+ channels → EPG data should load progressively (not all at once)
+2. **Network test**: Monitor DevTools network tab → at most 2 concurrent `get_short_epg` requests with ~200ms spacing
+3. **Scroll test**: Rapidly scroll up/down → no burst of requests; stale requests should be cancelled
+4. **Cache test**: Scroll away and back → previously loaded EPG shows instantly without new requests
+5. **Ban test**: Use a provider that was previously getting banned → should now work without triggering rate limits
+6. **Build**: `nx build web` should succeed
+7. **Lint**: `nx lint web` should pass
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/4gray/.REDACTED.jsonl
+
+---
+
+for xtream-tauri, when xtream portal is not avaiable there is a snackbar where i can see error, but the detail view stays forever in loading state with skeleteons, can we fix that and when the request faied, to see a proper error page. the skeletons which i see are in this component: @libs/ui/components/src/lib/content-hero/content-hero.component.ts and the isLoading flag is probably provided from this component @apps/web/src/app/xtream-tauri/vod-details/vod-details-route.component.ts please check and fix
+
+---
+
+but still the same, still see the skeletons even after request was failing and i saw the snackbar error
+: 
+Error: Error invoking remote method 'XTREAM_REQUEST': [object Object]
+message
+: 
+"Error invoking remote method 'XTREAM_REQUEST': [object Object]"
+stack
+: 
+"Error: Error invoking remote method 'XTREAM_REQUEST': [object Object]"
+[ . in electron.service.ts line 275
+
+---
+
+when i resize sidebar in m3u module @libs/ui/components/src/lib/video-player/sidebar/sidebar.component.ts (using directive which works very good), the sidebar gets resized but not the channel items inside, they alway stay in the ame size. i think it should be in this component @libs/ui/components/src/lib/channel-list-container/channel-list-container.component.ts . in @apps/web/src/app/xtream-tauri/portal-channels-list/portal-channels-list.component.ts items resizing works very well, for example after some size breakpoint the epg bar is hidden and in the smallest version there is icon hidden. i want to have same logic in m3u sidebar which i mentioned in the beginning of the message

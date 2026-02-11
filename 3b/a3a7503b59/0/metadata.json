@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "3ba3a7503b59",
+  "session_id": "6a15955e-2329-4286-b213-af704b432131",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-11T21:50:35.618647Z",
+  "branch": "fix/pre-v0-19-release-fixes",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "apps/web/src/app/xtream-tauri/portal-channels-list/portal-channels-list.component.ts",
+    "apps/web/src/app/xtream-tauri/serial-details/serial-details.component.html",
+    "apps/web/src/app/xtream-tauri/serial-details/serial-details.component.ts",
+    "apps/web/src/app/xtream-tauri/services/epg-queue.service.ts",
+    "apps/web/src/app/xtream-tauri/services/xtream-api.service.ts",
+    "apps/web/src/app/xtream-tauri/stores/features/with-selection.feature.ts",
+    "apps/web/src/app/xtream-tauri/stores/xtream.store.ts",
+    "apps/web/src/app/xtream-tauri/vod-details/vod-details-route.component.html",
+    "apps/web/src/app/xtream-tauri/vod-details/vod-details-route.component.ts",
+    "libs/ui/components/src/lib/channel-list-container/all-channels-tab/all-channels-tab.component.scss",
+    "libs/ui/components/src/lib/channel-list-container/channel-list-container.component.scss",
+    "libs/ui/components/src/lib/channel-list-container/channel-list-item/channel-list-item.component.scss",
+    "libs/ui/components/src/lib/content-hero/content-hero.component.html",
+    "libs/ui/components/src/lib/content-hero/content-hero.component.scss",
+    "libs/ui/components/src/lib/content-hero/content-hero.component.ts"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 2636,
+    "cache_creation_tokens": 187902,
+    "cache_read_tokens": 8100609,
+    "output_tokens": 8912,
+    "api_call_count": 81
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-11T21:50:35.494984Z",
+    "agent_lines": 88,
+    "human_added": 0,
+    "human_modified": 46,
+    "human_removed": 246,
+    "total_committed": 134,
+    "agent_percentage": 65.67164179104478
+  }
+}
