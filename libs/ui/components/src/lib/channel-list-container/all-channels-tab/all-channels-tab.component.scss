@@ -3,6 +3,12 @@
 .scroll-viewport {
     min-height: calc(100vh - 190px);
     overflow-x: hidden;
+    width: 100%;
+
+    ::ng-deep .cdk-virtual-scroll-content-wrapper {
+        width: 100%;
+        max-width: 100%;
+    }
 }
 
 .search-panel {
