@@ -18,6 +18,7 @@ export interface SelectionState {
     page: number;
     limit: number;
     isLoadingDetails: boolean;
+    detailsError: string | null;
 }
 
 /**
@@ -30,6 +31,7 @@ const initialSelectionState: SelectionState = {
     page: 0,
     limit: Number(localStorage.getItem('xtream-page-size') ?? 25),
     isLoadingDetails: false,
+    detailsError: null,
 };
 
 /**
@@ -306,6 +308,13 @@ export function withSelection() {
              */
             setIsLoadingDetails(isLoading: boolean): void {
                 patchState(store, { isLoadingDetails: isLoading });
+            },
+
+            /**
+             * Set the details error state
+             */
+            setDetailsError(error: string | null): void {
+                patchState(store, { detailsError: error });
             },
 
             /**

@@ -74,6 +74,11 @@
             (episodeClicked)="playEpisode($event)"
         />
     </app-content-hero>
+} @else if (detailsError()) {
+    <app-content-hero
+        [errorMessage]="detailsError()"
+        (backClicked)="goBack()"
+    />
 } @else {
     <app-content-hero [isLoading]="true" (backClicked)="goBack()" />
 }

@@ -28,6 +28,8 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly selectedItem = this.xtreamStore.selectedItem;
     readonly selectedContentType = this.xtreamStore.selectedContentType;
     readonly isFavorite = this.xtreamStore.isFavorite;
+    readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
+    readonly detailsError = this.xtreamStore.detailsError;
 
     ngOnInit(): void {
         const { categoryId, serialId } = this.route.snapshot.params;

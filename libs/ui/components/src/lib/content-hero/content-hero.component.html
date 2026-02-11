@@ -4,7 +4,13 @@
     <button class="hero__back-button" (click)="onBack()">
         <mat-icon>arrow_back</mat-icon>
     </button>
-    @if (isLoading) {
+    @if (errorMessage()) {
+        <div class="hero__content hero__error">
+            <mat-icon class="error-icon">cloud_off</mat-icon>
+            <h2 class="error-title">{{ errorMessage() }}</h2>
+            <ng-content select="[hero-error-actions]"></ng-content>
+        </div>
+    } @else if (isLoading()) {
         <div class="hero__content">
             <!-- Skeleton Poster -->
             <div class="poster">
@@ -85,12 +91,12 @@
         <!-- Backdrop Image -->
         <div
             class="hero__backdrop"
-            [class.hero__backdrop--blurred]="!backdropUrl"
+            [class.hero__backdrop--blurred]="!backdropUrl()"
             [style.backgroundImage]="
-                backdropUrl
-                    ? 'url(' + backdropUrl + ')'
-                    : posterUrl
-                      ? 'url(' + posterUrl + ')'
+                backdropUrl()
+                    ? 'url(' + backdropUrl() + ')'
+                    : posterUrl()
+                      ? 'url(' + posterUrl() + ')'
                       : 'none'
             "
         ></div>
@@ -102,10 +108,10 @@
         <div class="hero__content">
             <!-- Poster Card -->
             <div class="poster">
-                @if (posterUrl) {
+                @if (posterUrl()) {
                     <img
                         class="poster__image"
-                        [src]="posterUrl"
+                        [src]="posterUrl()"
                         (error)="
                             $event.target.src =
                                 './assets/images/default-poster.png'
@@ -119,7 +125,7 @@
 
             <!-- Details -->
             <div class="details">
-                <h1 class="details__title">{{ title }}</h1>
+                <h1 class="details__title">{{ title() }}</h1>
 
                 <!-- Tags Slot -->
                 <div class="details__tags">
@@ -127,9 +133,9 @@
                 </div>
 
                 <!-- Description -->
-                @if (description) {
+                @if (description()) {
                     <p class="details__description">
-                        {{ description }}
+                        {{ description() }}
                     </p>
                 }
 

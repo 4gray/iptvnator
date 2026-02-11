@@ -45,6 +45,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
 
     readonly isFavorite = this.xtreamStore.isFavorite;
     readonly selectedItem = this.xtreamStore.selectedItem;
+    readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
+    readonly detailsError = this.xtreamStore.detailsError;
 
     readonly hasPlaybackPosition = computed(() => {
         const vodId = this.route.snapshot.params.vodId;

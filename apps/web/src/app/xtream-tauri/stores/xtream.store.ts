@@ -131,6 +131,7 @@ export const XtreamStore = signalStore(
                 if (!playlist) return;
 
                 store.setIsLoadingDetails(true);
+                store.setDetailsError(null);
                 xtreamApiService.getVodInfo({
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
@@ -143,6 +144,9 @@ export const XtreamStore = signalStore(
                     });
                 }).catch((error: unknown) => {
                     console.error('Error fetching VOD details:', error);
+                    store.setDetailsError(
+                        error instanceof Error ? error.message : 'Unknown error'
+                    );
                 }).finally(() => {
                     store.setIsLoadingDetails(false);
                 });
@@ -159,6 +163,7 @@ export const XtreamStore = signalStore(
                 if (!playlist) return;
 
                 store.setIsLoadingDetails(true);
+                store.setDetailsError(null);
                 xtreamApiService.getSeriesInfo({
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
@@ -171,6 +176,9 @@ export const XtreamStore = signalStore(
                     });
                 }).catch((error: unknown) => {
                     console.error('Error fetching series details:', error);
+                    store.setDetailsError(
+                        error instanceof Error ? error.message : 'Unknown error'
+                    );
                 }).finally(() => {
                     store.setIsLoadingDetails(false);
                 });
