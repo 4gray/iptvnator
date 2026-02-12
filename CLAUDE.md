@@ -185,6 +185,52 @@ Data strategies by environment:
 | **Electron** | DB-first: Check DB → fetch API if missing → cache to DB |
 | **PWA** | API-only: Always fetch from API, store in memory |
 
+**M3U Playlist Module Architecture**:
+
+The M3U playlist module handles traditional M3U/M3U8 playlists with support for 90,000+ channels.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         VIDEO PLAYER PAGE                            │
+│                    apps/web/src/app/home/video-player/              │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌──────────────────────┐  ┌────────────────────┐ │
+│  │   Sidebar   │  │    Video Player      │  │   EPG List         │ │
+│  │             │  │  (ArtPlayer/Video.js)│  │   (Right drawer)   │ │
+│  │ ┌─────────┐ │  │                      │  │                    │ │
+│  │ │Channel  │ │  │                      │  │                    │ │
+│  │ │List     │ │  │                      │  │                    │ │
+│  │ │Container│ │  │                      │  │                    │ │
+│  │ └─────────┘ │  │                      │  │                    │ │
+│  └─────────────┘  └──────────────────────┘  └────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+Channel List Component Structure (parent coordinator pattern):
+```
+libs/ui/components/src/lib/channel-list-container/
+├── channel-list-container.component.ts   # Parent - shared state coordinator
+├── all-channels-tab/                      # Virtual scroll + debounced search
+├── groups-tab/                            # Expansion panels + infinite scroll
+├── favorites-tab/                         # CDK drag-drop reordering
+└── channel-list-item/                     # Individual channel display
+```
+
+Key patterns:
+- **EnrichedChannel**: Pre-computed EPG data attached to channels for performance
+- **Parent coordinator**: Manages shared signals (`channelEpgMap`, `progressTick`, `favoriteIds`)
+- **Virtual scrolling**: CDK virtual scroll for 90,000+ channel lists
+- **Infinite scroll**: IntersectionObserver in groups tab loads 50 items at a time
+- **Global progress tick**: Single 30s interval instead of per-item intervals
+
+State management via NgRx (`libs/m3u-state/`):
+- `PlaylistActions`: loadPlaylists, addPlaylist, removePlaylist, parsePlaylist
+- `ChannelActions`: setChannels, setActiveChannel, setAdjacentChannelAsActive
+- `EpgActions`: setActiveEpgProgram, setCurrentEpgProgram, setEpgAvailableFlag
+- `FavoritesActions`: updateFavorites, setFavorites
+
+See `docs/architecture/m3u-playlist-module.md` for complete documentation.
+
 **Routing**: Lazy-loaded routes in `apps/web/src/app/app.routes.ts`
 
 - Home/playlists overview: `/`
