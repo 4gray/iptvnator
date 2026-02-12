@@ -37,6 +37,7 @@ import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../stores/xtream.store';
 
 type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
+const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
 @Component({
     selector: 'app-live-stream-layout',
@@ -109,6 +110,17 @@ export class LiveStreamLayoutComponent implements OnInit {
     favorites = new Map<number, boolean>();
 
     ngOnInit() {
+        const savedSortMode = localStorage.getItem(
+            LIVE_CHANNEL_SORT_STORAGE_KEY
+        );
+        if (
+            savedSortMode === 'server' ||
+            savedSortMode === 'name-asc' ||
+            savedSortMode === 'name-desc'
+        ) {
+            this.liveChannelSortMode.set(savedSortMode);
+        }
+
         const playlist = this.xtreamStore.currentPlaylist();
         if (playlist) {
             this.favoritesService
@@ -188,5 +200,6 @@ export class LiveStreamLayoutComponent implements OnInit {
 
     setLiveChannelSortMode(mode: LiveChannelSortMode): void {
         this.liveChannelSortMode.set(mode);
+        localStorage.setItem(LIVE_CHANNEL_SORT_STORAGE_KEY, mode);
     }
 }
