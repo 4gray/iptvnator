@@ -7,7 +7,9 @@ import {
     AfterViewInit,
     ChangeDetectorRef,
     Component,
+    computed,
     inject,
+    input,
     OnDestroy,
     output,
     signal,
@@ -37,6 +39,8 @@ interface EpgProgram {
     stop_timestamp: string;
 }
 
+type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
+
 @Component({
     selector: 'app-portal-channels-list',
     templateUrl: './portal-channels-list.component.html',
@@ -54,12 +58,32 @@ interface EpgProgram {
 })
 export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     readonly playClicked = output<any>();
+    readonly sortMode = input<LiveChannelSortMode>('server');
 
     readonly xtreamStore = inject(XtreamStore);
     private readonly favoritesService = inject(FavoritesService);
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
     readonly channels = this.xtreamStore.selectItemsFromSelectedCategory;
+    readonly sortedChannels = computed(() => {
+        const mode = this.sortMode();
+        const channels = this.channels();
+        if (mode === 'server') {
+            return channels;
+        }
+
+        const collator = new Intl.Collator(undefined, {
+            numeric: true,
+            sensitivity: 'base',
+        });
+
+        return [...channels].sort((a: any, b: any) => {
+            const titleA = a.title ?? a.name ?? '';
+            const titleB = b.title ?? b.name ?? '';
+            const result = collator.compare(titleA, titleB);
+            return mode === 'name-asc' ? result : -result;
+        });
+    });
 
     favorites = new Map<number, boolean>();
     searchString = signal<string>('');
@@ -117,7 +141,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 vp.renderedRangeStream
                     .pipe(debounceTime(300))
                     .subscribe((range) => {
-                        const visibleChannels = this.channels().slice(
+                        const visibleChannels = this.sortedChannels().slice(
                             range.start,
                             range.end
                         );
