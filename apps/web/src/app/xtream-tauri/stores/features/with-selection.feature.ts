@@ -8,6 +8,12 @@ import {
 } from '@ngrx/signals';
 import { ContentType } from '../../xtream-state';
 
+export type XtreamCategorySortMode =
+    | 'date-desc'
+    | 'date-asc'
+    | 'name-asc'
+    | 'name-desc';
+
 /**
  * Selection state for managing UI selection and pagination
  */
@@ -17,6 +23,7 @@ export interface SelectionState {
     selectedItem: any | null;
     page: number;
     limit: number;
+    contentSortMode: XtreamCategorySortMode;
     isLoadingDetails: boolean;
     detailsError: string | null;
 }
@@ -30,6 +37,7 @@ const initialSelectionState: SelectionState = {
     selectedItem: null,
     page: 0,
     limit: Number(localStorage.getItem('xtream-page-size') ?? 25),
+    contentSortMode: 'date-desc',
     isLoadingDetails: false,
     detailsError: null,
 };
@@ -47,6 +55,39 @@ export function withSelection() {
         withState<SelectionState>(initialSelectionState),
 
         withComputed((store) => {
+            const getItemDate = (item: any, categoryType: ContentType): number => {
+                const value =
+                    categoryType === 'series'
+                        ? item.last_modified ?? item.added
+                        : item.added;
+                return parseInt(value ?? '', 10) || 0;
+            };
+
+            const sortByMode = (
+                items: any[],
+                sortMode: XtreamCategorySortMode,
+                categoryType: ContentType
+            ): any[] => {
+                const collator = new Intl.Collator(undefined, {
+                    numeric: true,
+                    sensitivity: 'base',
+                });
+
+                return [...items].sort((a: any, b: any) => {
+                    if (sortMode === 'date-desc') {
+                        return getItemDate(b, categoryType) - getItemDate(a, categoryType);
+                    }
+                    if (sortMode === 'date-asc') {
+                        return getItemDate(a, categoryType) - getItemDate(b, categoryType);
+                    }
+
+                    const titleA = a.title ?? a.name ?? '';
+                    const titleB = b.title ?? b.name ?? '';
+                    const byName = collator.compare(titleA, titleB);
+                    return sortMode === 'name-asc' ? byName : -byName;
+                });
+            };
+
             // Memoized sorted content - only recalculates when content/type changes
             const sortedContent = computed(() => {
                 const categoryType = store.selectedContentType();
@@ -58,21 +99,7 @@ export function withSelection() {
                           ? storeAny.vodStreams?.() || []
                           : storeAny.serialStreams?.() || [];
 
-                return [...content].sort((a: any, b: any) => {
-                    const dateA =
-                        parseInt(
-                            categoryType === 'series'
-                                ? a.last_modified
-                                : a.added
-                        ) || 0;
-                    const dateB =
-                        parseInt(
-                            categoryType === 'series'
-                                ? b.last_modified
-                                : b.added
-                        ) || 0;
-                    return dateB - dateA;
-                });
+                return sortByMode(content, 'date-desc', categoryType);
             });
 
             return {
@@ -138,6 +165,7 @@ export function withSelection() {
                     const endIndex = startIndex + store.limit();
                     const categoryId = store.selectedCategoryId();
                     const categoryType = store.selectedContentType();
+                    const sortMode = store.contentSortMode();
 
                     // Access parent store content (from withContent)
                     const storeAny = store as any;
@@ -154,6 +182,13 @@ export function withSelection() {
                             (item: any) =>
                                 Number(item.category_id) === categoryId
                         );
+                        if (categoryType === 'vod' || categoryType === 'series') {
+                            filteredContent = sortByMode(
+                                filteredContent,
+                                sortMode,
+                                categoryType
+                            );
+                        }
                     } else {
                         filteredContent = sortedContent();
                     }
@@ -167,6 +202,7 @@ export function withSelection() {
                 selectItemsFromSelectedCategory: computed(() => {
                     const categoryId = store.selectedCategoryId();
                     const categoryType = store.selectedContentType();
+                    const sortMode = store.contentSortMode();
 
                     // Access parent store content (from withContent)
                     const storeAny = store as any;
@@ -181,9 +217,18 @@ export function withSelection() {
                         return sortedContent();
                     }
 
-                    return content.filter(
+                    const filteredContent = content.filter(
                         (item: any) => Number(item.category_id) === categoryId
                     );
+                    if (categoryType === 'vod' || categoryType === 'series') {
+                        return sortByMode(
+                            filteredContent,
+                            sortMode,
+                            categoryType
+                        );
+                    }
+
+                    return filteredContent;
                 }),
 
                 /**
@@ -330,6 +375,16 @@ export function withSelection() {
             setLimit(limit: number): void {
                 patchState(store, { limit });
                 localStorage.setItem('xtream-page-size', String(limit));
+            },
+
+            /**
+             * Set category content sort mode
+             */
+            setContentSortMode(mode: XtreamCategorySortMode): void {
+                patchState(store, {
+                    contentSortMode: mode,
+                    page: 0,
+                });
             },
 
             /**

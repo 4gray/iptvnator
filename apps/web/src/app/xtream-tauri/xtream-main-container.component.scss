@@ -30,6 +30,9 @@
 .content-header {
     padding: 16px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     app-region: drag;
 
     h2 {
@@ -44,6 +47,10 @@
     button {
         app-region: no-drag;
     }
+}
+
+.header-left {
+    min-width: 0;
 }
 
 .scrollable-content {

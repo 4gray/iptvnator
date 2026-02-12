@@ -33,12 +33,50 @@
 <div class="main-content">
     @if (!xtreamStore.selectedItem() && !xtreamStore.isLoadingDetails()) {
         <div class="content-header">
-            <h2>
-                <button mat-icon-button disabled>
-                    <mat-icon>category</mat-icon>
+            <div class="header-left">
+                <h2>
+                    <button mat-icon-button disabled>
+                        <mat-icon>category</mat-icon>
+                    </button>
+                    {{ getContentLabel() }}
+                </h2>
+            </div>
+            @if (canShowSortMenu()) {
+                <button
+                    mat-icon-button
+                    [matMenuTriggerFor]="xtreamSortMenu"
+                    [matTooltip]="'Sort: ' + contentSortLabel()"
+                    aria-label="Sort content"
+                >
+                    <mat-icon>sort</mat-icon>
                 </button>
-                {{ getContentLabel() }}
-            </h2>
+                <mat-menu #xtreamSortMenu="matMenu">
+                    <button mat-menu-item (click)="setContentSortMode('date-desc')">
+                        <span>Date Added (Latest First)</span>
+                        @if (contentSortMode() === 'date-desc') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                    <button mat-menu-item (click)="setContentSortMode('date-asc')">
+                        <span>Date Added (Oldest First)</span>
+                        @if (contentSortMode() === 'date-asc') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                    <button mat-menu-item (click)="setContentSortMode('name-asc')">
+                        <span>Name A-Z</span>
+                        @if (contentSortMode() === 'name-asc') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                    <button mat-menu-item (click)="setContentSortMode('name-desc')">
+                        <span>Name Z-A</span>
+                        @if (contentSortMode() === 'name-desc') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                </mat-menu>
+            }
         </div>
     }
     <div
