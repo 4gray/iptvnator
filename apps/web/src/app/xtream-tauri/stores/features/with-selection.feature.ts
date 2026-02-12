@@ -24,6 +24,7 @@ export interface SelectionState {
     page: number;
     limit: number;
     contentSortMode: XtreamCategorySortMode;
+    categorySearchTerm: string;
     isLoadingDetails: boolean;
     detailsError: string | null;
 }
@@ -38,6 +39,7 @@ const initialSelectionState: SelectionState = {
     page: 0,
     limit: Number(localStorage.getItem('xtream-page-size') ?? 25),
     contentSortMode: 'date-desc',
+    categorySearchTerm: '',
     isLoadingDetails: false,
     detailsError: null,
 };
@@ -85,6 +87,18 @@ export function withSelection() {
                     const titleB = b.title ?? b.name ?? '';
                     const byName = collator.compare(titleA, titleB);
                     return sortMode === 'name-asc' ? byName : -byName;
+                });
+            };
+
+            const filterBySearchTerm = (items: any[], searchTerm: string): any[] => {
+                const normalized = searchTerm.trim().toLocaleLowerCase();
+                if (!normalized) {
+                    return items;
+                }
+
+                return items.filter((item: any) => {
+                    const title = (item.title ?? item.name ?? '').toString();
+                    return title.toLocaleLowerCase().includes(normalized);
                 });
             };
 
@@ -166,6 +180,7 @@ export function withSelection() {
                     const categoryId = store.selectedCategoryId();
                     const categoryType = store.selectedContentType();
                     const sortMode = store.contentSortMode();
+                    const searchTerm = store.categorySearchTerm();
 
                     // Access parent store content (from withContent)
                     const storeAny = store as any;
@@ -183,6 +198,10 @@ export function withSelection() {
                                 Number(item.category_id) === categoryId
                         );
                         if (categoryType === 'vod' || categoryType === 'series') {
+                            filteredContent = filterBySearchTerm(
+                                filteredContent,
+                                searchTerm
+                            );
                             filteredContent = sortByMode(
                                 filteredContent,
                                 sortMode,
@@ -203,6 +222,7 @@ export function withSelection() {
                     const categoryId = store.selectedCategoryId();
                     const categoryType = store.selectedContentType();
                     const sortMode = store.contentSortMode();
+                    const searchTerm = store.categorySearchTerm();
 
                     // Access parent store content (from withContent)
                     const storeAny = store as any;
@@ -222,7 +242,7 @@ export function withSelection() {
                     );
                     if (categoryType === 'vod' || categoryType === 'series') {
                         return sortByMode(
-                            filteredContent,
+                            filterBySearchTerm(filteredContent, searchTerm),
                             sortMode,
                             categoryType
                         );
@@ -237,6 +257,7 @@ export function withSelection() {
                 getTotalPages: computed(() => {
                     const categoryId = store.selectedCategoryId();
                     const categoryType = store.selectedContentType();
+                    const searchTerm = store.categorySearchTerm();
 
                     // Access parent store content (from withContent)
                     const storeAny = store as any;
@@ -249,10 +270,14 @@ export function withSelection() {
 
                     let totalItems = 0;
                     if (categoryId) {
-                        totalItems = content.filter(
+                        let filtered = content.filter(
                             (item: any) =>
                                 Number(item.category_id) === categoryId
-                        ).length;
+                        );
+                        if (categoryType === 'vod' || categoryType === 'series') {
+                            filtered = filterBySearchTerm(filtered, searchTerm);
+                        }
+                        totalItems = filtered.length;
                     } else {
                         totalItems = content.length;
                     }
@@ -320,6 +345,7 @@ export function withSelection() {
                     selectedContentType: type,
                     selectedCategoryId: null,
                     page: 0,
+                    categorySearchTerm: '',
                 });
             },
 
@@ -337,6 +363,7 @@ export function withSelection() {
                     patchState(store, {
                         selectedCategoryId: newCategoryId,
                         page: 0,
+                        categorySearchTerm: '',
                     });
                 }
             },
@@ -383,6 +410,16 @@ export function withSelection() {
             setContentSortMode(mode: XtreamCategorySortMode): void {
                 patchState(store, {
                     contentSortMode: mode,
+                    page: 0,
+                });
+            },
+
+            /**
+             * Set selected category search term
+             */
+            setCategorySearchTerm(term: string): void {
+                patchState(store, {
+                    categorySearchTerm: term,
                     page: 0,
                 });
             },

@@ -42,14 +42,41 @@
                 </h2>
             </div>
             @if (canShowSortMenu()) {
-                <button
-                    mat-icon-button
-                    [matMenuTriggerFor]="xtreamSortMenu"
-                    [matTooltip]="'Sort: ' + contentSortLabel()"
-                    aria-label="Sort content"
-                >
-                    <mat-icon>sort</mat-icon>
-                </button>
+                <div class="header-actions">
+                    <mat-form-field
+                        class="category-search"
+                        appearance="outline"
+                        subscriptSizing="dynamic"
+                    >
+                        <mat-icon matPrefix>search</mat-icon>
+                        <input
+                            matInput
+                            type="search"
+                            spellcheck="false"
+                            [ngModel]="categorySearchTerm()"
+                            (ngModelChange)="onCategorySearchChange($event)"
+                            placeholder="Search in category"
+                        />
+                        @if (categorySearchTerm()) {
+                            <button
+                                mat-icon-button
+                                matSuffix
+                                aria-label="Clear search"
+                                (click)="clearCategorySearch()"
+                            >
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        }
+                    </mat-form-field>
+                    <button
+                        mat-icon-button
+                        [matMenuTriggerFor]="xtreamSortMenu"
+                        [matTooltip]="'Sort: ' + contentSortLabel()"
+                        aria-label="Sort content"
+                    >
+                        <mat-icon>sort</mat-icon>
+                    </button>
+                </div>
                 <mat-menu #xtreamSortMenu="matMenu">
                     <button mat-menu-item (click)="setContentSortMode('date-desc')">
                         <span>Date Added (Latest First)</span>

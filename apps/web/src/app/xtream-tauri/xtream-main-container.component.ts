@@ -1,7 +1,10 @@
 import { Component, computed, inject, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
@@ -24,8 +27,11 @@ const XTREAM_CATEGORY_SORT_STORAGE_KEY = 'xtream-category-sort-mode';
     styleUrls: ['./xtream-main-container.component.scss', './sidebar.scss'],
     imports: [
         CategoryViewComponent,
+        FormsModule,
+        MatFormFieldModule,
         MatIcon,
         MatIconButton,
+        MatInputModule,
         MatMenuModule,
         MatTooltipModule,
         PlaylistSwitcherComponent,
@@ -46,6 +52,7 @@ export class XtreamMainContainerComponent implements OnInit {
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
     readonly contentSortMode = this.xtreamStore.contentSortMode;
+    readonly categorySearchTerm = this.xtreamStore.categorySearchTerm;
     readonly canShowSortMenu = computed(() => {
         const hasCategorySelected = this.selectedCategoryId() != null;
         const type = this.xtreamStore.selectedContentType();
@@ -164,5 +171,13 @@ export class XtreamMainContainerComponent implements OnInit {
     setContentSortMode(mode: XtreamCategorySortMode): void {
         this.xtreamStore.setContentSortMode(mode);
         localStorage.setItem(XTREAM_CATEGORY_SORT_STORAGE_KEY, mode);
+    }
+
+    onCategorySearchChange(term: string): void {
+        this.xtreamStore.setCategorySearchTerm(term);
+    }
+
+    clearCategorySearch(): void {
+        this.xtreamStore.setCategorySearchTerm('');
     }
 }

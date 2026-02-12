@@ -53,6 +53,17 @@
     min-width: 0;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    app-region: no-drag;
+}
+
+.category-search {
+    width: 240px;
+}
+
 .scrollable-content {
     flex: 1;
     overflow-y: auto;
