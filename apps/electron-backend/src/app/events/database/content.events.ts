@@ -3,7 +3,7 @@
  * Operations for managing and searching content (streams, movies, series)
  */
 
-import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { ipcMain } from 'electron';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
@@ -72,7 +72,7 @@ ipcMain.handle(
     async (event, playlistId: string, type: 'live' | 'movie' | 'series') => {
         try {
             const db = await getDatabase();
-            const result = await db
+            const baseQuery = db
                 .select({
                     id: schema.content.id,
                     category_id: schema.content.categoryId,
@@ -93,8 +93,11 @@ ipcMain.handle(
                         eq(schema.categories.playlistId, playlistId),
                         eq(schema.content.type, type)
                     )
-                )
-                .orderBy(desc(schema.content.added));
+                );
+
+            const result = await (type === 'live'
+                ? baseQuery.orderBy(asc(schema.content.id))
+                : baseQuery.orderBy(desc(schema.content.added)));
             return result;
         } catch (error) {
             console.error('Error getting content:', error);
