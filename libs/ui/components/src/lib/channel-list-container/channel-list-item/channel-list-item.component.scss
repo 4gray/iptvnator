@@ -1,6 +1,6 @@
 // Main channel list item container
 .channel-list-item {
-    width: 360px;
+    width: 100%;
     display: flex;
     align-items: center;
     height: 68px;
@@ -9,6 +9,9 @@
     cursor: pointer;
     transition: background-color 0.2s ease;
     gap: 12px;
+    box-sizing: border-box;
+    min-width: 0;
+    overflow: hidden;
 
     &:hover {
         background-color: rgba(0, 0, 0, 0.04);
@@ -222,5 +225,71 @@
             height: 20px;
             line-height: 20px;
         }
+    }
+}
+
+// ============================================================================
+// Container queries for responsive sidebar resizing
+// ============================================================================
+
+@container (max-width: 350px) {
+    .channel-list-item {
+        gap: 8px;
+        padding: 6px 8px;
+    }
+
+    .channel-logo {
+        width: 36px;
+        height: 36px;
+    }
+
+    // Hide EPG timeline (progress bar + times) but keep program title
+    .epg-timeline {
+        display: none;
+    }
+
+    .epg-placeholder {
+        display: none;
+    }
+
+    // Hide info button, keep only favorite
+    .program-info-button {
+        display: none;
+    }
+}
+
+@container (max-width: 280px) {
+    .channel-logo {
+        width: 28px;
+        height: 28px;
+    }
+
+    // Hide all EPG content
+    .epg-container {
+        display: none;
+    }
+
+    .channel-list-item {
+        height: 48px;
+
+        &.compact {
+            height: 40px;
+        }
+    }
+
+    // Hide action buttons
+    .action-buttons {
+        display: none;
+    }
+}
+
+@container (max-width: 200px) {
+    .channel-logo {
+        display: none;
+    }
+
+    .channel-list-item {
+        gap: 4px;
+        padding: 4px 6px;
     }
 }

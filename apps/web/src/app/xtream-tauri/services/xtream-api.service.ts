@@ -271,6 +271,14 @@ export class XtreamApiService {
             url,
             params: serializedParams,
         });
+
+        // The IPC layer catches errors and returns { type: 'ERROR', message, status }
+        // instead of rejecting. Convert that back into a thrown error so callers
+        // can handle it with .catch() / try-catch.
+        if (response?.type === 'ERROR' || (!response?.payload && response?.message)) {
+            throw new Error(response?.message ?? 'Request failed');
+        }
+
         return response?.payload;
     }
 }

@@ -18,7 +18,7 @@
     >
         <div
             *cdkVirtualFor="
-                let item of channels() | filterBy: searchString() : 'title';
+                let item of sortedChannels() | filterBy: searchString() : 'title';
                 trackBy: trackBy;
                 templateCacheSize: 0
             "

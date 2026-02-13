@@ -7,11 +7,13 @@ import {
     AfterViewInit,
     ChangeDetectorRef,
     Component,
-    EventEmitter,
+    computed,
     inject,
-    Output,
+    input,
+    OnDestroy,
+    output,
     signal,
-    ViewChild,
+    viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -20,7 +22,11 @@ import { MatInputModule } from '@angular/material/input';
 import { ActivatedRoute } from '@angular/router';
 import { FilterPipe } from '@iptvnator/pipes';
 import { TranslatePipe } from '@ngx-translate/core';
+import { Subscription } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { XtreamCategory, XtreamItem } from 'shared-interfaces';
+import { EpgQueueService } from '../services/epg-queue.service';
+import { XtreamCredentials } from '../services/xtream-api.service';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../stores/xtream.store';
 
@@ -32,6 +38,8 @@ interface EpgProgram {
     start_timestamp: string;
     stop_timestamp: string;
 }
+
+type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 
 @Component({
     selector: 'app-portal-channels-list',
@@ -48,22 +56,44 @@ interface EpgProgram {
         TranslatePipe,
     ],
 })
-export class PortalChannelsListComponent implements AfterViewInit {
-    @Output() playClicked = new EventEmitter<any>();
+export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
+    readonly playClicked = output<any>();
+    readonly sortMode = input<LiveChannelSortMode>('server');
 
     readonly xtreamStore = inject(XtreamStore);
     private readonly favoritesService = inject(FavoritesService);
+    private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
     readonly channels = this.xtreamStore.selectItemsFromSelectedCategory;
+    readonly sortedChannels = computed(() => {
+        const mode = this.sortMode();
+        const channels = this.channels();
+        if (mode === 'server') {
+            return channels;
+        }
+
+        const collator = new Intl.Collator(undefined, {
+            numeric: true,
+            sensitivity: 'base',
+        });
+
+        return [...channels].sort((a: any, b: any) => {
+            const titleA = a.title ?? a.name ?? '';
+            const titleB = b.title ?? b.name ?? '';
+            const result = collator.compare(titleA, titleB);
+            return mode === 'name-asc' ? result : -result;
+        });
+    });
 
     favorites = new Map<number, boolean>();
     searchString = signal<string>('');
     currentPrograms = new Map<number, string>();
     currentProgramsProgress = new Map<number, number>();
-    programTimings = new Map<number, { start: number; end: number }>(); // Changed to store timestamps
-    private requestedChannels = new Set<number>();
+    programTimings = new Map<number, { start: number; end: number }>();
 
-    @ViewChild(CdkVirtualScrollViewport) viewport?: CdkVirtualScrollViewport;
+    readonly viewport = viewChild(CdkVirtualScrollViewport);
+
+    private subscriptions = new Subscription();
 
     constructor(private cdr: ChangeDetectorRef) {}
 
@@ -86,57 +116,77 @@ export class PortalChannelsListComponent implements AfterViewInit {
                     });
                 });
         }
+
+        // Subscribe to EPG results from the queue service
+        this.subscriptions.add(
+            this.epgQueueService.epgResult$.subscribe(
+                ({ streamId, items }) => {
+                    if (items && items.length > 0) {
+                        this.currentPrograms.set(streamId, items[0].title);
+                        this.updateProgramProgress(
+                            streamId,
+                            items[0] as unknown as EpgProgram
+                        );
+                        this.cdr.detectChanges();
+                    }
+                }
+            )
+        );
     }
 
     ngAfterViewInit() {
-        if (
-            this.viewport &&
-            this.xtreamStore.selectedContentType() === 'live'
-        ) {
-            this.viewport.renderedRangeStream.subscribe((range) => {
-                const visibleChannels = this.channels().slice(
-                    range.start,
-                    range.end
-                );
-                this.loadEpgForVisibleChannels(visibleChannels);
-            });
+        const vp = this.viewport();
+        if (vp && this.xtreamStore.selectedContentType() === 'live') {
+            this.subscriptions.add(
+                vp.renderedRangeStream
+                    .pipe(debounceTime(300))
+                    .subscribe((range) => {
+                        const visibleChannels = this.sortedChannels().slice(
+                            range.start,
+                            range.end
+                        );
+                        this.loadEpgForVisibleChannels(visibleChannels);
+                    })
+            );
         }
     }
 
-    private async loadEpgForVisibleChannels(channels: any[]): Promise<void> {
+    private loadEpgForVisibleChannels(channels: any[]): void {
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) return;
 
+        const credentials: XtreamCredentials = {
+            serverUrl: playlist.serverUrl,
+            username: playlist.username,
+            password: playlist.password,
+        };
+
+        const visibleIds = new Set<number>(
+            channels.map((ch) => ch.xtream_id)
+        );
+        const uncachedIds: number[] = [];
+
+        // Apply cached results immediately
         for (const channel of channels) {
-            // Skip if we already requested or have EPG data for this channel
-            if (
-                this.requestedChannels.has(channel.xtream_id) ||
-                this.currentPrograms.has(channel.xtream_id)
-            ) {
-                continue;
-            }
-
-            // Mark as requested before making the API call
-            this.requestedChannels.add(channel.xtream_id);
-
-            try {
-                const epgData = await this.xtreamStore.loadChannelEpg(
-                    channel.xtream_id
-                );
-                if (epgData && epgData.length > 0) {
+            const cached = this.epgQueueService.getCached(channel.xtream_id);
+            if (cached && cached.length > 0) {
+                if (!this.currentPrograms.has(channel.xtream_id)) {
                     this.currentPrograms.set(
                         channel.xtream_id,
-                        epgData[0].title
+                        cached[0].title
                     );
-                    this.updateProgramProgress(channel.xtream_id, epgData[0]);
-                    this.cdr.detectChanges();
+                    this.updateProgramProgress(
+                        channel.xtream_id,
+                        cached[0] as unknown as EpgProgram
+                    );
                 }
-            } catch (error) {
-                console.error(
-                    `Failed to load EPG for channel ${channel.xtream_id}:`,
-                    error
-                );
+            } else if (!this.currentPrograms.has(channel.xtream_id)) {
+                uncachedIds.push(channel.xtream_id);
             }
+        }
+
+        if (uncachedIds.length > 0) {
+            this.epgQueueService.enqueue(uncachedIds, visibleIds, credentials);
         }
     }
 
@@ -152,8 +202,8 @@ export class PortalChannelsListComponent implements AfterViewInit {
 
             this.currentProgramsProgress.set(streamId, progress);
             this.programTimings.set(streamId, {
-                start: start * 1000, // Convert to milliseconds for date pipe
-                end: end * 1000, // Convert to milliseconds for date pipe
+                start: start * 1000,
+                end: end * 1000,
             });
         }
     }
@@ -179,5 +229,9 @@ export class PortalChannelsListComponent implements AfterViewInit {
                 }
                 this.cdr.detectChanges();
             });
+    }
+
+    ngOnDestroy(): void {
+        this.subscriptions.unsubscribe();
     }
 }

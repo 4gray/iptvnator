@@ -1,7 +1,11 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, computed, inject, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -13,6 +17,9 @@ import {
 } from './category-management-dialog/category-management-dialog.component';
 import { CategoryViewComponent } from './category-view/category-view.component';
 import { XtreamStore } from './stores/xtream.store';
+import { XtreamCategorySortMode } from './stores/features/with-selection.feature';
+
+const XTREAM_CATEGORY_SORT_STORAGE_KEY = 'xtream-category-sort-mode';
 
 @Component({
     selector: 'app-xtream-main-container',
@@ -20,8 +27,12 @@ import { XtreamStore } from './stores/xtream.store';
     styleUrls: ['./xtream-main-container.component.scss', './sidebar.scss'],
     imports: [
         CategoryViewComponent,
+        FormsModule,
+        MatFormFieldModule,
         MatIcon,
         MatIconButton,
+        MatInputModule,
+        MatMenuModule,
         MatTooltipModule,
         PlaylistSwitcherComponent,
         ResizableDirective,
@@ -40,8 +51,32 @@ export class XtreamMainContainerComponent implements OnInit {
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
+    readonly contentSortMode = this.xtreamStore.contentSortMode;
+    readonly categorySearchTerm = this.xtreamStore.categorySearchTerm;
+    readonly canShowSortMenu = computed(() => {
+        const hasCategorySelected = this.selectedCategoryId() != null;
+        const type = this.xtreamStore.selectedContentType();
+        return hasCategorySelected && (type === 'vod' || type === 'series');
+    });
+    readonly contentSortLabel = computed(() => {
+        const mode = this.contentSortMode();
+        if (mode === 'date-asc') return 'Date Added (Oldest First)';
+        if (mode === 'name-asc') return 'Name A-Z';
+        if (mode === 'name-desc') return 'Name Z-A';
+        return 'Date Added (Latest First)';
+    });
 
     ngOnInit(): void {
+        const savedSortMode = localStorage.getItem(XTREAM_CATEGORY_SORT_STORAGE_KEY);
+        if (
+            savedSortMode === 'date-desc' ||
+            savedSortMode === 'date-asc' ||
+            savedSortMode === 'name-asc' ||
+            savedSortMode === 'name-desc'
+        ) {
+            this.xtreamStore.setContentSortMode(savedSortMode);
+        }
+
         const { categoryId } = this.route.snapshot.params;
         if (categoryId)
             this.xtreamStore.setSelectedCategory(Number(categoryId));
@@ -131,5 +166,18 @@ export class XtreamMainContainerComponent implements OnInit {
                 this.xtreamStore.reloadCategories();
             }
         });
+    }
+
+    setContentSortMode(mode: XtreamCategorySortMode): void {
+        this.xtreamStore.setContentSortMode(mode);
+        localStorage.setItem(XTREAM_CATEGORY_SORT_STORAGE_KEY, mode);
+    }
+
+    onCategorySearchChange(term: string): void {
+        this.xtreamStore.setCategorySearchTerm(term);
+    }
+
+    clearCategorySearch(): void {
+        this.xtreamStore.setCategorySearchTerm('');
     }
 }

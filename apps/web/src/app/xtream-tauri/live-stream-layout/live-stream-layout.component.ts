@@ -7,6 +7,7 @@ import {
     inject,
     Injector,
     OnInit,
+    signal,
     viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -16,6 +17,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -34,6 +36,9 @@ import { PortalChannelsListComponent } from '../portal-channels-list/portal-chan
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../stores/xtream.store';
 
+type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
+const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
+
 @Component({
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
@@ -47,6 +52,7 @@ import { XtreamStore } from '../stores/xtream.store';
         MatIconButton,
         MatInputModule,
         MatListModule,
+        MatMenuModule,
         MatTooltipModule,
         /* MpvPlayerBarComponent, */
         PlaylistSwitcherComponent,
@@ -69,6 +75,13 @@ export class LiveStreamLayoutComponent implements OnInit {
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
     readonly epgItems = this.xtreamStore.epgItems;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
+    readonly liveChannelSortMode = signal<LiveChannelSortMode>('server');
+    readonly liveChannelSortLabel = computed(() => {
+        const mode = this.liveChannelSortMode();
+        if (mode === 'name-asc') return 'Name A-Z';
+        if (mode === 'name-desc') return 'Name Z-A';
+        return 'Server Order';
+    });
 
     readonly selectedCategoryInfo = computed(() => {
         const categoryId = this.selectedCategoryId();
@@ -97,6 +110,17 @@ export class LiveStreamLayoutComponent implements OnInit {
     favorites = new Map<number, boolean>();
 
     ngOnInit() {
+        const savedSortMode = localStorage.getItem(
+            LIVE_CHANNEL_SORT_STORAGE_KEY
+        );
+        if (
+            savedSortMode === 'server' ||
+            savedSortMode === 'name-asc' ||
+            savedSortMode === 'name-desc'
+        ) {
+            this.liveChannelSortMode.set(savedSortMode);
+        }
+
         const playlist = this.xtreamStore.currentPlaylist();
         if (playlist) {
             this.favoritesService
@@ -172,5 +196,10 @@ export class LiveStreamLayoutComponent implements OnInit {
                 this.xtreamStore.reloadCategories();
             }
         });
+    }
+
+    setLiveChannelSortMode(mode: LiveChannelSortMode): void {
+        this.liveChannelSortMode.set(mode);
+        localStorage.setItem(LIVE_CHANNEL_SORT_STORAGE_KEY, mode);
     }
 }

@@ -179,6 +179,29 @@
             display: none;
         }
     }
+
+    // Error state
+    &__error {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 16px;
+
+        .error-icon {
+            font-size: 64px;
+            width: 64px;
+            height: 64px;
+            color: var(--text-muted);
+        }
+
+        .error-title {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+    }
 }
 
 // ============================================================================
