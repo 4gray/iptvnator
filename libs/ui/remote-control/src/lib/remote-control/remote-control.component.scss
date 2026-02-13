@@ -1,398 +1,335 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
+:host {
+    --bg-0: #0a1016;
+    --bg-1: #111c26;
+    --bg-2: #1c2d3b;
+    --line: rgba(177, 220, 255, 0.2);
+    --ink: #e5f5ff;
+    --ink-dim: rgba(229, 245, 255, 0.72);
+    --accent: #2ec4ff;
+    --accent-soft: rgba(46, 196, 255, 0.2);
+    --danger: #ff596d;
+    display: block;
+    min-height: 100vh;
 }
 
-// Main container
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
 .remote {
     min-height: 100vh;
-    width: 100%;
+    padding: 14px;
     display: flex;
-    align-items: center;
     justify-content: center;
-    background-color: #1a1a1a;
-    font-family:
-        -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue',
-        sans-serif;
-    padding: 1rem;
-    background-image:
-        radial-gradient(
-            circle at 50% 20%,
-            rgba(10, 132, 255, 0.15) 0%,
-            transparent 50%
-        ),
-        radial-gradient(
-            circle at 80% 80%,
-            rgba(120, 120, 255, 0.08) 0%,
-            transparent 50%
-        );
+    background:
+        radial-gradient(circle at 12% 8%, rgba(255, 200, 92, 0.18), transparent 35%),
+        radial-gradient(circle at 85% 0%, rgba(46, 196, 255, 0.28), transparent 45%),
+        linear-gradient(145deg, var(--bg-0), var(--bg-1) 58%, var(--bg-2));
+    color: var(--ink);
+    font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
 }
 
 .remote__body {
-    width: 100%;
-    max-width: 420px;
+    width: min(100%, 520px);
+    display: grid;
+    gap: 10px;
+    animation: reveal 0.6s ease-out;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    box-shadow: 0 0 10px rgba(255, 89, 109, 0.7);
+}
+
+.status-dot.is-active {
+    background: #44e38c;
+    box-shadow: 0 0 12px rgba(68, 227, 140, 0.7);
+}
+
+.now-card {
+    padding: 12px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: linear-gradient(
+        155deg,
+        rgba(17, 39, 56, 0.92),
+        rgba(15, 29, 42, 0.86)
+    );
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.now-card__top {
     display: flex;
-    flex-direction: column;
-    gap: 2.5rem;
-    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
 }
 
-// Header
-.remote__header {
-    text-align: center;
+.now-card__statusline {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--ink-dim);
+    white-space: nowrap;
 }
 
-.remote__logo {
-    font-size: 1.5rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: #ffffff;
-    opacity: 0;
-    animation: fadeIn 1s ease-out 0.3s forwards;
+.now-card__label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    color: var(--ink-dim);
 }
 
-// Error message
-.remote__error {
-    background: rgba(255, 69, 58, 0.15);
-    border: 1px solid rgba(255, 69, 58, 0.4);
-    border-radius: 1rem;
-    padding: 1rem 1.25rem;
-    color: #ffb3ab;
-    font-size: 0.875rem;
-    font-weight: 500;
-    text-align: center;
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+.now-card__channel {
+    margin-top: 5px;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.2;
 }
 
-// Touchpad - Main control
-.touchpad {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 1;
-    max-width: 360px;
-    margin: 0 auto;
-    animation: scaleIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+.now-card__meta {
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--ink-dim);
+}
+
+.now-card__program {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #b6d5ea;
+}
+
+.cluster {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 10px;
+    background: rgba(9, 21, 31, 0.72);
+}
+
+.cluster__title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    color: var(--ink-dim);
+    margin-bottom: 10px;
 }
 
 .touchpad__glass {
+    width: min(100%, 320px);
+    aspect-ratio: 1;
+    margin: 0 auto;
     position: relative;
-    width: 100%;
-    height: 100%;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(20px);
-    box-shadow:
-        0 16px 48px rgba(0, 0, 0, 0.6),
-        0 0 0 1px rgba(255, 255, 255, 0.15),
-        inset 0 1px 1px rgba(255, 255, 255, 0.1),
-        inset 0 -1px 1px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
     overflow: hidden;
-
-    // Top reflection
-    &::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 45%;
-        background: linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.25) 0%,
-            rgba(255, 255, 255, 0.1) 50%,
-            transparent 100%
-        );
-        border-radius: 50% 50% 0 0;
-        pointer-events: none;
-    }
-
-    // Bottom shadow
-    &::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 35%;
-        background: linear-gradient(
-            0deg,
-            rgba(0, 0, 0, 0.4) 0%,
-            rgba(0, 0, 0, 0.1) 50%,
-            transparent 100%
-        );
-        border-radius: 0 0 50% 50%;
-        pointer-events: none;
-    }
+    border: 1px solid rgba(97, 166, 214, 0.38);
+    background:
+        radial-gradient(circle at 50% 32%, rgba(46, 196, 255, 0.24), transparent 56%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.01));
 }
 
-.touchpad__edge {
-    position: absolute;
-    inset: -2px;
-    border-radius: 50%;
-    background: radial-gradient(
-        circle at 50% 0%,
-        rgba(255, 255, 255, 0.15),
-        transparent 50%
-    );
-    opacity: 0.6;
-    pointer-events: none;
-    filter: blur(1px);
-}
-
-// Touch buttons
 .touchpad__button {
     position: absolute;
     left: 0;
     width: 100%;
     height: 50%;
+    border: 0;
     background: transparent;
-    border: none;
+    color: var(--ink);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: 180ms ease;
+}
 
-    svg {
-        width: 56px;
-        height: 56px;
-        color: #ffffff;
-        stroke: #ffffff;
-        opacity: 0.5;
-        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
-    }
+.touchpad__button:active:not(:disabled) {
+    background: var(--accent-soft);
+}
 
-    &:hover:not(:disabled) svg {
-        opacity: 0.9;
-        transform: scale(1.05);
-    }
-
-    &:active:not(:disabled) {
-        svg {
-            opacity: 1;
-            transform: scale(0.92);
-        }
-
-        &::after {
-            opacity: 1;
-        }
-    }
-
-    // Ripple effect
-    &::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(
-            circle at center,
-            rgba(10, 132, 255, 0.5) 0%,
-            transparent 70%
-        );
-        opacity: 0;
-        transition: opacity 0.2s ease;
-    }
-
-    &:disabled {
-        cursor: not-allowed;
-        opacity: 0.4;
-    }
-
-    &.is-loading svg {
-        opacity: 0.5;
-        animation: pulse 1.5s ease-in-out infinite;
-    }
+.touchpad__button:disabled {
+    opacity: 0.45;
 }
 
 .touchpad__button--up {
     top: 0;
-    border-radius: 50% 50% 0 0;
-
-    svg {
-        margin-bottom: 20%;
-    }
 }
 
 .touchpad__button--down {
     bottom: 0;
-    border-radius: 0 0 50% 50%;
-
-    svg {
-        margin-top: 20%;
-    }
 }
 
-// Center indicator
 .touchpad__center {
     position: absolute;
-    top: 50%;
     left: 50%;
+    top: 50%;
     transform: translate(-50%, -50%);
-    width: 48px;
-    height: 48px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(167, 218, 255, 0.35);
+    background: rgba(9, 23, 34, 0.9);
+    display: grid;
+    place-items: center;
+    font-size: 24px;
+    font-weight: 700;
 }
 
-.touchpad__pulse {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    transition: all 0.4s ease;
-
-    &.is-active {
-        background: #0a84ff;
-        box-shadow:
-            0 0 12px rgba(10, 132, 255, 0.5),
-            0 0 24px rgba(10, 132, 255, 0.5);
-        animation: breathe 3s ease-in-out infinite;
-    }
+.digit-display {
+    margin-bottom: 8px;
+    border-radius: 12px;
+    border: 1px dashed rgba(167, 218, 255, 0.5);
+    padding: 10px;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-size: 20px;
+    letter-spacing: 0.16em;
+    color: #d5eeff;
 }
 
-// Status bar
-.remote__status {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.625rem;
-    padding: 0.875rem 1.25rem;
+.keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.keypad__key {
+    height: 46px;
+    border-radius: 12px;
+    border: 1px solid rgba(167, 218, 255, 0.34);
+    background: rgba(15, 38, 55, 0.84);
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.keypad__key:active:not(:disabled) {
+    transform: translateY(1px);
+    background: rgba(29, 67, 94, 0.94);
+}
+
+.keypad__key:disabled {
+    opacity: 0.45;
+}
+
+.keypad__key--alt {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+}
+
+.keypad__key--go {
+    background: linear-gradient(140deg, #16a8df, #2ec4ff);
+    color: #042130;
+}
+
+.volume-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+.volume-row__button {
+    min-height: 40px;
+    border-radius: 10px;
+    border: 1px solid rgba(167, 218, 255, 0.34);
+    background: rgba(15, 38, 55, 0.84);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.volume-row__button--mute {
+    border-color: rgba(255, 129, 143, 0.45);
+}
+
+.volume-row__button:disabled {
+    opacity: 0.45;
+}
+
+.volume-meter {
+    margin-top: 10px;
+    height: 10px;
+    border-radius: 999px;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 1.25rem;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    animation: fadeIn 1s ease-out 0.5s backwards;
+    overflow: hidden;
 }
 
-.status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.25);
-    transition: all 0.4s ease;
+.volume-meter__fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #1fa8de, #42e8ff);
+    transition: width 180ms ease;
+}
 
-    &.is-active {
-        background: #30d158;
-        box-shadow:
-            0 0 8px rgba(48, 209, 88, 0.5),
-            0 0 16px rgba(48, 209, 88, 0.3);
-        animation: breathe 2.5s ease-in-out infinite;
+.volume-caption {
+    margin-top: 6px;
+    color: var(--ink-dim);
+    font-size: 12px;
+}
+
+.remote__error {
+    border-radius: 12px;
+    border: 1px solid rgba(255, 117, 132, 0.5);
+    background: rgba(78, 12, 24, 0.65);
+    color: #ffd9de;
+    font-size: 13px;
+    padding: 10px 12px;
+}
+
+.remote__footer {
+    text-align: center;
+    color: rgba(213, 238, 255, 0.72);
+    font-size: 12px;
+    padding-bottom: 10px;
+}
+
+@media (max-width: 640px) {
+    .remote {
+        padding: 8px;
+    }
+
+    .remote__body {
+        width: 100%;
+        max-width: none;
+        gap: 8px;
+    }
+
+    .now-card {
+        border-radius: 14px;
+    }
+
+    .cluster {
+        border-radius: 14px;
+        padding: 9px;
+    }
+
+    .touchpad__glass {
+        width: min(100%, 360px);
+    }
+
+    .keypad__key {
+        height: 44px;
+    }
+
+    .volume-row__button {
+        min-height: 38px;
     }
 }
 
-.status-text {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.7);
-    letter-spacing: 0.01em;
-}
-
-// Animations
-@keyframes fadeIn {
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes fadeInUp {
+@keyframes reveal {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(8px);
     }
     to {
         opacity: 1;
         transform: translateY(0);
-    }
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-8px);
-    }
-}
-
-@keyframes scaleIn {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-}
-
-@keyframes breathe {
-    0%,
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 0.7;
-        transform: scale(0.9);
-    }
-}
-
-@keyframes pulse {
-    0%,
-    100% {
-        opacity: 0.5;
-    }
-    50% {
-        opacity: 0.8;
-    }
-}
-
-// Responsive
-@media (max-width: 480px) {
-    .remote__logo {
-        font-size: 1.25rem;
-    }
-
-    .touchpad {
-        max-width: 320px;
-    }
-
-    .touchpad__button svg {
-        width: 48px;
-        height: 48px;
-    }
-}
-
-@media (max-width: 360px) {
-    .touchpad {
-        max-width: 280px;
-    }
-
-    .touchpad__button svg {
-        width: 42px;
-        height: 42px;
-    }
-
-    .touchpad__center {
-        width: 40px;
-        height: 40px;
-    }
-
-    .touchpad__pulse {
-        width: 14px;
-        height: 14px;
-    }
-}
-
-// Accessibility
-@media (prefers-reduced-motion: reduce) {
-    * {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
     }
 }

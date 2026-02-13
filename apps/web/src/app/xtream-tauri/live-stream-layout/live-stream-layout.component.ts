@@ -4,6 +4,7 @@ import {
     Component,
     computed,
     ElementRef,
+    effect,
     inject,
     Injector,
     OnDestroy,
@@ -26,7 +27,10 @@ import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { XtreamCategory } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
-import { getAdjacentChannelItem } from '../../shared/services/remote-channel-navigation.util';
+import {
+    getAdjacentChannelItem,
+    getChannelItemByNumber,
+} from '../../shared/services/remote-channel-navigation.util';
 import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
@@ -107,10 +111,50 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     });
     private categoryScrollTop = 0;
     private unsubscribeRemoteChannelChange?: () => void;
+    private unsubscribeRemoteCommand?: () => void;
 
     readonly player = this.settingsStore.player;
     streamUrl: string;
     favorites = new Map<number, boolean>();
+
+    constructor() {
+        effect(() => {
+            if (!window.electron?.updateRemoteControlStatus) {
+                return;
+            }
+
+            const selectedContentType = this.xtreamStore.selectedContentType();
+            const selectedItem = this.xtreamStore.selectedItem();
+            const channels = this.xtreamStore.selectItemsFromSelectedCategory() as any[];
+            const epgItems = this.xtreamStore.epgItems();
+
+            if (selectedContentType !== 'live' || !selectedItem?.xtream_id) {
+                window.electron.updateRemoteControlStatus({
+                    portal: 'xtream',
+                    isLiveView: false,
+                    supportsVolume: false,
+                });
+                return;
+            }
+
+            const currentIndex = channels.findIndex(
+                (item) =>
+                    Number(item.xtream_id) === Number(selectedItem.xtream_id)
+            );
+            const currentProgram = epgItems?.[0];
+
+            window.electron.updateRemoteControlStatus({
+                portal: 'xtream',
+                isLiveView: true,
+                channelName: selectedItem.title ?? selectedItem.name,
+                channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
+                epgTitle: currentProgram?.title,
+                epgStart: (currentProgram as any)?.start,
+                epgEnd: (currentProgram as any)?.end,
+                supportsVolume: false,
+            });
+        });
+    }
 
     ngOnInit() {
         if (window.electron?.onChannelChange) {
@@ -121,6 +165,16 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             });
             if (typeof unsubscribe === 'function') {
                 this.unsubscribeRemoteChannelChange = unsubscribe;
+            }
+        }
+        if (window.electron?.onRemoteControlCommand) {
+            const unsubscribe = window.electron.onRemoteControlCommand(
+                (command) => {
+                    this.handleRemoteControlCommand(command);
+                }
+            );
+            if (typeof unsubscribe === 'function') {
+                this.unsubscribeRemoteCommand = unsubscribe;
             }
         }
 
@@ -219,6 +273,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.unsubscribeRemoteChannelChange?.();
+        this.unsubscribeRemoteCommand?.();
     }
 
     private handleRemoteChannelChange(direction: 'up' | 'down'): void {
@@ -240,5 +295,26 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         }
 
         this.playLive(nextItem);
+    }
+
+    private handleRemoteControlCommand(command: {
+        type:
+            | 'channel-select-number'
+            | 'volume-up'
+            | 'volume-down'
+            | 'volume-toggle-mute';
+        number?: number;
+    }): void {
+        if (command.type !== 'channel-select-number' || !command.number) {
+            return;
+        }
+
+        const channels = this.xtreamStore.selectItemsFromSelectedCategory() as any[];
+        const channel = getChannelItemByNumber(channels, command.number);
+        if (!channel) {
+            return;
+        }
+
+        this.playLive(channel);
     }
 }

@@ -195,6 +195,28 @@ declare global {
             onChannelChange?: (
                 callback: (data: { direction: 'up' | 'down' }) => void
             ) => () => void;
+            onRemoteControlCommand?: (
+                callback: (data: {
+                    type:
+                        | 'channel-select-number'
+                        | 'volume-up'
+                        | 'volume-down'
+                        | 'volume-toggle-mute';
+                    number?: number;
+                }) => void
+            ) => () => void;
+            updateRemoteControlStatus?: (status: {
+                portal: 'm3u' | 'xtream' | 'stalker' | 'unknown';
+                isLiveView: boolean;
+                channelName?: string;
+                channelNumber?: number;
+                epgTitle?: string;
+                epgStart?: string;
+                epgEnd?: string;
+                supportsVolume?: boolean;
+                volume?: number;
+                muted?: boolean;
+            }) => void;
             // Player error notifications
             onPlayerError?: (
                 callback: (data: {

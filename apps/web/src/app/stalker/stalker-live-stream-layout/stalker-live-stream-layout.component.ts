@@ -26,7 +26,10 @@ import { EpgItem } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
 import { PlayerService } from '../../services/player.service';
-import { getAdjacentChannelItem } from '../../shared/services/remote-channel-navigation.util';
+import {
+    getAdjacentChannelItem,
+    getChannelItemByNumber,
+} from '../../shared/services/remote-channel-navigation.util';
 import { CategoryViewComponent } from '../../xtream-tauri/category-view/category-view.component';
 import { PlaylistErrorViewComponent } from '../../xtream/playlist-error-view/playlist-error-view.component';
 import { StalkerStore } from '../stalker.store';
@@ -109,6 +112,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private scrollListener: (() => void) | null = null;
     private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private unsubscribeRemoteChannelChange?: () => void;
+    private unsubscribeRemoteCommand?: () => void;
 
     constructor() {
         // Load favorites for current playlist
@@ -157,6 +161,42 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             }, 500);
         });
 
+        effect(() => {
+            if (!window.electron?.updateRemoteControlStatus) {
+                return;
+            }
+
+            const selectedItem = this.stalkerStore.selectedItem();
+            const selectedType = this.stalkerStore.selectedContentType();
+            const channels = this.itvChannels();
+            const epgItems = this.epgItems();
+
+            if (selectedType !== 'itv' || !selectedItem?.id) {
+                window.electron.updateRemoteControlStatus({
+                    portal: 'stalker',
+                    isLiveView: false,
+                    supportsVolume: false,
+                });
+                return;
+            }
+
+            const currentIndex = channels.findIndex(
+                (item) => Number(item.id) === Number(selectedItem.id)
+            );
+            const currentProgram = epgItems?.[0];
+
+            window.electron.updateRemoteControlStatus({
+                portal: 'stalker',
+                isLiveView: true,
+                channelName: selectedItem.o_name || selectedItem.name,
+                channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
+                epgTitle: currentProgram?.title,
+                epgStart: (currentProgram as any)?.start,
+                epgEnd: (currentProgram as any)?.end,
+                supportsVolume: false,
+            });
+        });
+
         if (window.electron?.onChannelChange) {
             const unsubscribe = window.electron.onChannelChange((data: {
                 direction: 'up' | 'down';
@@ -167,10 +207,21 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 this.unsubscribeRemoteChannelChange = unsubscribe;
             }
         }
+        if (window.electron?.onRemoteControlCommand) {
+            const unsubscribe = window.electron.onRemoteControlCommand(
+                (command) => {
+                    this.handleRemoteControlCommand(command);
+                }
+            );
+            if (typeof unsubscribe === 'function') {
+                this.unsubscribeRemoteCommand = unsubscribe;
+            }
+        }
     }
 
     ngOnDestroy() {
         this.unsubscribeRemoteChannelChange?.();
+        this.unsubscribeRemoteCommand?.();
         this.removeScrollListener();
         if (this.searchDebounceTimer) {
             clearTimeout(this.searchDebounceTimer);
@@ -423,5 +474,25 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         }
 
         void this.playChannel(nextItem);
+    }
+
+    private handleRemoteControlCommand(command: {
+        type:
+            | 'channel-select-number'
+            | 'volume-up'
+            | 'volume-down'
+            | 'volume-toggle-mute';
+        number?: number;
+    }): void {
+        if (command.type !== 'channel-select-number' || !command.number) {
+            return;
+        }
+
+        const channel = getChannelItemByNumber(this.itvChannels(), command.number);
+        if (!channel) {
+            return;
+        }
+
+        void this.playChannel(channel);
     }
 }

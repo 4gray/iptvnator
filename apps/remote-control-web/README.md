@@ -12,6 +12,9 @@ This is a standalone Angular application designed to be served by IPTVnator's El
 - **Mobile-Optimized** - Touch-friendly interface designed for phones and tablets
 - **Real-time Control** - Instant channel switching via REST API
 - **Multi-Portal Support** - Works with M3U playlists, Xtream Live TV, and Stalker ITV sections
+- **Numeric Channel Input** - Enter channel numbers directly from the web remote
+- **Live Status Panel** - Displays active channel and current EPG program when available
+- **Volume Controls** - Volume up/down/mute when the active player supports remote volume
 - **Minimal & Fast** - Lightweight app (~55 KB compressed) with no external dependencies
 - **Responsive** - Adapts to different screen sizes (320px - 480px+)
 
@@ -34,7 +37,7 @@ This is a standalone Angular application designed to be served by IPTVnator's El
 
 1. **HTTP Server**: Electron backend starts an HTTP server (default port: 8765)
 2. **Static Files**: Serves this Angular app's built files
-3. **REST API**: Exposes `/api/remote-control/channel/up` and `/api/remote-control/channel/down` endpoints
+3. **REST API**: Exposes channel/volume/status endpoints for the web remote
 4. **IPC Communication**: HTTP server sends events to the main Electron window
 5. **Channel Switching**: Main app receives events and switches to next/previous live channel in the active live view
 
@@ -43,6 +46,11 @@ This is a standalone Angular application designed to be served by IPTVnator's El
 - `GET /` - Serves the remote control web interface
 - `POST /api/remote-control/channel/up` - Switch to previous channel
 - `POST /api/remote-control/channel/down` - Switch to next channel
+- `POST /api/remote-control/channel/select-number` - Switch by channel number
+- `POST /api/remote-control/volume/up` - Increase volume
+- `POST /api/remote-control/volume/down` - Decrease volume
+- `POST /api/remote-control/volume/toggle-mute` - Toggle mute
+- `GET /api/remote-control/status` - Get current playback status for remote UI
 
 ## Usage
 

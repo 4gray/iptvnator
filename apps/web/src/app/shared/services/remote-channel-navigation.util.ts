@@ -32,3 +32,26 @@ export function getAdjacentChannelItem<T>(
 
     return items[nextIndex] ?? null;
 }
+
+/**
+ * Returns the Nth item in a list (1-based index), or null if out of range.
+ */
+export function getChannelItemByNumber<T>(
+    items: T[],
+    channelNumber: number
+): T | null {
+    if (
+        !Array.isArray(items) ||
+        items.length === 0 ||
+        !Number.isFinite(channelNumber)
+    ) {
+        return null;
+    }
+
+    const index = Math.floor(channelNumber) - 1;
+    if (index < 0 || index >= items.length) {
+        return null;
+    }
+
+    return items[index] ?? null;
+}
