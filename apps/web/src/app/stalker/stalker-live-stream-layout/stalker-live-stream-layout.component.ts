@@ -26,6 +26,7 @@ import { EpgItem } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
 import { PlayerService } from '../../services/player.service';
+import { getAdjacentChannelItem } from '../../shared/services/remote-channel-navigation.util';
 import { CategoryViewComponent } from '../../xtream-tauri/category-view/category-view.component';
 import { PlaylistErrorViewComponent } from '../../xtream/playlist-error-view/playlist-error-view.component';
 import { StalkerStore } from '../stalker.store';
@@ -107,6 +108,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly scrollContainer = viewChild<ElementRef>('scrollContainer');
     private scrollListener: (() => void) | null = null;
     private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private unsubscribeRemoteChannelChange?: () => void;
 
     constructor() {
         // Load favorites for current playlist
@@ -154,9 +156,21 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 this.stalkerStore.setSearchPhrase(search);
             }, 500);
         });
+
+        if (window.electron?.onChannelChange) {
+            const unsubscribe = window.electron.onChannelChange((data: {
+                direction: 'up' | 'down';
+            }) => {
+                this.handleRemoteChannelChange(data.direction);
+            });
+            if (typeof unsubscribe === 'function') {
+                this.unsubscribeRemoteChannelChange = unsubscribe;
+            }
+        }
     }
 
     ngOnDestroy() {
+        this.unsubscribeRemoteChannelChange?.();
         this.removeScrollListener();
         if (this.searchDebounceTimer) {
             clearTimeout(this.searchDebounceTimer);
@@ -388,5 +402,26 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.scrollListener();
             this.scrollListener = null;
         }
+    }
+
+    private handleRemoteChannelChange(direction: 'up' | 'down'): void {
+        const activeItem = this.stalkerStore.selectedItem();
+        if (!activeItem?.id) {
+            return;
+        }
+
+        const channels = this.itvChannels();
+        const nextItem = getAdjacentChannelItem(
+            channels,
+            activeItem.id,
+            direction,
+            (item) => item.id
+        );
+
+        if (!nextItem) {
+            return;
+        }
+
+        void this.playChannel(nextItem);
     }
 }

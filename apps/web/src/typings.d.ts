@@ -194,7 +194,7 @@ declare global {
             // Remote control
             onChannelChange?: (
                 callback: (data: { direction: 'up' | 'down' }) => void
-            ) => void;
+            ) => () => void;
             // Player error notifications
             onPlayerError?: (
                 callback: (data: {

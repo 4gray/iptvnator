@@ -5,7 +5,10 @@ contextBridge.exposeInMainWorld('electron', {
     onChannelChange: (
         callback: (data: { direction: 'up' | 'down' }) => void
     ) => {
-        ipcRenderer.on('CHANNEL_CHANGE', (_event, data) => callback(data));
+        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
+            callback(data);
+        ipcRenderer.on('CHANNEL_CHANGE', handler);
+        return () => ipcRenderer.off('CHANNEL_CHANGE', handler);
     },
     // Player error listener
     onPlayerError: (

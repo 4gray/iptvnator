@@ -5,6 +5,7 @@ import {
     Component,
     HostListener,
     Injector,
+    OnDestroy,
     OnInit,
     effect,
     inject,
@@ -53,6 +54,7 @@ import {
     VideoPlayer,
 } from 'shared-interfaces';
 import { SettingsStore } from '../../services/settings-store.service';
+import { getAdjacentChannelItem } from '../../shared/services/remote-channel-navigation.util';
 import { SettingsComponent } from '../../settings/settings.component';
 
 @Component({
@@ -74,7 +76,7 @@ import { SettingsComponent } from '../../settings/settings.component';
     templateUrl: './video-player.component.html',
     styleUrl: './video-player.component.scss',
 })
-export class VideoPlayerComponent implements OnInit {
+export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly dataService = inject(DataService);
     private readonly dialog = inject(MatDialog);
@@ -108,6 +110,7 @@ export class VideoPlayerComponent implements OnInit {
 
     /** EPG overlay reference */
     private overlayRef!: OverlayRef;
+    private unsubscribeRemoteChannelChange?: () => void;
 
     /** Info overlay component reference for manual triggering */
     readonly infoOverlay = viewChild(InfoOverlayComponent);
@@ -144,11 +147,14 @@ export class VideoPlayerComponent implements OnInit {
 
         // Setup remote control channel change listener (Electron only)
         if (this.isDesktop && window.electron?.onChannelChange) {
-            window.electron.onChannelChange(
-                (data: { direction: 'up' | 'down' }) => {
-                    this.handleRemoteChannelChange(data.direction);
-                }
-            );
+            const unsubscribe = window.electron.onChannelChange((data: {
+                direction: 'up' | 'down';
+            }) => {
+                this.handleRemoteChannelChange(data.direction);
+            });
+            if (typeof unsubscribe === 'function') {
+                this.unsubscribeRemoteChannelChange = unsubscribe;
+            }
         }
 
         this.channels$ = this.activatedRoute.params.pipe(
@@ -229,33 +235,17 @@ export class VideoPlayerComponent implements OnInit {
             )
             .subscribe({
                 next: ({ channels, activeChannel }) => {
-                    // Find current channel index
-                    const currentIndex = channels.findIndex(
-                        (ch) => ch.url === activeChannel.url
+                    const nextChannel = getAdjacentChannelItem(
+                        channels,
+                        activeChannel.url,
+                        direction,
+                        (channel) => channel.url
                     );
 
-                    if (currentIndex === -1) {
+                    if (!nextChannel) {
                         return;
                     }
 
-                    // Calculate next/previous index with wraparound
-                    let nextIndex: number;
-                    if (direction === 'up') {
-                        // Up = previous channel (decrease index)
-                        nextIndex =
-                            currentIndex - 1 < 0
-                                ? channels.length - 1
-                                : currentIndex - 1;
-                    } else {
-                        // Down = next channel (increase index)
-                        nextIndex =
-                            currentIndex + 1 >= channels.length
-                                ? 0
-                                : currentIndex + 1;
-                    }
-
-                    // Dispatch action to change channel
-                    const nextChannel = channels[nextIndex];
                     this.store.dispatch(
                         ChannelActions.setActiveChannel({
                             channel: nextChannel,
@@ -266,6 +256,10 @@ export class VideoPlayerComponent implements OnInit {
                     console.error('Error changing channel:', err);
                 },
             });
+    }
+
+    ngOnDestroy(): void {
+        this.unsubscribeRemoteChannelChange?.();
     }
 
     /**

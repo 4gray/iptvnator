@@ -6,6 +6,7 @@ import {
     ElementRef,
     inject,
     Injector,
+    OnDestroy,
     OnInit,
     signal,
     viewChild,
@@ -25,6 +26,7 @@ import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { XtreamCategory } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
+import { getAdjacentChannelItem } from '../../shared/services/remote-channel-navigation.util';
 import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
@@ -63,7 +65,7 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LiveStreamLayoutComponent implements OnInit {
+export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
@@ -104,12 +106,24 @@ export class LiveStreamLayoutComponent implements OnInit {
         read: ElementRef,
     });
     private categoryScrollTop = 0;
+    private unsubscribeRemoteChannelChange?: () => void;
 
     readonly player = this.settingsStore.player;
     streamUrl: string;
     favorites = new Map<number, boolean>();
 
     ngOnInit() {
+        if (window.electron?.onChannelChange) {
+            const unsubscribe = window.electron.onChannelChange((data: {
+                direction: 'up' | 'down';
+            }) => {
+                this.handleRemoteChannelChange(data.direction);
+            });
+            if (typeof unsubscribe === 'function') {
+                this.unsubscribeRemoteChannelChange = unsubscribe;
+            }
+        }
+
         const savedSortMode = localStorage.getItem(
             LIVE_CHANNEL_SORT_STORAGE_KEY
         );
@@ -201,5 +215,30 @@ export class LiveStreamLayoutComponent implements OnInit {
     setLiveChannelSortMode(mode: LiveChannelSortMode): void {
         this.liveChannelSortMode.set(mode);
         localStorage.setItem(LIVE_CHANNEL_SORT_STORAGE_KEY, mode);
+    }
+
+    ngOnDestroy(): void {
+        this.unsubscribeRemoteChannelChange?.();
+    }
+
+    private handleRemoteChannelChange(direction: 'up' | 'down'): void {
+        const activeItem = this.xtreamStore.selectedItem();
+        if (!activeItem?.xtream_id) {
+            return;
+        }
+
+        const channels = this.xtreamStore.selectItemsFromSelectedCategory() as any[];
+        const nextItem = getAdjacentChannelItem(
+            channels,
+            activeItem.xtream_id,
+            direction,
+            (item) => item.xtream_id
+        );
+
+        if (!nextItem) {
+            return;
+        }
+
+        this.playLive(nextItem);
     }
 }

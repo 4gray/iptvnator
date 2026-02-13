@@ -1,6 +1,6 @@
 # Remote Control Web App
 
-A lightweight, mobile-optimized web application that provides remote control functionality for IPTVnator. Control channel switching from your phone or tablet on the same network.
+A lightweight, mobile-optimized web application that provides remote control functionality for IPTVnator. Control live channel switching from your phone or tablet on the same network.
 
 ## Overview
 
@@ -11,6 +11,7 @@ This is a standalone Angular application designed to be served by IPTVnator's El
 - **Apple TV-Inspired Design** - Premium dark theme with glass morphism effects
 - **Mobile-Optimized** - Touch-friendly interface designed for phones and tablets
 - **Real-time Control** - Instant channel switching via REST API
+- **Multi-Portal Support** - Works with M3U playlists, Xtream Live TV, and Stalker ITV sections
 - **Minimal & Fast** - Lightweight app (~55 KB compressed) with no external dependencies
 - **Responsive** - Adapts to different screen sizes (320px - 480px+)
 
@@ -35,7 +36,7 @@ This is a standalone Angular application designed to be served by IPTVnator's El
 2. **Static Files**: Serves this Angular app's built files
 3. **REST API**: Exposes `/api/remote-control/channel/up` and `/api/remote-control/channel/down` endpoints
 4. **IPC Communication**: HTTP server sends events to the main Electron window
-5. **Channel Switching**: Main app receives events and switches to next/previous channel
+5. **Channel Switching**: Main app receives events and switches to next/previous live channel in the active live view
 
 ### API Endpoints
 
@@ -166,7 +167,9 @@ Potential improvements:
 
 - **HTTP Server**: `apps/electron-backend/src/app/server/http-server.ts`
 - **Remote Control Events**: `apps/electron-backend/src/app/events/remote-control.events.ts`
-- **Main App Handler**: `apps/web/src/app/home/video-player/video-player.component.ts` (handleRemoteChannelChange method)
+- **M3U Handler**: `apps/web/src/app/home/video-player/video-player.component.ts` (handleRemoteChannelChange method)
+- **Xtream Live Handler**: `apps/web/src/app/xtream-tauri/live-stream-layout/live-stream-layout.component.ts`
+- **Stalker ITV Handler**: `apps/web/src/app/stalker/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
 - **Settings UI**: `apps/web/src/app/settings/settings.component.html`
 
 ## License
