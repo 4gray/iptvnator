@@ -15,6 +15,14 @@
         "PLAYLISTS": {
             "NO_PLAYLISTS": "Oynatma listesi eklenmedi",
             "ADD_FIRST": "Lütfen ilk oynatma listenizi ekleyin",
+            "WELCOME_TITLE": "IPTVnator'a Hoş Geldiniz",
+            "WELCOME_DESCRIPTION": "İlk oynatma listenizi ekleyerek yayın yolculuğunuza başlayın. Favori IPTV hizmetinize bağlanın ve canlı TV, film ve dizilerin keyfini çıkarın.",
+            "ADD_YOUR_FIRST": "İlk Oynatma Listenizi Ekleyin",
+            "FEATURE_M3U": "M3U/M3U8 Dosyaları",
+            "FEATURE_XTREAM": "Xtream Kodları",
+            "FEATURE_STALKER": "Stalker Portalı",
+            "NO_RESULTS_TITLE": "Oynatma listesi bulunamadı",
+            "NO_RESULTS_DESCRIPTION": "Aramanızla eşleşen oynatma listesi yok. Arama terimlerinizi değiştirmeyi deneyin veya tüm oynatma listelerini görmek için filtreyi temizleyin.",
             "ADDED_VIA_URL": "URL yüklemesi ile eklendi. URL:",
             "ADDED_VIA_FILE": "Dosya yüklemesi ile eklendi",
             "XTREAM_PLAYLIST": "Xtream oynatma listesi",
@@ -43,19 +51,34 @@
                 "SERVER_URL": "Sunucu URL'si",
                 "USERNAME": "Kullanıcı Adı",
                 "PASSWORD": "Parola",
-                "MAC_ADDRESS": "MAC Adresi"
+                "MAC_ADDRESS": "MAC Adresi",
+                "PLAYLIST_EXPORT_SUCCESS": "Oynatma listesi başarıyla dışa aktarıldı.",
+                "PLAYLIST_EXPORT_ERROR": "Hata: Oynatma listesi dışa aktarılamadı.",
+                "COPY_URL": "URL'yi panoya kopyala",
+                "URL_COPIED": "URL panoya kopyalandı"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Oynatma Listesini Kaldır",
-                "MESSAGE": "Bu oynatma listesini tamamen silmek istediğinizden emin misiniz?"
+                "MESSAGE": "Bu oynatma listesini tamamen silmek istediğinizden emin misiniz?",
+                "SUCCESS": "Oynatma listesi başarıyla kaldırıldı"
             },
             "UPDATED": "Güncellendi",
             "REFRESH": "Oynatma listesini yenile",
+            "REFRESH_XTREAM": "Xtream oynatma listesini uzaktan yenile",
+            "REFRESH_XTREAM_DIALOG": {
+                "TITLE": "Xtream Oynatma Listesini Yenile",
+                "MESSAGE": "Bu işlem yerel olarak önbelleğe alınmış kategorileri ve yayınları silecek ve her şeyi uzaktan sunucudan yeniden içe aktaracaktır. Favorileriniz ve son izlenen öğeleriniz korunacaktır. Devam etmek istediğinizden emin misiniz?",
+                "STARTED": "Yenileme başladı. Oynatma listesine gidiliyor...",
+                "ERROR": "Oynatma listesi yenilenemedi. Lütfen tekrar deneyin."
+            },
             "GLOBAL_FAVORITES": "Tüm Favoriler",
             "GLOBAL_FAVORITES_DESCRIPTION": "Tüm oynatma listelerinden oluşan otomatik favori liste",
             "MY_PLAYLISTS": "Oynatma Listelerim",
             "MY_PLAYLISTS_SUBTITLE": "tüm oynatma listeleri",
-            "PLAYLIST_UPDATE_SUCCESS": "Başarılı! Oynatma listesi başarıyla güncellendi."
+            "PLAYLIST_UPDATE_SUCCESS": "Başarılı! Oynatma listesi başarıyla güncellendi.",
+            "PLAYLIST_UPDATE_ERROR": "Oynatma listesi ayrıntıları güncellenirken hata oluştu.",
+            "AUTO_REFRESH_UPDATE_SUCCESS": "Başarılı! Oynatma listeleri başarıyla güncellendi",
+            "AUTO_REFRESH_ENABLED": "Otomatik yenileme etkin"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Dosyaları buraya sürükleyip bırakın",
@@ -84,12 +107,36 @@
         "STALKER_PORTAL": {
             "TITLE": "Başlık",
             "MAC_ADDRESS": "MAC Adresi",
+            "SERIAL_NUMBER": "Seri Numarası (İsteğe Bağlı)",
+            "SERIAL_NUMBER_HINT": "Sağlayıcıya zaten kayıtlıysa kullanın",
+            "DEVICE_ID_1": "Cihaz Kimliği 1 (İsteğe Bağlı)",
+            "DEVICE_ID_2": "Cihaz Kimliği 2 (İsteğe Bağlı)",
+            "DEVICE_ID_HINT": "64 onaltılık karakter - sağlayıcı belirli bir cihaz kimliği gerektiriyorsa kullanın",
+            "SIGNATURE_1": "İmza 1 (İsteğe Bağlı)",
+            "SIGNATURE_2": "İmza 2 (İsteğe Bağlı)",
+            "SIGNATURE_HINT": "64 onaltılık karakter - sağlayıcı cihaz doğrulama imzaları gerektiriyorsa kullanın",
             "SERVER_URL": "Sunucu URL'si",
             "URL_VALIDATION_ERROR": "Geçerli bir URL olmalıdır (örn. http://example.com/c veya https://example.com/stalker_portal/c)",
-            "ADD": "Ekle"
+            "ADD": "Ekle",
+            "VALIDATING": "Portal doğrulanıyor..."
         },
         "FILTER_BY_NAME": "İsime göre filtrele",
         "FILTER_BY_TYPE": "Türe göre filtrele",
+        "FILTER_AND_SORT": "Filtrele ve Sırala",
+        "SORT_PLAYLISTS": "Oynatma listelerini sırala",
+        "SORT_BY": "Sıralama ölçütü",
+        "SORT_OPTIONS": {
+            "NAME_ASC": "İsim (A-Z)",
+            "NAME_DESC": "İsim (Z-A)",
+            "NEWEST": "Eklenme tarihi (En yeni önce)",
+            "OLDEST": "Eklenme tarihi (En eski önce)",
+            "CUSTOM_ORDER": "Özel sıralama (Sürükle ve Bırak)"
+        },
+        "PLAYLIST_TYPES": {
+            "M3U": "M3U (yerel, url, metin)",
+            "XTREAM": "Xtream",
+            "STALKER": "Stalker"
+        },
         "IMPORTED_AS_TEXT": "Metin olarak içe aktarıldı",
         "PARSING_ERROR": "Hata: Ayrıştırma başarısız, geçerli bir oynatma listesi değil:"
     },
@@ -107,13 +154,21 @@
         "BACK_TO_HOME": "Ana sayfaya dön",
         "NEW_VERSION_AVAILABLE": "Yeni bir sürüm mevcut",
         "LATEST_VERSION": "En son sürümü kullanıyorsunuz",
+        "STREAM_FORMAT": "Yayın Formatı",
         "LANGUAGE": "Dil",
         "SETTINGS_SAVED": "Başarılı! Yapılandırma kaydedildi.",
         "THEME": "Görünüm teması",
         "SHOW_CAPTIONS": "Altyazıları göster",
         "ADD_EPG_SOURCE": "EPG kaynağı ekle",
+        "CLEAR_EPG_DATA": "EPG verilerini temizle",
+        "CLEAR_EPG_DIALOG": {
+            "TITLE": "EPG verilerini temizle",
+            "MESSAGE": "Tüm EPG (Elektronik Program Rehberi) verilerini veritabanından silmek istediğinizden emin misiniz? Bu işlem, önbelleğe alınmış tüm program çizelgelerini silecektir."
+        },
+        "EPG_DATA_CLEARED": "EPG verileri temizlendi",
         "EPG_URL_ERROR": "Girilen değer geçerli bir URL değildir",
         "VIDEO_PLAYER_DESCRIPTION": "Varsayılan video oynatıcıyı seçin",
+        "STREAM_FORMAT_DESCRIPTION": "Varsayılan yayın formatını seçin (xtream)",
         "LANGUAGE_DESCRIPTION": "Uygulamanın dilini seçin",
         "THEME_DESCRIPTION": "Uygulamanın görünüm temasını seçin",
         "SHOW_CAPTIONS_DESCRIPTION": "Varsayılan olarak altyazıları göster veya gizle",
@@ -136,13 +191,22 @@
         "MPV_PLAYER_PATH_LABEL": "mpv yolu",
         "MPV_PLAYER_PATH_DESCRIPTION": "Sisteminizdeki mpv oynatıcı yolunu ayarlayın. $PATH'de bulunanı kullanmak yerine, sağlanan mpv ikili dosyası yolunu kullanacaktır.",
         "MPV_PLAYER_PATH": "mpv oynatıcı yolu",
+        "MPV_REUSE_INSTANCE_LABEL": "MPV örneğini yeniden kullan",
+        "MPV_REUSE_INSTANCE_DESCRIPTION": "Etkinleştirildiğinde, farklı yayınları oynatmak için aynı MPV penceresi yeniden kullanılır. Devre dışı bırakıldığında, her yayın yeni bir MPV penceresinde açılır.",
         "VLC_PLAYER_PATH_LABEL": "VLC yolu",
         "VLC_PLAYER_PATH_DESCRIPTION": "Sisteminizdeki VLC oynatıcı yolunu ayarlayın. Sistemimiz için varsayılan yolu kullanmak yerine, sağlanan VLC ikili dosyası yolunu kullanacaktır.",
         "VLC_PLAYER_PATH": "VLC oynatıcı yolu",
         "REMOTE_CONTROL": "Uzaktan kontrol",
         "REMOTE_CONTROL_DESCRIPTION": "Uygulamanın uzaktan kontrolünü etkinleştirin.",
         "REMOTE_CONTROL_PORT": "Uzaktan kontrol portu",
-        "REMOTE_CONTROL_PORT_DESCRIPTION": "Uygulamanın uzaktan kontrolü için kullanılan port. Varsayılan olarak port 3000 kullanılır."
+        "REMOTE_CONTROL_PORT_DESCRIPTION": "Uygulamanın uzaktan kontrolü için kullanılan port. Varsayılan olarak port 8765 kullanılır.",
+        "REMOTE_CONTROL_URL": "Uzaktan kontrol URL'si",
+        "REMOTE_CONTROL_URL_DESCRIPTION": "Aynı ağdaki başka bir cihazdan uzaktan kontrole erişin.",
+        "SHOW_QR_CODE": "QR kodunu göster",
+        "PORT_REQUIRED": "Port gereklidir",
+        "PORT_MIN": "Port en az 1 olmalıdır",
+        "PORT_MAX": "Port en fazla 65535 olmalıdır",
+        "PORT_PATTERN": "Sadece rakamlara izin verilir"
     },
     "THEMES": {
         "DARK_THEME": "Koyu tema",
@@ -159,17 +223,25 @@
         "NO_FAVORITES": "Henüz favori yok",
         "USE_STAR_TO_FAVORITE": "Lütfen favorilere kanal eklemek için 'yıldız' simgesini kullanın.",
         "REMOVE_FAVORITE": "Favorilerden kaldır",
+        "ADD_FAVORITE": "Favorilere ekle",
         "FAVORITES_UPDATED": "Favoriler güncellendi!",
         "SORT_BY": "Sırala",
         "SORT_BY_DATE": "Eklenme tarihine göre sırala (Önce En Yeni)",
         "SORT_BY_RATING": "Puana göre sırala",
-        "SORT_BY_NAME": "İsme göre sırala (A-Z)"
+        "SORT_BY_NAME": "İsme göre sırala (A-Z)",
+        "LOAD_MORE": "Daha fazla yükle",
+        "REMAINING": "kalan",
+        "LOADING": "Kanallar yükleniyor...",
+        "LOADING_MORE": "Daha fazla yükleniyor...",
+        "NO_SEARCH_RESULTS": "Kanal bulunamadı",
+        "TRY_DIFFERENT_SEARCH": "Farklı bir arama terimi deneyin"
     },
     "TOP_MENU": {
         "OPEN_CHANNELS_LIST": "Kanal listesini aç",
         "TOGGLE_FAVORITE_FLAG": "Favori işaretini değiştir",
         "OPEN_EPG_LIST": "EPG listesini aç",
-        "OPEN_MULTI_EPG": "Çoklu EPG görünümünü aç"
+        "OPEN_MULTI_EPG": "Çoklu EPG görünümünü aç",
+        "SHOW_INFO": "Program bilgisini göster (I tuşuna basın)"
     },
     "EPG": {
         "TITLE": "Elektronik Program Rehberi",
@@ -184,6 +256,7 @@
         "FETCH_EPG": "EPG verileri alınıyor...",
         "ERROR": "Üzgünüz, EPG yüklenemedi.",
         "DOWNLOAD_SUCCESS": "EPG başarıyla indirildi.",
+        "NO_PROGRAM_INFO": "Program bilgisi mevcut değil",
         "PROGRAM_DIALOG": {
             "PROGRAM_DETAILS": "TV programı hakkında",
             "TITLE": "Başlık",
@@ -191,9 +264,19 @@
             "PARENTAL_RATING_SYSTEM": "Televizyon içeriği derecelendirme sistemi",
             "DESCRIPTION": "Açıklama",
             "LANGUAGE": "Dil",
-            "SHOW_PROGRAM_DETAILS": "Bu program hakkında detayları göster"
+            "SHOW_PROGRAM_DETAILS": "Bu program hakkında detayları göster",
+            "EPISODE": "Bölüm",
+            "DURATION": "Süre"
         },
-        "FETCH_SUCCESS": "EPG verileri başarıyla alındı"
+        "FETCH_SUCCESS": "EPG verileri başarıyla alındı",
+        "IMPORT_PROGRESS": "EPG İçe Aktarımı",
+        "CHANNELS": "kanallar",
+        "PROGRAMS": "programlar",
+        "LOADING": "Yükleniyor",
+        "QUEUED": "Sırada",
+        "TOTAL_CHANNELS": "Toplam kanal",
+        "TOTAL_PROGRAMS": "Toplam program",
+        "UP_TO_DATE": "EPG güncel, senkronizasyona gerek yok"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",
@@ -240,6 +323,7 @@
     "REFRESH": "Yenile",
     "XTREAM": {
         "PLAY": "Oynat",
+        "OPENING_PLAYER": "Oynatıcı açılıyor...",
         "NAME": "İsim",
         "RELEASE_DATE": "Çıkış tarihi",
         "GENRE": "Tür",
@@ -256,7 +340,51 @@
         "YEAR": "Yıl",
         "AGE": "Yaş",
         "YOUTUBE_TRAILER": "YouTube fragmanı",
-        "EPISODE": "Bölüm"
+        "EPISODE": "Bölüm",
+        "RESUME": "Devam Et",
+        "RESTART": "Baştan Başla",
+        "CONTINUE_WATCHING": "İzlemeye Devam Et",
+        "WATCHED": "İzlendi",
+        "IN_PROGRESS": "Devam Ediyor",
+        "MARK_WATCHED": "İzlendi Olarak İşaretle",
+        "MARK_UNWATCHED": "İzlenmedi Olarak İşaretle",
+        "EPISODES_WATCHED": "{{total}} bölümden {{count}} tanesi izlendi",
+        "ACCOUNT_INFO": {
+            "TITLE": "Hesap Bilgileri",
+            "USER_INFO": "Kullanıcı Bilgileri",
+            "STATUS": "Durum",
+            "USERNAME": "Kullanıcı Adı",
+            "ACTIVE_CONNECTIONS": "Aktif Bağlantılar",
+            "CREATED": "Oluşturuldu",
+            "EXPIRES": "Sona Eriyor",
+            "TRIAL_ACCOUNT": "Deneme Hesabı",
+            "YES": "Evet",
+            "NO": "Hayır",
+            "ALLOWED_FORMATS": "İzin Verilen Formatlar",
+            "SERVER_INFO": "Sunucu Bilgileri",
+            "LIVE_TV": "Canlı TV",
+            "MOVIES": "Filmler",
+            "TV_SERIES": "TV Dizileri",
+            "URL": "URL",
+            "PROTOCOL": "Protokol",
+            "TIMEZONE": "Saat Dilimi",
+            "SERVER_TIME": "Sunucu Saati",
+            "PORTS": "Portlar",
+            "HTTP_PORT": "HTTP",
+            "HTTPS_PORT": "HTTPS",
+            "RTMP_PORT": "RTMP"
+        },
+        "CATEGORY_MANAGEMENT": {
+            "TITLE": "Kategorileri Yönet",
+            "LOADING": "Kategoriler yükleniyor...",
+            "SELECTED": "Seçildi",
+            "SELECT_ALL": "Tümünü Seç",
+            "DESELECT_ALL": "Tümünü Kaldır",
+            "SEARCH_PLACEHOLDER": "Kategorileri ara...",
+            "NO_RESULTS": "Eşleşen kategori bulunamadı",
+            "NO_CATEGORIES": "Kategori mevcut değil",
+            "SAVE": "Kaydet"
+        }
     },
     "PORTALS": {
         "ALL_CATEGORIES": "Tüm kategoriler",
@@ -265,6 +393,20 @@
         "REMOVE_FROM_FAVORITES": "Favorilerden kaldır",
         "REMOVED_FROM_FAVORITES": "Favorilerden kaldırıldı",
         "ADDED_TO_FAVORITES": "Favorilere eklendi",
+        "SIDEBAR": {
+            "MAIN": "Ana Menü",
+            "MOVIES": "Filmler",
+            "LIVE_TV": "Canlı TV",
+            "SERIES": "Diziler",
+            "LIBRARY": "Kütüphane",
+            "SEARCH": "Ara",
+            "RECENT": "Son İzlenenler",
+            "RECENTLY_ADDED": "Yeni Eklenenler",
+            "FAVORITES": "Favoriler",
+            "HOME": "Ana Sayfa",
+            "PLAYLIST_INFO": "Oynatma Listesi Bilgisi",
+            "ACCOUNT_INFO": "Hesap Bilgisi"
+        },
         "ERROR_VIEW": {
             "ACCOUNT_EXPIRED": {
                 "TITLE": "Hesap süresi doldu",
@@ -286,23 +428,64 @@
                 "TITLE": "Bir şeyler ters gitti",
                 "DESCRIPTION": "Bilinmeyen hata, lütfen daha sonra tekrar deneyin"
             },
+            "NO_CATEGORY_SELECTED": {
+                "TITLE": "Kategori seçilmedi",
+                "DESCRIPTION": "İçeriği görmek için lütfen bir kategori seçin"
+            },
             "PLAYLIST_SETTINGS": "Oynatma Listesi Ayarları",
             "HOME": "Ana Sayfa",
             "DELETE": "Sil"
         },
         "EMPTY_LIST_VIEW": {
+            "TITLE": "Sonuç bulunamadı",
             "NO_SEARCH_RESULTS": "Arama sonuçları yok, lütfen arama talebinizi değiştirin"
+        },
+        "SEARCH_VIEW": {
+            "INITIAL_TITLE": "İçerik ara",
+            "INITIAL_DESCRIPTION": "Canlı TV, filmler ve diziler arasında arama yapmak için en az 3 karakter girin.",
+            "RESULTS_FOUND": "{{count}} sonuç bulundu",
+            "NO_RESULTS_FOR": "\"{{term}}\" için sonuç bulunamadı",
+            "GROUP_BY_PLAYLIST": "Sonuçları oynatma listesine göre grupla",
+            "XTREAM_ONLY_NOTE": "Küresel arama şu anda sadece Xtream oynatma listeleri için mevcuttur.",
+            "VISIBLE_CATEGORIES_ONLY": "Sadece görünür kategoriler"
         },
         "STREAM_URL_COPIED": "Yayın URL'si panoya kopyalandı",
         "COPY_STREAM_URL": "Yayın URL'sini kopyala",
-        "SEARCH_VIEW": {
-            "RESULTS_FOUND": "{{count}} sonuç bulundu",
-            "NO_RESULTS_FOR": "\"{{term}}\" için sonuç bulunamadı"
-        }
+        "SELECT_CATEGORY": "Bir kategori seçin",
+        "PAGE": "Sayfa",
+        "CONTENT_NOT_AVAILABLE": "Bu içerik bu sunucuda mevcut değil",
+        "PLAYBACK_ERROR": "Oynatma URL'si alınamadı",
+        "LOADING_SEASONS": "Sezonlar yükleniyor...",
+        "NO_EPISODES": "Bölüm mevcut değil"
     },
     "INFORMATION": "Bilgi",
+    "DOWNLOADS": {
+        "TITLE": "İndirilenler",
+        "DOWNLOAD": "İndir",
+        "PLAY_LOCAL": "Yerel Oynat",
+        "EMPTY": "Henüz indirme yok",
+        "EMPTY_HINT": "Çevrimdışı izlemek için film ve dizileri indirin",
+        "NOT_AVAILABLE": "İndirme mevcut değil",
+        "DESKTOP_ONLY": "Bu özellik sadece masaüstü uygulamasında mevcuttur",
+        "NO_FOLDER": "İndirme klasörü seçilmedi",
+        "CHANGE_FOLDER": "Klasörü Değiştir",
+        "CLEAR_COMPLETED": "Tamamlananları Temizle",
+        "CANCEL": "İptal",
+        "RETRY": "Tekrar Dene",
+        "REMOVE": "Kaldır",
+        "PLAY": "Oynat",
+        "REVEAL": "Klasörde Göster",
+        "STATUS": {
+            "QUEUED": "Sırada",
+            "DOWNLOADING": "İndiriliyor",
+            "COMPLETED": "Tamamlandı",
+            "FAILED": "Başarısız",
+            "CANCELED": "İptal Edildi"
+        }
+    },
     "REMOTE_CONTROL": {
         "TITLE": "Uzaktan kontrol",
+        "SUBTITLE": "IPTV oynatıcınızı uzaktan kontrol edin",
         "UP_CHANNEL": "Kanal yukarı",
         "DOWN_CHANNEL": "Kanal aşağı",
         "HEADER": "IPTVNator Uzaktan Kontrol",
