@@ -19,35 +19,43 @@ import {
 } from 'shared-interfaces';
 import { PlayerService } from '../services/player.service';
 import { ContentType } from '../xtream/content-type.enum';
-import { StalkerSeason } from './models/stalker-season.interface';
+import {
+    StalkerCategoryItem,
+    StalkerContentItem,
+    StalkerItvChannel,
+    StalkerSeason,
+    StalkerVodSeriesEpisode,
+    StalkerVodSeriesSeason,
+    StalkerVodSource,
+} from './models';
 import { StalkerContentTypes } from './stalker-content-types';
-
-interface StalkerCategoryItem {
-    category_id: string;
-    category_name: string;
-}
+import { createLogger } from '../shared/utils/logger';
+import {
+    normalizeStalkerEntityId,
+    normalizeStalkerEntityIdAsNumber,
+} from './stalker-vod.utils';
 
 interface StalkerState {
     selectedContentType: 'vod' | 'itv' | 'series';
-    selectedCategoryId: string;
-    selectedVodId: string;
-    selectedSerialId: string;
-    selectedItvId: string;
+    selectedCategoryId: string | null | undefined;
+    selectedVodId: string | undefined;
+    selectedSerialId: string | undefined;
+    selectedItvId: string | undefined;
     limit: number;
     page: number;
     searchPhrase: string;
     currentPlaylist: PlaylistMeta;
     totalCount: number;
-    selectedItem: any;
+    selectedItem: StalkerVodSource | null | undefined;
     vodCategories: StalkerCategoryItem[];
     seriesCategories: StalkerCategoryItem[];
     itvCategories: StalkerCategoryItem[];
     hasMoreChannels: boolean;
-    itvChannels: any[];
+    itvChannels: StalkerItvChannel[];
     /** For VOD items that are actually series (Ministra plugin is_series=1) */
-    vodSeriesSeasons: any[];
-    vodSeriesEpisodes: any[];
-    selectedVodSeriesSeasonId: string;
+    vodSeriesSeasons: StalkerVodSeriesSeason[];
+    vodSeriesEpisodes: StalkerVodSeriesEpisode[];
+    selectedVodSeriesSeasonId: string | undefined;
 }
 
 const initialState: StalkerState = {
@@ -72,6 +80,8 @@ const initialState: StalkerState = {
     selectedVodSeriesSeasonId: undefined,
 };
 
+const logger = createLogger('StalkerStore');
+
 function extractNumericValue(str: string) {
     const matches = str.match(/\d+/);
     if (matches) {
@@ -90,14 +100,27 @@ function sortByNumericValue(array: StalkerSeason[]): StalkerSeason[] {
     });
 }
 
+function sortVodSeriesSeasonsByNumber(
+    array: StalkerVodSeriesSeason[]
+): StalkerVodSeriesSeason[] {
+    if (!array) return [];
+    return [...array].sort((a, b) => {
+        const numA = Number(a.season_number ?? 0) || 0;
+        const numB = Number(b.season_number ?? 0) || 0;
+        return numA - numB;
+    });
+}
+
 /**
  * Sort episodes by series_number in ascending numeric order (1, 2, 3... not "1", "10", "2")
  */
-function sortEpisodesByNumber(episodes: any[]): any[] {
+function sortEpisodesByNumber(
+    episodes: StalkerVodSeriesEpisode[]
+): StalkerVodSeriesEpisode[] {
     if (!episodes) return [];
     return episodes.sort((a, b) => {
-        const numA = parseInt(a.series_number, 10) || 0;
-        const numB = parseInt(b.series_number, 10) || 0;
+        const numA = Number(a.series_number ?? 0) || 0;
+        const numB = Number(b.series_number ?? 0) || 0;
         return numA - numB;
     });
 }
@@ -131,7 +154,10 @@ function makeAbsoluteUrl(baseUrl: string, relativePath: string): string {
 /**
  * Post-process stalker items to convert relative URLs to absolute
  */
-function processItemUrls(item: any, portalUrl: string): any {
+function processItemUrls<T extends StalkerVodSource>(
+    item: T,
+    portalUrl: string
+): T {
     const processed = { ...item };
 
     // Convert screenshot_uri to absolute URL
@@ -143,6 +169,31 @@ function processItemUrls(item: any, portalUrl: string): any {
     }
 
     return processed;
+}
+
+function toStalkerContentItem(
+    item: StalkerVodSource,
+    portalUrl: string
+): StalkerContentItem {
+    const processed = processItemUrls(item, portalUrl);
+    return {
+        ...processed,
+        cover: processed.screenshot_uri,
+    };
+}
+
+function toStalkerItvChannel(item: StalkerContentItem): StalkerItvChannel {
+    return {
+        ...item,
+        id: item.id ?? item.stream_id ?? '',
+        cmd: String(item.cmd ?? ''),
+        name:
+            typeof item.name === 'string' ? item.name : undefined,
+        o_name:
+            typeof item.o_name === 'string' ? item.o_name : undefined,
+        logo:
+            typeof item.logo === 'string' ? item.logo : undefined,
+    };
 }
 
 export const StalkerStore = signalStore(
@@ -173,7 +224,7 @@ export const StalkerStore = signalStore(
                         serialNumber = (playlist as Playlist)
                             .stalkerSerialNumber;
                     } catch (error) {
-                        console.error('Failed to get stalker token:', error);
+                        logger.error('Failed to get stalker token', error);
                     }
                 }
 
@@ -191,7 +242,7 @@ export const StalkerStore = signalStore(
                     action: StalkerPortalActions.GetCategories,
                     currentPlaylist: store.currentPlaylist(),
                 }),
-                loader: async ({ params }) => {
+                loader: async ({ params }): Promise<StalkerCategoryItem[]> => {
                     if (params.currentPlaylist === undefined) return;
 
                     switch (params.contentType) {
@@ -244,17 +295,14 @@ export const StalkerStore = signalStore(
 
                     // Guard: ensure response has expected structure
                     if (!response?.js || !Array.isArray(response.js)) {
-                        console.warn(
-                            '[StalkerStore] Invalid categories response:',
-                            response
-                        );
+                        logger.warn('Invalid categories response', response);
                         return [];
                     }
 
                     const categories = response.js
-                        .map((item) => ({
+                        .map((item): StalkerCategoryItem => ({
                             category_name: item.title,
-                            category_id: item.id,
+                            category_id: String(item.id),
                         }))
                         .sort((a, b) =>
                             a.category_name.localeCompare(b.category_name)
@@ -273,7 +321,9 @@ export const StalkerStore = signalStore(
                     search: store.searchPhrase(),
                     pageIndex: store.page() + 1,
                 }),
-                loader: async ({ params }) => {
+                loader: async ({
+                    params,
+                }): Promise<StalkerContentItem[] | undefined> => {
                     if (
                         !params.category ||
                         params.category === null ||
@@ -340,10 +390,7 @@ export const StalkerStore = signalStore(
 
                     // Guard: ensure response has expected structure
                     if (!response?.js?.data) {
-                        console.warn(
-                            '[StalkerStore] Invalid response structure:',
-                            response
-                        );
+                        logger.warn('Invalid response structure', response);
                         return [];
                     }
 
@@ -352,24 +399,21 @@ export const StalkerStore = signalStore(
                     });
 
                     const portalUrl = currentPlaylist().portalUrl;
-                    const newItems = response.js.data.map((item) => {
-                        // Post-process to convert relative URLs to absolute
-                        const processed = processItemUrls(item, portalUrl);
-                        return {
-                            ...processed,
-                            cover: processed.screenshot_uri,
-                        };
-                    });
+                    const newItems = response.js.data.map(
+                        (item: StalkerVodSource) =>
+                            toStalkerContentItem(item, portalUrl)
+                    );
 
                     if (store.selectedContentType() === 'itv') {
+                        const channels = newItems.map(toStalkerItvChannel);
                         // Check if we're loading the first page or loading more
                         if (params.pageIndex === 1) {
-                            patchState(store, { itvChannels: newItems });
+                            patchState(store, { itvChannels: channels });
                         } else {
                             patchState(store, {
                                 itvChannels: [
                                     ...store.itvChannels(),
-                                    ...newItems,
+                                    ...channels,
                                 ],
                             });
                         }
@@ -424,10 +468,7 @@ export const StalkerStore = signalStore(
 
                     // Guard: ensure response has expected structure
                     if (!response?.js?.data) {
-                        console.warn(
-                            '[StalkerStore] Invalid seasons response:',
-                            response
-                        );
+                        logger.warn('Invalid seasons response', response);
                         return [];
                     }
                     return sortByNumericValue(response.js.data);
@@ -441,17 +482,24 @@ export const StalkerStore = signalStore(
                 params: () => ({
                     selectedItem: store.selectedItem(),
                 }),
-                loader: async ({ params }) => {
+                loader: async ({
+                    params,
+                }): Promise<StalkerVodSeriesSeason[]> => {
                     const item = params.selectedItem;
-                    // Debug logging
-                    console.log('[StalkerStore] vodSeriesSeasonsResource loader called');
-                    console.log('[StalkerStore] item:', item);
-                    console.log('[StalkerStore] item?.is_series:', item?.is_series);
-                    console.log('[StalkerStore] currentPlaylist:', store.currentPlaylist());
+                    logger.debug(
+                        'vodSeriesSeasonsResource loader called',
+                        {
+                            item,
+                            isSeries: item?.is_series,
+                            currentPlaylist: store.currentPlaylist(),
+                        }
+                    );
 
                     // Only fetch if item is a VOD series (has is_series flag)
                     if (!store.currentPlaylist() || !item || !item.is_series) {
-                        console.log('[StalkerStore] vodSeriesSeasonsResource - early return, conditions not met');
+                        logger.debug(
+                            'vodSeriesSeasonsResource skipped - conditions not met'
+                        );
                         return [];
                     }
 
@@ -482,18 +530,27 @@ export const StalkerStore = signalStore(
                     }
 
                     if (!response?.js?.data) {
-                        console.log('[StalkerStore] vodSeriesSeasonsResource - no response data');
+                        logger.debug(
+                            'vodSeriesSeasonsResource - no response data'
+                        );
                         return [];
                     }
 
-                    console.log('[StalkerStore] vodSeriesSeasonsResource - response.js.data:', response.js.data);
+                    logger.debug(
+                        'vodSeriesSeasonsResource response data',
+                        response.js.data
+                    );
 
                     // Filter for season items (is_season: true)
                     const seasons = response.js.data.filter(
-                        (item: any) => item.is_season === true
+                        (item: StalkerVodSeriesSeason) =>
+                            item.is_season === true
                     );
-                    console.log('[StalkerStore] vodSeriesSeasonsResource - filtered seasons:', seasons);
-                    return sortByNumericValue(seasons);
+                    logger.debug(
+                        'vodSeriesSeasonsResource filtered seasons',
+                        seasons
+                    );
+                    return sortVodSeriesSeasonsByNumber(seasons);
                 },
             }),
         })
@@ -616,19 +673,28 @@ export const StalkerStore = signalStore(
                             });
                         }
                     } catch (error) {
-                        console.error(
-                            'Error syncing Stalker playlist to SQLite:',
+                        logger.error(
+                            'Error syncing Stalker playlist to SQLite',
                             error
                         );
                     }
                 }
             },
-            setSelectedItem(selectedItem: any) {
+            setSelectedItem(selectedItem: StalkerVodSource | null | undefined) {
                 // TODO: check the item type and proper property either selectedVodId or serialsId etc
+                const selectedIdRaw =
+                    selectedItem?.id !== undefined &&
+                    selectedItem?.id !== null
+                        ? selectedItem.id
+                        : undefined;
+                const selectedId =
+                    selectedIdRaw !== undefined
+                        ? normalizeStalkerEntityId(selectedIdRaw)
+                        : undefined;
                 patchState(store, {
-                    selectedVodId: selectedItem?.id ?? undefined,
-                    selectedSerialId: selectedItem?.id ?? undefined,
-                    selectedItvId: selectedItem?.id ?? undefined,
+                    selectedVodId: selectedId,
+                    selectedSerialId: selectedId,
+                    selectedItvId: selectedId,
                     selectedItem,
                 });
             },
@@ -640,7 +706,10 @@ export const StalkerStore = signalStore(
                     selectedItem: undefined,
                 });
             },
-            setCategories(type: 'vod' | 'series' | 'itv', categories: any[]) {
+            setCategories(
+                type: 'vod' | 'series' | 'itv',
+                categories: StalkerCategoryItem[]
+            ) {
                 if (type === 'vod') {
                     patchState(store, { vodCategories: categories });
                 } else if (type === 'series') {
@@ -656,7 +725,7 @@ export const StalkerStore = signalStore(
                     itvCategories: [],
                 });
             },
-            setItvChannels(channels: any[]) {
+            setItvChannels(channels: StalkerItvChannel[]) {
                 patchState(store, { itvChannels: channels });
             },
             setSearchPhrase(phrase: string) {
@@ -671,7 +740,7 @@ export const StalkerStore = signalStore(
             async fetchVodSeriesEpisodes(
                 videoId: string,
                 seasonId: string
-            ): Promise<any[]> {
+            ): Promise<StalkerVodSeriesEpisode[]> {
                 const playlist = store.currentPlaylist() as Playlist;
                 if (!playlist) return [];
 
@@ -704,7 +773,8 @@ export const StalkerStore = signalStore(
                 // Filter for episode items (is_episode: true) and sort by series_number
                 const episodes = sortEpisodesByNumber(
                     response.js.data.filter(
-                        (item: any) => item.is_episode === true
+                        (item: StalkerVodSeriesEpisode) =>
+                            item.is_episode === true
                     )
                 );
 
@@ -788,7 +858,7 @@ export const StalkerStore = signalStore(
                 // Check for server-side errors
                 if (response.js?.error) {
                     const errorMsg = response.js.error;
-                    console.error('[StalkerStore] Server error:', errorMsg);
+                    logger.error('Server error', errorMsg);
                     throw new Error(errorMsg);
                 }
 
@@ -888,11 +958,11 @@ export const StalkerStore = signalStore(
 
                     return 'Unknown';
                 } catch (error) {
-                    console.error('Failed to fetch expire date:', error);
+                    logger.error('Failed to fetch expire date', error);
                     return 'Error fetching data';
                 }
             },
-            addToFavorites(item: any) {
+            addToFavorites(item: any, onDone?: () => void) {
                 playlistService
                     .addPortalFavorite(this.currentPlaylist()?._id, {
                         ...item,
@@ -908,9 +978,10 @@ export const StalkerStore = signalStore(
                                 duration: 1000,
                             }
                         );
+                        onDone?.();
                     });
             },
-            removeFromFavorites(favoriteId: string) {
+            removeFromFavorites(favoriteId: string, onDone?: () => void) {
                 playlistService
                     .removeFromPortalFavorites(
                         this.currentPlaylist()?._id,
@@ -924,6 +995,7 @@ export const StalkerStore = signalStore(
                                 duration: 1000,
                             }
                         );
+                        onDone?.();
                     });
             },
             /**
@@ -985,6 +1057,10 @@ export const StalkerStore = signalStore(
                     const item = this.selectedItem();
                     let cmdToUse = cmd ?? item?.cmd;
 
+                    if (!cmdToUse) {
+                        throw new Error('nothing_to_play');
+                    }
+
                     // For items with has_files and relative path, we need to fetch the file id first
                     if (
                         item?.has_files !== undefined &&
@@ -993,7 +1069,9 @@ export const StalkerStore = signalStore(
                         cmdToUse.includes('/media/') &&
                         !cmdToUse.includes('/media/file_')
                     ) {
-                        const fileId = await this.fetchMovieFileId(item.id);
+                        const fileId = await this.fetchMovieFileId(
+                            normalizeStalkerEntityId(item.id)
+                        );
                         if (fileId) {
                             cmdToUse = `/media/file_${fileId}.mpg`;
                         }
@@ -1007,19 +1085,24 @@ export const StalkerStore = signalStore(
                     );
                     this.addToRecentlyViewed({
                         ...item,
-                        id: item.id,
+                        id: item?.id,
                         cmd: cmd,
                         cover: thumbnail,
                         title,
                     });
                     const playlist = this.currentPlaylist();
                     const isEpisode = episodeNum !== undefined || episodeId !== undefined;
+                    const selectedItemId =
+                        normalizeStalkerEntityIdAsNumber(item?.id) ?? 0;
                     const contentInfo = {
                         playlistId: playlist._id,
                         // For episodes, use episodeId if provided, otherwise fall back to item.id
-                        contentXtreamId: isEpisode && episodeId ? episodeId : Number(item.id),
+                        contentXtreamId:
+                            isEpisode && episodeId
+                                ? episodeId
+                                : selectedItemId,
                         contentType: isEpisode ? 'episode' : 'vod',
-                        seriesXtreamId: isEpisode ? Number(item.id) : undefined,
+                        seriesXtreamId: isEpisode ? selectedItemId : undefined,
                     };
 
                     playerService.openPlayer(
@@ -1035,10 +1118,7 @@ export const StalkerStore = signalStore(
                         startTime
                     );
                 } catch (error) {
-                    console.error(
-                        '[StalkerStore] Failed to get playback URL:',
-                        error
-                    );
+                    logger.error('Failed to get playback URL', error);
                     const errorMessage =
                         error?.message === 'nothing_to_play'
                             ? translate.instant('PORTALS.CONTENT_NOT_AVAILABLE')
@@ -1055,13 +1135,20 @@ export const StalkerStore = signalStore(
                     })
                     .subscribe();
             },
-            removeFromRecentlyViewed(itemId: number) {
+            removeFromRecentlyViewed(itemId: number, onComplete?: () => void) {
                 playlistService
                     .removeFromPortalRecentlyViewed(
                         this.currentPlaylist()?._id,
                         itemId
                     )
-                    .subscribe();
+                    .subscribe({
+                        next: () => onComplete?.(),
+                        error: (error) =>
+                            logger.error(
+                                'Failed to remove item from recently viewed',
+                                error
+                            ),
+                    });
             },
             async fetchChannelEpg(
                 channelId: number | string,

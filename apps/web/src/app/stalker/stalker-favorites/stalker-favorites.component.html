@@ -5,22 +5,18 @@
                 <!-- VOD item with embedded series (vclub) -->
                 <app-stalker-series-view
                     [vodWithSeries]="itemDetails.details"
-                    (backClicked)="itemDetails = null; vodDetailsItem = null"
+                    (backClicked)="onSeriesBack()"
                 />
-            } @else if (
-                itemDetails.details?.is_series === true ||
-                itemDetails.details?.is_series === 1 ||
-                itemDetails.details?.is_series === '1'
-            ) {
+            } @else if (itemDetails.details?.is_series === true) {
                 <!-- VOD item that is actually a series (Ministra plugin is_series=1) -->
                 <app-stalker-series-view
-                    (backClicked)="itemDetails = null; vodDetailsItem = null"
+                    (backClicked)="onSeriesBack()"
                 />
             } @else if (vodDetailsItem) {
                 <!-- Regular VOD item -->
                 <app-vod-details
                     [item]="vodDetailsItem"
-                    [isFavorite]="true"
+                    [isFavorite]="isSelectedVodFavorite()"
                     (playClicked)="onVodPlay($event)"
                     (favoriteToggled)="onVodFavoriteToggled($event)"
                     (backClicked)="onVodBack()"
@@ -28,7 +24,7 @@
             }
         }
         @case ('series') {
-            <app-stalker-series-view (backClicked)="itemDetails = null" />
+            <app-stalker-series-view (backClicked)="onSeriesBack()" />
         }
     }
 } @else {

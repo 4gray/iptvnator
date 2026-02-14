@@ -221,13 +221,27 @@ export class PlaylistsService {
                 this.dbService.update(DbStores.Playlists, {
                     ...portal,
                     favorites: portal.favorites?.filter(
-                        (i) =>
-                            (i as Partial<XtreamItem>).stream_id !==
-                                favoriteId &&
-                            (i as Partial<XtreamSerieItem>).series_id !==
-                                favoriteId &&
-                            (i as Partial<{ movie_id: string }>).movie_id !==
-                                favoriteId
+                        (i) => {
+                            const expectedId = String(favoriteId);
+                            const streamId = String(
+                                (i as Partial<XtreamItem>).stream_id ?? ''
+                            );
+                            const seriesId = String(
+                                (i as Partial<XtreamSerieItem>).series_id ?? ''
+                            );
+                            const movieId = String(
+                                (i as Partial<{ movie_id: string }>).movie_id ??
+                                    ''
+                            );
+                            const itemId = String((i as any).id ?? '');
+
+                            return (
+                                streamId !== expectedId &&
+                                seriesId !== expectedId &&
+                                movieId !== expectedId &&
+                                itemId !== expectedId
+                            );
+                        }
                     ),
                 })
             )
