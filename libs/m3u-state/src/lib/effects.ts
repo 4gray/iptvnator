@@ -430,11 +430,11 @@ export class PlaylistEffects {
                 if (action.direction === 'next') {
                     if (index === channels.length - 1)
                         adjacentChannel = activeChannel;
-                    adjacentChannel = channels[index + 1];
+                    else adjacentChannel = channels[index + 1];
                 } else if (action.direction === 'previous') {
                     if (index === -1 || index === 0)
                         adjacentChannel = activeChannel;
-                    adjacentChannel = channels[index - 1];
+                    else adjacentChannel = channels[index - 1];
                 }
                 return ChannelActions.setActiveChannelSuccess({
                     channel: adjacentChannel!,
