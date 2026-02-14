@@ -16,6 +16,7 @@
                 <!-- Regular VOD item -->
                 <app-vod-details
                     [item]="vodDetailsItem"
+                    [isFavorite]="isSelectedVodFavorite()"
                     (playClicked)="onVodPlay($event)"
                     (favoriteToggled)="onVodFavoriteToggled($event)"
                     (backClicked)="onVodBack()"
@@ -34,8 +35,14 @@
         [playlistTitle]="currentPlaylist()?.title || 'Portal'"
         [selectedCategoryId]="selectedCategoryId()"
         [titleTranslationString]="'PORTALS.SIDEBAR.RECENT'"
+        [removeTooltip]="'Remove from recent'"
+        [emptyIcon]="'history'"
+        [showHeaderAction]="true"
+        [headerActionIcon]="'delete_sweep'"
+        [headerActionTooltip]="'Clear all recently viewed'"
         (categoryClicked)="setCategoryId($event.category_id)"
         (removeFavorite)="removeFromRecentlyViewed($event)"
         (openItem)="openItem($event)"
+        (headerActionClicked)="clearAllRecentlyViewed()"
     />
 }

@@ -33,6 +33,16 @@
                     ')'
             }}
         </h2>
+        @if (showHeaderAction()) {
+            <button
+                mat-icon-button
+                [matTooltip]="headerActionTooltip()"
+                [disabled]="!favorites().length"
+                (click)="onHeaderActionClick()"
+            >
+                <mat-icon>{{ headerActionIcon() }}</mat-icon>
+            </button>
+        }
     </div>
     <div class="scrollable-content">
         @if (favorites().length) {
@@ -44,7 +54,10 @@
                         [type]="item.type"
                         [date]="item.added_at"
                         [showRemoveButton]="true"
-                        [removeTooltip]="'CHANNELS.REMOVE_FAVORITE' | translate"
+                        [removeTooltip]="
+                            removeTooltip() ||
+                            ('CHANNELS.REMOVE_FAVORITE' | translate)
+                        "
                         (cardClick)="openFavorite(item)"
                         (remove)="removeFromFavorites(item)"
                     />
@@ -52,7 +65,7 @@
             </div>
         } @else {
             <div class="no-items">
-                <mat-icon>favorite_border</mat-icon>
+                <mat-icon>{{ emptyIcon() }}</mat-icon>
                 <p>No items in the selected category</p>
             </div>
         }

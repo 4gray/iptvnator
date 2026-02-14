@@ -21,6 +21,7 @@ import {
     NormalizedStalkerFavoriteItem,
     normalizeStalkerFavoriteItem,
     isSelectedStalkerVodFavorite,
+    toggleStalkerVodFavorite,
 } from '../stalker-vod.utils';
 
 @Component({
@@ -143,6 +144,14 @@ export class StalkerFavoritesComponent {
         );
     }
 
+    addToFavorites(item: Record<string, unknown>, onDone?: () => void) {
+        this.stalkerStore.addToFavorites(item, () => {
+            this.favoritesRefresh.refresh();
+            this.syncSelectedVodFavorite();
+            onDone?.();
+        });
+    }
+
     setCategoryId(categoryId: string) {
         this.selectedCategoryId.set(categoryId);
     }
@@ -195,10 +204,15 @@ export class StalkerFavoritesComponent {
 
     /** Handle favorite toggle from vod-details component */
     onVodFavoriteToggled(event: { item: VodDetailsItem; isFavorite: boolean }): void {
-        if (!event.isFavorite && event.item.type === 'stalker') {
-            this.removeFromFavorites({ id: event.item.data.id });
-            this.isSelectedVodFavorite.set(false);
-        }
+        toggleStalkerVodFavorite(event, {
+            addToFavorites: (item, onDone) => this.addToFavorites(item, onDone),
+            removeFromFavorites: (favoriteId, onDone) =>
+                this.removeFromFavorites({ id: favoriteId }, onDone),
+            onComplete: () => {
+                this.favoritesRefresh.refresh();
+                this.syncSelectedVodFavorite();
+            },
+        });
     }
 
     /** Handle back from vod-details component */

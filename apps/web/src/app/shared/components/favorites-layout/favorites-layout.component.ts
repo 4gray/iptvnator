@@ -1,6 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { CategoryViewComponent } from '../../../xtream-tauri/category-view/category-view.component';
@@ -21,6 +22,7 @@ import { ContentCardComponent } from '../content-card/content-card.component';
         PlaylistSwitcherComponent,
         ResizableDirective,
         TranslatePipe,
+        MatTooltip,
     ],
 })
 export class FavoritesLayoutComponent {
@@ -30,10 +32,16 @@ export class FavoritesLayoutComponent {
     readonly playlistTitle = input<string>('Playlist');
     readonly selectedCategoryId = input<string>('movie');
     readonly titleTranslationString = input<string>('CHANNELS.FAVORITES');
+    readonly removeTooltip = input<string>('');
+    readonly emptyIcon = input<string>('favorite_border');
+    readonly showHeaderAction = input<boolean>(false);
+    readonly headerActionIcon = input<string>('delete_sweep');
+    readonly headerActionTooltip = input<string>('');
 
     readonly categoryClicked = output<any>();
     readonly removeFavorite = output<any>();
     readonly openItem = output<any>();
+    readonly headerActionClicked = output<void>();
 
     setCategoryId(categoryId: any) {
         this.categoryClicked.emit({ category_id: categoryId });
@@ -45,5 +53,9 @@ export class FavoritesLayoutComponent {
 
     openFavorite(item: any) {
         this.openItem.emit(item);
+    }
+
+    onHeaderActionClick() {
+        this.headerActionClicked.emit();
     }
 }

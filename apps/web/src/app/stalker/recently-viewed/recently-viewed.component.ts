@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from 'services';
 import {
@@ -15,12 +15,13 @@ import {
 } from '../models';
 import {
     createPortalCollectionResource,
-    normalizeStalkerEntityIdAsNumber,
+    createPortalFavoritesResource,
     toggleStalkerVodFavorite,
     clearStalkerDetailViewState,
     createStalkerDetailViewState,
     createRefreshTrigger,
     normalizeStalkerVodDetailsItem,
+    isSelectedStalkerVodFavorite,
 } from '../stalker-vod.utils';
 
 @Component({
@@ -54,12 +55,14 @@ export class RecentlyViewedComponent {
     }
     private readonly playlistService = inject(PlaylistsService);
     private readonly collectionRefresh = createRefreshTrigger();
+    private readonly favoritesRefresh = createRefreshTrigger();
     private readonly stalkerStore = inject(StalkerStore);
     private readonly translate = inject(TranslateService);
     private readonly logger = createLogger('StalkerRecentlyViewed');
 
     itemDetails: (StalkerVodSource & { category_id?: string }) | null = null;
     vodDetailsItem: VodDetailsItem | null = null;
+    readonly isSelectedVodFavorite = signal<boolean>(false);
 
     readonly currentPlaylist = this.stalkerStore.currentPlaylist;
 
@@ -69,6 +72,11 @@ export class RecentlyViewedComponent {
         () => this.collectionRefresh.refreshVersion(),
         (playlistService, portalId) =>
             playlistService.getPortalRecentlyViewed(portalId)
+    );
+    readonly portalFavorites = createPortalFavoritesResource(
+        this.playlistService,
+        () => this.stalkerStore.currentPlaylist()?._id,
+        () => this.favoritesRefresh.refreshVersion()
     );
 
     readonly categories = computed(() => [
@@ -131,11 +139,31 @@ export class RecentlyViewedComponent {
         this.allFavorites.value()?.filter((item) => item.category_id === 'itv')
     );
 
+    constructor() {
+        effect(() => {
+            this.portalFavorites.value();
+            this.syncSelectedVodFavorite();
+        });
+    }
+
     removeFromRecentlyViewed(item: Pick<StalkerVodSource, 'id'>) {
-        const id = normalizeStalkerEntityIdAsNumber(item.id);
-        if (id === null) return;
+        const id = String(item.id ?? '').trim();
+        if (!id) return;
         this.stalkerStore.removeFromRecentlyViewed(id, () => {
             this.collectionRefresh.refresh();
+        });
+    }
+
+    clearAllRecentlyViewed() {
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        if (!playlistId) return;
+        this.playlistService.clearPortalRecentlyViewed(playlistId).subscribe({
+            next: () => this.collectionRefresh.refresh(),
+            error: (error) =>
+                this.logger.error(
+                    'Failed to clear recently viewed items',
+                    error
+                ),
         });
     }
 
@@ -166,6 +194,7 @@ export class RecentlyViewedComponent {
                 };
                 this.vodDetailsItem = detailViewState.vodDetailsItem;
                 this.stalkerStore.setSelectedItem(detailViewState.itemDetails);
+                this.syncSelectedVodFavorite();
                 break;
             case 'series':
                 this.itemDetails = item;
@@ -193,6 +222,10 @@ export class RecentlyViewedComponent {
             addToFavorites: (item, onDone) => this.addToFavorites(item, onDone),
             removeFromFavorites: (favoriteId, onDone) =>
                 this.removeFromFavorites(favoriteId, onDone),
+            onComplete: () => {
+                this.favoritesRefresh.refresh();
+                this.syncSelectedVodFavorite();
+            },
         });
     }
 
@@ -201,6 +234,7 @@ export class RecentlyViewedComponent {
         const cleared = clearStalkerDetailViewState();
         this.itemDetails = cleared.itemDetails;
         this.vodDetailsItem = cleared.vodDetailsItem;
+        this.isSelectedVodFavorite.set(false);
     }
 
     async createLinkToPlayVodItv(
@@ -230,5 +264,14 @@ export class RecentlyViewedComponent {
      */
     private normalizeRecentItem(item: StalkerVodSource): StalkerSelectedVodItem {
         return normalizeStalkerVodDetailsItem(item);
+    }
+
+    private syncSelectedVodFavorite(): void {
+        this.isSelectedVodFavorite.set(
+            isSelectedStalkerVodFavorite(
+                this.vodDetailsItem,
+                this.portalFavorites.value() ?? []
+            )
+        );
     }
 }

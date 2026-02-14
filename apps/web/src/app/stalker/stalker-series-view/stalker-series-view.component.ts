@@ -71,7 +71,10 @@ export class StalkerSeriesViewComponent {
      * Note: is_series can be true, 1, or "1" depending on the source
      */
     readonly isVodSeries = computed(() => {
-        return isVodSeriesItem(this.displayItem());
+        return (
+            this.stalkerStore.selectedContentType() === 'vod' &&
+            isVodSeriesItem(this.displayItem())
+        );
     });
 
     /**
@@ -103,17 +106,21 @@ export class StalkerSeriesViewComponent {
             const playlist = this.stalkerStore.currentPlaylist();
             if (item && playlist?._id) {
                 const seriesId = Number(item.id);
+                const normalizedSeriesId = this.toSeriesId(item.id);
                 this.logger.debug(
                     'Loading positions for series',
                     {
                         id: item.id,
-                        seriesId,
+                        seriesId: normalizedSeriesId,
                         isSeries: item.is_series,
                     }
                 );
-                if (!isNaN(seriesId)) {
+                if (!isNaN(normalizedSeriesId)) {
                     // Load playback positions from the XtreamStore (works for any playlist type)
-                    this.xtreamStore.loadSeriesPositions(playlist._id, seriesId);
+                    this.xtreamStore.loadSeriesPositions(
+                        playlist._id,
+                        normalizedSeriesId
+                    );
                 }
             }
         });
@@ -331,8 +338,11 @@ export class StalkerSeriesViewComponent {
         this.stalkerStore.clearSelectedItem();
     }
 
-    toSeriesId(id: string): number {
-        const parsed = Number(id);
+    toSeriesId(id: string | number): number {
+        const raw = String(id ?? '').trim();
+        if (!raw) return 0;
+        const primary = raw.includes(':') ? raw.split(':')[0] : raw;
+        const parsed = Number(primary);
         return Number.isFinite(parsed) ? parsed : 0;
     }
 }

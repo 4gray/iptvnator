@@ -25,6 +25,11 @@ import {
     toggleStalkerVodFavorite,
 } from '../../stalker/stalker-vod.utils';
 import { createLogger } from '../../shared/utils/logger';
+import { DownloadsService } from '../../services/downloads.service';
+import {
+    normalizeStalkerEntityId,
+    normalizeStalkerEntityIdAsNumber,
+} from '../../stalker/stalker-vod.utils';
 
 @Component({
     selector: 'app-category-content-view',
@@ -54,6 +59,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
     readonly contentType = this.store.selectedContentType;
     private readonly playlistService = inject(PlaylistsService);
+    private readonly downloadsService = inject(DownloadsService);
     private readonly favoritesRefresh = createRefreshTrigger();
 
     readonly limit = this.store.limit;
@@ -409,6 +415,62 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     /** Handle back from vod-details component */
     onVodBack(): void {
         this.store.setSelectedItem(null);
+    }
+
+    /** Handle download from vod-details component */
+    async onVodDownload(item: VodDetailsItem): Promise<void> {
+        if (item.type !== 'stalker') return;
+
+        const stalkerStore = this.store as InstanceType<typeof StalkerStore>;
+        const playlist = stalkerStore.currentPlaylist();
+        if (!playlist || !playlist.portalUrl || !playlist.macAddress) return;
+
+        let cmdToUse = item.cmd;
+        const itemData = item.data as any;
+        const normalizedItemId = normalizeStalkerEntityId(itemData?.id);
+
+        // Align with playback path: resolve has_files references to /media/file_{id}.mpg
+        if (
+            itemData?.has_files !== undefined &&
+            cmdToUse &&
+            !cmdToUse.includes('://') &&
+            cmdToUse.includes('/media/') &&
+            !cmdToUse.includes('/media/file_')
+        ) {
+            const fileId = await stalkerStore.fetchMovieFileId(normalizedItemId);
+            if (fileId) {
+                cmdToUse = `/media/file_${fileId}.mpg`;
+            }
+        }
+
+        const url = await stalkerStore.fetchLinkToPlay(
+            playlist.portalUrl,
+            playlist.macAddress,
+            cmdToUse
+        );
+        if (!url) return;
+
+        const numericId =
+            normalizeStalkerEntityIdAsNumber(itemData?.id) ?? 0;
+
+        await this.downloadsService.startDownload({
+            playlistId: playlist._id,
+            xtreamId: numericId,
+            contentType: 'vod',
+            title: itemData?.info?.name || itemData?.title || 'Unknown',
+            url,
+            posterUrl: itemData?.info?.movie_image,
+            headers: {
+                userAgent: playlist.userAgent,
+                referer: playlist.referrer,
+                origin: playlist.origin,
+            },
+            // Playlist info for auto-creation (Stalker playlists)
+            playlistName: playlist.title || 'Stalker Portal',
+            playlistType: 'stalker',
+            portalUrl: playlist.portalUrl,
+            macAddress: playlist.macAddress,
+        });
     }
 
     ngOnDestroy(): void {
