@@ -252,6 +252,9 @@ importers:
       '@swc/helpers':
         specifier: ~0.5.11
         version: 0.5.18
+      '@tailwindcss/typography':
+        specifier: 0.5.19
+        version: 0.5.19(tailwindcss@3.4.19(yaml@2.8.2))
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.13
@@ -3840,6 +3843,11 @@ packages:
   '@szmarczak/http-timer@4.0.6':
     resolution: {integrity: sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w==}
     engines: {node: '>=10'}
+
+  '@tailwindcss/typography@0.5.19':
+    resolution: {integrity: sha512-w31dd8HOx3k9vPtcQh5QHP9GwKcgbMp87j58qi6xgiBnFFtKEAgCWnDw4qUT8aHwkCp8bKvb/KGKWWHedP0AAg==}
+    peerDependencies:
+      tailwindcss: '>=3.0.0 || insiders || >=4.0.0-alpha.20 || >=4.0.0-beta.1'
 
   '@tootallnate/once@2.0.0':
     resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
@@ -9257,6 +9265,10 @@ packages:
     peerDependencies:
       postcss: ^8.4.31
 
+  postcss-selector-parser@6.0.10:
+    resolution: {integrity: sha512-IQ7TZdoaqbT+LCpShg46jnZVlhWD2w6iQYAcYXfHARZ7X1t/UGhhceQDs5X0cGqKvYlHNOuv7Oa1xmb0oQuA3w==}
+    engines: {node: '>=4'}
+
   postcss-selector-parser@6.1.2:
     resolution: {integrity: sha512-Q8qQfPiZ+THO/3ZrOrO0cJJKfpYCagtMUkXbnEfmgUjwXg6z/WBeOyS9APBBPCTSiDV+s4SwQGu8yFsiMRIudg==}
     engines: {node: '>=4'}
@@ -11693,7 +11705,7 @@ snapshots:
       tinyglobby: 0.2.14
       tslib: 2.8.1
       typescript: 5.9.3
-      vite: 7.1.11(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.1)(terser@5.44.1)(yaml@2.8.2)
+      vite: 7.1.11(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.90.0)(terser@5.44.1)(yaml@2.8.2)
       watchpack: 2.4.4
     optionalDependencies:
       '@angular/core': 20.3.15(@angular/compiler@20.3.15)(rxjs@7.8.2)(zone.js@0.15.1)
@@ -15552,6 +15564,11 @@ snapshots:
     dependencies:
       defer-to-connect: 2.0.1
 
+  '@tailwindcss/typography@0.5.19(tailwindcss@3.4.19(yaml@2.8.2))':
+    dependencies:
+      postcss-selector-parser: 6.0.10
+      tailwindcss: 3.4.19(yaml@2.8.2)
+
   '@tootallnate/once@2.0.0': {}
 
   '@trysound/sax@0.2.0': {}
@@ -16032,7 +16049,7 @@ snapshots:
 
   '@vitejs/plugin-basic-ssl@2.1.0(vite@7.1.11(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.90.0)(terser@5.44.1)(yaml@2.8.2))':
     dependencies:
-      vite: 7.1.11(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.1)(terser@5.44.1)(yaml@2.8.2)
+      vite: 7.1.11(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.90.0)(terser@5.44.1)(yaml@2.8.2)
 
   '@webassemblyjs/ast@1.14.1':
     dependencies:
@@ -22268,6 +22285,11 @@ snapshots:
       postcss: 8.5.6
       postcss-value-parser: 4.2.0
 
+  postcss-selector-parser@6.0.10:
+    dependencies:
+      cssesc: 3.0.0
+      util-deprecate: 1.0.2
+
   postcss-selector-parser@6.1.2:
     dependencies:
       cssesc: 3.0.0
@@ -24330,7 +24352,7 @@ snapshots:
       terser: 5.44.1
       yaml: 2.8.2
 
-  vite@7.1.11(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.1)(terser@5.44.1)(yaml@2.8.2):
+  vite@7.1.11(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.90.0)(terser@5.44.1)(yaml@2.8.2):
     dependencies:
       esbuild: 0.25.9
       fdir: 6.5.0(picomatch@4.0.3)
@@ -24343,7 +24365,7 @@ snapshots:
       fsevents: 2.3.3
       jiti: 1.21.7
       less: 4.5.1
-      sass: 1.97.1
+      sass: 1.90.0
       sass-embedded: 1.97.1
       terser: 5.44.1
       yaml: 2.8.2

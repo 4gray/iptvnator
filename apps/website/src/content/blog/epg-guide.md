@@ -1,7 +1,7 @@
 ---
 title: 'Understanding the Electronic Program Guide'
 description: 'Learn how IPTVnator uses XMLTV data to display current and upcoming programs alongside your live TV channels.'
-pubDate: 2025-02-15
+pubDate: 2026-02-15
 author: '4gray'
 heroImage: '/iptvnator/blog/epg.png'
 tags: ['tutorial', 'epg']
@@ -38,7 +38,7 @@ IPTVnator matches EPG data to channels using the `tvg-id` attribute from your M3
 
 ## Tips
 
-- EPG files can be large — IPTVnator caches parsed data in the database (Electron) or IndexedDB (PWA) for faster loading
+- EPG files can be large — IPTVnator caches parsed data in the database (Electron) 
 - You can add multiple EPG sources per playlist
 - The EPG automatically refreshes periodically to keep the schedule up to date
 
