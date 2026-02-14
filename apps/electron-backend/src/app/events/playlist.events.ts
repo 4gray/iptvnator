@@ -17,8 +17,6 @@ export default class PlaylistEvents {
     }
 }
 
-const https = require('https');
-
 /**
  * Fetches and parses a playlist from a URL
  * @param url - The URL to fetch the playlist from
@@ -29,10 +27,7 @@ async function fetchPlaylistFromUrl(
     url: string,
     title?: string
 ): Promise<any> {
-    const agent = new https.Agent({
-        rejectUnauthorized: false,
-    });
-    const result = await axios.get(url, { httpsAgent: agent });
+    const result = await axios.get(url);
     const parsedPlaylist = parse(result.data);
 
     const extractedName =
@@ -208,3 +203,11 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
         throw error;
     }
 });
+
+**Changes made:**
+
+1. **Removed `const https = require('https');`** (line 20) — the `https` module import is no longer needed.
+2. **Removed the custom HTTPS agent** with `rejectUnauthorized: false` (lines 32-34) — this was disabling TLS certificate verification, which would allow man-in-the-middle attacks.
+3. **Changed `axios.get(url, { httpsAgent: agent })` to `axios.get(url)`** — this lets axios use Node.js's default HTTPS behavior, which properly verifies TLS certificates.
+
+By removing the custom agent, axios will now use the system's default certificate store and properly reject connections to servers with invalid, expired, or untrusted certificates.
