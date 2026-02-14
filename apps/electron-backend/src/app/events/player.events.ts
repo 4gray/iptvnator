@@ -140,6 +140,20 @@ function stopPositionPolling() {
     }
 }
 
+function maskUrlForLogs(rawUrl: string): string {
+    try {
+        const parsed = new URL(rawUrl);
+        return `${parsed.origin}${parsed.pathname}`;
+    } catch {
+        return rawUrl;
+    }
+}
+
+function shouldIgnoreMpvStdoutLine(line: string): boolean {
+    // Suppress MPV realtime progress spam.
+    return /^(\(Paused\)\s*)?AV:\s/.test(line);
+}
+
 function startPositionPolling(socketPath: string, contentInfo: any) {
     stopPositionPolling();
 
@@ -304,14 +318,16 @@ ipcMain.handle(
             const mpvPath = getMpvPath();
             const reuseInstance = store.get(MPV_REUSE_INSTANCE, false);
 
-            console.log('Opening MPV player with path:', mpvPath);
-            console.log('Reuse instance:', reuseInstance);
-            console.log('URL:', url);
-            console.log('User-Agent:', userAgent);
-            console.log('Referer:', referer);
-            console.log('Origin:', origin);
-            console.log('Content Info:', contentInfo);
-            console.log('Start Time:', startTime);
+            console.log('[MPV] Opening player', {
+                path: mpvPath,
+                reuseInstance,
+                stream: maskUrlForLogs(url),
+                hasUserAgent: Boolean(userAgent),
+                hasReferer: Boolean(referer),
+                hasOrigin: Boolean(origin),
+                hasContentInfo: Boolean(contentInfo),
+                startTime: startTime ?? null,
+            });
 
             // If reuse is enabled and there's an existing process, try to use it
             if (
@@ -410,8 +426,17 @@ ipcMain.handle(
                 // Capture stdout
                 if (proc.stdout) {
                     proc.stdout.on('data', (data) => {
-                        const output = data.toString().trim();
-                        if (output) {
+                        const lines = data
+                            .toString()
+                            .split('\n')
+                            .map((line) => line.trim())
+                            .filter(Boolean);
+
+                        for (const output of lines) {
+                            if (shouldIgnoreMpvStdoutLine(output)) {
+                                continue;
+                            }
+
                             console.log('[MPV stdout]:', output);
 
                             // MPV sometimes outputs errors to stdout instead of stderr
@@ -615,19 +640,29 @@ ipcMain.handle(
 
             // Wrap spawn in a promise to catch startup errors
             await new Promise<void>((resolve, reject) => {
+                let settled = false;
+
+                const settle = (error?: Error) => {
+                    if (settled) return;
+                    settled = true;
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve();
+                    }
+                };
+
                 const spawnVlc = (spawnArgs: string[], isRetry = false) => {
                     const proc = spawn(vlcPath, spawnArgs, {
                         shell: false,
                         detached: true,
-                        stdio: 'ignore', // Use 'ignore' for detached to allow clean shutdown
+                        stdio: 'ignore',
                     });
 
-                    // Start polling if we have port and content info and NOT retrying (RC disabled on retry)
                     if (!isRetry && rcPort > 0 && contentInfo) {
                         startVlcPositionPolling(rcPort, contentInfo);
                     }
 
-                    // Capture stdout
                     if (proc.stdout) {
                         proc.stdout.on('data', (data) => {
                             const output = data.toString().trim();
@@ -637,7 +672,6 @@ ipcMain.handle(
                         });
                     }
 
-                    // Capture stderr
                     if (proc.stderr) {
                         proc.stderr.on('data', (data) => {
                             const output = data.toString().trim();
@@ -647,11 +681,13 @@ ipcMain.handle(
                         });
                     }
 
+                    let earlyExit = false;
+
                     proc.on('error', (err) => {
                         console.error('Failed to start VLC player:', err);
+                        earlyExit = true;
                         if (!isRetry && rcPort > 0) {
                             console.log('Retrying VLC without RC interface...');
-                            // Retry without RC args
                             const retryArgs = spawnArgs.filter(
                                 (arg) =>
                                     !arg.includes('--extraintf') &&
@@ -660,7 +696,7 @@ ipcMain.handle(
                             );
                             spawnVlc(retryArgs, true);
                         } else {
-                            reject(
+                            settle(
                                 new Error(
                                     `Failed to start VLC player: ${err.message}. Make sure VLC is installed and the path '${vlcPath}' is correct.`
                                 )
@@ -675,6 +711,7 @@ ipcMain.handle(
                             console.log(
                                 'VLC exited with error, retrying without RC interface...'
                             );
+                            earlyExit = true;
                             stopVlcPositionPolling();
                             const retryArgs = spawnArgs.filter(
                                 (arg) =>
@@ -686,7 +723,6 @@ ipcMain.handle(
                             return;
                         }
 
-                        // Log non-zero exit codes as errors and notify user
                         if (code !== 0 && code !== null) {
                             console.error(
                                 `[VLC ERROR] VLC exited with error code ${code}`
@@ -695,32 +731,24 @@ ipcMain.handle(
                                 'VLC',
                                 `VLC player closed unexpectedly (exit code: ${code})`
                             );
+                            settle(
+                                new Error(
+                                    `VLC player closed unexpectedly (exit code: ${code})`
+                                )
+                            );
                         }
-                        
-                        // Resolve only if we are done (success or final failure)
-                        // Note: detached process unref happens below, but for Promise we resolve here?
-                        // Actually OPEN_* handlers usually resolve immediately after spawn.
                     });
 
                     proc.unref();
-                    // Resolve immediately if we assume success or handle failure asynchronously?
-                    // The original code resolved immediately.
-                    // We can't wait for exit to resolve.
-                    // But if we need to retry, we shouldn't resolve yet?
-                    // This structure is tricky because `spawn` is async but `exit` is later.
-                    // However, `exit` with code 1 happens almost immediately if arguments are bad.
+
+                    setTimeout(() => {
+                        if (!earlyExit) {
+                            settle();
+                        }
+                    }, 500);
                 };
 
-                // We need to refactor the promise structure to handle retry.
-                // Since `OPEN_MPV` logic resolves immediately after spawn check (100ms), we can do similar.
-                
-                // Let's execute the logic
                 spawnVlc(args);
-                
-                // We resolve immediately to let the main process continue, 
-                // but the retry logic happens in the background.
-                // This might mean `OPEN_VLC_PLAYER` returns while VLC is crashing/retrying.
-                resolve();
             });
         } catch (error) {
             console.error('Error opening VLC player:', error);
