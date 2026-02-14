@@ -1,0 +1,33 @@
+{
+  "name": "website",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/website/src",
+  "tags": ["type:website"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/website"],
+      "inputs": ["production", "^production"],
+      "options": {
+        "command": "npx astro build",
+        "cwd": "apps/website"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx astro dev --port 4321",
+        "cwd": "apps/website"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "npx astro preview --port 4322",
+        "cwd": "apps/website"
+      }
+    }
+  }
+}

@@ -1,0 +1,87 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  pubDate: Date;
+  slug: string;
+  tags?: string[];
+  heroImage?: string;
+}
+
+const { title, description, pubDate, slug, tags = [], heroImage } = Astro.props;
+
+const formattedDate = pubDate.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+---
+
+<a
+  href={`/iptvnator/blog/${slug}/`}
+  class="card-dotted group block overflow-hidden"
+>
+  <div class="grid items-center gap-8 md:grid-cols-2">
+    <!-- Thumbnail -->
+    <div class="overflow-hidden rounded-lg -mx-6 -mt-6 md:-my-6 md:-ml-6 md:mr-0">
+      {heroImage ? (
+        <img
+          src={heroImage}
+          alt=""
+          class="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          loading="lazy"
+        />
+      ) : (
+        <div class="flex aspect-video w-full items-center justify-center bg-gradient-to-br from-surface-800 to-surface-900">
+          <img
+            src="/iptvnator/favicon.ico"
+            alt=""
+            class="h-12 w-12 opacity-20"
+          />
+        </div>
+      )}
+    </div>
+
+    <!-- Content -->
+    <div class="py-2">
+      <div class="flex items-center gap-2">
+        <span class="font-mono text-[10px] uppercase tracking-[0.15em] text-accent-500">Featured</span>
+        <span class="text-surface-700">&middot;</span>
+        <time datetime={pubDate.toISOString()} class="font-mono text-xs text-surface-500">
+          {formattedDate}
+        </time>
+      </div>
+
+      {tags.length > 0 && (
+        <div class="mt-2 flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <span class="rounded-full border border-dashed border-accent-500/30 px-2 py-0.5 text-xs text-accent-400">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <h3 class="mt-4 font-display text-2xl font-bold tracking-tight text-surface-50 transition-colors duration-200 group-hover:text-accent-400 sm:text-3xl">
+        {title}
+      </h3>
+
+      <p class="mt-3 text-sm leading-relaxed text-surface-400">
+        {description}
+      </p>
+
+      <span class="mt-5 inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.1em] text-accent-500 transition-colors group-hover:text-accent-400">
+        Read more
+        <svg
+          class="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-1"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+        </svg>
+      </span>
+    </div>
+  </div>
+</a>

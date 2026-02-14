@@ -25,7 +25,7 @@ playwright-report
 server.js 
 
 # dependencies 
-/node_modules 
+node_modules
 
 # IDEs and editors 
 /.idea 
@@ -61,5 +61,6 @@ testem.log
 
 # System Files 
 .DS_Store
-Thumbs.db 
+Thumbs.db
 .angular
+.astro

@@ -1,0 +1,106 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  pubDate: Date;
+  updatedDate?: Date;
+  author: string;
+  tags?: string[];
+  heroImage?: string;
+}
+
+const { title, description, pubDate, updatedDate, author, tags = [], heroImage } = Astro.props;
+
+const formattedDate = pubDate.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+
+const formattedUpdatedDate = updatedDate?.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+---
+
+<BaseLayout title={`${title} | IPTVnator Blog`} description={description}>
+  <article class="pt-36 pb-24">
+    <div class="mx-auto max-w-3xl px-6">
+      <!-- Back link -->
+      <a
+        href="/iptvnator/blog/"
+        class="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.1em] text-surface-500 transition-colors hover:text-accent-400"
+      >
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to blog
+      </a>
+
+      <!-- Header -->
+      <header class="mt-10">
+        <div class="flex flex-wrap items-center gap-2">
+          <time datetime={pubDate.toISOString()} class="font-mono text-xs text-surface-500">
+            {formattedDate}
+          </time>
+          {
+            tags.length > 0 && (
+              <>
+                <span class="text-surface-700">&middot;</span>
+                {tags.map((tag) => (
+                  <span class="rounded-full border border-dashed border-accent-500/30 px-2.5 py-0.5 text-xs font-medium text-accent-400">
+                    {tag}
+                  </span>
+                ))}
+              </>
+            )
+          }
+        </div>
+
+        <h1 class="mt-5 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl">
+          {title}
+        </h1>
+
+        <p class="mt-4 text-lg text-surface-400">{description}</p>
+
+        <div class="mt-6 flex items-center gap-3">
+          <div class="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-accent-500/30 bg-accent-500/10 font-mono text-sm font-bold text-accent-400">
+            {author.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div class="text-sm font-medium text-surface-100">{author}</div>
+            {
+              updatedDate && (
+                <div class="font-mono text-[11px] text-surface-500">
+                  Updated {formattedUpdatedDate}
+                </div>
+              )
+            }
+          </div>
+        </div>
+
+        <hr class="section-divider mt-10" />
+      </header>
+
+      <!-- Hero image -->
+      {heroImage && (
+        <div class="relative mt-10">
+          <div class="absolute -inset-6 rounded-2xl bg-accent-500/[0.03] blur-2xl" />
+          <div class="relative overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-lg shadow-black/20">
+            <img src={heroImage} alt="" class="w-full" loading="eager" />
+          </div>
+        </div>
+      )}
+
+      <!-- Content -->
+      <div
+        class="prose prose-invert mt-12 max-w-none prose-headings:font-display prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-surface-100 prose-p:text-surface-300 prose-a:text-accent-400 prose-a:no-underline prose-a:decoration-accent-500/30 hover:prose-a:underline prose-strong:text-surface-100 prose-code:rounded prose-code:bg-surface-800/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-accent-300 prose-code:before:content-[''] prose-code:after:content-[''] prose-pre:border prose-pre:border-dashed prose-pre:border-surface-700/60 prose-pre:bg-surface-900/50 prose-blockquote:border-accent-500/30 prose-blockquote:text-surface-400 prose-hr:border-dashed prose-hr:border-surface-700/60"
+      >
+        <slot />
+      </div>
+    </div>
+  </article>
+</BaseLayout>

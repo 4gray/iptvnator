@@ -1,0 +1,73 @@
+---
+const socialLinks = [
+  {
+    label: 'GitHub',
+    href: 'https://github.com/4gray/iptvnator',
+    icon: 'M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z',
+  },
+  {
+    label: 'Telegram',
+    href: 'https://t.me/iptvnator',
+    icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.27-2.06-.49-.83-.27-1.49-.42-1.43-.88.03-.24.37-.49 1.02-.74 3.99-1.74 6.65-2.89 7.99-3.44 3.81-1.58 4.6-1.86 5.12-1.87.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z',
+  },
+  {
+    label: 'Bluesky',
+    href: 'https://bsky.app/profile/4gray.bsky.social',
+    icon: 'M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm3.5 14.5c-1.5 0-2.7-.8-3.5-2-.8 1.2-2 2-3.5 2C6.6 16.5 5 14.9 5 13c0-3 3.5-6.5 7-9.5 3.5 3 7 6.5 7 9.5 0 1.9-1.6 3.5-3.5 3.5z',
+  },
+  {
+    label: 'Sponsor',
+    href: 'https://ko-fi.com/4gray',
+    icon: 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z',
+  },
+];
+---
+
+<footer class="border-t border-dashed border-surface-700/60">
+  <div class="mx-auto max-w-6xl px-6 py-16">
+    <div class="flex flex-col items-center gap-10 md:flex-row md:justify-between">
+      <!-- Logo & description -->
+      <div class="text-center md:text-left">
+        <div class="flex items-center justify-center gap-2.5 md:justify-start">
+          <img
+            src="/iptvnator/favicon.ico"
+            alt="IPTVnator logo"
+            class="h-6 w-6"
+          />
+          <span class="font-display text-lg font-semibold text-surface-100">IPTVnator</span>
+        </div>
+        <p class="mt-2 text-sm text-surface-500">
+          Open-source IPTV player for everyone.
+        </p>
+      </div>
+
+      <!-- Social links -->
+      <div class="flex items-center gap-2">
+        {
+          socialLinks.map((link) => (
+            <a
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="rounded-lg border border-transparent p-2.5 text-surface-600 transition-all duration-200 hover:border-surface-700/60 hover:text-accent-400"
+              aria-label={link.label}
+            >
+              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d={link.icon} />
+              </svg>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="mt-10 flex flex-col items-center justify-between gap-4 border-t border-dashed border-surface-700/60 pt-8 md:flex-row">
+      <p class="font-mono text-[11px] text-surface-600">
+        MIT License. Built with <a href="https://astro.build" class="text-surface-500 transition-colors hover:text-accent-400">Astro</a>.
+      </p>
+      <p class="font-mono text-[11px] text-surface-600">
+        IPTVnator does not provide any playlists or content.
+      </p>
+    </div>
+  </div>
+</footer>
