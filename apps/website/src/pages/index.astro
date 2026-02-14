@@ -1,0 +1,91 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import FeatureGrid from '../components/FeatureGrid.astro';
+import ScreenshotShowcase from '../components/ScreenshotShowcase.astro';
+import DownloadCTA from '../components/DownloadCTA.astro';
+import FeaturedBlogPost from '../components/FeaturedBlogPost.astro';
+import BlogPostCard from '../components/BlogPostCard.astro';
+
+const posts = (await getCollection('blog'))
+  .filter((post) => !post.data.draft)
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 3);
+
+const [featuredPost, ...otherPosts] = posts;
+---
+
+<BaseLayout
+  title="IPTVnator - Open Source IPTV Player"
+  description="A cross-platform IPTV player supporting M3U/M3U8 playlists, Xtream Codes API, and Stalker portals. Available as a desktop app and PWA."
+>
+  <Hero />
+  <FeatureGrid />
+  <ScreenshotShowcase />
+  <DownloadCTA />
+
+  <!-- Recent Blog Posts -->
+  {
+    posts.length > 0 && (
+      <section class="py-28">
+        <hr class="section-divider mb-28" />
+
+        <div class="mx-auto max-w-6xl px-6">
+          <div class="flex items-end justify-between">
+            <div>
+              <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">
+                Blog
+              </span>
+              <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
+                Latest <em class="font-medium text-accent-400" style="font-style: italic;">updates</em>
+              </h2>
+              <p class="mt-4 text-lg text-surface-400">
+                Release notes, tutorials, and project updates.
+              </p>
+            </div>
+            <a
+              href="/iptvnator/blog/"
+              class="hidden items-center gap-1.5 font-mono text-xs uppercase tracking-[0.1em] text-accent-500 transition-colors hover:text-accent-400 sm:inline-flex"
+            >
+              View all posts
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </a>
+          </div>
+
+          {/* Featured post */}
+          {featuredPost && (
+            <div class="mt-12">
+              <FeaturedBlogPost
+                title={featuredPost.data.title}
+                description={featuredPost.data.description}
+                pubDate={featuredPost.data.pubDate}
+                slug={featuredPost.id}
+                tags={featuredPost.data.tags}
+                heroImage={featuredPost.data.heroImage}
+              />
+            </div>
+          )}
+
+          {/* Other posts grid */}
+          {otherPosts.length > 0 && (
+            <div class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {otherPosts.map((post) => (
+                <BlogPostCard
+                  title={post.data.title}
+                  description={post.data.description}
+                  pubDate={post.data.pubDate}
+                  slug={post.id}
+                  tags={post.data.tags}
+                  heroImage={post.data.heroImage}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    )
+  }
+</BaseLayout>

@@ -1,0 +1,122 @@
+---
+const platforms = [
+  {
+    name: 'macOS',
+    icon: 'M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z',
+    href: 'https://github.com/4gray/iptvnator/releases/latest',
+  },
+  {
+    name: 'Windows',
+    icon: 'M3 12V6.75l8-1.25V12H3zm0 .5h8v6.5l-8-1.25V12.5zM11.5 5.35L21 3.75V12h-9.5V5.35zm0 7.15H21v8.25l-9.5-1.6V12.5z',
+    href: 'https://github.com/4gray/iptvnator/releases/latest',
+  },
+  {
+    name: 'Linux',
+    icon: 'M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.368 1.884 1.43.39.03.8-.066 1.109-.199.69-.3 1.286-1.065 1.09-1.745a21.03 21.03 0 01-.174-.606c-.101-.427-.2-.855-.29-1.283-.09-.428.04-.546.481-.735.463-.199.833-.338 1.073-.668.24-.33.364-.8.269-1.437-.14-.98-.689-2.072-1.329-3.069-.645-1-.34-1.665-.34-2.863.006-1.497-.898-2.987-1.792-4.048-.89-1.06-1.78-1.835-2.085-2.748-.228-.68-.098-1.401.128-2.056.112-.322.254-.631.325-.933.07-.303.072-.622-.058-.853C13.56.199 13.04 0 12.504 0z',
+    href: 'https://github.com/4gray/iptvnator/releases/latest',
+  },
+];
+
+const packageManagers = [
+  { label: 'Homebrew', command: 'brew install --cask iptvnator' },
+  { label: 'Snap', command: 'sudo snap install iptvnator' },
+];
+---
+
+<section id="download" class="relative py-28">
+  <hr class="section-divider mb-28" />
+
+  <!-- Ambient glow -->
+  <div class="pointer-events-none absolute bottom-0 left-1/2 h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-accent-500/[0.04] blur-[100px]"></div>
+
+  <div class="relative mx-auto max-w-6xl px-6">
+    <!-- Centered editorial header -->
+    <div class="mx-auto max-w-lg text-center">
+      <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">
+        Get started
+      </span>
+      <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
+        Get <em class="font-medium text-accent-400" style="font-style: italic;">IPTVnator</em>
+      </h2>
+      <p class="mt-4 text-lg text-surface-400">
+        Download for your platform or use it directly in the browser.
+      </p>
+    </div>
+
+    <!-- Platform buttons -->
+    <div class="mt-14 flex flex-wrap justify-center gap-4">
+      {
+        platforms.map((platform) => (
+          <a
+            href={platform.href}
+            class="card-dotted group flex items-center gap-4 px-8 py-5"
+          >
+            <svg class="h-7 w-7 text-surface-500 transition-colors duration-200 group-hover:text-accent-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d={platform.icon} />
+            </svg>
+            <div class="text-left">
+              <div class="font-mono text-[10px] uppercase tracking-[0.15em] text-surface-500">Download for</div>
+              <div class="mt-0.5 font-semibold text-surface-100">{platform.name}</div>
+            </div>
+          </a>
+        ))
+      }
+    </div>
+
+    <!-- Package managers -->
+    <div class="mx-auto mt-10 max-w-xl space-y-3">
+      {
+        packageManagers.map((pm) => (
+          <div class="flex items-center gap-4 rounded-lg border border-dashed border-surface-700/60 bg-surface-900/50 px-5 py-3.5">
+            <span class="w-20 shrink-0 font-mono text-[10px] font-medium uppercase tracking-[0.15em] text-surface-500">
+              {pm.label}
+            </span>
+            <code class="flex-1 font-mono text-sm text-accent-400/80">
+              {pm.command}
+            </code>
+            <button
+              class="copy-btn shrink-0 rounded-md p-1.5 text-surface-600 transition-colors hover:text-surface-300"
+              data-command={pm.command}
+              aria-label={`Copy ${pm.label} command`}
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+              </svg>
+            </button>
+          </div>
+        ))
+      }
+    </div>
+
+    <!-- Web app link -->
+    <div class="mt-10 text-center">
+      <p class="text-sm text-surface-500">
+        Or use it directly at{' '}
+        <a
+          href="https://iptvnator.vercel.app"
+          class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300 hover:decoration-accent-400/50"
+        >
+          iptvnator.vercel.app
+        </a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('.copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const command = (btn as HTMLElement).dataset.command;
+      if (command) {
+        await navigator.clipboard.writeText(command);
+        const svg = btn.querySelector('svg');
+        if (svg) {
+          svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />';
+          setTimeout(() => {
+            svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />';
+          }, 1500);
+        }
+      }
+    });
+  });
+</script>

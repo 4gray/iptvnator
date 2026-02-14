@@ -30,7 +30,9 @@
         "test:frontend": "nx test web",
         "test:backend": "nx test electron-backend",
         "package:app": "nx run electron-backend:make --prepackageOnly",
-        "make:app": "nx run electron-backend:make"
+        "make:app": "nx run electron-backend:make",
+        "serve:website": "nx serve website",
+        "build:website": "nx build website"
     },
     "private": true,
     "dependencies": {
@@ -99,6 +101,9 @@
         "@angular/platform-browser-dynamic": "20.3.10",
         "@angular/router": "20.3.10",
         "@angular/service-worker": "20.3.10",
+        "@astrojs/mdx": "4.3.13",
+        "@astrojs/sitemap": "3.7.0",
+        "@astrojs/tailwind": "6.0.2",
         "@eslint/eslintrc": "3.3.1",
         "@eslint/js": "^9.38.0",
         "@ngrx/eslint-plugin": "^20.0.0",
@@ -132,6 +137,7 @@
         "@typescript-eslint/parser": "^8.46.2",
         "@typescript-eslint/utils": "^8.46.2",
         "angular-eslint": "20.5.2",
+        "astro": "5.17.2",
         "conventional-changelog-cli": "5.0.0",
         "drizzle-kit": "0.31.5",
         "electron": "^39.0.0",
@@ -154,6 +160,8 @@
         "nx-electron": "^21.0.1",
         "prettier": "^3.6.2",
         "semantic-release": "24.2.9",
+        "sharp": "0.34.5",
+        "tailwindcss": "^3.4.19",
         "ts-jest": "^29.4.5",
         "ts-node": "10.9.2",
         "tslib": "^2.8.1",

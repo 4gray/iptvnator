@@ -1,0 +1,127 @@
+---
+import { Image } from 'astro:assets';
+import heroImg from '../assets/screenshots/hero-dark.png';
+---
+
+<section class="relative overflow-hidden pt-36 pb-24 sm:pt-44 sm:pb-32">
+  <!-- Ambient glow -->
+  <div class="pointer-events-none absolute top-0 left-1/2 h-[600px] w-[900px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-accent-500/[0.06] blur-[120px]"></div>
+
+  <div class="relative mx-auto max-w-6xl px-6">
+    <!-- Top section: editorial intro -->
+    <div class="mx-auto max-w-3xl text-center">
+      <!-- Mono label -->
+      <div class="mb-8 inline-flex items-center gap-3">
+        <span class="h-px w-8 bg-accent-500/50"></span>
+        <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Open source IPTV player</span>
+        <span class="h-px w-8 bg-accent-500/50"></span>
+      </div>
+
+      <!-- Headline with serif italic -->
+      <h1 class="font-display text-5xl font-bold tracking-tight text-surface-50 sm:text-7xl lg:text-8xl">
+        Watch, <em class="font-medium not-italic text-accent-400" style="font-style: italic;">your way.</em>
+      </h1>
+
+      <p class="mx-auto mt-8 max-w-xl text-lg leading-relaxed text-surface-400">
+        A cross-platform player for M3U/M3U8 playlists, Xtream Codes API, and
+        Stalker portals. Desktop app and Progressive Web App.
+      </p>
+
+      <!-- CTA: Big TV-effect download button -->
+      <div class="mt-12 flex flex-col items-center gap-6">
+        <a
+          href="https://github.com/4gray/iptvnator/releases/latest"
+          class="btn-tv group rounded-2xl px-10 py-6 sm:px-14 sm:py-7"
+        >
+          <!-- TV effect layers -->
+          <span class="tv-scanline"></span>
+          <span class="tv-noise"></span>
+          <span class="tv-vignette"></span>
+
+          <!-- Button content -->
+          <span class="relative z-10 flex items-center gap-4">
+            <svg class="h-6 w-6 text-accent-400 transition-transform duration-300 group-hover:translate-y-0.5 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span class="flex flex-col items-start">
+              <span class="btn-tv-text font-display text-2xl font-bold tracking-tight text-surface-50 sm:text-3xl">
+                Download <em class="font-medium text-accent-400" style="font-style: italic;">for Desktop</em>
+              </span>
+              <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-surface-500">
+                macOS · Windows · Linux
+              </span>
+            </span>
+          </span>
+        </a>
+
+        <!-- Secondary: Web app link -->
+        <a
+          href="https://iptvnator.vercel.app"
+          class="group inline-flex items-center gap-2.5 rounded-lg border border-dashed border-surface-600/60 px-7 py-3.5 text-sm font-medium text-surface-400 transition-all duration-300 hover:border-accent-500/30 hover:text-accent-400"
+        >
+          <svg class="h-4 w-4 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+          </svg>
+          Or try the Web App
+          <svg class="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </a>
+      </div>
+
+      <!-- Shields badges -->
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <img
+          src="https://img.shields.io/github/stars/4gray/iptvnator?style=flat&color=20a8a8&labelColor=1a1a17"
+          alt="GitHub stars"
+          class="h-5"
+          loading="lazy"
+        />
+        <img
+          src="https://img.shields.io/github/v/release/4gray/iptvnator?style=flat&color=20a8a8&labelColor=1a1a17"
+          alt="Latest release"
+          class="h-5"
+          loading="lazy"
+        />
+        <img
+          src="https://img.shields.io/github/downloads/4gray/iptvnator/total?style=flat&color=20a8a8&labelColor=1a1a17"
+          alt="Total downloads"
+          class="h-5"
+          loading="lazy"
+        />
+      </div>
+    </div>
+
+    <!-- Hero screenshot with window chrome frame -->
+    <div class="relative mx-auto mt-20 max-w-5xl">
+      <!-- Ambient glow behind image -->
+      <div class="absolute -inset-8 rounded-2xl bg-accent-500/[0.04] blur-3xl"></div>
+
+      <!-- Window chrome -->
+      <div class="relative overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/40">
+        <!-- Title bar -->
+        <div class="flex items-center gap-2 border-b border-dashed border-surface-700/60 px-4 py-2.5">
+          <div class="flex gap-1.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-red-500/70"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-yellow-500/70"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-green-500/70"></span>
+          </div>
+          <span class="ml-2 font-mono text-[11px] text-surface-500">IPTVnator</span>
+        </div>
+
+        <!-- Scanline overlay -->
+        <div class="relative">
+          <div class="pointer-events-none absolute inset-0 z-10 overflow-hidden opacity-[0.03]">
+            <div class="h-full w-full animate-scan" style="background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 4px);"></div>
+          </div>
+          <Image
+            src={heroImg}
+            alt="IPTVnator application interface showing dark theme with channel list and video player"
+            width={1200}
+            class="w-full"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

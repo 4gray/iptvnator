@@ -1,0 +1,128 @@
+---
+import { Image } from 'astro:assets';
+import playerImg from '../assets/screenshots/player.png';
+import epgImg from '../assets/screenshots/epg.png';
+import playlistsImg from '../assets/screenshots/playlists.png';
+import settingsImg from '../assets/screenshots/settings.png';
+import uploadFileImg from '../assets/screenshots/upload-file.png';
+
+const tabs = [
+  { id: 'player', label: 'Player', image: playerImg, alt: 'IPTVnator video player interface' },
+  { id: 'epg', label: 'EPG Guide', image: epgImg, alt: 'Electronic program guide view' },
+  { id: 'playlists', label: 'Playlists', image: playlistsImg, alt: 'Playlist management screen' },
+  { id: 'settings', label: 'Settings', image: settingsImg, alt: 'Application settings' },
+  { id: 'upload', label: 'Add Playlist', image: uploadFileImg, alt: 'Add playlist dialog' },
+];
+---
+
+<section id="screenshots" class="relative py-28">
+  <hr class="section-divider mb-28" />
+
+  <div class="mx-auto max-w-6xl px-6">
+    <!-- Editorial header: right-aligned for variety -->
+    <div class="ml-auto max-w-xl text-right">
+      <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">
+        Interface
+      </span>
+      <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
+        See it <em class="font-medium text-accent-400" style="font-style: italic;">in action</em>
+      </h2>
+      <p class="mt-4 text-lg text-surface-400">
+        A clean, intuitive interface designed for the best viewing experience.
+      </p>
+    </div>
+
+    <div class="mt-14">
+      <!-- Tab buttons with underline style -->
+      <div class="flex flex-wrap justify-center gap-1 rounded-lg border border-dashed border-surface-700/60 bg-surface-900/50 p-1.5" role="tablist">
+        {
+          tabs.map((tab, i) => (
+            <button
+              role="tab"
+              aria-selected={i === 0 ? 'true' : 'false'}
+              data-tab={tab.id}
+              class:list={[
+                'screenshot-tab rounded-md px-5 py-2 font-mono text-xs uppercase tracking-[0.1em] transition-all duration-200',
+                i === 0
+                  ? 'bg-accent-500/15 text-accent-400'
+                  : 'text-surface-500 hover:text-surface-300',
+              ]}
+            >
+              {tab.label}
+            </button>
+          ))
+        }
+      </div>
+
+      <!-- Screenshots with window chrome -->
+      <div class="relative mt-8">
+        {
+          tabs.map((tab, i) => (
+            <div
+              data-panel={tab.id}
+              class:list={[
+                'screenshot-panel transition-opacity duration-300',
+                i !== 0 && 'hidden',
+              ]}
+            >
+              <div class="relative mx-auto max-w-4xl">
+                <!-- Ambient glow -->
+                <div class="absolute -inset-6 rounded-2xl bg-accent-500/[0.03] blur-2xl" />
+
+                <!-- Window chrome -->
+                <div class="relative overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/30">
+                  <div class="flex items-center gap-2 border-b border-dashed border-surface-700/60 px-4 py-2.5">
+                    <div class="flex gap-1.5">
+                      <span class="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                      <span class="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                      <span class="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                    </div>
+                    <span class="ml-2 font-mono text-[11px] text-surface-500">{tab.label}</span>
+                  </div>
+                  <Image
+                    src={tab.image}
+                    alt={tab.alt}
+                    width={1000}
+                    class="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const tabs = document.querySelectorAll('.screenshot-tab');
+  const panels = document.querySelectorAll('.screenshot-panel');
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const target = (tab as HTMLElement).dataset.tab;
+
+      // Reset all tabs
+      tabs.forEach((t) => {
+        t.classList.remove('bg-accent-500/15', 'text-accent-400');
+        t.classList.add('text-surface-500');
+        t.setAttribute('aria-selected', 'false');
+      });
+
+      // Activate clicked tab
+      tab.classList.add('bg-accent-500/15', 'text-accent-400');
+      tab.classList.remove('text-surface-500');
+      tab.setAttribute('aria-selected', 'true');
+
+      // Show/hide panels
+      panels.forEach((panel) => {
+        if ((panel as HTMLElement).dataset.panel === target) {
+          panel.classList.remove('hidden');
+        } else {
+          panel.classList.add('hidden');
+        }
+      });
+    });
+  });
+</script>
