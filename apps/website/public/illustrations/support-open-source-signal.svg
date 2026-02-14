@@ -1,0 +1,56 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>support-open-source-signal-isometric</title>
+  <desc>Isometric architectural core representing the structural support of open-source software.</desc>
+
+  <!-- Central Isometric Core (The Engine) -->
+  <g id="isometric-core" transform="translate(400, 420)">
+    <!-- Bottom Plate -->
+    <path d="M-120 0 L0 60 L120 0 L0 -60 Z" fill="#1a1f21" stroke="#3c474a" stroke-width="2" />
+
+    <!-- Vertical Pillars (Structure) -->
+    <g stroke="#3c474a" stroke-width="2" stroke-linecap="round">
+      <path d="M-80 -20 V-100" />
+      <path d="M80 -20 V-100" />
+      <path d="M0 20 V-60" />
+    </g>
+
+    <!-- The Floating Heart-Core (The Pulse) -->
+    <g id="core-pulse" transform="translate(0, -90)">
+      <!-- Isometric Cube/Diamond Representation -->
+      <path d="M-40 0 L0 20 L40 0 L0 -20 Z" fill="#20a8a8" fill-opacity="0.2" stroke="#20a8a8" stroke-width="3">
+        <animate attributeName="fill-opacity" values="0.2;0.5;0.2" dur="3s" repeatCount="indefinite" />
+      </path>
+      <path d="M-40 0 V30 L0 50 V20 Z" fill="#20a8a8" fill-opacity="0.1" stroke="#20a8a8" stroke-width="2" />
+      <path d="M40 0 V30 L0 50 V20 Z" fill="#20a8a8" fill-opacity="0.05" stroke="#20a8a8" stroke-width="2" />
+
+      <!-- Internal Heart Motif (Simplified for Isometric) -->
+      <path d="M-10 -5 Q0 -15 10 -5 L0 10 Z" fill="#4fd1d1" opacity="0.8">
+        <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.5s" repeatCount="indefinite" />
+      </path>
+    </g>
+
+    <!-- Converging "Support" Streams -->
+    <g id="data-streams" stroke="#20a8a8" stroke-width="1.5" opacity="0.4">
+      <path d="M-200 -100 L-100 -50" stroke-dasharray="4 8" />
+      <path d="M200 -100 L100 -50" stroke-dasharray="4 8" />
+      <path d="M-150 100 L-80 50" />
+      <path d="M150 100 L80 50" />
+
+      <!-- Stream End Nodes -->
+      <circle cx="-100" cy="-50" r="3" fill="#20a8a8" />
+      <circle cx="100" cy="-50" r="3" fill="#20a8a8" />
+    </g>
+  </g>
+
+  <!-- Framing Elements -->
+  <g id="frames" stroke="#3c474a" stroke-width="1" opacity="0.2">
+    <circle cx="400" cy="400" r="280" />
+    <path d="M200 200 L150 150 M600 200 L650 150 M200 600 L150 650 M600 600 L650 650" />
+  </g>
+
+  <!-- Accent Highlights -->
+  <circle cx="400" cy="330" r="4" fill="#4fd1d1" opacity="0.6">
+     <animate attributeName="r" values="4;6;4" dur="3s" repeatCount="indefinite" />
+  </circle>
+
+</svg>

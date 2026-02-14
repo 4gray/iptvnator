@@ -1,4 +1,6 @@
 ---
+import footerWatermark from '../assets/footer-watermark.png';
+
 const socialLinks = [
   {
     label: 'GitHub',
@@ -13,7 +15,7 @@ const socialLinks = [
   {
     label: 'Bluesky',
     href: 'https://bsky.app/profile/4gray.bsky.social',
-    icon: 'M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm3.5 14.5c-1.5 0-2.7-.8-3.5-2-.8 1.2-2 2-3.5 2C6.6 16.5 5 14.9 5 13c0-3 3.5-6.5 7-9.5 3.5 3 7 6.5 7 9.5 0 1.9-1.6 3.5-3.5 3.5z',
+    icon: 'M13.202 10.857c2.752 2.066 5.711 6.254 6.798 8.502 1.087-2.248 4.046-6.436 6.798-8.502 1.985-1.49 5.202-2.644 5.202 1.026 0 .733-.42 6.157-.667 7.038-.857 3.061-3.978 3.842-6.755 3.37 4.854.826 6.089 3.562 3.422 6.299-5.065 5.197-7.279-1.304-7.847-2.97-.104-.305-.153-.448-.153-.327 0-.121-.049.021-.153.327-.567 1.666-2.782 8.166-7.847 2.97-2.667-2.736-1.432-5.473 3.422-6.299-2.777.473-5.899-.308-6.755-3.37-.246-.881-.667-6.305-.667-7.038 0-3.67 3.217-2.517 5.202-1.026Z',
   },
   {
     label: 'Sponsor',
@@ -23,8 +25,21 @@ const socialLinks = [
 ];
 ---
 
-<footer class="border-t border-dashed border-surface-700/60">
-  <div class="mx-auto max-w-6xl px-6 py-16">
+<footer class="relative overflow-hidden border-t border-dashed border-surface-700/60">
+  <div class="pointer-events-none absolute inset-0">
+    <div class="absolute -bottom-32 -right-16 h-[28rem] w-[28rem] rounded-full bg-accent-500/[0.07] blur-3xl"></div>
+    <div class="absolute -bottom-24 right-2 h-[23rem] w-[23rem]">
+      <img
+        src={footerWatermark.src}
+        alt=""
+        aria-hidden="true"
+        class="footer-watermark h-full w-full object-contain opacity-[0.075] grayscale"
+        loading="lazy"
+      />
+    </div>
+  </div>
+
+  <div class="relative z-10 mx-auto max-w-6xl px-6 py-16">
     <div class="flex flex-col items-center gap-10 md:flex-row md:justify-between">
       <!-- Logo & description -->
       <div class="text-center md:text-left">
@@ -71,3 +86,29 @@ const socialLinks = [
     </div>
   </div>
 </footer>
+
+<style>
+  .footer-watermark {
+    transform: rotate(-14deg) scale(1.06);
+    filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.45));
+    mix-blend-mode: screen;
+    animation: footerMarkFloat 11s ease-in-out infinite;
+  }
+
+  @keyframes footerMarkFloat {
+    0%, 100% {
+      transform: rotate(-14deg) translate3d(0, 0, 0) scale(1.06);
+      opacity: 0.065;
+    }
+    50% {
+      transform: rotate(-11deg) translate3d(-12px, -10px, 0) scale(1.1);
+      opacity: 0.09;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .footer-watermark {
+      animation: none;
+    }
+  }
+</style>

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120" viewBox="0 0 400 120" role="img" aria-label="Footer broadcast pattern strip light (tileable)">
+  <defs>
+    <filter id="microGlow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Very minimal rails -->
+  <g id="layer-rails" fill="none" stroke-linecap="round">
+    <path d="M0 24 H400" stroke="#3c474a" stroke-opacity="0.14" stroke-width="1"/>
+    <path d="M0 96 H400" stroke="#3c474a" stroke-opacity="0.12" stroke-width="1"/>
+  </g>
+
+  <!-- Few ticks -->
+  <g id="layer-ticks" fill="none" stroke-linecap="round">
+    <g stroke="#c7ced2" stroke-opacity="0.07" stroke-width="1">
+      <path d="M0 24 V32"/><path d="M80 24 V32"/><path d="M160 24 V32"/><path d="M240 24 V32"/><path d="M320 24 V32"/><path d="M400 24 V32"/>
+      <path d="M40 96 V88"/><path d="M200 96 V88"/><path d="M360 96 V88"/>
+    </g>
+
+    <!-- Single tiny wave notch -->
+    <path d="M170 62 c8 -6 16 -6 24 0 c8 6 16 6 24 0"
+          stroke="#20a8a8" stroke-opacity="0.07" stroke-width="1.5" fill="none" filter="url(#microGlow)"/>
+  </g>
+
+  <!-- One small dial hint -->
+  <g id="layer-dial" fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#microGlow)">
+    <g transform="translate(340 60)">
+      <circle cx="0" cy="0" r="9" stroke="#3c474a" stroke-opacity="0.16" stroke-width="1.2"/>
+      <path d="M0 -9 V-12" stroke="#c7ced2" stroke-opacity="0.07" stroke-width="1"/>
+      <circle cx="0" cy="0" r="2" fill="#20a8a8" fill-opacity="0.07"/>
+    </g>
+  </g>
+
+  <!-- Short dashed connector -->
+  <g id="layer-connector" fill="none" stroke-linecap="round">
+    <path d="M70 60 H130" stroke="#c7ced2" stroke-opacity="0.06" stroke-width="1" stroke-dasharray="3 7"/>
+  </g>
+
+  <!-- Sparse dots -->
+  <g id="layer-dots">
+    <circle cx="220" cy="24" r="1.0" fill="#20a8a8" fill-opacity="0.06"/>
+    <circle cx="120" cy="96" r="1.0" fill="#c7ced2" fill-opacity="0.05"/>
+    <circle cx="280" cy="78" r="0.9" fill="#3c474a" fill-opacity="0.12"/>
+  </g>
+</svg>

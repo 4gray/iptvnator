@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600" role="img" aria-label="Blog corner playlist signal mark">
+  <defs>
+    <linearGradient id="tealStroke" x1="360" y1="120" x2="600" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#20a8a8" stop-opacity="0.78"/>
+      <stop offset="1" stop-color="#20a8a8" stop-opacity="0.16"/>
+    </linearGradient>
+
+    <linearGradient id="neutralStroke" x1="340" y1="140" x2="600" y2="460" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c7ced2" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#3c474a" stop-opacity="0.18"/>
+    </linearGradient>
+
+    <filter id="microGlow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.25" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Weighted to top-right; airy; rotates well -->
+  <g id="layer-motif" filter="url(#microGlow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- Hint of a "player/playlist card" (no UI text, just geometry) -->
+    <g id="playlist-card">
+      <path d="M410 128
+               C402 128, 396 134, 396 142
+               L396 242
+               C396 250, 402 256, 410 256
+               L544 256
+               C552 256, 558 250, 558 242
+               L558 142
+               C558 134, 552 128, 544 128
+               Z"
+            stroke="url(#neutralStroke)" stroke-width="2.2" stroke-opacity="0.7"/>
+
+      <!-- Minimal "list rows" (very low contrast) -->
+      <path d="M422 166 H534" stroke="#c7ced2" stroke-opacity="0.10" stroke-width="2"/>
+      <path d="M422 192 H514" stroke="#c7ced2" stroke-opacity="0.08" stroke-width="2"/>
+      <path d="M422 218 H528" stroke="#c7ced2" stroke-opacity="0.09" stroke-width="2"/>
+
+      <!-- A small play-indicator wedge, abstract -->
+      <path d="M416 156 L416 176 L432 166 Z"
+            stroke="#20a8a8" stroke-opacity="0.00" fill="#20a8a8" fill-opacity="0.12"/>
+    </g>
+
+    <!-- "Antenna pin" (more like a signal marker than a tower) -->
+    <g id="signal-pin">
+      <path d="M520 270 L520 318" stroke="url(#tealStroke)" stroke-width="3" stroke-opacity="0.45"/>
+      <circle cx="520" cy="258" r="6" fill="#20a8a8" fill-opacity="0.26"/>
+      <path d="M505 328 L520 318 L535 328" stroke="#3c474a" stroke-opacity="0.30" stroke-width="5"/>
+      <path d="M505 328 L520 318 L535 328" stroke="#20a8a8" stroke-opacity="0.12" stroke-width="2"/>
+    </g>
+
+    <!-- Signal sweep arcs (corner-friendly) -->
+    <g id="signal-sweep">
+      <path d="M470 86
+               C545 120, 590 190, 598 278"
+            stroke="url(#tealStroke)" stroke-width="2.6" stroke-opacity="0.34"/>
+      <path d="M492 112
+               C548 140, 580 196, 586 266"
+            stroke="#c7ced2" stroke-width="2" stroke-opacity="0.10"/>
+      <path d="M448 64
+               C545 106, 600 196, 608 312"
+            stroke="#20a8a8" stroke-width="2" stroke-opacity="0.16"/>
+    </g>
+
+    <!-- One thin connector line (ties card → pin) -->
+    <g id="connector">
+      <path d="M468 252 C480 270, 495 288, 520 318"
+            stroke="#3c474a" stroke-opacity="0.28" stroke-width="2"/>
+      <path d="M468 252 C480 270, 495 288, 520 318"
+            stroke="#20a8a8" stroke-opacity="0.09" stroke-width="1"/>
+    </g>
+
+    <!-- Sparse “stars” / points -->
+    <g id="points" fill="none">
+      <circle cx="576" cy="110" r="2.1" fill="#20a8a8" fill-opacity="0.18"/>
+      <circle cx="548" cy="70" r="1.6" fill="#c7ced2" fill-opacity="0.10"/>
+      <circle cx="592" cy="170" r="1.7" fill="#c7ced2" fill-opacity="0.09"/>
+      <circle cx="560" cy="236" r="1.8" fill="#20a8a8" fill-opacity="0.13"/>
+      <circle cx="430" cy="286" r="1.6" fill="#c7ced2" fill-opacity="0.08"/>
+
+      <!-- Tiny diamond point -->
+      <path d="M548 312 l6 6 l-6 6 l-6-6 Z" fill="#20a8a8" fill-opacity="0.08"/>
+    </g>
+
+    <!-- Subtle corner framing stroke (very airy, helps “corner” feel) -->
+    <g id="corner-frame">
+      <path d="M600 88 C560 92, 540 104, 520 132" stroke="#3c474a" stroke-opacity="0.16" stroke-width="2"/>
+      <path d="M600 120 C566 124, 546 136, 532 156" stroke="#20a8a8" stroke-opacity="0.08" stroke-width="2"/>
+    </g>
+  </g>
+</svg>

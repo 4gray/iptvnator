@@ -1,10 +1,12 @@
 ---
-title: 'Introducing the IPTVnator Website'
-description: 'We are excited to launch the official IPTVnator website and developer blog. Stay tuned for release notes, tutorials, and roadmap updates.'
+title: Introducing the IPTVnator Website
+description: We are excited to launch the official IPTVnator website and developer blog. Stay tuned for release notes, tutorials, and roadmap updates.
 pubDate: 2026-02-14
-author: '4gray'
-heroImage: '/iptvnator/blog/player.png'
-tags: ['announcement']
+author: 4gray
+heroImage: /iptvnator/blog/player.png
+tags:
+- announcement
+draft: false
 ---
 
 We are excited to launch the official IPTVnator website and developer blog!

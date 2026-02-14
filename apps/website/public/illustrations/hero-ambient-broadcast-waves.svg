@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="800" viewBox="0 0 1920 800" role="img" aria-label="Ambient broadcast waves background motif">
+  <defs>
+    <!-- Core palette -->
+    <linearGradient id="tealFade" x1="1400" y1="80" x2="780" y2="720" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#20a8a8" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#20a8a8" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#20a8a8" stop-opacity="0"/>
+    </linearGradient>
+
+    <radialGradient id="ringFade" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(1535 400) rotate(90) scale(420 740)">
+      <stop offset="0" stop-color="#20a8a8" stop-opacity="0.10"/>
+      <stop offset="0.6" stop-color="#20a8a8" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#20a8a8" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="scanFade" x1="0" y1="0" x2="0" y2="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c7ced2" stop-opacity="0.00"/>
+      <stop offset="0.45" stop-color="#c7ced2" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#c7ced2" stop-opacity="0.00"/>
+    </linearGradient>
+
+    <!-- Subtle glow (kept restrained for 5–20% overall opacity usage) -->
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 0.55 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="microGlow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.1" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Transparent background: no rect fill -->
+
+  <!-- Layer: scanline bands (subtle, keeps text readability) -->
+  <g id="layer-scanlines" opacity="0.55">
+    <!-- Wide soft bands -->
+    <path d="M0 158H1920v38H0z" fill="url(#scanFade)" opacity="0.22"/>
+    <path d="M0 298H1920v26H0z" fill="url(#scanFade)" opacity="0.16"/>
+    <path d="M0 460H1920v30H0z" fill="url(#scanFade)" opacity="0.14"/>
+    <path d="M0 610H1920v42H0z" fill="url(#scanFade)" opacity="0.18"/>
+
+    <!-- Thin scanline-inspired hairlines -->
+    <g opacity="0.16" fill="#c7ced2">
+      <rect x="0" y="214" width="1920" height="1"/>
+      <rect x="0" y="238" width="1920" height="1"/>
+      <rect x="0" y="512" width="1920" height="1"/>
+      <rect x="0" y="536" width="1920" height="1"/>
+      <rect x="0" y="684" width="1920" height="1"/>
+    </g>
+  </g>
+
+  <!-- Layer: broadcast wave arcs (asymmetric weight on right) -->
+  <g id="layer-waves" filter="url(#softGlow)">
+    <g fill="none" stroke="url(#tealFade)" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Primary sweeping arcs -->
+      <path d="M1040 120
+               C1320 90, 1560 150, 1750 280
+               C1900 382, 1940 520, 1815 640
+               C1690 760, 1450 780, 1240 710"
+            stroke-width="2.2" opacity="0.62"/>
+      <path d="M980 170
+               C1250 130, 1500 190, 1700 318
+               C1860 420, 1895 540, 1782 642
+               C1668 745, 1450 760, 1260 704"
+            stroke-width="1.6" opacity="0.48"/>
+      <path d="M1140 70
+               C1440 35, 1720 120, 1890 290
+               C2020 420, 1990 585, 1840 690
+               C1690 796, 1405 805, 1185 710"
+            stroke-width="1.2" opacity="0.34"/>
+
+      <!-- Secondary inner arcs for layered depth -->
+      <path d="M1245 235
+               C1440 205, 1605 255, 1730 350
+               C1830 426, 1850 520, 1770 595
+               C1690 670, 1520 682, 1375 630"
+            stroke-width="1.4" opacity="0.42"/>
+      <path d="M1315 300
+               C1490 280, 1625 330, 1715 402
+               C1795 466, 1800 532, 1735 585
+               C1670 638, 1535 640, 1425 604"
+            stroke-width="1.1" opacity="0.30"/>
+    </g>
+
+    <!-- Low-contrast charcoal support curve (adds CRT geometry without stealing focus) -->
+    <path id="support-curve"
+      d="M720 690
+         C980 610, 1180 560, 1400 520
+         C1560 492, 1730 480, 1920 490"
+      fill="none" stroke="#0c1114" stroke-opacity="0.35" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <!-- Layer: radial rings (right side, very restrained) -->
+  <g id="layer-rings" opacity="0.9">
+    <g fill="none" stroke="url(#ringFade)" stroke-width="1.2" filter="url(#microGlow)">
+      <circle cx="1535" cy="400" r="118" opacity="0.36"/>
+      <circle cx="1535" cy="400" r="178" opacity="0.26"/>
+      <circle cx="1535" cy="400" r="248" opacity="0.18"/>
+      <circle cx="1535" cy="400" r="320" opacity="0.12"/>
+    </g>
+
+    <!-- Offset subtle ring cluster for asymmetry -->
+    <g fill="none" stroke="#20a8a8" stroke-opacity="0.10" stroke-width="1" filter="url(#microGlow)">
+      <ellipse cx="1705" cy="290" rx="92" ry="62" opacity="0.35"/>
+      <ellipse cx="1705" cy="290" rx="140" ry="96" opacity="0.22"/>
+    </g>
+  </g>
+
+  <!-- Layer: nodes & dots (kept sparse) -->
+  <g id="layer-nodes" filter="url(#microGlow)">
+    <!-- Main node cluster -->
+    <g>
+      <circle cx="1688" cy="402" r="3.2" fill="#20a8a8" fill-opacity="0.38"/>
+      <circle cx="1622" cy="520" r="2.6" fill="#20a8a8" fill-opacity="0.28"/>
+      <circle cx="1748" cy="312" r="2.4" fill="#20a8a8" fill-opacity="0.24"/>
+      <circle cx="1586" cy="350" r="1.9" fill="#c7ced2" fill-opacity="0.18"/>
+      <circle cx="1765" cy="520" r="1.8" fill="#c7ced2" fill-opacity="0.14"/>
+    </g>
+
+    <!-- A few distant dots to balance without clutter -->
+    <g opacity="0.55">
+      <circle cx="1140" cy="250" r="1.6" fill="#20a8a8" fill-opacity="0.16"/>
+      <circle cx="980" cy="560" r="1.5" fill="#c7ced2" fill-opacity="0.10"/>
+      <circle cx="860" cy="340" r="1.4" fill="#20a8a8" fill-opacity="0.12"/>
+    </g>
+
+    <!-- Thin connector hints (barely there) -->
+    <g fill="none" stroke="#20a8a8" stroke-opacity="0.10" stroke-width="1" stroke-linecap="round">
+      <path d="M1688 402 L1622 520" opacity="0.35"/>
+      <path d="M1688 402 L1748 312" opacity="0.25"/>
+      <path d="M1622 520 L1765 520" opacity="0.18"/>
+    </g>
+  </g>
+
+  <!-- Layer: left-side negative-space soft vignette (improves text readability) -->
+  <g id="layer-negative-space">
+    <linearGradient id="leftVignette" x1="0" y1="0" x2="700" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0b0f12" stop-opacity="0.26"/>
+      <stop offset="0.75" stop-color="#0b0f12" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#0b0f12" stop-opacity="0"/>
+    </linearGradient>
+    <rect x="0" y="0" width="760" height="800" fill="url(#leftVignette)"/>
+  </g>
+</svg>

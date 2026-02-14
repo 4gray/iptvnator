@@ -24,11 +24,23 @@ const formattedUpdatedDate = updatedDate?.toLocaleDateString('en-US', {
   month: 'long',
   day: 'numeric',
 });
+
+const AUTHOR_AVATAR_URL = 'https://avatars.githubusercontent.com/u/1503032';
 ---
 
 <BaseLayout title={`${title} | IPTVnator Blog`} description={description}>
   <article class="pt-36 pb-24">
-    <div class="mx-auto max-w-3xl px-6">
+    <div class="relative mx-auto max-w-3xl px-6">
+      <div class="pointer-events-none absolute -top-16 -right-14 hidden w-44 rotate-[-8deg] opacity-30 mix-blend-screen md:block lg:w-52">
+        <img
+          src="/iptvnator/illustrations/blog-corner-signal-mark.svg"
+          alt=""
+          aria-hidden="true"
+          class="w-full object-contain"
+          loading="lazy"
+        />
+      </div>
+
       <!-- Back link -->
       <a
         href="/iptvnator/blog/"
@@ -67,9 +79,12 @@ const formattedUpdatedDate = updatedDate?.toLocaleDateString('en-US', {
         <p class="mt-4 text-lg text-surface-400">{description}</p>
 
         <div class="mt-6 flex items-center gap-3">
-          <div class="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-accent-500/30 bg-accent-500/10 font-mono text-sm font-bold text-accent-400">
-            {author.charAt(0).toUpperCase()}
-          </div>
+          <img
+            src={AUTHOR_AVATAR_URL}
+            alt={`${author} avatar`}
+            class="h-8 w-8 rounded-full border border-dashed border-accent-500/30 object-cover"
+            loading="lazy"
+          />
           <div>
             <div class="text-sm font-medium text-surface-100">{author}</div>
             {

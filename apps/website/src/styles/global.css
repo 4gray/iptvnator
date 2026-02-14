@@ -68,16 +68,21 @@
   /* ── TV-effect download button ── */
   .btn-tv {
     position: relative;
+    display: inline-flex;
     overflow: hidden;
     isolation: isolate;
     border: 1px solid rgba(32, 168, 168, 0.3);
     background: linear-gradient(135deg, rgba(32, 168, 168, 0.12) 0%, rgba(32, 168, 168, 0.06) 50%, rgba(32, 168, 168, 0.1) 100%);
+    background-size: 180% 180%;
+    background-position: 0% 50%;
     box-shadow:
       0 0 20px rgba(32, 168, 168, 0.15),
       0 0 40px rgba(32, 168, 168, 0.05),
       inset 0 1px 0 rgba(255, 255, 255, 0.06),
       inset 0 0 20px rgba(32, 168, 168, 0.03);
     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: tvIdleGlow 2.1s ease-in-out infinite, tvSurfaceShift 2.8s linear infinite, tvButtonJitter 1.2s steps(2, end) infinite;
+    will-change: transform, box-shadow, background-position;
   }
 
   .btn-tv::before {
@@ -85,7 +90,7 @@
     position: absolute;
     inset: 0;
     z-index: 1;
-    opacity: 0;
+    opacity: 0.34;
     background: repeating-linear-gradient(
       0deg,
       transparent,
@@ -95,6 +100,29 @@
     );
     transition: opacity 0.3s ease;
     pointer-events: none;
+    animation: tvHorizontalRoll 2.2s linear infinite;
+  }
+
+  .btn-tv::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    opacity: 0.22;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    background-image:
+      linear-gradient(180deg, rgba(32, 168, 168, 0) 0%, rgba(32, 168, 168, 0.1) 48%, rgba(32, 168, 168, 0) 100%),
+      repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 5px,
+        rgba(180, 255, 255, 0.045) 6px,
+        transparent 7px
+      );
+    background-size: 100% 100%, 100% 12px;
+    background-position: 0 0, 0 0;
+    animation: tvInterferenceShift 0.45s steps(14) infinite, tvNoSignalBurst 3.6s steps(1, end) infinite;
   }
 
   /* TV scanline sweep overlay */
@@ -102,7 +130,7 @@
     position: absolute;
     inset: 0;
     z-index: 2;
-    opacity: 0;
+    opacity: 0.75;
     overflow: hidden;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -122,7 +150,7 @@
       rgba(32, 168, 168, 0.08) 60%,
       transparent
     );
-    animation: tvScan 3s linear infinite;
+    animation: tvScan 1.1s linear infinite;
   }
 
   /* Static noise overlay */
@@ -130,12 +158,36 @@
     position: absolute;
     inset: -50%;
     z-index: 3;
-    opacity: 0;
+    opacity: 0.08;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
     background-size: 128px 128px;
+    background-position: 0 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
     mix-blend-mode: overlay;
+    animation: tvNoiseDrift 0.55s steps(24) infinite;
+  }
+
+  .btn-tv .tv-noise::after {
+    content: '';
+    position: absolute;
+    top: 48%;
+    left: -38%;
+    width: 34%;
+    height: 1px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(32, 168, 168, 0.5) 40%,
+      rgba(155, 255, 255, 0.8) 50%,
+      rgba(32, 168, 168, 0.5) 60%,
+      transparent 100%
+    );
+    box-shadow: 0 0 10px rgba(32, 168, 168, 0.35);
+    opacity: 0.95;
+    height: 2px;
+    animation: tvNoiseLineX 1.15s linear infinite;
   }
 
   /* CRT vignette corners */
@@ -155,16 +207,20 @@
     border-color: rgba(32, 168, 168, 0.5);
     background: linear-gradient(135deg, rgba(32, 168, 168, 0.18) 0%, rgba(32, 168, 168, 0.08) 50%, rgba(32, 168, 168, 0.15) 100%);
     box-shadow:
-      0 0 30px rgba(32, 168, 168, 0.3),
-      0 0 60px rgba(32, 168, 168, 0.1),
-      0 0 100px rgba(32, 168, 168, 0.05),
+      0 0 44px rgba(32, 168, 168, 0.45),
+      0 0 100px rgba(32, 168, 168, 0.22),
+      0 0 130px rgba(32, 168, 168, 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
       inset 0 0 30px rgba(32, 168, 168, 0.06);
-    transform: scale(1.02);
+    transform: translateY(-2px) scale(1.055);
   }
 
   .btn-tv:hover::before {
-    opacity: 1;
+    opacity: 0.75;
+  }
+
+  .btn-tv:hover::after {
+    opacity: 0.45;
   }
 
   .btn-tv:hover .tv-scanline {
@@ -172,8 +228,13 @@
   }
 
   .btn-tv:hover .tv-noise {
-    opacity: 0.04;
-    animation: tvFlicker 0.15s infinite;
+    opacity: 0.16;
+    animation: tvNoiseDrift 0.35s steps(30) infinite, tvFlicker 0.08s infinite;
+  }
+
+  .btn-tv:hover .tv-noise::after {
+    opacity: 1;
+    animation-duration: 0.65s;
   }
 
   .btn-tv:hover .tv-vignette {
@@ -186,6 +247,10 @@
       2px 0 rgba(32, 168, 168, 0.3),
       -2px 0 rgba(255, 100, 100, 0.15);
     animation: tvTextGlitch 4s infinite;
+  }
+
+  .btn-tv .btn-tv-text {
+    animation: tvSubpixelDrift 8s ease-in-out infinite;
   }
 
   @keyframes tvTextGlitch {
@@ -216,6 +281,137 @@
     }
   }
 
+  @keyframes tvIdleGlow {
+    0%, 100% {
+      box-shadow:
+        0 0 18px rgba(32, 168, 168, 0.14),
+        0 0 36px rgba(32, 168, 168, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        inset 0 0 18px rgba(32, 168, 168, 0.02);
+    }
+    50% {
+      box-shadow:
+        0 0 24px rgba(32, 168, 168, 0.2),
+        0 0 48px rgba(32, 168, 168, 0.07),
+        inset 0 1px 0 rgba(255, 255, 255, 0.07),
+        inset 0 0 24px rgba(32, 168, 168, 0.04);
+    }
+  }
+
+  @keyframes tvSurfaceShift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  @keyframes tvButtonJitter {
+    0%, 100% {
+      transform: translate3d(0, 0, 0);
+    }
+    20% {
+      transform: translate3d(0.4px, -0.3px, 0);
+    }
+    40% {
+      transform: translate3d(-0.5px, 0.2px, 0);
+    }
+    60% {
+      transform: translate3d(0.3px, 0.1px, 0);
+    }
+    80% {
+      transform: translate3d(-0.2px, -0.2px, 0);
+    }
+  }
+
+  @keyframes tvNoiseDrift {
+    0% {
+      transform: translate3d(-1%, -0.5%, 0) scale(1);
+      background-position: 0 0;
+    }
+    50% {
+      transform: translate3d(1%, 0.8%, 0) scale(1.015);
+      background-position: 22px -18px;
+    }
+    100% {
+      transform: translate3d(-0.5%, -0.2%, 0) scale(1);
+      background-position: 44px -8px;
+    }
+  }
+
+  @keyframes tvNoiseLineX {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(420%);
+    }
+  }
+
+  @keyframes tvHorizontalRoll {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(20px);
+    }
+  }
+
+  @keyframes tvInterferenceShift {
+    0% {
+      transform: translate3d(0, 0, 0);
+      background-position: 0 0, 0 0;
+    }
+    100% {
+      transform: translate3d(0, 0, 0);
+      background-position: 0 0, 0 12px;
+    }
+  }
+
+  @keyframes tvNoSignalBurst {
+    0%, 60%, 100% {
+      filter: contrast(1) brightness(1);
+      transform: translate3d(0, 0, 0);
+    }
+    61% {
+      filter: contrast(2.1) brightness(1.35) saturate(1.15);
+      transform: translate3d(1.3%, -0.5%, 0);
+    }
+    62% {
+      filter: contrast(0.72) brightness(0.8) saturate(0.9);
+      transform: translate3d(-1.4%, 0.4%, 0);
+    }
+    63% {
+      filter: contrast(1.6) brightness(1.2) saturate(1.1);
+      transform: translate3d(0.6%, -0.2%, 0);
+    }
+  }
+
+  @keyframes tvSubpixelDrift {
+    0%, 100% {
+      transform: translate3d(0, 0, 0);
+      text-shadow:
+        0 0 rgba(32, 168, 168, 0),
+        0 0 rgba(255, 110, 110, 0);
+    }
+    45% {
+      transform: translate3d(0.1px, 0, 0);
+      text-shadow:
+        0.5px 0 rgba(32, 168, 168, 0.2),
+        -0.5px 0 rgba(255, 110, 110, 0.08);
+    }
+    55% {
+      transform: translate3d(-0.1px, 0, 0);
+      text-shadow:
+        0.4px 0 rgba(32, 168, 168, 0.16),
+        -0.4px 0 rgba(255, 110, 110, 0.06);
+    }
+  }
+
   /* ── Carousel infinite marquee ── */
   .carousel-track {
     animation: marquee 40s linear infinite;
@@ -235,6 +431,17 @@
       animation: none;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+    }
+
+    .btn-tv,
+    .btn-tv::before,
+    .btn-tv::after,
+    .btn-tv .tv-noise,
+    .btn-tv .tv-noise::after,
+    .btn-tv .tv-scanline::after,
+    .btn-tv .btn-tv-text,
+    .btn-tv:hover .btn-tv-text {
+      animation-duration: 16s !important;
     }
   }
 }

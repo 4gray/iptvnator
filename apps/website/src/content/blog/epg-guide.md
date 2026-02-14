@@ -1,10 +1,13 @@
 ---
-title: 'Understanding the Electronic Program Guide'
-description: 'Learn how IPTVnator uses XMLTV data to display current and upcoming programs alongside your live TV channels.'
+title: Understanding the Electronic Program Guide
+description: Learn how IPTVnator uses XMLTV data to display current and upcoming programs alongside your live TV channels.
 pubDate: 2026-02-15
-author: '4gray'
-heroImage: '/iptvnator/blog/epg.png'
-tags: ['tutorial', 'epg']
+author: 4gray
+heroImage: /iptvnator/blog/epg.png
+tags:
+- tutorial
+- epg
+draft: false
 ---
 
 One of the most useful features in IPTVnator is the built-in Electronic Program Guide (EPG). Here is how it works and how to set it up.
