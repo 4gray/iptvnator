@@ -272,10 +272,27 @@ class RemoteControlEvents {
         callback: (body: any) => void
     ): void {
         let data = '';
+        let totalSize = 0;
+        let payloadTooLarge = false;
+        const MAX_BODY_SIZE = 10 * 1024; // 10KB
+
         req.on('data', (chunk: Buffer) => {
+            if (payloadTooLarge) return;
+
+            totalSize += chunk.length;
+            if (totalSize > MAX_BODY_SIZE) {
+                payloadTooLarge = true;
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Payload too large' }));
+                req.destroy();
+                return;
+            }
+
             data += chunk.toString();
         });
         req.on('end', () => {
+            if (payloadTooLarge) return;
+
             if (!data) {
                 callback({});
                 return;
