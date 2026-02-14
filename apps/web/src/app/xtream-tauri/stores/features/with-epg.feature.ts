@@ -10,6 +10,7 @@ import {
     XtreamApiService,
     XtreamCredentials,
 } from '../../services/xtream-api.service';
+import { createLogger } from '../../../shared/utils/logger';
 
 /**
  * EPG state for managing Electronic Program Guide data
@@ -34,6 +35,7 @@ const initialEpgState: EpgState = {
  * - Loading channel EPG for preview
  */
 export function withEpg() {
+    const logger = createLogger('withEpg');
     return signalStoreFeature(
         withState<EpgState>(initialEpgState),
 
@@ -94,7 +96,7 @@ export function withEpg() {
 
                         return epgItems;
                     } catch (error) {
-                        console.error('Error loading EPG:', error);
+                        logger.error('Error loading EPG', error);
                         patchState(store, {
                             epgItems: [],
                             isLoadingEpg: false,
@@ -119,7 +121,7 @@ export function withEpg() {
                             1
                         );
                     } catch (error) {
-                        console.error('Error loading channel EPG:', error);
+                        logger.error('Error loading channel EPG', error);
                         return [];
                     }
                 },

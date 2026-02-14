@@ -7,7 +7,7 @@
         "types": ["jest", "node"],
         "moduleResolution": "node10"
     },
-    "files": ["src/test-setup.ts"],
+    "files": ["src/test-setup.ts", "../../global.d.ts"],
     "include": [
         "jest.config.ts",
         "src/**/*.test.ts",

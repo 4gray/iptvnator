@@ -7,6 +7,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { selectActivePlaylist } from 'm3u-state';
 import { XtreamApiService } from '../services/xtream-api.service';
 import { XtreamAccountInfo } from './account-info.interface';
+import { createLogger } from '../../shared/utils/logger';
 
 @Component({
     selector: 'app-account-info',
@@ -22,6 +23,7 @@ export class AccountInfoComponent {
     }>(MAT_DIALOG_DATA);
     private readonly xtreamApiService = inject(XtreamApiService);
     private readonly store = inject(Store);
+    private readonly logger = createLogger('XtreamAccountInfo');
 
     accountInfo: XtreamAccountInfo;
     formattedExpDate: string;
@@ -59,7 +61,7 @@ export class AccountInfoComponent {
                 ).toLocaleDateString();
             }
         } catch (error) {
-            console.error('Failed to fetch account info:', error);
+            this.logger.error('Failed to fetch account info', error);
         }
     }
 

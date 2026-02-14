@@ -140,6 +140,20 @@ function stopPositionPolling() {
     }
 }
 
+function maskUrlForLogs(rawUrl: string): string {
+    try {
+        const parsed = new URL(rawUrl);
+        return `${parsed.origin}${parsed.pathname}`;
+    } catch {
+        return rawUrl;
+    }
+}
+
+function shouldIgnoreMpvStdoutLine(line: string): boolean {
+    // Suppress MPV realtime progress spam.
+    return /^(\(Paused\)\s*)?AV:\s/.test(line);
+}
+
 function startPositionPolling(socketPath: string, contentInfo: any) {
     stopPositionPolling();
 
@@ -304,14 +318,16 @@ ipcMain.handle(
             const mpvPath = getMpvPath();
             const reuseInstance = store.get(MPV_REUSE_INSTANCE, false);
 
-            console.log('Opening MPV player with path:', mpvPath);
-            console.log('Reuse instance:', reuseInstance);
-            console.log('URL:', url);
-            console.log('User-Agent:', userAgent);
-            console.log('Referer:', referer);
-            console.log('Origin:', origin);
-            console.log('Content Info:', contentInfo);
-            console.log('Start Time:', startTime);
+            console.log('[MPV] Opening player', {
+                path: mpvPath,
+                reuseInstance,
+                stream: maskUrlForLogs(url),
+                hasUserAgent: Boolean(userAgent),
+                hasReferer: Boolean(referer),
+                hasOrigin: Boolean(origin),
+                hasContentInfo: Boolean(contentInfo),
+                startTime: startTime ?? null,
+            });
 
             // If reuse is enabled and there's an existing process, try to use it
             if (
@@ -410,8 +426,17 @@ ipcMain.handle(
                 // Capture stdout
                 if (proc.stdout) {
                     proc.stdout.on('data', (data) => {
-                        const output = data.toString().trim();
-                        if (output) {
+                        const lines = data
+                            .toString()
+                            .split('\n')
+                            .map((line) => line.trim())
+                            .filter(Boolean);
+
+                        for (const output of lines) {
+                            if (shouldIgnoreMpvStdoutLine(output)) {
+                                continue;
+                            }
+
                             console.log('[MPV stdout]:', output);
 
                             // MPV sometimes outputs errors to stdout instead of stderr

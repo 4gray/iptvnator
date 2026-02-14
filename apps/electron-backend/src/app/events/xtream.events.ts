@@ -12,6 +12,43 @@ export default class XtreamEvents {
     }
 }
 
+function formatXtreamError(error: unknown, requestUrl: string, action?: string) {
+    const parsedUrl = new URL(requestUrl);
+    const base = {
+        action,
+        host: parsedUrl.host,
+        pathname: parsedUrl.pathname,
+    };
+
+    if (axios.isAxiosError(error)) {
+        return {
+            ...base,
+            type: 'AxiosError',
+            code: error.code,
+            status: error.response?.status,
+            message: error.message,
+            syscall: (error as NodeJS.ErrnoException).syscall,
+            hostname: (error as any).hostname,
+        };
+    }
+
+    if (error && typeof error === 'object') {
+        const errObj = error as Record<string, unknown>;
+        return {
+            ...base,
+            type: 'ErrorObject',
+            status: errObj.status,
+            message: errObj.message,
+        };
+    }
+
+    return {
+        ...base,
+        type: 'UnknownError',
+        message: String(error),
+    };
+}
+
 /**
  * Handle Xtream Codes API requests
  */
@@ -63,7 +100,10 @@ ipcMain.handle(
                 action: params.action,
             };
         } catch (error) {
-            console.error('Xtream request error:', error);
+            console.error(
+                '[XTREAM_REQUEST] Failed',
+                formatXtreamError(error, payload.url, payload.params?.action)
+            );
 
             // Format error response
             if (axios.isAxiosError(error)) {

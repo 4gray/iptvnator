@@ -10,6 +10,7 @@ import { DownloadsService } from '../../services/downloads.service';
 import { SettingsStore } from '../../services/settings-store.service';
 import { XtreamStore } from '../stores/xtream.store';
 import { SafePipe } from '@iptvnator/pipes';
+import { createLogger } from '../../shared/utils/logger';
 
 /**
  * Route-based VOD details container for Xtream.
@@ -39,6 +40,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly downloadsService = inject(DownloadsService);
+    private readonly logger = createLogger('VodDetailsRoute');
 
     readonly theme = this.settingsStore.theme;
     readonly isElectron = this.downloadsService.isAvailable;
@@ -51,9 +53,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly hasPlaybackPosition = computed(() => {
         const vodId = this.route.snapshot.params.vodId;
         const inProgress = this.xtreamStore.isInProgress(Number(vodId), 'vod');
-        console.log(
-            `[VodDetails] hasPlaybackPosition check: vodId=${vodId}, inProgress=${inProgress}`
-        );
+        this.logger.debug('hasPlaybackPosition check', {
+            vodId,
+            inProgress,
+        });
         return inProgress;
     });
 
@@ -106,7 +109,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
                   vodItem.movie_data?.stream_id || (vodItem as any).stream_id
               );
 
-        console.log(`[VodDetails] playVod: Resolved ID=${id} for item`, vodItem);
+        this.logger.debug('playVod resolved ID', { id, vodItem });
 
         const contentInfo = {
             playlistId: this.xtreamStore.currentPlaylist().id,

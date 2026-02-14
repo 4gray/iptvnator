@@ -17,6 +17,7 @@ import {
     XtreamCredentials,
 } from '../../services/xtream-api.service';
 import { PortalStatusType } from '../../xtream-state';
+import { createLogger } from '../../../shared/utils/logger';
 
 /**
  * Portal state for managing playlist and portal status
@@ -44,6 +45,7 @@ const initialPortalState: PortalState = {
  * - Checking portal status (active, inactive, expired, unavailable)
  */
 export function withPortal() {
+    const logger = createLogger('withPortal');
     return signalStoreFeature(
         withState<PortalState>(initialPortalState),
 
@@ -98,7 +100,7 @@ export function withPortal() {
                             }
                         }
                     } catch (error) {
-                        console.error('Error fetching playlist:', error);
+                        logger.error('Error fetching playlist', error);
                     }
                 },
 
@@ -140,7 +142,7 @@ export function withPortal() {
                             patchState(store, { portalStatus: 'inactive' });
                         }
                     } catch (error) {
-                        console.error('Error checking portal status:', error);
+                        logger.error('Error checking portal status', error);
                         patchState(store, { portalStatus: 'unavailable' });
                     }
                 },

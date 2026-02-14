@@ -7,14 +7,14 @@
     >
         <!-- Tags: Year, Genre, Rating -->
         <ng-container hero-tags>
-            @if (serial.info.releasedate || serial.info.year) {
+            @if (serial.info.releasedate) {
                 <span class="details__tag">{{
-                    serial.info.releasedate || serial.info.year
+                    serial.info.releasedate
                 }}</span>
             }
-            @if (serial.info.genre || serial.info.genres_str) {
+            @if (serial.info.genre) {
                 <span class="details__tag">{{
-                    serial.info.genre || serial.info.genres_str
+                    serial.info.genre
                 }}</span>
             }
             @if (serial.info.rating_imdb) {
@@ -53,8 +53,7 @@
         <ng-container hero-actions>
             <app-favorites-button
                 [itemId]="serial.id"
-                (addToFavoritesClicked)="addToFavorites(serial)"
-                (removeFromFavoritesClicked)="removeFromFavorites(serial.id)"
+                [item]="serial"
             />
         </ng-container>
 
@@ -62,7 +61,7 @@
         @if (mappedSeasons()) {
             <app-season-container
                 [seasons]="mappedSeasons()"
-                [seriesId]="serial.id"
+                [seriesId]="toSeriesId(serial.id)"
                 [seriesTitle]="serial.info?.name"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
@@ -76,4 +75,3 @@
         }
     </app-content-hero>
 }
-

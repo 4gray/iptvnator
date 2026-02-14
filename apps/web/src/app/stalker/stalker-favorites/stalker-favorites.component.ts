@@ -1,16 +1,28 @@
-import { Component, computed, inject, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from 'services';
 import {
     VodDetailsItem,
-    StalkerVodDetails,
-    createStalkerVodItem,
 } from 'shared-interfaces';
 import { FavoritesLayoutComponent } from '../../shared/components/favorites-layout/favorites-layout.component';
 import { VodDetailsComponent } from '../../xtream/vod-details/vod-details.component';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerStore } from '../stalker.store';
+import { createLogger } from '../../shared/utils/logger';
+import {
+    StalkerFavoriteItem,
+} from '../models';
+import {
+    clearStalkerDetailViewState,
+    createPortalFavoritesResource,
+    createRefreshTrigger,
+    createStalkerDetailViewState,
+    normalizeStalkerEntityId,
+    NormalizedStalkerFavoriteItem,
+    normalizeStalkerFavoriteItem,
+    isSelectedStalkerVodFavorite,
+    toggleStalkerVodFavorite,
+} from '../stalker-vod.utils';
 
 @Component({
     selector: 'app-stalker-favorites',
@@ -37,27 +49,22 @@ import { StalkerStore } from '../stalker.store';
 })
 export class StalkerFavoritesComponent {
     private readonly playlistService = inject(PlaylistsService);
-    private readonly refreshTimestamp = signal<number>(Date.now());
+    private readonly favoritesRefresh = createRefreshTrigger();
     private readonly stalkerStore = inject(StalkerStore);
     private readonly translate = inject(TranslateService);
+    private readonly logger = createLogger('StalkerFavorites');
 
-    itemDetails: any = null;
+    itemDetails: NormalizedStalkerFavoriteItem | null = null;
     vodDetailsItem: VodDetailsItem | null = null;
+    readonly isSelectedVodFavorite = signal<boolean>(false);
 
     readonly currentPlaylist = this.stalkerStore.currentPlaylist;
 
-    readonly allFavorites = rxResource({
-        params: () => {
-            const portalId = this.stalkerStore.currentPlaylist()?._id;
-            if (!portalId) return undefined;
-            return {
-                portalId,
-                refreshTimestamp: this.refreshTimestamp(),
-            };
-        },
-        stream: ({ params }) =>
-            this.playlistService.getPortalFavorites(params.portalId),
-    });
+    readonly allFavorites = createPortalFavoritesResource(
+        this.playlistService,
+        () => this.stalkerStore.currentPlaylist()?._id,
+        () => this.favoritesRefresh.refreshVersion()
+    );
 
     readonly categories = computed(() => [
         {
@@ -119,20 +126,39 @@ export class StalkerFavoritesComponent {
         this.allFavorites.value()?.filter((item) => item.category_id === 'itv')
     );
 
-    removeFromFavorites(item: any) {
-        this.stalkerStore.removeFromFavorites(item.id);
-        setTimeout(() => {
-            this.refreshTimestamp.set(Date.now());
-        }, 100);
+    constructor() {
+        effect(() => {
+            this.allFavorites.value();
+            this.syncSelectedVodFavorite();
+        });
     }
 
-    setCategoryId(categoryId: any) {
+    removeFromFavorites(item: Pick<StalkerFavoriteItem, 'id'>, onDone?: () => void) {
+        this.stalkerStore.removeFromFavorites(
+            normalizeStalkerEntityId(item.id),
+            () => {
+            this.favoritesRefresh.refresh();
+            this.syncSelectedVodFavorite();
+            onDone?.();
+            }
+        );
+    }
+
+    addToFavorites(item: Record<string, unknown>, onDone?: () => void) {
+        this.stalkerStore.addToFavorites(item, () => {
+            this.favoritesRefresh.refresh();
+            this.syncSelectedVodFavorite();
+            onDone?.();
+        });
+    }
+
+    setCategoryId(categoryId: string) {
         this.selectedCategoryId.set(categoryId);
     }
 
-    openItem(item: any) {
-        console.debug('Open item', item);
-        const normalizedItem = this.normalizeFavoriteItem(item);
+    openItem(item: StalkerFavoriteItem) {
+        this.logger.debug('Open item', item);
+        const normalizedItem = normalizeStalkerFavoriteItem(item);
 
         switch (item.category_id) {
             case 'itv':
@@ -144,25 +170,16 @@ export class StalkerFavoritesComponent {
                 this.stalkerStore.setSelectedItem(normalizedItem.details);
                 this.stalkerStore.setSelectedContentType('vod');
 
-                // Check if this VOD item is actually a series (Ministra is_series=1)
-                const isVodSeries =
-                    normalizedItem.details?.is_series === true ||
-                    normalizedItem.details?.is_series === 1 ||
-                    normalizedItem.details?.is_series === '1' ||
-                    item.is_series === true ||
-                    item.is_series === 1 ||
-                    item.is_series === '1';
-
-                if (isVodSeries || normalizedItem.details?.series?.length > 0) {
-                    // VOD series - will be rendered as series view
-                    this.vodDetailsItem = null;
-                } else {
-                    // Regular VOD - create VodDetailsItem for the component
-                    this.vodDetailsItem = createStalkerVodItem(
-                        normalizedItem.details as StalkerVodDetails,
-                        this.currentPlaylist()?._id ?? ''
-                    );
-                }
+                const detailViewState = createStalkerDetailViewState(
+                    normalizedItem.details,
+                    this.currentPlaylist()?._id ?? ''
+                );
+                this.itemDetails = {
+                    ...normalizedItem,
+                    details: detailViewState.itemDetails,
+                };
+                this.vodDetailsItem = detailViewState.vodDetailsItem;
+                this.syncSelectedVodFavorite();
                 break;
             case 'series':
                 this.itemDetails = normalizedItem;
@@ -187,61 +204,43 @@ export class StalkerFavoritesComponent {
 
     /** Handle favorite toggle from vod-details component */
     onVodFavoriteToggled(event: { item: VodDetailsItem; isFavorite: boolean }): void {
-        if (!event.isFavorite && event.item.type === 'stalker') {
-            this.removeFromFavorites({ id: event.item.data.id });
-        }
+        toggleStalkerVodFavorite(event, {
+            addToFavorites: (item, onDone) => this.addToFavorites(item, onDone),
+            removeFromFavorites: (favoriteId, onDone) =>
+                this.removeFromFavorites({ id: favoriteId }, onDone),
+            onComplete: () => {
+                this.favoritesRefresh.refresh();
+                this.syncSelectedVodFavorite();
+            },
+        });
     }
 
     /** Handle back from vod-details component */
     onVodBack(): void {
-        this.itemDetails = null;
-        this.vodDetailsItem = null;
+        this.resetDetailsView(true);
     }
 
-    private normalizeFavoriteItem(item: any): any {
-        if (item.details && item.details.info) {
-            return item;
+    onSeriesBack(): void {
+        this.resetDetailsView(true);
+    }
+
+    private resetDetailsView(refreshList: boolean): void {
+        const cleared = clearStalkerDetailViewState();
+        this.itemDetails = null;
+        this.vodDetailsItem = cleared.vodDetailsItem;
+        this.isSelectedVodFavorite.set(false);
+        if (refreshList) {
+            this.favoritesRefresh.refresh();
         }
+    }
 
-        const source = item.details || item;
-        const info = source.info || {
-            name: item.o_name || item.name || item.title || 'Unknown',
-            o_name: item.o_name,
-            movie_image: item.cover || item.screenshot_uri || item.logo,
-            description: item.description,
-            releasedate: item.releasedate || item.year,
-            genre: item.genre || item.genres_str,
-            duration: item.duration,
-            rating_imdb: item.rating_imdb || item.rating,
-            country: item.country,
-            actors: item.actors,
-            director: item.director,
-            backdrop_path:
-                item.backdrop_path ||
-                [item.cover, item.screenshot_uri].filter(Boolean),
-        };
-
-        // Normalize is_series to boolean true (can be 1, "1", or true)
-        const rawIsSeries =
-            item.is_series || source.is_series;
-        const normalizedIsSeries =
-            rawIsSeries === true ||
-            rawIsSeries === 1 ||
-            rawIsSeries === '1';
-
-        return {
-            ...item,
-            details: {
-                ...source,
-                info: info,
-                cmd: item.cmd || source.cmd,
-                id: item.stream_id || item.id || source.id,
-                series: item.series || source.series,
-                is_series: normalizedIsSeries ? true : undefined,
-                // Preserve video_id for season fetching
-                video_id: item.video_id || source.video_id,
-            },
-        };
+    private syncSelectedVodFavorite(): void {
+        this.isSelectedVodFavorite.set(
+            isSelectedStalkerVodFavorite(
+                this.vodDetailsItem,
+                this.allFavorites.value() ?? []
+            )
+        );
     }
 
     async createLinkToPlayVodItv(
@@ -249,7 +248,11 @@ export class StalkerFavoritesComponent {
         title?: string,
         thumbnail?: string
     ) {
-        console.debug('Create link to play VOD/ITV', cmd, title, thumbnail);
+        this.logger.debug('Create link to play VOD/ITV', {
+            cmd,
+            title,
+            thumbnail,
+        });
         await this.stalkerStore.createLinkToPlayVod(cmd, title, thumbnail);
     }
 }

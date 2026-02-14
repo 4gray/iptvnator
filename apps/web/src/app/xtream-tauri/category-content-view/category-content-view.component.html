@@ -11,10 +11,12 @@
                 @if (vodDetailsItem()) {
                     <app-vod-details
                         [item]="vodDetailsItem()!"
+                        [isFavorite]="isSelectedVodFavorite()"
                         [playbackPosition]="selectedVodPlaybackPosition()"
                         (playClicked)="onVodPlay($event)"
                         (resumeClicked)="onVodResume($event)"
                         (favoriteToggled)="onVodFavoriteToggled($event)"
+                        (downloadRequested)="onVodDownload($event)"
                         (backClicked)="onVodBack()"
                     />
                 }

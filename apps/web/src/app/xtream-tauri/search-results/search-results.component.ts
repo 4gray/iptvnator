@@ -28,6 +28,7 @@ import { ContentCardComponent } from '../../shared/components/content-card/conte
 import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
 import { XtreamStore } from '../stores/xtream.store';
 import { SearchFilters } from '../stores/features/with-search.feature';
+import { createLogger } from '../../shared/utils/logger';
 
 interface SearchResultsData {
     isGlobalSearch: boolean;
@@ -55,6 +56,7 @@ export class SearchResultsComponent implements AfterViewInit {
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
+    private readonly logger = createLogger('XtreamSearchResults');
 
     /** Search term from store */
     readonly searchTerm = this.xtreamStore.searchTerm;
@@ -182,7 +184,7 @@ export class SearchResultsComponent implements AfterViewInit {
                 this.xtreamStore.setIsSearching(false);
             }
         } catch (error) {
-            console.error('Error in global search:', error);
+            this.logger.error('Error in global search', error);
             this.xtreamStore.resetSearchResults();
         }
     }

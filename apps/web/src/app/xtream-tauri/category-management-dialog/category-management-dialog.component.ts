@@ -14,6 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DatabaseService, XCategoryFromDb } from 'services';
+import { createLogger } from '../../shared/utils/logger';
 
 export interface CategoryManagementDialogData {
     playlistId: string;
@@ -47,6 +48,7 @@ export class CategoryManagementDialogComponent implements OnInit {
         MatDialogRef<CategoryManagementDialogComponent>
     );
     readonly data = inject<CategoryManagementDialogData>(MAT_DIALOG_DATA);
+    private readonly logger = createLogger('CategoryManagementDialog');
 
     readonly isLoading = signal(true);
     readonly isSaving = signal(false);
@@ -95,7 +97,7 @@ export class CategoryManagementDialogComponent implements OnInit {
                 }))
             );
         } catch (error) {
-            console.error('Error loading categories:', error);
+            this.logger.error('Error loading categories', error);
         } finally {
             this.isLoading.set(false);
         }
@@ -175,7 +177,7 @@ export class CategoryManagementDialogComponent implements OnInit {
 
             this.dialogRef.close(true);
         } catch (error) {
-            console.error('Error saving category visibility:', error);
+            this.logger.error('Error saving category visibility', error);
             inject(MatSnackBar).open(
                 'Failed to save category visibility',
                 'Close',

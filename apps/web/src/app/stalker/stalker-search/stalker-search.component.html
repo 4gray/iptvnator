@@ -16,6 +16,7 @@
                     <!-- Regular VOD item -->
                     <app-vod-details
                         [item]="vodDetailsItem"
+                        [isFavorite]="isSelectedVodFavorite()"
                         (playClicked)="onVodPlay($event)"
                         (favoriteToggled)="onVodFavoriteToggled($event)"
                         (backClicked)="onVodBack()"

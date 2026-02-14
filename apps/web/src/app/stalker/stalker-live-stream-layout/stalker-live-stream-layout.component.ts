@@ -34,6 +34,15 @@ import { CategoryViewComponent } from '../../xtream-tauri/category-view/category
 import { PlaylistErrorViewComponent } from '../../xtream/playlist-error-view/playlist-error-view.component';
 import { StalkerStore } from '../stalker.store';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
+import { createLogger } from '../../shared/utils/logger';
+import {
+    StalkerCategoryItem,
+    StalkerFavoriteItem,
+    StalkerItvChannel,
+} from '../models';
+import {
+    normalizeStalkerEntityId,
+} from '../stalker-vod.utils';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',
@@ -69,6 +78,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private readonly playerService = inject(PlayerService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
+    private readonly logger = createLogger('StalkerLiveStream');
 
     /** Categories */
     readonly categories = this.stalkerStore.getCategoryResource;
@@ -97,15 +107,15 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private epgChannelId: number | string | null = null;
 
     /** Channel list EPG preview */
-    readonly currentPrograms = new Map<number, string>();
-    readonly currentProgramsProgress = new Map<number, number>();
-    readonly programTimings = new Map<number, { start: number; end: number }>();
-    private readonly requestedEpgChannels = new Set<number>();
+    readonly currentPrograms = new Map<string | number, string>();
+    readonly currentProgramsProgress = new Map<string | number, number>();
+    readonly programTimings = new Map<string | number, { start: number; end: number }>();
+    private readonly requestedEpgChannels = new Set<string | number>();
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly ngZone = inject(NgZone);
 
     /** Favorites */
-    readonly favorites = new Map<number, boolean>();
+    readonly favorites = new Map<string | number, boolean>();
 
     /** Scroll */
     readonly scrollContainer = viewChild<ElementRef>('scrollContainer');
@@ -120,8 +130,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             .getPortalFavorites(this.stalkerStore.currentPlaylist()?._id)
             .pipe(takeUntilDestroyed())
             .subscribe((favs) => {
-                favs.forEach((fav: any) => {
-                    this.favorites.set(fav.id, true);
+                favs.forEach((fav: StalkerFavoriteItem) => {
+                    if (fav.id !== undefined) {
+                        this.favorites.set(normalizeStalkerEntityId(fav.id), true);
+                    }
                 });
             });
 
@@ -228,7 +240,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         }
     }
 
-    selectCategory(item: { category_name: string; category_id: string }) {
+    selectCategory(item: StalkerCategoryItem) {
         this.stalkerStore.setSelectedCategory(item.category_id || '*');
         this.stalkerStore.setPage(0);
     }
@@ -239,7 +251,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.stalkerStore.setSelectedCategory(null);
     }
 
-    async playChannel(item: any) {
+    async playChannel(item: StalkerItvChannel) {
         this.stalkerStore.setSelectedItem(item);
 
         const isEmbeddedPlayer =
@@ -279,7 +291,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 title: item.o_name || item.name,
             });
         } catch (error) {
-            console.error('[StalkerLiveStream] Playback failed:', error);
+            this.logger.error('Playback failed', error);
             const errorMessage =
                 error?.message === 'nothing_to_play'
                     ? this.translate.instant('PORTALS.CONTENT_NOT_AVAILABLE')
@@ -288,10 +300,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         }
     }
 
-    toggleFavorite(item: any) {
-        if (this.favorites.has(item.id)) {
-            this.stalkerStore.removeFromFavorites(item.id);
-            this.favorites.delete(item.id);
+    toggleFavorite(item: StalkerItvChannel) {
+        const itemId = normalizeStalkerEntityId(item.id);
+        if (this.favorites.has(itemId)) {
+            this.stalkerStore.removeFromFavorites(itemId);
+            this.favorites.delete(itemId);
         } else {
             this.stalkerStore.addToFavorites({
                 ...item,
@@ -300,7 +313,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 cover: item.logo,
                 added_at: new Date().toISOString(),
             });
-            this.favorites.set(item.id, true);
+            this.favorites.set(itemId, true);
         }
     }
 
@@ -349,15 +362,17 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         }
     }
 
-    private async loadEpgPreviewsForChannels(channels: any[]) {
+    private async loadEpgPreviewsForChannels(channels: StalkerItvChannel[]) {
         const newChannels = channels.filter(
-            (ch) => ch.id && !this.requestedEpgChannels.has(ch.id)
+            (ch) =>
+                ch.id &&
+                !this.requestedEpgChannels.has(normalizeStalkerEntityId(ch.id))
         );
         if (newChannels.length === 0) return;
 
         // Mark all as requested immediately to avoid duplicates
         for (const ch of newChannels) {
-            this.requestedEpgChannels.add(ch.id);
+            this.requestedEpgChannels.add(normalizeStalkerEntityId(ch.id));
         }
 
         // Process in batches of 3 with a small delay between batches
@@ -376,7 +391,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         }
     }
 
-    private async loadSingleEpgPreview(channelId: number) {
+    private async loadSingleEpgPreview(channelId: number | string) {
         try {
             const items = await this.stalkerStore.fetchChannelEpg(
                 channelId,
@@ -384,7 +399,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             );
             if (items.length > 0) {
                 const program = items[0];
-                this.currentPrograms.set(channelId, program.title);
+                const id = normalizeStalkerEntityId(channelId);
+                this.currentPrograms.set(id, program.title);
 
                 const now = Date.now() / 1000;
                 const start = parseInt(program.start_timestamp, 10);
@@ -393,11 +409,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 if (start && end && now >= start && now <= end) {
                     const progress =
                         ((now - start) / (end - start)) * 100;
-                    this.currentProgramsProgress.set(
-                        channelId,
-                        progress
-                    );
-                    this.programTimings.set(channelId, {
+                    this.currentProgramsProgress.set(id, progress);
+                    this.programTimings.set(id, {
                         start: start * 1000,
                         end: end * 1000,
                     });

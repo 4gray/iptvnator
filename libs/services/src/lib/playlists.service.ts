@@ -221,13 +221,27 @@ export class PlaylistsService {
                 this.dbService.update(DbStores.Playlists, {
                     ...portal,
                     favorites: portal.favorites?.filter(
-                        (i) =>
-                            (i as Partial<XtreamItem>).stream_id !==
-                                favoriteId &&
-                            (i as Partial<XtreamSerieItem>).series_id !==
-                                favoriteId &&
-                            (i as Partial<{ movie_id: string }>).movie_id !==
-                                favoriteId
+                        (i) => {
+                            const expectedId = String(favoriteId);
+                            const streamId = String(
+                                (i as Partial<XtreamItem>).stream_id ?? ''
+                            );
+                            const seriesId = String(
+                                (i as Partial<XtreamSerieItem>).series_id ?? ''
+                            );
+                            const movieId = String(
+                                (i as Partial<{ movie_id: string }>).movie_id ??
+                                    ''
+                            );
+                            const itemId = String((i as any).id ?? '');
+
+                            return (
+                                streamId !== expectedId &&
+                                seriesId !== expectedId &&
+                                movieId !== expectedId &&
+                                itemId !== expectedId
+                            );
+                        }
                     ),
                 })
             )
@@ -397,13 +411,41 @@ export class PlaylistsService {
     }
 
     removeFromPortalRecentlyViewed(portalId: string, id: string | number) {
+        const normalizePortalItemId = (value: unknown): string => {
+            const raw = String(value ?? '').trim();
+            if (!raw) return '';
+            return raw.includes(':') ? raw.split(':')[0] : raw;
+        };
+
+        return this.getPlaylistById(portalId).pipe(
+            switchMap((portal) => {
+                const expectedId = String(id);
+                const expectedNormalized = normalizePortalItemId(id);
+
+                return this.dbService.update(DbStores.Playlists, {
+                    ...portal,
+                    recentlyViewed: portal.recentlyViewed?.filter((i: any) => {
+                        const itemId = String(i?.id ?? '');
+                        const itemNormalized = normalizePortalItemId(itemId);
+                        return (
+                            itemId !== expectedId &&
+                            itemNormalized !== expectedNormalized
+                        );
+                    }),
+                });
+            })
+        );
+    }
+
+    clearPortalRecentlyViewed(portalId: string) {
+        if (!portalId) {
+            throw new Error('Portal ID is required');
+        }
         return this.getPlaylistById(portalId).pipe(
             switchMap((portal) =>
                 this.dbService.update(DbStores.Playlists, {
                     ...portal,
-                    recentlyViewed: portal.recentlyViewed?.filter(
-                        (i) => i.id !== id
-                    ),
+                    recentlyViewed: [],
                 })
             )
         );
