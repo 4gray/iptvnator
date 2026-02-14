@@ -17,8 +17,6 @@ export default class PlaylistEvents {
     }
 }
 
-const https = require('https');
-
 /**
  * Fetches and parses a playlist from a URL
  * @param url - The URL to fetch the playlist from
@@ -29,10 +27,22 @@ async function fetchPlaylistFromUrl(
     url: string,
     title?: string
 ): Promise<any> {
-    const agent = new https.Agent({
-        rejectUnauthorized: false,
-    });
-    const result = await axios.get(url, { httpsAgent: agent });
+    if (!url || typeof url !== 'string') {
+        throw new Error('A valid URL is required to fetch a playlist');
+    }
+
+    let parsedUrl: URL;
+    try {
+        parsedUrl = new URL(url);
+    } catch {
+        throw new Error(`Invalid playlist URL: ${url}`);
+    }
+
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        throw new Error(`Unsupported protocol: ${parsedUrl.protocol}`);
+    }
+
+    const result = await axios.get(url);
     const parsedPlaylist = parse(result.data);
 
     const extractedName =
