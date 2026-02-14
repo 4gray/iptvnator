@@ -22,14 +22,12 @@ import {
     createPortalFavoritesResource,
     createRefreshTrigger,
     isSelectedStalkerVodFavorite,
+    normalizeStalkerEntityId,
+    normalizeStalkerEntityIdAsNumber,
     toggleStalkerVodFavorite,
 } from '../../stalker/stalker-vod.utils';
 import { createLogger } from '../../shared/utils/logger';
 import { DownloadsService } from '../../services/downloads.service';
-import {
-    normalizeStalkerEntityId,
-    normalizeStalkerEntityIdAsNumber,
-} from '../../stalker/stalker-vod.utils';
 
 @Component({
     selector: 'app-category-content-view',

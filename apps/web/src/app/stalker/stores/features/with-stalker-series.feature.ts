@@ -1,4 +1,4 @@
-import { computed, inject } from '@angular/core';
+import { computed, inject, resource } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
@@ -13,10 +13,12 @@ import {
     StalkerVodSeriesEpisode,
     StalkerVodSeriesSeason,
 } from '../../models';
-import { sortEpisodesByNumber } from '../utils';
-import { resource } from '@angular/core';
 import { StalkerContentTypes } from '../../stalker-content-types';
-import { sortByNumericValue, sortVodSeriesSeasonsByNumber } from '../utils';
+import {
+    sortByNumericValue,
+    sortEpisodesByNumber,
+    sortVodSeriesSeasonsByNumber,
+} from '../utils';
 import { createLogger } from '../../../shared/utils/logger';
 
 /**

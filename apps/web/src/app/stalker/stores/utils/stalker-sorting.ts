@@ -15,7 +15,7 @@ export function extractNumericValue(str: string): number {
 export function sortByNumericValue(array: StalkerSeason[]): StalkerSeason[] {
     if (!array) return [];
     const key = 'name';
-    return array.sort((a, b) => {
+    return [...array].sort((a, b) => {
         const numericA = extractNumericValue(a[key]);
         const numericB = extractNumericValue(b[key]);
         return numericA - numericB;
@@ -40,10 +40,9 @@ export function sortEpisodesByNumber(
     episodes: StalkerVodSeriesEpisode[]
 ): StalkerVodSeriesEpisode[] {
     if (!episodes) return [];
-    return episodes.sort((a, b) => {
+    return [...episodes].sort((a, b) => {
         const numA = Number(a.series_number ?? 0) || 0;
         const numB = Number(b.series_number ?? 0) || 0;
         return numA - numB;
     });
 }
-
