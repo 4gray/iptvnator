@@ -14,6 +14,7 @@ import {
     XtreamContentItem,
     XtreamPlaylistData,
 } from './xtream-data-source.interface';
+import { createLogger } from '../../shared/utils/logger';
 
 /**
  * LocalStorage keys for PWA persistence
@@ -33,6 +34,7 @@ const STORAGE_KEYS = {
 @Injectable({ providedIn: 'root' })
 export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly apiService = inject(XtreamApiService);
+    private readonly logger = createLogger('PwaXtreamDataSource');
 
     // In-memory cache for the current session
     private categoryCache = new Map<string, XtreamCategory[]>();
@@ -151,7 +153,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         hidden: boolean
     ): Promise<void> {
         // Category visibility is not supported in PWA mode
-        console.warn('Category visibility not supported in PWA mode');
+        this.logger.warn('Category visibility not supported in PWA mode');
     }
 
     // =========================================================================

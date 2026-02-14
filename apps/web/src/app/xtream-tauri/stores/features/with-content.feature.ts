@@ -18,6 +18,7 @@ import {
 } from '../../data-sources/xtream-data-source.interface';
 import { XtreamCredentials } from '../../services/xtream-api.service';
 import { ContentType } from '../../xtream-state';
+import { createLogger } from '../../../shared/utils/logger';
 
 /**
  * Content state for managing categories and streams
@@ -61,6 +62,7 @@ const initialContentState: ContentState = {
  * - Import progress tracking
  */
 export function withContent() {
+    const logger = createLogger('withContent');
     return signalStoreFeature(
         withState<ContentState>(initialContentState),
 
@@ -174,7 +176,7 @@ export function withContent() {
                             isLoadingCategories: false,
                         });
                     } catch (error) {
-                        console.error('Error fetching categories:', error);
+                        logger.error('Error fetching categories', error);
                         patchState(store, { isLoadingCategories: false });
                     }
                 },
@@ -234,7 +236,7 @@ export function withContent() {
                             isLoadingContent: false,
                         });
                     } catch (error) {
-                        console.error('Error fetching content:', error);
+                        logger.error('Error fetching content', error);
                         patchState(store, { isLoadingContent: false });
                     }
                 },
@@ -275,10 +277,7 @@ export function withContent() {
                                 );
                                 localStorage.removeItem(restoreKey);
                             } catch (err) {
-                                console.error(
-                                    'Error restoring user data:',
-                                    err
-                                );
+                                logger.error('Error restoring user data', err);
                             }
                         }
                     } finally {
@@ -318,7 +317,7 @@ export function withContent() {
                             serialCategories: series,
                         });
                     } catch (error) {
-                        console.error('Error reloading categories:', error);
+                        logger.error('Error reloading categories', error);
                     }
                 },
 

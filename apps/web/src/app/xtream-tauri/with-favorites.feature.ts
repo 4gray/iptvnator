@@ -7,8 +7,10 @@ import {
 } from '@ngrx/signals';
 import { DatabaseService } from 'services';
 import { FavoritesService } from './services/favorites.service';
+import { createLogger } from '../shared/utils/logger';
 
 export const withFavorites = function () {
+    const logger = createLogger('withFavorites');
     return signalStoreFeature(
         withState({
             isFavorite: false,
@@ -30,8 +32,8 @@ export const withFavorites = function () {
                         playlistId
                     );
                     if (!content) {
-                        console.error(
-                            'Content not found for xtream ID:',
+                        logger.error(
+                            'Content not found for xtream ID',
                             xtreamId
                         );
                         return false;

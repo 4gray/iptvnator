@@ -8,6 +8,7 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap, tap } from 'rxjs';
 import { DatabaseService } from 'services';
+import { createLogger } from '../shared/utils/logger';
 
 export interface RecentlyViewedItem {
     id: number;
@@ -22,6 +23,7 @@ export interface RecentlyViewedItem {
 }
 
 export const withRecentItems = function () {
+    const logger = createLogger('withRecentItems');
     return signalStoreFeature(
         withState({
             recentItems: [],
@@ -110,7 +112,7 @@ export const withRecentItems = function () {
                         recentItems: items || [],
                     });
                 } catch (error) {
-                    console.error('Error loading global recent items:', error);
+                    logger.error('Error loading global recent items', error);
                     patchState(store, { recentItems: [] });
                 }
             },
@@ -119,10 +121,7 @@ export const withRecentItems = function () {
                     await dbService.clearGlobalRecentlyViewed();
                     patchState(store, { recentItems: [] });
                 } catch (error) {
-                    console.error(
-                        'Error clearing global recently viewed:',
-                        error
-                    );
+                    logger.error('Error clearing global recently viewed', error);
                 }
             },
         }))

@@ -12,6 +12,7 @@ import { StalkerStore } from '../../stalker/stalker.store';
 import { ProgressCapsuleComponent } from '../shared/progress-capsule/progress-capsule.component';
 import { WatchedBadgeComponent } from '../shared/watched-badge/watched-badge.component';
 import { DownloadsService } from '../../services/downloads.service';
+import { createLogger } from '../../shared/utils/logger';
 
 type EpisodeViewMode = 'grid' | 'list';
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
@@ -36,6 +37,7 @@ export class SeasonContainerComponent implements OnInit {
     private readonly xtreamStore = inject(XtreamStore);
     private readonly stalkerStore = inject(StalkerStore);
     private readonly downloadsService = inject(DownloadsService);
+    private readonly logger = createLogger('SeasonContainer');
 
     readonly seasons = input.required<Record<string, XtreamSerieEpisode[]>>();
     readonly seriesId = input.required<number>();
@@ -177,7 +179,7 @@ export class SeasonContainerComponent implements OnInit {
         event.stopPropagation();
         const playlistId = this.getPlaylistId(episode);
         if (!playlistId) {
-            console.warn('[SeasonContainer] Cannot toggle watched: no playlist ID');
+            this.logger.warn('Cannot toggle watched: no playlist ID');
             return;
         }
 
@@ -218,9 +220,11 @@ export class SeasonContainerComponent implements OnInit {
         const contentId = this.getEpisodeContentId(episode);
         const inProgress = this.xtreamStore.isInProgress(contentId, 'episode');
         if (inProgress) {
-            console.log(
-                `[SeasonContainer] Episode ${episode.title} (contentId=${contentId}, originalId=${(episode as any).originalId}) is IN PROGRESS`
-            );
+            this.logger.debug('Episode in progress', {
+                title: episode.title,
+                contentId,
+                originalId: (episode as any).originalId,
+            });
         }
         return inProgress;
     }
@@ -354,11 +358,11 @@ export class SeasonContainerComponent implements OnInit {
                 episode.episode_num // series param for episode number
             );
             if (!url) {
-                console.error('[SeasonContainer] Failed to resolve Stalker stream URL');
+                this.logger.error('Failed to resolve Stalker stream URL');
                 return;
             }
         } catch (error) {
-            console.error('[SeasonContainer] Error resolving Stalker stream URL:', error);
+            this.logger.error('Error resolving Stalker stream URL', error);
             return;
         }
 

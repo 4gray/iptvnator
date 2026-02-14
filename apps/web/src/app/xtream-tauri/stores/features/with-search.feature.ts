@@ -10,6 +10,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '../../data-sources/xtream-data-source.interface';
+import { createLogger } from '../../../shared/utils/logger';
 
 /**
  * Search filters configuration
@@ -58,6 +59,7 @@ const initialSearchState: SearchState = {
  * - Global search results from external sources
  */
 export function withSearch() {
+    const logger = createLogger('withSearch');
     return signalStoreFeature(
         withState<SearchState>(initialSearchState),
 
@@ -99,7 +101,7 @@ export function withSearch() {
 
                         return results;
                     } catch (error) {
-                        console.error('Error searching content:', error);
+                        logger.error('Error searching content', error);
                         patchState(store, {
                             searchResults: [],
                             isSearching: false,

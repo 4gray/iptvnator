@@ -2,6 +2,7 @@ import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import { EpgItem } from 'shared-interfaces';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
+import { createLogger } from '../../shared/utils/logger';
 
 interface CacheEntry {
     data: EpgItem[];
@@ -17,6 +18,7 @@ interface CacheEntry {
 @Injectable({ providedIn: 'root' })
 export class EpgQueueService implements OnDestroy {
     private readonly apiService = inject(XtreamApiService);
+    private readonly logger = createLogger('EpgQueueService');
 
     private readonly cache = new Map<number, CacheEntry>();
     private queue: number[] = [];
@@ -115,8 +117,8 @@ export class EpgQueueService implements OnDestroy {
             });
             this.epgResult$.next({ streamId, items });
         } catch (error) {
-            console.error(
-                `EpgQueueService: failed to load EPG for stream ${streamId}:`,
+            this.logger.error(
+                `Failed to load EPG for stream ${streamId}`,
                 error
             );
         } finally {

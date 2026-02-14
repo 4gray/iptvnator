@@ -28,6 +28,7 @@ import {
     withPlayer,
     withPlaybackPositions,
 } from './features';
+import { createLogger } from '../../shared/utils/logger';
 
 /**
  * XtreamStore - Facade composing all feature stores.
@@ -80,6 +81,7 @@ export const XtreamStore = signalStore(
     withMethods((store) => {
         const xtreamApiService = inject(XtreamApiService);
         const ngrxStore = inject(Store);
+        const logger = createLogger('XtreamStore');
         const searchContent = (store as any)
             .searchContent as (term: string, types: string[], excludeHidden?: boolean) => Promise<unknown>;
 
@@ -143,7 +145,7 @@ export const XtreamStore = signalStore(
                         stream_id: params.vodId,
                     });
                 }).catch((error: unknown) => {
-                    console.error('Error fetching VOD details:', error);
+                    logger.error('Error fetching VOD details', error);
                     store.setDetailsError(
                         error instanceof Error ? error.message : 'Unknown error'
                     );
@@ -175,7 +177,7 @@ export const XtreamStore = signalStore(
                         series_id: params.serialId,
                     });
                 }).catch((error: unknown) => {
-                    console.error('Error fetching series details:', error);
+                    logger.error('Error fetching series details', error);
                     store.setDetailsError(
                         error instanceof Error ? error.message : 'Unknown error'
                     );
@@ -192,11 +194,11 @@ export const XtreamStore = signalStore(
             },
 
             addToFavorites(item: unknown): void {
-                console.log('Legacy addToFavorites called', item);
+                logger.debug('Legacy addToFavorites called', item);
             },
 
             removeFromFavorites(favoriteId: string): void {
-                console.log('Legacy removeFromFavorites called', favoriteId);
+                logger.debug('Legacy removeFromFavorites called', favoriteId);
             },
 
             // Alias methods for backward compatibility

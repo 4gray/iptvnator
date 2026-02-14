@@ -7,6 +7,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import groupBy from 'lodash/groupBy';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import { XtreamStore } from '../stores/xtream.store';
+import { createLogger } from '../../shared/utils/logger';
 
 @Component({
     selector: 'app-recently-viewed',
@@ -26,6 +27,7 @@ export class RecentlyViewedComponent {
     private activatedRoute = inject(ActivatedRoute);
     private router = inject(Router);
     private dialogData = inject(MAT_DIALOG_DATA, { optional: true });
+    private readonly logger = createLogger('XtreamRecentlyViewed');
 
     readonly isGlobal = this.dialogData?.isGlobal ?? false;
     readonly recentItems = computed(() =>
@@ -51,7 +53,7 @@ export class RecentlyViewedComponent {
         try {
             await this.xtreamStore.loadGlobalRecentItems();
         } catch (error) {
-            console.error('Error loading global items:', error);
+            this.logger.error('Error loading global items', error);
         }
     }
 
