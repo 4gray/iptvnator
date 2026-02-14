@@ -5,6 +5,7 @@ import {
     Component,
     HostListener,
     Injector,
+    OnDestroy,
     OnInit,
     effect,
     inject,
@@ -36,10 +37,12 @@ import {
 } from 'm3u-state';
 import {
     Observable,
+    Subscription,
     combineLatest,
     combineLatestWith,
     filter,
     map,
+    startWith,
     switchMap,
     take,
 } from 'rxjs';
@@ -53,6 +56,10 @@ import {
     VideoPlayer,
 } from 'shared-interfaces';
 import { SettingsStore } from '../../services/settings-store.service';
+import {
+    getAdjacentChannelItem,
+    getChannelItemByNumber,
+} from '../../shared/services/remote-channel-navigation.util';
 import { SettingsComponent } from '../../settings/settings.component';
 
 @Component({
@@ -74,7 +81,7 @@ import { SettingsComponent } from '../../settings/settings.component';
     templateUrl: './video-player.component.html',
     styleUrl: './video-player.component.scss',
 })
-export class VideoPlayerComponent implements OnInit {
+export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly dataService = inject(DataService);
     private readonly dialog = inject(MatDialog);
@@ -108,6 +115,10 @@ export class VideoPlayerComponent implements OnInit {
 
     /** EPG overlay reference */
     private overlayRef!: OverlayRef;
+    private unsubscribeRemoteChannelChange?: () => void;
+    private unsubscribeRemoteCommand?: () => void;
+    private statusSubscription?: Subscription;
+    private lastKnownVolume = 1;
 
     /** Info overlay component reference for manual triggering */
     readonly infoOverlay = viewChild(InfoOverlayComponent);
@@ -144,11 +155,24 @@ export class VideoPlayerComponent implements OnInit {
 
         // Setup remote control channel change listener (Electron only)
         if (this.isDesktop && window.electron?.onChannelChange) {
-            window.electron.onChannelChange(
-                (data: { direction: 'up' | 'down' }) => {
-                    this.handleRemoteChannelChange(data.direction);
+            const unsubscribe = window.electron.onChannelChange((data: {
+                direction: 'up' | 'down';
+            }) => {
+                this.handleRemoteChannelChange(data.direction);
+            });
+            if (typeof unsubscribe === 'function') {
+                this.unsubscribeRemoteChannelChange = unsubscribe;
+            }
+        }
+        if (this.isDesktop && window.electron?.onRemoteControlCommand) {
+            const unsubscribe = window.electron.onRemoteControlCommand(
+                (command) => {
+                    this.handleRemoteControlCommand(command);
                 }
             );
+            if (typeof unsubscribe === 'function') {
+                this.unsubscribeRemoteCommand = unsubscribe;
+            }
         }
 
         this.channels$ = this.activatedRoute.params.pipe(
@@ -205,6 +229,35 @@ export class VideoPlayerComponent implements OnInit {
                 }
             })
         );
+
+        this.statusSubscription = combineLatest([
+            this.channels$,
+            this.activeChannel$,
+            this.epgProgram$.pipe(startWith(null)),
+        ]).subscribe(([channels, activeChannel, epgProgram]) => {
+            if (!window.electron?.updateRemoteControlStatus || !activeChannel) {
+                return;
+            }
+
+            const currentIndex = channels.findIndex(
+                (channel) => channel.url === activeChannel.url
+            );
+
+            window.electron.updateRemoteControlStatus({
+                portal: 'm3u',
+                isLiveView: true,
+                channelName:
+                    activeChannel.name ??
+                    activeChannel.tvg?.name,
+                channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
+                epgTitle: (epgProgram as any)?.title,
+                epgStart: (epgProgram as any)?.start,
+                epgEnd: (epgProgram as any)?.end,
+                supportsVolume: true,
+                volume: this.volume,
+                muted: this.volume === 0,
+            });
+        });
     }
 
     /**
@@ -229,33 +282,17 @@ export class VideoPlayerComponent implements OnInit {
             )
             .subscribe({
                 next: ({ channels, activeChannel }) => {
-                    // Find current channel index
-                    const currentIndex = channels.findIndex(
-                        (ch) => ch.url === activeChannel.url
+                    const nextChannel = getAdjacentChannelItem(
+                        channels,
+                        activeChannel.url,
+                        direction,
+                        (channel) => channel.url
                     );
 
-                    if (currentIndex === -1) {
+                    if (!nextChannel) {
                         return;
                     }
 
-                    // Calculate next/previous index with wraparound
-                    let nextIndex: number;
-                    if (direction === 'up') {
-                        // Up = previous channel (decrease index)
-                        nextIndex =
-                            currentIndex - 1 < 0
-                                ? channels.length - 1
-                                : currentIndex - 1;
-                    } else {
-                        // Down = next channel (increase index)
-                        nextIndex =
-                            currentIndex + 1 >= channels.length
-                                ? 0
-                                : currentIndex + 1;
-                    }
-
-                    // Dispatch action to change channel
-                    const nextChannel = channels[nextIndex];
                     this.store.dispatch(
                         ChannelActions.setActiveChannel({
                             channel: nextChannel,
@@ -266,6 +303,12 @@ export class VideoPlayerComponent implements OnInit {
                     console.error('Error changing channel:', err);
                 },
             });
+    }
+
+    ngOnDestroy(): void {
+        this.unsubscribeRemoteChannelChange?.();
+        this.unsubscribeRemoteCommand?.();
+        this.statusSubscription?.unsubscribe();
     }
 
     /**
@@ -434,14 +477,7 @@ export class VideoPlayerComponent implements OnInit {
         this.channels$
             .pipe(
                 take(1),
-                map((channels) => {
-                    // Channel numbers are 1-based, array is 0-based
-                    const channelIndex = channelNumber - 1;
-                    if (channelIndex >= 0 && channelIndex < channels.length) {
-                        return channels[channelIndex];
-                    }
-                    return null;
-                })
+                map((channels) => getChannelItemByNumber(channels, channelNumber))
             )
             .subscribe((channel) => {
                 if (channel) {
@@ -475,5 +511,51 @@ export class VideoPlayerComponent implements OnInit {
             target instanceof HTMLInputElement ||
             target instanceof HTMLTextAreaElement
         );
+    }
+
+    private handleRemoteControlCommand(command: {
+        type:
+            | 'channel-select-number'
+            | 'volume-up'
+            | 'volume-down'
+            | 'volume-toggle-mute';
+        number?: number;
+    }): void {
+        if (command.type === 'channel-select-number' && command.number) {
+            this.switchToChannelByNumber(command.number);
+            return;
+        }
+
+        if (command.type === 'volume-up') {
+            this.setVolume(this.volume + 0.1);
+        } else if (command.type === 'volume-down') {
+            this.setVolume(this.volume - 0.1);
+        } else if (command.type === 'volume-toggle-mute') {
+            if (this.volume === 0) {
+                this.setVolume(this.lastKnownVolume || 1);
+            } else {
+                this.lastKnownVolume = this.volume;
+                this.setVolume(0);
+            }
+        }
+    }
+
+    private setVolume(next: number): void {
+        const clamped = Math.max(0, Math.min(1, Number(next.toFixed(2))));
+        this.volume = clamped;
+        if (clamped > 0) {
+            this.lastKnownVolume = clamped;
+        }
+        localStorage.setItem('volume', String(clamped));
+
+        if (window.electron?.updateRemoteControlStatus) {
+            window.electron.updateRemoteControlStatus({
+                portal: 'm3u',
+                isLiveView: true,
+                supportsVolume: true,
+                volume: this.volume,
+                muted: this.volume === 0,
+            });
+        }
     }
 }

@@ -5,7 +5,28 @@ contextBridge.exposeInMainWorld('electron', {
     onChannelChange: (
         callback: (data: { direction: 'up' | 'down' }) => void
     ) => {
-        ipcRenderer.on('CHANNEL_CHANGE', (_event, data) => callback(data));
+        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
+            callback(data);
+        ipcRenderer.on('CHANNEL_CHANGE', handler);
+        return () => ipcRenderer.off('CHANNEL_CHANGE', handler);
+    },
+    onRemoteControlCommand: (
+        callback: (data: {
+            type:
+                | 'channel-select-number'
+                | 'volume-up'
+                | 'volume-down'
+                | 'volume-toggle-mute';
+            number?: number;
+        }) => void
+    ) => {
+        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
+            callback(data);
+        ipcRenderer.on('REMOTE_CONTROL_COMMAND', handler);
+        return () => ipcRenderer.off('REMOTE_CONTROL_COMMAND', handler);
+    },
+    updateRemoteControlStatus: (status: any) => {
+        ipcRenderer.send('REMOTE_CONTROL_STATUS_UPDATE', status);
     },
     // Player error listener
     onPlayerError: (

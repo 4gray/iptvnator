@@ -1,21 +1,40 @@
 <div class="remote">
     <div class="remote__body">
-        <!-- App branding -->
-        <div class="remote__header">
-            <div class="remote__logo">IPTVnator</div>
+        <div class="now-card">
+            <div class="now-card__top">
+                <div class="now-card__label">Now Playing</div>
+                <div class="now-card__statusline">
+                    <span class="status-dot" [class.is-active]="isReady"></span>
+                    <span>{{ isLoading ? 'Executing' : portalLabel }}</span>
+                </div>
+            </div>
+            <div class="now-card__channel">
+                {{ status?.channelName || 'No live stream selected' }}
+            </div>
+            <div class="now-card__meta">
+                <span>
+                    @if (status?.channelNumber) {
+                        CH {{ status?.channelNumber }}
+                    } @else {
+                        CH -
+                    }
+                </span>
+                <span>{{ status?.portal || 'unknown' }}</span>
+            </div>
+            <div class="now-card__program">
+                {{ status?.epgTitle || 'No current EPG program' }}
+            </div>
         </div>
 
-        <!-- Error state -->
         @if (error) {
             <div class="remote__error">
                 {{ error }}
             </div>
         }
 
-        <!-- Main touchpad circle -->
-        <div class="touchpad">
+        <div class="cluster">
+            <div class="cluster__title">Channel Navigation</div>
             <div class="touchpad__glass">
-                <!-- Up button (top half) -->
                 <button
                     class="touchpad__button touchpad__button--up"
                     (click)="changeChannelUp()"
@@ -23,18 +42,8 @@
                     [class.is-loading]="isLoading"
                     aria-label="Channel Up"
                 >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                    >
-                        <path d="M5 15l7-7 7 7" />
-                    </svg>
+                    <span>CH +</span>
                 </button>
-
-                <!-- Down button (bottom half) -->
                 <button
                     class="touchpad__button touchpad__button--down"
                     (click)="changeChannelDown()"
@@ -42,36 +51,103 @@
                     [class.is-loading]="isLoading"
                     aria-label="Channel Down"
                 >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                    >
-                        <path d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <span>CH -</span>
                 </button>
-
-                <!-- Center indicator -->
                 <div class="touchpad__center">
-                    <div
-                        class="touchpad__pulse"
-                        [class.is-active]="!isLoading"
-                    ></div>
+                    <span>{{ status?.channelNumber || '-' }}</span>
                 </div>
             </div>
-
-            <!-- Subtle edge highlights -->
-            <div class="touchpad__edge"></div>
         </div>
 
-        <!-- Status indicator -->
-        <div class="remote__status">
-            <div class="status-dot" [class.is-active]="!isLoading"></div>
-            <span class="status-text">{{
-                isLoading ? 'Switching' : 'Ready'
-            }}</span>
+        <div class="cluster">
+            <div class="cluster__title">Channel Number</div>
+            <div class="digit-display">{{ numericInput || '----' }}</div>
+            <div class="keypad">
+                @for (digit of digits; track digit) {
+                    <button
+                        class="keypad__key"
+                        (click)="appendDigit(digit)"
+                        [disabled]="isLoading"
+                    >
+                        {{ digit }}
+                    </button>
+                }
+                <button
+                    class="keypad__key keypad__key--alt"
+                    (click)="backspaceDigit()"
+                    [disabled]="isLoading"
+                >
+                    DEL
+                </button>
+                <button
+                    class="keypad__key keypad__key--alt"
+                    (click)="clearDigits()"
+                    [disabled]="isLoading"
+                >
+                    CLR
+                </button>
+                <button
+                    class="keypad__key keypad__key--go"
+                    (click)="submitChannelNumber()"
+                    [disabled]="isLoading || !numericInput"
+                >
+                    OK
+                </button>
+            </div>
+        </div>
+
+        <div class="cluster">
+            <div class="cluster__title">Volume</div>
+            <div class="volume-row">
+                <button
+                    class="volume-row__button"
+                    (click)="volumeDown()"
+                    [disabled]="isLoading || !status?.supportsVolume"
+                >
+                    VOL -
+                </button>
+                <button
+                    class="volume-row__button volume-row__button--mute"
+                    (click)="toggleMute()"
+                    [disabled]="isLoading || !status?.supportsVolume"
+                >
+                    @if (status?.muted) {
+                        UNMUTE
+                    } @else {
+                        MUTE
+                    }
+                </button>
+                <button
+                    class="volume-row__button"
+                    (click)="volumeUp()"
+                    [disabled]="isLoading || !status?.supportsVolume"
+                >
+                    VOL +
+                </button>
+            </div>
+            <div class="volume-meter">
+                <div
+                    class="volume-meter__fill"
+                    [style.width.%]="volumePercent ?? 0"
+                ></div>
+            </div>
+            <div class="volume-caption">
+                @if (status?.supportsVolume) {
+                    {{ volumePercent ?? 0 }}%
+                } @else {
+                    Volume control unavailable for this player mode
+                }
+            </div>
+        </div>
+
+        <div class="remote__footer">
+            @if (isStatusLoading) {
+                Syncing status...
+            } @else if (status?.updatedAt) {
+                Updated {{ status?.updatedAt | date: 'HH:mm:ss' }}
+            } @else {
+                Waiting for status...
+            }
         </div>
     </div>
 </div>
