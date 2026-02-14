@@ -71,6 +71,18 @@ export class HttpServer {
             this.handleRequest(req, res);
         });
 
+        this.server.on('error', (err: NodeJS.ErrnoException) => {
+            if (err.code === 'EADDRINUSE') {
+                console.error(`HTTP server error: port ${this.port} is already in use`);
+            } else if (err.code === 'EACCES') {
+                console.error(`HTTP server error: insufficient permissions to bind to port ${this.port}`);
+            } else {
+                console.error(`HTTP server error: ${err.message}`);
+            }
+            this.server = null;
+            this.isEnabled = false;
+        });
+
         this.server.listen(this.port, () => {
             console.log(`HTTP server listening on port ${this.port}`);
             console.log(
@@ -153,13 +165,27 @@ export class HttpServer {
      * Serve static files
      */
     private serveStaticFile(url: string, res: http.ServerResponse): void {
-        // Default to index.html for root path
-        let filePath = url === '/' ? '/index.html' : url;
+        let parsedPath: URL;
+        try {
+            parsedPath = new URL(url, 'http://localhost');
+        } catch {
+            res.writeHead(400, { 'Content-Type': 'text/plain' });
+            res.end('400 Bad Request');
+            return;
+        }
 
-        // Security: prevent directory traversal
-        filePath = path.normalize(filePath).replace(/^(\.\.[/\\])+/, '');
+        const decodedPath = decodeURIComponent(parsedPath.pathname);
+        let filePath = decodedPath === '/' ? '/index.html' : decodedPath;
 
-        const fullPath = path.join(this.getDistPath(), filePath);
+        const distRoot = this.getDistPath();
+        const fullPath = path.resolve(distRoot, '.' + path.normalize(filePath));
+        const resolvedDistRoot = path.resolve(distRoot) + path.sep;
+
+        if (!fullPath.startsWith(resolvedDistRoot)) {
+            res.writeHead(403, { 'Content-Type': 'text/plain' });
+            res.end('403 Forbidden');
+            return;
+        }
 
         fs.readFile(fullPath, (err, data) => {
             if (err) {
