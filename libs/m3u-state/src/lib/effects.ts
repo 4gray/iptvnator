@@ -103,40 +103,39 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(EpgActions.setActiveEpgProgram),
                 combineLatestWith(this.store.select(selectActive)),
-                map(([, activeChannel]) => {
-                    firstValueFrom(this.storage.get(STORE_KEY.Settings)).then(
-                        (settings: any) => {
+                filter(([, activeChannel]) => !!activeChannel?.url),
+                switchMap(([, activeChannel]) =>
+                    this.storage.get(STORE_KEY.Settings).pipe(
+                        tap((settings: any) => {
                             if (
-                                settings &&
-                                Object.keys(settings).length > 0 &&
-                                settings.player === VideoPlayer.MPV
-                            )
-                                this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
-                                    url:
-                                        activeChannel?.url +
-                                        (activeChannel?.epgParams ?? ''),
-                                    title: activeChannel?.name ?? '',
-                                    'user-agent': activeChannel?.http?.['user-agent'],
-                                    referer: activeChannel?.http?.referrer,
-                                    origin: activeChannel?.http?.origin,
-                                });
-                            else if (
-                                settings &&
-                                Object.keys(settings).length > 0 &&
-                                settings.player === VideoPlayer.VLC
-                            )
-                                this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
-                                    url:
-                                        activeChannel?.url +
-                                        (activeChannel?.epgParams ?? ''),
-                                    title: activeChannel?.name ?? '',
-                                    'user-agent': activeChannel?.http?.['user-agent'],
-                                    referer: activeChannel?.http?.referrer,
-                                    origin: activeChannel?.http?.origin,
-                                });
-                        }
-                    );
-                })
+                                !settings ||
+                                Object.keys(settings).length === 0
+                            ) {
+                                return;
+                            }
+                            const playerPayload = {
+                                url:
+                                    activeChannel!.url +
+                                    (activeChannel!.epgParams ?? ''),
+                                title: activeChannel!.name ?? '',
+                                'user-agent': activeChannel!.http?.['user-agent'],
+                                referer: activeChannel!.http?.referrer,
+                                origin: activeChannel!.http?.origin,
+                            };
+                            if (settings.player === VideoPlayer.MPV) {
+                                this.dataService.sendIpcEvent(
+                                    OPEN_MPV_PLAYER,
+                                    playerPayload
+                                );
+                            } else if (settings.player === VideoPlayer.VLC) {
+                                this.dataService.sendIpcEvent(
+                                    OPEN_VLC_PLAYER,
+                                    playerPayload
+                                );
+                            }
+                        })
+                    )
+                )
             );
         },
         { dispatch: false }
