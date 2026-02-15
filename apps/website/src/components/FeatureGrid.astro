@@ -86,19 +86,33 @@ const carouselFeatures = [
     <!-- Hero feature cards: 2x2 grid -->
     <div class="stagger-children mt-16 grid grid-cols-1 gap-5 sm:grid-cols-2" data-stagger>
       {
-        heroFeatures.map((feature) => (
-          <div class="card-dotted group relative overflow-hidden p-8">
-            <!-- Ambient glow on hover -->
-            <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-accent-500/[0.06] opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+        heroFeatures.map((feature, i) => (
+          <div class="feature-card group relative overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-gradient-to-br from-surface-900/80 via-surface-950/60 to-surface-900/40 p-7 transition-all duration-500 hover:border-accent-500/40 hover:shadow-[0_0_30px_rgba(32,168,168,0.08)]">
 
-            <div class="relative">
-              <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-surface-600/40 bg-surface-800/50">
-                <svg class="h-6 w-6 text-accent-500 transition-colors duration-200 group-hover:text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <Fragment set:html={feature.icon} />
-                </svg>
+            <!-- Background watermark icon — large, rotated, partially clipped -->
+            <div class={`feature-watermark pointer-events-none absolute -bottom-6 -right-4 opacity-[0.04] transition-all duration-700 ease-out group-hover:opacity-[0.1] ${i % 2 === 0 ? 'watermark-left' : 'watermark-right'}`}>
+              <svg class="h-36 w-36 text-accent-400 sm:h-44 sm:w-44" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="0.7">
+                <Fragment set:html={feature.icon} />
+              </svg>
+            </div>
+            <!-- Watermark gradient mask — fades icon into card bg from top-left -->
+            <div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-surface-900/95 via-surface-950/40 to-transparent" />
+
+            <!-- CRT scanline overlay on hover -->
+            <div class="pointer-events-none absolute inset-0 z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style="background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(32,168,168,0.015) 2px, rgba(32,168,168,0.015) 4px);" />
+
+            <!-- Card content -->
+            <div class="relative z-[1]">
+              <!-- Mono label + accent line -->
+              <div class="mb-5 flex items-center gap-3">
+                <span class="font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-accent-500/70 transition-colors duration-300 group-hover:text-accent-400">0{i + 1}</span>
+                <span class="h-px flex-1 bg-gradient-to-r from-accent-500/20 to-transparent transition-colors duration-300 group-hover:from-accent-500/40" />
               </div>
-              <h3 class="text-base font-semibold text-surface-100">{feature.title}</h3>
-              <p class="mt-2 text-sm leading-relaxed text-surface-500">
+
+              <h3 class="font-display text-xl font-bold tracking-tight text-surface-100 transition-colors duration-300 group-hover:text-surface-50 sm:text-2xl">
+                {feature.title}
+              </h3>
+              <p class="mt-2.5 max-w-[85%] text-sm leading-relaxed text-surface-500 transition-colors duration-300 group-hover:text-surface-400">
                 {feature.description}
               </p>
             </div>
@@ -125,15 +139,18 @@ const carouselFeatures = [
     <div class="carousel-track flex w-max gap-4 py-4" aria-label="Additional features">
       <!-- First set of cards -->
       {
-        carouselFeatures.map((feature) => (
-          <div class="card-dotted group w-64 shrink-0 p-5">
-            <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-dashed border-surface-600/40 bg-surface-800/50">
-              <svg class="h-[18px] w-[18px] text-accent-500 transition-colors duration-200 group-hover:text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <Fragment set:html={feature.icon} />
-              </svg>
+        carouselFeatures.map((feature, i) => (
+          <div class="group relative w-64 shrink-0 overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-gradient-to-b from-surface-900/60 to-surface-950/40 p-5 transition-all duration-500 hover:border-accent-500/40 hover:shadow-[0_0_24px_rgba(32,168,168,0.06)]">
+            <div class="relative mb-3.5 inline-block">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-500 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35 group-hover:shadow-[0_0_14px_rgba(32,168,168,0.12)]">
+                <svg class="h-5 w-5 text-accent-400 transition-all duration-500 group-hover:text-accent-300 group-hover:drop-shadow-[0_0_4px_rgba(32,168,168,0.4)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <Fragment set:html={feature.icon} />
+                </svg>
+              </div>
+              <div class="absolute -right-0.5 -top-0.5 h-1 w-1 rounded-full bg-accent-500/50 transition-colors duration-300 group-hover:bg-accent-400" />
             </div>
-            <h3 class="text-sm font-semibold text-surface-100">{feature.title}</h3>
-            <p class="mt-1.5 text-xs leading-relaxed text-surface-500">
+            <h3 class="font-display text-sm font-semibold tracking-tight text-surface-100 transition-colors duration-300 group-hover:text-surface-50">{feature.title}</h3>
+            <p class="mt-1.5 text-xs leading-relaxed text-surface-500 transition-colors duration-300 group-hover:text-surface-400">
               {feature.description}
             </p>
           </div>
@@ -141,15 +158,18 @@ const carouselFeatures = [
       }
       <!-- Duplicate set for seamless loop -->
       {
-        carouselFeatures.map((feature) => (
-          <div class="card-dotted group w-64 shrink-0 p-5" aria-hidden="true">
-            <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-dashed border-surface-600/40 bg-surface-800/50">
-              <svg class="h-[18px] w-[18px] text-accent-500 transition-colors duration-200 group-hover:text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <Fragment set:html={feature.icon} />
-              </svg>
+        carouselFeatures.map((feature, i) => (
+          <div class="group relative w-64 shrink-0 overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-gradient-to-b from-surface-900/60 to-surface-950/40 p-5 transition-all duration-500 hover:border-accent-500/40 hover:shadow-[0_0_24px_rgba(32,168,168,0.06)]" aria-hidden="true">
+            <div class="relative mb-3.5 inline-block">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-500 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35 group-hover:shadow-[0_0_14px_rgba(32,168,168,0.12)]">
+                <svg class="h-5 w-5 text-accent-400 transition-all duration-500 group-hover:text-accent-300 group-hover:drop-shadow-[0_0_4px_rgba(32,168,168,0.4)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <Fragment set:html={feature.icon} />
+                </svg>
+              </div>
+              <div class="absolute -right-0.5 -top-0.5 h-1 w-1 rounded-full bg-accent-500/50 transition-colors duration-300 group-hover:bg-accent-400" />
             </div>
-            <h3 class="text-sm font-semibold text-surface-100">{feature.title}</h3>
-            <p class="mt-1.5 text-xs leading-relaxed text-surface-500">
+            <h3 class="font-display text-sm font-semibold tracking-tight text-surface-100 transition-colors duration-300 group-hover:text-surface-50">{feature.title}</h3>
+            <p class="mt-1.5 text-xs leading-relaxed text-surface-500 transition-colors duration-300 group-hover:text-surface-400">
               {feature.description}
             </p>
           </div>
@@ -186,3 +206,18 @@ const carouselFeatures = [
     co.observe(carouselEl);
   }
 </script>
+
+<style>
+  .watermark-left {
+    transform: rotate(-12deg) scale(1);
+  }
+  .watermark-right {
+    transform: rotate(12deg) scale(1);
+  }
+  .feature-card:hover .watermark-left {
+    transform: rotate(-10deg) scale(1.12);
+  }
+  .feature-card:hover .watermark-right {
+    transform: rotate(10deg) scale(1.12);
+  }
+</style>
