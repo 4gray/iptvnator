@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7a30eb9285b7",
+  "session_id": "cbceb4b9-123e-460a-87dc-81d276f1ffd0",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T22:38:23.305079Z",
+  "branch": "master",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "apps/website/src/components/FeatureGrid.astro"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "0796a9a0-9dad-4751-a8d2-ab52bd984458",
+  "checkpoint_transcript_start": 148,
+  "transcript_lines_at_start": 148,
+  "token_usage": {
+    "input_tokens": 92,
+    "cache_creation_tokens": 71869,
+    "cache_read_tokens": 8597520,
+    "output_tokens": 1066,
+    "api_call_count": 70
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T22:38:23.116704Z",
+    "agent_lines": 62,
+    "human_added": 1005,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1067,
+    "agent_percentage": 5.810684161199625
+  }
+}
