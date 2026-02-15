@@ -9,7 +9,14 @@ tags:
 draft: false
 ---
 
-We are excited to launch the official IPTVnator website and developer blog!
+import Alert from '../../components/blog/Alert.astro';
+import PostButton from '../../components/blog/PostButton.astro';
+
+We are excited to launch the official IPTVnator website and developer blog.
+
+<Alert type="success" title="What this means">
+  You now have one place for releases, tutorials, troubleshooting guides, and project updates.
+</Alert>
 
 ## What is IPTVnator?
 
@@ -26,4 +33,9 @@ This blog will be the home for:
 
 ## Get involved
 
-IPTVnator is open source and we welcome contributions! Check out our [GitHub repository](https://github.com/4gray/iptvnator) to get started.
+IPTVnator is open source and we welcome contributions.
+
+<PostButton
+  href="https://github.com/4gray/iptvnator"
+  label="View project on GitHub"
+/>

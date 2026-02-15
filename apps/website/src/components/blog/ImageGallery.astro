@@ -1,0 +1,99 @@
+---
+interface GalleryImage {
+  src: string;
+  alt: string;
+  caption?: string;
+}
+
+interface Props {
+  images: GalleryImage[];
+  columns?: 2 | 3 | 4;
+}
+
+const { images = [], columns = 3 } = Astro.props;
+
+const colClass = {
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-2 lg:grid-cols-3',
+  4: 'sm:grid-cols-2 lg:grid-cols-4',
+} as const;
+---
+
+<div class="not-prose my-6">
+  <div class={`grid gap-3 ${colClass[columns]}`}>
+    {images.map((img, idx) => (
+      <figure class="group overflow-hidden rounded-xl border border-dashed border-surface-700/70 bg-surface-900/45">
+        <button
+          type="button"
+          class="gallery-open block w-full"
+          data-src={img.src}
+          data-alt={img.alt}
+          data-caption={img.caption ?? ''}
+          aria-label={`Open image ${idx + 1}`}
+        >
+          <img
+            src={img.src}
+            alt={img.alt}
+            loading="lazy"
+            class="aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          />
+        </button>
+        {img.caption && <figcaption class="px-3 py-2 text-xs text-surface-500">{img.caption}</figcaption>}
+      </figure>
+    ))}
+  </div>
+</div>
+
+<div id="blog-gallery-lightbox" class="fixed inset-0 z-[80] hidden items-center justify-center bg-black/85 p-4" aria-hidden="true">
+  <button type="button" class="gallery-close absolute right-4 top-4 rounded-md border border-surface-600/60 bg-surface-900/70 px-2.5 py-1 text-xs text-surface-300">Close</button>
+  <figure class="max-h-[92vh] max-w-[92vw]">
+    <img id="blog-gallery-lightbox-img" src="" alt="" class="max-h-[82vh] max-w-[92vw] rounded-lg border border-surface-700/70 object-contain" />
+    <figcaption id="blog-gallery-lightbox-cap" class="mt-2 text-center text-sm text-surface-300"></figcaption>
+  </figure>
+</div>
+
+<script>
+  const initBlogGallery = () => {
+    const lightbox = document.getElementById('blog-gallery-lightbox');
+    const lightboxImg = document.getElementById('blog-gallery-lightbox-img');
+    const lightboxCap = document.getElementById('blog-gallery-lightbox-cap');
+    if (!lightbox || !lightboxImg || !lightboxCap) return;
+
+    document.querySelectorAll('.gallery-open').forEach((btn) => {
+      if (btn.getAttribute('data-bound') === 'true') return;
+      btn.setAttribute('data-bound', 'true');
+      btn.addEventListener('click', () => {
+        const src = btn.getAttribute('data-src') || '';
+        const alt = btn.getAttribute('data-alt') || '';
+        const caption = btn.getAttribute('data-caption') || '';
+        lightboxImg.setAttribute('src', src);
+        lightboxImg.setAttribute('alt', alt);
+        lightboxCap.textContent = caption;
+        lightbox.classList.remove('hidden');
+        lightbox.classList.add('flex');
+        lightbox.setAttribute('aria-hidden', 'false');
+      });
+    });
+
+    const close = () => {
+      lightbox.classList.add('hidden');
+      lightbox.classList.remove('flex');
+      lightbox.setAttribute('aria-hidden', 'true');
+      lightboxImg.setAttribute('src', '');
+    };
+
+    lightbox.querySelector('.gallery-close')?.addEventListener('click', close);
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox) close();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lightbox.getAttribute('aria-hidden') === 'false') close();
+    });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBlogGallery);
+  } else {
+    initBlogGallery();
+  }
+</script>

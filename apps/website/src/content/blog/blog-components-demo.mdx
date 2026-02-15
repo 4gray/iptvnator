@@ -1,0 +1,207 @@
+---
+title: Blog Components Demo (MDX)
+description: Reusable MDX components for IPTVnator blog posts including alerts, CTA buttons, and terminal command blocks.
+pubDate: 2026-02-15
+author: 4gray
+tags:
+- blog
+- mdx
+- docs
+draft: true
+---
+
+import Alert from '../../components/blog/Alert.astro';
+import PostButton from '../../components/blog/PostButton.astro';
+import TerminalBlock from '../../components/blog/TerminalBlock.astro';
+import StepRail from '../../components/blog/StepRail.astro';
+import LinkCards from '../../components/blog/LinkCards.astro';
+import IconFeatureGrid from '../../components/blog/IconFeatureGrid.astro';
+import ReleaseMeta from '../../components/blog/ReleaseMeta.astro';
+import StatusPill from '../../components/blog/StatusPill.astro';
+import ChangeTable from '../../components/blog/ChangeTable.astro';
+import CopyCommand from '../../components/blog/CopyCommand.astro';
+import ImageGallery from '../../components/blog/ImageGallery.astro';
+import Spoiler from '../../components/blog/Spoiler.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+
+This post demonstrates reusable UI components you can use in `.mdx` blog posts.
+
+## Alert panel
+
+<Alert type="info" title="Heads up">
+  Use alerts to highlight important notes without breaking the reading flow.
+</Alert>
+
+<Alert type="warning" title="Before updating">
+  Back up playlists, credentials, and portal URLs before installing major updates.
+</Alert>
+
+## Release meta
+
+<ReleaseMeta version="v0.18.0" releaseDate="January 14, 2026" channels={['Desktop', 'PWA']} />
+
+## Status pills
+
+<div class="not-prose my-4 flex flex-wrap gap-2">
+  <StatusPill type="new" />
+  <StatusPill type="fixed" />
+  <StatusPill type="improved" />
+  <StatusPill type="beta" />
+  <StatusPill type="breaking" />
+</div>
+
+## Terminal code block
+
+<TerminalBlock title="Terminal">
+$ xattr -c /Applications/IPTVnator.app
+</TerminalBlock>
+
+## Copy command
+
+<CopyCommand title="One-line fix" command="xattr -c /Applications/IPTVnator.app" />
+
+## Button / CTA
+
+<PostButton
+  href="https://github.com/4gray/iptvnator/releases/latest"
+  label="Download latest release"
+/>
+
+<PostButton
+  href="/iptvnator/blog/v0-18-release-notes/"
+  label="Read v0.18 release notes"
+  external={false}
+/>
+
+## Step rail
+
+<StepRail
+  title="Quick setup"
+  steps={[
+    'Import an M3U, Xtream, or Stalker playlist.',
+    'Configure EPG (XMLTV URL) from playlist settings.',
+    'Mark channels as favorites for quick access.',
+  ]}
+/>
+
+## Link cards
+
+<LinkCards
+  links={[
+    {
+      label: 'GitHub',
+      href: 'https://github.com/4gray/iptvnator',
+      hint: 'Source code, issues, and releases.',
+      icon: 'github',
+    },
+    {
+      label: 'Telegram',
+      href: 'https://t.me/iptvnator',
+      hint: 'Announcements and community updates.',
+      icon: 'telegram',
+    },
+    {
+      label: 'GitHub Sponsors',
+      href: 'https://github.com/sponsors/4gray',
+      hint: 'Support long-term development.',
+      icon: 'sponsor',
+    },
+  ]}
+/>
+
+## Icon feature grid
+
+<IconFeatureGrid
+  items={[
+    {
+      title: 'Playlist Support',
+      text: 'Use M3U/M3U8, Xtream Codes API, and Stalker portals.',
+      icon: 'playlist',
+    },
+    {
+      title: 'Built-in EPG',
+      text: 'Parse large XMLTV guides with improved loading behavior.',
+      icon: 'epg',
+    },
+    {
+      title: 'Performance',
+      text: 'Background workers keep UI responsive during heavy parsing.',
+      icon: 'speed',
+    },
+    {
+      title: 'Privacy-first',
+      text: 'No tracking pipeline and local-first playback workflow.',
+      icon: 'shield',
+    },
+  ]}
+/>
+
+## Change table
+
+<ChangeTable
+  rows={[
+    {
+      area: 'General',
+      change: 'Playlist switcher moved to a cleaner unified UI.',
+      impact: 'Faster navigation',
+    },
+    {
+      area: 'M3U',
+      change: 'EPG parsing improved for large XMLTV files.',
+      impact: 'More reliable loading',
+    },
+    {
+      area: 'Xtream',
+      change: 'Category visibility controls and item counters.',
+      impact: 'Better content management',
+    },
+  ]}
+/>
+
+## Image gallery
+
+<ImageGallery
+  columns={2}
+  images={[
+    {
+      src: '/iptvnator/blog/iptvnator-v18.jpeg',
+      alt: 'IPTVnator v0.18 UI screenshot',
+      caption: 'v0.18 interface update',
+    },
+    {
+      src: '/iptvnator/blog/macos-app-damaged.jpg',
+      alt: 'macOS app damaged warning dialog',
+      caption: 'macOS Gatekeeper warning example',
+    },
+  ]}
+/>
+
+## Spoiler block
+
+<Spoiler title="Show advanced troubleshooting note">
+  If launch issues persist, verify the app path and run `xattr -c` on the exact `.app` bundle location.
+</Spoiler>
+
+## FAQ accordion
+
+<FaqAccordion
+  items={[
+    {
+      q: 'Can I use these components in regular .md files?',
+      a: 'No. Use .mdx when you want to render custom Astro components inside post content.',
+    },
+    {
+      q: 'Will draft posts appear on production blog pages?',
+      a: 'No. Posts with draft: true are excluded from listing and route generation.',
+    },
+    {
+      q: 'Can I mix markdown with components in one post?',
+      a: 'Yes. MDX supports regular markdown syntax and imported components together.',
+    },
+  ]}
+/>
+
+## When to use MDX
+
+- Use `.md` for plain posts
+- Use `.mdx` when you want custom components, richer callouts, or advanced layout blocks

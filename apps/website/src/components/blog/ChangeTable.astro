@@ -1,0 +1,34 @@
+---
+interface ChangeRow {
+  area: string;
+  change: string;
+  impact?: string;
+}
+
+interface Props {
+  rows: ChangeRow[];
+}
+
+const { rows = [] } = Astro.props;
+---
+
+<div class="not-prose my-6 overflow-x-auto rounded-xl border border-dashed border-surface-700/70 bg-surface-900/50">
+  <table class="w-full min-w-[560px] border-collapse text-left">
+    <thead>
+      <tr class="border-b border-dashed border-surface-700/60">
+        <th class="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-500">Area</th>
+        <th class="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-500">Change</th>
+        <th class="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-500">Impact</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => (
+        <tr class="border-b border-dashed border-surface-700/40 last:border-b-0">
+          <td class="px-4 py-3 text-sm font-semibold text-surface-200">{row.area}</td>
+          <td class="px-4 py-3 text-sm text-surface-300">{row.change}</td>
+          <td class="px-4 py-3 text-sm text-surface-400">{row.impact ?? '—'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

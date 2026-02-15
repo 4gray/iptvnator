@@ -9,12 +9,15 @@ import SupportSection from '../components/SupportSection.astro';
 import FeaturedBlogPost from '../components/FeaturedBlogPost.astro';
 import BlogPostCard from '../components/BlogPostCard.astro';
 
-const posts = (await getCollection('blog'))
-  .filter((post) => !post.data.draft)
-  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
-  .slice(0, 3);
+const includeDrafts = import.meta.env.DEV || import.meta.env.PUBLIC_INCLUDE_DRAFTS === 'true';
 
-const [featuredPost, ...otherPosts] = posts;
+const allPosts = (await getCollection('blog'))
+  .filter((post) => includeDrafts || !post.data.draft)
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+const featuredPost = allPosts.find((post) => post.data.featured) ?? allPosts[0];
+const otherPosts = featuredPost ? allPosts.filter((post) => post.id !== featuredPost.id).slice(0, 2) : [];
+const posts = featuredPost ? [featuredPost, ...otherPosts] : allPosts.slice(0, 3);
 ---
 
 <BaseLayout

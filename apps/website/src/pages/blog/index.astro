@@ -4,11 +4,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import FeaturedBlogPost from '../../components/FeaturedBlogPost.astro';
 import BlogPostCard from '../../components/BlogPostCard.astro';
 
+const includeDrafts = import.meta.env.DEV || import.meta.env.PUBLIC_INCLUDE_DRAFTS === 'true';
+
 const posts = (await getCollection('blog'))
-  .filter((post) => !post.data.draft)
+  .filter((post) => includeDrafts || !post.data.draft)
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
-const [featuredPost, ...remainingPosts] = posts;
+const featuredPost = posts.find((post) => post.data.featured) ?? posts[0];
+const remainingPosts = featuredPost ? posts.filter((post) => post.id !== featuredPost.id) : [];
 ---
 
 <BaseLayout

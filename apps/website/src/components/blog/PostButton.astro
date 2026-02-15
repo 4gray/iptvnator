@@ -1,0 +1,21 @@
+---
+interface Props {
+  href: string;
+  label?: string;
+  external?: boolean;
+}
+
+const { href, label, external = true } = Astro.props;
+---
+
+<a
+  href={href}
+  target={external ? '_blank' : undefined}
+  rel={external ? 'noopener noreferrer' : undefined}
+  class="not-prose group my-6 inline-flex items-center gap-2 rounded-lg border border-dashed border-accent-500/35 bg-accent-500/[0.08] px-4 py-2.5 text-sm font-medium text-accent-200 transition-all duration-200 hover:border-accent-400/50 hover:bg-accent-500/[0.14] hover:text-accent-100"
+>
+  <span>{label ?? 'Open link'}</span>
+  <svg class="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5H19.5m0 0v6m0-6L10.5 13.5M6 6h3.75M6 10.5V18a1.5 1.5 0 001.5 1.5H15" />
+  </svg>
+</a>

@@ -1,0 +1,26 @@
+---
+interface Props {
+  version: string;
+  releaseDate: string;
+  channels?: string[];
+}
+
+const { version, releaseDate, channels = [] } = Astro.props;
+---
+
+<div class="not-prose my-6 rounded-xl border border-dashed border-surface-700/70 bg-surface-900/50 p-4 sm:p-5">
+  <div class="grid gap-3 sm:grid-cols-3">
+    <div>
+      <p class="m-0 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-500">Version</p>
+      <p class="mt-1 text-sm font-semibold text-surface-100">{version}</p>
+    </div>
+    <div>
+      <p class="m-0 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-500">Release date</p>
+      <p class="mt-1 text-sm font-semibold text-surface-100">{releaseDate}</p>
+    </div>
+    <div>
+      <p class="m-0 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-500">Channels</p>
+      <p class="mt-1 text-sm font-semibold text-surface-100">{channels.length ? channels.join(' · ') : 'N/A'}</p>
+    </div>
+  </div>
+</div>

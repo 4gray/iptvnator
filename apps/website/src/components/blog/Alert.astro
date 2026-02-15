@@ -1,0 +1,44 @@
+---
+interface Props {
+  type?: 'info' | 'success' | 'warning';
+  title?: string;
+}
+
+const { type = 'info', title } = Astro.props;
+
+const styles = {
+  info: {
+    wrapper: 'border-accent-500/35 bg-accent-500/[0.07]',
+    icon: 'text-accent-300',
+    title: 'text-accent-200',
+  },
+  success: {
+    wrapper: 'border-emerald-500/35 bg-emerald-500/[0.08]',
+    icon: 'text-emerald-300',
+    title: 'text-emerald-200',
+  },
+  warning: {
+    wrapper: 'border-amber-500/35 bg-amber-500/[0.09]',
+    icon: 'text-amber-300',
+    title: 'text-amber-200',
+  },
+} as const;
+
+const variant = styles[type];
+---
+
+<div class={`not-prose my-6 rounded-xl border border-dashed p-4 sm:p-5 ${variant.wrapper}`}>
+  <div class="flex items-start gap-3">
+    <span class={`mt-0.5 ${variant.icon}`} aria-hidden="true">
+      <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8.25v4.5m0 3h.008M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </span>
+    <div class="min-w-0">
+      {title && <p class={`m-0 text-sm font-semibold ${variant.title}`}>{title}</p>}
+      <div class={`mt-1 text-sm leading-relaxed text-surface-200 [&_p]:my-0 [&_code]:rounded [&_code]:bg-surface-900/50 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs`}>
+        <slot />
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,26 @@
+---
+interface FaqItem {
+  q: string;
+  a: string;
+}
+
+interface Props {
+  items: FaqItem[];
+}
+
+const { items = [] } = Astro.props;
+---
+
+<div class="not-prose my-6 space-y-2">
+  {items.map((item) => (
+    <details class="group rounded-xl border border-dashed border-surface-700/70 bg-surface-900/45 px-4 py-3">
+      <summary class="cursor-pointer list-none">
+        <span class="flex items-center justify-between gap-3 text-sm font-semibold text-surface-100">
+          <span>{item.q}</span>
+          <span class="text-surface-500 transition-transform duration-200 group-open:rotate-45">+</span>
+        </span>
+      </summary>
+      <p class="mt-2 border-t border-dashed border-surface-700/60 pt-2 text-sm leading-relaxed text-surface-400">{item.a}</p>
+    </details>
+  ))}
+</div>

@@ -1,0 +1,22 @@
+---
+interface Props {
+  steps: string[];
+  title?: string;
+}
+
+const { steps = [], title } = Astro.props;
+---
+
+<div class="not-prose my-6 rounded-xl border border-dashed border-surface-700/70 bg-surface-900/45 p-4 sm:p-5">
+  {title && <p class="mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-accent-400">{title}</p>}
+  <ol class="m-0 list-none space-y-3 p-0">
+    {steps.map((step, index) => (
+      <li class="flex items-start gap-3">
+        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-dashed border-accent-500/35 bg-accent-500/[0.1] font-mono text-[11px] font-semibold text-accent-200">
+          {index + 1}
+        </span>
+        <p class="m-0 pt-0.5 text-sm leading-relaxed text-surface-200">{step}</p>
+      </li>
+    ))}
+  </ol>
+</div>

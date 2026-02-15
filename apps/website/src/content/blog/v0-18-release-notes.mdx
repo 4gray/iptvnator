@@ -1,0 +1,137 @@
+---
+title: v0.18 - Release Notes
+description: IPTVnator v0.18 brings a new playlist switcher UI, large EPG improvements, Xtream and Stalker updates, and multiple UX fixes across the app.
+featured: true
+pubDate: 2026-01-14
+author: 4gray
+heroImage: /iptvnator/blog/iptvnator-v18.jpeg
+tags:
+- release
+- release-notes
+- v0.18
+draft: false
+---
+
+import Alert from '../../components/blog/Alert.astro';
+import LinkCards from '../../components/blog/LinkCards.astro';
+import ReleaseMeta from '../../components/blog/ReleaseMeta.astro';
+import StatusPill from '../../components/blog/StatusPill.astro';
+import ChangeTable from '../../components/blog/ChangeTable.astro';
+
+IPTVnator **v0.18** is out.
+
+<ReleaseMeta version="v0.18.0" releaseDate="January 14, 2026" channels={['Desktop', 'PWA']} />
+
+## Support the project
+
+- **GitHub Sponsors**: [https://github.com/sponsors/4gray](https://github.com/sponsors/4gray)
+- **Buy me a coffee**: [https://ko-fi.com/4gray](https://ko-fi.com/4gray)
+- **USDT (TRC20)**: `TLz5rTS7QTxYGfRH1Pm6Hs9fewqstDM47c`
+
+<LinkCards
+  links={[
+    {
+      label: 'GitHub Sponsors',
+      href: 'https://github.com/sponsors/4gray',
+      hint: 'Support continued development.',
+      icon: 'sponsor',
+    },
+    {
+      label: 'Ko-fi',
+      href: 'https://ko-fi.com/4gray',
+      hint: 'One-time support for the project.',
+      icon: 'kofi',
+    },
+    {
+      label: 'Telegram',
+      href: 'https://t.me/iptvnator',
+      hint: 'Follow announcements and updates.',
+      icon: 'telegram',
+    },
+  ]}
+/>
+
+## Summary
+
+<ChangeTable
+  rows={[
+    {
+      area: 'General',
+      change: 'Unified playlist switcher and cleaner header controls.',
+      impact: 'Faster day-to-day navigation',
+    },
+    {
+      area: 'M3U',
+      change: 'Large EPG handling, progress popup, and restored quality selector.',
+      impact: 'More stable playback setup',
+    },
+    {
+      area: 'Xtream',
+      change: 'Category visibility controls and recently-added improvements.',
+      impact: 'Better catalog browsing',
+    },
+    {
+      area: 'Stalker',
+      change: 'Initial support for playlists requiring device IDs/signatures.',
+      impact: 'Broader provider compatibility',
+    },
+  ]}
+/>
+
+## General
+
+<StatusPill type="improved" />
+
+- New playlist switcher UI: a unified and cleaner way to switch between playlists
+- Global favorites moved to the header for quicker access
+- Sort and filter options merged into a single header menu
+
+## M3U
+
+<StatusPill type="improved" />
+
+- Improved EPG download and parsing to better handle large EPG files
+- Added a popup dialog showing EPG download progress
+- Restored quality selector for the Video.js player
+
+## Xtream & Stalker
+
+<StatusPill type="fixed" />
+
+- Improved look and feel of the details view for VODs and TV shows
+- Fixed opening favorite items with embedded players
+
+## Xtream
+
+<StatusPill type="new" />
+
+- Category management: hide/show categories
+- Display item counts per category
+- New separate view for recently added items
+- Recently added items are shown when no category is selected
+- Fixed empty categories issue
+- Restored import progress counter
+
+## Stalker
+
+<StatusPill type="beta" label="partial support" />
+
+- Added support for playlists that require device IDs and signatures
+- Some playlists are still not supported; more testing data is needed
+
+<Alert type="warning" title="Before updating">
+  Please back up your playlists, credentials, URLs, and other important data.
+</Alert>
+
+## Download
+
+<LinkCards
+  links={[
+    {
+      label: 'Download v0.18.0',
+      href: 'https://github.com/4gray/iptvnator/releases/tag/v0.18.0',
+      hint: 'Official release binaries and checksums.',
+      icon: 'download',
+    },
+  ]}
+/>

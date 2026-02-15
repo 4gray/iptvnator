@@ -1,7 +1,7 @@
 ---
 title: Understanding the Electronic Program Guide
 description: Learn how IPTVnator uses XMLTV data to display current and upcoming programs alongside your live TV channels.
-pubDate: 2026-02-15
+pubDate: 2026-02-14
 author: 4gray
 heroImage: /iptvnator/blog/epg.png
 tags:
@@ -10,11 +10,18 @@ tags:
 draft: false
 ---
 
+import Alert from '../../components/blog/Alert.astro';
+import PostButton from '../../components/blog/PostButton.astro';
+
 One of the most useful features in IPTVnator is the built-in Electronic Program Guide (EPG). Here is how it works and how to set it up.
 
 ## What is EPG?
 
 The Electronic Program Guide displays a schedule of current and upcoming TV programs for your channels. IPTVnator supports EPG data in the **XMLTV format**, which is the standard used by most IPTV providers.
+
+<Alert type="info" title="Format tip">
+  Most providers expose EPG as `.xml` or compressed `.xml.gz` files.
+</Alert>
 
 ## Setting up EPG
 
@@ -41,8 +48,11 @@ IPTVnator matches EPG data to channels using the `tvg-id` attribute from your M3
 
 ## Tips
 
-- EPG files can be large — IPTVnator caches parsed data in the database (Electron) 
+- EPG files can be large — IPTVnator caches parsed data in the database (Electron)
 - You can add multiple EPG sources per playlist
 - The EPG automatically refreshes periodically to keep the schedule up to date
 
-Check the [GitHub repository](https://github.com/4gray/iptvnator) for more information on supported EPG formats.
+<PostButton
+  href="https://github.com/4gray/iptvnator"
+  label="See supported formats on GitHub"
+/>

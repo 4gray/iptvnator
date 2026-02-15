@@ -1,0 +1,43 @@
+---
+interface Props {
+  command: string;
+  title?: string;
+}
+
+const { command, title = 'Command' } = Astro.props;
+---
+
+<div class="not-prose my-6 rounded-xl border border-dashed border-surface-700/70 bg-surface-900/55 p-3">
+  <div class="mb-2 flex items-center justify-between">
+    <span class="font-mono text-[10px] uppercase tracking-[0.12em] text-surface-500">{title}</span>
+    <button class="copy-command-btn rounded-md border border-dashed border-surface-700/70 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-surface-400 transition-colors hover:text-accent-300" data-command={command}>
+      Copy
+    </button>
+  </div>
+  <code class="block overflow-x-auto rounded-md bg-surface-950/70 px-3 py-2 font-mono text-sm text-accent-200">{command}</code>
+</div>
+
+<script>
+  const initCopyButtons = () => {
+    document.querySelectorAll('.copy-command-btn').forEach((btn) => {
+      if (btn.getAttribute('data-bound') === 'true') return;
+      btn.setAttribute('data-bound', 'true');
+      btn.addEventListener('click', async () => {
+        const cmd = btn.getAttribute('data-command');
+        if (!cmd) return;
+        await navigator.clipboard.writeText(cmd);
+        const prev = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => {
+          btn.textContent = prev || 'Copy';
+        }, 1400);
+      });
+    });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCopyButtons);
+  } else {
+    initCopyButtons();
+  }
+</script>

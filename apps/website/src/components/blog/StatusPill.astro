@@ -1,0 +1,20 @@
+---
+interface Props {
+  type?: 'new' | 'fixed' | 'improved' | 'breaking' | 'beta';
+  label?: string;
+}
+
+const { type = 'new', label } = Astro.props;
+
+const styles = {
+  new: 'border-cyan-500/35 bg-cyan-500/[0.12] text-cyan-200',
+  fixed: 'border-emerald-500/35 bg-emerald-500/[0.12] text-emerald-200',
+  improved: 'border-accent-500/35 bg-accent-500/[0.12] text-accent-200',
+  breaking: 'border-rose-500/35 bg-rose-500/[0.12] text-rose-200',
+  beta: 'border-amber-500/35 bg-amber-500/[0.12] text-amber-200',
+} as const;
+---
+
+<span class={`not-prose inline-flex items-center rounded-full border border-dashed px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] ${styles[type]}`}>
+  {label ?? type}
+</span>
