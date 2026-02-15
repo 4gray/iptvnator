@@ -2,7 +2,11 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
-<BaseLayout title="Page Not Found | IPTVnator" description="The page you're looking for doesn't exist.">
+<BaseLayout
+  title="Page Not Found | IPTVnator"
+  description="The page you're looking for doesn't exist."
+  noindex={true}
+>
   <section class="flex min-h-[80vh] items-center justify-center pt-20">
     <div class="mx-auto max-w-md px-6 text-center">
       <img

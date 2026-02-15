@@ -26,9 +26,43 @@ const formattedUpdatedDate = updatedDate?.toLocaleDateString('en-US', {
 });
 
 const AUTHOR_AVATAR_URL = 'https://avatars.githubusercontent.com/u/1503032';
+const canonicalURL = new URL(Astro.url.pathname, Astro.site).toString();
+const blogPostSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: title,
+  description,
+  datePublished: pubDate.toISOString(),
+  dateModified: (updatedDate ?? pubDate).toISOString(),
+  author: {
+    '@type': 'Person',
+    name: author,
+    url: 'https://github.com/4gray',
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'IPTVnator',
+    url: 'https://4gray.github.io/iptvnator/',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://4gray.github.io/iptvnator/favicon.ico',
+    },
+  },
+  mainEntityOfPage: canonicalURL,
+  image: heroImage ? new URL(heroImage, Astro.site).toString() : undefined,
+};
 ---
 
-<BaseLayout title={`${title} | IPTVnator Blog`} description={description}>
+<BaseLayout
+  title={`${title} | IPTVnator Blog`}
+  description={description}
+  image={heroImage}
+  type="article"
+  publishedTime={pubDate.toISOString()}
+  modifiedTime={(updatedDate ?? pubDate).toISOString()}
+  keywords={tags}
+  jsonLd={blogPostSchema}
+>
   <article class="pt-36 pb-24">
     <div class="relative mx-auto max-w-3xl px-6">
       <div class="pointer-events-none absolute -top-16 -right-14 hidden w-44 rotate-[-8deg] opacity-30 mix-blend-screen md:block lg:w-52">

@@ -18,11 +18,47 @@ const allPosts = (await getCollection('blog'))
 const featuredPost = allPosts.find((post) => post.data.featured) ?? allPosts[0];
 const otherPosts = featuredPost ? allPosts.filter((post) => post.id !== featuredPost.id).slice(0, 2) : [];
 const posts = featuredPost ? [featuredPost, ...otherPosts] : allPosts.slice(0, 3);
+
+const homeSchema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'IPTVnator',
+    url: 'https://4gray.github.io/iptvnator/',
+    description:
+      'A cross-platform IPTV player supporting M3U/M3U8 playlists, Xtream Codes API, and Stalker portals.',
+    inLanguage: 'en',
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'IPTVnator',
+    applicationCategory: 'MultimediaApplication',
+    operatingSystem: 'Windows, macOS, Linux, Web',
+    softwareVersion: '0.19.0',
+    url: 'https://4gray.github.io/iptvnator/',
+    downloadUrl: 'https://github.com/4gray/iptvnator/releases/latest',
+    author: {
+      '@type': 'Person',
+      name: '4gray',
+      url: 'https://github.com/4gray',
+    },
+    sameAs: [
+      'https://github.com/4gray/iptvnator',
+      'https://t.me/iptvnator',
+      'https://ko-fi.com/4gray',
+    ],
+    description:
+      'Open-source IPTV player with M3U/M3U8, Xtream Codes API, and Stalker portal support.',
+  },
+];
 ---
 
 <BaseLayout
   title="IPTVnator - Open Source IPTV Player"
   description="A cross-platform IPTV player supporting M3U/M3U8 playlists, Xtream Codes API, and Stalker portals. Available as a desktop app and PWA."
+  keywords={['IPTV player', 'M3U', 'M3U8', 'Xtream Codes', 'Stalker portal', 'EPG', 'XMLTV', 'open-source']}
+  jsonLd={homeSchema}
 >
   <Hero />
   <FeatureGrid />

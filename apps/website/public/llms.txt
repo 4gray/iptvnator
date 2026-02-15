@@ -1,0 +1,26 @@
+# IPTVnator
+
+> IPTVnator is an open-source cross-platform IPTV player (desktop + web) that supports M3U/M3U8 playlists, Xtream Codes API, Stalker portals, and XMLTV EPG.
+
+## Canonical URLs
+
+- Website: https://4gray.github.io/iptvnator/
+- Blog: https://4gray.github.io/iptvnator/blog/
+- Latest Release: https://github.com/4gray/iptvnator/releases/latest
+- Release Notes (v0.18): https://4gray.github.io/iptvnator/blog/v0-18-release-notes/
+- Troubleshooting (macOS app damaged fix): https://4gray.github.io/iptvnator/blog/macos-arm-app-damaged-fix/
+- Source Code: https://github.com/4gray/iptvnator
+- Telegram: https://t.me/iptvnator
+- GitHub Sponsors: https://github.com/sponsors/4gray
+- Ko-fi: https://ko-fi.com/4gray
+
+## Product Scope
+
+- IPTVnator is a media player application.
+- It does not provide, host, or sell playlists, channels, or media content.
+- Any channel names or metadata shown in screenshots/posts are demo examples only.
+
+## Machine-readable Discovery
+
+- Sitemap: https://4gray.github.io/iptvnator/sitemap-index.xml
+- Robots: https://4gray.github.io/iptvnator/robots.txt

@@ -3,16 +3,46 @@ interface Props {
   title: string;
   description: string;
   image?: string;
+  type?: 'website' | 'article';
+  noindex?: boolean;
+  keywords?: string[];
+  publishedTime?: string;
+  modifiedTime?: string;
+  jsonLd?: Record<string, unknown> | Array<Record<string, unknown>>;
 }
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-const { title, description, image = '/iptvnator/og-image.png' } = Astro.props;
+const {
+  title,
+  description,
+  image = '/iptvnator/og-image.png',
+  type = 'website',
+  noindex = false,
+  keywords = [],
+  publishedTime,
+  modifiedTime,
+  jsonLd,
+} = Astro.props;
+
+const absoluteImageURL = new URL(image, Astro.site);
+const robotsContent = noindex
+  ? 'noindex, nofollow, noarchive'
+  : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
+const schemaPayload = jsonLd
+  ? JSON.stringify(Array.isArray(jsonLd) ? jsonLd : [jsonLd])
+  : null;
 ---
 
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" type="image/x-icon" href="/iptvnator/favicon.ico" />
 <meta name="generator" content={Astro.generator} />
+<meta name="robots" content={robotsContent} />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<meta name="author" content="4gray" />
+<meta name="theme-color" content="#0a0a08" />
+<meta name="format-detection" content="telephone=no" />
+{keywords.length > 0 && <meta name="keywords" content={keywords.join(', ')} />}
 
 <!-- Fonts: Playfair Display (display), DM Sans (body), IBM Plex Mono (code) -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +53,7 @@ const { title, description, image = '/iptvnator/og-image.png' } = Astro.props;
 />
 
 <!-- Canonical URL -->
-<link rel="canonical" href={canonicalURL} />
+<link rel="canonical" href={canonicalURL.toString()} />
 
 <!-- Primary Meta Tags -->
 <title>{title}</title>
@@ -31,15 +61,24 @@ const { title, description, image = '/iptvnator/og-image.png' } = Astro.props;
 <meta name="description" content={description} />
 
 <!-- Open Graph / Facebook -->
-<meta property="og:type" content="website" />
-<meta property="og:url" content={Astro.url} />
+<meta property="og:type" content={type} />
+<meta property="og:site_name" content="IPTVnator" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:url" content={canonicalURL.toString()} />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
-<meta property="og:image" content={new URL(image, Astro.url)} />
+<meta property="og:image" content={absoluteImageURL.toString()} />
+<meta property="og:image:secure_url" content={absoluteImageURL.toString()} />
+{type === 'article' && publishedTime && <meta property="article:published_time" content={publishedTime} />}
+{type === 'article' && modifiedTime && <meta property="article:modified_time" content={modifiedTime} />}
 
 <!-- Twitter -->
 <meta property="twitter:card" content="summary_large_image" />
-<meta property="twitter:url" content={Astro.url} />
+<meta property="twitter:url" content={canonicalURL.toString()} />
 <meta property="twitter:title" content={title} />
 <meta property="twitter:description" content={description} />
-<meta property="twitter:image" content={new URL(image, Astro.url)} />
+<meta property="twitter:image" content={absoluteImageURL.toString()} />
+
+{schemaPayload && (
+  <script type="application/ld+json" set:html={schemaPayload} />
+)}

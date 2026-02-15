@@ -8,15 +8,31 @@ interface Props {
   title: string;
   description: string;
   image?: string;
+  type?: 'website' | 'article';
+  noindex?: boolean;
+  keywords?: string[];
+  publishedTime?: string;
+  modifiedTime?: string;
+  jsonLd?: Record<string, unknown> | Array<Record<string, unknown>>;
 }
 
-const { title, description, image } = Astro.props;
+const { title, description, image, type, noindex, keywords, publishedTime, modifiedTime, jsonLd } = Astro.props;
 ---
 
 <!doctype html>
 <html lang="en" class="dark">
   <head>
-    <BaseHead title={title} description={description} image={image} />
+    <BaseHead
+      title={title}
+      description={description}
+      image={image}
+      type={type}
+      noindex={noindex}
+      keywords={keywords}
+      publishedTime={publishedTime}
+      modifiedTime={modifiedTime}
+      jsonLd={jsonLd}
+    />
   </head>
   <body class="min-h-screen bg-surface-950 font-body text-surface-200">
     <Header />
