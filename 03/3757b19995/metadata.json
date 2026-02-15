@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "033757b19995",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "libs/ui/components/src/lib/channel-list-container/channel-list-container.component.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/03/3757b19995/0/metadata.json",
+      "transcript": "/03/3757b19995/0/full.jsonl",
+      "context": "/03/3757b19995/0/context.md",
+      "content_hash": "/03/3757b19995/0/content_hash.txt",
+      "prompt": "/03/3757b19995/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 87473,
+    "cache_read_tokens": 106822,
+    "output_tokens": 11,
+    "api_call_count": 2
+  }
+}
