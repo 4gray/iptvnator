@@ -1,0 +1,134 @@
+---
+interface SliderImage {
+  src: string;
+  alt: string;
+  caption?: string;
+}
+
+interface Props {
+  images: SliderImage[];
+  thumbPosition?: 'bottom' | 'right';
+  showArrows?: boolean;
+}
+
+const { images = [], thumbPosition = 'bottom', showArrows = true } = Astro.props;
+const sliderId = `slider-${Math.random().toString(36).slice(2, 10)}`;
+---
+
+{images.length > 0 && (
+  <div
+    class="not-prose my-6"
+    data-blog-slider={sliderId}
+    tabindex="0"
+  >
+    <div class="group relative overflow-hidden rounded-xl border border-dashed border-surface-700/70 bg-surface-900/50">
+      <img
+        src={images[0].src}
+        alt={images[0].alt}
+        data-slider-main-img
+        class="aspect-video w-full object-cover"
+        loading="lazy"
+      />
+
+      {showArrows && images.length > 1 && (
+        <>
+          <button
+            type="button"
+            class="slider-prev absolute left-2 top-1/2 -translate-y-1/2 rounded-md border border-surface-700/70 bg-surface-950/70 px-2 py-1.5 text-surface-200 transition-colors hover:text-accent-300"
+            aria-label="Previous image"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="slider-next absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-surface-700/70 bg-surface-950/70 px-2 py-1.5 text-surface-200 transition-colors hover:text-accent-300"
+            aria-label="Next image"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </>
+      )}
+    </div>
+
+    <p data-slider-caption class="mt-2 text-sm text-surface-500">{images[0].caption ?? ''}</p>
+
+    {images.length > 1 && (
+      <div class="mt-3 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Image thumbnails">
+        {images.map((image, index) => (
+          <button
+            type="button"
+            data-slider-thumb
+            data-index={index}
+            data-src={image.src}
+            data-alt={image.alt}
+            data-caption={image.caption ?? ''}
+            class={`shrink-0 overflow-hidden rounded-md border ${index === 0 ? 'border-accent-500/60' : 'border-surface-700/70'} bg-surface-900/50 transition-all duration-200 hover:border-accent-500/50`}
+            aria-label={`Show image ${index + 1}`}
+            aria-selected={index === 0 ? 'true' : 'false'}
+          >
+            <img src={image.src} alt={image.alt} loading="lazy" class="h-12 w-20 object-cover sm:h-14 sm:w-24" />
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+<script>
+  const initBlogSliders = () => {
+    document.querySelectorAll('[data-blog-slider]').forEach((slider) => {
+      if (slider.getAttribute('data-bound') === 'true') return;
+      slider.setAttribute('data-bound', 'true');
+
+      const main = slider.querySelector('[data-slider-main-img]');
+      const caption = slider.querySelector('[data-slider-caption]');
+      const thumbs = Array.from(slider.querySelectorAll('[data-slider-thumb]'));
+      const prev = slider.querySelector('.slider-prev');
+      const next = slider.querySelector('.slider-next');
+
+      if (!main || thumbs.length === 0) return;
+
+      let current = 0;
+
+      const setActive = (idx) => {
+        current = (idx + thumbs.length) % thumbs.length;
+        const activeBtn = thumbs[current];
+        const src = activeBtn.getAttribute('data-src') || '';
+        const alt = activeBtn.getAttribute('data-alt') || '';
+        const cap = activeBtn.getAttribute('data-caption') || '';
+        main.setAttribute('src', src);
+        main.setAttribute('alt', alt);
+        if (caption) caption.textContent = cap;
+
+        thumbs.forEach((btn, i) => {
+          const selected = i === current;
+          btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+          btn.classList.toggle('border-accent-500/60', selected);
+          btn.classList.toggle('border-surface-700/70', !selected);
+        });
+      };
+
+      thumbs.forEach((btn, i) => {
+        btn.addEventListener('click', () => setActive(i));
+      });
+
+      prev?.addEventListener('click', () => setActive(current - 1));
+      next?.addEventListener('click', () => setActive(current + 1));
+
+      slider.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') setActive(current - 1);
+        if (e.key === 'ArrowRight') setActive(current + 1);
+      });
+    });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBlogSliders);
+  } else {
+    initBlogSliders();
+  }
+</script>

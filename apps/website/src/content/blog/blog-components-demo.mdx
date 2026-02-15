@@ -21,6 +21,7 @@ import StatusPill from '../../components/blog/StatusPill.astro';
 import ChangeTable from '../../components/blog/ChangeTable.astro';
 import CopyCommand from '../../components/blog/CopyCommand.astro';
 import ImageGallery from '../../components/blog/ImageGallery.astro';
+import BlogImageSlider from '../../components/blog/BlogImageSlider.astro';
 import Spoiler from '../../components/blog/Spoiler.astro';
 import FaqAccordion from '../../components/blog/FaqAccordion.astro';
 
@@ -172,6 +173,28 @@ $ xattr -c /Applications/IPTVnator.app
       src: '/iptvnator/blog/macos-app-damaged.jpg',
       alt: 'macOS app damaged warning dialog',
       caption: 'macOS Gatekeeper warning example',
+    },
+  ]}
+/>
+
+## Image slider
+
+<BlogImageSlider
+  images={[
+    {
+      src: '/iptvnator/blog/iptvnator-v18.jpeg',
+      alt: 'IPTVnator v0.18 UI screenshot',
+      caption: 'Main app interface in v0.18.',
+    },
+    {
+      src: '/iptvnator/blog/macos-app-damaged.jpg',
+      alt: 'macOS app damaged warning dialog',
+      caption: 'Gatekeeper warning on unsigned app launch.',
+    },
+    {
+      src: '/iptvnator/blog/epg.png',
+      alt: 'EPG guide screenshot',
+      caption: 'Electronic Program Guide screen in IPTVnator.',
     },
   ]}
 />
