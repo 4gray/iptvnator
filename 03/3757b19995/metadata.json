@@ -3,8 +3,10 @@
   "checkpoint_id": "033757b19995",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
+    "apps/website/src/components/DownloadCTA.astro",
+    "apps/website/src/layouts/BaseLayout.astro",
     "libs/ui/components/src/lib/channel-list-container/channel-list-container.component.ts"
   ],
   "sessions": [
@@ -14,13 +16,20 @@
       "context": "/03/3757b19995/0/context.md",
       "content_hash": "/03/3757b19995/0/content_hash.txt",
       "prompt": "/03/3757b19995/0/prompt.txt"
+    },
+    {
+      "metadata": "/03/3757b19995/1/metadata.json",
+      "transcript": "/03/3757b19995/1/full.jsonl",
+      "context": "/03/3757b19995/1/context.md",
+      "content_hash": "/03/3757b19995/1/content_hash.txt",
+      "prompt": "/03/3757b19995/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 4,
-    "cache_creation_tokens": 87473,
-    "cache_read_tokens": 106822,
-    "output_tokens": 11,
-    "api_call_count": 2
+    "input_tokens": 121,
+    "cache_creation_tokens": 176218,
+    "cache_read_tokens": 3018308,
+    "output_tokens": 375,
+    "api_call_count": 50
   }
 }

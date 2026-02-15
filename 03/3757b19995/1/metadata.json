@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "033757b19995",
+  "session_id": "cbceb4b9-123e-460a-87dc-81d276f1ffd0",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T22:20:54.655968Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/website/src/components/DownloadCTA.astro",
+    "apps/website/src/layouts/BaseLayout.astro"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "8225c769-ac52-4593-86c0-a2d903c4890b",
+  "token_usage": {
+    "input_tokens": 117,
+    "cache_creation_tokens": 88745,
+    "cache_read_tokens": 2911486,
+    "output_tokens": 364,
+    "api_call_count": 48
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T22:20:54.61121Z",
+    "agent_lines": 0,
+    "human_added": 4,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 6,
+    "agent_percentage": 0
+  }
+}
