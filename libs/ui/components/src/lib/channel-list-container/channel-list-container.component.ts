@@ -84,10 +84,11 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     @Input()
     set channelList(value: Channel[]) {
-        this._channelList = value;
-        this.channelListSignal.set(value);
-        this.channelList$.next(value);
-        this.fetchEpgForChannels(value);
+        const safeValue = value ?? [];
+        this._channelList = safeValue;
+        this.channelListSignal.set(safeValue);
+        this.channelList$.next(safeValue);
+        this.fetchEpgForChannels(safeValue);
     }
 
     /** Active playlist ID as signal */
