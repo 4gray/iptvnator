@@ -21,6 +21,17 @@ export const stalkerRoutes: Route[] = [
                     ),
                 children: [
                     {
+                        path: '',
+                        data: {
+                            api: 'stalker',
+                            contentType: 'vod',
+                        },
+                        loadComponent: () =>
+                            import(
+                                '../xtream-tauri/category-content-view/category-content-view.component'
+                            ).then((c) => c.CategoryContentViewComponent),
+                    },
+                    {
                         path: ':categoryId',
                         data: {
                             api: 'stalker',
@@ -53,6 +64,17 @@ export const stalkerRoutes: Route[] = [
                         (c) => c.StalkerMainContainerComponent
                     ),
                 children: [
+                    {
+                        path: '',
+                        loadComponent: () =>
+                            import(
+                                '../xtream-tauri/category-content-view/category-content-view.component'
+                            ).then((c) => c.CategoryContentViewComponent),
+                        data: {
+                            api: 'stalker',
+                            contentType: 'series',
+                        },
+                    },
                     {
                         path: ':categoryId',
                         loadComponent: () =>

@@ -48,7 +48,11 @@
 
                 {{ getContentLabel() }}
 
-                @if (!contentItems() && !isContentLoading()) {
+                @if (
+                    !contentItems() &&
+                    !isContentLoading() &&
+                    !stalkerStore.selectedCategoryId()
+                ) {
                     <h2>
                         {{ 'PORTALS.SELECT_CATEGORY' | translate }}
                     </h2>

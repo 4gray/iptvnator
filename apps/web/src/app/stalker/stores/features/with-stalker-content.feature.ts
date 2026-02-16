@@ -7,12 +7,14 @@ import {
     withProps,
     withState,
 } from '@ngrx/signals';
+import { TranslateService } from '@ngx-translate/core';
 import { DataService, StalkerSessionService } from 'services';
 import {
     Playlist,
     STALKER_REQUEST,
     StalkerPortalActions,
 } from 'shared-interfaces';
+import { createLogger } from '../../../shared/utils/logger';
 import {
     StalkerCategoryItem,
     StalkerContentItem,
@@ -20,7 +22,6 @@ import {
     StalkerVodSource,
 } from '../../models';
 import { StalkerContentTypes } from '../../stalker-content-types';
-import { createLogger } from '../../../shared/utils/logger';
 import { toStalkerContentItem, toStalkerItvChannel } from '../utils';
 
 /**
@@ -52,7 +53,8 @@ export function withStalkerContent() {
             (
                 store,
                 dataService = inject(DataService),
-                stalkerSession = inject(StalkerSessionService)
+                stalkerSession = inject(StalkerSessionService),
+                translateService = inject(TranslateService)
             ) => ({
                 getCategoryResource: resource({
                     params: () => ({
@@ -83,7 +85,8 @@ export function withStalkerContent() {
                                 break;
                         }
 
-                        const { portalUrl, macAddress } = params.currentPlaylist;
+                        const { portalUrl, macAddress } =
+                            params.currentPlaylist;
 
                         // Use makeAuthenticatedRequest for automatic retry on auth failure
                         const playlist = params.currentPlaylist as Playlist;
@@ -115,18 +118,37 @@ export function withStalkerContent() {
 
                         // Guard: ensure response has expected structure
                         if (!response?.js || !Array.isArray(response.js)) {
-                            logger.warn('Invalid categories response', response);
+                            logger.warn(
+                                'Invalid categories response',
+                                response
+                            );
                             return [];
                         }
 
                         const categories = response.js
-                            .map((item): StalkerCategoryItem => ({
-                                category_name: item.title,
-                                category_id: String(item.id),
-                            }))
+                            .map(
+                                (item): StalkerCategoryItem => ({
+                                    category_name: item.title,
+                                    category_id: String(item.id),
+                                })
+                            )
                             .sort((a, b) =>
                                 a.category_name.localeCompare(b.category_name)
                             );
+                        if (
+                            categories.length > 0 &&
+                            !categories.some(
+                                (category) =>
+                                    String(category.category_id) === '*'
+                            )
+                        ) {
+                            categories.unshift({
+                                category_name: translateService.instant(
+                                    'PORTALS.ALL_CATEGORIES'
+                                ),
+                                category_id: '*',
+                            });
+                        }
                         patchState(store, {
                             [`${params.contentType}Categories`]: categories,
                         });
@@ -140,6 +162,21 @@ export function withStalkerContent() {
                         action: StalkerPortalActions.GetOrderedList,
                         search: (store as any).searchPhrase(),
                         pageIndex: (store as any).page() + 1,
+                        availableCategoryCount: (() => {
+                            const contentType = (
+                                store as any
+                            ).selectedContentType();
+                            const categories =
+                                contentType === 'vod'
+                                    ? store.vodCategories()
+                                    : contentType === 'series'
+                                      ? store.seriesCategories()
+                                      : store.itvCategories();
+                            return categories.filter(
+                                (category) =>
+                                    String(category.category_id) !== '*'
+                            ).length;
+                        })(),
                     }),
                     loader: async ({
                         params,
@@ -151,11 +188,22 @@ export function withStalkerContent() {
                         ) {
                             return Promise.resolve(undefined);
                         }
+                        if (
+                            params.category === '*' &&
+                            (params.contentType === 'vod' ||
+                                params.contentType === 'series') &&
+                            params.availableCategoryCount === 0
+                        ) {
+                            return Promise.resolve(undefined);
+                        }
 
                         const currentPlaylist = (store as any).currentPlaylist;
 
                         // Guard: ensure currentPlaylist is available (may not be during deep link init)
-                        if (!currentPlaylist() || !currentPlaylist().portalUrl) {
+                        if (
+                            !currentPlaylist() ||
+                            !currentPlaylist().portalUrl
+                        ) {
                             return Promise.resolve(undefined);
                         }
                         // VOD uses 'genre' param, series uses 'category' param, itv uses both
@@ -242,7 +290,8 @@ export function withStalkerContent() {
                             const totalLoaded = store.itvChannels().length;
                             patchState(store, {
                                 hasMoreChannels:
-                                    totalLoaded < (response.js.total_items ?? 0),
+                                    totalLoaded <
+                                    (response.js.total_items ?? 0),
                             });
                         }
 

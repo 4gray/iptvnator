@@ -87,11 +87,34 @@ export class StalkerMainContainerComponent {
     }
 
     getContentLabel(): string {
-        const categoryName = this.stalkerStore.getSelectedCategoryName();
+        const selectedContentType = this.stalkerStore.selectedContentType();
+        const selectedCategoryId = this.stalkerStore.selectedCategoryId();
+        const typeLabelByContentType: Record<string, string> = {
+            vod: this.translateService.instant('PORTALS.SIDEBAR.MOVIES'),
+            series: this.translateService.instant('PORTALS.SIDEBAR.SERIES'),
+            itv: this.translateService.instant('PORTALS.SIDEBAR.LIVE_TV'),
+        };
+        const selectedTypeLabel =
+            typeLabelByContentType[selectedContentType] ?? '';
+
+        const selectedCategoryName = this.stalkerStore.getSelectedCategoryName();
+        let categoryName = selectedCategoryName;
+
+        // For implicit "All" view, show a type-specific title so switching
+        // between VOD/Series updates header text immediately.
+        if (selectedCategoryId === '*') {
+            categoryName = `${selectedTypeLabel} - ${this.translateService.instant(
+                'PORTALS.ALL_CATEGORIES'
+            )}`;
+        } else if (!categoryName) {
+            // Fallback while categories are loading or when no category is selected.
+            categoryName = selectedTypeLabel;
+        }
 
         // Show page number when viewing category content (not detail view)
         if (
             !this.stalkerStore.selectedItem() &&
+            !this.isContentLoading() &&
             this.stalkerStore.getTotalPages() > 1
         ) {
             const currentPage = this.stalkerStore.page() + 1;

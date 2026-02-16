@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { PlaylistActions, selectPlaylistById } from 'm3u-state';
 import { map, switchMap } from 'rxjs';
+import { createLogger } from '../../shared/utils/logger';
 import { NavigationComponent } from '../../xtream-tauri/navigation/navigation.component';
 import { NavigationItem } from '../../xtream-tauri/navigation/navigation.interface';
 import { XtreamStore } from '../../xtream-tauri/stores/xtream.store';
@@ -17,6 +18,7 @@ import { StalkerStore } from '../stalker.store';
     providers: [XtreamStore],
 })
 export class StalkerShellComponent implements OnDestroy {
+    private readonly logger = createLogger('StalkerShell');
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     readonly stalkerStore = inject(StalkerStore);
@@ -64,7 +66,9 @@ export class StalkerShellComponent implements OnDestroy {
             const childRoute = this.route.snapshot.firstChild;
             const path = childRoute?.url[0]?.path;
             const validTypes = ['vod', 'series', 'itv'];
-            const initialType = validTypes.includes(path) ? (path as any) : 'vod';
+            const initialType = validTypes.includes(path)
+                ? (path as any)
+                : 'vod';
             this.stalkerStore.setSelectedContentType(initialType);
         });
 
@@ -76,7 +80,7 @@ export class StalkerShellComponent implements OnDestroy {
     setContentType(type: 'vod' | 'live' | 'series' | 'itv') {
         if (type === 'live') type = 'itv';
         this.stalkerStore.setSelectedContentType(type);
-        this.stalkerStore.setSelectedCategory(null);
+        this.stalkerStore.setSelectedCategory(type === 'itv' ? null : '*');
         this.router.navigate([type], {
             relativeTo: this.route,
         });
