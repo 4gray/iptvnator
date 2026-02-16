@@ -62,15 +62,37 @@ export const withRecentItems = function () {
                 pipe(
                     switchMap(async ({ contentId, playlist }) => {
                         // contentId is actually xtream_id, need to look up the database content.id
+                        const playlistId = playlist().id;
                         const content = await dbService.getContentByXtreamId(
                             contentId,
-                            playlist().id
+                            playlistId
                         );
                         if (content) {
                             await dbService.addRecentItem(
                                 content.id,
-                                playlist().id
+                                playlistId
                             );
+
+                            // Reload after add/update so re-watched items
+                            // immediately move to the top in recently-viewed.
+                            const items =
+                                await dbService.getRecentItems(playlistId);
+                            patchState(store, {
+                                recentItems: items.map((item) => ({
+                                    id: item.id,
+                                    title: item.title,
+                                    type: item.type as
+                                        | 'live'
+                                        | 'movie'
+                                        | 'series',
+                                    poster_url: item.poster_url,
+                                    content_id: item.id,
+                                    playlist_id: playlistId,
+                                    viewed_at: item.viewed_at || '',
+                                    xtream_id: item.xtream_id,
+                                    category_id: item.category_id,
+                                })),
+                            });
                         }
                     })
                 )

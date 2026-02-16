@@ -9,7 +9,7 @@ import {
     createPlaylistObject,
 } from 'm3u-utils';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { combineLatest, EMPTY, map, switchMap } from 'rxjs';
+import { combineLatest, map, switchMap } from 'rxjs';
 import {
     Channel,
     DbStores,
@@ -397,14 +397,34 @@ export class PlaylistsService {
         }
         return this.getPlaylistById(portalId).pipe(
             switchMap((portal) => {
-                // Check if item already exists in recently viewed
-                if (portal.recentlyViewed?.some((i: any) => i.id === item.id)) {
-                    return EMPTY;
+                const nowIso = new Date().toISOString();
+                const recentItems = portal.recentlyViewed ?? [];
+                const existingIndex = recentItems.findIndex(
+                    (i: any) => String(i?.id) === String(item.id)
+                );
+
+                if (existingIndex >= 0) {
+                    const updatedRecentItems = [...recentItems];
+                    updatedRecentItems[existingIndex] = {
+                        ...updatedRecentItems[existingIndex],
+                        ...item,
+                        added_at: nowIso,
+                    };
+                    return this.dbService.update(DbStores.Playlists, {
+                        ...portal,
+                        recentlyViewed: updatedRecentItems,
+                    });
                 }
 
                 return this.dbService.update(DbStores.Playlists, {
                     ...portal,
-                    recentlyViewed: [...(portal.recentlyViewed ?? []), item],
+                    recentlyViewed: [
+                        ...recentItems,
+                        {
+                            ...item,
+                            added_at: (item as any).added_at ?? nowIso,
+                        },
+                    ],
                 });
             })
         );
