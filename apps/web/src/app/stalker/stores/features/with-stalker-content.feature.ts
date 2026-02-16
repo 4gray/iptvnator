@@ -186,6 +186,7 @@ export function withStalkerContent() {
                             params.category === null ||
                             params.category === ''
                         ) {
+                            patchState(store, { totalCount: 0 });
                             return Promise.resolve(undefined);
                         }
                         if (
@@ -194,6 +195,7 @@ export function withStalkerContent() {
                                 params.contentType === 'series') &&
                             params.availableCategoryCount === 0
                         ) {
+                            patchState(store, { totalCount: 0 });
                             return Promise.resolve(undefined);
                         }
 
@@ -204,6 +206,7 @@ export function withStalkerContent() {
                             !currentPlaylist() ||
                             !currentPlaylist().portalUrl
                         ) {
+                            patchState(store, { totalCount: 0 });
                             return Promise.resolve(undefined);
                         }
                         // VOD uses 'genre' param, series uses 'category' param, itv uses both
