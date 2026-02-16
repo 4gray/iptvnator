@@ -277,7 +277,7 @@ function startVlcPositionPolling(port: number, contentInfo: any) {
 }
 
 // Helper function to send command to MPV via IPC
-function sendMpvCommand(command: string, args: string[]): Promise<void> {
+function sendMpvCommand(command: string, args: Array<string | number>): Promise<void> {
     return new Promise((resolve, reject) => {
         if (!mpvSocketPath) {
             reject(new Error('No MPV socket path available'));
@@ -338,7 +338,14 @@ ipcMain.handle(
             ) {
                 console.log('Reusing existing MPV instance');
                 try {
-                    await sendMpvCommand('loadfile', [url, 'replace']);
+                    const loadFileArgs: Array<string | number> = [url, 'replace'];
+                    if (title) {
+                        // loadfile args are: url, flags, index, options
+                        // Index must be numeric; use -1, then pass options as 4th arg.
+                        loadFileArgs.push(-1, `force-media-title=${title}`);
+                    }
+
+                    await sendMpvCommand('loadfile', loadFileArgs);
                     console.log(
                         'Successfully loaded new URL in existing MPV instance'
                     );
@@ -623,18 +630,16 @@ ipcMain.handle(
             // Note: VLC doesn't have a direct origin option, but origin is typically
             // included in referer for most IPTV use cases
 
-            // Add title if provided
-            if (title) {
-                args.push(`--meta-title=${title}`);
-            }
-
             // Add start time if provided
             if (startTime) {
                 args.push(`--start-time=${startTime}`);
             }
 
-            // Add URL last
+            // Add URL and per-input options last
             args.push(url);
+            if (title) {
+                args.push(`:meta-title=${title}`);
+            }
 
             console.log('VLC Args:', args);
 
