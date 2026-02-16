@@ -87,3 +87,10 @@ textarea,
 .cdk-overlay-backdrop {
     backdrop-filter: blur(4px);
 }
+
+// Full-screen overlay dialogs (global search/recent) must stay interactive in Electron.
+.global-search-overlay,
+.global-search-overlay .mat-mdc-dialog-surface,
+.global-search-overlay .mat-mdc-dialog-container {
+    app-region: no-drag;
+}

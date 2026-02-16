@@ -46,6 +46,26 @@
             </button>
             <button
                 mat-icon-button
+                (click)="onGlobalSearchClick()"
+                [matTooltip]="
+                    ('PORTALS.SIDEBAR.SEARCH' | translate) + ' (Ctrl/Cmd+F)'
+                "
+                data-test-id="global-search"
+            >
+                <mat-icon>travel_explore</mat-icon>
+            </button>
+            <button
+                mat-icon-button
+                (click)="onGlobalRecentClick()"
+                [matTooltip]="
+                    ('PORTALS.SIDEBAR.RECENT' | translate) + ' (Ctrl/Cmd+R)'
+                "
+                data-test-id="global-recent"
+            >
+                <mat-icon>history</mat-icon>
+            </button>
+            <button
+                mat-icon-button
                 #filterMenuTrigger="matMenuTrigger"
                 [matMenuTriggerFor]="filterSortMenuComponent().menu()"
                 [matTooltip]="'HOME.FILTER_AND_SORT' | translate"
@@ -161,6 +181,28 @@
                 >
                     <mat-icon>star</mat-icon>
                     <span>{{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}</span>
+                </button>
+                <button
+                    mat-menu-item
+                    (click)="onGlobalSearchClick()"
+                    data-test-id="mobile-global-search"
+                >
+                    <mat-icon>travel_explore</mat-icon>
+                    <span
+                        >{{ 'PORTALS.SIDEBAR.SEARCH' | translate }}
+                        (Ctrl/Cmd+F)</span
+                    >
+                </button>
+                <button
+                    mat-menu-item
+                    (click)="onGlobalRecentClick()"
+                    data-test-id="mobile-global-recent"
+                >
+                    <mat-icon>history</mat-icon>
+                    <span
+                        >{{ 'PORTALS.SIDEBAR.RECENT' | translate }}
+                        (Ctrl/Cmd+R)</span
+                    >
                 </button>
                 <button
                     mat-menu-item

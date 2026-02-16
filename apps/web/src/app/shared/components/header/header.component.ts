@@ -64,6 +64,8 @@ export class HeaderComponent implements OnInit {
     readonly title = input.required<string>();
     readonly subtitle = input.required<string>();
     readonly searchQuery = output<string>();
+    readonly globalSearchClicked = output<void>();
+    readonly globalRecentClicked = output<void>();
 
     isHome = true;
 
@@ -123,5 +125,13 @@ export class HeaderComponent implements OnInit {
 
     onSearchQueryUpdate(query: string): void {
         this.searchQuery.emit(query);
+    }
+
+    onGlobalSearchClick(): void {
+        this.globalSearchClicked.emit();
+    }
+
+    onGlobalRecentClick(): void {
+        this.globalRecentClicked.emit();
     }
 }

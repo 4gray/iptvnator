@@ -2,6 +2,8 @@
     [title]="'HOME.TITLE' | translate"
     [subtitle]="'HOME.SUBTITLE' | translate"
     (searchQuery)="onSearchQueryChange($event)"
+    (globalSearchClicked)="openGlobalSearch()"
+    (globalRecentClicked)="openGlobalRecent()"
 />
 <app-recent-playlists
     class="recent-playlists"
