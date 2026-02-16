@@ -18,7 +18,7 @@ import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-erro
 })
 export class CategoryViewComponent {
     readonly items = input([]);
-    readonly selectedCategoryId = input<number>();
+    readonly selectedCategoryId = input<string | number | null | undefined>();
     readonly itemCounts = input<Map<number, number>>(new Map());
     readonly showCounts = input<boolean>(false);
 
@@ -26,9 +26,9 @@ export class CategoryViewComponent {
 
     isSelected(item: XtreamCategory): boolean {
         const selectedCategory = this.selectedCategoryId();
-        const itemId = Number((item as any).category_id ?? item.id);
+        const itemId = (item as any).category_id ?? item.id;
 
-        // Compare as strings to handle both number and string category IDs
+        // Compare as strings to handle both numeric and string category IDs.
         return selectedCategory != null && String(selectedCategory) === String(itemId);
     }
 
