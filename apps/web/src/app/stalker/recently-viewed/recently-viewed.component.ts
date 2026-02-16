@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from 'services';
 import {
@@ -57,6 +58,7 @@ export class RecentlyViewedComponent {
     private readonly collectionRefresh = createRefreshTrigger();
     private readonly favoritesRefresh = createRefreshTrigger();
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
     private readonly logger = createLogger('StalkerRecentlyViewed');
 
@@ -143,6 +145,27 @@ export class RecentlyViewedComponent {
         effect(() => {
             this.portalFavorites.value();
             this.syncSelectedVodFavorite();
+        });
+
+        effect(() => {
+            const playlist = this.currentPlaylist();
+            if (!playlist?._id) return;
+
+            const state = this.router.getCurrentNavigation()?.extras?.state
+                ?? window.history.state;
+            const item = state?.openRecentItem;
+            if (!item || !RecentlyViewedComponent.isCategoryType(item.category_id)) {
+                return;
+            }
+
+            this.openItem(item);
+
+            // Clear consumed history state to avoid reopening item on reload/back.
+            try {
+                window.history.replaceState({}, document.title);
+            } catch {
+                // no-op
+            }
         });
     }
 

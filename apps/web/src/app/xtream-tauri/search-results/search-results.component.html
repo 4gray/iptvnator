@@ -2,20 +2,22 @@
     [searchTerm]="searchTerm()"
     [resultsCount]="xtreamStore.searchResults().length"
     [isLoading]="xtreamStore.isSearching()"
-    [showCloseButton]="isGlobalSearch"
+    [showCloseButton]="false"
     [showResultsCount]="!isGlobalSearch || !groupByPlaylist()"
     (searchTermChange)="updateSearchTerm($event)"
     (closeClick)="onCloseDialog()"
 >
     <!-- Type filters -->
     <ng-container filters>
-        @for (filter of filterConfig; track filter.key) {
-            <mat-checkbox
-                [ngModel]="filters()[filter.key]"
-                (ngModelChange)="updateFilter(filter.key, $event)"
-            >
-                {{ filter.translationKey | translate }}
-            </mat-checkbox>
+        @if (!isGlobalSearch) {
+            @for (filter of filterConfig; track filter.key) {
+                <mat-checkbox
+                    [ngModel]="filters()[filter.key]"
+                    (ngModelChange)="updateFilter(filter.key, $event)"
+                >
+                    {{ filter.translationKey | translate }}
+                </mat-checkbox>
+            }
         }
     </ng-container>
 
@@ -26,14 +28,31 @@
         >
             {{ 'PORTALS.SEARCH_VIEW.VISIBLE_CATEGORIES_ONLY' | translate }}
         </mat-checkbox>
+        @if (isGlobalSearch) {
+            <button mat-icon-button (click)="onCloseDialog()">
+                <mat-icon>close</mat-icon>
+            </button>
+        }
     </ng-container>
 
     <ng-container subheader>
         @if (isGlobalSearch) {
             <div class="global-search-subheader">
-                <div class="global-search-note">
-                    <mat-icon>info_outline</mat-icon>
-                    <span>{{ 'PORTALS.SEARCH_VIEW.XTREAM_ONLY_NOTE' | translate }}</span>
+                <div class="global-search-subheader-left">
+                    <div class="global-search-note">
+                        <mat-icon>info_outline</mat-icon>
+                        <span>{{ 'PORTALS.SEARCH_VIEW.XTREAM_ONLY_NOTE' | translate }}</span>
+                    </div>
+                    <div class="global-search-filters">
+                        @for (filter of filterConfig; track filter.key) {
+                            <mat-checkbox
+                                [ngModel]="filters()[filter.key]"
+                                (ngModelChange)="updateFilter(filter.key, $event)"
+                            >
+                                {{ filter.translationKey | translate }}
+                            </mat-checkbox>
+                        }
+                    </div>
                 </div>
                 <mat-checkbox
                     [ngModel]="groupByPlaylist()"

@@ -1,25 +1,21 @@
 <div class="search-container">
-    <mat-form-field
-        appearance="outline"
-        class="search-field"
-        subscriptSizing="dynamic"
-    >
-        <mat-label>{{ placeholder }}</mat-label>
+    <div class="recent-search">
+        <mat-icon>search</mat-icon>
         <input
             #searchInput
-            matInput
+            type="search"
             spellcheck="false"
+            autocomplete="off"
+            [placeholder]="placeholder"
             [ngModel]="searchTerm()"
             (ngModelChange)="onSearchTermChange()"
         />
         @if (searchTerm()) {
-            <button mat-icon-button matSuffix (click)="clearSearch()">
+            <button mat-icon-button class="clear-btn" (click)="clearSearch()">
                 <mat-icon>close</mat-icon>
             </button>
-        } @else {
-            <mat-icon matSuffix>search</mat-icon>
         }
-    </mat-form-field>
+    </div>
 
     @if (filterConfig.length > 0) {
         <div class="type-filters">

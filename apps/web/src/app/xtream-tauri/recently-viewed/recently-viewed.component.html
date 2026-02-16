@@ -15,41 +15,90 @@
         </div>
     </div>
 
-    @if (recentItems()?.length) { @if (isGlobal) {
+    @if (recentItems()?.length) {
+    <div class="recent-search">
+        <mat-icon>search</mat-icon>
+        <input
+            #recentSearchInput
+            type="search"
+            spellcheck="false"
+            autocomplete="off"
+            [value]="recentSearchTerm()"
+            placeholder="Search only in recently watched items"
+            (input)="updateRecentSearchTerm(recentSearchInput.value)"
+        />
+    </div>
+    @if (isGlobal) {
+    <div class="global-recent-subheader">
+        <div class="global-recent-subheader-left">
+            <div class="global-recent-note">
+                <mat-icon>info_outline</mat-icon>
+                <span>Includes Xtream and Stalker items</span>
+            </div>
+            <div class="global-recent-filters">
+                <mat-checkbox
+                    [ngModel]="typeFilters().live"
+                    (ngModelChange)="toggleTypeFilter('live', $event)"
+                >
+                    Live
+                </mat-checkbox>
+                <mat-checkbox
+                    [ngModel]="typeFilters().movie"
+                    (ngModelChange)="toggleTypeFilter('movie', $event)"
+                >
+                    Movies
+                </mat-checkbox>
+                <mat-checkbox
+                    [ngModel]="typeFilters().series"
+                    (ngModelChange)="toggleTypeFilter('series', $event)"
+                >
+                    Series
+                </mat-checkbox>
+            </div>
+        </div>
+        <mat-checkbox
+            [ngModel]="groupByPlaylist()"
+            (ngModelChange)="toggleGroupByPlaylist($event)"
+        >
+            Group by playlist
+        </mat-checkbox>
+    </div>
+
+    @if (groupByPlaylist()) {
     <div class="playlist-section">
         <h2 class="section-title">
-            Found {{ recentItems().length }} items across
+            Found {{ visibleRecentItems().length }} items across
             {{ (getGroupedItems() | keyvalue).length }} playlists
         </h2>
         @for (group of getGroupedItems() | keyvalue; track group.key) {
-        <div class="playlist-group">
-            <h3 class="playlist-title">
-                <mat-icon>playlist_play</mat-icon>
-                {{ group.key }}
-                <span class="item-count"
-                    >({{ $any(group).value.length }} items)</span
-                >
-            </h3>
-            <div class="items-grid">
-                @for (item of $any(group).value; track item.id) {
-                    <app-content-card
-                        [posterUrl]="item.poster_url"
-                        [title]="item.title"
-                        [type]="item.type"
-                        [date]="item.viewed_at"
-                        [showRemoveButton]="true"
-                        [removeTooltip]="'Remove from history'"
-                        (cardClick)="openItem(item)"
-                        (remove)="onRemoveItem(item.id)"
-                    />
-                }
+            <div class="playlist-group">
+                <h3 class="playlist-title">
+                    <mat-icon>playlist_play</mat-icon>
+                    {{ group.key }}
+                    <span class="item-count"
+                        >({{ $any(group).value.length }} items)</span
+                    >
+                </h3>
+                <div class="items-grid">
+                    @for (item of $any(group).value; track item.id) {
+                        <app-content-card
+                            [posterUrl]="item.poster_url"
+                            [title]="item.title"
+                            [type]="item.type"
+                            [date]="item.viewed_at"
+                            [showRemoveButton]="true"
+                            [removeTooltip]="'Remove from history'"
+                            (cardClick)="openItem(item)"
+                            (remove)="onRemoveItem(item)"
+                        />
+                    }
+                </div>
             </div>
-        </div>
         }
     </div>
     } @else {
     <div class="items-grid">
-        @for (item of recentItems(); track item.id) {
+        @for (item of visibleRecentItems(); track item.id) {
             <app-content-card
                 [posterUrl]="item.poster_url"
                 [title]="item.title"
@@ -58,7 +107,23 @@
                 [showRemoveButton]="true"
                 [removeTooltip]="'Remove from history'"
                 (cardClick)="openItem(item)"
-                (remove)="onRemoveItem(item.id)"
+                (remove)="onRemoveItem(item)"
+            />
+        }
+    </div>
+    }
+    } @else {
+    <div class="items-grid">
+        @for (item of visibleRecentItems(); track item.id) {
+            <app-content-card
+                [posterUrl]="item.poster_url"
+                [title]="item.title"
+                [type]="item.type"
+                [date]="item.viewed_at"
+                [showRemoveButton]="true"
+                [removeTooltip]="'Remove from history'"
+                (cardClick)="openItem(item)"
+                (remove)="onRemoveItem(item)"
             />
         }
     </div>

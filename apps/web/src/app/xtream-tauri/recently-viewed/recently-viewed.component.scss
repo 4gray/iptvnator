@@ -25,6 +25,38 @@
     }
 }
 
+.recent-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 1rem;
+    padding: 0 12px;
+    height: 42px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+
+    mat-icon {
+        opacity: 0.6;
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+
+    input {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        opacity: 0.95;
+
+        &::placeholder {
+            opacity: 0.5;
+        }
+    }
+}
+
 .items-grid {
     @include grid.content-grid(140px, 20px);
 }
@@ -74,6 +106,48 @@
             font-size: 0.9rem;
             opacity: 0.7;
         }
+    }
+}
+
+// Subheader row for global recently viewed (note + grouping toggle)
+.global-recent-subheader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0 0 1rem;
+
+    .global-recent-subheader-left {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .global-recent-note {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        opacity: 0.55;
+
+        mat-icon {
+            font-size: 15px;
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+        }
+    }
+
+    .global-recent-filters {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    ::ng-deep mat-checkbox {
+        flex-shrink: 0;
     }
 }
 

@@ -45,6 +45,43 @@ export interface SearchFilter {
                 flex-direction: column;
                 gap: 16px;
             }
+
+            .recent-search {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 0 12px;
+                height: 42px;
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                background: rgba(255, 255, 255, 0.03);
+            }
+
+            .recent-search mat-icon {
+                opacity: 0.6;
+                font-size: 18px;
+                width: 18px;
+                height: 18px;
+            }
+
+            .recent-search input {
+                width: 100%;
+                border: 0;
+                background: transparent;
+                color: inherit;
+                font: inherit;
+                opacity: 0.95;
+            }
+
+            .recent-search input::placeholder {
+                opacity: 0.5;
+            }
+
+            .clear-btn {
+                width: 30px;
+                height: 30px;
+                min-width: 30px;
+            }
         `,
     ],
 })

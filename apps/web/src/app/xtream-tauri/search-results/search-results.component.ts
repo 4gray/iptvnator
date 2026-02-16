@@ -11,6 +11,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
     MAT_DIALOG_DATA,
@@ -22,13 +23,13 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import groupBy from 'lodash/groupBy';
 import { DatabaseService } from 'services';
-import { XtreamContentItem } from '../data-sources/xtream-data-source.interface';
-import { ContentType } from '../xtream-state';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
-import { XtreamStore } from '../stores/xtream.store';
-import { SearchFilters } from '../stores/features/with-search.feature';
 import { createLogger } from '../../shared/utils/logger';
+import { XtreamContentItem } from '../data-sources/xtream-data-source.interface';
+import { SearchFilters } from '../stores/features/with-search.feature';
+import { XtreamStore } from '../stores/xtream.store';
+import { ContentType } from '../xtream-state';
 
 interface SearchResultsData {
     isGlobalSearch: boolean;
@@ -43,6 +44,7 @@ interface SearchResultsData {
         MatCheckboxModule,
         MatDialogModule,
         MatIcon,
+        MatIconButton,
         SearchLayoutComponent,
         TranslatePipe,
     ],
@@ -64,19 +66,26 @@ export class SearchResultsComponent implements AfterViewInit {
     /** Search filters from store */
     readonly filters = this.xtreamStore.searchFilters;
 
-    private static readonly GROUP_BY_STORAGE_KEY = 'global-search-group-by-playlist';
-    private static readonly EXCLUDE_HIDDEN_STORAGE_KEY = 'xtream-search-exclude-hidden';
+    private static readonly GROUP_BY_STORAGE_KEY =
+        'global-search-group-by-playlist';
+    private static readonly EXCLUDE_HIDDEN_STORAGE_KEY =
+        'xtream-search-exclude-hidden';
+    private static readonly TYPE_FILTERS_STORAGE_KEY =
+        'global-search-type-filters';
 
     isGlobalSearch = false;
 
     /** Whether to group global search results by playlist */
     readonly groupByPlaylist = signal(
-        localStorage.getItem(SearchResultsComponent.GROUP_BY_STORAGE_KEY) !== 'false'
+        localStorage.getItem(SearchResultsComponent.GROUP_BY_STORAGE_KEY) !==
+            'false'
     );
 
     /** Whether to exclude content from hidden categories */
     readonly excludeHidden = signal(
-        localStorage.getItem(SearchResultsComponent.EXCLUDE_HIDDEN_STORAGE_KEY) === 'true'
+        localStorage.getItem(
+            SearchResultsComponent.EXCLUDE_HIDDEN_STORAGE_KEY
+        ) === 'true'
     );
 
     readonly filterConfig = [
@@ -109,6 +118,26 @@ export class SearchResultsComponent implements AfterViewInit {
         @Optional() public dialogRef: MatDialogRef<SearchResultsComponent>
     ) {
         this.isGlobalSearch = data?.isGlobalSearch || false;
+
+        if (this.isGlobalSearch) {
+            const savedFilters = localStorage.getItem(
+                SearchResultsComponent.TYPE_FILTERS_STORAGE_KEY
+            );
+            if (savedFilters) {
+                try {
+                    const parsed = JSON.parse(
+                        savedFilters
+                    ) as Partial<SearchFilters>;
+                    this.xtreamStore.setSearchFilters({
+                        live: parsed.live !== false,
+                        movie: parsed.movie !== false,
+                        series: parsed.series !== false,
+                    });
+                } catch {
+                    // Ignore malformed storage value and keep defaults.
+                }
+            }
+        }
 
         effect((onCleanup) => {
             const term = this.searchTerm();
@@ -158,6 +187,14 @@ export class SearchResultsComponent implements AfterViewInit {
      */
     updateFilter(key: keyof SearchFilters, value: boolean) {
         this.xtreamStore.updateSearchFilter(key, value);
+
+        if (this.isGlobalSearch) {
+            localStorage.setItem(
+                SearchResultsComponent.TYPE_FILTERS_STORAGE_KEY,
+                JSON.stringify(this.xtreamStore.searchFilters())
+            );
+        }
+
         if (this.searchTerm().length >= 3) {
             this.executeSearch();
         }
@@ -201,7 +238,9 @@ export class SearchResultsComponent implements AfterViewInit {
                 item.xtream_id,
             ]);
         } else {
-            const type = (item.type === 'movie' ? 'vod' : item.type) as ContentType;
+            const type = (
+                item.type === 'movie' ? 'vod' : item.type
+            ) as ContentType;
             this.xtreamStore.setSelectedContentType(type);
 
             this.router.navigate(
@@ -219,12 +258,18 @@ export class SearchResultsComponent implements AfterViewInit {
 
     toggleGroupByPlaylist(value: boolean) {
         this.groupByPlaylist.set(value);
-        localStorage.setItem(SearchResultsComponent.GROUP_BY_STORAGE_KEY, String(value));
+        localStorage.setItem(
+            SearchResultsComponent.GROUP_BY_STORAGE_KEY,
+            String(value)
+        );
     }
 
     toggleExcludeHidden(value: boolean) {
         this.excludeHidden.set(value);
-        localStorage.setItem(SearchResultsComponent.EXCLUDE_HIDDEN_STORAGE_KEY, String(value));
+        localStorage.setItem(
+            SearchResultsComponent.EXCLUDE_HIDDEN_STORAGE_KEY,
+            String(value)
+        );
         if (this.searchTerm().length >= 3) {
             this.executeSearch();
         }

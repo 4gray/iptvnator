@@ -3,6 +3,7 @@
         @for (item of items(); track $index) {
             <mat-list-item
                 class="category-item"
+                [attr.data-category-id]="$any(item).category_id ?? item.id"
                 [class.selected]="isSelected(item)"
                 (click)="categoryClicked.emit(item)"
             >

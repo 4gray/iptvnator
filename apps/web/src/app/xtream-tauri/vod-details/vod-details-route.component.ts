@@ -1,5 +1,13 @@
 import { Location, SlicePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject, computed } from '@angular/core';
+import {
+    Component,
+    OnDestroy,
+    OnInit,
+    computed,
+    effect,
+    inject,
+    signal,
+} from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute } from '@angular/router';
@@ -41,6 +49,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly xtreamStore = inject(XtreamStore);
     private readonly downloadsService = inject(DownloadsService);
     private readonly logger = createLogger('VodDetailsRoute');
+    private readonly detailsInitDone = signal(false);
 
     readonly theme = this.settingsStore.theme;
     readonly isElectron = this.downloadsService.isAvailable;
@@ -80,17 +89,25 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         return this.downloadsService.isDownloading(vodId, playlistId, 'vod');
     });
 
+    constructor() {
+        // Route can initialize before currentPlaylist signal is ready.
+        // Retry initialization once playlist becomes available.
+        effect(() => {
+            const playlistId = this.xtreamStore.currentPlaylist()?.id;
+            if (!playlistId || this.detailsInitDone()) return;
+            this.initializeVodDetails(playlistId);
+            this.detailsInitDone.set(true);
+        });
+    }
+
     ngOnInit(): void {
-        const { categoryId, vodId } = this.route.snapshot.params;
-        this.xtreamStore.fetchVodDetailsWithMetadata({ vodId, categoryId });
-        this.xtreamStore.checkFavoriteStatus(
-            vodId,
-            this.xtreamStore.currentPlaylist().id
-        );
-        this.xtreamStore.loadVodPosition(
-            this.xtreamStore.currentPlaylist().id,
-            Number(vodId)
-        );
+        const currentPlaylist = this.xtreamStore.currentPlaylist();
+        if (!currentPlaylist?.id) {
+            this.logger.warn('Deferring VOD details init: playlist not ready');
+            return;
+        }
+        this.initializeVodDetails(currentPlaylist.id);
+        this.detailsInitDone.set(true);
     }
 
     ngOnDestroy() {
@@ -173,6 +190,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             contentId: this.route.snapshot.params.vodId,
             playlist: this.xtreamStore.currentPlaylist,
         });
+    }
+
+    private initializeVodDetails(playlistId: string): void {
+        const { categoryId, vodId } = this.route.snapshot.params;
+        this.xtreamStore.fetchVodDetailsWithMetadata({ vodId, categoryId });
+        this.xtreamStore.checkFavoriteStatus(vodId, playlistId);
+        this.xtreamStore.loadVodPosition(playlistId, Number(vodId));
     }
 
     goBack() {

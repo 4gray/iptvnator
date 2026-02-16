@@ -1,6 +1,9 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    effect,
+    ElementRef,
+    inject,
     input,
     output,
 } from '@angular/core';
@@ -21,8 +24,31 @@ export class CategoryViewComponent {
     readonly selectedCategoryId = input<string | number | null | undefined>();
     readonly itemCounts = input<Map<number, number>>(new Map());
     readonly showCounts = input<boolean>(false);
+    private readonly hostEl = inject(ElementRef<HTMLElement>);
 
     readonly categoryClicked = output<XtreamCategory>();
+
+    constructor() {
+        effect(() => {
+            const selectedCategory = this.selectedCategoryId();
+            if (selectedCategory == null) return;
+
+            queueMicrotask(() => {
+                const container = this.hostEl.nativeElement as HTMLElement;
+                const candidates = Array.from(
+                    container.querySelectorAll('[data-category-id]')
+                ) as HTMLElement[];
+                const selected = candidates.find(
+                    (el) => el.dataset.categoryId === String(selectedCategory)
+                );
+                selected?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest',
+                    inline: 'nearest',
+                });
+            });
+        });
+    }
 
     isSelected(item: XtreamCategory): boolean {
         const selectedCategory = this.selectedCategoryId();
