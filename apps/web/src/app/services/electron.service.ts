@@ -11,6 +11,7 @@ import {
     Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
+    XtreamCodeActions,
     XTREAM_RESPONSE,
     XTREAM_REQUEST,
 } from 'shared-interfaces';
@@ -24,6 +25,12 @@ export class ElectronService extends DataService {
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translateService = inject(TranslateService);
+    private readonly silentXtreamActions = new Set<string>([
+        XtreamCodeActions.GetAccountInfo,
+        XtreamCodeActions.GetLiveCategories,
+        XtreamCodeActions.GetVodCategories,
+        XtreamCodeActions.GetSeriesCategories,
+    ]);
 
     constructor() {
         super();
@@ -263,24 +270,26 @@ export class ElectronService extends DataService {
             window.postMessage(result);
             return result;
         } catch (error: any) {
-            const isStatusCheck = payload.params?.action === 'get_account_info';
+            const action = payload.params?.action;
+            const isSilentAction = action
+                ? this.silentXtreamActions.has(action)
+                : false;
+            const normalizedMessage = this.getReadableXtreamErrorMessage(error);
 
             // Log error to console
-            if (isStatusCheck) {
+            if (isSilentAction) {
                 console.log(
-                    'Portal status check failed - portal may be unavailable:',
-                    error.message || error
+                    `Background Xtream action failed (${action ?? 'unknown'}):`,
+                    normalizedMessage
                 );
             } else {
-                console.error('Xtream request error:', error.message);
+                console.error('Xtream request error:', normalizedMessage);
             }
 
-            // Only show snackbar for non-status-check requests
-            if (!isStatusCheck) {
+            // Only show snackbar for user-triggered Xtream requests
+            if (!isSilentAction) {
                 this.snackBar.open(
-                    `Error: ${error.message ?? 'Failed to connect to Xtream server'}, status: ${
-                        error.status ?? 500
-                    }`,
+                    `Xtream request failed: ${normalizedMessage}`,
                     'Close',
                     {
                         duration: 5000,
@@ -291,9 +300,52 @@ export class ElectronService extends DataService {
             return {
                 type: ERROR,
                 status: error.status ?? 500,
-                message: error.message ?? 'Failed to connect to Xtream server',
+                message: normalizedMessage,
             };
         }
+    }
+
+    private getReadableXtreamErrorMessage(error: unknown): string {
+        const fallback = 'Failed to connect to Xtream server';
+        if (!error) {
+            return fallback;
+        }
+
+        const maybeError = error as {
+            message?: unknown;
+            statusText?: unknown;
+            status?: unknown;
+            error?: unknown;
+        };
+
+        if (typeof maybeError.message === 'string') {
+            if (maybeError.message.includes('[object Object]')) {
+                if (typeof maybeError.error === 'string') {
+                    return maybeError.error;
+                }
+                if (
+                    maybeError.error &&
+                    typeof maybeError.error === 'object' &&
+                    'message' in (maybeError.error as Record<string, unknown>) &&
+                    typeof (maybeError.error as Record<string, unknown>).message ===
+                        'string'
+                ) {
+                    return (maybeError.error as Record<string, string>).message;
+                }
+                return fallback;
+            }
+            return maybeError.message;
+        }
+
+        if (typeof maybeError.statusText === 'string') {
+            return maybeError.statusText;
+        }
+
+        if (typeof error === 'string') {
+            return error;
+        }
+
+        return fallback;
     }
 
     removeAllListeners(type: string): void {

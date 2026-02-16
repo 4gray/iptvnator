@@ -1,4 +1,5 @@
 export enum XtreamCodeActions {
+    GetAccountInfo = 'get_account_info',
     GetLiveStreams = 'get_live_streams',
     GetLiveCategories = 'get_live_categories',
     GetSeries = 'get_series',

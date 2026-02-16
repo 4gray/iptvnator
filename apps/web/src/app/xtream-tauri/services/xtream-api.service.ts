@@ -71,7 +71,7 @@ export class XtreamApiService {
             {
                 username: credentials.username,
                 password: credentials.password,
-                action: 'get_account_info',
+                action: XtreamCodeActions.GetAccountInfo,
             }
         );
     }

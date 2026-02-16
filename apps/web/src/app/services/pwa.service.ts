@@ -14,6 +14,7 @@ import {
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
     STALKER_REQUEST,
+    XtreamCodeActions,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
 } from 'shared-interfaces';
@@ -28,6 +29,12 @@ export class PwaService extends DataService {
     private readonly store = inject(Store);
     private readonly swUpdate = inject(SwUpdate);
     private readonly translateService = inject(TranslateService);
+    private readonly silentXtreamActions = new Set<string>([
+        XtreamCodeActions.GetAccountInfo,
+        XtreamCodeActions.GetLiveCategories,
+        XtreamCodeActions.GetVodCategories,
+        XtreamCodeActions.GetSeriesCategories,
+    ]);
 
     /** Proxy URL to avoid CORS issues */
     corsProxyUrl = AppConfig.BACKEND_URL;
@@ -186,15 +193,28 @@ export class PwaService extends DataService {
             );
 
             if (!(response as any).payload) {
-                if (payload.params.action === 'get_account_info') {
-                    console.log('Portal status check failed - portal may be unavailable:', (response as any).message || 'No payload received');
-                    return;
+                const action = payload.params.action;
+                const isSilentAction = this.silentXtreamActions.has(action);
+                const normalizedMessage = this.getReadableXtreamErrorMessage(
+                    response
+                );
+
+                if (isSilentAction) {
+                    console.log(
+                        `Background Xtream action failed (${action ?? 'unknown'}):`,
+                        normalizedMessage
+                    );
+                    return {
+                        type: ERROR,
+                        status: (response as any).status ?? 500,
+                        message: normalizedMessage,
+                    };
                 }
 
                 result = {
                     type: ERROR,
                     status: (response as any).status,
-                    message: (response as any).message ?? 'Unknown error',
+                    message: normalizedMessage,
                 };
                 window.postMessage(result);
             } else {
@@ -207,25 +227,79 @@ export class PwaService extends DataService {
             }
             return result;
         } catch (error: any) {
-            const isStatusCheck = payload.params.action === 'get_account_info';
+            const action = payload.params.action;
+            const isSilentAction = this.silentXtreamActions.has(action);
+            const normalizedMessage = this.getReadableXtreamErrorMessage(error);
 
             // Log error to console
-            if (isStatusCheck) {
-                console.log('Portal status check failed - portal may be unavailable:', error.message || error);
-                return;
+            if (isSilentAction) {
+                console.log(
+                    `Background Xtream action failed (${action ?? 'unknown'}):`,
+                    normalizedMessage
+                );
+                return {
+                    type: ERROR,
+                    status: error.status ?? 500,
+                    message: normalizedMessage,
+                };
             }
 
-            console.error('Xtream request error:', error.message);
+            console.error('Xtream request error:', normalizedMessage);
             this.snackBar.open(
-                `Error: ${error.message ?? ' Unknown error'}, status: ${
-                    error.status ?? 500
-                }`,
+                `Xtream request failed: ${normalizedMessage}`,
                 'Close',
                 {
                     duration: 5000,
                 }
             );
+            return {
+                type: ERROR,
+                status: error.status ?? 500,
+                message: normalizedMessage,
+            };
         }
+    }
+
+    private getReadableXtreamErrorMessage(error: unknown): string {
+        const fallback = 'Failed to connect to Xtream server';
+        if (!error) {
+            return fallback;
+        }
+
+        const maybeError = error as {
+            message?: unknown;
+            statusText?: unknown;
+            error?: unknown;
+        };
+
+        if (typeof maybeError.message === 'string') {
+            if (maybeError.message.includes('[object Object]')) {
+                if (typeof maybeError.error === 'string') {
+                    return maybeError.error;
+                }
+                if (
+                    maybeError.error &&
+                    typeof maybeError.error === 'object' &&
+                    'message' in (maybeError.error as Record<string, unknown>) &&
+                    typeof (maybeError.error as Record<string, unknown>).message ===
+                        'string'
+                ) {
+                    return (maybeError.error as Record<string, string>).message;
+                }
+                return fallback;
+            }
+            return maybeError.message;
+        }
+
+        if (typeof maybeError.statusText === 'string') {
+            return maybeError.statusText;
+        }
+
+        if (typeof error === 'string') {
+            return error;
+        }
+
+        return fallback;
     }
 
     async forwardStalkerRequest(payload: {
