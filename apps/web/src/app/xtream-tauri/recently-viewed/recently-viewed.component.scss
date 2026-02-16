@@ -78,9 +78,17 @@
 }
 
 :host-context(.global-search-overlay) {
+    // Prevent Electron drag-region from blocking click interactions.
+    app-region: no-drag;
+
     .recent-container {
         background: var(--background);
         height: 100vh;
+    }
+
+    .header-actions,
+    .header-actions button {
+        app-region: no-drag;
     }
 
     .playlist-group {
