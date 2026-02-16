@@ -218,15 +218,7 @@ export class SeasonContainerComponent implements OnInit {
 
     isEpisodeInProgress(episode: XtreamSerieEpisode) {
         const contentId = this.getEpisodeContentId(episode);
-        const inProgress = this.xtreamStore.isInProgress(contentId, 'episode');
-        if (inProgress) {
-            this.logger.debug('Episode in progress', {
-                title: episode.title,
-                contentId,
-                originalId: (episode as any).originalId,
-            });
-        }
-        return inProgress;
+        return this.xtreamStore.isInProgress(contentId, 'episode');
     }
 
     getEpisodeProgress(episode: XtreamSerieEpisode) {
