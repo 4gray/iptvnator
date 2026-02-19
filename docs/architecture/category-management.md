@@ -56,7 +56,7 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 
 **Category Management Dialog**
 
-- Path: `apps/web/src/app/xtream-tauri/category-management-dialog/`
+- Path: `apps/web/src/app/xtream-electron/category-management-dialog/`
 - Features:
     - Checkbox list of all categories
     - Select All / Deselect All buttons
@@ -77,7 +77,7 @@ Both components:
 
 ### Store
 
-**File**: `apps/web/src/app/xtream-tauri/xtream.store.ts`
+**File**: `apps/web/src/app/xtream-electron/xtream.store.ts`
 
 Added `reloadCategories()` method to refresh categories from database after visibility changes, ensuring the sidebar updates immediately.
 
@@ -117,7 +117,7 @@ libs/services/src/lib/
 libs/ui/components/src/lib/recent-playlists/
 └── recent-playlists.component.ts  # Stores hidden categories to localStorage on refresh
 
-apps/web/src/app/xtream-tauri/
+apps/web/src/app/xtream-electron/
 ├── category-management-dialog/   # Dialog component
 │   ├── category-management-dialog.component.ts
 │   ├── category-management-dialog.component.html

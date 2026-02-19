@@ -176,7 +176,7 @@ Potential improvements:
 - **HTTP Server**: `apps/electron-backend/src/app/server/http-server.ts`
 - **Remote Control Events**: `apps/electron-backend/src/app/events/remote-control.events.ts`
 - **M3U Handler**: `apps/web/src/app/home/video-player/video-player.component.ts` (handleRemoteChannelChange method)
-- **Xtream Live Handler**: `apps/web/src/app/xtream-tauri/live-stream-layout/live-stream-layout.component.ts`
+- **Xtream Live Handler**: `apps/web/src/app/xtream-electron/live-stream-layout/live-stream-layout.component.ts`
 - **Stalker ITV Handler**: `apps/web/src/app/stalker/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
 - **Settings UI**: `apps/web/src/app/settings/settings.component.html`
 

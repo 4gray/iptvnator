@@ -148,7 +148,7 @@ The Xtream Codes module uses NgRx Signal Store with a layered architecture:
 
 File structure:
 ```
-apps/web/src/app/xtream-tauri/
+apps/web/src/app/xtream-electron/
 ├── stores/
 │   ├── features/
 │   │   ├── with-portal.feature.ts      # Playlist & portal status

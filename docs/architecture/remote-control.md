@@ -133,7 +133,7 @@ Implemented behavior:
 
 ## Xtream integration (live view)
 
-- File: `apps/web/src/app/xtream-tauri/live-stream-layout/live-stream-layout.component.ts`
+- File: `apps/web/src/app/xtream-electron/live-stream-layout/live-stream-layout.component.ts`
 
 Implemented behavior:
 

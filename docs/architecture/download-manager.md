@@ -1,6 +1,6 @@
 # Download Manager Architecture
 
-The download manager is a desktop-only feature that layers a curated queue, progress tracking, storage configuration, and playback controls on top of the existing Xtream (xtream-tauri folder) + Stalker viewers. Backend work is handled in the Electron process while the Angular renderer surface exposes a dedicated `/downloads` route, contextual buttons, and theme-aware styling.
+The download manager is a desktop-only feature that layers a curated queue, progress tracking, storage configuration, and playback controls on top of the existing Xtream (xtream-electron folder) + Stalker viewers. Backend work is handled in the Electron process while the Angular renderer surface exposes a dedicated `/downloads` route, contextual buttons, and theme-aware styling.
 
 ## Backend responsibilities
 
@@ -15,7 +15,7 @@ The download manager is a desktop-only feature that layers a curated queue, prog
 
 - **Downloads service** (`apps/web/src/app/services/downloads.service.ts`)
   Signals back the current download list while `hasDownloads` and `isAvailable` gates UI rendering. Before each download the service resolves a download folder (stored in `SettingsStore` or fetched via `downloadsGetDefaultFolder`) and calls `downloadsStart`. The backend extracts the file extension from the URL or falls back to `mp4`. `onDownloadsUpdate` updates the signal, while helper methods `retryDownload`, `removeDownload`, `cancelDownload`, and `playDownload` talk to the corresponding IPC commands so retries reuse existing rows and completed items can open the recorded path.
-- **Downloads view** (`apps/web/src/app/xtream-tauri/downloads`)  
+- **Downloads view** (`apps/web/src/app/xtream-electron/downloads`)  
   A standalone page exposes the queue, desktop-only messaging, folder picker, and action buttons. `downloads.component.html` now wraps the list inside a scrollable panel (`downloads__list-wrapper`) so long queues stay reachable, and `downloads.component.scss` drives a bold two-tone aesthetic inspired by the frontend-design mandate—gradient cards, floating avatars, and theme-aware variables triggered via `body.dark-theme`.
   Failed/canceled cards now show retry/delete controls, queued/downloading cards show a cancel icon, and completed cards render inline play/open buttons with `mat-icon` cues. The header also shows the resolved download folder and a `CHANGE FOLDER` action.
 - **Theme fixes**  

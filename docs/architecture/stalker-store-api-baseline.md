@@ -109,7 +109,7 @@ Top observed store API usage in app code:
 Consumer directories sampled:
 
 - `apps/web/src/app/stalker/**`
-- `apps/web/src/app/xtream-tauri/**`
+- `apps/web/src/app/xtream-electron/**`
 - `apps/web/src/app/shared/**`
 
 ## Invariants to Preserve During Refactor
