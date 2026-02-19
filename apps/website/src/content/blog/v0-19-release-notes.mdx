@@ -1,0 +1,205 @@
+---
+title: v0.19 - Release Notes
+description: One of the biggest IPTVnator releases so far with major Home, M3U, Xtream, Stalker, and Remote Control improvements, plus many fixes and refactorings.
+featured: true
+pubDate: 2026-02-19
+author: 4gray
+heroImage: /iptvnator/blog/v0-19-xtream-category-grid.png
+tags:
+    - release
+    - release-notes
+    - v0.19
+draft: false
+---
+
+import Alert from '../../components/blog/Alert.astro';
+import LinkCards from '../../components/blog/LinkCards.astro';
+import ReleaseMeta from '../../components/blog/ReleaseMeta.astro';
+import StatusPill from '../../components/blog/StatusPill.astro';
+import ChangeTable from '../../components/blog/ChangeTable.astro';
+import ImageGallery from '../../components/blog/ImageGallery.astro';
+
+IPTVnator **v0.19** is out.
+
+This is one of the biggest IPTVnator releases so far, with many fixes, refactorings, and new features. A lot of reported issues were addressed in this version.
+
+Thank you to everyone who contributed ideas, bug reports, improvements, and PRs. Biggest kudos to everyone who supported the project with donations.
+
+Let’s keep the momentum going and aim for more regular releases.
+
+<ReleaseMeta
+    version="v0.19.0"
+    releaseDate="February 19, 2026"
+    channels={['Desktop', 'PWA']}
+/>
+
+## Support the project
+
+- **GitHub Sponsors**: [https://github.com/sponsors/4gray](https://github.com/sponsors/4gray)
+- **Buy me a coffee**: [https://ko-fi.com/4gray](https://ko-fi.com/4gray)
+- **USDT (TRC20)**: `TLz5rTS7QTxYGfRH1Pm6Hs9fewqstDM47c`
+
+<LinkCards
+    links={[
+        {
+            label: 'GitHub Sponsors',
+            href: 'https://github.com/sponsors/4gray',
+            hint: 'Support continued development.',
+            icon: 'sponsor',
+        },
+        {
+            label: 'Ko-fi',
+            href: 'https://ko-fi.com/4gray',
+            hint: 'One-time support for the project.',
+            icon: 'kofi',
+        },
+        {
+            label: 'Telegram',
+            href: 'https://t.me/iptvnator',
+            hint: 'Follow announcements and updates.',
+            icon: 'telegram',
+        },
+    ]}
+/>
+
+## Highlights summary
+
+<ChangeTable
+    rows={[
+        {
+            area: 'Home',
+            change: 'Drag-and-drop playlist sorting, global search upgrades, and improved recent items.',
+            impact: 'Faster navigation and discovery',
+        },
+        {
+            area: 'M3U',
+            change: 'Lazy loading for large playlists, favorites in lists, EPG catch-up support, resizable sidebar.',
+            impact: 'Smoother handling of big datasets',
+        },
+        {
+            area: 'Xtream & Stalker',
+            change: 'Download Manager, playback position persistence, list views, and sidebar improvements.',
+            impact: 'Better browsing and continuity',
+        },
+        {
+            area: 'Remote Control',
+            change: 'Xtream/Stalker support, EPG current-program info, channel-number switching.',
+            impact: 'More complete remote workflow',
+        },
+    ]}
+/>
+
+## Home
+
+<StatusPill type="new" />
+
+- Added custom playlist sorting with drag-and-drop reordering.
+- Added Global Search and Recent Items to the Home header.
+- Improved Global Search:
+    - Enhanced UI with grouped and ungrouped views.
+    - Added option to include/exclude hidden categories.
+- Improved globally recent items:
+    - Added Stalker support.
+    - Enhanced UI with grouped and ungrouped views.
+
+## M3U
+
+<StatusPill type="improved" />
+
+- Added lazy loading and improved handling for large playlists.
+- Added Favorites button directly in lists, including group views.
+- Added lazy loading in group view.
+- Improved global favorites behavior.
+- Restored EPG expired programs for catch-up/archive support.
+- Added resizable sidebar.
+
+## Xtream
+
+<StatusPill type="new" />
+
+- Playback position is now persisted for started VOD and series content.
+- Added Download Manager.
+- Added sorting options for Live TV channels.
+- Added search in VOD/series categories.
+- Added sorting in VOD/series categories by name or date added.
+- Improved search flow: when returning from results, search phrase and results are preserved.
+- Added list view for series.
+- Added resizable sidebar.
+
+## Stalker
+
+<StatusPill type="new" />
+
+- Playback position is now persisted for started VOD and series content.
+- Added Download Manager.
+- Added EPG support for Live TV channels.
+- When no category is selected, all VOD/series categories are now shown.
+- Added list view for series.
+- Added resizable sidebar.
+- Replaced "Load more" buttons with infinite scroll for Live TV channels.
+
+## Remote Control
+
+<StatusPill type="improved" />
+
+- Added support for Xtream and Stalker portals.
+- Added EPG info for the current program.
+- Added channel switching by entering channel number.
+
+## Website & Blog
+
+<StatusPill type="new" />
+
+- Added a new landing page: [https://4gray.github.io/iptvnator/](https://4gray.github.io/iptvnator/)
+- Added a new blog: [https://4gray.github.io/iptvnator/blog](https://4gray.github.io/iptvnator/blog)
+
+## Screenshot gallery
+
+<ImageGallery
+    columns={2}
+    images={[
+        {
+            src: '/iptvnator/blog/v0-19-series-episodes.png',
+            alt: 'Series episodes view with progress indicators and actions',
+            caption: 'Series episodes with progress and actions.',
+        },
+        {
+            src: '/iptvnator/blog/v0-19-download-manager.png',
+            alt: 'Download manager view with completed episodes',
+            caption: 'Download Manager with completed items.',
+        },
+        {
+            src: '/iptvnator/blog/v0-19-remote-control.png',
+            alt: 'Remote control screen with channel controls and numeric keypad',
+            caption: 'Remote Control with channel number entry.',
+        },
+        {
+            src: '/iptvnator/blog/v0-19-xtream-category-grid.png',
+            alt: 'Xtream category grid and content view',
+            caption: 'Xtream category and content browsing.',
+        },
+    ]}
+/>
+
+<Alert type="warning" title="Before updating">
+    Please back up your playlists, credentials, URLs, and other important data.
+</Alert>
+
+## Download
+
+<LinkCards
+    links={[
+        {
+            label: 'Download v0.19.0',
+            href: 'https://github.com/4gray/iptvnator/releases/tag/v0.19.0',
+            hint: 'Official binaries and release assets on GitHub.',
+            icon: 'download',
+        },
+        {
+            label: 'All Releases',
+            href: 'https://github.com/4gray/iptvnator/releases',
+            hint: 'Browse every IPTVnator release on GitHub.',
+            icon: 'github',
+        },
+    ]}
+/>
