@@ -62,13 +62,13 @@ jobs:
                   flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
 
             - name: Install dependencies
-              run: pnpm install --no-frozen-lockfile
+              run: pnpm install --frozen-lockfile
 
             - name: Build frontend
-              run: npx nx build web --skip-nx-cache
+              run: pnpm nx build web --skip-nx-cache
 
             - name: Build backend
-              run: npm run build:backend
+              run: pnpm run build:backend
 
             - name: Override macOS arch in electron-builder.json
               if: matrix.os == 'macos'
@@ -82,7 +82,7 @@ jobs:
                   "
 
             - name: Make Electron app
-              run: npm run make:app
+              run: pnpm run make:app
 
             - name: Upload artifacts (macOS)
               if: matrix.os == 'macos'

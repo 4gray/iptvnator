@@ -14,42 +14,42 @@ IPTVnator is a cross-platform IPTV player application built with Angular and Ele
 
 ```bash
 # Serve the Angular web app only (development mode, baseHref="/")
-npm run serve:frontend
+pnpm run serve:frontend
 # or
 nx serve web
 
 # Serve with PWA configuration (optimized, baseHref="/")
-npm run serve:frontend:pwa
+pnpm run serve:frontend:pwa
 # or
 nx serve web --configuration=pwa
 
 # Serve the Electron app (starts both frontend and backend)
-npm run serve:backend
+pnpm run serve:backend
 # or
 nx serve electron-backend
 
 # Build frontend for Electron (baseHref="./")
-npm run build:frontend
+pnpm run build:frontend
 # or
 nx build web
 
 # Build frontend for PWA deployment (baseHref="/")
-npm run build:frontend:pwa
+pnpm run build:frontend:pwa
 # or
 nx build web --configuration=pwa
 
 # Build backend (Electron)
-npm run build:backend
+pnpm run build:backend
 # or
 nx build electron-backend
 
 # Package the app (creates distributable without installers)
-npm run package:app
+pnpm run package:app
 # or
 nx run electron-backend:package
 
 # Create installers/executables
-npm run make:app
+pnpm run make:app
 # or
 nx run electron-backend:make
 ```
@@ -58,12 +58,12 @@ nx run electron-backend:make
 
 ```bash
 # Run frontend tests
-npm run test:frontend
+pnpm run test:frontend
 # or
 nx test web
 
 # Run backend tests
-npm run test:backend
+pnpm run test:backend
 # or
 nx test electron-backend
 
@@ -434,10 +434,10 @@ IPTVnator supports both Electron (desktop app) and PWA (web browser) to provide 
 The app uses different base href values depending on the build target:
 
 - **Development & PWA**: `baseHref="/"` (from `index.html`)
-    - Used by: `npm run serve:frontend`, `npm run build:frontend:pwa`
+    - Used by: `pnpm run serve:frontend`, `pnpm run build:frontend:pwa`
     - For web servers with proper routing
 - **Electron Production**: `baseHref="./"` (overridden in build config)
-    - Used by: `npm run build:backend`, `npm run make:app`
+    - Used by: `pnpm run build:backend`, `pnpm run make:app`
     - Required for `file://` protocol in Electron
 
 Build configurations in `apps/web/project.json`:

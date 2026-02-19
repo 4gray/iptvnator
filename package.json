@@ -35,6 +35,7 @@
         "build:website": "nx build website"
     },
     "private": true,
+    "packageManager": "pnpm@10.17.1",
     "dependencies": {
         "@angular/animations": "^20.3.10",
         "@angular/cdk": "^20.2.12",

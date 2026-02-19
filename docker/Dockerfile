@@ -11,16 +11,16 @@ WORKDIR /usr/src/app
 #USER node
 
 COPY .npmrc ./
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml ./
 
 # Install app dependencies
-RUN npm ci 
+RUN corepack enable && pnpm install --frozen-lockfile
 
 # Copy all required files
 COPY . .
 
 # Build the application
-RUN npm run build:web
+RUN pnpm run build:web
 
 # Stage 2 - the production environment
 FROM nginx:stable-alpine

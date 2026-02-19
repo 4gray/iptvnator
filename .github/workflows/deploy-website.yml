@@ -38,10 +38,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build website
-        run: npx nx build website
+        run: pnpm nx build website
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

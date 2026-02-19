@@ -34,23 +34,23 @@ jobs:
             cache: 'pnpm'
 
       - name: Install Dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build Backend
-        run: npx nx build electron-backend
+        run: pnpm nx build electron-backend
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: pnpm exec playwright install --with-deps
 
       - name: Run E2E Tests (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" npx nx run electron-backend-e2e:e2e
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm nx run electron-backend-e2e:e2e
         env:
           CI: true
 
       - name: Run E2E Tests (Windows/Mac)
         if: runner.os != 'Linux'
-        run: npx nx run electron-backend-e2e:e2e
+        run: pnpm nx run electron-backend-e2e:e2e
         env:
           CI: true
 

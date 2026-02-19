@@ -169,17 +169,18 @@ iptvnator --no-sandbox
 
 Requirements:
 
--   Node.js with npm
+-   Node.js with pnpm (via Corepack)
 
 1. Clone this repository and install project dependencies:
 
     ```
-    $ npm install
+    $ corepack enable
+    $ pnpm install
     ```
 
 2. Start the application:
     ```
-    $ npm run serve:backend
+    $ pnpm run serve:backend
     ```
 
 This will open the Electron app in a separate window, while the Angular dev server will run at http://localhost:4200.
@@ -187,7 +188,7 @@ This will open the Electron app in a separate window, while the Angular dev serv
 To run only the Angular app without Electron, use:
 
 ```
-$ npm run serve:frontend
+$ pnpm run serve:frontend
 ```
 
 ## Disclaimer
