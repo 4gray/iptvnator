@@ -41,7 +41,7 @@ import { StalkerStore } from '../../stalker/stalker.store';
 @Component({
     selector: 'app-vod-details',
     templateUrl: './vod-details.component.html',
-    styleUrls: ['../../xtream-tauri/detail-view.scss'],
+    styleUrls: ['../../xtream-electron/detail-view.scss'],
     imports: [
         ContentHeroComponent,
         MatIcon,

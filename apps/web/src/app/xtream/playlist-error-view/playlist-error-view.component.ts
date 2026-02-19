@@ -11,7 +11,7 @@ import { selectCurrentPlaylist } from 'm3u-state';
 import { Playlist } from 'shared-interfaces';
 
 /**
- * @deprecated: there is another one in xtream-tauri
+ * @deprecated: there is another one in xtream-electron
  */
 @Component({
     selector: 'app-playlist-error-view',

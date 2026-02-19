@@ -11,9 +11,9 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../favorites-button/favorites-button.component';
 import { ContentHeroComponent } from 'components';
 import { StalkerStore } from '../stalker.store';
-import { SeasonContainerComponent } from '../../xtream-tauri/season-container/season-container.component';
+import { SeasonContainerComponent } from '../../xtream-electron/season-container/season-container.component';
 import { XtreamSerieEpisode } from 'shared-interfaces';
-import { XtreamStore } from '../../xtream-tauri/stores/xtream.store';
+import { XtreamStore } from '../../xtream-electron/stores/xtream.store';
 import { createLogger } from '../../shared/utils/logger';
 import {
     getVodSeriesSeasonKey,
@@ -39,7 +39,7 @@ import { normalizeStalkerVodDetailsItem } from '../stalker-vod.utils';
 @Component({
     selector: 'app-stalker-series-view',
     templateUrl: './stalker-series-view.component.html',
-    styleUrls: ['../../xtream-tauri/detail-view.scss'],
+    styleUrls: ['../../xtream-electron/detail-view.scss'],
     imports: [
         FavoritesButtonComponent,
         ContentHeroComponent,

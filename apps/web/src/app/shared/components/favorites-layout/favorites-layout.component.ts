@@ -4,7 +4,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
-import { CategoryViewComponent } from '../../../xtream-tauri/category-view/category-view.component';
+import { CategoryViewComponent } from '../../../xtream-electron/category-view/category-view.component';
 import { ContentCardComponent } from '../content-card/content-card.component';
 
 @Component({
@@ -12,7 +12,7 @@ import { ContentCardComponent } from '../content-card/content-card.component';
     templateUrl: './favorites-layout.component.html',
     styleUrls: [
         './favorites-layout.component.scss',
-        '../../../xtream-tauri/sidebar.scss',
+        '../../../xtream-electron/sidebar.scss',
     ],
     imports: [
         CategoryViewComponent,

@@ -4,8 +4,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistType, RecentPlaylistsComponent } from 'components';
 import { AddPlaylistDialogComponent } from '../shared/components/add-playlist/add-playlist-dialog.component';
 import { HeaderComponent } from '../shared/components/header/header.component';
-import { GlobalRecentlyViewedComponent } from '../xtream-tauri/recently-viewed/global-recently-viewed.component';
-import { GlobalSearchResultsComponent } from '../xtream-tauri/search-results/global-search-results.component';
+import { GlobalRecentlyViewedComponent } from '../xtream-electron/recently-viewed/global-recently-viewed.component';
+import { GlobalSearchResultsComponent } from '../xtream-electron/search-results/global-search-results.component';
 
 @Component({
     selector: 'app-home',

@@ -18,8 +18,8 @@ import {
 } from 'shared-interfaces';
 import { SettingsService } from './services/settings.service';
 import { EpgProgressPanelComponent } from './shared/epg-progress-panel/epg-progress-panel.component';
-import { GlobalRecentlyViewedComponent } from './xtream-tauri/recently-viewed/global-recently-viewed.component';
-import { GlobalSearchResultsComponent } from './xtream-tauri/search-results/global-search-results.component';
+import { GlobalRecentlyViewedComponent } from './xtream-electron/recently-viewed/global-recently-viewed.component';
+import { GlobalSearchResultsComponent } from './xtream-electron/search-results/global-search-results.component';
 
 @Component({
     selector: 'app-root',

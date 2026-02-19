@@ -6,7 +6,7 @@ import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
-import { CategoryViewComponent } from '../xtream-tauri/category-view/category-view.component';
+import { CategoryViewComponent } from '../xtream-electron/category-view/category-view.component';
 import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
 import { StalkerStore } from './stalker.store';
 
@@ -15,8 +15,8 @@ import { StalkerStore } from './stalker.store';
     templateUrl: './stalker-main-container.component.html',
     styleUrls: [
         './stalker-main-container.component.scss',
-        '../xtream-tauri/xtream-main-container.component.scss',
-        '../xtream-tauri/sidebar.scss',
+        '../xtream-electron/xtream-main-container.component.scss',
+        '../xtream-electron/sidebar.scss',
     ],
     imports: [
         CategoryViewComponent,

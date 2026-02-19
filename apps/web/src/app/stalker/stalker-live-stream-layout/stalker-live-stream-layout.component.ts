@@ -30,7 +30,7 @@ import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
 } from '../../shared/services/remote-channel-navigation.util';
-import { CategoryViewComponent } from '../../xtream-tauri/category-view/category-view.component';
+import { CategoryViewComponent } from '../../xtream-electron/category-view/category-view.component';
 import { PlaylistErrorViewComponent } from '../../xtream/playlist-error-view/playlist-error-view.component';
 import { StalkerStore } from '../stalker.store';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
@@ -49,7 +49,7 @@ import {
     templateUrl: './stalker-live-stream-layout.component.html',
     styleUrls: [
         './stalker-live-stream-layout.component.scss',
-        '../../xtream-tauri/sidebar.scss',
+        '../../xtream-electron/sidebar.scss',
     ],
     imports: [
         CategoryViewComponent,

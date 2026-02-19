@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { stalkerRoutes } from './stalker/stalker.routes';
-import { xtreamRoutes } from './xtream-tauri/xtream.routes';
+import { xtreamRoutes } from './xtream-electron/xtream.routes';
 
 export const routes: Routes = [
     {

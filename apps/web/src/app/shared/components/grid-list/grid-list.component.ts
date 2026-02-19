@@ -5,9 +5,9 @@ import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistErrorViewComponent } from '../../../xtream-tauri/playlist-error-view/playlist-error-view.component';
-import { ProgressCapsuleComponent } from '../../../xtream-tauri/shared/progress-capsule/progress-capsule.component';
-import { WatchedBadgeComponent } from '../../../xtream-tauri/shared/watched-badge/watched-badge.component';
+import { PlaylistErrorViewComponent } from '../../../xtream-electron/playlist-error-view/playlist-error-view.component';
+import { ProgressCapsuleComponent } from '../../../xtream-electron/shared/progress-capsule/progress-capsule.component';
+import { WatchedBadgeComponent } from '../../../xtream-electron/shared/watched-badge/watched-badge.component';
 
 @Component({
     selector: 'app-grid-list',

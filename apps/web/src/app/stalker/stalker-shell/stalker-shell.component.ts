@@ -5,9 +5,9 @@ import { Store } from '@ngrx/store';
 import { PlaylistActions, selectPlaylistById } from 'm3u-state';
 import { map, switchMap } from 'rxjs';
 import { createLogger } from '../../shared/utils/logger';
-import { NavigationComponent } from '../../xtream-tauri/navigation/navigation.component';
-import { NavigationItem } from '../../xtream-tauri/navigation/navigation.interface';
-import { XtreamStore } from '../../xtream-tauri/stores/xtream.store';
+import { NavigationComponent } from '../../xtream-electron/navigation/navigation.component';
+import { NavigationItem } from '../../xtream-electron/navigation/navigation.interface';
+import { XtreamStore } from '../../xtream-electron/stores/xtream.store';
 import { StalkerStore } from '../stalker.store';
 
 @Component({

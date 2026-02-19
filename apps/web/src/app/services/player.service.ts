@@ -10,7 +10,7 @@ import { ExternalPlayerInfoDialogComponent } from '../shared/components/external
 import {
     PlayerDialogComponent,
     PlayerDialogData,
-} from '../xtream-tauri/player-dialog/player-dialog.component';
+} from '../xtream-electron/player-dialog/player-dialog.component';
 import { SettingsStore } from './settings-store.service';
 
 @Injectable({
