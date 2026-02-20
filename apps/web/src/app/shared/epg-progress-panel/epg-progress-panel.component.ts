@@ -1,10 +1,9 @@
-import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatTooltip } from '@angular/material/tooltip';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     EpgImportProgress,
     EpgProgressService,
@@ -14,12 +13,11 @@ import {
     selector: 'app-epg-progress-panel',
     standalone: true,
     imports: [
-        CommonModule,
         MatButtonModule,
         MatIconModule,
         MatTooltip,
         MatProgressBar,
-        TranslateModule,
+        TranslatePipe,
     ],
     templateUrl: './epg-progress-panel.component.html',
     styleUrl: './epg-progress-panel.component.scss',

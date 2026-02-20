@@ -1,5 +1,5 @@
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { CommonModule } from '@angular/common';
+
 import {
     ChangeDetectionStrategy,
     Component,
@@ -31,14 +31,13 @@ export interface EnrichedChannel extends Channel {
     styleUrls: ['./all-channels-tab.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        ChannelListItemComponent,
-        CommonModule,
-        MatFormFieldModule,
-        MatIconModule,
-        MatInputModule,
-        ScrollingModule,
-        TranslatePipe,
-    ],
+    ChannelListItemComponent,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    ScrollingModule,
+    TranslatePipe
+],
 })
 export class AllChannelsTabComponent implements OnDestroy {
     /** All channels (will be filtered by search) */

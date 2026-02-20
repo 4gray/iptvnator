@@ -1,5 +1,5 @@
 import { OverlayRef } from '@angular/cdk/overlay';
-import { CommonModule } from '@angular/common';
+
 import {
     AfterViewInit,
     ChangeDetectionStrategy,
@@ -38,13 +38,12 @@ interface EnrichedChannel extends EpgChannel {
 
 @Component({
     imports: [
-        CommonModule,
-        MatButtonModule,
-        MatIcon,
-        MatTooltip,
-        MomentDatePipe,
-        TranslatePipe,
-    ],
+    MatButtonModule,
+    MatIcon,
+    MatTooltip,
+    MomentDatePipe,
+    TranslatePipe
+],
     selector: 'app-multi-epg-container',
     templateUrl: './multi-epg-container.component.html',
     styleUrls: ['./multi-epg-container.component.scss'],

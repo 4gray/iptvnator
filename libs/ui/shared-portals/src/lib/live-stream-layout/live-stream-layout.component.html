@@ -43,13 +43,14 @@
                         [value]="item"
                         (click)="itemClicked.emit(item)"
                     >
-                        <img
-                            matListItemAvatar
-                            class="stream-icon"
-                            *ngIf="item.stream_icon"
-                            [src]="item.stream_icon"
-                            alt="channel icon"
-                        />
+                        @if (item.stream_icon) {
+                            <img
+                                matListItemAvatar
+                                class="stream-icon"
+                                [src]="item.stream_icon"
+                                alt="channel icon"
+                            />
+                        }
                         <div class="title" matListItemTitle>
                             {{ item.name }}
                         </div>

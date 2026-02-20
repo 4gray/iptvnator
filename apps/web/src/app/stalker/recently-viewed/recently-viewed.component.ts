@@ -151,7 +151,7 @@ export class RecentlyViewedComponent {
             const playlist = this.currentPlaylist();
             if (!playlist?._id) return;
 
-            const state = this.router.getCurrentNavigation()?.extras?.state
+            const state = this.router.currentNavigation()?.extras?.state
                 ?? window.history.state;
             const item = state?.openRecentItem;
             if (!item || !RecentlyViewedComponent.isCategoryType(item.category_id)) {

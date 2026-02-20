@@ -1,5 +1,5 @@
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { NgIf } from '@angular/common';
+
 import {
     ChangeDetectionStrategy,
     Component,
@@ -25,19 +25,18 @@ import { WebPlayerViewComponent } from '../web-player-view/web-player-view.compo
     templateUrl: './live-stream-layout.component.html',
     styleUrls: ['./live-stream-layout.component.scss'],
     imports: [
-        EpgViewComponent,
-        FilterPipe,
-        FormsModule,
-        MatListModule,
-        MatIconModule,
-        MatInputModule,
-        MatFormFieldModule,
-        NgIf,
-        ResizableDirective,
-        ScrollingModule,
-        WebPlayerViewComponent,
-        TranslateModule,
-    ],
+    EpgViewComponent,
+    FilterPipe,
+    FormsModule,
+    MatListModule,
+    MatIconModule,
+    MatInputModule,
+    MatFormFieldModule,
+    ResizableDirective,
+    ScrollingModule,
+    WebPlayerViewComponent,
+    TranslateModule
+],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LiveStreamLayoutComponent {
