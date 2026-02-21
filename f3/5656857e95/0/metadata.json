@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f35656857e95",
+  "session_id": "606f4961-fa58-49f9-b523-a5f0795a4e17",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-21T10:56:27.719048Z",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "libs/ui/components/src/lib/art-player/art-player.component.ts",
+    "libs/ui/components/src/lib/channel-list-container/channel-list-container.component.ts",
+    "libs/ui/components/src/lib/vjs-player/vjs-player.component.scss",
+    "libs/ui/components/src/lib/vjs-player/vjs-player.component.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "895b7e32-82cc-4d54-b0d4-eff6041f320f",
+  "checkpoint_transcript_start": 14,
+  "transcript_lines_at_start": 14,
+  "token_usage": {
+    "input_tokens": 37,
+    "cache_creation_tokens": 136332,
+    "cache_read_tokens": 3854245,
+    "output_tokens": 6868,
+    "api_call_count": 33
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-21T10:56:26.273646Z",
+    "agent_lines": 0,
+    "human_added": 19139,
+    "human_modified": 735,
+    "human_removed": 0,
+    "total_committed": 19337,
+    "agent_percentage": 0
+  }
+}

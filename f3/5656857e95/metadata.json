@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f35656857e95",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "libs/ui/components/src/lib/art-player/art-player.component.ts",
+    "libs/ui/components/src/lib/channel-list-container/channel-list-container.component.ts",
+    "libs/ui/components/src/lib/vjs-player/vjs-player.component.scss",
+    "libs/ui/components/src/lib/vjs-player/vjs-player.component.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f3/5656857e95/0/metadata.json",
+      "transcript": "/f3/5656857e95/0/full.jsonl",
+      "context": "/f3/5656857e95/0/context.md",
+      "content_hash": "/f3/5656857e95/0/content_hash.txt",
+      "prompt": "/f3/5656857e95/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 37,
+    "cache_creation_tokens": 136332,
+    "cache_read_tokens": 3854245,
+    "output_tokens": 6868,
+    "api_call_count": 33
+  }
+}
