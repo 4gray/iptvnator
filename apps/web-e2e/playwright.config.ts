@@ -22,13 +22,30 @@ export default defineConfig({
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
   },
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'pnpm nx run web:serve',
-    url: 'http://localhost:4200',
-    reuseExistingServer: true,
-    cwd: workspaceRoot,
-  },
+  /* Run local dev servers before starting the tests.
+   * Both the Angular app and the Stalker mock server start in parallel.
+   * Set MOCK_PORT to override the default mock server port (3210).
+   */
+  webServer: [
+    {
+      command: 'pnpm nx run web:serve',
+      url: 'http://localhost:4200',
+      reuseExistingServer: !process.env['CI'],
+      cwd: workspaceRoot,
+    },
+    {
+      command: 'pnpm nx run stalker-mock-server:serve',
+      url: `http://localhost:${process.env['MOCK_PORT'] ?? '3210'}/health`,
+      reuseExistingServer: !process.env['CI'],
+      cwd: workspaceRoot,
+    },
+    {
+      command: 'pnpm nx run xtream-mock-server:serve',
+      url: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}/health`,
+      reuseExistingServer: !process.env['CI'],
+      cwd: workspaceRoot,
+    },
+  ],
   projects: [
     {
       name: 'chromium',
