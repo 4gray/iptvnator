@@ -1,0 +1,498 @@
+I want create a way to start a local stalker portal (separate app?) that I could use for development and testing. What could be good option for that, I use nx monorepo here. Would it be possible to create a generator there (faker? or something different also with random vod/series names and cover images) or run multiple api which will rerun different data by providing different credentials. Also could there be an account that generates random categories and returns randomly generated items? Or would it be bad practice? But we would generate random data on every start of the express app or on every api call? use sc-brainstorm skill to thing about good solution and suggest me a plan first
+
+---
+
+Base directory for this skill: /Users/4gray/.claude/skills/stalker-portal
+
+# Stalker Portal (Current Implementation)
+
+## Read These Docs First
+
+- `docs/architecture/stalker-portal.md`
+- `docs/architecture/stalker-epg.md`
+- `docs/architecture/remote-control.md`
+
+## Primary Code Locations
+
+Renderer:
+- `apps/web/src/app/stalker/stalker.store.ts`
+- `apps/web/src/app/stalker/stalker.routes.ts`
+- `apps/web/src/app/stalker/stalker-main-container.component.ts`
+- `apps/web/src/app/stalker/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
+- `apps/web/src/app/stalker/stalker-series-view/stalker-series-view.component.ts`
+- `apps/web/src/app/stalker/stalker-favorites/stalker-favorites.component.ts`
+- `apps/web/src/app/stalker/recently-viewed/recently-viewed.component.ts`
+- `apps/web/src/app/stalker/stalker-search/stalker-search.component.ts`
+- `apps/web/src/app/stalker/stalker-vod.utils.ts`
+- `apps/web/src/app/stalker/models/*`
+
+Electron main:
+- `apps/electron-backend/src/app/events/stalker.events.ts`
+
+## Routing
+
+Defined in `apps/web/src/app/stalker/stalker.routes.ts`:
+- `/stalker/:id/vod`
+- `/stalker/:id/series`
+- `/stalker/:id/itv`
+- `/stalker/:id/favorites`
+- `/stalker/:id/recent`
+- `/stalker/:id/search`
+- `/stalker/:id/downloads`
+
+## Core Architecture
+
+1. Stalker UI calls methods/resources in `StalkerStore`.
+2. Store sends `STALKER_REQUEST` payloads via `DataService`.
+3. Electron `stalker.events.ts` performs HTTP requests to portal `load.php`.
+4. For full portals, `StalkerSessionService` handles auth/token lifecycle.
+5. Store normalizes results into typed Stalker models and component-specific state.
+
+## StalkerStore Responsibilities
+
+`apps/web/src/app/stalker/stalker.store.ts` owns:
+- Selected content type/category/item state
+- Category/content resources
+- ITV channels and pagination
+- Series resource flows:
+  - regular `/series`
+  - VOD embedded `series[]`
+  - VOD `is_series=1` seasons/episodes lazy flow
+- Playback link creation (`create_link`)
+- Favorites/recently-viewed integration points
+- Stalker EPG fetching (`get_short_epg`)
+
+## Important Utility Layer
+
+Do not duplicate logic already in `apps/web/src/app/stalker/stalker-vod.utils.ts`.
+Prefer these helpers:
+- `isStalkerSeriesFlag(...)`
+- `isStalkerSeriesItem(...)`
+- `normalizeStalkerSeriesFlag(...)`
+- `normalizeStalkerEntityId(...)`
+- `normalizeStalkerEntityIdAsNumber(...)`
+- `matchesFavoriteById(...)`
+- `normalizeStalkerFavoriteItem(...)`
+- `normalizeStalkerVodDetailsItem(...)`
+- `createStalkerDetailViewState(...)`
+- `createPortalCollectionResource(...)`
+- `createPortalFavoritesResource(...)`
+- `toggleStalkerVodFavorite(...)`
+
+## Current `is_series` Rule (Important)
+
+Normalized Stalker detail model now uses:
+- `is_series?: true`
+- no numeric/string forms in normalized detail state
+
+Raw API payloads may still contain `1` / `"1"`, but normalize early through utils.
+Avoid adding new template checks like `is_series === 1` or `is_series === '1'` in Stalker detail/favorites flows.
+
+## Favorites / Recently Viewed / Search
+
+Shared behavior:
+- Use helper-based state creation (`createStalkerDetailViewState`)
+- Use ID normalization helpers for add/remove checks
+- Use shared collection resources instead of custom duplicated refresh logic
+
+Touched components:
+- `stalker-favorites.component.ts`
+- `recently-viewed.component.ts`
+- `stalker-search.component.ts`
+- `favorites-button.component.ts`
+
+## Series Modes You Must Preserve
+
+1. Regular Series (`/series`)
+- seasons loaded from series endpoints
+
+2. VOD with embedded `series[]`
+- render as pseudo season container directly
+
+3. VOD `is_series=1` (Ministra plugin)
+- fetch seasons lazily
+- fetch episodes on season select
+- keep unique generated episode tracking IDs
+
+Regression tests for these branches:
+- `apps/web/src/app/stalker/stalker-vod.utils.spec.ts`
+
+## EPG
+
+Stalker ITV EPG:
+- Action: `get_short_epg`
+- Store method: `fetchChannelEpg(channelId)`
+- UI: `stalker-live-stream-layout.component.ts` + shared `EpgViewComponent`
+
+Details: `docs/architecture/stalker-epg.md`
+
+## Remote Control (Stalker)
+
+Live ITV supports remote control in:
+- `apps/web/src/app/stalker/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
+
+Supported:
+- channel up/down
+- numeric select (position-based)
+- status publish (`portal: 'stalker'`, channel/current program)
+
+Backend API + IPC flow:
+- `docs/architecture/remote-control.md`
+
+## API and Data Notes
+
+Common Stalker actions are in:
+- `libs/shared/interfaces/src/lib/stalker-portal-actions.enum.ts`
+
+Main backend handler:
+- `apps/electron-backend/src/app/events/stalker.events.ts`
+
+Behavior to preserve:
+- `cmd` param is passed without URL-encoding slashes
+- `JsHttpRequest=1-xml` default is appended if missing
+- auth headers/cookies vary based on full portal mode
+
+## Implementation Rules for Agents
+
+- Keep strong typing through `apps/web/src/app/stalker/models/*`.
+- Reuse utility helpers before adding new local conversions.
+- Preserve compatibility with shared Xtream components used by Stalker (category content, season container, downloads).
+- When changing Stalker detail/favorites logic, verify all three VOD/series modes.
+- Update architecture docs when behavior changes:
+  - `docs/architecture/stalker-portal.md`
+  - `docs/architecture/stalker-epg.md`
+  - `docs/architecture/remote-control.md`
+
+---
+
+yes, don't forget to add readme file and documents mac adresses, but also implementation details in docs folder or readme file. and would it be also possible to use that server together with playwright tests? to start it in parallel and then test the app against the stalker portals served by the mock app?
+
+---
+
+add to claude.md file and agents.md, or system prompt that typescript files ideally should not be bigger than 300 Lines of code, and maximum 350-400. consider this when you are creating new implementation but also when adding features, suggest or do refactorings to keep the code maintainable
+
+---
+
+now when we have stalker-mock-server, create similar one (app) for xtream code api portals for development and testing with that, and also document it and think about e2e test integration
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me analyze the conversation chronologically:
+
+1. **First request**: User wanted to create a local Stalker portal mock server for development/testing in the Nx monorepo. They asked about options (faker, multiple accounts via different credentials, random data on every start vs every API call).
+
+2. **Stalker mock server brainstorm**: I invoked the stalker-portal skill to understand the implementation, read key files (stalker.events.ts, store features, models), and proposed a detailed plan with MAC-address-based scenario selection, seeded faker data, Express app at port 3210.
+
+3. **User approved the plan** and asked to also add a README, docs in the docs folder, and Playwright integration for e2e testing.
+
+4. **Implementation of stalker-mock-server**: Created the full app at apps/stalker-mock-server/ with:
+   - project.json (serve targets using `pnpm tsx`)
+   - tsconfig.json
+   - scenarios.ts (MAC→ScenarioConfig mapping, 6 predefined MACs)
+   - data-generator.ts (faker seeded generation, ~420 lines - noted as over limit)
+   - data-store.ts (lazy per-MAC cache + favorites)
+   - handlers/ (9 handler files)
+   - routes/dispatch.ts + portal.route.ts
+   - main.ts (Express with /portal.php, /stalker proxy, /health, /reset)
+   - README.md
+   - docs/architecture/stalker-mock-server.md
+
+5. **Errors encountered during stalker-mock-server**:
+   - `node --import tsx/esm` caused ERR_REQUIRE_CYCLE_MODULE → fixed by using `pnpm tsx` directly
+   - `create_link` returned undefined stream URL (NaN from charCodeAt on empty strings) → fixed by splitting on individual characters instead of path segments
+   - `Object.assign` on Request failed because `query` is read-only → fixed by creating a plain synthetic object instead
+
+6. **PWA proxy discovery**: Found that PWA routes Stalker requests through AppConfig.BACKEND_URL/stalker (not directly). Added `/stalker` endpoint to mock server that wraps responses in `{ payload: ... }`. Added Playwright route interception to redirect localhost:3000/stalker calls to the mock server.
+
+7. **Playwright integration**: Updated playwright.config.ts with two webServer entries (web + stalker-mock-server). Created apps/web-e2e/src/stalker.e2e.ts with 8 tests tagged @stalker.
+
+8. **CLAUDE.md file size rule**: User asked to add a rule that TS files should ideally be <300 lines, max 350-400 lines. Added to CLAUDE.md before Angular Coding Standards section, with typical split strategies. Also updated memory/MEMORY.md.
+
+9. **Second major request**: Create similar mock server for Xtream Codes API. User asked for documentation and Playwright e2e integration too.
+
+10. **Xtream exploration**: Used Explore agent to understand the Xtream API fully. Key findings:
+    - Auth: username+password as query params to /player_api.php
+    - Actions: get_account_info, get_live_categories, get_live_streams, get_vod_categories, get_vod_streams, get_series_categories, get_series, get_series_info, get_vod_info, get_short_epg
+    - PWA proxy: GET /xtream?url=...&action=...&username=...&password=... → { payload: data, action: action }
+    - EPG: base64-encoded title/description
+    - Response format: direct JSON arrays (no { js: ... } envelope like Stalker)
+    - Stream URLs: {serverUrl}/live/{username}/{password}/{streamId}.m3u8
+
+11. **Xtream-mock-server in progress**: Created tasks #4-#7. Currently building:
+    - project.json ✓
+    - tsconfig.json ✓
+    - scenarios.ts (credential-based: user1:pass1, large:large, series:series, minimal:minimal, expired:expired, inactive:inactive) ✓
+    - generators/categories.generator.ts ✓
+    - generators/live.generator.ts ✓
+    - generators/vod.generator.ts ✓
+    - generators/series.generator.ts ✓ (just created, was last action)
+    - Still pending: data-store.ts, handlers/, routes/, main.ts, README.md, docs, playwright updates, e2e tests
+
+The summary was requested while actively building the xtream-mock-server generators (task #4 in progress, having just written series.generator.ts).
+
+Summary:
+1. Primary Request and Intent:
+
+**Request 1 – Stalker Mock Server**: Create a local Stalker portal mock server in the Nx monorepo for development and testing. Requirements: use `@faker-js/faker` for data generation, support multiple "account" scenarios via MAC address mapping, deterministic/seeded data (not per-request random), Playwright e2e integration, README, and architecture docs.
+
+**Request 2 – CLAUDE.md File Size Rule**: Add a guideline to CLAUDE.md (and memory) that TypeScript files should ideally be under 300 lines, hard max 350-400 lines. Should apply when creating new files AND when adding features to existing files. Should include split strategies.
+
+**Request 3 – Xtream Codes Mock Server**: Create a similar mock server (`apps/xtream-mock-server`) for Xtream Codes API portals. Same requirements: documentation, Playwright e2e integration, proper file size discipline (all generator files split by domain to stay under 300 lines).
+
+2. Key Technical Concepts:
+   - **Stalker/Ministra portal protocol**: `GET /portal.php?action=<action>&JsHttpRequest=1-xml` with MAC address in Cookie header; response envelope `{ js: <data> }`
+   - **Xtream Codes API**: `GET /player_api.php?action=<action>&username=X&password=Y`; direct JSON arrays (no envelope); EPG titles/descriptions base64-encoded
+   - **MAC-as-seed / credentials-as-seed**: Deterministic faker data per identity — same MAC (Stalker) or username:password (Xtream) always produces same data
+   - **Seeded `@faker-js/faker`**: `faker.seed(number)` before generating ensures reproducibility
+   - **PWA CORS proxy pattern**: IPTVnator PWA routes Stalker requests through `AppConfig.BACKEND_URL/stalker?url=...&macAddress=...` and Xtream through `AppConfig.BACKEND_URL/xtream?url=...&username=...&password=...`, expecting `{ payload: <data> }` responses
+   - **Playwright `page.route()` interception**: Redirects proxy calls from `localhost:3000` to mock servers without any app code changes
+   - **`tsx` runtime**: Used instead of `ts-node` or compiled JS for running TypeScript Express servers directly via `pnpm tsx`
+   - **Synthetic Express Request**: Plain object `{ query, headers, params }` passed to shared dispatch handlers for the proxy endpoint
+   - **Nx `run-commands` executor**: Used for `serve` and `serve-with-watch` targets in project.json
+   - **Playwright `webServer` array**: Multiple servers started in parallel before e2e tests run
+
+3. Files and Code Sections:
+
+**Created: `apps/stalker-mock-server/project.json`**
+- Nx project config with `serve` (pnpm tsx) and `serve-with-watch` targets at port 3210
+```json
+{
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm tsx apps/stalker-mock-server/src/main.ts",
+        "env": { "PORT": "3210" }
+      }
+    }
+  }
+}
+```
+
+**Created: `apps/stalker-mock-server/src/app/scenarios.ts`**
+- 6 predefined MAC→ScenarioConfig entries; unknown MACs use byte-sum as seed
+- Key MACs: `00:1a:79:00:00:01` (default), `00:1a:79:ff:ff:ff` (large), `00:1a:79:00:00:02` (series-heavy), `00:1a:79:00:00:03` (minimal), `00:1a:79:00:00:04` (is-series/Ministra), `00:1a:79:00:00:05` (embedded-series)
+
+**Created: `apps/stalker-mock-server/src/app/data-generator.ts`**
+- ~420 lines (noted as over the 300-line limit — flagged for future refactor)
+- Generates: ITV categories+channels+EPG, VOD categories+items (with is_series and embedded series fractions), Series categories+items+seasons+episodes
+- `coverUrl` uses `https://picsum.photos/seed/{id}/300/200`; `create_link` uses 4 real public HLS streams
+
+**Created: `apps/stalker-mock-server/src/app/data-store.ts`**
+- `portalCache: Map<mac, GeneratedPortalData>` — lazy init per MAC
+- `favoritesStore: Map<mac, Set<itemId>>` — in-memory favorites
+- Exports: `getPortalData()`, `getFavorites()`, `addFavorite()`, `removeFavorite()`, `resetAll()`
+
+**Created: All 9 handler files in `apps/stalker-mock-server/src/app/handlers/`**
+- `handshake.handler.ts` — returns `{ js: { token, keep_alive, servertime } }`
+- `do-auth.handler.ts` — returns mock user profile
+- `get-categories.handler.ts` — filters by `type` param (itv/vod/series); also exports `extractMac()` helper
+- `get-ordered-list.handler.ts` — paginated content (PAGE_SIZE=14), supports `search` param, `movie_id` triggers seasons
+- `get-seasons.handler.ts` — returns precomputed or on-demand seasons for series/VOD-as-series
+- `create-link.handler.ts` — deterministic stream URL selection via character charcode sum
+- `favorites.handler.ts` — fav_action: get/add/set/remove/unset
+- `get-short-epg.handler.ts` — 12 half-hour slots centered on now
+- `get-genres.handler.ts` — mirrors categories
+
+**Created: `apps/stalker-mock-server/src/app/routes/dispatch.ts`**
+- Shared action dispatcher used by both `/portal.php` route and `/stalker` proxy endpoint
+- Eliminates code duplication between direct and proxy modes
+
+**Created: `apps/stalker-mock-server/src/main.ts`**
+- Express server with: `/portal.php` (direct Stalker protocol), `/stalker` (PWA CORS proxy wrapper), `/health`, `/reset`
+- Synthetic request construction for the proxy endpoint:
+```typescript
+const syntheticReq = {
+    query: rest,
+    headers: { cookie: `mac=${mac}` },
+    params: {},
+} as unknown as Request;
+```
+
+**Modified: `apps/web-e2e/playwright.config.ts`**
+- Changed `webServer` from single object to array of two:
+```typescript
+webServer: [
+  { command: 'pnpm nx run web:serve', url: 'http://localhost:4200', reuseExistingServer: !process.env['CI'] },
+  { command: 'pnpm nx run stalker-mock-server:serve', url: `http://localhost:${MOCK_PORT}/health`, reuseExistingServer: !process.env['CI'] },
+]
+```
+
+**Created: `apps/web-e2e/src/stalker.e2e.ts`**
+- 8 tests tagged `@stalker`
+- `interceptStalkerRequests()` redirects `localhost:3000/stalker**` to mock server via `page.route()` + `route.continue({ url })`
+- `addStalkerPortal()` helper fills the portal import form
+- Tests cover: health check, portal add, VOD categories, content list, minimal scenario, EPG, reset idempotency, create_link URL, series seasons, favorites CRUD
+
+**Created: `apps/stalker-mock-server/README.md`** — usage, MAC table, stream URLs, Playwright usage
+
+**Created: `docs/architecture/stalker-mock-server.md`** — response shapes, data pipeline diagram, scenarios, Playwright integration pattern, extension points
+
+**Modified: `CLAUDE.md`**
+- Added "TypeScript File Size Rule" section before Angular Coding Standards:
+```
+Keep TypeScript files under 300 lines. Hard maximum is 350–400 lines.
+- When creating new files, design them to stay within this limit from the start.
+- When adding a feature to an existing file that would push it past 350 lines, refactor first
+- When you notice a file already exceeds 350 lines, proactively suggest a refactoring
+Typical split strategies: [Angular components, Signal store features, Services, Utility files]
+```
+
+**Modified: `memory/MEMORY.md`**
+- Added file size rule, flagged `data-generator.ts` as over limit, added stalker-mock-server tool info
+
+**Created: `apps/xtream-mock-server/project.json`** — serve at port 3211
+**Created: `apps/xtream-mock-server/tsconfig.json`**
+
+**Created: `apps/xtream-mock-server/src/app/scenarios.ts`**
+- Credential-based scenarios (username:password as key):
+  - `user1:pass1` → default (8 cats, 40 items, active)
+  - `large:large` → large (20 cats, 200 items, active)
+  - `series:series` → series-heavy (15 series cats, active)
+  - `minimal:minimal` → minimal (2 cats, 5 items, active)
+  - `expired:expired` → expired account (accountStatus: 'Expired')
+  - `inactive:inactive` → disabled account (accountStatus: 'Disabled')
+- `credentialsToSeed()`: polynomial hash of `username:password` string
+
+**Created: `apps/xtream-mock-server/src/app/generators/categories.generator.ts`** (~65 lines)
+- `generateCategories(type, count): RawCategory[]`
+- Category IDs: live=100+, vod=200+, series=300+
+
+**Created: `apps/xtream-mock-server/src/app/generators/live.generator.ts`** (~100 lines)
+- `generateLiveStreams(categories, itemsPerCategory): RawLiveStream[]` — stream IDs start at 10,000
+- `generateEpgListings(streamId): RawEpgListing[]` — 12 half-hour slots, title/description base64-encoded
+
+**Created: `apps/xtream-mock-server/src/app/generators/vod.generator.ts`** (~150 lines)
+- `generateVodStreams(categories, itemsPerCategory): RawVodStream[]` — stream IDs start at 20,000
+- `generateVodDetails(stream): RawVodDetails` — full details object matching `XtreamVodDetails` interface
+
+**Created: `apps/xtream-mock-server/src/app/generators/series.generator.ts`** (~200 lines)
+- `generateSeriesItems(categories, itemsPerCategory): RawSeriesItem[]` — series IDs start at 30,000
+- `generateSeriesInfo(series, seasonCount, episodesPerSeason): RawSeriesInfo` — nested seasons+episodes matching `XtreamSerieDetails` interface exactly
+
+4. Errors and Fixes:
+
+**Error 1: `ERR_REQUIRE_CYCLE_MODULE` with `node --import tsx/esm`**
+- Original command: `node --import tsx/esm apps/stalker-mock-server/src/main.ts`
+- Fix: Changed to `pnpm tsx apps/stalker-mock-server/src/main.ts` in both project.json and test commands
+
+**Error 2: `create_link` returned undefined stream URL**
+- Cause: `cmd.split('/').reduce((acc, part) => acc + part.charCodeAt(0), 0)` — empty strings from split produce `NaN`
+- Fix: Changed to `cmd.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0)` — iterates individual characters
+
+**Error 3: `Cannot set property query of #<IncomingMessage>` in `/stalker` proxy endpoint**
+- Cause: `Object.assign(Object.create(req), { query: rest, ... })` — `query` is a getter-only property on Express Request
+- Fix: Created a plain object instead:
+```typescript
+const syntheticReq = {
+    query: rest,
+    headers: { cookie: `mac=${mac}` },
+    params: {},
+} as unknown as Request;
+```
+
+**Error 4: `sleep: invalid time interval` in bash test commands**
+- Cause: `sleep 2 && echo "..."` chained on same line as background process start in some shell contexts
+- Fix: Split into separate Bash tool calls
+
+5. Problem Solving:
+- **Deterministic data**: Solved by seeding faker before generation, caching per identity (MAC/credentials)
+- **PWA proxy compatibility**: Both mock servers expose a proxy-format endpoint (`/stalker` and `/xtream`) matching the backend API shape `{ payload: ... }`, allowing Playwright to redirect calls without app changes
+- **File size discipline**: Xtream generators intentionally split into 4 domain files (<200 lines each) to comply with the new 300-line rule added to CLAUDE.md
+- **Shared dispatch**: `routes/dispatch.ts` extracted to avoid duplicating action routing between direct and proxy endpoints
+
+6. All User Messages:
+- "I want create a way to start a local stalker portal (separate app?) that I could use for development and testing... Would it be also possible to create a generator there (faker?) or something different also with random vod/series names and cover images. Or would it be bad practice? But we would generate random data on every start of the express app or on every api call? use sc-brainstorm skill to think about good solution and suggest me a plan first"
+- "yes, don't forget to add readme file and documents mac addresses, but also implementation details in docs folder or readme file. and would it be also possible to use that server together with playwright tests? to start it in parallel and then test the app against the stalker portals served by the mock app?"
+- "add to claude.md file and agents.md, or system prompt that typescript files ideally should not be bigger than 300 Lines of code, and maximum 350-400. consider this when you are creating new implementation but also when adding features, suggest or do refactorings to keep the code maintainable"
+- "now when we have stalker-mock-server, create similar one (app) for xtream code api portals for development and testing with that, and also document it and think about e2e test integration"
+
+7. Pending Tasks:
+- **Task #4** (in_progress): Complete `apps/xtream-mock-server` scaffold — still need `data-store.ts`
+- **Task #5** (pending): Create all handlers (get-account-info, get-categories, get-live-streams, get-vod-streams, get-series, get-series-info, get-vod-info, get-short-epg), routes/dispatch.ts, routes/player-api.route.ts, routes/stream.route.ts (for /live, /movie, /series redirects), and main.ts with /xtream proxy endpoint
+- **Task #6** (pending): Write `apps/xtream-mock-server/README.md` and `docs/architecture/xtream-mock-server.md`
+- **Task #7** (pending): Add xtream-mock-server as third webServer in `apps/web-e2e/playwright.config.ts` (port 3211) and write `apps/web-e2e/src/xtream.e2e.ts`
+
+8. Current Work:
+Creating `apps/xtream-mock-server` following the same pattern as stalker-mock-server but with Xtream Codes API specifics:
+- Auth: username+password in query params (not MAC in cookie)
+- Endpoint: `/player_api.php?action=...&username=X&password=Y`
+- Response format: direct JSON arrays (no `{ js: ... }` envelope)
+- EPG: base64-encoded title and description fields
+- 6 predefined credential scenarios including expired/inactive for error state testing
+- 4 generator files split by domain (categories ~65 lines, live ~100 lines, vod ~150 lines, series ~200 lines)
+
+Most recently completed: `apps/xtream-mock-server/src/app/generators/series.generator.ts` — generates `RawSeriesItem[]` (series list) and `RawSeriesInfo` (nested seasons+episodes matching `XtreamSerieDetails` interface exactly).
+
+9. Optional Next Step:
+Continue with Task #4 completion: create `apps/xtream-mock-server/src/app/data-store.ts` (lazy per-credentials cache + no favorites needed as Xtream handles favorites differently), then move to Task #5 to create all handlers starting with `get-account-info.handler.ts`. The series.generator.ts was the last file written; next is the orchestrating `data-store.ts` that calls all four generators.
+
+Direct continuation from current work: "create similar one (app) for xtream code api portals for development and testing with that, and also document it and think about e2e test integration" — currently on Task #4 (scaffold), having just written all 4 generator files, next is `data-store.ts` then all handlers.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/4gray/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+<task-notification>
+<task-id>b761e28</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Start xtream-mock-server in background" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+@apps/web/src/app/home/xtream-code-import/xtream-code-import.component.ts for xtream-mock-server when i try to do the status check, use testConnection method, the api is responding with error, or api is just missing, can you double check @libs/services/src/lib/portal-status.service.ts what exaxtly is expected here checkPortalStatus, and whether it's missing in xtream mock
+
+---
+
+<task-notification>
+<task-id>bb13eef</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Start server in background" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+hm, when i start the xtream-mock-server it runs in background but it exists from cli, see the logs. can we fix it, so that it does not exit: ❯ nx serve xtream-mock-server
+
+> nx run xtream-mock-server:serve
+
+> pnpm tsx apps/xtream-mock-server/src/main.ts
+
+[xtream-mock] Listening on http://localhost:3211
+[xtream-mock] Direct API:  http://localhost:3211/player_api.php?username=user1&password=pass1&action=get_account_info
+[xtream-mock] PWA proxy:   http://localhost:3211/xtream?url=http://localhost:3211&username=user1&password=pass1&action=get_account_info
+[xtream-mock] Health:      http://localhost:3211/health
+Task "xtream-mock-server:serve" is continuous but exited with code 0
+
+---
+
+<task-notification>
+<task-id>bb31898</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Start server in background to verify it stays alive" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>b3e59e0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Kill old instance then start fresh" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
