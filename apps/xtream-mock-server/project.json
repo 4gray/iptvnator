@@ -1,0 +1,38 @@
+{
+    "name": "xtream-mock-server",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "projectType": "application",
+    "sourceRoot": "apps/xtream-mock-server/src",
+    "tags": ["scope:dev-tools"],
+    "targets": {
+        "serve": {
+            "continuous": true,
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm tsx apps/xtream-mock-server/src/main.ts",
+                "cwd": "{workspaceRoot}",
+                "color": true,
+                "env": {
+                    "PORT": "3211",
+                    "NODE_ENV": "development"
+                }
+            }
+        },
+        "serve-with-watch": {
+            "continuous": true,
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm tsx watch apps/xtream-mock-server/src/main.ts",
+                "cwd": "{workspaceRoot}",
+                "color": true,
+                "env": {
+                    "PORT": "3211",
+                    "NODE_ENV": "development"
+                }
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}
