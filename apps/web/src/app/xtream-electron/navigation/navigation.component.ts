@@ -99,9 +99,9 @@ export class NavigationComponent {
 
     openSettings() {
         this.dialog.open(SettingsComponent, {
-            width: '80%',
-            maxWidth: '1200px',
-            maxHeight: '90vh',
+            width: '1200px',
+            maxWidth: '96vw',
+            maxHeight: '92vh',
             data: {
                 isDialog: true,
             },

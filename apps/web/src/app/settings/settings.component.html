@@ -1,479 +1,680 @@
 @if (!isDialog) {
-    <app-header
-        [title]="'SETTINGS.TITLE' | translate"
-        [subtitle]="
-            ('SETTINGS.SUBTITLE' | translate) +
-            '. ' +
-            ('SETTINGS.DESCRIPTION' | translate)
-        "
-    />
+    <div class="settings-page-header">
+        <app-header
+            [title]="'SETTINGS.TITLE' | translate"
+            [subtitle]="
+                ('SETTINGS.SUBTITLE' | translate) +
+                '. ' +
+                ('SETTINGS.DESCRIPTION' | translate)
+            "
+        />
+    </div>
 } @else {
     <h2 mat-dialog-title>{{ 'SETTINGS.TITLE' | translate }}</h2>
 }
 
-<div class="settings-container" data-test-id="settings-container">
-    <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" novalidate>
-        @if (isDesktop) {
-            <ng-container formArrayName="epgUrl">
-                <div class="row">
-                    <div class="column">
-                        {{ 'SETTINGS.EPG_URL_LABEL' | translate }}
-                        <p>Add single or multiple URLs as EPG sources</p>
+<div
+    class="settings-container"
+    data-test-id="settings-container"
+    [class.dialog-mode]="isDialog"
+>
+    <form
+        [formGroup]="settingsForm"
+        (ngSubmit)="onSubmit()"
+        class="settings-layout"
+        novalidate
+    >
+        <aside class="settings-sidebar" aria-label="Settings categories">
+            <p class="sidebar-eyebrow">App Preferences</p>
+            <div class="sidebar-nav">
+                @for (section of sectionNav; track section.id) {
+                    <button
+                        type="button"
+                        class="sidebar-item"
+                        [class.active]="activeSection() === section.id"
+                        (click)="scrollToSection(section.id)"
+                    >
+                        <mat-icon>{{ section.icon }}</mat-icon>
+                        <span>{{ section.label | translate }}</span>
+                    </button>
+                }
+            </div>
+        </aside>
+
+        <div class="settings-content">
+            <section class="settings-group" id="general">
+                <header class="settings-group__header">
+                    <h3>{{ 'SETTINGS.TITLE' | translate }}</h3>
+                    <p>{{ 'SETTINGS.SUBTITLE' | translate }}</p>
+                </header>
+
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.LANGUAGE' | translate }}</h4>
+                        <p>{{ 'SETTINGS.LANGUAGE_DESCRIPTION' | translate }}</p>
                     </div>
-                    <div class="column">
-                        @for (_ of epgUrl.controls; track _; let i = $index) {
-                            <div style="display: flex">
-                                <mat-form-field
-                                    appearance="outline"
-                                    class="full-width"
-                                >
-                                    <mat-label>{{
-                                        'SETTINGS.EPG_URL_PLACEHOLDER'
-                                            | translate
-                                    }}</mat-label>
-                                    <input
-                                        matInput
-                                        type="url"
-                                        [formControlName]="i"
-                                        #epgField
-                                    />
-                                    <mat-error>{{
-                                        'SETTINGS.EPG_URL_ERROR' | translate
-                                    }}</mat-error>
-                                </mat-form-field>
-                                <button
-                                    matLine
-                                    mat-icon-button
-                                    color="accent"
-                                    [matTooltip]="
-                                        'SETTINGS.REFRESH_EPG' | translate
-                                    "
-                                    type="button"
-                                    [disabled]="epgField.value === ''"
-                                    (click)="refreshEpg(epgUrl.value[i])"
-                                >
-                                    <mat-icon>refresh</mat-icon>
-                                </button>
-                                <button
-                                    mat-icon-button
-                                    matLine
-                                    color="accent"
-                                    [matTooltip]="
-                                        'SETTINGS.REFRESH_EPG' | translate
-                                    "
-                                    type="button"
-                                    (click)="removeEpgSource(i)"
-                                >
-                                    <mat-icon>remove</mat-icon>
-                                </button>
-                            </div>
-                        }
-                        <button
-                            mat-button
-                            color="accent"
-                            type="button"
-                            (click)="addEpgSource()"
-                        >
-                            {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
-                        </button>
-                        <button
-                            mat-button
-                            color="warn"
-                            type="button"
-                            (click)="clearEpgData()"
-                        >
-                            {{ 'SETTINGS.CLEAR_EPG_DATA' | translate }}
-                        </button>
+                    <div class="setting-item__control">
+                        <mat-form-field appearance="outline">
+                            <mat-label>{{
+                                'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                            }}</mat-label>
+                            <mat-select
+                                formControlName="language"
+                                data-test-id="select-language"
+                            >
+                                @for (
+                                    language of languageEnum | keyvalue;
+                                    track language
+                                ) {
+                                    <mat-option
+                                        [value]="language.value"
+                                        [attr.data-test-id]="language.value"
+                                        >{{
+                                            'LANGUAGES.' + language.key
+                                                | translate
+                                        }}</mat-option
+                                    >
+                                }
+                            </mat-select>
+                        </mat-form-field>
                     </div>
                 </div>
-                <mat-divider />
-            </ng-container>
-        }
-        <div class="row">
-            <div class="column">
-                {{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}
-                <p>{{ 'SETTINGS.VIDEO_PLAYER_DESCRIPTION' | translate }}</p>
-            </div>
-            <div class="column">
-                <mat-form-field appearance="outline">
-                    <mat-label>{{
-                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-                    }}</mat-label>
-                    <mat-select
-                        formControlName="player"
-                        data-test-id="select-video-player"
-                    >
-                        @for (player of players; track player) {
-                            <mat-option
-                                [value]="player.id"
-                                [attr.data-test-id]="player.id"
-                                >{{ player.label }}
-                            </mat-option>
-                        }
-                    </mat-select>
-                </mat-form-field>
-            </div>
-        </div>
-        @if (settingsForm.value.player === 'mpv') {
-            <div class="row">
-                <div class="column">
-                    {{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}
-                    <p>
-                        {{ 'SETTINGS.MPV_PLAYER_PATH_DESCRIPTION' | translate }}
-                    </p>
-                </div>
-                <div class="column">
-                    <mat-form-field appearance="outline">
-                        <mat-label for="mpvPlayerPath">{{
-                            'SETTINGS.MPV_PLAYER_PATH' | translate
-                        }}</mat-label>
-                        <input
-                            matInput
-                            type="text"
-                            id="mpvPlayerPath"
-                            formControlName="mpvPlayerPath"
-                        />
-                    </mat-form-field>
-                </div>
-            </div>
-            <div class="row">
-                <div class="column">
-                    {{ 'SETTINGS.MPV_REUSE_INSTANCE_LABEL' | translate }}
-                    <p>
-                        {{
-                            'SETTINGS.MPV_REUSE_INSTANCE_DESCRIPTION'
-                                | translate
-                        }}
-                    </p>
-                </div>
-                <div class="column margin-right">
-                    <mat-checkbox
-                        class="column"
-                        formControlName="mpvReuseInstance"
-                    ></mat-checkbox>
-                </div>
-            </div>
-        }
-        @if (settingsForm.value.player === 'vlc') {
-            <div class="row">
-                <div class="column">
-                    {{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}
-                    <p>
-                        {{ 'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION' | translate }}
-                    </p>
-                </div>
-                <div class="column">
-                    <mat-form-field appearance="outline">
-                        <mat-label for="vlcPlayerPath">{{
-                            'SETTINGS.VLC_PLAYER_PATH' | translate
-                        }}</mat-label>
-                        <input
-                            matInput
-                            type="text"
-                            id="vlcPlayerPath"
-                            formControlName="vlcPlayerPath"
-                        />
-                    </mat-form-field>
-                </div>
-            </div>
-        }
-        <mat-divider />
-        <div class="row">
-            <div class="column">
-                {{ 'SETTINGS.STREAM_FORMAT' | translate }}
-                <p>{{ 'SETTINGS.STREAM_FORMAT_DESCRIPTION' | translate }}</p>
-            </div>
-            <div class="column">
-                <mat-form-field appearance="outline">
-                    <mat-label>{{
-                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-                    }}</mat-label>
-                    <mat-select
-                        formControlName="streamFormat"
-                        data-test-id="select-stream-format"
-                    >
-                        @for (
-                            streamFormat of streamFormatEnum | keyvalue;
-                            track streamFormat
-                        ) {
-                            <mat-option
-                                [value]="streamFormat.value"
-                                [attr.data-test-id]="streamFormat.value"
-                                >{{ streamFormat.value }}
-                            </mat-option>
-                        }
-                    </mat-select>
-                </mat-form-field>
-            </div>
-        </div>
-        <mat-divider />
-        <div class="row">
-            <div class="column">
-                {{ 'SETTINGS.LANGUAGE' | translate }}
-                <p>{{ 'SETTINGS.LANGUAGE_DESCRIPTION' | translate }}</p>
-            </div>
-            <div class="column">
-                <mat-form-field appearance="outline">
-                    <mat-label>{{
-                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-                    }}</mat-label>
-                    <mat-select
-                        formControlName="language"
-                        data-test-id="select-language"
-                    >
-                        @for (
-                            language of languageEnum | keyvalue;
-                            track language
-                        ) {
-                            <mat-option
-                                [value]="language.value"
-                                [attr.data-test-id]="language.value"
-                                >{{
-                                    'LANGUAGES.' + language.key | translate
-                                }}</mat-option
+
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.THEME' | translate }}</h4>
+                        <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field appearance="outline">
+                            <mat-label>{{
+                                'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                            }}</mat-label>
+                            <mat-select
+                                formControlName="theme"
+                                data-test-id="select-theme"
                             >
-                        }
-                    </mat-select>
-                </mat-form-field>
-            </div>
-        </div>
-        <mat-divider />
-        <div class="row">
-            <div class="column">
-                {{ 'SETTINGS.THEME' | translate }}
-                <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
-            </div>
-            <div class="column">
-                <mat-form-field appearance="outline">
-                    <mat-label>{{
-                        'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-                    }}</mat-label>
-                    <mat-select
-                        formControlName="theme"
-                        data-test-id="select-theme"
-                    >
-                        @for (theme of themeEnum | keyvalue; track theme) {
-                            <mat-option
-                                [value]="theme.value"
-                                [attr.data-test-id]="theme.value"
-                                >{{
-                                    'THEMES.' + theme.value | translate
-                                }}</mat-option
-                            >
-                        }
-                    </mat-select>
-                </mat-form-field>
-            </div>
-        </div>
-        <mat-divider />
-        <div class="row">
-            <div class="column">
-                {{ 'SETTINGS.SHOW_CAPTIONS' | translate }}
-                <p>{{ 'SETTINGS.SHOW_CAPTIONS_DESCRIPTION' | translate }}</p>
-            </div>
-            <div class="column margin-right">
-                <mat-checkbox
-                    class="column"
-                    formControlName="showCaptions"
-                ></mat-checkbox>
-            </div>
-        </div>
-        @if (isDesktop) {
-            <mat-divider />
-            <div class="row">
-                <div class="column">
-                    {{ 'SETTINGS.REMOTE_CONTROL' | translate }}
-                    <p>
-                        {{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}
-                    </p>
+                                @for (
+                                    theme of themeEnum | keyvalue;
+                                    track theme
+                                ) {
+                                    <mat-option
+                                        [value]="theme.value"
+                                        [attr.data-test-id]="theme.value"
+                                        >{{
+                                            'THEMES.' + theme.value | translate
+                                        }}</mat-option
+                                    >
+                                }
+                            </mat-select>
+                        </mat-form-field>
+                    </div>
                 </div>
-                <div class="column margin-right">
-                    <mat-checkbox
-                        class="column"
-                        formControlName="remoteControl"
-                    ></mat-checkbox>
-                </div>
-            </div>
-        }
-        @if (settingsForm.value.remoteControl === true) {
-            <mat-divider />
-            <div class="row">
-                <div class="column">
-                    {{ 'SETTINGS.REMOTE_CONTROL_PORT' | translate }}
-                    <p>
-                        {{
-                            'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION'
-                                | translate
-                        }}
-                    </p>
-                </div>
-                <div class="column margin-right">
-                    <mat-form-field appearance="outline">
-                        <mat-label>Port (1-65535)</mat-label>
-                        <input
-                            matInput
-                            type="number"
-                            id="remoteControlPort"
-                            formControlName="remoteControlPort"
-                            min="1"
-                            max="65535"
-                            step="1"
-                        />
-                        @if (settingsForm.get('remoteControlPort')?.hasError('required')) {
-                            <mat-error>{{ 'SETTINGS.PORT_REQUIRED' | translate }}</mat-error>
-                        }
-                        @if (settingsForm.get('remoteControlPort')?.hasError('min')) {
-                            <mat-error>{{ 'SETTINGS.PORT_MIN' | translate }}</mat-error>
-                        }
-                        @if (settingsForm.get('remoteControlPort')?.hasError('max')) {
-                            <mat-error>{{ 'SETTINGS.PORT_MAX' | translate }}</mat-error>
-                        }
-                        @if (settingsForm.get('remoteControlPort')?.hasError('pattern')) {
-                            <mat-error>{{ 'SETTINGS.PORT_PATTERN' | translate }}</mat-error>
-                        }
-                    </mat-form-field>
-                </div>
-            </div>
-            @if (localIpAddresses().length > 0) {
-                <mat-divider />
-                <div class="row">
-                    <div class="column">
-                        {{ 'SETTINGS.REMOTE_CONTROL_URL' | translate }}
+
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.SHOW_CAPTIONS' | translate }}</h4>
                         <p>
-                            {{ 'SETTINGS.REMOTE_CONTROL_URL_DESCRIPTION' | translate }}
+                            {{
+                                'SETTINGS.SHOW_CAPTIONS_DESCRIPTION' | translate
+                            }}
                         </p>
                     </div>
-                    <div class="column margin-right remote-control-urls">
-                        @for (ip of localIpAddresses(); track ip) {
-                            <div class="remote-control-url-item">
-                                <div class="url-row">
-                                    <a
-                                        [href]="'http://' + ip + ':' + settingsForm.value.remoteControlPort"
-                                        target="_blank"
-                                        class="remote-control-url"
-                                    >
-                                        http://{{ ip }}:{{ settingsForm.value.remoteControlPort }}
-                                    </a>
-                                    <button
-                                        mat-icon-button
-                                        type="button"
-                                        (click)="toggleQrCode(ip)"
-                                        [matTooltip]="'SETTINGS.SHOW_QR_CODE' | translate"
-                                    >
-                                        <mat-icon>qr_code_2</mat-icon>
-                                    </button>
-                                </div>
-                                @if (visibleQrCodeIp() === ip) {
-                                    <div class="qr-code-container">
-                                        <qrcode
-                                            [qrdata]="'http://' + ip + ':' + settingsForm.value.remoteControlPort"
-                                            [width]="150"
-                                            errorCorrectionLevel="M"
-                                        ></qrcode>
-                                    </div>
-                                }
-                            </div>
-                        }
+                    <div class="setting-item__control setting-item__toggle">
+                        <mat-checkbox
+                            formControlName="showCaptions"
+                        ></mat-checkbox>
                     </div>
                 </div>
+            </section>
+
+            <section class="settings-group" id="playback">
+                <header class="settings-group__header">
+                    <h3>{{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}</h3>
+                    <p>{{ 'SETTINGS.VIDEO_PLAYER_DESCRIPTION' | translate }}</p>
+                </header>
+
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}</h4>
+                        <p>
+                            {{
+                                'SETTINGS.VIDEO_PLAYER_DESCRIPTION' | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field appearance="outline">
+                            <mat-label>{{
+                                'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                            }}</mat-label>
+                            <mat-select
+                                formControlName="player"
+                                data-test-id="select-video-player"
+                            >
+                                @for (player of players; track player) {
+                                    <mat-option
+                                        [value]="player.id"
+                                        [attr.data-test-id]="player.id"
+                                        >{{ player.label }}
+                                    </mat-option>
+                                }
+                            </mat-select>
+                        </mat-form-field>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.STREAM_FORMAT' | translate }}</h4>
+                        <p>
+                            {{
+                                'SETTINGS.STREAM_FORMAT_DESCRIPTION' | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field appearance="outline">
+                            <mat-label>{{
+                                'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
+                            }}</mat-label>
+                            <mat-select
+                                formControlName="streamFormat"
+                                data-test-id="select-stream-format"
+                            >
+                                @for (
+                                    streamFormat of streamFormatEnum | keyvalue;
+                                    track streamFormat
+                                ) {
+                                    <mat-option
+                                        [value]="streamFormat.value"
+                                        [attr.data-test-id]="streamFormat.value"
+                                        >{{ streamFormat.value }}
+                                    </mat-option>
+                                }
+                            </mat-select>
+                        </mat-form-field>
+                    </div>
+                </div>
+
+                @if (settingsForm.value.player === 'mpv') {
+                    <div class="setting-item">
+                        <div class="setting-item__meta">
+                            <h4>
+                                {{
+                                    'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate
+                                }}
+                            </h4>
+                            <p>
+                                {{
+                                    'SETTINGS.MPV_PLAYER_PATH_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control">
+                            <mat-form-field appearance="outline">
+                                <mat-label for="mpvPlayerPath">{{
+                                    'SETTINGS.MPV_PLAYER_PATH' | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    type="text"
+                                    id="mpvPlayerPath"
+                                    formControlName="mpvPlayerPath"
+                                />
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-item__meta">
+                            <h4>
+                                {{
+                                    'SETTINGS.MPV_REUSE_INSTANCE_LABEL'
+                                        | translate
+                                }}
+                            </h4>
+                            <p>
+                                {{
+                                    'SETTINGS.MPV_REUSE_INSTANCE_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control setting-item__toggle">
+                            <mat-checkbox
+                                formControlName="mpvReuseInstance"
+                            ></mat-checkbox>
+                        </div>
+                    </div>
+                }
+
+                @if (settingsForm.value.player === 'vlc') {
+                    <div class="setting-item">
+                        <div class="setting-item__meta">
+                            <h4>
+                                {{
+                                    'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate
+                                }}
+                            </h4>
+                            <p>
+                                {{
+                                    'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control">
+                            <mat-form-field appearance="outline">
+                                <mat-label for="vlcPlayerPath">{{
+                                    'SETTINGS.VLC_PLAYER_PATH' | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    type="text"
+                                    id="vlcPlayerPath"
+                                    formControlName="vlcPlayerPath"
+                                />
+                            </mat-form-field>
+                        </div>
+                    </div>
+                }
+            </section>
+
+            @if (isDesktop) {
+                <section class="settings-group" id="epg">
+                    <header class="settings-group__header">
+                        <h3>{{ 'SETTINGS.EPG_URL_LABEL' | translate }}</h3>
+                        <p>Add single or multiple URLs as EPG sources</p>
+                    </header>
+
+                    <div class="setting-item setting-item--full-control">
+                        <div class="setting-item__control">
+                            <ng-container formArrayName="epgUrl">
+                                <div class="epg-sources">
+                                    @for (
+                                        _ of epgUrl.controls;
+                                        track _;
+                                        let i = $index
+                                    ) {
+                                        <div class="epg-source-row">
+                                            <mat-form-field
+                                                appearance="outline"
+                                                class="full-width"
+                                            >
+                                                <mat-label>{{
+                                                    'SETTINGS.EPG_URL_PLACEHOLDER'
+                                                        | translate
+                                                }}</mat-label>
+                                                <input
+                                                    matInput
+                                                    type="url"
+                                                    [formControlName]="i"
+                                                    #epgField
+                                                />
+                                                <mat-error>{{
+                                                    'SETTINGS.EPG_URL_ERROR'
+                                                        | translate
+                                                }}</mat-error>
+                                            </mat-form-field>
+                                            <button
+                                                mat-icon-button
+                                                color="accent"
+                                                [matTooltip]="
+                                                    'SETTINGS.REFRESH_EPG'
+                                                        | translate
+                                                "
+                                                type="button"
+                                                [disabled]="
+                                                    epgField.value === ''
+                                                "
+                                                (click)="
+                                                    refreshEpg(epgUrl.value[i])
+                                                "
+                                            >
+                                                <mat-icon>refresh</mat-icon>
+                                            </button>
+                                            <button
+                                                mat-icon-button
+                                                color="accent"
+                                                [matTooltip]="
+                                                    'SETTINGS.REFRESH_EPG'
+                                                        | translate
+                                                "
+                                                type="button"
+                                                (click)="removeEpgSource(i)"
+                                            >
+                                                <mat-icon>remove</mat-icon>
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            </ng-container>
+                        </div>
+                    </div>
+
+                    <footer class="settings-group__footer">
+                        <div class="inline-actions">
+                            <button
+                                mat-button
+                                color="accent"
+                                type="button"
+                                (click)="addEpgSource()"
+                            >
+                                {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
+                            </button>
+                            <button
+                                mat-button
+                                color="warn"
+                                type="button"
+                                (click)="clearEpgData()"
+                            >
+                                {{ 'SETTINGS.CLEAR_EPG_DATA' | translate }}
+                            </button>
+                        </div>
+                    </footer>
+                </section>
             }
-        }
-        <mat-divider />
-        <div class="row">
-            <div class="column">
-                {{ 'SETTINGS.VERSION' | translate }}
-                <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
-            </div>
-            <div class="column">
-                {{ version }} <br />
-                {{ updateMessage }}
-            </div>
-        </div>
-        <mat-divider />
-        <div class="row">
-            <div class="column">
-                {{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}
-                <p>
-                    {{ 'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION' | translate }}
-                </p>
-            </div>
-            <div class="column">
+
+            @if (isDesktop) {
+                <section class="settings-group" id="remote-control">
+                    <header class="settings-group__header">
+                        <h3>{{ 'SETTINGS.REMOTE_CONTROL' | translate }}</h3>
+                        <p>
+                            {{
+                                'SETTINGS.REMOTE_CONTROL_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </header>
+
+                    <div class="setting-item">
+                        <div class="setting-item__meta">
+                            <h4>{{ 'SETTINGS.REMOTE_CONTROL' | translate }}</h4>
+                            <p>
+                                {{
+                                    'SETTINGS.REMOTE_CONTROL_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control setting-item__toggle">
+                            <mat-checkbox
+                                formControlName="remoteControl"
+                            ></mat-checkbox>
+                        </div>
+                    </div>
+
+                    @if (settingsForm.value.remoteControl === true) {
+                        <div class="setting-item">
+                            <div class="setting-item__meta">
+                                <h4>
+                                    {{
+                                        'SETTINGS.REMOTE_CONTROL_PORT'
+                                            | translate
+                                    }}
+                                </h4>
+                                <p>
+                                    {{
+                                        'SETTINGS.REMOTE_CONTROL_PORT_DESCRIPTION'
+                                            | translate
+                                    }}
+                                </p>
+                            </div>
+                            <div class="setting-item__control">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Port (1-65535)</mat-label>
+                                    <input
+                                        matInput
+                                        type="number"
+                                        id="remoteControlPort"
+                                        formControlName="remoteControlPort"
+                                        min="1"
+                                        max="65535"
+                                        step="1"
+                                    />
+                                    @if (
+                                        settingsForm
+                                            .get('remoteControlPort')
+                                            ?.hasError('required')
+                                    ) {
+                                        <mat-error>{{
+                                            'SETTINGS.PORT_REQUIRED' | translate
+                                        }}</mat-error>
+                                    }
+                                    @if (
+                                        settingsForm
+                                            .get('remoteControlPort')
+                                            ?.hasError('min')
+                                    ) {
+                                        <mat-error>{{
+                                            'SETTINGS.PORT_MIN' | translate
+                                        }}</mat-error>
+                                    }
+                                    @if (
+                                        settingsForm
+                                            .get('remoteControlPort')
+                                            ?.hasError('max')
+                                    ) {
+                                        <mat-error>{{
+                                            'SETTINGS.PORT_MAX' | translate
+                                        }}</mat-error>
+                                    }
+                                    @if (
+                                        settingsForm
+                                            .get('remoteControlPort')
+                                            ?.hasError('pattern')
+                                    ) {
+                                        <mat-error>{{
+                                            'SETTINGS.PORT_PATTERN' | translate
+                                        }}</mat-error>
+                                    }
+                                </mat-form-field>
+                            </div>
+                        </div>
+
+                        @if (localIpAddresses().length > 0) {
+                            <div class="setting-item">
+                                <div class="setting-item__meta">
+                                    <h4>
+                                        {{
+                                            'SETTINGS.REMOTE_CONTROL_URL'
+                                                | translate
+                                        }}
+                                    </h4>
+                                    <p>
+                                        {{
+                                            'SETTINGS.REMOTE_CONTROL_URL_DESCRIPTION'
+                                                | translate
+                                        }}
+                                    </p>
+                                </div>
+                                <div
+                                    class="setting-item__control remote-control-urls"
+                                >
+                                    @for (ip of localIpAddresses(); track ip) {
+                                        <div class="remote-control-url-item">
+                                            <div class="url-row">
+                                                <a
+                                                    [href]="
+                                                        'http://' +
+                                                        ip +
+                                                        ':' +
+                                                        settingsForm.value
+                                                            .remoteControlPort
+                                                    "
+                                                    target="_blank"
+                                                    class="remote-control-url"
+                                                >
+                                                    http://{{ ip }}:{{
+                                                        settingsForm.value
+                                                            .remoteControlPort
+                                                    }}
+                                                </a>
+                                                <button
+                                                    mat-icon-button
+                                                    type="button"
+                                                    (click)="toggleQrCode(ip)"
+                                                    [matTooltip]="
+                                                        'SETTINGS.SHOW_QR_CODE'
+                                                            | translate
+                                                    "
+                                                >
+                                                    <mat-icon
+                                                        >qr_code_2</mat-icon
+                                                    >
+                                                </button>
+                                            </div>
+                                            @if (visibleQrCodeIp() === ip) {
+                                                <div class="qr-code-container">
+                                                    <qrcode
+                                                        [qrdata]="
+                                                            'http://' +
+                                                            ip +
+                                                            ':' +
+                                                            settingsForm.value
+                                                                .remoteControlPort
+                                                        "
+                                                        [width]="150"
+                                                        errorCorrectionLevel="M"
+                                                    ></qrcode>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </section>
+            }
+
+            <section class="settings-group" id="data">
+                <header class="settings-group__header">
+                    <h3>{{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}</h3>
+                    <p>
+                        {{
+                            'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </header>
+
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}</h4>
+                        <p>
+                            {{
+                                'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control inline-actions">
+                        <button
+                            mat-button
+                            (click)="
+                                $event.preventDefault();
+                                $event.stopPropagation();
+                                importData()
+                            "
+                        >
+                            {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                        </button>
+                        <button
+                            mat-button
+                            (click)="
+                                $event.preventDefault();
+                                $event.stopPropagation();
+                                exportData()
+                            "
+                        >
+                            {{ 'SETTINGS.EXPORT_DATA' | translate }}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="setting-item danger-zone">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.REMOVE_ALL' | translate }}</h4>
+                        <p>
+                            {{ 'SETTINGS.REMOVE_ALL_DESCRIPTION' | translate }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <button
+                            mat-button
+                            (click)="
+                                $event.preventDefault();
+                                $event.stopPropagation();
+                                removeAll()
+                            "
+                            color="warn"
+                        >
+                            {{ 'SETTINGS.REMOVE_ALL_BUTTON' | translate }}
+                        </button>
+                    </div>
+                </div>
+
+                @if (isPwa) {
+                    <div class="settings-note">
+                        {{ 'SETTINGS.EPG_NOTE' | translate }}
+                        &nbsp;<a
+                            href="https://github.com/4gray/iptvnator/releases"
+                            target="_blank"
+                            rel="noreferrer"
+                            >{{ 'SETTINGS.EPG_NOTE_URL_TEXT' | translate }}</a
+                        >
+                    </div>
+                }
+            </section>
+
+            <section class="settings-group" id="about">
+                <header class="settings-group__header">
+                    <h3>{{ 'SETTINGS.VERSION' | translate }}</h3>
+                    <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
+                </header>
+
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.VERSION' | translate }}</h4>
+                        <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
+                    </div>
+                    <div class="setting-item__control version-block">
+                        <span>{{ version }}</span>
+                        <small>{{ updateMessage }}</small>
+                    </div>
+                </div>
+            </section>
+
+            <div class="action-bar">
                 <button
                     mat-button
-                    (click)="
-                        $event.preventDefault();
-                        $event.stopPropagation();
-                        importData()
-                    "
+                    type="button"
+                    color="accent"
+                    (click)="backToHome()"
+                    data-test-id="back-to-home"
                 >
-                    {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                    <mat-icon>{{
+                        isDialog ? 'close' : 'chevron_left'
+                    }}</mat-icon>
+                    {{
+                        (isDialog ? 'CLOSE' : 'SETTINGS.BACK_TO_HOME')
+                            | translate
+                    }}
                 </button>
                 <button
-                    mat-button
-                    (click)="
-                        $event.preventDefault();
-                        $event.stopPropagation();
-                        exportData()
-                    "
+                    mat-flat-button
+                    color="accent"
+                    type="submit"
+                    [disabled]="settingsForm.pristine || !settingsForm.valid"
+                    data-test-id="save-settings"
                 >
-                    {{ 'SETTINGS.EXPORT_DATA' | translate }}
+                    <mat-icon>save</mat-icon>
+                    {{ 'SETTINGS.SAVE_CHANGES' | translate }}
                 </button>
             </div>
-        </div>
-
-        <div class="row">
-            <div class="column">
-                {{ 'SETTINGS.REMOVE_ALL' | translate }}
-                <p>
-                    {{ 'SETTINGS.REMOVE_ALL_DESCRIPTION' | translate }}
-                </p>
-            </div>
-            <div class="column">
-                <button
-                    mat-button
-                    (click)="
-                        $event.preventDefault();
-                        $event.stopPropagation();
-                        removeAll()
-                    "
-                    color="warn"
-                >
-                    {{ 'SETTINGS.REMOVE_ALL_BUTTON' | translate }}
-                </button>
-            </div>
-        </div>
-
-        @if (isPwa) {
-            <div class="row">
-                {{ 'SETTINGS.EPG_NOTE' | translate }}
-                &nbsp;<a href="https://github.com/4gray/iptvnator/releases">{{
-                    'SETTINGS.EPG_NOTE_URL_TEXT' | translate
-                }}</a>
-            </div>
-        }
-
-        <mat-divider />
-        <div class="action-buttons" align="end">
-            <button
-                mat-button
-                color="accent"
-                type="reset"
-                (click)="backToHome()"
-                data-test-id="back-to-home"
-            >
-                <mat-icon>chevron_left</mat-icon>
-                {{ 'SETTINGS.BACK_TO_HOME' | translate }}
-            </button>
-            <button
-                mat-button
-                color="accent"
-                type="submit"
-                [disabled]="settingsForm.pristine || !settingsForm.valid"
-                data-test-id="save-settings"
-            >
-                <mat-icon>save</mat-icon>
-                {{ 'SETTINGS.SAVE_CHANGES' | translate }}
-            </button>
         </div>
     </form>
 </div>

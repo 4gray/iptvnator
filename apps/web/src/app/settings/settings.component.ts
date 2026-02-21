@@ -49,6 +49,13 @@ import { SettingsStore } from '../services/settings-store.service';
 import { HeaderComponent } from '../shared/components/header/header.component';
 import { SettingsService } from './../services/settings.service';
 
+interface SettingsSection {
+    id: string;
+    label: string;
+    icon: string;
+    visible: boolean;
+}
+
 @Component({
     templateUrl: './settings.component.html',
     styleUrls: ['./settings.component.scss'],
@@ -93,6 +100,8 @@ export class SettingsComponent implements OnInit {
     readonly isDesktop = !!window.electron;
 
     isPwa = this.dataService.getAppEnvironment() === 'pwa';
+
+    activeSection = signal('general');
 
     readonly osPlayers = [
         {
@@ -168,10 +177,53 @@ export class SettingsComponent implements OnInit {
 
     private settingsStore = inject(SettingsStore);
 
+    readonly sectionNavItems: SettingsSection[] = [
+        {
+            id: 'general',
+            label: 'SETTINGS.TITLE',
+            icon: 'tune',
+            visible: true,
+        },
+        {
+            id: 'playback',
+            label: 'SETTINGS.VIDEO_PLAYER_LABEL',
+            icon: 'play_circle',
+            visible: true,
+        },
+        {
+            id: 'epg',
+            label: 'SETTINGS.EPG_URL_LABEL',
+            icon: 'calendar_month',
+            visible: this.isDesktop,
+        },
+        {
+            id: 'remote-control',
+            label: 'SETTINGS.REMOTE_CONTROL',
+            icon: 'smartphone',
+            visible: this.isDesktop,
+        },
+        {
+            id: 'data',
+            label: 'SETTINGS.IMPORT_EXPORT_DATA',
+            icon: 'swap_horiz',
+            visible: true,
+        },
+        {
+            id: 'about',
+            label: 'SETTINGS.VERSION',
+            icon: 'info',
+            visible: true,
+        },
+    ];
+
     constructor(
         @Optional() @Inject(MAT_DIALOG_DATA) data?: { isDialog: boolean }
     ) {
         this.isDialog = data?.isDialog ?? false;
+    }
+
+    get sectionNav(): SettingsSection[] {
+        return this.sectionNavItems.filter((section) => section.visible);
     }
 
     /**
@@ -205,6 +257,13 @@ export class SettingsComponent implements OnInit {
         } else {
             this.visibleQrCodeIp.set(ip);
         }
+    }
+
+    scrollToSection(sectionId: string): void {
+        this.activeSection.set(sectionId);
+        document
+            .getElementById(sectionId)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     /**

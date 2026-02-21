@@ -163,8 +163,9 @@ export class NavigationBarComponent implements OnChanges {
 
     openSettings(): void {
         this.dialog.open(SettingsComponent, {
-            width: '1000px',
-            height: '90%',
+            width: '1200px',
+            maxWidth: '96vw',
+            maxHeight: '92vh',
             data: { isDialog: true },
         });
     }
