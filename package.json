@@ -1,6 +1,6 @@
 {
     "name": "iptvnator",
-    "version": "0.19.0",
+    "version": "0.20.0",
     "license": "MIT",
     "description": "IPTV player application.",
     "homepage": "https://github.com/4gray/iptvnator",
@@ -107,6 +107,7 @@
         "@astrojs/tailwind": "6.0.2",
         "@eslint/eslintrc": "3.3.1",
         "@eslint/js": "^9.38.0",
+        "@faker-js/faker": "10.3.0",
         "@ngrx/eslint-plugin": "^21.0.1",
         "@ngx-translate/core": "16.0.4",
         "@ngx-translate/http-loader": "16.0.1",
@@ -129,6 +130,8 @@
         "@swc/helpers": "0.5.18",
         "@tailwindcss/typography": "0.5.19",
         "@types/better-sqlite3": "^7.6.12",
+        "@types/cors": "2.8.19",
+        "@types/express": "5.0.6",
         "@types/jest": "^30.0.0",
         "@types/lodash": "4.17.20",
         "@types/mocha": "9.0.0",
@@ -141,6 +144,7 @@
         "angular-eslint": "20.5.2",
         "astro": "5.17.2",
         "conventional-changelog-cli": "5.0.0",
+        "cors": "2.8.6",
         "drizzle-kit": "0.31.5",
         "electron": "^39.0.0",
         "electron-builder": "^26.0.12",
@@ -150,6 +154,7 @@
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-import": "2.32.0",
         "eslint-plugin-playwright": "^1.6.2",
+        "express": "5.2.1",
         "globals": "15.9.0",
         "jest": "^30.0.2",
         "jest-environment-jsdom": "^30.0.2",
@@ -167,6 +172,7 @@
         "ts-jest": "^29.4.5",
         "ts-node": "10.9.2",
         "tslib": "^2.8.1",
+        "tsx": "4.21.0",
         "typescript": "5.9.3",
         "typescript-eslint": "^8.46.2"
     }
