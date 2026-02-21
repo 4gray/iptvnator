@@ -176,6 +176,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.store.dispatch(ChannelActions.resetActiveChannel());
         this.store.dispatch(ChannelActions.setChannels({ channels: [] }));
 
         if (this.epgRefreshInterval) {

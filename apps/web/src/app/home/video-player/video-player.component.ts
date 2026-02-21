@@ -93,9 +93,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly store = inject(Store);
 
     /** Active selected channel */
-    readonly activeChannel$ = this.store
-        .select(selectActive)
-        .pipe(filter((channel) => Boolean((channel as Channel)?.url)));
+    readonly activeChannel$ = this.store.select(selectActive);
 
     /** Channels list */
     channels$!: Observable<Channel[]>;
@@ -179,6 +177,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             combineLatestWith(this.activatedRoute.queryParams),
             switchMap(([params, queryParams]) => {
                 if (params['id']) {
+                    this.store.dispatch(ChannelActions.resetActiveChannel());
                     this.store.dispatch(
                         PlaylistActions.setActivePlaylist({
                             playlistId: params['id'],
@@ -402,8 +401,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     openSettings() {
         this.dialog.open(SettingsComponent, {
-            width: '1000px',
-            height: '90%',
+            width: '1200px',
+            maxWidth: '96vw',
+            maxHeight: '92vh',
             data: { isDialog: true },
         });
     }

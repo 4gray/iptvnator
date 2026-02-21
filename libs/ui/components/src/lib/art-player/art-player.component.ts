@@ -111,6 +111,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                         this.hls = new Hls();
                         this.hls.loadSource(url);
                         this.hls.attachMedia(video);
+                        this.setupHlsAudioTracks();
                     } else if (
                         video.canPlayType('application/vnd.apple.mpegurl')
                     ) {
@@ -119,10 +120,8 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                 },
                 mkv: function (video: HTMLVideoElement, url: string) {
                     video.src = url;
-                    // Add error handling
                     video.onerror = () => {
                         console.error('Error loading MKV file:', video.error);
-                        // Fallback to treating it as a regular video
                         video.src = url;
                     };
                 },
@@ -143,11 +142,49 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         });
     }
 
+    /**
+     * Listens for HLS.js audio tracks and adds a settings menu entry
+     * to ArtPlayer for switching between available audio tracks.
+     */
+    private setupHlsAudioTracks(): void {
+        if (!this.hls) return;
+
+        const hls = this.hls;
+
+        hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => {
+            const tracks = hls.audioTracks;
+            if (!tracks || tracks.length <= 1) return;
+
+            this.player.setting.add({
+                html: 'Audio',
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="white">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>`,
+                width: 220,
+                tooltip: tracks[hls.audioTrack]?.name || '',
+                selector: tracks.map((track, index) => ({
+                    html: track.name || track.lang || `Track ${index + 1}`,
+                    default: index === hls.audioTrack,
+                })),
+                onSelect: function (this: Artplayer, item: any) {
+                    const selectedIndex = tracks.findIndex(
+                        (t, i) =>
+                            (t.name || t.lang || `Track ${i + 1}`) === item.html
+                    );
+                    if (selectedIndex >= 0) {
+                        hls.audioTrack = selectedIndex;
+                    }
+                    return item.html;
+                },
+            } as any);
+        });
+    }
+
     private getVideoType(url: string): string {
         const extension = url.split('.').pop()?.toLowerCase();
         switch (extension) {
             case 'mkv':
-                return 'video/matroska'; // Changed from 'mkv'
+                return 'video/matroska';
             case 'm3u8':
                 return 'm3u8';
             case 'mp4':

@@ -13,6 +13,9 @@
     }
 }
 
+.video-js .vjs-menu-button-popup .vjs-menu {
+    z-index: 10;
+}
 
 @media only screen and (max-width: 599px) {
     .video-js {
