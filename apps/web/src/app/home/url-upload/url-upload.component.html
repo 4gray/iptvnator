@@ -1,5 +1,5 @@
 <form (ngSubmit)="urlAdded.emit(form.value.playlistUrl)" [formGroup]="form">
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <input
             type="url"
             matInput
@@ -8,9 +8,9 @@
         />
     </mat-form-field>
     @if (!isDesktop) {
-    <p>
-        {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
-    </p>
+        <p>
+            {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
+        </p>
     }
     <button
         class="add-button"

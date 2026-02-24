@@ -1,11 +1,11 @@
 <form [formGroup]="form">
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="title">{{
             'HOME.STALKER_PORTAL.TITLE' | translate
         }}</mat-label>
         <input matInput type="text" id="title" formControlName="title" />
     </mat-form-field>
-    <mat-form-field class="full-width" subscriptSizing="dynamic">
+    <mat-form-field class="w-full" subscriptSizing="dynamic">
         <mat-label for="portalUrl">{{
             'HOME.STALKER_PORTAL.SERVER_URL' | translate
         }}</mat-label>
@@ -20,7 +20,7 @@
         }}</mat-hint>
         <mat-error>{{ 'SETTINGS.EPG_URL_ERROR' | translate }}</mat-error>
     </mat-form-field>
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="macAddress">{{
             'HOME.STALKER_PORTAL.MAC_ADDRESS' | translate
         }}</mat-label>
@@ -31,7 +31,7 @@
             formControlName="macAddress"
         />
     </mat-form-field>
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="serialNumber">{{
             'HOME.STALKER_PORTAL.SERIAL_NUMBER' | translate
         }}</mat-label>
@@ -42,9 +42,11 @@
             formControlName="serialNumber"
             placeholder="Optional - auto-generated if empty"
         />
-        <mat-hint>{{ 'HOME.STALKER_PORTAL.SERIAL_NUMBER_HINT' | translate }}</mat-hint>
+        <mat-hint>{{
+            'HOME.STALKER_PORTAL.SERIAL_NUMBER_HINT' | translate
+        }}</mat-hint>
     </mat-form-field>
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="deviceId1">{{
             'HOME.STALKER_PORTAL.DEVICE_ID_1' | translate
         }}</mat-label>
@@ -55,9 +57,11 @@
             formControlName="deviceId1"
             placeholder="Optional - auto-generated if empty"
         />
-        <mat-hint>{{ 'HOME.STALKER_PORTAL.DEVICE_ID_HINT' | translate }}</mat-hint>
+        <mat-hint>{{
+            'HOME.STALKER_PORTAL.DEVICE_ID_HINT' | translate
+        }}</mat-hint>
     </mat-form-field>
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="deviceId2">{{
             'HOME.STALKER_PORTAL.DEVICE_ID_2' | translate
         }}</mat-label>
@@ -68,9 +72,11 @@
             formControlName="deviceId2"
             placeholder="Optional - auto-generated if empty"
         />
-        <mat-hint>{{ 'HOME.STALKER_PORTAL.DEVICE_ID_HINT' | translate }}</mat-hint>
+        <mat-hint>{{
+            'HOME.STALKER_PORTAL.DEVICE_ID_HINT' | translate
+        }}</mat-hint>
     </mat-form-field>
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="signature1">{{
             'HOME.STALKER_PORTAL.SIGNATURE_1' | translate
         }}</mat-label>
@@ -81,9 +87,11 @@
             formControlName="signature1"
             placeholder="Optional"
         />
-        <mat-hint>{{ 'HOME.STALKER_PORTAL.SIGNATURE_HINT' | translate }}</mat-hint>
+        <mat-hint>{{
+            'HOME.STALKER_PORTAL.SIGNATURE_HINT' | translate
+        }}</mat-hint>
     </mat-form-field>
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="signature2">{{
             'HOME.STALKER_PORTAL.SIGNATURE_2' | translate
         }}</mat-label>
@@ -94,15 +102,17 @@
             formControlName="signature2"
             placeholder="Optional"
         />
-        <mat-hint>{{ 'HOME.STALKER_PORTAL.SIGNATURE_HINT' | translate }}</mat-hint>
+        <mat-hint>{{
+            'HOME.STALKER_PORTAL.SIGNATURE_HINT' | translate
+        }}</mat-hint>
     </mat-form-field>
-    <!-- <mat-form-field class="full-width">
+    <!-- <mat-form-field class="w-full">
         <mat-label for="username">{{
             'HOME.XTREAM_PLAYLIST.USERNAME' | translate
         }}</mat-label>
         <input matInput type="text" id="username" formControlName="username" />
     </mat-form-field>
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="password">{{
             'HOME.XTREAM_PLAYLIST.PASSWORD' | translate
         }}</mat-label>

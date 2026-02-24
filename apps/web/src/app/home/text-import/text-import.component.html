@@ -1,5 +1,5 @@
 <form (ngSubmit)="textAdded.emit(textForm.value.text)" [formGroup]="textForm">
-    <mat-form-field class="full-width" appearance="fill">
+    <mat-form-field class="w-full" appearance="fill">
         <mat-label>{{ 'HOME.TEXT_IMPORT.LABEL' | translate }}</mat-label>
         <textarea
             formControlName="text"
