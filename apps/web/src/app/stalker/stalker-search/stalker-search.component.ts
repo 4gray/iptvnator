@@ -1,4 +1,5 @@
 import { Component, effect, inject, resource, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { ActivatedRoute } from '@angular/router';
@@ -14,7 +15,7 @@ import {
 } from 'shared-interfaces';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
-import { VodDetailsComponent } from '../../xtream/vod-details/vod-details.component';
+import { VodDetailsComponent } from '../../xtream-electron/vod-details/vod-details.component';
 import { StalkerContentTypes } from '../stalker-content-types';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerStore } from '../stalker.store';
@@ -67,6 +68,8 @@ export class StalkerSearchComponent {
         series: false,
         vod: true,
     });
+    readonly isWorkspaceLayout =
+        this.activatedRoute.snapshot.data['layout'] === 'workspace';
 
     readonly filterConfig: StalkerFilter[] = [
         {
@@ -159,6 +162,15 @@ export class StalkerSearchComponent {
     readonly isSelectedVodFavorite = signal<boolean>(false);
 
     constructor() {
+        this.activatedRoute.queryParamMap
+            .pipe(takeUntilDestroyed())
+            .subscribe((queryParams) => {
+                const routeTerm = queryParams.get('q')?.trim() ?? '';
+                if (routeTerm !== this.searchTerm()) {
+                    this.searchTerm.set(routeTerm);
+                }
+            });
+
         effect(() => {
             // Re-evaluate favorite state whenever favorites resource changes.
             this.portalFavorites.value();

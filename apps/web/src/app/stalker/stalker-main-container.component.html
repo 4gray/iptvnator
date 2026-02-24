@@ -1,45 +1,49 @@
-<div
-    class="sidebar"
-    appResizable
-    [minWidth]="250"
-    [maxWidth]="600"
-    [defaultWidth]="400"
-    storageKey="sidebar-width"
->
-    <div class="sidebar-header">
-        <app-playlist-switcher
-            class="switcher"
-            [currentTitle]="currentPlaylist()?.title || 'Portal'"
-            [subtitle]="'Stalker Portal'"
-        />
+@if (!isWorkspaceLayout) {
+    <div
+        class="sidebar"
+        appResizable
+        [minWidth]="250"
+        [maxWidth]="600"
+        [defaultWidth]="400"
+        storageKey="sidebar-width"
+    >
+        @if (!isWorkspaceLayout) {
+            <div class="sidebar-header">
+                <app-playlist-switcher
+                    class="switcher"
+                    [currentTitle]="currentPlaylist()?.title || 'Portal'"
+                    [subtitle]="'Stalker Portal'"
+                />
+            </div>
+        }
+        @if (isCategoryLoading()) {
+            <ngx-skeleton-loader
+                count="20"
+                [theme]="{
+                    width: '95%',
+                    height: '48px',
+                    borderRadius: '40px',
+                }"
+            />
+        } @else if (isCategoryFailed()) {
+            <app-playlist-error-view
+                [title]="'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE' | translate"
+                [description]="
+                    'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION' | translate
+                "
+            />
+        } @else {
+            <app-category-view
+                [items]="categories()"
+                [selectedCategoryId]="$any(stalkerStore.selectedCategoryId())"
+                (categoryClicked)="categoryClicked($event)"
+            />
+        }
     </div>
-    @if (isCategoryLoading()) {
-        <ngx-skeleton-loader
-            count="20"
-            [theme]="{
-                width: '95%',
-                height: '48px',
-                borderRadius: '40px',
-            }"
-        />
-    } @else if (isCategoryFailed()) {
-        <app-playlist-error-view
-            [title]="'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE' | translate"
-            [description]="
-                'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION' | translate
-            "
-        />
-    } @else {
-        <app-category-view
-            [items]="categories()"
-            [selectedCategoryId]="$any(stalkerStore.selectedCategoryId())"
-            (categoryClicked)="categoryClicked($event)"
-        />
-    }
-</div>
+}
 
 <div class="main-content">
-    @if (!stalkerStore.selectedItem()) {
+    @if (!isWorkspaceLayout && !stalkerStore.selectedItem()) {
         <div class="content-header">
             <h2>
                 <button mat-icon-button disabled>
@@ -63,7 +67,7 @@
 
     <div
         class="scrollable-content"
-        [class.no-header]="stalkerStore.selectedItem()"
+        [class.no-header]="isWorkspaceLayout || stalkerStore.selectedItem()"
     >
         <router-outlet />
     </div>

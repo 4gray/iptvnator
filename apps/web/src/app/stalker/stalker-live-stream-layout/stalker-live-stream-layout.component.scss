@@ -12,7 +12,7 @@
     width: 400px;
     min-width: 250px;
     max-width: 600px;
-    border-right: 1px solid #111;
+    border-right: 1px solid var(--mat-sys-outline-variant);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -110,18 +110,18 @@
     overflow: hidden;
 
     &:hover {
-        background-color: rgba(255, 255, 255, 0.1);
+        background-color: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent);
 
         .title {
-            color: #1db954;
+            color: var(--mat-sys-primary);
         }
     }
 
     &.active {
-        background-color: rgba(29, 185, 84, 0.2);
+        background-color: color-mix(in srgb, var(--mat-sys-primary) 16%, transparent);
 
         .title {
-            color: #1db954;
+            color: var(--mat-sys-primary);
         }
     }
 }
@@ -132,7 +132,7 @@
     border-radius: 4px;
     object-fit: cover;
     flex-shrink: 0;
-    background: rgba(255, 255, 255, 0.05);
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 5%, transparent);
 }
 
 .channel-info {
@@ -174,14 +174,14 @@
         .progress-bar {
             flex: 1;
             height: 3px;
-            background: rgba(255, 255, 255, 0.1);
+            background: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
             border-radius: 2px;
             overflow: hidden;
             min-width: 20px;
 
             .progress {
                 height: 100%;
-                background: #1db954;
+                background: var(--mat-sys-primary);
                 transition: width 1s linear;
             }
         }

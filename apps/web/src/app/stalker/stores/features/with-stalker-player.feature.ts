@@ -5,13 +5,38 @@ import { TranslateService } from '@ngx-translate/core';
 import { DataService, PlaylistsService, StalkerSessionService } from 'services';
 import { Playlist, STALKER_REQUEST, StalkerPortalActions } from 'shared-interfaces';
 import { PlayerService } from '../../../services/player.service';
-import { ContentType } from '../../../xtream/content-type.enum';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import {
     normalizeStalkerEntityId,
     normalizeStalkerEntityIdAsNumber,
 } from '../../stalker-vod.utils';
 import { createLogger } from '../../../shared/utils/logger';
+
+type StalkerContentType = 'itv' | 'vod' | 'series';
+
+interface StalkerPlayableItem extends Record<string, unknown> {
+    id?: string | number;
+    cmd?: string;
+    has_files?: unknown;
+}
+
+interface StalkerPlayerStoreLike {
+    selectedContentType: () => StalkerContentType;
+    currentPlaylist: () => Playlist | null;
+    selectedItem: () => StalkerPlayableItem | null;
+    addToRecentlyViewed?: (item: Record<string, unknown>) => void;
+}
+
+interface StalkerResponse {
+    js?: {
+        error?: string;
+        cmd?: string;
+        data?: Array<{ id?: string | number }>;
+        account_info?: {
+            expire_date?: string | number;
+        };
+    };
+}
 
 /**
  * Playback/link/player concern methods.
@@ -29,24 +54,22 @@ export function withStalkerPlayer() {
                 snackBar = inject(MatSnackBar),
                 translate = inject(TranslateService)
             ) => {
-                const storeAny = store as any;
+                const storeState = store as unknown as StalkerPlayerStoreLike;
                 const fetchLinkToPlayInternal = async (
                     portalUrl: string,
                     macAddress: string,
                     cmd: string,
                     series?: number
                 ) => {
-                    const type = series
-                        ? ContentType.VODS
-                        : storeAny.selectedContentType();
+                    const selectedContentType =
+                        storeState.selectedContentType();
+                    const type = series ? 'vod' : selectedContentType;
 
                     // Always use create_link to get the tokenized streaming URL
                     // The server adds the required token for playback authorization
                     // Note: cmd is already transformed during item processing (has_files items)
                     const params = {
-                        action: StalkerContentTypes[
-                            storeAny.selectedContentType()
-                        ].getLink,
+                        action: StalkerContentTypes[selectedContentType].getLink,
                         cmd: cmd,
                         type,
                         disable_ad: '0',
@@ -56,8 +79,8 @@ export function withStalkerPlayer() {
                     };
 
                     // Use makeAuthenticatedRequest for automatic retry on auth failure
-                    const playlist = storeAny.currentPlaylist() as Playlist;
-                    let response: any;
+                    const playlist = storeState.currentPlaylist();
+                    let response: StalkerResponse;
                     if (playlist?.isFullStalkerPortal) {
                         // Full stalker portal - use authenticated request with retry
                         response = await stalkerSession.makeAuthenticatedRequest(
@@ -138,7 +161,7 @@ export function withStalkerPlayer() {
                 const fetchMovieFileIdInternal = async (
                     movieId: string
                 ): Promise<string | null> => {
-                    const playlist = storeAny.currentPlaylist() as Playlist;
+                    const playlist = storeState.currentPlaylist();
                     if (!playlist) return null;
 
                     const queryParams = {
@@ -148,7 +171,7 @@ export function withStalkerPlayer() {
                         p: '1',
                     };
 
-                    let response: any;
+                    let response: StalkerResponse;
                     if (playlist.isFullStalkerPortal) {
                         response = await stalkerSession.makeAuthenticatedRequest(
                             playlist,
@@ -175,23 +198,25 @@ export function withStalkerPlayer() {
                 };
 
                 const addToRecentlyViewedInternal = (
-                    item: any,
+                    item: StalkerPlayableItem,
                     cmd?: string,
                     cover?: string,
                     title?: string
                 ) => {
-                    const playlistId = storeAny.currentPlaylist()?._id;
+                    const playlistId = storeState.currentPlaylist()?._id;
                     if (!playlistId) return;
+                    const recentlyViewedItem: { id: string; title: string } &
+                        Record<string, unknown> = {
+                        ...item,
+                        id: normalizeStalkerEntityId(item?.id),
+                        cmd,
+                        cover,
+                        title,
+                        category_id: storeState.selectedContentType(),
+                        added_at: Date.now(),
+                    };
                     playlistService
-                        .addPortalRecentlyViewed(playlistId, {
-                            ...item,
-                            id: item?.id,
-                            cmd,
-                            cover,
-                            title,
-                            category_id: storeAny.selectedContentType(),
-                            added_at: Date.now(),
-                        })
+                        .addPortalRecentlyViewed(playlistId, recentlyViewedItem)
                         .subscribe();
                 };
 
@@ -218,8 +243,11 @@ export function withStalkerPlayer() {
 
                         try {
                             // Use makeAuthenticatedRequest for automatic retry on auth failure
-                            const playlist = storeAny.currentPlaylist() as Playlist;
-                            let response: any;
+                            const playlist = storeState.currentPlaylist();
+                            let response: StalkerResponse;
+                            if (!playlist) {
+                                return 'Unknown';
+                            }
                             if (playlist?.isFullStalkerPortal) {
                                 // Full stalker portal - use authenticated request with retry
                                 response =
@@ -247,10 +275,16 @@ export function withStalkerPlayer() {
                                 // Extract the expire date from the response
                                 const expireDate =
                                     response.js.account_info.expire_date;
+                                const numericExpireDate = Number(expireDate);
 
                                 // Convert timestamp to readable date if it's a unix timestamp
-                                if (expireDate && !isNaN(expireDate)) {
-                                    const date = new Date(expireDate * 1000); // Convert seconds to milliseconds
+                                if (
+                                    expireDate &&
+                                    !Number.isNaN(numericExpireDate)
+                                ) {
+                                    const date = new Date(
+                                        numericExpireDate * 1000
+                                    ); // Convert seconds to milliseconds
                                     return date.toLocaleDateString();
                                 }
 
@@ -291,7 +325,7 @@ export function withStalkerPlayer() {
                         startTime?: number
                     ) {
                         try {
-                            const item = storeAny.selectedItem();
+                            const item = storeState.selectedItem();
                             let cmdToUse = cmd ?? item?.cmd;
 
                             if (!cmdToUse) {
@@ -314,15 +348,21 @@ export function withStalkerPlayer() {
                                 }
                             }
 
-                            const playlist = storeAny.currentPlaylist();
+                            const playlist = storeState.currentPlaylist();
+                            if (!playlist) {
+                                throw new Error('nothing_to_play');
+                            }
                             const url = await fetchLinkToPlayInternal(
                                 playlist.portalUrl,
                                 playlist.macAddress,
                                 cmdToUse,
                                 episodeNum
                             );
-                            if (typeof storeAny.addToRecentlyViewed === 'function') {
-                                storeAny.addToRecentlyViewed({
+                            if (
+                                typeof storeState.addToRecentlyViewed ===
+                                'function'
+                            ) {
+                                storeState.addToRecentlyViewed({
                                     ...item,
                                     id: item?.id,
                                     cmd: cmd,

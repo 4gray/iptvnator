@@ -1,12 +1,16 @@
 import { Component, effect, inject, OnDestroy } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
+import {
+    ActivatedRoute,
+    NavigationEnd,
+    Router,
+    RouterOutlet,
+} from '@angular/router';
 import { Store } from '@ngrx/store';
 import { PlaylistActions, selectPlaylistById } from 'm3u-state';
 import { map, switchMap } from 'rxjs';
 import { createLogger } from '../../shared/utils/logger';
 import { NavigationComponent } from '../../xtream-electron/navigation/navigation.component';
-import { NavigationItem } from '../../xtream-electron/navigation/navigation.interface';
 import { XtreamStore } from '../../xtream-electron/stores/xtream.store';
 import { StalkerStore } from '../stalker.store';
 
@@ -23,24 +27,8 @@ export class StalkerShellComponent implements OnDestroy {
     private readonly router = inject(Router);
     readonly stalkerStore = inject(StalkerStore);
     private readonly store = inject(Store);
-
-    readonly mainNavigationItems: NavigationItem[] = [
-        {
-            id: 'vod',
-            icon: 'movie',
-            labelKey: 'PORTALS.SIDEBAR.MOVIES',
-        },
-        {
-            id: 'itv',
-            icon: 'live_tv',
-            labelKey: 'PORTALS.SIDEBAR.LIVE_TV',
-        },
-        {
-            id: 'series',
-            icon: 'tv',
-            labelKey: 'PORTALS.SIDEBAR.SERIES',
-        },
-    ];
+    readonly isWorkspaceLayout =
+        this.route.snapshot.data['layout'] === 'workspace';
 
     /** Current playlist derived from route params */
     readonly currentPlaylist = toSignal(
@@ -49,12 +37,16 @@ export class StalkerShellComponent implements OnDestroy {
             switchMap((id) => this.store.select(selectPlaylistById(id)))
         )
     );
+    private currentSection: string | null = null;
 
     constructor() {
         // Subscribe to route params to handle switching between playlists
         this.route.params.pipe(takeUntilDestroyed()).subscribe((params) => {
             const playlistId = params['id'];
 
+            this.store.dispatch(
+                PlaylistActions.setActivePlaylist({ playlistId })
+            );
             this.store.dispatch(
                 PlaylistActions.setCurrentPlaylistId({ playlistId })
             );
@@ -64,7 +56,7 @@ export class StalkerShellComponent implements OnDestroy {
             this.stalkerStore.setSelectedCategory(null);
 
             const childRoute = this.route.snapshot.firstChild;
-            const path = childRoute?.url[0]?.path;
+            const path = childRoute?.url?.[0]?.path;
             const validTypes = ['vod', 'series', 'itv'];
             const initialType = validTypes.includes(path)
                 ? (path as any)
@@ -72,25 +64,49 @@ export class StalkerShellComponent implements OnDestroy {
             this.stalkerStore.setSelectedContentType(initialType);
         });
 
+        this.router.events
+            .pipe(takeUntilDestroyed())
+            .subscribe((event) => {
+                if (event instanceof NavigationEnd) {
+                    this.syncSectionFromRoute();
+                }
+            });
+
+        this.syncSectionFromRoute();
+
         effect(() => {
             this.stalkerStore.setCurrentPlaylist(this.currentPlaylist());
         });
     }
 
-    setContentType(type: 'vod' | 'live' | 'series' | 'itv') {
-        if (type === 'live') type = 'itv';
-        this.stalkerStore.setSelectedContentType(type);
-        this.stalkerStore.setSelectedCategory(type === 'itv' ? null : '*');
-        this.router.navigate([type], {
-            relativeTo: this.route,
-        });
-    }
-
-    handlePageClick() {
-        this.stalkerStore.setSelectedContentType(null);
-    }
-
     ngOnDestroy() {
         this.stalkerStore.resetCategories();
+    }
+
+    private syncSectionFromRoute(): void {
+        const sectionFromSnapshot =
+            this.route.firstChild?.snapshot?.url?.[0]?.path ?? null;
+        const sectionFromUrl = this.getSectionFromUrl(this.router.url);
+        const section = sectionFromSnapshot ?? sectionFromUrl;
+
+        if (!section || section === this.currentSection) {
+            return;
+        }
+
+        this.currentSection = section;
+
+        if (section === 'vod' || section === 'series' || section === 'itv') {
+            this.stalkerStore.setSelectedContentType(section as any);
+            return;
+        }
+
+        this.stalkerStore.setSelectedContentType(null as any);
+    }
+
+    private getSectionFromUrl(url: string): string | null {
+        const match = url.match(
+            /^\/(?:workspace\/)?stalker\/[^\/\?]+\/([^\/\?]+)/
+        );
+        return match?.[1] ?? null;
     }
 }

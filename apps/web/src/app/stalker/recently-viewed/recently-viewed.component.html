@@ -37,12 +37,12 @@
         [titleTranslationString]="'PORTALS.SIDEBAR.RECENT'"
         [removeTooltip]="'Remove from recent'"
         [emptyIcon]="'history'"
-        [showHeaderAction]="true"
+        [showHeaderAction]="!isWorkspaceLayout"
         [headerActionIcon]="'delete_sweep'"
-        [headerActionTooltip]="'Clear all recently viewed'"
+        [headerActionTooltip]="'Clear recently viewed'"
         (categoryClicked)="setCategoryId($event.category_id)"
         (removeFavorite)="removeFromRecentlyViewed($event)"
-        (openItem)="openItem($event)"
         (headerActionClicked)="clearAllRecentlyViewed()"
+        (openItem)="openItem($event)"
     />
 }

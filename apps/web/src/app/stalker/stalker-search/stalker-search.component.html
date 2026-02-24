@@ -34,6 +34,7 @@
         [resultsCount]="resultsCount"
         [isLoading]="searchResultsResource.isLoading()"
         [showResultsCount]="true"
+        [showSearchInput]="!isWorkspaceLayout"
         (searchTermChange)="updateSearchTerm($event)"
     >
         <!-- Filters (single selection mode for stalker) -->

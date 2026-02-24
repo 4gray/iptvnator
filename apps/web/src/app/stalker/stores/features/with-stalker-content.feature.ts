@@ -135,13 +135,25 @@ export function withStalkerContent() {
                             .sort((a, b) =>
                                 a.category_name.localeCompare(b.category_name)
                             );
-                        if (
+
+                        // If the portal provides its own "All" category entry,
+                        // promote it to position 0. Otherwise add a synthetic one.
+                        const allIdx = categories.findIndex(
+                            (c) =>
+                                c.category_name.trim().toLowerCase() === 'all'
+                        );
+                        if (allIdx > 0) {
+                            // Move the existing 'All' entry to the front
+                            categories.unshift(categories.splice(allIdx, 1)[0]);
+                        } else if (
+                            allIdx === -1 &&
                             categories.length > 0 &&
                             !categories.some(
                                 (category) =>
                                     String(category.category_id) === '*'
                             )
                         ) {
+                            // No 'All' entry found — prepend synthetic one
                             categories.unshift({
                                 category_name: translateService.instant(
                                     'PORTALS.ALL_CATEGORIES'

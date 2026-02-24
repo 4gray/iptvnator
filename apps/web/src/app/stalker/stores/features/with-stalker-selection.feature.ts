@@ -1,10 +1,10 @@
+import { computed } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { computed } from '@angular/core';
 import { StalkerVodSource } from '../../models';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
 
@@ -45,9 +45,7 @@ export function withStalkerSelection() {
             setSelectedCategory(id: string | number | null) {
                 patchState(store, {
                     selectedCategoryId:
-                        id !== null && id !== undefined
-                            ? String(id)
-                            : null,
+                        id !== null && id !== undefined ? String(id) : null,
                     page: 0,
                 });
             },
@@ -71,8 +69,7 @@ export function withStalkerSelection() {
             },
             setSelectedItem(selectedItem: StalkerVodSource | null | undefined) {
                 const selectedIdRaw =
-                    selectedItem?.id !== undefined &&
-                    selectedItem?.id !== null
+                    selectedItem?.id !== undefined && selectedItem?.id !== null
                         ? selectedItem.id
                         : undefined;
                 const selectedId =
@@ -101,7 +98,7 @@ export function withStalkerSelection() {
                 if (!categoryId) {
                     return {
                         id: 0,
-                        name: 'All Items',
+                        category_name: 'All Items',
                         type: store.selectedContentType(),
                     };
                 }
@@ -110,7 +107,10 @@ export function withStalkerSelection() {
                 const contentType = store.selectedContentType();
                 let categories: any[] = [];
                 const readCategories = (
-                    getterName: 'vodCategories' | 'seriesCategories' | 'itvCategories'
+                    getterName:
+                        | 'vodCategories'
+                        | 'seriesCategories'
+                        | 'itvCategories'
                 ) =>
                     typeof storeAny[getterName] === 'function'
                         ? storeAny[getterName]()
@@ -125,9 +125,12 @@ export function withStalkerSelection() {
 
                 return (
                     categories.find(
-                        (c: any) =>
-                            String(c.category_id) === String(categoryId)
-                    ) || { id: categoryId, name: '', type: contentType }
+                        (c: any) => String(c.category_id) === String(categoryId)
+                    ) || {
+                        category_id: categoryId,
+                        category_name: '',
+                        type: contentType,
+                    }
                 );
             }),
         }))

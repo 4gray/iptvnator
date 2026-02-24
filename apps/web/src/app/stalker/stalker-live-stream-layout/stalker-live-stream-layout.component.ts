@@ -19,6 +19,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { PlaylistsService } from 'services';
@@ -31,7 +32,7 @@ import {
     getChannelItemByNumber,
 } from '../../shared/services/remote-channel-navigation.util';
 import { CategoryViewComponent } from '../../xtream-electron/category-view/category-view.component';
-import { PlaylistErrorViewComponent } from '../../xtream/playlist-error-view/playlist-error-view.component';
+import { PlaylistErrorViewComponent } from '../../xtream-electron/playlist-error-view/playlist-error-view.component';
 import { StalkerStore } from '../stalker.store';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { createLogger } from '../../shared/utils/logger';
@@ -72,6 +73,7 @@ import {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StalkerLiveStreamLayoutComponent implements OnDestroy {
+    private readonly route = inject(ActivatedRoute);
     readonly stalkerStore = inject(StalkerStore);
     private readonly settingsStore = inject(SettingsStore);
     private readonly playlistService = inject(PlaylistsService);
@@ -86,6 +88,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly isCategoryFailed = this.stalkerStore.isCategoryResourceFailed;
     readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
     readonly currentPlaylist = this.stalkerStore.currentPlaylist;
+    readonly isWorkspaceLayout =
+        this.route.snapshot.data['layout'] === 'workspace';
 
     /** Channels */
     readonly itvChannels = this.stalkerStore.itvChannels;
@@ -203,8 +207,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 channelName: selectedItem.o_name || selectedItem.name,
                 channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
                 epgTitle: currentProgram?.title,
-                epgStart: (currentProgram as any)?.start,
-                epgEnd: (currentProgram as any)?.end,
+                epgStart: currentProgram?.start,
+                epgEnd: currentProgram?.end,
                 supportsVolume: false,
             });
         });

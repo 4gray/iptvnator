@@ -7,7 +7,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { CategoryViewComponent } from '../xtream-electron/category-view/category-view.component';
-import { PlaylistErrorViewComponent } from '../xtream/playlist-error-view/playlist-error-view.component';
+import { PlaylistErrorViewComponent } from '../xtream-electron/playlist-error-view/playlist-error-view.component';
 import { StalkerStore } from './stalker.store';
 
 @Component({
@@ -32,8 +32,12 @@ import { StalkerStore } from './stalker.store';
     ],
 })
 export class StalkerMainContainerComponent {
+    private readonly route = inject(ActivatedRoute);
+    private readonly router = inject(Router);
     readonly stalkerStore = inject(StalkerStore);
     private readonly translateService = inject(TranslateService);
+    readonly isWorkspaceLayout =
+        this.route.snapshot.data['layout'] === 'workspace';
 
     currentLayout:
         | 'category_content'
@@ -53,10 +57,7 @@ export class StalkerMainContainerComponent {
     readonly contentItems = this.stalkerStore.getPaginatedContent;
     readonly isContentLoading = this.stalkerStore.isPaginatedContentLoading;
 
-    constructor(
-        private readonly activatedRoute: ActivatedRoute,
-        private readonly router: Router
-    ) {
+    constructor() {
         // reset category title after changing content type
         effect(() => {
             this.stalkerStore.selectedContentType();
@@ -70,7 +71,7 @@ export class StalkerMainContainerComponent {
         this.stalkerStore.setSelectedItem(undefined);
 
         this.router.navigate(['.', item.category_id], {
-            relativeTo: this.activatedRoute,
+            relativeTo: this.route,
         });
     }
 
