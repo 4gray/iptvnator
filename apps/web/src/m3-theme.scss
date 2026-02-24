@@ -1,39 +1,128 @@
 @use 'sass:map';
 @use '@angular/material' as mat;
-@use 'styles' ;
+@use 'styles';
 
 @include mat.elevation-classes();
 @include mat.app-background();
 
-$my-typography: mat.m2-define-typography-config();
+// ─── Typography ─────────────────────────────────────────────────────────────
+$my-typography: mat.m2-define-typography-config(
+    $font-family: "'DM Sans', 'Inter', sans-serif",
+);
 @include mat.typography-hierarchy($my-typography);
 
-// Note: Color palettes are generated from primary: #ffffff
-$_palettes: (
-  primary: mat.$blue-palette,
-  tertiary: mat.$red-palette,
+// ─── M3 Themes ───────────────────────────────────────────────────────────────
+$light-theme: mat.define-theme(
+    (
+        color: (
+            theme-type: light,
+            primary: mat.$violet-palette,
+            tertiary: mat.$cyan-palette,
+        ),
+        typography: (
+            plain-family: "'DM Sans', 'Inter', sans-serif",
+            brand-family: "'DM Sans', 'Inter', sans-serif",
+        ),
+    )
 );
 
-$_primary: map.get($_palettes, primary);
+$dark-theme: mat.define-theme(
+    (
+        color: (
+            theme-type: dark,
+            primary: mat.$violet-palette,
+            tertiary: mat.$cyan-palette,
+        ),
+        typography: (
+            plain-family: "'DM Sans', 'Inter', sans-serif",
+            brand-family: "'DM Sans', 'Inter', sans-serif",
+        ),
+    )
+);
 
-$light-theme: mat.define-theme((
-  color: (
-    theme-type: light,
-    primary: $_primary,
-  ),
-));
-
-$dark-theme: mat.define-theme((
-  color: (
-    theme-type: dark,
-    primary: $_primary,
-  ),
-));
-
+// ─── Apply Themes ────────────────────────────────────────────────────────────
 html {
-  @include mat.all-component-themes($light-theme);
+    @include mat.all-component-themes($light-theme);
 
-  .dark-theme {
-    @include mat.all-component-colors($dark-theme);
-  }
+    // ── Light theme design tokens ─────────────────────────────────────────
+    --app-shell-bg: #eef0f3;
+    --app-rail-bg: #e8eaed;
+    --app-header-bg: #eef0f3;
+    --app-content-bg: #f5f6f8;
+    --app-rail-border: rgba(0, 0, 0, 0.08);
+    --app-search-bg: rgba(255, 255, 255, 0.7);
+    --app-search-border: rgba(0, 0, 0, 0.1);
+
+    // Widget surfaces — no borders, layered backgrounds
+    --app-widget-bg: #ffffff;
+    --app-widget-header-bg: #fafbfc;
+    --app-widget-border: transparent;
+    --app-widget-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+    --app-widget-header-border: rgba(0, 0, 0, 0.06);
+    --app-card-hover-bg: #f0f2f5;
+
+    // Typography — subdued, not pure black
+    --app-heading-color: #1a1d23;
+    --app-body-color: #4a5060;
+    --app-muted-color: #8891a4;
+    --app-eyebrow-color: #7c8495;
+
+    // Provider accent colors
+    --app-provider-xtream: #6366f1;
+    --app-provider-stalker: #10b981;
+    --app-provider-m3u: #d97706;
+
+    // Hero
+    --app-accent-gradient: linear-gradient(
+        135deg,
+        rgba(99, 102, 241, 0.08) 0%,
+        rgba(168, 85, 247, 0.05) 100%
+    );
+    --app-hero-surface: rgba(99, 102, 241, 0.04);
+
+    .dark-theme {
+        @include mat.all-component-colors($dark-theme);
+
+        // ── Dark graphite theme ────────────────────────────────────────────
+        // Inspired by both Slack (sidebar distinction) and GitButler (data density)
+        // Key principle: clearly distinct surface layers using graphite steps
+        // Darkest → lightest: #0d0f12 → #141720 → #1c2030 → #222840
+
+        // App shell & navigation
+        --app-shell-bg: #0d0f12;
+        --app-rail-bg: #111318;
+        --app-header-bg: #111318;
+        --app-content-bg: #161a22;
+        --app-rail-border: rgba(255, 255, 255, 0.05);
+        --app-search-bg: rgba(255, 255, 255, 0.05);
+        --app-search-border: rgba(255, 255, 255, 0.09);
+
+        // Widget surfaces — NO border, surface contrast does the work
+        // Widgets sit on content-bg (#161a22), so widget-bg is notably lighter
+        --app-widget-bg: #1e2330;
+        --app-widget-header-bg: #232840;
+        --app-widget-border: transparent;
+        --app-widget-shadow: none;
+        --app-widget-header-border: rgba(255, 255, 255, 0.05);
+        --app-card-hover-bg: #252b3a;
+
+        // Typography — NOT pure white. Warm graphite-tinted whites
+        --app-heading-color: #d8dce8;       // soft off-white, not #fff
+        --app-body-color: #8b93a8;          // muted blue-grey
+        --app-muted-color: #5c6478;         // dimmed
+        --app-eyebrow-color: #6b7494;       // eyebrow labels
+
+        // Provider accents (slightly brighter for dark bg)
+        --app-provider-xtream: #818cf8;
+        --app-provider-stalker: #34d399;
+        --app-provider-m3u: #fbbf24;
+
+        // Hero section
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(99, 102, 241, 0.12) 0%,
+            rgba(168, 85, 247, 0.07) 100%
+        );
+        --app-hero-surface: rgba(30, 35, 48, 0.9);
+    }
 }
