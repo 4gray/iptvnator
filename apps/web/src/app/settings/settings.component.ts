@@ -2,9 +2,11 @@
 import { CommonModule } from '@angular/common';
 import {
     Component,
+    effect,
     inject,
     Inject,
     Input,
+    OnDestroy,
     OnInit,
     Optional,
     signal,
@@ -47,6 +49,7 @@ import {
 } from 'shared-interfaces';
 import { SettingsStore } from '../services/settings-store.service';
 import { HeaderComponent } from '../shared/components/header/header.component';
+import { SettingsContextService } from '../workspace/settings-context.service';
 import { SettingsService } from './../services/settings.service';
 
 interface SettingsSection {
@@ -76,7 +79,7 @@ interface SettingsSection {
         QRCodeComponent,
     ],
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, OnDestroy {
     private dialogService = inject(DialogService);
     public dataService = inject(DataService);
     private epgService = inject(EpgService);
@@ -101,7 +104,8 @@ export class SettingsComponent implements OnInit {
 
     isPwa = this.dataService.getAppEnvironment() === 'pwa';
 
-    activeSection = signal('general');
+    private readonly settingsCtx = inject(SettingsContextService);
+    readonly activeSection = this.settingsCtx.activeSection;
 
     readonly osPlayers = [
         {
@@ -180,7 +184,7 @@ export class SettingsComponent implements OnInit {
     readonly sectionNavItems: SettingsSection[] = [
         {
             id: 'general',
-            label: 'SETTINGS.TITLE',
+            label: 'SETTINGS.GENERAL',
             icon: 'tune',
             visible: true,
         },
@@ -220,6 +224,15 @@ export class SettingsComponent implements OnInit {
         @Optional() @Inject(MAT_DIALOG_DATA) data?: { isDialog: boolean }
     ) {
         this.isDialog = data?.isDialog ?? false;
+
+        effect(() => {
+            const sectionId = this.settingsCtx.activeSection();
+            if (sectionId && typeof document !== 'undefined') {
+                document
+                    .getElementById(sectionId)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
     }
 
     get sectionNav(): SettingsSection[] {
@@ -236,6 +249,14 @@ export class SettingsComponent implements OnInit {
         this.setSettings();
         this.checkAppVersion();
         this.fetchLocalIpAddresses();
+
+        if (!this.isDialog) {
+            this.settingsCtx.setSections(this.sectionNav);
+        }
+    }
+
+    ngOnDestroy(): void {
+        this.settingsCtx.reset();
     }
 
     /**
@@ -257,13 +278,6 @@ export class SettingsComponent implements OnInit {
         } else {
             this.visibleQrCodeIp.set(ip);
         }
-    }
-
-    scrollToSection(sectionId: string): void {
-        this.activeSection.set(sectionId);
-        document
-            .getElementById(sectionId)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     /**
@@ -451,7 +465,9 @@ export class SettingsComponent implements OnInit {
     clearEpgData(): void {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('SETTINGS.CLEAR_EPG_DIALOG.TITLE'),
-            message: this.translate.instant('SETTINGS.CLEAR_EPG_DIALOG.MESSAGE'),
+            message: this.translate.instant(
+                'SETTINGS.CLEAR_EPG_DIALOG.MESSAGE'
+            ),
             onConfirm: async (): Promise<void> => {
                 if (window.electron?.clearEpgData) {
                     await window.electron.clearEpgData();

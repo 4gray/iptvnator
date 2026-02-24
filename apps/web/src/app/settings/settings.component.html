@@ -1,16 +1,5 @@
-@if (!isDialog) {
-    <div class="settings-page-header">
-        <app-header
-            [title]="'SETTINGS.TITLE' | translate"
-            [subtitle]="
-                ('SETTINGS.SUBTITLE' | translate) +
-                '. ' +
-                ('SETTINGS.DESCRIPTION' | translate)
-            "
-        />
-    </div>
-} @else {
-    <h2 mat-dialog-title>{{ 'SETTINGS.TITLE' | translate }}</h2>
+@if (isDialog) {
+    <h2 mat-dialog-title>{{ 'SETTINGS.GENERAL' | translate }}</h2>
 }
 
 <div
@@ -24,28 +13,16 @@
         class="settings-layout"
         novalidate
     >
-        <aside class="settings-sidebar" aria-label="Settings categories">
-            <p class="sidebar-eyebrow">App Preferences</p>
-            <div class="sidebar-nav">
-                @for (section of sectionNav; track section.id) {
-                    <button
-                        type="button"
-                        class="sidebar-item"
-                        [class.active]="activeSection() === section.id"
-                        (click)="scrollToSection(section.id)"
-                    >
-                        <mat-icon>{{ section.icon }}</mat-icon>
-                        <span>{{ section.label | translate }}</span>
-                    </button>
-                }
-            </div>
-        </aside>
-
         <div class="settings-content">
             <section class="settings-group" id="general">
                 <header class="settings-group__header">
-                    <h3>{{ 'SETTINGS.TITLE' | translate }}</h3>
-                    <p>{{ 'SETTINGS.SUBTITLE' | translate }}</p>
+                    <div class="settings-group__header-icon">
+                        <mat-icon>settings</mat-icon>
+                    </div>
+                    <div class="settings-group__header-text">
+                        <h3>{{ 'SETTINGS.GENERAL' | translate }}</h3>
+                        <p>{{ 'SETTINGS.GENERAL_SUBTITLE' | translate }}</p>
+                    </div>
                 </header>
 
                 <div class="setting-item">
@@ -130,8 +107,17 @@
 
             <section class="settings-group" id="playback">
                 <header class="settings-group__header">
-                    <h3>{{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}</h3>
-                    <p>{{ 'SETTINGS.VIDEO_PLAYER_DESCRIPTION' | translate }}</p>
+                    <div class="settings-group__header-icon">
+                        <mat-icon>play_circle</mat-icon>
+                    </div>
+                    <div class="settings-group__header-text">
+                        <h3>{{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}</h3>
+                        <p>
+                            {{
+                                'SETTINGS.VIDEO_PLAYER_DESCRIPTION' | translate
+                            }}
+                        </p>
+                    </div>
                 </header>
 
                 <div class="setting-item">
@@ -285,8 +271,13 @@
             @if (isDesktop) {
                 <section class="settings-group" id="epg">
                     <header class="settings-group__header">
-                        <h3>{{ 'SETTINGS.EPG_URL_LABEL' | translate }}</h3>
-                        <p>Add single or multiple URLs as EPG sources</p>
+                        <div class="settings-group__header-icon">
+                            <mat-icon>list_alt</mat-icon>
+                        </div>
+                        <div class="settings-group__header-text">
+                            <h3>{{ 'SETTINGS.EPG_URL_LABEL' | translate }}</h3>
+                            <p>Add single or multiple URLs as EPG sources</p>
+                        </div>
                     </header>
 
                     <div class="setting-item setting-item--full-control">
@@ -301,7 +292,7 @@
                                         <div class="epg-source-row">
                                             <mat-form-field
                                                 appearance="outline"
-                                                class="full-width"
+                                                class="w-full"
                                             >
                                                 <mat-label>{{
                                                     'SETTINGS.EPG_URL_PLACEHOLDER'
@@ -380,13 +371,18 @@
             @if (isDesktop) {
                 <section class="settings-group" id="remote-control">
                     <header class="settings-group__header">
-                        <h3>{{ 'SETTINGS.REMOTE_CONTROL' | translate }}</h3>
-                        <p>
-                            {{
-                                'SETTINGS.REMOTE_CONTROL_DESCRIPTION'
-                                    | translate
-                            }}
-                        </p>
+                        <div class="settings-group__header-icon">
+                            <mat-icon>settings_remote</mat-icon>
+                        </div>
+                        <div class="settings-group__header-text">
+                            <h3>{{ 'SETTINGS.REMOTE_CONTROL' | translate }}</h3>
+                            <p>
+                                {{
+                                    'SETTINGS.REMOTE_CONTROL_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
                     </header>
 
                     <div class="setting-item">
@@ -552,13 +548,18 @@
 
             <section class="settings-group" id="data">
                 <header class="settings-group__header">
-                    <h3>{{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}</h3>
-                    <p>
-                        {{
-                            'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION'
-                                | translate
-                        }}
-                    </p>
+                    <div class="settings-group__header-icon">
+                        <mat-icon>sync_alt</mat-icon>
+                    </div>
+                    <div class="settings-group__header-text">
+                        <h3>{{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}</h3>
+                        <p>
+                            {{
+                                'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
                 </header>
 
                 <div class="setting-item">
@@ -632,8 +633,13 @@
 
             <section class="settings-group" id="about">
                 <header class="settings-group__header">
-                    <h3>{{ 'SETTINGS.VERSION' | translate }}</h3>
-                    <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
+                    <div class="settings-group__header-icon">
+                        <mat-icon>info</mat-icon>
+                    </div>
+                    <div class="settings-group__header-text">
+                        <h3>{{ 'SETTINGS.VERSION' | translate }}</h3>
+                        <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
+                    </div>
                 </header>
 
                 <div class="setting-item">
@@ -649,21 +655,18 @@
             </section>
 
             <div class="action-bar">
-                <button
-                    mat-button
-                    type="button"
-                    color="accent"
-                    (click)="backToHome()"
-                    data-test-id="back-to-home"
-                >
-                    <mat-icon>{{
-                        isDialog ? 'close' : 'chevron_left'
-                    }}</mat-icon>
-                    {{
-                        (isDialog ? 'CLOSE' : 'SETTINGS.BACK_TO_HOME')
-                            | translate
-                    }}
-                </button>
+                @if (isDialog) {
+                    <button
+                        mat-button
+                        type="button"
+                        color="accent"
+                        (click)="backToHome()"
+                        data-test-id="back-to-home"
+                    >
+                        <mat-icon>close</mat-icon>
+                        {{ 'CLOSE' | translate }}
+                    </button>
+                }
                 <button
                     mat-flat-button
                     color="accent"
