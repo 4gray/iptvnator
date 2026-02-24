@@ -1,31 +1,30 @@
-<div
-    class="sidebar"
-    appResizable
-    [minWidth]="250"
-    [maxWidth]="600"
-    [defaultWidth]="400"
-    storageKey="sidebar-width"
->
-    <div class="sidebar-header">
-        <app-playlist-switcher
-            class="switcher"
-            [currentTitle]="playlistTitle()"
-            [subtitle]="playlistSubtitle()"
+@if (!isWorkspaceLayout) {
+    <div
+        class="sidebar"
+        appResizable
+        [minWidth]="250"
+        [maxWidth]="600"
+        [defaultWidth]="400"
+        storageKey="sidebar-width"
+    >
+        <div class="sidebar-header">
+            <app-playlist-switcher
+                class="switcher"
+                [currentTitle]="playlistTitle()"
+                [subtitle]="playlistSubtitle()"
+            />
+        </div>
+        <app-category-view
+            [items]="categories()"
+            [selectedCategoryId]="$any(selectedCategoryId())"
+            (categoryClicked)="setCategoryId($event.category_id)"
         />
     </div>
-    <app-category-view
-        [items]="categories()"
-        [selectedCategoryId]="$any(selectedCategoryId())"
-        (categoryClicked)="setCategoryId($event.category_id)"
-    />
-</div>
+}
 
 <div class="main-content">
     <div class="content-header">
         <h2>
-            <button mat-icon-button disabled>
-                <mat-icon>movie</mat-icon>
-            </button>
             {{
                 (titleTranslationString() | translate) +
                     ' (' +
@@ -33,11 +32,11 @@
                     ')'
             }}
         </h2>
-        @if (showHeaderAction()) {
+        @if (showHeaderAction() && !isWorkspaceLayout) {
             <button
+                type="button"
                 mat-icon-button
                 [matTooltip]="headerActionTooltip()"
-                [disabled]="!favorites().length"
                 (click)="onHeaderActionClick()"
             >
                 <mat-icon>{{ headerActionIcon() }}</mat-icon>
@@ -50,7 +49,11 @@
                 @for (item of favorites(); track $index) {
                     <app-content-card
                         [posterUrl]="item.poster_url || item.cover"
-                        [title]="item?.title || item?.details?.info?.name || 'Unknown'"
+                        [title]="
+                            item?.title ||
+                            item?.details?.info?.name ||
+                            'Unknown'
+                        "
                         [type]="item.type"
                         [date]="item.added_at"
                         [showRemoveButton]="true"

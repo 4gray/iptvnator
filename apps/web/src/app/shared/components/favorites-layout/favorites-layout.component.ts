@@ -1,7 +1,8 @@
-import { Component, input, output } from '@angular/core';
+import { Component, inject, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
+import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { CategoryViewComponent } from '../../../xtream-electron/category-view/category-view.component';
@@ -26,6 +27,10 @@ import { ContentCardComponent } from '../content-card/content-card.component';
     ],
 })
 export class FavoritesLayoutComponent {
+    private readonly route = inject(ActivatedRoute);
+    readonly isWorkspaceLayout =
+        this.route.snapshot.data['layout'] === 'workspace';
+
     readonly categories = input<any[]>([]);
     readonly favorites = input<any[]>([]);
     readonly playlistSubtitle = input<string>('');

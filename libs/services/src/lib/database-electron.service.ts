@@ -48,6 +48,12 @@ export interface GlobalRecentItem extends XtreamContent {
     viewed_at: string;
 }
 
+export interface GlobalFavoriteItem extends XtreamContent {
+    playlist_id: string;
+    playlist_name: string;
+    added_at: string;
+}
+
 @Injectable({
     providedIn: 'root',
 })
@@ -292,6 +298,19 @@ export class DatabaseService {
             return items || [];
         } catch (error) {
             console.error('Error getting recently viewed:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get global favorites across all playlists
+     */
+    async getGlobalFavorites(): Promise<GlobalFavoriteItem[]> {
+        try {
+            const items = await window.electron.dbGetGlobalFavorites();
+            return items || [];
+        } catch (error) {
+            console.error('Error getting global favorites:', error);
             return [];
         }
     }
