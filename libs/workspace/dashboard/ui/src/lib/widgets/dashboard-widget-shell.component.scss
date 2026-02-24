@@ -1,0 +1,80 @@
+:host {
+    display: block;
+    height: 100%;
+}
+
+.widget-shell {
+    border-radius: 16px;
+    background: var(--app-widget-bg, var(--mat-sys-surface-container));
+    border: 1px solid var(--app-widget-border, transparent);
+    box-shadow: var(--app-widget-shadow, none);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    // Subtle inset top-edge highlight — catches light like a raised surface
+    outline: 1px solid rgba(255, 255, 255, 0.04);
+    outline-offset: -1px;
+}
+
+.widget-shell__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px 10px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    border-bottom: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+}
+
+.widget-shell__headline {
+    min-width: 0;
+}
+
+.widget-shell__eyebrow {
+    margin: 0;
+    color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.67rem;
+    font-weight: 600;
+}
+
+.widget-shell__title {
+    margin: 4px 0 0;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    letter-spacing: -0.01em;
+}
+
+.widget-shell__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+}
+
+.widget-shell__actions:empty {
+    display: none;
+}
+
+.widget-shell__content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    flex: 1;
+    padding: 0 16px 0;
+    box-sizing: border-box;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}

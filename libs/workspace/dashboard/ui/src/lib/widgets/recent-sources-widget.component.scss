@@ -1,0 +1,91 @@
+[widget-actions] {
+    color: var(--mat-sys-primary);
+    text-decoration: none;
+    font-size: 0.84rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+[widget-actions]:hover {
+    text-decoration: underline;
+}
+
+.source-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.source-row {
+    border-radius: 12px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface-container-low);
+    padding: 10px;
+    text-decoration: none;
+    color: inherit;
+    min-width: 0;
+}
+
+.source-row:hover {
+    border-color: var(--mat-sys-outline);
+    background: var(--mat-sys-surface-container-high);
+}
+
+.source-row__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.provider,
+.count {
+    font-size: 0.75rem;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.provider {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+
+.source-row h4 {
+    margin: 8px 0 6px;
+    font-size: 0.95rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.source-row p {
+    margin: 0;
+    font-size: 0.77rem;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.empty-state {
+    margin: 0;
+    border: 1px dashed var(--mat-sys-outline);
+    border-radius: 12px;
+    background: var(--mat-sys-surface-container-low);
+    padding: 14px;
+}
+
+.empty-state p {
+    margin: 0 0 8px;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.empty-state a {
+    color: var(--mat-sys-primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+@media (max-width: 920px) {
+    .source-list {
+        grid-template-columns: 1fr;
+    }
+}

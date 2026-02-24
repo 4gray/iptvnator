@@ -1,0 +1,26 @@
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.stat-tile {
+    border-radius: 12px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface-container-low);
+    padding: 10px;
+}
+
+.label {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.value {
+    margin: 6px 0 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+}

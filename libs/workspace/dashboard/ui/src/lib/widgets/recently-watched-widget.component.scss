@@ -1,0 +1,34 @@
+.view-toggle {
+    border-radius: 8px;
+    height: 32px;
+    align-items: center;
+    border: 1px solid var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface-container-high);
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
+    }
+}
+
+::ng-deep .view-toggle {
+    .mat-button-toggle-label-content {
+        line-height: 30px !important;
+        padding: 0 8px !important;
+    }
+
+    .mat-button-toggle-checked .mat-button-toggle-button {
+        background-color: var(--mat-sys-secondary-container) !important;
+    }
+    
+    .mat-button-toggle-checked mat-icon {
+        color: var(--mat-sys-on-secondary-container) !important;
+    }
+}
+
+.active-filter {
+    font-weight: 600;
+    color: var(--mat-sys-primary);
+}

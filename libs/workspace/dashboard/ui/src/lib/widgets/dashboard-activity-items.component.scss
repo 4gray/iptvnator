@@ -1,0 +1,198 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    position: relative;
+    --activity-fade-end: var(--app-widget-bg, var(--mat-sys-surface-container));
+}
+
+:host-context(body.dark-theme) {
+    --activity-fade-end: var(--app-widget-bg, var(--mat-sys-surface-container));
+}
+
+:host::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 76px;
+    pointer-events: none;
+    z-index: 3;
+    background: linear-gradient(
+        180deg,
+        rgba(0, 0, 0, 0) 0%,
+        color-mix(in srgb, var(--activity-fade-end) 42%, transparent) 45%,
+        var(--activity-fade-end) 100%
+    );
+}
+
+.activity-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.activity-item {
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 11px;
+    background: linear-gradient(
+        180deg,
+        var(--mat-sys-surface-container-low) 0%,
+        var(--mat-sys-surface-container) 100%
+    );
+    padding: 8px;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+}
+
+.activity-item:hover {
+    border-color: color-mix(in srgb, var(--mat-sys-outline) 72%, var(--mat-sys-primary) 28%);
+    background: linear-gradient(
+        180deg,
+        var(--mat-sys-surface-container-high) 0%,
+        var(--mat-sys-surface-container) 100%
+    );
+}
+
+.activity-item__media {
+    width: 44px;
+    height: 44px;
+    border-radius: 9px;
+    overflow: hidden;
+    background: var(--mat-sys-surface-container-highest);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mat-sys-on-surface-variant);
+    border: 1px solid var(--mat-sys-outline-variant);
+}
+
+.activity-item__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.activity-item__media--live img {
+    object-fit: contain;
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+.activity-item__media mat-icon {
+    font-size: 1.15rem;
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.is-placeholder-live {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(56, 189, 248, 0.02)) !important;
+    color: #38bdf8 !important;
+    border: 1px solid rgba(56, 189, 248, 0.2) !important;
+}
+
+.is-placeholder-movie {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(167, 139, 250, 0.02)) !important;
+    color: #a78bfa !important;
+    border: 1px solid rgba(167, 139, 250, 0.2) !important;
+}
+
+.is-placeholder-series {
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(251, 146, 60, 0.02)) !important;
+    color: #fb923c !important;
+    border: 1px solid rgba(251, 146, 60, 0.2) !important;
+}
+
+.is-placeholder mat-icon {
+    opacity: 0.9;
+}
+
+.activity-item__content {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.activity-item__title {
+    font-size: 0.85rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.activity-item__subtitle {
+    font-size: 0.73rem;
+    color: var(--mat-sys-on-surface-variant);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.activity-items--grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+    gap: 7px;
+}
+
+.activity-items--grid .activity-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 5px;
+    padding: 5px;
+}
+
+.activity-items--grid .activity-item__media {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+}
+
+.activity-items--grid .is-placeholder mat-icon {
+    font-size: 2.8rem !important;
+    width: 2.8rem !important;
+    height: 2.8rem !important;
+}
+
+.activity-items--grid .activity-item__title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.16;
+    font-size: 0.78rem;
+}
+
+.activity-items--grid .activity-item__subtitle {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    font-size: 0.68rem;
+}
+
+.empty {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.82rem;
+}
+
+@media (max-width: 920px) {
+    .activity-items--grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+}

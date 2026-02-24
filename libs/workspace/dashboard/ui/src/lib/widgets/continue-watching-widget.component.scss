@@ -1,0 +1,94 @@
+.focus-source {
+    border: 1px solid var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface-container-low);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.focus-source__provider {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.focus-source h4 {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.3;
+}
+
+.focus-source__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.focus-empty {
+    border: 1px dashed var(--mat-sys-outline);
+    background: var(--mat-sys-surface-container-low);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.focus-empty p {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.quick-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.quick-list__title {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--mat-sys-on-surface-variant);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.quick-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 10px;
+    background: var(--mat-sys-surface-container-low);
+    padding: 8px 10px;
+    text-decoration: none;
+    color: inherit;
+    min-width: 0;
+}
+
+.quick-item:hover {
+    border-color: var(--mat-sys-outline);
+    background: var(--mat-sys-surface-container-high);
+}
+
+.quick-item__title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.88rem;
+}
+
+.quick-item__meta {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.74rem;
+    white-space: nowrap;
+}

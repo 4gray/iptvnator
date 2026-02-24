@@ -1,0 +1,37 @@
+:host {
+    display: block;
+    height: 100%;
+}
+
+.unsupported-widget {
+    border: 1px dashed var(--mat-sys-outline-variant);
+    border-radius: 14px;
+    padding: 20px;
+    background: linear-gradient(
+        160deg,
+        var(--mat-sys-surface-container-high) 0%,
+        var(--mat-sys-surface-container-low) 100%
+    );
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    color: var(--mat-sys-on-surface-variant);
+
+    h3 {
+        margin: 0;
+        font-size: 0.94rem;
+        font-weight: 600;
+    }
+
+    p {
+        margin: 0;
+        font-size: 0.82rem;
+        max-width: 260px;
+        line-height: 1.4;
+    }
+}

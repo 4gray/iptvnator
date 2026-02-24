@@ -1,0 +1,59 @@
+@if (items().length > 0) {
+    <div
+        class="activity-items"
+        [class.activity-items--grid]="viewMode() === 'grid'"
+        (scroll)="onItemsScroll($event)"
+    >
+        @for (item of items(); track item.id) {
+            <a
+                class="activity-item"
+                [routerLink]="item.link"
+                [state]="item.navigationState"
+            >
+                <span
+                    class="activity-item__media"
+                    [class.activity-item__media--live]="item.type === 'live'"
+                    [class.activity-item__media--poster]="item.type !== 'live'"
+                    [class.is-placeholder]="!hasImage(item)"
+                    [class.is-placeholder-live]="
+                        !hasImage(item) && item.type === 'live'
+                    "
+                    [class.is-placeholder-movie]="
+                        !hasImage(item) && item.type === 'movie'
+                    "
+                    [class.is-placeholder-series]="
+                        !hasImage(item) && item.type === 'series'
+                    "
+                >
+                    @if (hasImage(item)) {
+                        <img
+                            [src]="item.imageUrl"
+                            [alt]="item.title"
+                            loading="lazy"
+                            (error)="markImageAsFailed(item.id)"
+                        />
+                    } @else {
+                        <mat-icon>{{ getFallbackIcon(item) }}</mat-icon>
+                    }
+                </span>
+
+                <span class="activity-item__content">
+                    <span
+                        class="activity-item__title"
+                        [attr.title]="item.title"
+                    >
+                        {{ item.title }}
+                    </span>
+                    <span
+                        class="activity-item__subtitle"
+                        [attr.title]="item.subtitle"
+                    >
+                        {{ item.subtitle }}
+                    </span>
+                </span>
+            </a>
+        }
+    </div>
+} @else {
+    <p class="empty">{{ emptyLabel() }}</p>
+}

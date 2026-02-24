@@ -1,0 +1,23 @@
+@switch (widget().type) {
+    @case ('recent-sources') {
+        <app-recent-sources-widget />
+    }
+    @case ('source-stats') {
+        <app-source-stats-widget />
+    }
+    @case ('continue-watching') {
+        <app-continue-watching-widget />
+    }
+    @case ('recently-watched') {
+        <app-recently-watched-widget [widget]="widget()" />
+    }
+    @case ('global-favorites') {
+        <app-global-favorites-widget [widget]="widget()" />
+    }
+    @default {
+        <section class="unsupported-widget">
+            <h3>Unsupported widget</h3>
+            <p>This widget type is not available in this build.</p>
+        </section>
+    }
+}

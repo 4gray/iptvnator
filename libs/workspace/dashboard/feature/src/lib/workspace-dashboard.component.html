@@ -1,0 +1,188 @@
+<section class="dashboard-page">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Workspace Dashboard</p>
+            <h1>Control Center</h1>
+            <p class="description">
+                Keep your daily sources in one place. In customize mode, edit directly
+                on the canvas, then use the sidebar for visibility and scope.
+            </p>
+        </div>
+    </header>
+
+    <section class="dashboard-toolbar" [class.dashboard-toolbar--editing]="editMode()">
+        <p class="toolbar-hint">
+            @if (editMode()) {
+                Drag cards by the handle. Resize inline. Use the sidebar for visibility and scope.
+            } @else {
+                Start customize mode to rearrange and resize widgets in place.
+            }
+        </p>
+        <div class="toolbar-actions">
+            @if (editMode()) {
+                <button type="button" mat-button (click)="layoutService.reset()">
+                    Reset Layout
+                </button>
+            }
+            <button type="button" mat-flat-button (click)="toggleEditMode()">
+                <mat-icon>{{ editMode() ? 'check' : 'tune' }}</mat-icon>
+                {{ editMode() ? 'Done' : 'Customize' }}
+            </button>
+        </div>
+    </section>
+
+    <section class="dashboard-editor-shell" [class.dashboard-editor-shell--editing]="editMode()">
+        <section class="dashboard-canvas">
+            <section
+                class="widget-grid"
+                cdkDropList
+                [class.widget-grid--editing]="editMode()"
+                [cdkDropListData]="visibleWidgets()"
+                [cdkDropListDisabled]="!editMode()"
+                (cdkDropListDropped)="onWidgetDrop($event)"
+            >
+                @for (widget of visibleWidgets(); track widget.id) {
+                    <article
+                        class="widget-slot"
+                        cdkDrag
+                        [cdkDragDisabled]="!editMode()"
+                        [class.widget-slot--one-third]="widget.size === 'one-third'"
+                        [class.widget-slot--half]="widget.size === 'half'"
+                        [class.widget-slot--two-thirds]="widget.size === 'two-thirds'"
+                        [class.widget-slot--full]="widget.size === 'full'"
+                        [class.widget-slot--editing]="editMode()"
+                    >
+                        @if (editMode()) {
+                            <section class="widget-inline-editor">
+                                <button
+                                    type="button"
+                                    mat-icon-button
+                                    class="drag-handle"
+                                    cdkDragHandle
+                                    [attr.aria-label]="'Drag ' + widget.title"
+                                >
+                                    <mat-icon>drag_indicator</mat-icon>
+                                </button>
+                                <p class="widget-inline-editor__title">{{ widget.title }}</p>
+                                <mat-button-toggle-group
+                                    class="inline-size-control"
+                                    [value]="widget.size"
+                                    (change)="setWidgetSize(widget.id, $event.value)"
+                                    aria-label="Widget width"
+                                >
+                                    @for (size of sizeOptions; track size.value) {
+                                        <mat-button-toggle [value]="size.value">
+                                            {{ size.label }}
+                                        </mat-button-toggle>
+                                    }
+                                </mat-button-toggle-group>
+                                <button
+                                    type="button"
+                                    mat-icon-button
+                                    class="widget-inline-editor__hide"
+                                    [attr.aria-label]="'Hide ' + widget.title"
+                                    (click)="hideWidget(widget.id)"
+                                >
+                                    <mat-icon>visibility_off</mat-icon>
+                                </button>
+                            </section>
+                        }
+                        <app-dashboard-widget-host [widget]="widget" />
+                    </article>
+                } @empty {
+                    <article class="empty-state">
+                        <h3>No visible widgets</h3>
+                        <p>Enable at least one widget from the sidebar.</p>
+                    </article>
+                }
+            </section>
+        </section>
+
+        @if (editMode()) {
+            <aside class="widget-library">
+                <section class="layout-editor">
+                    <h2>Widget Library</h2>
+                    <p class="layout-editor__hint">
+                        Show/hide widgets and configure provider scope without leaving the canvas.
+                    </p>
+                    <div class="editor-list">
+                        @for (widget of allWidgets(); track widget.id) {
+                            <article class="editor-item">
+                                <div class="editor-item__meta">
+                                    <h3>{{ widget.title }}</h3>
+                                    <p>{{ widget.description }}</p>
+                                </div>
+                                <div class="editor-item__actions">
+                                    <p class="editor-item__action-label">Visibility</p>
+                                    <mat-slide-toggle
+                                        [checked]="widget.enabled"
+                                        (change)="layoutService.toggleWidget(widget.id)"
+                                        color="primary"
+                                    >
+                                        Visible
+                                    </mat-slide-toggle>
+                                </div>
+
+                                @if (supportsScope(widget)) {
+                                    <mat-expansion-panel class="advanced-panel">
+                                        <mat-expansion-panel-header>
+                                            <mat-panel-title>Advanced settings</mat-panel-title>
+                                            <mat-panel-description>
+                                                Scope ({{ getScopeProviderSummary(widget) }})
+                                            </mat-panel-description>
+                                        </mat-expansion-panel-header>
+                                        <section class="scope-editor">
+                                            <p class="scope-editor__title">Scope</p>
+                                            <p class="scope-editor__subtitle">
+                                                Provider filters: {{ getScopeProviderSummary(widget) }}
+                                            </p>
+                                            @if (isAllProvidersScope(widget)) {
+                                                <p class="scope-editor__subtitle">
+                                                    No providers selected means all providers are included.
+                                                </p>
+                                            }
+                                            <mat-chip-listbox class="scope-providers" multiple>
+                                                @for (provider of providerOptions; track provider) {
+                                                    <mat-chip-option
+                                                        [selected]="isProviderSelected(widget, provider)"
+                                                        (click)="
+                                                            toggleScopeProvider(widget.id, provider)
+                                                        "
+                                                    >
+                                                        {{ getProviderLabel(provider) }}
+                                                    </mat-chip-option>
+                                                }
+                                            </mat-chip-listbox>
+
+                                            <p class="scope-editor__subtitle">
+                                                Playlists (leave empty to use all playlists in current provider scope)
+                                            </p>
+                                            <div class="scope-playlists">
+                                                @for (playlist of getScopePlaylists(widget); track playlist._id) {
+                                                    <mat-checkbox
+                                                        [checked]="
+                                                            isPlaylistSelected(widget, playlist._id)
+                                                        "
+                                                        (change)="
+                                                            toggleScopePlaylist(widget.id, playlist._id)
+                                                        "
+                                                    >
+                                                        {{ getPlaylistTitle(playlist) }}
+                                                    </mat-checkbox>
+                                                } @empty {
+                                                    <p class="scope-empty">
+                                                        No playlists available for selected providers.
+                                                    </p>
+                                                }
+                                            </div>
+                                        </section>
+                                    </mat-expansion-panel>
+                                }
+                            </article>
+                        }
+                    </div>
+                </section>
+            </aside>
+        }
+    </section>
+</section>

@@ -1,0 +1,68 @@
+<app-dashboard-widget-shell eyebrow="Activity" title="Recently Watched">
+    <ng-container widget-actions>
+        <button
+            mat-icon-button
+            [matMenuTriggerFor]="filterMenu"
+            aria-label="Filter recently watched content"
+            matTooltip="Filter items"
+        >
+            <mat-icon>filter_list</mat-icon>
+        </button>
+        <mat-menu #filterMenu="matMenu">
+            <button mat-menu-item (click)="onKindChange('all')">
+                <mat-icon>{{
+                    selectedKind() === 'all' ? 'check' : ''
+                }}</mat-icon>
+                <span [class.active-filter]="selectedKind() === 'all'"
+                    >All ({{ counts().all }})</span
+                >
+            </button>
+            <button mat-menu-item (click)="onKindChange('channels')">
+                <mat-icon>{{
+                    selectedKind() === 'channels' ? 'check' : ''
+                }}</mat-icon>
+                <span [class.active-filter]="selectedKind() === 'channels'"
+                    >Channels ({{ counts().channels }})</span
+                >
+            </button>
+            <button mat-menu-item (click)="onKindChange('vod')">
+                <mat-icon>{{
+                    selectedKind() === 'vod' ? 'check' : ''
+                }}</mat-icon>
+                <span [class.active-filter]="selectedKind() === 'vod'"
+                    >VOD ({{ counts().vod }})</span
+                >
+            </button>
+            <button mat-menu-item (click)="onKindChange('series')">
+                <mat-icon>{{
+                    selectedKind() === 'series' ? 'check' : ''
+                }}</mat-icon>
+                <span [class.active-filter]="selectedKind() === 'series'"
+                    >Series ({{ counts().series }})</span
+                >
+            </button>
+        </mat-menu>
+
+        <mat-button-toggle-group
+            class="view-toggle"
+            [value]="viewMode()"
+            hideSingleSelectionIndicator
+            aria-label="Select recently watched view mode"
+            (change)="onViewModeChange($event.value)"
+        >
+            <mat-button-toggle value="list" aria-label="List view">
+                <mat-icon>view_list</mat-icon>
+            </mat-button-toggle>
+            <mat-button-toggle value="grid" aria-label="Grid view">
+                <mat-icon>grid_view</mat-icon>
+            </mat-button-toggle>
+        </mat-button-toggle-group>
+    </ng-container>
+
+    <app-dashboard-activity-items
+        [items]="activityItems()"
+        [emptyLabel]="'No items found for this filter.'"
+        [viewMode]="viewMode()"
+        (scrolledToEnd)="onItemsScrolledToEnd()"
+    />
+</app-dashboard-widget-shell>

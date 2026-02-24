@@ -1,0 +1,14 @@
+<mat-card class="widget-shell" appearance="outlined">
+    <header class="widget-shell__header">
+        <div class="widget-shell__headline">
+            <p class="widget-shell__eyebrow">{{ eyebrow() }}</p>
+            <h3 class="widget-shell__title">{{ title() }}</h3>
+        </div>
+        <div class="widget-shell__actions">
+            <ng-content select="[widget-actions]" />
+        </div>
+    </header>
+    <div class="widget-shell__content">
+        <ng-content />
+    </div>
+</mat-card>

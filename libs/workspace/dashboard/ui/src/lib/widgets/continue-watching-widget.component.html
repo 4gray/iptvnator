@@ -1,0 +1,48 @@
+<app-dashboard-widget-shell eyebrow="Focus" title="Continue Watching">
+    @if (data.activePlaylist(); as active) {
+        <article class="focus-source">
+            <p class="focus-source__provider">
+                {{ data.getPlaylistProvider(active) }}
+            </p>
+            <h4
+                [attr.title]="active.title || active.filename || 'Untitled source'"
+            >
+                {{ active.title || active.filename || 'Untitled source' }}
+            </h4>
+            <div class="focus-source__actions">
+                <a mat-flat-button [routerLink]="data.getPlaylistLink(active)">
+                    <mat-icon>play_arrow</mat-icon>
+                    Open Source
+                </a>
+                <a mat-stroked-button routerLink="/workspace/sources">
+                    <mat-icon>library_books</mat-icon>
+                    Manage Sources
+                </a>
+            </div>
+        </article>
+    } @else {
+        <article class="focus-empty">
+            <p>No active source selected yet.</p>
+            <a mat-flat-button routerLink="/workspace/sources">
+                <mat-icon>add</mat-icon>
+                Add Source
+            </a>
+        </article>
+    }
+
+    @if (data.quickRecent().length > 0) {
+        <div class="quick-list">
+            <p class="quick-list__title">Recently used</p>
+            @for (item of data.quickRecent(); track item._id) {
+                <a class="quick-item" [routerLink]="data.getPlaylistLink(item)">
+                    <span class="quick-item__title" [attr.title]="item.title || item.filename">
+                        {{ item.title || item.filename || 'Untitled source' }}
+                    </span>
+                    <span class="quick-item__meta">
+                        {{ data.getPlaylistProvider(item) }}
+                    </span>
+                </a>
+            }
+        </div>
+    }
+</app-dashboard-widget-shell>
