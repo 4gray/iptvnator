@@ -1,0 +1,57 @@
+<div class="context-column">
+    <header class="context-header">
+        <div class="context-header__top">
+            <h2>Sources</h2>
+        </div>
+        <p>Filter and sort playlists</p>
+    </header>
+
+    <div class="context-divider"></div>
+
+    <section class="panel-section">
+        <div class="nav-list option-list">
+            <h3 class="panel-section-title">Type</h3>
+            @for (option of typeOptions; track option.id) {
+                <a
+                    href="#type-{{ option.id }}"
+                    class="nav-item category-item option-row"
+                    [class.selected]="isTypeActive(option.id)"
+                    (click)="$event.preventDefault(); selectType(option.id)"
+                >
+                    <mat-icon>{{ option.icon }}</mat-icon>
+                    <span class="nav-item-label option-label">
+                        {{
+                            option.translationKey
+                                ? (option.translationKey | translate)
+                                : option.label
+                        }}
+                    </span>
+                    <div class="nav-item-meta option-meta">
+                        {{ getTypeCount(option.id) }}
+                    </div>
+                </a>
+            }
+        </div>
+    </section>
+
+    <section class="panel-section">
+        <div class="nav-list option-list">
+            <h3 class="panel-section-title">
+                {{ 'HOME.SORT_BY' | translate }}
+            </h3>
+            @for (option of sortOptions; track option.translationKey) {
+                <a
+                    href="#sort-{{ option.translationKey }}"
+                    class="nav-item category-item option-row"
+                    [class.selected]="isSortActive(option)"
+                    (click)="$event.preventDefault(); setSortOption(option)"
+                >
+                    <mat-icon>{{ option.icon }}</mat-icon>
+                    <span class="nav-item-label option-label">{{
+                        option.translationKey | translate
+                    }}</span>
+                </a>
+            }
+        </div>
+    </section>
+</div>

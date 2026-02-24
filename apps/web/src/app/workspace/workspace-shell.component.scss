@@ -1,0 +1,442 @@
+:host {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+// ─── Shell Layout ─────────────────────────────────────────────────────────────
+.workspace-shell {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    grid-template-rows: 56px 1fr;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--app-shell-bg, var(--mat-sys-surface));
+    color: var(--mat-sys-on-surface);
+}
+
+// ─── App Rail (Sidebar) ───────────────────────────────────────────────────────
+.app-rail {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 10px 8px;
+    border-right: 1px solid var(--app-rail-border, var(--mat-sys-outline-variant));
+    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+    app-region: drag;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+
+    &.is-macos {
+        padding-top: 36px;
+    }
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+.app-rail {
+    --rail-link-color: var(--mat-sys-on-surface-variant);
+    --rail-link-hover-color: var(--mat-sys-on-surface);
+    --rail-link-hover-bg: var(--mat-sys-surface-container);
+    --rail-link-active-bg: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+    --rail-link-active-color: var(--mat-sys-primary);
+    --rail-link-active-icon: var(--mat-sys-primary);
+    --rail-link-active-border: color-mix(in srgb, var(--mat-sys-primary) 42%, transparent);
+    --rail-link-active-glow: color-mix(in srgb, var(--mat-sys-primary) 24%, transparent);
+}
+
+.app-rail a {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--rail-link-color);
+    text-decoration: none;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    app-region: no-drag;
+
+    mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.app-rail a:hover {
+    color: var(--rail-link-hover-color);
+    background: var(--rail-link-hover-bg);
+}
+
+.app-rail a.is-active,
+.app-rail a.active {
+    color: var(--rail-link-active-color);
+    background: var(--rail-link-active-bg);
+    box-shadow:
+        inset 0 0 0 1px var(--rail-link-active-border),
+        0 10px 20px -16px var(--rail-link-active-glow);
+
+    mat-icon {
+        color: var(--rail-link-active-icon);
+    }
+
+    &::after {
+        content: '';
+        position: absolute;
+        right: -4px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 18px;
+        border-radius: 999px;
+        background: var(--rail-link-active-icon);
+        box-shadow: 0 0 10px var(--rail-link-active-glow);
+    }
+}
+
+// ─── Brand Logo ───────────────────────────────────────────────────────────────
+.brand {
+    margin-bottom: 10px;
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.brand img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+// ─── Rail Divider ─────────────────────────────────────────────────────────────
+.rail-divider {
+    width: 24px;
+    height: 1px;
+    background: var(--mat-sys-outline-variant);
+    margin: 6px 0;
+    opacity: 0.5;
+}
+
+.rail-footer {
+    margin-top: auto;
+}
+
+// ─── Workspace Header ─────────────────────────────────────────────────────────
+.workspace-header {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    height: 56px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    background: var(--app-header-bg, var(--mat-sys-surface-container-low));
+    app-region: drag;
+}
+
+.playlist-switcher {
+    width: min(260px, 32vw);
+    flex-shrink: 0;
+    app-region: no-drag;
+}
+
+.settings-header-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--mat-sys-on-surface);
+    app-region: no-drag;
+}
+
+// ─── Search Field ─────────────────────────────────────────────────────────────
+.search-field {
+    flex: 1;
+    min-width: 160px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
+    background: var(--app-search-bg, var(--mat-sys-surface-container));
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease,
+        box-shadow 0.15s ease;
+    app-region: no-drag;
+
+    &:focus-within {
+        border-color: var(--mat-sys-primary);
+        box-shadow: 0 0 0 3px rgba(var(--mat-sys-primary), 0.12);
+    }
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: var(--mat-sys-on-surface-variant);
+        flex-shrink: 0;
+    }
+
+    input {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: var(--mat-sys-on-surface);
+        font: inherit;
+        font-size: 0.875rem;
+
+        &:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        &::placeholder {
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.7;
+        }
+    }
+}
+
+// ─── Header Actions ───────────────────────────────────────────────────────────
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    app-region: no-drag;
+
+    button {
+        color: var(--mat-sys-on-surface-variant);
+        border-radius: 8px;
+        transition:
+            color 0.15s ease,
+            background 0.15s ease;
+
+        &:hover {
+            color: var(--mat-sys-on-surface);
+            background: var(--mat-sys-surface-container);
+        }
+
+        &.is-active {
+            color: var(--mat-sys-on-primary-container);
+            background: var(--mat-sys-primary-container);
+        }
+    }
+}
+
+// ─── Workspace Body ───────────────────────────────────────────────────────────
+.workspace-body {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+
+    &.single-pane {
+        grid-template-columns: 1fr;
+    }
+}
+
+// ─── Context Panel ────────────────────────────────────────────────────────────
+.context-panel {
+    border-right: 1px solid var(--mat-sys-outline-variant);
+    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    width: 300px;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.context-panel--route {
+    padding: 12px 10px 10px 12px;
+    overflow: visible;
+}
+
+.context-panel--sources {
+    padding: 12px 10px 10px 12px;
+    overflow: visible;
+}
+
+.context-panel--route app-workspace-context-panel {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.context-panel--sources app-workspace-sources-filters-panel {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.context-panel__header {
+    padding: 6px 6px 12px;
+}
+
+.context-panel__title {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.context-panel__subtitle {
+    margin-top: 2px;
+    font-size: 0.78rem;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.context-item {
+    width: 100%;
+    min-height: 36px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--mat-sys-on-surface-variant);
+    text-align: left;
+    padding: 0 10px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.875rem;
+    transition:
+        all 0.15s ease,
+        border-color 0.15s ease;
+
+    &:hover {
+        border-color: var(--mat-sys-outline-variant);
+        color: var(--mat-sys-on-surface);
+        background: var(--mat-sys-surface-container);
+    }
+
+    &.is-active {
+        border-color: transparent;
+        color: var(--mat-sys-on-primary-container);
+        background: var(--mat-sys-primary-container);
+        font-weight: 500;
+    }
+}
+
+.context-panel__footer {
+    margin-top: auto;
+    border-top: 1px solid var(--mat-sys-outline-variant);
+    padding: 12px 6px 2px;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.82rem;
+
+    p {
+        margin: 0 0 8px;
+        line-height: 1.4;
+    }
+
+    a {
+        color: var(--mat-sys-primary);
+        text-decoration: none;
+        font-weight: 600;
+    }
+}
+
+// ─── Main Content Area ────────────────────────────────────────────────────────
+.workspace-content {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    background: var(--app-content-bg, var(--mat-sys-surface));
+    // Distinctive top-left inset radius (GitButler-style panel inset)
+    border-radius: 16px 0 0 0;
+    box-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+// ─── Responsive ───────────────────────────────────────────────────────────────
+@media (max-width: 780px) {
+    .workspace-shell {
+        grid-template-columns: 56px 1fr;
+        grid-template-rows: 56px 1fr;
+    }
+
+    .workspace-header {
+        padding-inline: 10px;
+        gap: 10px;
+    }
+
+    .playlist-switcher {
+        width: 190px;
+    }
+
+    .header-actions {
+        gap: 0;
+    }
+}
+
+@media (max-width: 640px) {
+    .workspace-shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: 52px 56px 1fr;
+    }
+
+    .app-rail {
+        grid-column: 1;
+        grid-row: 1;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 6px 10px;
+        border-right: none;
+        border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+        .brand {
+            margin-bottom: 0;
+        }
+    }
+
+    .rail-divider {
+        width: 1px;
+        height: 24px;
+        margin: 0 4px;
+    }
+
+    .rail-footer {
+        margin-top: 0;
+    }
+
+    .workspace-header {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .playlist-switcher {
+        width: auto;
+        min-width: 140px;
+        flex: 1;
+    }
+
+    .workspace-body {
+        grid-column: 1;
+        grid-row: 3;
+    }
+}

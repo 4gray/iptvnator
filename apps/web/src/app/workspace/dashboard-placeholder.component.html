@@ -1,0 +1,161 @@
+<section class="dashboard-page">
+    <!-- ─── Hero ─────────────────────────────────────────────────────────── -->
+    <header class="hero">
+        <div class="hero-content">
+            <div class="hero-text">
+                <p class="eyebrow">
+                    <span class="eyebrow-dot"></span>
+                    Workspace
+                </p>
+                <h1>Your IPTV sources,<br />one place.</h1>
+                <p class="description">
+                    Jump back into your active source, switch providers
+                    instantly, or explore what's new across your library.
+                </p>
+                <div class="hero-actions">
+                    @if (activePlaylist(); as active) {
+                        <a
+                            mat-flat-button
+                            [routerLink]="getPlaylistLink(active)"
+                        >
+                            <mat-icon>play_arrow</mat-icon>
+                            Continue with {{ active.title }}
+                        </a>
+                    } @else {
+                        <a mat-flat-button routerLink="/workspace/sources">
+                            <mat-icon>library_books</mat-icon>
+                            Open Sources
+                        </a>
+                    }
+                    <a mat-stroked-button routerLink="/settings">
+                        <mat-icon>settings</mat-icon>
+                        Settings
+                    </a>
+                </div>
+            </div>
+            <div class="hero-visual" aria-hidden="true">
+                <div class="hero-icon-ring">
+                    <mat-icon>tv</mat-icon>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ─── Stats Row ─────────────────────────────────────────────────────── -->
+    <div class="stat-grid">
+        <article class="stat-card stat-card--total">
+            <div class="stat-card__icon">
+                <mat-icon>folder_open</mat-icon>
+            </div>
+            <div class="stat-card__body">
+                <span class="stat-card__value">{{ stats().total }}</span>
+                <span class="stat-card__label">Total Sources</span>
+            </div>
+        </article>
+
+        <article class="stat-card stat-card--xtream">
+            <div class="stat-card__icon">
+                <mat-icon>stream</mat-icon>
+            </div>
+            <div class="stat-card__body">
+                <span class="stat-card__value">{{ stats().xtream }}</span>
+                <span class="stat-card__label">Xtream</span>
+            </div>
+        </article>
+
+        <article class="stat-card stat-card--stalker">
+            <div class="stat-card__icon">
+                <mat-icon>router</mat-icon>
+            </div>
+            <div class="stat-card__body">
+                <span class="stat-card__value">{{ stats().stalker }}</span>
+                <span class="stat-card__label">Stalker</span>
+            </div>
+        </article>
+
+        <article class="stat-card stat-card--m3u">
+            <div class="stat-card__icon">
+                <mat-icon>playlist_play</mat-icon>
+            </div>
+            <div class="stat-card__body">
+                <span class="stat-card__value">{{ stats().m3u }}</span>
+                <span class="stat-card__label">M3U</span>
+            </div>
+        </article>
+    </div>
+
+    <!-- ─── Recent Sources ────────────────────────────────────────────────── -->
+    <section class="sources-section">
+        <div class="section-header">
+            <h2>Recent Sources</h2>
+            <a routerLink="/workspace/sources" class="section-link">
+                <mat-icon>arrow_forward</mat-icon>
+                View all
+            </a>
+        </div>
+
+        @if (recentPlaylists().length > 0) {
+            <div class="sources-grid">
+                @for (
+                    playlist of recentPlaylists();
+                    track trackByPlaylistId($index, playlist)
+                ) {
+                    <a
+                        class="source-card"
+                        [routerLink]="getPlaylistLink(playlist)"
+                    >
+                        <div class="source-card__header">
+                            <span
+                                class="provider-badge"
+                                [class]="
+                                    'provider-badge--' +
+                                    getPlaylistProvider(playlist).toLowerCase()
+                                "
+                            >
+                                {{ getPlaylistProvider(playlist) }}
+                            </span>
+                            @if (playlist.count) {
+                                <span class="source-card__count">
+                                    {{ playlist.count | number }} ch
+                                </span>
+                            }
+                        </div>
+                        <h3
+                            [attr.title]="
+                                playlist.title ||
+                                playlist.filename ||
+                                'Untitled source'
+                            "
+                        >
+                            {{
+                                playlist.title ||
+                                    playlist.filename ||
+                                    'Untitled source'
+                            }}
+                        </h3>
+                        <p class="source-card__date">
+                            <mat-icon>schedule</mat-icon>
+                            {{
+                                formatTimestamp(
+                                    playlist.updateDate || playlist.importDate
+                                )
+                            }}
+                        </p>
+                    </a>
+                }
+            </div>
+        } @else {
+            <article class="empty-state">
+                <div class="empty-state__icon">
+                    <mat-icon>library_add</mat-icon>
+                </div>
+                <h3>No sources yet</h3>
+                <p>Add a playlist in Library to start using the workspace.</p>
+                <a mat-flat-button routerLink="/workspace/sources">
+                    <mat-icon>add</mat-icon>
+                    Add Source
+                </a>
+            </article>
+        }
+    </section>
+</section>

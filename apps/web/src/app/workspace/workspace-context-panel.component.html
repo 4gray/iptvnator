@@ -1,0 +1,55 @@
+<div class="context-column">
+    <header class="context-header">
+        <div class="context-header__top">
+            <h2>{{ title() }}</h2>
+            @if (isXtreamCategories()) {
+                <button
+                    mat-icon-button
+                    [matTooltip]="'Manage categories'"
+                    aria-label="Manage categories"
+                    (click)="openXtreamCategoryManagement()"
+                >
+                    <mat-icon>tune</mat-icon>
+                </button>
+            }
+        </div>
+        @if (subtitle(); as text) {
+            <span class="context-header__badge">{{ text }}</span>
+        }
+    </header>
+
+    <div class="context-divider"></div>
+
+    @if (isXtreamCategories()) {
+        <app-category-view
+            [items]="xtreamCategories()"
+            [selectedCategoryId]="xtreamSelectedCategoryId()"
+            [itemCounts]="xtreamCategoryItemCounts()"
+            [showCounts]="true"
+            (categoryClicked)="onXtreamCategoryClicked($event)"
+        />
+    } @else if (isStalkerCategories()) {
+        @if (isStalkerCategoryLoading()) {
+            <ngx-skeleton-loader
+                count="18"
+                [theme]="{
+                    width: '95%',
+                    height: '36px',
+                    borderRadius: '8px',
+                }"
+            />
+        } @else if (isStalkerCategoryFailed()) {
+            <app-playlist-error-view
+                [title]="'Unable to load categories'"
+                [description]="'Please retry or verify portal settings.'"
+                [showActionButtons]="false"
+            />
+        } @else {
+            <app-category-view
+                [items]="stalkerCategories()"
+                [selectedCategoryId]="$any(stalkerSelectedCategoryId())"
+                (categoryClicked)="onStalkerCategoryClicked($any($event))"
+            />
+        }
+    }
+</div>

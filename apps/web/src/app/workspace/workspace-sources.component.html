@@ -1,0 +1,12 @@
+<section class="sources-page">
+    <header class="sources-header">
+        <h2 class="sources-title">{{ title() }}</h2>
+        <p class="sources-subtitle">{{ subtitle() }}</p>
+    </header>
+    <div class="sources-content">
+        <app-recent-playlists
+            [searchQueryInput]="searchQuery()"
+            (addPlaylistClicked)="onAddPlaylist($event)"
+        />
+    </div>
+</section>

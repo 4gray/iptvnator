@@ -1,0 +1,253 @@
+<div class="workspace-shell">
+    <aside class="app-rail" [class.is-macos]="isMacOS">
+        <a
+            class="brand"
+            routerLink="/workspace/dashboard"
+            matTooltip="Dashboard"
+            [matTooltipPosition]="'right'"
+            aria-label="Open dashboard"
+        >
+            <img src="./assets/icons/icon-tv-256.png" alt="IPTVnator logo" />
+        </a>
+
+        <app-portal-rail-links
+            variant="rail"
+            activeClass="is-active"
+            [links]="workspaceLinks"
+        />
+
+        @if (primaryContextLinks().length > 0) {
+            <div class="rail-divider"></div>
+            <app-portal-rail-links
+                variant="rail"
+                activeClass="is-active"
+                [selectedSection]="currentSection()"
+                [links]="primaryContextLinks()"
+            />
+        }
+
+        @if (secondaryContextLinks().length > 0) {
+            <div class="rail-divider"></div>
+            <app-portal-rail-links
+                variant="rail"
+                activeClass="is-active"
+                [selectedSection]="currentSection()"
+                [links]="secondaryContextLinks()"
+            />
+        }
+
+        <div class="rail-footer">
+            <a
+                routerLink="/workspace/settings"
+                [class.is-active]="isSettingsRoute()"
+                matTooltip="Settings"
+                [matTooltipPosition]="'right'"
+                aria-label="Open settings"
+            >
+                <mat-icon>settings</mat-icon>
+            </a>
+        </div>
+    </aside>
+
+    <header class="workspace-header">
+        <app-playlist-switcher
+            class="playlist-switcher"
+            [currentTitle]="playlistTitle()"
+            [subtitle]="playlistSubtitle()"
+        />
+
+        <label class="search-field">
+            <mat-icon>search</mat-icon>
+            <input
+                type="search"
+                spellcheck="false"
+                [value]="searchQuery()"
+                (input)="onSearchInput($event)"
+                (keydown.enter)="onSearchEnter($event)"
+                [disabled]="!canUseSearch()"
+                [placeholder]="searchPlaceholder()"
+                aria-label="Search"
+            />
+        </label>
+
+        <div class="header-actions">
+            <button
+                type="button"
+                mat-icon-button
+                [matMenuTriggerFor]="addPlaylistMenu().menu()"
+                [matTooltip]="'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate"
+                aria-label="Add playlist"
+            >
+                <mat-icon>add</mat-icon>
+            </button>
+            <app-add-playlist-menu
+                (playlistTypeSelected)="openAddPlaylistDialog($event)"
+            />
+            @if (canOpenPlaylistInfo()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    (click)="openPlaylistInfo()"
+                    [matTooltip]="'PORTALS.SIDEBAR.PLAYLIST_INFO' | translate"
+                    aria-label="Open playlist info"
+                >
+                    <mat-icon>playlist_play</mat-icon>
+                </button>
+            }
+            @if (canOpenAccountInfo()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    (click)="openAccountInfo()"
+                    [matTooltip]="'PORTALS.SIDEBAR.ACCOUNT_INFO' | translate"
+                    aria-label="Open account info"
+                >
+                    <mat-icon>person</mat-icon>
+                </button>
+            }
+            @if (downloadsContext()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    [class.is-active]="isDownloadsView()"
+                    (click)="openDownloadsShortcut()"
+                    [matTooltip]="'Downloads'"
+                    aria-label="Open downloads"
+                >
+                    <mat-icon>download</mat-icon>
+                </button>
+            }
+            @if (headerBulkAction(); as action) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    (click)="runHeaderBulkAction()"
+                    [matTooltip]="action.tooltip"
+                    [disabled]="action.disabled"
+                    [attr.aria-label]="action.ariaLabel"
+                >
+                    <mat-icon>{{ action.icon }}</mat-icon>
+                </button>
+            }
+            <button
+                type="button"
+                mat-icon-button
+                [class.is-active]="isFavoritesView()"
+                (click)="toggleFavoritesShortcut()"
+                [matTooltip]="'Favorites only'"
+                [disabled]="!currentContext()"
+                aria-label="Toggle favorites only"
+            >
+                <mat-icon>favorite</mat-icon>
+            </button>
+            @if (canSort()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    [matMenuTriggerFor]="sortMenu"
+                    [matTooltip]="'Sort: ' + contentSortLabel()"
+                    aria-label="Sorting options"
+                >
+                    <mat-icon>sort</mat-icon>
+                </button>
+                <mat-menu #sortMenu="matMenu">
+                    <button
+                        mat-menu-item
+                        (click)="setContentSortMode('date-desc')"
+                    >
+                        <span>Date Added (Latest First)</span>
+                        @if (contentSortMode() === 'date-desc') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                    <button
+                        mat-menu-item
+                        (click)="setContentSortMode('date-asc')"
+                    >
+                        <span>Date Added (Oldest First)</span>
+                        @if (contentSortMode() === 'date-asc') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                    <button
+                        mat-menu-item
+                        (click)="setContentSortMode('name-asc')"
+                    >
+                        <span>Name A-Z</span>
+                        @if (contentSortMode() === 'name-asc') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                    <button
+                        mat-menu-item
+                        (click)="setContentSortMode('name-desc')"
+                    >
+                        <span>Name Z-A</span>
+                        @if (contentSortMode() === 'name-desc') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                </mat-menu>
+            }
+        </div>
+    </header>
+
+    <div class="workspace-body" [class.single-pane]="!showContextPanel()">
+        @if (isSourcesRoute()) {
+            <aside
+                class="context-panel context-panel--sources"
+                appResizable
+                [minWidth]="220"
+                [maxWidth]="440"
+                [defaultWidth]="290"
+                storageKey="workspace-sources-panel-width"
+            >
+                <app-workspace-sources-filters-panel />
+            </aside>
+        } @else if (isCategoryContextRoute()) {
+            @if (currentContext(); as context) {
+                @if (currentSection(); as section) {
+                    <aside
+                        class="context-panel context-panel--route"
+                        appResizable
+                        [minWidth]="240"
+                        [maxWidth]="560"
+                        [defaultWidth]="300"
+                        storageKey="workspace-context-panel-width"
+                    >
+                        <app-workspace-context-panel
+                            [context]="context"
+                            [section]="section"
+                        />
+                    </aside>
+                }
+            }
+        } @else if (isSettingsRoute()) {
+            <aside
+                class="context-panel context-panel--settings"
+                appResizable
+                [minWidth]="200"
+                [maxWidth]="400"
+                [defaultWidth]="260"
+                storageKey="workspace-settings-panel-width"
+            >
+                <app-workspace-settings-context-panel />
+            </aside>
+        } @else if (isFavoritesContextRoute()) {
+            <aside
+                class="context-panel context-panel--route"
+                appResizable
+                [minWidth]="200"
+                [maxWidth]="400"
+                [defaultWidth]="260"
+                storageKey="workspace-favorites-panel-width"
+            >
+                <app-workspace-favorites-context-panel />
+            </aside>
+        }
+
+        <main class="workspace-content">
+            <router-outlet />
+        </main>
+    </div>
+</div>

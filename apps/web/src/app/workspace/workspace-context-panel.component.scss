@@ -1,0 +1,99 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.context-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+// ─── Header ───────────────────────────────────────────────────────────────────
+.context-header {
+    padding: 4px 6px 10px;
+    flex-shrink: 0;
+}
+
+.context-header__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    h2 {
+        margin: 0;
+        font-size: 0.94rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--mat-sys-on-surface);
+    }
+
+    button[mat-icon-button] {
+        width: 32px;
+        height: 32px;
+        line-height: 32px;
+        border-radius: 8px;
+        color: var(--mat-sys-on-surface-variant);
+        transition: background 0.15s ease, color 0.15s ease;
+
+        &:hover {
+            background: var(--mat-sys-surface-container);
+            color: var(--mat-sys-on-surface);
+        }
+
+        mat-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+        }
+    }
+}
+
+.context-header__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--mat-sys-surface-container);
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.context-header p {
+    margin: 4px 0 0;
+    font-size: 0.78rem;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+// ─── Divider ──────────────────────────────────────────────────────────────────
+.context-divider {
+    height: 1px;
+    background: var(--mat-sys-outline-variant);
+    margin: 0 0 6px;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+
+// ─── Category List ────────────────────────────────────────────────────────────
+app-category-view {
+    display: block;
+    min-height: 0;
+    height: 100%;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--mat-sys-outline-variant) transparent;
+}
