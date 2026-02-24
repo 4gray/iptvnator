@@ -111,7 +111,7 @@
                     mat-icon-button
                     [class.is-active]="isDownloadsView()"
                     (click)="openDownloadsShortcut()"
-                    [matTooltip]="'Downloads'"
+                    [matTooltip]="'DOWNLOADS.TITLE' | translate"
                     aria-label="Open downloads"
                 >
                     <mat-icon>download</mat-icon>
@@ -134,7 +134,7 @@
                 mat-icon-button
                 [class.is-active]="isFavoritesView()"
                 (click)="toggleFavoritesShortcut()"
-                [matTooltip]="'Favorites only'"
+                [matTooltip]="'WORKSPACE.FAVORITES_ONLY' | translate"
                 [disabled]="!currentContext()"
                 aria-label="Toggle favorites only"
             >
@@ -145,7 +145,10 @@
                     type="button"
                     mat-icon-button
                     [matMenuTriggerFor]="sortMenu"
-                    [matTooltip]="'Sort: ' + contentSortLabel()"
+                    [matTooltip]="
+                        ('WORKSPACE.SORT_LABEL' | translate) +
+                        contentSortLabel()
+                    "
                     aria-label="Sorting options"
                 >
                     <mat-icon>sort</mat-icon>
@@ -155,7 +158,9 @@
                         mat-menu-item
                         (click)="setContentSortMode('date-desc')"
                     >
-                        <span>Date Added (Latest First)</span>
+                        <span>{{
+                            'WORKSPACE.SORT_DATE_DESC' | translate
+                        }}</span>
                         @if (contentSortMode() === 'date-desc') {
                             <mat-icon>check</mat-icon>
                         }
@@ -164,7 +169,7 @@
                         mat-menu-item
                         (click)="setContentSortMode('date-asc')"
                     >
-                        <span>Date Added (Oldest First)</span>
+                        <span>{{ 'WORKSPACE.SORT_DATE_ASC' | translate }}</span>
                         @if (contentSortMode() === 'date-asc') {
                             <mat-icon>check</mat-icon>
                         }
@@ -173,7 +178,7 @@
                         mat-menu-item
                         (click)="setContentSortMode('name-asc')"
                     >
-                        <span>Name A-Z</span>
+                        <span>{{ 'WORKSPACE.SORT_NAME_ASC' | translate }}</span>
                         @if (contentSortMode() === 'name-asc') {
                             <mat-icon>check</mat-icon>
                         }
@@ -182,7 +187,9 @@
                         mat-menu-item
                         (click)="setContentSortMode('name-desc')"
                     >
-                        <span>Name Z-A</span>
+                        <span>{{
+                            'WORKSPACE.SORT_NAME_DESC' | translate
+                        }}</span>
                         @if (contentSortMode() === 'name-desc') {
                             <mat-icon>check</mat-icon>
                         }
