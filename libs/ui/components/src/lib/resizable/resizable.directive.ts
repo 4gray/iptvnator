@@ -11,6 +11,17 @@ import {
     AfterViewInit,
 } from '@angular/core';
 
+const SHARED_SIDEBAR_WIDTH_KEY = 'sidebar-width';
+const SIDEBAR_WIDTH_KEY_ALIASES = new Set([
+    SHARED_SIDEBAR_WIDTH_KEY,
+    'downloads-sidebar-width',
+    'workspace-sources-panel-width',
+    'workspace-context-panel-width',
+    'workspace-settings-panel-width',
+    'workspace-favorites-panel-width',
+    'iptvnator_video_sidebar_width',
+]);
+
 /**
  * ResizableDirective - Makes an element horizontally resizable by dragging its edge.
  *
@@ -38,7 +49,7 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
     /** Maximum width in pixels */
     readonly maxWidth = input<number>(600);
 
-    /** LocalStorage key for persisting width. If not set, width won't be persisted. */
+    /** LocalStorage key for persisting width. Defaults to shared sidebar key when omitted. */
     readonly storageKey = input<string>('');
 
     /** Default width to use when no stored value exists */
@@ -154,15 +165,32 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
     }
 
     private loadPersistedWidth(): void {
-        const key = this.storageKey();
+        const { key, legacyKeys } = this.resolveStorageKey();
         let widthToApply = this.defaultWidth();
 
         if (key) {
-            const stored = localStorage.getItem(key);
+            let stored = localStorage.getItem(key);
+            let sourceLegacyKey: string | null = null;
+
+            if (!stored) {
+                for (const legacyKey of legacyKeys) {
+                    const legacyValue = localStorage.getItem(legacyKey);
+                    if (legacyValue) {
+                        stored = legacyValue;
+                        sourceLegacyKey = legacyKey;
+                        break;
+                    }
+                }
+            }
+
             if (stored) {
                 const width = parseInt(stored, 10);
                 if (!isNaN(width)) {
                     widthToApply = this.clampWidth(width);
+                    localStorage.setItem(key, widthToApply.toString());
+                    if (sourceLegacyKey && sourceLegacyKey !== key) {
+                        localStorage.removeItem(sourceLegacyKey);
+                    }
                 }
             }
         }
@@ -191,7 +219,7 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
         this.startResize(e.clientX);
 
         this.boundMouseMove = (event: MouseEvent) => this.onMouseMove(event);
-        this.boundMouseUp = (event: MouseEvent) => this.onMouseUp(event);
+        this.boundMouseUp = () => this.onMouseUp();
 
         document.addEventListener('mousemove', this.boundMouseMove);
         document.addEventListener('mouseup', this.boundMouseUp);
@@ -206,7 +234,7 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
         this.startResize(e.touches[0].clientX);
 
         this.boundTouchMove = (event: TouchEvent) => this.onTouchMove(event);
-        this.boundTouchEnd = (event: TouchEvent) => this.onTouchEnd(event);
+        this.boundTouchEnd = () => this.onTouchEnd();
 
         document.addEventListener('touchmove', this.boundTouchMove, {
             passive: false,
@@ -243,11 +271,11 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
         this.widthChange.emit(newWidth);
     }
 
-    private onMouseUp(_e: MouseEvent): void {
+    private onMouseUp(): void {
         this.endResize();
     }
 
-    private onTouchEnd(_e: TouchEvent): void {
+    private onTouchEnd(): void {
         this.endResize();
     }
 
@@ -289,9 +317,25 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
     }
 
     private persistWidth(): void {
-        const key = this.storageKey();
+        const { key } = this.resolveStorageKey();
         if (key) {
             localStorage.setItem(key, this.currentWidth().toString());
         }
+    }
+
+    private resolveStorageKey(): { key: string; legacyKeys: string[] } {
+        const rawKey = this.storageKey().trim();
+        if (!rawKey) {
+            return { key: SHARED_SIDEBAR_WIDTH_KEY, legacyKeys: [] };
+        }
+
+        if (SIDEBAR_WIDTH_KEY_ALIASES.has(rawKey)) {
+            return {
+                key: SHARED_SIDEBAR_WIDTH_KEY,
+                legacyKeys: rawKey === SHARED_SIDEBAR_WIDTH_KEY ? [] : [rawKey],
+            };
+        }
+
+        return { key: rawKey, legacyKeys: [] };
     }
 }
