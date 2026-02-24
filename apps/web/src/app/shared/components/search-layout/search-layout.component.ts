@@ -47,6 +47,9 @@ export class SearchLayoutComponent {
     /** Whether to show results count */
     readonly showResultsCount = input<boolean>(true);
 
+    /** Whether to show the inline search input */
+    readonly showSearchInput = input<boolean>(true);
+
     /** Minimum characters required for search */
     readonly minSearchLength = input<number>(3);
 

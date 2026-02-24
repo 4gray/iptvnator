@@ -33,12 +33,14 @@
                 </div>
             </div>
 
-            <div class="search-input-container">
-                <app-search-form
-                    [searchTerm]="searchTerm()"
-                    (searchTermChange)="onSearchTermChange($event)"
-                />
-            </div>
+            @if (showSearchInput()) {
+                <div class="search-input-container">
+                    <app-search-form
+                        [searchTerm]="searchTerm()"
+                        (searchTermChange)="onSearchTermChange($event)"
+                    />
+                </div>
+            }
 
             <!-- Subheader slot (info notes, secondary controls) -->
             <ng-content select="[subheader]" />
