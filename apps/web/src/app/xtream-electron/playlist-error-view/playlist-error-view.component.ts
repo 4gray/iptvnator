@@ -8,7 +8,6 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { DialogService, PlaylistInfoComponent } from 'components';
 import { PlaylistActions } from 'm3u-state';
 import { selectCurrentPlaylist } from 'm3u-state';
-import { DatabaseService } from 'services';
 import { Playlist } from 'shared-interfaces';
 
 @Component({
@@ -18,7 +17,6 @@ import { Playlist } from 'shared-interfaces';
     imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule],
 })
 export class PlaylistErrorViewComponent {
-    private databaseService = inject(DatabaseService);
     private dialog = inject(MatDialog);
     private dialogService = inject(DialogService);
     private router = inject(Router);
@@ -56,6 +54,5 @@ export class PlaylistErrorViewComponent {
     removePlaylist(playlistId: string): void {
         this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
         this.router.navigate(['/']);
-        this.databaseService.deletePlaylist(playlistId);
     }
 }

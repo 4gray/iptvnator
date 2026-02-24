@@ -1,80 +1,84 @@
 @let isEmbeddedPlayer =
     player() === 'videojs' || player() === 'html5' || player() === 'artplayer';
 
-<div
-    class="sidebar"
-    appResizable
-    [minWidth]="250"
-    [maxWidth]="600"
-    [defaultWidth]="400"
-    storageKey="sidebar-width"
->
-    <div class="sidebar-header">
+@if (!isWorkspaceLayout || selectedCategoryId()) {
+    <div
+        class="sidebar"
+        appResizable
+        [minWidth]="250"
+        [maxWidth]="600"
+        [defaultWidth]="400"
+        storageKey="sidebar-width"
+    >
+        <div class="sidebar-header">
+            @if (selectedCategoryId()) {
+                <button mat-icon-button (click)="backToCategories()">
+                    <mat-icon>chevron_left</mat-icon>
+                </button>
+                <h2 class="category-title">
+                    {{ selectedCategoryInfo()?.name }} ({{ selectedCategoryInfo()?.count }})
+                </h2>
+                <button
+                    mat-icon-button
+                    [matMenuTriggerFor]="channelSortMenu"
+                    [matTooltip]="'Sort: ' + liveChannelSortLabel()"
+                    aria-label="Sort channels"
+                >
+                    <mat-icon>sort_by_alpha</mat-icon>
+                </button>
+                <mat-menu #channelSortMenu="matMenu">
+                    <button mat-menu-item (click)="setLiveChannelSortMode('server')">
+                        <span>Server Order</span>
+                        @if (liveChannelSortMode() === 'server') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                    <button mat-menu-item (click)="setLiveChannelSortMode('name-asc')">
+                        <span>Name A-Z</span>
+                        @if (liveChannelSortMode() === 'name-asc') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                    <button mat-menu-item (click)="setLiveChannelSortMode('name-desc')">
+                        <span>Name Z-A</span>
+                        @if (liveChannelSortMode() === 'name-desc') {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                </mat-menu>
+            } @else {
+                @if (!isWorkspaceLayout) {
+                    <app-playlist-switcher
+                        class="switcher"
+                        [currentTitle]="currentPlaylist()?.name || currentPlaylist()?.title || 'Playlist'"
+                        [subtitle]="'Xtream Code'"
+                    />
+                }
+                <button
+                    mat-icon-button
+                    class="manage-categories-btn"
+                    (click)="openCategoryManagement()"
+                    [matTooltip]="'XTREAM.CATEGORY_MANAGEMENT.TITLE' | translate"
+                >
+                    <mat-icon>tune</mat-icon>
+                </button>
+            }
+        </div>
         @if (selectedCategoryId()) {
-            <button mat-icon-button (click)="backToCategories()">
-                <mat-icon>chevron_left</mat-icon>
-            </button>
-            <h2 class="category-title">
-                {{ selectedCategoryInfo()?.name }} ({{ selectedCategoryInfo()?.count }})
-            </h2>
-            <button
-                mat-icon-button
-                [matMenuTriggerFor]="channelSortMenu"
-                [matTooltip]="'Sort: ' + liveChannelSortLabel()"
-                aria-label="Sort channels"
-            >
-                <mat-icon>sort_by_alpha</mat-icon>
-            </button>
-            <mat-menu #channelSortMenu="matMenu">
-                <button mat-menu-item (click)="setLiveChannelSortMode('server')">
-                    <span>Server Order</span>
-                    @if (liveChannelSortMode() === 'server') {
-                        <mat-icon>check</mat-icon>
-                    }
-                </button>
-                <button mat-menu-item (click)="setLiveChannelSortMode('name-asc')">
-                    <span>Name A-Z</span>
-                    @if (liveChannelSortMode() === 'name-asc') {
-                        <mat-icon>check</mat-icon>
-                    }
-                </button>
-                <button mat-menu-item (click)="setLiveChannelSortMode('name-desc')">
-                    <span>Name Z-A</span>
-                    @if (liveChannelSortMode() === 'name-desc') {
-                        <mat-icon>check</mat-icon>
-                    }
-                </button>
-            </mat-menu>
-        } @else {
-            <app-playlist-switcher
-                class="switcher"
-                [currentTitle]="currentPlaylist()?.name || currentPlaylist()?.title || 'Playlist'"
-                [subtitle]="'Xtream Code'"
+            <app-portal-channels-list
+                [sortMode]="liveChannelSortMode()"
+                (playClicked)="playLive($event)"
             />
-            <button
-                mat-icon-button
-                class="manage-categories-btn"
-                (click)="openCategoryManagement()"
-                [matTooltip]="'XTREAM.CATEGORY_MANAGEMENT.TITLE' | translate"
-            >
-                <mat-icon>tune</mat-icon>
-            </button>
+        } @else {
+            <app-category-view
+                [items]="categories()"
+                [itemCounts]="categoryItemCounts()"
+                (categoryClicked)="selectCategory($event)"
+                [showCounts]="true"
+            />
         }
     </div>
-    @if (selectedCategoryId()) {
-        <app-portal-channels-list
-            [sortMode]="liveChannelSortMode()"
-            (playClicked)="playLive($event)"
-        />
-    } @else {
-        <app-category-view
-            [items]="categories()"
-            [itemCounts]="categoryItemCounts()"
-            (categoryClicked)="selectCategory($event)"
-            [showCounts]="true"
-        />
-    }
-</div>
+}
 <div class="content-container">
     @if (streamUrl) {
         @if (isEmbeddedPlayer) {

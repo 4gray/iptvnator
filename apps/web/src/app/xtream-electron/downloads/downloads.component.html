@@ -1,13 +1,18 @@
 <div class="downloads">
     <header class="downloads__header">
         <div class="downloads__header-left">
-            <h1>{{ 'DOWNLOADS.TITLE' | translate }}</h1>
-            @if (activeCount() > 0) {
-                <span class="downloads__badge">{{ activeCount() }}</span>
-            }
+            <div class="settings-group__header-icon">
+                <mat-icon>downloading</mat-icon>
+            </div>
+            <div class="settings-group__header-text">
+                <h1>{{ 'DOWNLOADS.TITLE' | translate }}</h1>
+                @if (activeCount() > 0) {
+                    <span class="downloads__badge">{{ activeCount() }}</span>
+                }
+            </div>
         </div>
         <div class="downloads__header-actions">
-            @if (hasDownloads()) {
+            @if (hasDownloads() && !isWorkspaceLayout) {
                 <button
                     mat-stroked-button
                     (click)="clearCompleted()"
@@ -21,11 +26,11 @@
     </header>
 
     <div class="downloads__folder">
-        <mat-icon>folder</mat-icon>
+        <mat-icon>folder_open</mat-icon>
         <span class="downloads__folder-path">{{
             downloadFolder() || ('DOWNLOADS.NO_FOLDER' | translate)
         }}</span>
-        <button mat-stroked-button (click)="changeFolder()">
+        <button mat-flat-button color="accent" (click)="changeFolder()">
             {{ 'DOWNLOADS.CHANGE_FOLDER' | translate }}
         </button>
     </div>
@@ -41,6 +46,12 @@
             <mat-icon>download</mat-icon>
             <p>{{ 'DOWNLOADS.EMPTY' | translate }}</p>
             <span>{{ 'DOWNLOADS.EMPTY_HINT' | translate }}</span>
+        </div>
+    } @else if (filteredDownloads().length === 0) {
+        <div class="downloads__empty">
+            <mat-icon>search_off</mat-icon>
+            <p>No downloads match the current filter</p>
+            <span>Try a different search term</span>
         </div>
     } @else {
         <div class="downloads__list-wrapper">
@@ -141,6 +152,7 @@
                                 @case ('completed') {
                                     <button
                                         mat-icon-button
+                                        color="primary"
                                         (click)="play(item)"
                                         [matTooltip]="
                                             'DOWNLOADS.PLAY' | translate
@@ -159,6 +171,7 @@
                                     </button>
                                     <button
                                         mat-icon-button
+                                        color="warn"
                                         (click)="remove(item)"
                                         [matTooltip]="
                                             'DOWNLOADS.REMOVE' | translate
@@ -170,6 +183,7 @@
                                 @case ('failed') {
                                     <button
                                         mat-icon-button
+                                        color="accent"
                                         (click)="retry(item)"
                                         [matTooltip]="
                                             'DOWNLOADS.RETRY' | translate
@@ -179,6 +193,7 @@
                                     </button>
                                     <button
                                         mat-icon-button
+                                        color="warn"
                                         (click)="remove(item)"
                                         [matTooltip]="
                                             'DOWNLOADS.REMOVE' | translate
@@ -190,6 +205,7 @@
                                 @case ('canceled') {
                                     <button
                                         mat-icon-button
+                                        color="accent"
                                         (click)="retry(item)"
                                         [matTooltip]="
                                             'DOWNLOADS.RETRY' | translate
@@ -199,6 +215,7 @@
                                     </button>
                                     <button
                                         mat-icon-button
+                                        color="warn"
                                         (click)="remove(item)"
                                         [matTooltip]="
                                             'DOWNLOADS.REMOVE' | translate

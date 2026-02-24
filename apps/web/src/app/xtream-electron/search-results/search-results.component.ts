@@ -10,6 +10,7 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -22,6 +23,7 @@ import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import groupBy from 'lodash/groupBy';
+import { map } from 'rxjs';
 import { DatabaseService } from 'services';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
@@ -59,6 +61,14 @@ export class SearchResultsComponent implements AfterViewInit {
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
     private readonly logger = createLogger('XtreamSearchResults');
+    readonly isWorkspaceLayout =
+        this.activatedRoute.snapshot.data['layout'] === 'workspace';
+    readonly routeSearchTerm = toSignal(
+        this.activatedRoute.queryParamMap.pipe(
+            map((params) => (params.get('q') ?? '').trim())
+        ),
+        { initialValue: '' }
+    );
 
     /** Search term from store */
     readonly searchTerm = this.xtreamStore.searchTerm;
@@ -147,6 +157,19 @@ export class SearchResultsComponent implements AfterViewInit {
             } else if (term.length === 0) {
                 this.clearResultsOnly();
             }
+        });
+
+        effect(() => {
+            if (this.isGlobalSearch || !this.isWorkspaceLayout) {
+                return;
+            }
+
+            const queryTerm = this.routeSearchTerm();
+            if (!queryTerm || queryTerm === this.searchTerm()) {
+                return;
+            }
+
+            this.xtreamStore.setSearchTerm(queryTerm);
         });
     }
 
@@ -277,5 +300,9 @@ export class SearchResultsComponent implements AfterViewInit {
 
     getGroupedResults() {
         return this.groupedResults();
+    }
+
+    get showInlineSearchInput(): boolean {
+        return !this.isWorkspaceLayout || this.isGlobalSearch;
     }
 }

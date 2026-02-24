@@ -260,8 +260,8 @@
 
     // In-progress state
     &--in-progress {
-        border-color: rgba(229, 9, 20, 0.6);
-        background: rgba(229, 9, 20, 0.05);
+        border-color: color-mix(in srgb, var(--mat-sys-primary) 60%, transparent);
+        background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
 
         &::before {
             content: '';
@@ -269,7 +269,7 @@
             inset: 0;
             background: linear-gradient(
                 135deg,
-                rgba(229, 9, 20, 0.1) 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 10%, transparent) 0%,
                 transparent 50%
             );
             pointer-events: none;
@@ -287,7 +287,7 @@
 
         .episode-card__title::after {
             content: ' ✓';
-            color: #46d369;
+            color: var(--mat-sys-tertiary);
             font-weight: bold;
             margin-left: 4px;
         }
@@ -398,10 +398,10 @@
         }
 
         .download-btn--completed {
-            color: #4caf50 !important;
+            color: var(--mat-sys-tertiary) !important;
 
             &:hover {
-                background: rgba(76, 175, 80, 0.8);
+                background: color-mix(in srgb, var(--mat-sys-tertiary) 80%, transparent);
             }
         }
 
@@ -522,12 +522,12 @@
     }
 
     &--in-progress {
-        border-color: rgba(229, 9, 20, 0.4);
-        background: rgba(229, 9, 20, 0.05);
+        border-color: color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+        background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
 
         &:hover {
-            border-color: rgba(229, 9, 20, 0.6);
-            background: rgba(229, 9, 20, 0.08);
+            border-color: color-mix(in srgb, var(--mat-sys-primary) 60%, transparent);
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
         }
     }
 
@@ -576,7 +576,7 @@
             font-size: 16px;
             width: 16px;
             height: 16px;
-            color: #46d369;
+            color: var(--mat-sys-tertiary);
         }
     }
 
@@ -598,9 +598,9 @@
     &__progress-text {
         font-size: 0.75rem;
         font-weight: 500;
-        color: #e50914;
+        color: var(--mat-sys-primary);
         padding: 2px 8px;
-        background: rgba(229, 9, 20, 0.15);
+        background: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
         border-radius: 10px;
     }
 
@@ -625,7 +625,7 @@
 
     &__progress-fill {
         height: 100%;
-        background: #e50914;
+        background: var(--mat-sys-primary);
         border-radius: 2px;
         transition: width 0.3s ease;
     }
@@ -663,10 +663,10 @@
             }
 
             &--success {
-                color: #46d369;
+                color: var(--mat-sys-tertiary);
 
                 &:hover {
-                    background: rgba(70, 211, 105, 0.15);
+                    background: color-mix(in srgb, var(--mat-sys-tertiary) 15%, transparent);
                 }
             }
 

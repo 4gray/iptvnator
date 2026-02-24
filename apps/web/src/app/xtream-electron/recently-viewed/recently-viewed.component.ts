@@ -1,5 +1,15 @@
 import { KeyValuePipe } from '@angular/common';
-import { Component, computed, inject, Optional, signal } from '@angular/core';
+import {
+    Component,
+    computed,
+    effect,
+    inject,
+    OnDestroy,
+    Optional,
+    signal,
+} from '@angular/core';
+
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -7,17 +17,21 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import groupBy from 'lodash/groupBy';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, map } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
+import { XtreamCategory } from 'shared-interfaces';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
-import { StalkerStore } from '../../stalker/stalker.store';
-import { XtreamStore } from '../stores/xtream.store';
+import { FavoritesLayoutComponent } from '../../shared/components/favorites-layout/favorites-layout.component';
 import { createLogger } from '../../shared/utils/logger';
+import { StalkerStore } from '../../stalker/stalker.store';
+import { FavoritesContextService } from '../../workspace/favorites-context.service';
+import { XtreamStore } from '../stores/xtream.store';
 
 @Component({
     selector: 'app-recently-viewed',
     imports: [
         ContentCardComponent,
+        FavoritesLayoutComponent,
         FormsModule,
         KeyValuePipe,
         MatButton,
@@ -29,7 +43,7 @@ import { createLogger } from '../../shared/utils/logger';
     templateUrl: './recently-viewed.component.html',
     styleUrl: './recently-viewed.component.scss',
 })
-export class RecentlyViewedComponent {
+export class RecentlyViewedComponent implements OnDestroy {
     private static readonly GROUP_BY_STORAGE_KEY =
         'global-recent-group-by-playlist';
     private static readonly TYPE_FILTERS_STORAGE_KEY =
@@ -44,8 +58,11 @@ export class RecentlyViewedComponent {
     private readonly stalkerStore = inject(StalkerStore);
     private dialogData = inject(MAT_DIALOG_DATA, { optional: true });
     private readonly logger = createLogger('XtreamRecentlyViewed');
+    private readonly favoritesCtx = inject(FavoritesContextService);
 
     readonly isGlobal = this.dialogData?.isGlobal ?? false;
+    readonly isWorkspaceLayout =
+        this.activatedRoute.snapshot.data['layout'] === 'workspace';
     private readonly _groupByPlaylist = (() => {
         const saved = localStorage.getItem(
             RecentlyViewedComponent.GROUP_BY_STORAGE_KEY
@@ -81,9 +98,61 @@ export class RecentlyViewedComponent {
             ? this.xtreamStore.globalRecentItems()
             : this.xtreamStore.recentItems()
     );
+    readonly selectedCategoryId = this.favoritesCtx.selectedCategoryId;
+    readonly categories = computed<XtreamCategory[]>(() => {
+        const items = this.recentItems();
+        const movies = items.filter(
+            (item: any) => item?.type === 'movie'
+        ).length;
+        const live = items.filter((item: any) => item?.type === 'live').length;
+        const series = items.filter(
+            (item: any) => item?.type === 'series'
+        ).length;
+
+        const cats: XtreamCategory[] = [
+            {
+                id: 1,
+                category_id: 'all',
+                category_name: 'All',
+                count: items.length,
+                parent_id: 0,
+            },
+            {
+                id: 2,
+                category_id: 'movie',
+                category_name: 'Movies',
+                count: movies,
+                parent_id: 0,
+            },
+            {
+                id: 3,
+                category_id: 'live',
+                category_name: 'Live TV',
+                count: live,
+                parent_id: 0,
+            },
+            {
+                id: 4,
+                category_id: 'series',
+                category_name: 'Series',
+                count: series,
+                parent_id: 0,
+            },
+        ];
+        return cats;
+    });
     readonly recentSearchTerm = signal('');
+    readonly workspaceSearchTerm = toSignal(
+        this.activatedRoute.queryParamMap.pipe(
+            map((params) => (params.get('q') ?? '').trim().toLowerCase())
+        ),
+        { initialValue: '' }
+    );
     readonly filteredRecentItems = computed(() => {
-        const term = this.recentSearchTerm().trim().toLowerCase();
+        const term =
+            this.isWorkspaceLayout && !this.isGlobal
+                ? this.workspaceSearchTerm()
+                : this.recentSearchTerm().trim().toLowerCase();
         const typeFilters = this.typeFilters();
         const items = this.recentItems().filter((item: any) => {
             if (item?.type === 'live') return typeFilters.live;
@@ -102,9 +171,27 @@ export class RecentlyViewedComponent {
     readonly visibleRecentItems = computed(() => {
         const items = this.filteredRecentItems();
         if (this.isGlobal && !this.groupByPlaylist()) {
-            return items.slice(0, RecentlyViewedComponent.MAX_FLAT_GLOBAL_ITEMS);
+            return items.slice(
+                0,
+                RecentlyViewedComponent.MAX_FLAT_GLOBAL_ITEMS
+            );
         }
         return items;
+    });
+    readonly nonGlobalItemsToShow = computed(() => {
+        const items = this.visibleRecentItems();
+
+        switch (this.selectedCategoryId()) {
+            case 'movie':
+                return items.filter((item: any) => item?.type === 'movie');
+            case 'live':
+                return items.filter((item: any) => item?.type === 'live');
+            case 'series':
+                return items.filter((item: any) => item?.type === 'series');
+            case 'all':
+            default:
+                return items;
+        }
     });
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
 
@@ -118,6 +205,13 @@ export class RecentlyViewedComponent {
         } else if (this.currentPlaylist()) {
             this.xtreamStore.loadRecentItems(this.currentPlaylist);
         }
+
+        // Keep workspace context panel in sync with current categories
+        effect(() => {
+            if (!this.isGlobal) {
+                this.favoritesCtx.setCategories(this.categories());
+            }
+        });
     }
 
     private async loadGlobalItems() {
@@ -241,5 +335,13 @@ export class RecentlyViewedComponent {
             RecentlyViewedComponent.TYPE_FILTERS_STORAGE_KEY,
             JSON.stringify(next)
         );
+    }
+
+    setCategoryId(categoryId: string): void {
+        this.favoritesCtx.setCategoryId(categoryId);
+    }
+
+    ngOnDestroy(): void {
+        this.favoritesCtx.reset();
     }
 }

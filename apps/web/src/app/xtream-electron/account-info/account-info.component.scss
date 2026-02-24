@@ -10,7 +10,7 @@
 }
 
 .info-section {
-    border: 1px solid #333;
+    border: 1px solid var(--mat-sys-outline-variant);
     border-radius: 8px;
     padding: 16px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -20,7 +20,7 @@
     margin-bottom: 16px;
     padding-left: 16px;
     font-size: 1.1em;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
     padding-bottom: 8px;
 }
 
@@ -37,17 +37,17 @@ strong {
 }
 
 .active {
-    color: #4caf50;
+    color: var(--mat-sys-primary);
     font-weight: 500;
 }
 
 .trial {
-    color: #ff9800;
+    color: var(--mat-sys-error);
     font-weight: 500;
 }
 
 .formats {
-    color: #2196f3;
+    color: var(--mat-sys-tertiary);
 }
 
 .ports {
@@ -58,13 +58,14 @@ strong {
 
 .ports span {
     padding: 4px 8px;
-    background: #2196f3;
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
     border-radius: 4px;
     font-size: 0.9em;
 }
 
 .welcome-message {
-    border: 1px solid #333;
+    border: 1px solid var(--mat-sys-outline-variant);
     padding: 16px;
     border-radius: 4px;
     margin-bottom: 16px;

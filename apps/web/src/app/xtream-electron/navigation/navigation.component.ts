@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
@@ -12,7 +12,8 @@ import { Playlist } from 'shared-interfaces';
 import { SettingsComponent } from '../../settings/settings.component';
 import { AccountInfoComponent } from '../account-info/account-info.component';
 import { XtreamStore } from '../stores/xtream.store';
-import { NavigationItem } from './navigation.interface';
+import { buildPortalRailLinks } from '../../shared/navigation/portal-rail-links';
+import { PortalRailLinksComponent } from '../../shared/navigation/portal-rail-links.component';
 
 @Component({
     selector: 'app-navigation',
@@ -23,6 +24,7 @@ import { NavigationItem } from './navigation.interface';
         RouterLink,
         RouterLinkActive,
         TranslatePipe,
+        PortalRailLinksComponent,
     ],
     templateUrl: './navigation.component.html',
     styleUrl: './navigation.component.scss',
@@ -36,23 +38,34 @@ export class NavigationComponent {
     readonly portalStatus = input<'active' | 'inactive' | 'expired'>();
     readonly selectedContentType = input<string>();
 
-    readonly categoryClick = output<string>();
-    readonly pageClicked = output<
-        'search' | 'recent' | 'favorites' | 'recently-added'
-    >();
-
     readonly currentPlaylist = this.store.selectSignal(
         selectPlaylistById(this.activatedRoute.snapshot.params.id)
     );
 
     readonly isStalkerPlaylist = computed(
-        () => (this.currentPlaylist() as Playlist)?.macAddress
+        () => !!(this.currentPlaylist() as Playlist)?.macAddress
     );
-
-    readonly navigationItems = input<NavigationItem[]>();
 
     /** Check if running in Electron (downloads only available in desktop) */
     readonly isElectron = !!window.electron;
+
+    readonly railLinks = computed(() => {
+        const playlistId =
+            (this.currentPlaylist() as Playlist | null)?._id ??
+            this.activatedRoute.snapshot.params['id'];
+        if (!playlistId) {
+            return { primary: [], secondary: [] };
+        }
+
+        return buildPortalRailLinks({
+            provider: this.isStalkerPlaylist() ? 'stalker' : 'xtreams',
+            playlistId,
+            isElectron: this.isElectron,
+            workspace: false,
+        });
+    });
+    readonly primaryLinks = computed(() => this.railLinks().primary);
+    readonly secondaryLinks = computed(() => this.railLinks().secondary);
 
     getStatusColor(): string {
         if (this.isStalkerPlaylist()) return 'status-active';
@@ -108,18 +121,9 @@ export class NavigationComponent {
         });
     }
 
-    isContentTypeActive(type: string) {
-        return this.selectedContentType() === type;
-    }
-
     openPlaylistInfo() {
         this.dialog.open(PlaylistInfoComponent, {
             data: this.currentPlaylist(),
         });
-    }
-
-    pageSwitch(page: 'search' | 'recent' | 'favorites' | 'recently-added') {
-        this.pageClicked.emit(page);
-        this.xtreamStore.setSelectedContentType(undefined);
     }
 }

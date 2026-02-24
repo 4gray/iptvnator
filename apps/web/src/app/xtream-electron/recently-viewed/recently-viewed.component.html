@@ -1,86 +1,103 @@
-<div class="recent-container">
-    <div class="header">
-        <h2>Recently Viewed</h2>
-        <div class="header-actions">
-            @if (recentItems()?.length) {
-            <button mat-button color="warn" (click)="clearHistory()">
-                <mat-icon>delete</mat-icon>
-                Clear History
-            </button>
-            } @if (isGlobal) {
-            <button mat-icon-button (click)="dialogRef.close()">
-                <mat-icon>close</mat-icon>
-            </button>
-            }
-        </div>
-    </div>
-
-    @if (recentItems()?.length) {
-    <div class="recent-search">
-        <mat-icon>search</mat-icon>
-        <input
-            #recentSearchInput
-            type="search"
-            spellcheck="false"
-            autocomplete="off"
-            [value]="recentSearchTerm()"
-            placeholder="Search only in recently watched items"
-            (input)="updateRecentSearchTerm(recentSearchInput.value)"
-        />
-    </div>
-    @if (isGlobal) {
-    <div class="global-recent-subheader">
-        <div class="global-recent-subheader-left">
-            <div class="global-recent-note">
-                <mat-icon>info_outline</mat-icon>
-                <span>Includes Xtream and Stalker items</span>
-            </div>
-            <div class="global-recent-filters">
-                <mat-checkbox
-                    [ngModel]="typeFilters().live"
-                    (ngModelChange)="toggleTypeFilter('live', $event)"
-                >
-                    Live
-                </mat-checkbox>
-                <mat-checkbox
-                    [ngModel]="typeFilters().movie"
-                    (ngModelChange)="toggleTypeFilter('movie', $event)"
-                >
-                    Movies
-                </mat-checkbox>
-                <mat-checkbox
-                    [ngModel]="typeFilters().series"
-                    (ngModelChange)="toggleTypeFilter('series', $event)"
-                >
-                    Series
-                </mat-checkbox>
+@if (isGlobal) {
+    <div class="recent-container">
+        <div class="header">
+            <h2>Recently Viewed</h2>
+            <div class="header-actions">
+                @if (recentItems()?.length) {
+                    <button mat-button color="warn" (click)="clearHistory()">
+                        <mat-icon>delete</mat-icon>
+                        Clear History
+                    </button>
+                }
+                <button mat-icon-button (click)="dialogRef.close()">
+                    <mat-icon>close</mat-icon>
+                </button>
             </div>
         </div>
-        <mat-checkbox
-            [ngModel]="groupByPlaylist()"
-            (ngModelChange)="toggleGroupByPlaylist($event)"
-        >
-            Group by playlist
-        </mat-checkbox>
-    </div>
 
-    @if (groupByPlaylist()) {
-    <div class="playlist-section">
-        <h2 class="section-title">
-            Found {{ visibleRecentItems().length }} items across
-            {{ (getGroupedItems() | keyvalue).length }} playlists
-        </h2>
-        @for (group of getGroupedItems() | keyvalue; track group.key) {
-            <div class="playlist-group">
-                <h3 class="playlist-title">
-                    <mat-icon>playlist_play</mat-icon>
-                    {{ group.key }}
-                    <span class="item-count"
-                        >({{ $any(group).value.length }} items)</span
-                    >
-                </h3>
+        @if (recentItems()?.length) {
+            <div class="recent-search">
+                <mat-icon>search</mat-icon>
+                <input
+                    #recentSearchInput
+                    type="search"
+                    spellcheck="false"
+                    autocomplete="off"
+                    [value]="recentSearchTerm()"
+                    placeholder="Search only in recently watched items"
+                    (input)="updateRecentSearchTerm(recentSearchInput.value)"
+                />
+            </div>
+            <div class="global-recent-subheader">
+                <div class="global-recent-subheader-left">
+                    <div class="global-recent-note">
+                        <mat-icon>info_outline</mat-icon>
+                        <span>Includes Xtream and Stalker items</span>
+                    </div>
+                    <div class="global-recent-filters">
+                        <mat-checkbox
+                            [ngModel]="typeFilters().live"
+                            (ngModelChange)="toggleTypeFilter('live', $event)"
+                        >
+                            Live
+                        </mat-checkbox>
+                        <mat-checkbox
+                            [ngModel]="typeFilters().movie"
+                            (ngModelChange)="toggleTypeFilter('movie', $event)"
+                        >
+                            Movies
+                        </mat-checkbox>
+                        <mat-checkbox
+                            [ngModel]="typeFilters().series"
+                            (ngModelChange)="toggleTypeFilter('series', $event)"
+                        >
+                            Series
+                        </mat-checkbox>
+                    </div>
+                </div>
+                <mat-checkbox
+                    [ngModel]="groupByPlaylist()"
+                    (ngModelChange)="toggleGroupByPlaylist($event)"
+                >
+                    Group by playlist
+                </mat-checkbox>
+            </div>
+
+            @if (groupByPlaylist()) {
+                <div class="playlist-section">
+                    <h2 class="section-title">
+                        Found {{ visibleRecentItems().length }} items across
+                        {{ (getGroupedItems() | keyvalue).length }} playlists
+                    </h2>
+                    @for (group of getGroupedItems() | keyvalue; track group.key) {
+                        <div class="playlist-group">
+                            <h3 class="playlist-title">
+                                <mat-icon>playlist_play</mat-icon>
+                                {{ group.key }}
+                                <span class="item-count"
+                                    >({{ $any(group).value.length }} items)</span
+                                >
+                            </h3>
+                            <div class="items-grid">
+                                @for (item of $any(group).value; track item.id) {
+                                    <app-content-card
+                                        [posterUrl]="item.poster_url"
+                                        [title]="item.title"
+                                        [type]="item.type"
+                                        [date]="item.viewed_at"
+                                        [showRemoveButton]="true"
+                                        [removeTooltip]="'Remove from history'"
+                                        (cardClick)="openItem(item)"
+                                        (remove)="onRemoveItem(item)"
+                                    />
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            } @else {
                 <div class="items-grid">
-                    @for (item of $any(group).value; track item.id) {
+                    @for (item of visibleRecentItems(); track item.id) {
                         <app-content-card
                             [posterUrl]="item.poster_url"
                             [title]="item.title"
@@ -93,44 +110,30 @@
                         />
                     }
                 </div>
+            }
+        } @else {
+            <div class="no-items">
+                <mat-icon>history</mat-icon>
+                <p>No recently viewed items</p>
             </div>
         }
     </div>
-    } @else {
-    <div class="items-grid">
-        @for (item of visibleRecentItems(); track item.id) {
-            <app-content-card
-                [posterUrl]="item.poster_url"
-                [title]="item.title"
-                [type]="item.type"
-                [date]="item.viewed_at"
-                [showRemoveButton]="true"
-                [removeTooltip]="'Remove from history'"
-                (cardClick)="openItem(item)"
-                (remove)="onRemoveItem(item)"
-            />
-        }
-    </div>
-    }
-    } @else {
-    <div class="items-grid">
-        @for (item of visibleRecentItems(); track item.id) {
-            <app-content-card
-                [posterUrl]="item.poster_url"
-                [title]="item.title"
-                [type]="item.type"
-                [date]="item.viewed_at"
-                [showRemoveButton]="true"
-                [removeTooltip]="'Remove from history'"
-                (cardClick)="openItem(item)"
-                (remove)="onRemoveItem(item)"
-            />
-        }
-    </div>
-    } } @else {
-    <div class="no-items">
-        <mat-icon>history</mat-icon>
-        <p>No recently viewed items</p>
-    </div>
-    }
-</div>
+} @else {
+    <app-favorites-layout
+        [categories]="categories()"
+        [favorites]="nonGlobalItemsToShow()"
+        [playlistSubtitle]="'Xtream Code'"
+        [playlistTitle]="currentPlaylist()?.name || currentPlaylist()?.title || 'Playlist'"
+        [selectedCategoryId]="selectedCategoryId()"
+        [titleTranslationString]="'PORTALS.SIDEBAR.RECENT'"
+        [removeTooltip]="'Remove from history'"
+        [emptyIcon]="'history'"
+        [showHeaderAction]="!isWorkspaceLayout"
+        [headerActionIcon]="'delete_sweep'"
+        [headerActionTooltip]="'Clear history'"
+        (categoryClicked)="setCategoryId($event.category_id)"
+        (removeFavorite)="onRemoveItem($event)"
+        (headerActionClicked)="clearHistory()"
+        (openItem)="openItem($event)"
+    />
+}

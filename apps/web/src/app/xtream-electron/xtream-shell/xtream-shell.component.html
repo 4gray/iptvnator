@@ -6,13 +6,12 @@
 }
 
 <div class="xtream-container">
-    <app-navigation
-        class="navigation-sidebar"
-        [portalStatus]="$any(portalStatus())"
-        [navigationItems]="mainNavigationItems"
-        (categoryClick)="handleCategoryClick($any($event))"
-        (pageClicked)="handlePageClick($event)"
-        [selectedContentType]="xtreamStore.selectedContentType()"
-    />
+    @if (!isWorkspaceLayout) {
+        <app-navigation
+            class="navigation-sidebar"
+            [portalStatus]="$any(portalStatus())"
+            [selectedContentType]="xtreamStore.selectedContentType()"
+        />
+    }
     <router-outlet />
 </div>

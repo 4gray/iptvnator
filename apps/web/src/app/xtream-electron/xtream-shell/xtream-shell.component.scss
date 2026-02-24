@@ -10,8 +10,13 @@
     flex: 1;
     overflow: hidden;
     min-height: 0; // Important for proper flex behavior
+
+    > router-outlet {
+        
+        min-width: 0;
+    }
 }
 
 .navigation-sidebar {
-    border-right: 1px solid #333;
+    border-right: 1px solid var(--mat-sys-outline-variant);
 }

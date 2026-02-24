@@ -21,6 +21,7 @@
         margin: 2px 0;
         display: flex;
         justify-content: center;
+        color: var(--mat-sys-on-surface-variant);
 
         .mdc-list-item__start {
             margin-inline-end: 0 !important;
@@ -46,12 +47,11 @@
 }
 
 .active {
-    transition: all 0.2s ease;
-    background: rgba(63, 81, 181, 0.12);
-    color: #3f51b5;
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
 
     mat-icon {
-        color: #3f51b5;
+        color: var(--mat-sys-on-secondary-container);
     }
 }
 
@@ -73,94 +73,43 @@ a.mat-mdc-list-item.mdc-list-item {
 .portal-status-container {
     app-region: drag;
     margin: -4px -4px 0;
-    position: relative;
-    overflow: visible;
     height: 42px;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    border-radius: 8px;
+    background: var(--mat-sys-surface-container);
+    color: var(--mat-sys-on-surface-variant);
+    border: 1px solid var(--mat-sys-outline-variant);
+}
 
-    // Gradient layer that bleeds below the container
-    &::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: -16px;
-        opacity: 0.9;
-        transition: background 0.4s ease;
-        pointer-events: none;
-    }
+.portal-status-container.status-active {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+}
 
-    // Status-specific gradients
-    &.status-active::before {
-        background: linear-gradient(
-            to bottom,
-            rgba(76, 175, 80, 0.35) 0%,
-            rgba(46, 125, 50, 0.18) 50%,
-            transparent 100%
-        );
-    }
+.portal-status-container.status-inactive,
+.portal-status-container.status-unavailable {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+}
 
-    &.status-active .status-watermark {
-        color: rgba(76, 175, 80, 0.18);
-    }
+.portal-status-container.status-expired {
+    background: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+}
 
-    &.status-inactive::before,
-    &.status-unavailable::before {
-        background: linear-gradient(
-            to bottom,
-            rgba(244, 67, 54, 0.35) 0%,
-            rgba(183, 28, 28, 0.18) 50%,
-            transparent 100%
-        );
-    }
-
-    &.status-inactive .status-watermark,
-    &.status-unavailable .status-watermark {
-        color: rgba(244, 67, 54, 0.18);
-    }
-
-    &.status-expired::before {
-        background: linear-gradient(
-            to bottom,
-            rgba(255, 152, 0, 0.35) 0%,
-            rgba(230, 81, 0, 0.18) 50%,
-            transparent 100%
-        );
-    }
-
-    &.status-expired .status-watermark {
-        color: rgba(255, 152, 0, 0.18);
-    }
-
-    // The oversized decorative watermark icon
-    .status-watermark {
-        position: absolute;
-        font-size: 48px !important;
-        width: 48px !important;
-        height: 48px !important;
-        transform: rotate(-12deg);
-        pointer-events: none;
-        z-index: 0;
-        transition: color 0.4s ease, transform 0.4s ease;
-        margin: 0;
-    }
-
-    &:hover .status-watermark {
-        transform: rotate(-8deg) scale(1.05);
-    }
+.portal-status-container .status-watermark {
+    font-size: 24px !important;
+    width: 24px !important;
+    height: 24px !important;
+    margin: 0;
 }
 
 .nav-section {
-    .mat-nav-list {
+    app-portal-rail-links {
+        display: block;
         padding: 0;
         margin: 0;
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 2px;
-        overflow: hidden;
     }
 }

@@ -58,6 +58,8 @@ export class XtreamMainContainerComponent implements OnInit {
         const type = this.xtreamStore.selectedContentType();
         return hasCategorySelected && (type === 'vod' || type === 'series');
     });
+    readonly isWorkspaceLayout =
+        this.route.snapshot.data['layout'] === 'workspace';
     readonly contentSortLabel = computed(() => {
         const mode = this.contentSortMode();
         if (mode === 'date-asc') return 'Date Added (Oldest First)';

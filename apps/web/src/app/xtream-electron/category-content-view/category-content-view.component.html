@@ -25,16 +25,37 @@
             <app-stalker-series-view />
         }
     } @else {
-        <app-grid-list
-            [isLoading]="isPaginatedContentLoading()"
-            [items]="contentWithProgress()"
-            (itemClicked)="onItemClick($event)"
-            [pageIndex]="pageIndex()"
-            [totalPages]="totalPages()"
-            [limit]="limit()"
-            [pageSizeOptions]="pageSizeOptions"
-            (pageChange)="onPageChange($event)"
-        />
+        <div class="category-content-layout">
+            <div class="category-content-header">
+                <div class="category-meta">
+                    <h2 class="category-title">{{ selectedCategoryTitle() }}</h2>
+                    <div class="category-subtitle">
+                        {{ categoryItemSubtitle() }}
+                    </div>
+                </div>
+                @if (categoryItemCount() > 0) {
+                    <mat-paginator
+                        [pageIndex]="pageIndex()"
+                        [length]="categoryItemCount()"
+                        [pageSize]="limit()"
+                        [pageSizeOptions]="pageSizeOptions"
+                        (page)="onPageChange($event)"
+                        aria-label="Select page"
+                    />
+                }
+            </div>
+            <app-grid-list
+                [isLoading]="isPaginatedContentLoading()"
+                [items]="contentWithProgress()"
+                (itemClicked)="onItemClick($event)"
+                [pageIndex]="pageIndex()"
+                [totalPages]="totalPages()"
+                [limit]="limit()"
+                [pageSizeOptions]="pageSizeOptions"
+                [showPaginator]="false"
+                (pageChange)="onPageChange($event)"
+            />
+        </div>
     }
 } @else {
     <app-playlist-error-view

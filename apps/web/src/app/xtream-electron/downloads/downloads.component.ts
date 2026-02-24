@@ -5,12 +5,14 @@ import {
     inject,
     OnInit,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { map } from 'rxjs';
 import {
     DownloadItem,
     DownloadsService,
@@ -32,22 +34,39 @@ import {
 export class DownloadsComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
     readonly downloadsService = inject(DownloadsService);
+    readonly isWorkspaceLayout =
+        this.route.snapshot.data['layout'] === 'workspace';
 
     readonly downloads = this.downloadsService.downloads;
     readonly downloadFolder = this.downloadsService.downloadFolder;
     readonly isAvailable = this.downloadsService.isAvailable;
     readonly hasDownloads = this.downloadsService.hasDownloads;
     readonly activeCount = this.downloadsService.activeCount;
+    readonly searchTerm = toSignal(
+        this.route.queryParamMap.pipe(
+            map((params) => (params.get('q') ?? '').trim().toLowerCase())
+        ),
+        { initialValue: '' }
+    );
 
     /** Filter downloads for current playlist and sort by newest first */
     readonly filteredDownloads = computed(() => {
         const playlistId = this.route.snapshot.params['id'];
+        const term = this.searchTerm();
         const downloads = playlistId
             ? this.downloads().filter((d) => d.playlistId === playlistId)
             : this.downloads();
 
+        const filteredByTerm = term
+            ? downloads.filter((item) =>
+                  `${item.title ?? ''} ${item.errorMessage ?? ''}`
+                      .toLowerCase()
+                      .includes(term)
+              )
+            : downloads;
+
         // Sort by createdAt descending (newest first)
-        return [...downloads].sort((a, b) => {
+        return [...filteredByTerm].sort((a, b) => {
             const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
             const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
             return dateB - dateA;

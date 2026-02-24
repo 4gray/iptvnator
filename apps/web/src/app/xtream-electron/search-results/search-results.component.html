@@ -4,6 +4,7 @@
     [isLoading]="xtreamStore.isSearching()"
     [showCloseButton]="false"
     [showResultsCount]="!isGlobalSearch || !groupByPlaylist()"
+    [showSearchInput]="showInlineSearchInput"
     (searchTermChange)="updateSearchTerm($event)"
     (closeClick)="onCloseDialog()"
 >

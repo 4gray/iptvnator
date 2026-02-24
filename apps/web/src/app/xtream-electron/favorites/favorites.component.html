@@ -1,6 +1,6 @@
 <app-favorites-layout
     [categories]="categories()"
-    [favorites]="favoritesToShow()"
+    [favorites]="filteredFavoritesToShow()"
     [playlistSubtitle]="'Xtream Code'"
     [playlistTitle]="currentPlaylist()?.name || currentPlaylist()?.title || 'Playlist'"
     [selectedCategoryId]="selectedCategoryId()"

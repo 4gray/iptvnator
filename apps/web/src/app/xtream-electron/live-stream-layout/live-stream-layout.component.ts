@@ -81,7 +81,10 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
     readonly epgItems = this.xtreamStore.epgItems;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
+    readonly isWorkspaceLayout =
+        this.route.snapshot.data['layout'] === 'workspace';
     readonly liveChannelSortMode = signal<LiveChannelSortMode>('server');
+    private readonly pendingAutoOpenLiveItemId = signal<number | null>(null);
     readonly liveChannelSortLabel = computed(() => {
         const mode = this.liveChannelSortMode();
         if (mode === 'name-asc') return 'Name A-Z';
@@ -118,6 +121,39 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     favorites = new Map<number, boolean>();
 
     constructor() {
+        const requestedItemId = Number(
+            (window.history.state as Record<string, unknown> | null)?.[
+                'openXtreamLiveItemId'
+            ]
+        );
+        if (Number.isFinite(requestedItemId) && requestedItemId > 0) {
+            this.pendingAutoOpenLiveItemId.set(requestedItemId);
+        }
+
+        effect(() => {
+            const pendingId = this.pendingAutoOpenLiveItemId();
+            if (!pendingId) {
+                return;
+            }
+
+            const channels = this.xtreamStore.selectItemsFromSelectedCategory() as any[];
+            if (!Array.isArray(channels) || channels.length === 0) {
+                return;
+            }
+
+            const item = channels.find(
+                (channel) => Number(channel?.xtream_id) === pendingId
+            );
+            if (!item) {
+                this.pendingAutoOpenLiveItemId.set(null);
+                return;
+            }
+
+            this.playLive(item);
+            this.pendingAutoOpenLiveItemId.set(null);
+            this.clearAutoOpenHistoryState();
+        });
+
         effect(() => {
             if (!window.electron?.updateRemoteControlStatus) {
                 return;
@@ -316,5 +352,22 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         }
 
         this.playLive(channel);
+    }
+
+    private clearAutoOpenHistoryState(): void {
+        try {
+            const state = (window.history.state ?? {}) as Record<string, unknown>;
+            if (!('openXtreamLiveItemId' in state)) {
+                return;
+            }
+
+            const nextState = { ...state };
+            delete nextState['openXtreamLiveItemId'];
+            delete nextState['openXtreamLiveTitle'];
+            delete nextState['openXtreamLivePoster'];
+            window.history.replaceState(nextState, document.title);
+        } catch {
+            // no-op
+        }
     }
 }

@@ -1,13 +1,18 @@
 import { Component, effect, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
+import {
+    ActivatedRoute,
+    NavigationEnd,
+    Router,
+    RouterOutlet,
+} from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
 import { LoadingOverlayComponent } from '../loading-overlay/loading-overlay.component';
 import { NavigationComponent } from '../navigation/navigation.component';
-import { NavigationItem } from '../navigation/navigation.interface';
 import { XtreamStore } from '../stores/xtream.store';
+import { filter } from 'rxjs';
 
 @Component({
     templateUrl: './xtream-shell.component.html',
@@ -29,26 +34,11 @@ export class XtreamShellComponent {
     readonly isImporting = this.xtreamStore.isImporting;
     readonly itemsToImport = this.xtreamStore.itemsToImport;
     readonly portalStatus = this.xtreamStore.portalStatus;
-
-    readonly mainNavigationItems: NavigationItem[] = [
-        {
-            id: 'vod',
-            icon: 'movie',
-            labelKey: 'PORTALS.SIDEBAR.MOVIES',
-        },
-        {
-            id: 'live',
-            icon: 'live_tv',
-            labelKey: 'PORTALS.SIDEBAR.LIVE_TV',
-        },
-        {
-            id: 'series',
-            icon: 'tv',
-            labelKey: 'PORTALS.SIDEBAR.SERIES',
-        },
-    ];
+    readonly isWorkspaceLayout =
+        this.route.snapshot.data['layout'] === 'workspace';
 
     private currentPlaylistId: string | null = null;
+    private currentSection: string | null = null;
 
     constructor() {
         // Subscribe to route params to handle switching between playlists
@@ -77,6 +67,17 @@ export class XtreamShellComponent {
             await this.xtreamStore.checkPortalStatus();
         });
 
+        this.router.events
+            .pipe(
+                filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+                takeUntilDestroyed()
+            )
+            .subscribe(() => {
+                this.syncSectionFromRoute();
+            });
+
+        this.syncSectionFromRoute();
+
         effect(() => {
             const playlist = this.xtreamStore.currentPlaylist();
             const playlistId = this.xtreamStore.playlistId();
@@ -89,17 +90,30 @@ export class XtreamShellComponent {
         });
     }
 
-    handleCategoryClick(category: 'vod' | 'live' | 'series') {
-        this.xtreamStore.setSelectedContentType(category);
-        this.router.navigate([category], {
-            relativeTo: this.route,
-        });
+    private syncSectionFromRoute(): void {
+        const sectionFromSnapshot =
+            this.route.firstChild?.snapshot?.url?.[0]?.path ?? null;
+        const sectionFromUrl = this.getSectionFromUrl(this.router.url);
+        const section = sectionFromSnapshot ?? sectionFromUrl;
+
+        if (!section || section === this.currentSection) {
+            return;
+        }
+
+        this.currentSection = section;
+
+        if (section === 'vod' || section === 'live' || section === 'series') {
+            this.xtreamStore.setSelectedContentType(section);
+            return;
+        }
+
+        this.xtreamStore.setSelectedContentType(undefined);
     }
 
-    handlePageClick(page: 'search' | 'recent' | 'favorites' | 'recently-added') {
-        this.xtreamStore.setSelectedContentType(undefined);
-        this.router.navigate([page], {
-            relativeTo: this.route,
-        });
+    private getSectionFromUrl(url: string): string | null {
+        const match = url.match(
+            /^\/(?:workspace\/)?xtreams\/[^\/\?]+\/([^\/\?]+)/
+        );
+        return match?.[1] ?? null;
     }
 }

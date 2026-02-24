@@ -24,19 +24,12 @@
 <mat-divider />
 <div class="nav-section">
     <!-- <div class="nav-group-label">{{ 'PORTALS.SIDEBAR.MAIN' | translate }}</div> -->
-    <mat-nav-list>
-        @for (item of navigationItems(); track item.id) {
-            <a
-                mat-list-item
-                [class.active]="isContentTypeActive(item.id)"
-                (click)="categoryClick.emit(item.id)"
-                [matTooltip]="item.labelKey | translate"
-                matTooltipPosition="right"
-            >
-                <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-            </a>
-        }
-    </mat-nav-list>
+    <app-portal-rail-links
+        variant="list"
+        activeClass="active"
+        [selectedSection]="selectedContentType()"
+        [links]="primaryLinks()"
+    />
 </div>
 <mat-divider />
 
@@ -44,61 +37,12 @@
     <!-- <div class="nav-group-label">
         {{ 'PORTALS.SIDEBAR.LIBRARY' | translate }}
     </div> -->
-    <mat-nav-list>
-        @if (!isStalkerPlaylist()) {
-            <a
-                mat-list-item
-                routerLink="./recently-added"
-                routerLinkActive="active"
-                [matTooltip]="'PORTALS.SIDEBAR.RECENTLY_ADDED' | translate"
-                matTooltipPosition="right"
-                (click)="pageSwitch('recently-added')"
-            >
-                <mat-icon matListItemIcon>new_releases</mat-icon>
-            </a>
-        }
-        <a
-            mat-list-item
-            routerLink="./search"
-            routerLinkActive="active"
-            [matTooltip]="'PORTALS.SIDEBAR.SEARCH' | translate"
-            matTooltipPosition="right"
-            (click)="pageSwitch('search')"
-        >
-            <mat-icon matListItemIcon>search</mat-icon>
-        </a>
-        <a
-            mat-list-item
-            routerLink="./recent"
-            routerLinkActive="active"
-            [matTooltip]="'PORTALS.SIDEBAR.RECENT' | translate"
-            matTooltipPosition="right"
-            (click)="pageSwitch('recent')"
-        >
-            <mat-icon matListItemIcon>history</mat-icon>
-        </a>
-        <a
-            mat-list-item
-            routerLink="./favorites"
-            routerLinkActive="active"
-            [matTooltip]="'PORTALS.SIDEBAR.FAVORITES' | translate"
-            matTooltipPosition="right"
-            (click)="pageSwitch('favorites')"
-        >
-            <mat-icon matListItemIcon>favorite</mat-icon>
-        </a>
-        @if (isElectron) {
-            <a
-                mat-list-item
-                routerLink="./downloads"
-                routerLinkActive="active"
-                [matTooltip]="'DOWNLOADS.TITLE' | translate"
-                matTooltipPosition="right"
-            >
-                <mat-icon matListItemIcon>download</mat-icon>
-            </a>
-        }
-    </mat-nav-list>
+    <app-portal-rail-links
+        variant="list"
+        activeClass="active"
+        [selectedSection]="selectedContentType()"
+        [links]="secondaryLinks()"
+    />
 </div>
 
 <div class="navigation-bottom">

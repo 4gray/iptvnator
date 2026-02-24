@@ -1,19 +1,29 @@
 @if (items()?.length > 0) {
-    <mat-nav-list>
+    <div class="nav-list">
         @for (item of items(); track $index) {
-            <mat-list-item
-                class="category-item"
+            <a
+                class="nav-item category-item"
                 [attr.data-category-id]="$any(item).category_id ?? item.id"
                 [class.selected]="isSelected(item)"
                 (click)="categoryClicked.emit(item)"
             >
-                {{
-                    item.category_name || $any(item).name || 'No category name'
-                }}
+                <span class="nav-item-label">
+                    {{
+                        item.category_name ||
+                            $any(item).name ||
+                            'No category name'
+                    }}
+                </span>
                 @if (showCounts()) {
-                    <span class="item-count">({{ getItemCount(item) }})</span>
+                    <div class="nav-item-meta item-count">
+                        {{ getItemCount(item) }}
+                    </div>
+                } @else if ($any(item).count !== undefined) {
+                    <div class="nav-item-meta item-count">
+                        {{ $any(item).count }}
+                    </div>
                 }
-            </mat-list-item>
+            </a>
         } @empty {
             <app-playlist-error-view
                 [title]="'PORTALS.EMPTY_LIST_VIEW.TITLE' | translate"
@@ -24,7 +34,7 @@
                 [viewType]="'NO_SEARCH_RESULTS'"
             />
         }
-    </mat-nav-list>
+    </div>
 } @else {
     <app-playlist-error-view
         [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"

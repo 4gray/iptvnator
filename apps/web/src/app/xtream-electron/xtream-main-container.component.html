@@ -1,37 +1,48 @@
-<div
-    class="sidebar"
-    appResizable
-    [minWidth]="250"
-    [maxWidth]="600"
-    [defaultWidth]="400"
-    storageKey="sidebar-width"
->
-    <div class="sidebar-header">
-        <app-playlist-switcher
-            class="switcher"
-            [currentTitle]="currentPlaylist()?.name || currentPlaylist()?.title || 'Playlist'"
-            [subtitle]="'Xtream Code'"
-        />
-        <button
-            mat-icon-button
-            class="manage-categories-btn"
-            (click)="openCategoryManagement()"
-            [matTooltip]="'XTREAM.CATEGORY_MANAGEMENT.TITLE' | translate"
+@if (!isWorkspaceLayout) {
+    <div
+        class="sidebar"
+        appResizable
+        [minWidth]="250"
+        [maxWidth]="600"
+        [defaultWidth]="400"
+        storageKey="sidebar-width"
+    >
+        <div
+            class="sidebar-header"
+            [class.sidebar-header--workspace]="isWorkspaceLayout"
         >
-            <mat-icon>tune</mat-icon>
-        </button>
+            @if (!isWorkspaceLayout) {
+                <app-playlist-switcher
+                    class="switcher"
+                    [currentTitle]="currentPlaylist()?.name || currentPlaylist()?.title || 'Playlist'"
+                    [subtitle]="'Xtream Code'"
+                />
+            }
+            <button
+                mat-icon-button
+                class="manage-categories-btn"
+                (click)="openCategoryManagement()"
+                [matTooltip]="'XTREAM.CATEGORY_MANAGEMENT.TITLE' | translate"
+            >
+                <mat-icon>tune</mat-icon>
+            </button>
+        </div>
+        <app-category-view
+            [items]="categories()"
+            [selectedCategoryId]="selectedCategoryId()"
+            [itemCounts]="categoryItemCounts()"
+            (categoryClicked)="categoryClicked($event)"
+            [showCounts]="true"
+        />
     </div>
-    <app-category-view
-        [items]="categories()"
-        [selectedCategoryId]="selectedCategoryId()"
-        [itemCounts]="categoryItemCounts()"
-        (categoryClicked)="categoryClicked($event)"
-        [showCounts]="true"
-    />
-</div>
+}
 
 <div class="main-content">
-    @if (!xtreamStore.selectedItem() && !xtreamStore.isLoadingDetails()) {
+    @if (
+        !isWorkspaceLayout &&
+        !xtreamStore.selectedItem() &&
+        !xtreamStore.isLoadingDetails()
+    ) {
         <div class="content-header">
             <div class="header-left">
                 <h2>
@@ -108,7 +119,11 @@
     }
     <div
         class="scrollable-content"
-        [class.no-header]="xtreamStore.selectedItem() || xtreamStore.isLoadingDetails()"
+        [class.no-header]="
+            isWorkspaceLayout ||
+            xtreamStore.selectedItem() ||
+            xtreamStore.isLoadingDetails()
+        "
     >
         <router-outlet />
     </div>

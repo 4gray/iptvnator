@@ -1,4 +1,105 @@
 :host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.category-content-layout {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+// ─── Sticky header bar — styled like a widget header ─────────────────────────
+.category-content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px;
+    min-height: 52px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    // distinct widget-header surface so it reads over the content below
+    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    border-bottom: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+}
+
+// ─── Category meta (title + subtitle) ────────────────────────────────────────
+.category-meta {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex: 1;
+}
+
+.category-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    // Explicit token so it never blends with the header background
+    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    letter-spacing: -0.01em;
+}
+
+.category-subtitle {
+    white-space: nowrap;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+    // pill chip appearance
+    background: var(--mat-sys-surface-container);
+    padding: 2px 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+
+// ─── Paginator — flush right, no ghost background ────────────────────────────
+mat-paginator {
+    background: transparent !important;
+    flex-shrink: 0;
+    // Shrink paginator text to fit header height comfortably
+    --mat-paginator-container-size: 40px;
+    --mat-paginator-enabled-icon-color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+    --mat-paginator-disabled-icon-color: rgba(255, 255, 255, 0.18);
+}
+
+// ─── Grid scroll area ─────────────────────────────────────────────────────────
+app-grid-list {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    /* padding: 10px; */
+    padding: 16px 20px 20px;
+    display: block;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+@media (max-width: 768px) {
+    .category-content-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px 16px;
+        min-height: unset;
+    }
+
+    .category-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    app-grid-list {
+        padding: 12px 16px 16px;
+    }
 }

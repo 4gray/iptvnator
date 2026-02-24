@@ -13,7 +13,7 @@
     width: 400px; // Default, will be overridden by directive
     min-width: 250px;
     max-width: 600px;
-    border-right: 1px solid #111;
+    border-right: 1px solid var(--mat-sys-outline-variant);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
