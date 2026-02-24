@@ -3,6 +3,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     DashboardContentKind,
     DashboardDataService,
@@ -30,8 +32,10 @@ const PAGE_SIZE = 20;
         MatButtonToggleModule,
         MatMenuModule,
         MatIcon,
+        MatTooltipModule,
         DashboardActivityItemsComponent,
         DashboardWidgetShellComponent,
+        TranslatePipe,
     ],
     templateUrl: './global-favorites-widget.component.html',
     styleUrl: './global-favorites-widget.component.scss',

@@ -1,5 +1,10 @@
-<app-dashboard-widget-shell eyebrow="Library" title="Recent Sources">
-    <a widget-actions routerLink="/workspace/sources">Manage all</a>
+<app-dashboard-widget-shell
+    [eyebrow]="'WORKSPACE.DASHBOARD.LIBRARY' | translate"
+    [title]="'WORKSPACE.DASHBOARD.RECENT_SOURCES' | translate"
+>
+    <a widget-actions routerLink="/workspace/sources">{{
+        'WORKSPACE.DASHBOARD.MANAGE_ALL' | translate
+    }}</a>
     @if (data.recentPlaylists().length > 0) {
         <div class="source-list">
             @for (item of data.recentPlaylists(); track item._id) {
@@ -9,20 +14,44 @@
                             {{ data.getPlaylistProvider(item) }}
                         </span>
                         @if (item.count) {
-                            <span class="count">{{ item.count }} channels</span>
+                            <span class="count"
+                                >{{ item.count }}
+                                {{
+                                    'WORKSPACE.DASHBOARD.CHANNELS' | translate
+                                }}</span
+                            >
                         }
                     </div>
-                    <h4 [attr.title]="item.title || item.filename || 'Untitled source'">
-                        {{ item.title || item.filename || 'Untitled source' }}
+                    <h4
+                        [attr.title]="
+                            item.title ||
+                            item.filename ||
+                            ('WORKSPACE.DASHBOARD.UNTITLED_SOURCE' | translate)
+                        "
+                    >
+                        {{
+                            item.title ||
+                                item.filename ||
+                                ('WORKSPACE.DASHBOARD.UNTITLED_SOURCE'
+                                    | translate)
+                        }}
                     </h4>
-                    <p>{{ data.formatTimestamp(item.updateDate || item.importDate) }}</p>
+                    <p>
+                        {{
+                            data.formatTimestamp(
+                                item.updateDate || item.importDate
+                            )
+                        }}
+                    </p>
                 </a>
             }
         </div>
     } @else {
         <article class="empty-state">
-            <p>No sources available yet.</p>
-            <a routerLink="/workspace/sources">Open Sources</a>
+            <p>{{ 'WORKSPACE.DASHBOARD.NO_SOURCES' | translate }}</p>
+            <a routerLink="/workspace/sources">{{
+                'WORKSPACE.DASHBOARD.OPEN_SOURCES' | translate
+            }}</a>
         </article>
     }
 </app-dashboard-widget-shell>

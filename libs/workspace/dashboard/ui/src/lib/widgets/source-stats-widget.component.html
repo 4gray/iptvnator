@@ -1,19 +1,22 @@
-<app-dashboard-widget-shell eyebrow="Overview" title="Source Statistics">
+<app-dashboard-widget-shell
+    [eyebrow]="'WORKSPACE.DASHBOARD.OVERVIEW' | translate"
+    [title]="'WORKSPACE.DASHBOARD.SOURCE_STATS' | translate"
+>
     <div class="stats-grid">
         <article class="stat-tile">
-            <p class="label">Total</p>
+            <p class="label">{{ 'WORKSPACE.DASHBOARD.TOTAL' | translate }}</p>
             <p class="value">{{ data.stats().total }}</p>
         </article>
         <article class="stat-tile">
-            <p class="label">Xtream</p>
+            <p class="label">{{ 'WORKSPACE.DASHBOARD.XTREAM' | translate }}</p>
             <p class="value">{{ data.stats().xtream }}</p>
         </article>
         <article class="stat-tile">
-            <p class="label">Stalker</p>
+            <p class="label">{{ 'WORKSPACE.DASHBOARD.STALKER' | translate }}</p>
             <p class="value">{{ data.stats().stalker }}</p>
         </article>
         <article class="stat-tile">
-            <p class="label">M3U</p>
+            <p class="label">{{ 'WORKSPACE.DASHBOARD.M3U' | translate }}</p>
             <p class="value">{{ data.stats().m3u }}</p>
         </article>
     </div>

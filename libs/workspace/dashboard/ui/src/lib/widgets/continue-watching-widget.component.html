@@ -1,42 +1,63 @@
-<app-dashboard-widget-shell eyebrow="Focus" title="Continue Watching">
+<app-dashboard-widget-shell
+    [eyebrow]="'WORKSPACE.DASHBOARD.FOCUS' | translate"
+    [title]="'WORKSPACE.DASHBOARD.CONTINUE_WATCHING' | translate"
+>
     @if (data.activePlaylist(); as active) {
         <article class="focus-source">
             <p class="focus-source__provider">
                 {{ data.getPlaylistProvider(active) }}
             </p>
             <h4
-                [attr.title]="active.title || active.filename || 'Untitled source'"
+                [attr.title]="
+                    active.title ||
+                    active.filename ||
+                    ('WORKSPACE.DASHBOARD.UNTITLED_SOURCE' | translate)
+                "
             >
-                {{ active.title || active.filename || 'Untitled source' }}
+                {{
+                    active.title ||
+                        active.filename ||
+                        ('WORKSPACE.DASHBOARD.UNTITLED_SOURCE' | translate)
+                }}
             </h4>
             <div class="focus-source__actions">
                 <a mat-flat-button [routerLink]="data.getPlaylistLink(active)">
                     <mat-icon>play_arrow</mat-icon>
-                    Open Source
+                    {{ 'WORKSPACE.DASHBOARD.OPEN_SOURCE' | translate }}
                 </a>
                 <a mat-stroked-button routerLink="/workspace/sources">
                     <mat-icon>library_books</mat-icon>
-                    Manage Sources
+                    {{ 'WORKSPACE.DASHBOARD.MANAGE_SOURCES' | translate }}
                 </a>
             </div>
         </article>
     } @else {
         <article class="focus-empty">
-            <p>No active source selected yet.</p>
+            <p>{{ 'WORKSPACE.DASHBOARD.NO_ACTIVE_SOURCE' | translate }}</p>
             <a mat-flat-button routerLink="/workspace/sources">
                 <mat-icon>add</mat-icon>
-                Add Source
+                {{ 'WORKSPACE.DASHBOARD.ADD_SOURCE' | translate }}
             </a>
         </article>
     }
 
     @if (data.quickRecent().length > 0) {
         <div class="quick-list">
-            <p class="quick-list__title">Recently used</p>
+            <p class="quick-list__title">
+                {{ 'WORKSPACE.DASHBOARD.RECENTLY_USED' | translate }}
+            </p>
             @for (item of data.quickRecent(); track item._id) {
                 <a class="quick-item" [routerLink]="data.getPlaylistLink(item)">
-                    <span class="quick-item__title" [attr.title]="item.title || item.filename">
-                        {{ item.title || item.filename || 'Untitled source' }}
+                    <span
+                        class="quick-item__title"
+                        [attr.title]="item.title || item.filename"
+                    >
+                        {{
+                            item.title ||
+                                item.filename ||
+                                ('WORKSPACE.DASHBOARD.UNTITLED_SOURCE'
+                                    | translate)
+                        }}
                     </span>
                     <span class="quick-item__meta">
                         {{ data.getPlaylistProvider(item) }}

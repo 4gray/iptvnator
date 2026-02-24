@@ -1,10 +1,13 @@
-<app-dashboard-widget-shell eyebrow="Library" title="Global Favorites">
+<app-dashboard-widget-shell
+    [eyebrow]="'WORKSPACE.DASHBOARD.LIBRARY' | translate"
+    [title]="'WORKSPACE.DASHBOARD.GLOBAL_FAVORITES' | translate"
+>
     <ng-container widget-actions>
         <button
             mat-icon-button
             [matMenuTriggerFor]="filterMenu"
             aria-label="Filter global favorites content"
-            matTooltip="Filter items"
+            [matTooltip]="'WORKSPACE.DASHBOARD.FILTER_ITEMS' | translate"
         >
             <mat-icon>filter_list</mat-icon>
         </button>
@@ -14,7 +17,9 @@
                     selectedKind() === 'all' ? 'check' : ''
                 }}</mat-icon>
                 <span [class.active-filter]="selectedKind() === 'all'"
-                    >All ({{ counts().all }})</span
+                    >{{ 'WORKSPACE.DASHBOARD.ALL' | translate }} ({{
+                        counts().all
+                    }})</span
                 >
             </button>
             <button mat-menu-item (click)="onKindChange('channels')">
@@ -22,7 +27,9 @@
                     selectedKind() === 'channels' ? 'check' : ''
                 }}</mat-icon>
                 <span [class.active-filter]="selectedKind() === 'channels'"
-                    >Channels ({{ counts().channels }})</span
+                    >{{ 'WORKSPACE.DASHBOARD.CHANNELS' | translate }} ({{
+                        counts().channels
+                    }})</span
                 >
             </button>
             <button mat-menu-item (click)="onKindChange('vod')">
@@ -30,7 +37,9 @@
                     selectedKind() === 'vod' ? 'check' : ''
                 }}</mat-icon>
                 <span [class.active-filter]="selectedKind() === 'vod'"
-                    >VOD ({{ counts().vod }})</span
+                    >{{ 'WORKSPACE.DASHBOARD.VOD' | translate }} ({{
+                        counts().vod
+                    }})</span
                 >
             </button>
             <button mat-menu-item (click)="onKindChange('series')">
@@ -38,7 +47,9 @@
                     selectedKind() === 'series' ? 'check' : ''
                 }}</mat-icon>
                 <span [class.active-filter]="selectedKind() === 'series'"
-                    >Series ({{ counts().series }})</span
+                    >{{ 'WORKSPACE.DASHBOARD.SERIES' | translate }} ({{
+                        counts().series
+                    }})</span
                 >
             </button>
         </mat-menu>
@@ -50,10 +61,16 @@
             aria-label="Select global favorites view mode"
             (change)="onViewModeChange($event.value)"
         >
-            <mat-button-toggle value="list" aria-label="List view">
+            <mat-button-toggle
+                value="list"
+                [aria-label]="'WORKSPACE.DASHBOARD.LIST_VIEW' | translate"
+            >
                 <mat-icon>view_list</mat-icon>
             </mat-button-toggle>
-            <mat-button-toggle value="grid" aria-label="Grid view">
+            <mat-button-toggle
+                value="grid"
+                [aria-label]="'WORKSPACE.DASHBOARD.GRID_VIEW' | translate"
+            >
                 <mat-icon>grid_view</mat-icon>
             </mat-button-toggle>
         </mat-button-toggle-group>
@@ -61,7 +78,7 @@
 
     <app-dashboard-activity-items
         [items]="activityItems()"
-        [emptyLabel]="'No favorites found for this filter.'"
+        [emptyLabel]="'WORKSPACE.DASHBOARD.NO_FAVORITES' | translate"
         [viewMode]="viewMode()"
         (scrolledToEnd)="onItemsScrolledToEnd()"
     />
