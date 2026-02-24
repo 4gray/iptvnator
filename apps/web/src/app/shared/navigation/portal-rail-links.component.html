@@ -1,0 +1,40 @@
+@if (variant() === 'list') {
+    <mat-nav-list class="p-0 m-0">
+        @for (link of links(); track link.path.join('/')) {
+            <a
+                mat-list-item
+                [routerLink]="link.path"
+                [routerLinkActive]="activeClass()"
+                [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
+                [matTooltip]="link.tooltip"
+                matTooltipPosition="right"
+                [attr.aria-label]="link.tooltip"
+                [class.active]="activeClass() === 'active' && isActive(link)"
+                [class.is-active]="
+                    activeClass() === 'is-active' && isActive(link)
+                "
+            >
+                <mat-icon matListItemIcon>{{ resolveIcon(link) }}</mat-icon>
+            </a>
+        }
+    </mat-nav-list>
+} @else {
+    <nav class="flex flex-col items-center gap-2 w-full">
+        @for (link of links(); track link.path.join('/')) {
+            <a
+                [routerLink]="link.path"
+                [routerLinkActive]="activeClass()"
+                [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
+                [matTooltip]="link.tooltip"
+                [matTooltipPosition]="'right'"
+                [attr.aria-label]="link.tooltip"
+                [class.active]="activeClass() === 'active' && isActive(link)"
+                [class.is-active]="
+                    activeClass() === 'is-active' && isActive(link)
+                "
+            >
+                <mat-icon>{{ resolveIcon(link) }}</mat-icon>
+            </a>
+        }
+    </nav>
+}

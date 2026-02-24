@@ -1,0 +1,103 @@
+:host {
+    display: block;
+    width: 100%;
+    --rail-link-color: var(--mat-sys-on-surface-variant);
+    --rail-link-hover-color: var(--mat-sys-on-surface);
+    --rail-link-hover-bg: var(--mat-sys-surface-container);
+    /* Keep consistent with category-item.selected tone */
+    --rail-link-active-bg: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+    --rail-link-active-color: var(--mat-sys-primary);
+    --rail-link-active-icon: var(--mat-sys-primary);
+    --rail-link-active-border: color-mix(in srgb, var(--mat-sys-primary) 42%, transparent);
+    --rail-link-active-glow: color-mix(in srgb, var(--mat-sys-primary) 24%, transparent);
+}
+
+.p-0.m-0 {
+
+    .mdc-list-item {
+        min-height: 28px;
+        height: 28px;
+        padding: 0 !important;
+        border-radius: 4px;
+        margin: 2px 0;
+        display: flex;
+        justify-content: center;
+        color: var(--rail-link-color);
+
+        .mdc-list-item__start {
+            margin-inline-end: 0 !important;
+            margin-inline-start: 0 !important;
+        }
+
+        .mdc-list-item__content {
+            display: none;
+        }
+    }
+
+    mat-icon.mat-mdc-list-item-icon,
+    mat-icon {
+        font-size: 18px !important;
+        width: 18px !important;
+        height: 18px !important;
+    }
+
+    .mdc-list-item.active,
+    .mdc-list-item.is-active {
+        background: var(--rail-link-active-bg);
+        color: var(--rail-link-active-color);
+        box-shadow:
+            inset 0 0 0 1px var(--rail-link-active-border),
+            0 8px 18px -14px var(--rail-link-active-glow);
+
+        mat-icon {
+            color: var(--rail-link-active-icon);
+        }
+    }
+}
+
+nav.flex a {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--rail-link-color);
+    text-decoration: none;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    app-region: no-drag;
+}
+
+nav.flex a:hover {
+    color: var(--rail-link-hover-color);
+    background: var(--rail-link-hover-bg);
+}
+
+nav.flex a.is-active,
+nav.flex a.active {
+    color: var(--rail-link-active-color);
+    background: var(--rail-link-active-bg);
+    box-shadow:
+        inset 0 0 0 1px var(--rail-link-active-border),
+        0 10px 20px -16px var(--rail-link-active-glow);
+}
+
+nav.flex a.is-active mat-icon,
+nav.flex a.active mat-icon {
+    color: var(--rail-link-active-icon);
+}
+
+nav.flex a.is-active::after,
+nav.flex a.active::after {
+    content: '';
+    position: absolute;
+    right: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--rail-link-active-icon);
+    box-shadow: 0 0 10px var(--rail-link-active-glow);
+}
