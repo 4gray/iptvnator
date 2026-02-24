@@ -221,6 +221,7 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('DB_IS_FAVORITE', contentId, playlistId),
     dbGetFavorites: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_FAVORITES', playlistId),
+    dbGetGlobalFavorites: () => ipcRenderer.invoke('DB_GET_GLOBAL_FAVORITES'),
     // Recently viewed (playlist-specific)
     dbGetRecentItems: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_RECENT_ITEMS', playlistId),

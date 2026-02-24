@@ -24,7 +24,17 @@
             "shared-interfaces": ["libs/shared/interfaces/src/index.ts"],
             "shared-portals": ["libs/ui/shared-portals/src/index.ts"],
             "remote-control": ["libs/ui/remote-control/src/index.ts"],
-            "database": ["libs/shared/database/src/index.ts"]
+            "database": ["libs/shared/database/src/index.ts"],
+            "xtream-store": [
+                "apps/web/src/app/xtream-electron/stores/xtream.store.ts"
+            ],
+            "workspace-dashboard-feature": [
+                "libs/workspace/dashboard/feature/src/index.ts"
+            ],
+            "workspace-dashboard-data-access": [
+                "libs/workspace/dashboard/data-access/src/index.ts"
+            ],
+            "workspace-dashboard-ui": ["libs/workspace/dashboard/ui/src/index.ts"]
         }
     },
     "exclude": ["node_modules", "tmp"],
