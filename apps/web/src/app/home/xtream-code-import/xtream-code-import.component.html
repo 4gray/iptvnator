@@ -1,11 +1,11 @@
 <form [formGroup]="form">
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="title">{{
             'HOME.XTREAM_PLAYLIST.TITLE' | translate
         }}</mat-label>
         <input matInput type="text" id="title" formControlName="title" />
     </mat-form-field>
-    <mat-form-field class="full-width" subscriptSizing="dynamic">
+    <mat-form-field class="w-full" subscriptSizing="dynamic">
         <mat-label for="serverUrl">{{
             'HOME.XTREAM_PLAYLIST.SERVER_URL' | translate
         }}</mat-label>
@@ -21,13 +21,13 @@
         }}</mat-hint>
         <mat-error>{{ 'SETTINGS.EPG_URL_ERROR' | translate }}</mat-error>
     </mat-form-field>
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="username">{{
             'HOME.XTREAM_PLAYLIST.USERNAME' | translate
         }}</mat-label>
         <input matInput type="text" id="username" formControlName="username" />
     </mat-form-field>
-    <mat-form-field class="full-width">
+    <mat-form-field class="w-full">
         <mat-label for="password">{{
             'HOME.XTREAM_PLAYLIST.PASSWORD' | translate
         }}</mat-label>
@@ -53,7 +53,7 @@
         </button>
     </div>
 
-    @if (connectionStatus){
+    @if (connectionStatus) {
         <div class="connection-status">
             <mat-icon [class]="getStatusClass()">
                 {{ getStatusIcon() }}

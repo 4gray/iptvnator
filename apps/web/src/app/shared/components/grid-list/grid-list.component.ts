@@ -11,9 +11,11 @@ import { WatchedBadgeComponent } from '../../../xtream-electron/shared/watched-b
 
 @Component({
     selector: 'app-grid-list',
-    template: `<div class="grid">
+    template: `<div
+            class="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-4"
+        >
             @if (isLoading()) {
-                <div class="loading-overlay">
+                <div class="flex justify-center items-center p-8">
                     <mat-spinner diameter="50"></mat-spinner>
                 </div>
             } @else {
@@ -82,7 +84,7 @@ import { WatchedBadgeComponent } from '../../../xtream-electron/shared/watched-b
                 }
             }
         </div>
-        @if (items()?.length > 0) {
+        @if (showPaginator() && items()?.length > 0) {
             <mat-paginator
                 [pageIndex]="pageIndex()"
                 [length]="totalPages() * limit()"
@@ -108,6 +110,7 @@ import { WatchedBadgeComponent } from '../../../xtream-electron/shared/watched-b
 export class GridListComponent {
     readonly items = input<any[]>();
     readonly isLoading = input<boolean>();
+    readonly showPaginator = input(true);
     readonly itemClicked = output<any>();
     readonly pageChange = output<any>();
 

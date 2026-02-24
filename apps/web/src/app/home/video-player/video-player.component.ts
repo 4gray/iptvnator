@@ -108,6 +108,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     };
 
     readonly isDesktop = !!window['electron'];
+    readonly isWorkspaceLayout =
+        this.activatedRoute.snapshot.data['layout'] === 'workspace';
 
     sidebarView: SidebarView = 'CHANNELS';
 

@@ -1,4 +1,8 @@
-<mat-drawer-container class="main-container" autosize>
+<mat-drawer-container
+    class="main-container"
+    [class.main-container--workspace]="isWorkspaceLayout"
+    autosize
+>
     <!-- sidebar content -->
     <mat-drawer
         #drawer
@@ -14,7 +18,10 @@
         handlePosition="right"
     >
         @defer {
-            <app-sidebar [channels]="(channels$ | async)!" />
+            <app-sidebar
+                [channels]="(channels$ | async)!"
+                [showPlaylistHeader]="!isWorkspaceLayout"
+            />
         } @loading {
             <p>Loading...</p>
         } @placeholder {

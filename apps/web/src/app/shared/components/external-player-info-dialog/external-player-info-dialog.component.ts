@@ -1,11 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
-import { PortalStore } from '../../../xtream/portal.store';
 
 @Component({
     template: `
@@ -68,13 +67,11 @@ import { PortalStore } from '../../../xtream/portal.store';
     ],
 })
 export class ExternalPlayerInfoDialogComponent {
-    readonly portalStore = inject(PortalStore);
-
     openUrl(url: string) {
         window.open(url, '_blank');
     }
 
     setVisibility(value: boolean) {
-        this.portalStore.setHideExternalInfoDialog(value);
+        localStorage.setItem('hideExternalInfoDialog', value.toString());
     }
 }

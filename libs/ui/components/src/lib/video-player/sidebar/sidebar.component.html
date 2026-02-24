@@ -1,18 +1,20 @@
-<div class="current-playlist">
-    <button
-        mat-icon-button
-        routerLink="/"
-        [matTooltip]="'SETTINGS.BACK_TO_HOME' | translate"
-        class="home-btn"
-    >
-        <mat-icon>home</mat-icon>
-    </button>
+@if (showPlaylistHeader()) {
+    <div class="current-playlist">
+        <button
+            mat-icon-button
+            routerLink="/"
+            [matTooltip]="'SETTINGS.BACK_TO_HOME' | translate"
+            class="home-btn"
+        >
+            <mat-icon>home</mat-icon>
+        </button>
 
-    <app-playlist-switcher
-        class="switcher"
-        [currentTitle]="playlistTitle()"
-        [subtitle]="subtitle()"
-    />
-</div>
+        <app-playlist-switcher
+            class="switcher"
+            [currentTitle]="playlistTitle()"
+            [subtitle]="subtitle()"
+        />
+    </div>
+}
 
 <app-channel-list-container [channelList]="channels()" />

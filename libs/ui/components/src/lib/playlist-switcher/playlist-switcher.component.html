@@ -1,14 +1,19 @@
 <div
     class="playlist-switcher-trigger"
+    [class.is-open]="isMenuOpen()"
     matRipple
     [matRippleDisabled]="false"
     [matMenuTriggerFor]="playlistMenu"
     #menuTrigger="matMenuTrigger"
+    #triggerElement
     (menuOpened)="onMenuOpened()"
     (menuClosed)="onMenuClosed()"
 >
+    <div class="trigger-icon-container">
+        <mat-icon class="trigger-playlist-icon">playlist_play</mat-icon>
+    </div>
     <div class="playlist-info">
-        <div class="name">{{ currentTitle() }}</div>
+        <div class="name">{{ displayTitle() }}</div>
         <div class="channels-count">{{ subtitle() }}</div>
     </div>
     <mat-icon class="dropdown-icon" [class.rotated]="isMenuOpen()">
@@ -18,7 +23,10 @@
 
 <mat-menu
     #playlistMenu="matMenu"
-    class="playlist-switcher-menu"
+    panelClass="playlist-switcher-menu"
+    hasBackdrop
+    backdropClass="playlist-switcher-menu-backdrop"
+    overlapTrigger="false"
     xPosition="after"
     yPosition="below"
 >
@@ -30,6 +38,7 @@
     <div class="search-container" (click)="$event.stopPropagation()">
         <mat-icon class="search-icon">search</mat-icon>
         <input
+            #searchInput
             type="text"
             class="search-input"
             [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"

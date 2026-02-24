@@ -26,6 +26,7 @@ import { ChannelListContainerComponent } from './../../channel-list-container/ch
 })
 export class SidebarComponent {
     readonly channels = input<Channel[]>([]);
+    readonly showPlaylistHeader = input(true);
 
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
