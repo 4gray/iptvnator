@@ -233,11 +233,32 @@
         border-radius: 8px;
         background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        color: var(--text-muted);
-        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.8);
         box-shadow: var(--poster-shadow);
+        overflow: hidden;
+
+        &-icon {
+            font-size: 48px;
+            width: 48px;
+            height: 48px;
+            opacity: 0.5;
+            margin-bottom: 12px;
+        }
+
+        &-text {
+            font-size: 1rem;
+            font-weight: 500;
+            text-align: center;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            overflow-wrap: anywhere;
+            padding: 16px;
+        }
     }
 }
 
@@ -257,6 +278,11 @@
         margin: 0 0 16px 0;
         letter-spacing: -0.02em;
         text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        overflow-wrap: anywhere;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 
     &__tags {

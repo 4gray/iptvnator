@@ -25,38 +25,37 @@
                     />
                 </mat-form-field>
             </div>
-            <mat-selection-list [multiple]="false">
+            <div class="nav-list" style="height: calc(100% - 70px)">
                 <cdk-virtual-scroll-viewport
                     [itemSize]="56"
                     class="scroll-viewport-portals"
                 >
-                    <mat-list-option
+                    <div
+                        class="nav-item"
                         *cdkVirtualFor="
                             let item of channels
                                 | filterBy: searchString() : 'name';
                             trackBy: trackBy;
                             templateCacheSize: 0
                         "
-                        [selected]="
+                        [class.selected]="
                             item.stream_id === activeLiveStream?.stream_id
                         "
-                        [value]="item"
                         (click)="itemClicked.emit(item)"
                     >
                         @if (item.stream_icon) {
                             <img
-                                matListItemAvatar
                                 class="stream-icon"
                                 [src]="item.stream_icon"
                                 alt="channel icon"
                             />
                         }
-                        <div class="title" matListItemTitle>
+                        <div class="title">
                             {{ item.name }}
                         </div>
-                    </mat-list-option>
+                    </div>
                 </cdk-virtual-scroll-viewport>
-            </mat-selection-list>
+            </div>
         </div>
     </div>
     @if (player === 'videojs' || player === 'html5') {

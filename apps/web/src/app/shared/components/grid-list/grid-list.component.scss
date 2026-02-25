@@ -88,8 +88,8 @@ mat-card:hover {
     position: absolute;
     top: 6px;
     right: 6px;
-    // Use a semi-transparent dark pill, not hardcoded green
-    background: rgba(0, 0, 0, 0.65);
+    // Use a solid or highly opaque dark pill to avoid expensive backdrop-filter
+    background: rgba(0, 0, 0, 0.85);
     color: #4ade80; // green-400, readable across themes
     font-size: 0.72rem;
     font-weight: 600;
@@ -99,7 +99,6 @@ mat-card:hover {
     align-items: center;
     padding: 2px 5px;
     gap: 2px;
-    backdrop-filter: blur(4px);
 
     mat-icon {
         font-size: 13px;

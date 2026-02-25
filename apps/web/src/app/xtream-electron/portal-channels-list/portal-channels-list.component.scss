@@ -32,32 +32,68 @@
 .channel-item {
     display: flex;
     align-items: center;
-    padding: 8px;
+    position: relative;
+    padding: 8px 8px 8px 12px;
     margin: 2px 4px;
-    border-radius: 4px;
+    border-radius: 10px;
+    border: 1px solid transparent;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    background: transparent;
+    color: var(--mat-sys-on-surface-variant);
     height: 64px;
     box-sizing: border-box;
     gap: 8px;
-    // Critical: use margin-based calc and ensure it doesn't overflow
     width: calc(100% - 8px);
-    min-width: 0; // Allow shrinking below content size
-    overflow: hidden;
+    min-width: 0;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.18s ease,
+        transform 0.18s ease;
 
     &:hover {
-        background-color: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent);
+        background: var(--mat-sys-surface-container);
+        color: var(--mat-sys-on-surface);
 
         .title {
-            color: var(--mat-sys-primary);
+            color: var(--mat-sys-on-surface);
         }
     }
 
     &.active {
-        background-color: color-mix(in srgb, var(--mat-sys-primary) 16%, transparent);
+        background: linear-gradient(
+            135deg,
+            var(--app-selection-surface-strong),
+            var(--app-selection-surface)
+        ) !important;
+        color: var(--app-selection-color) !important;
+        border-color: var(--app-selection-border) !important;
+        font-weight: 600;
+        box-shadow:
+            inset 0 0 0 1px var(--app-selection-border),
+            0 12px 20px -18px var(--app-selection-glow);
+        transform: translateY(-1px);
 
-        .title {
-            color: var(--mat-sys-primary);
+        * {
+            color: var(--app-selection-color) !important;
+        }
+
+        .current-program,
+        .progress-container {
+            opacity: 0.92;
+        }
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset-inline-start: 6px;
+            top: 7px;
+            bottom: 7px;
+            width: 3px;
+            border-radius: 999px;
+            background: var(--app-selection-color);
+            box-shadow: 0 0 10px var(--app-selection-glow);
         }
     }
 }
@@ -162,26 +198,63 @@
 }
 
 .search-panel {
-    padding: 8px 12px;
+    padding: 10px 12px;
     flex-shrink: 0;
     height: 56px;
     box-sizing: border-box;
+    display: flex;
+    align-items: center;
 }
 
-.search-bar {
+.search-field {
+    flex: 1;
     width: 100%;
-    @include mat.form-field-density(-5);
-}
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
+    background: var(--app-search-bg, var(--mat-sys-surface-container));
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    box-sizing: border-box;
+    cursor: text;
+    transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease,
+        box-shadow 0.15s ease;
 
-::ng-deep {
-    .search-bar {
-        div {
-            border-radius: 20px;
-        }
+    &:focus-within {
+        border-color: var(--mat-sys-primary);
+        box-shadow: 0 0 0 3px rgba(var(--mat-sys-primary), 0.12);
     }
 
-    div[matformfieldlineripple] {
-        display: none;
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: var(--mat-sys-on-surface-variant);
+        flex-shrink: 0;
+    }
+
+    input {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: var(--mat-sys-on-surface);
+        font: inherit;
+        font-size: 0.875rem;
+
+        &:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        &::placeholder {
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.7;
+        }
     }
 }
 
@@ -234,5 +307,67 @@
 
     .channel-item {
         height: 48px;
+    }
+}
+
+// ─── Empty State ──────────────────────────────────────────────────────────────
+.empty-search-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 32px 24px;
+    text-align: center;
+    color: var(--mat-sys-on-surface-variant);
+    animation: fadeIn 0.3s ease-out;
+
+    .empty-icon-wrapper {
+        width: 64px;
+        height: 64px;
+        border-radius: 20px;
+        background: var(--mat-sys-surface-container);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        box-shadow: 
+            0 8px 24px -8px rgba(0, 0, 0, 0.1),
+            inset 0 1px 1px rgba(255, 255, 255, 0.05);
+
+        mat-icon {
+            font-size: 32px;
+            width: 32px;
+            height: 32px;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.8;
+        }
+    }
+
+    h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+        color: var(--mat-sys-on-surface);
+        letter-spacing: -0.01em;
+    }
+
+    p {
+        font-size: 0.875rem;
+        margin: 0;
+        opacity: 0.7;
+        line-height: 1.4;
+        max-width: 260px;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }

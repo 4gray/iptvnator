@@ -236,6 +236,7 @@
         "LOADING": "Loading channels...",
         "LOADING_MORE": "Loading more...",
         "NO_SEARCH_RESULTS": "No channels found",
+        "NO_CHANNELS_FOUND": "No channels found",
         "TRY_DIFFERENT_SEARCH": "Try a different search term"
     },
     "TOP_MENU": {

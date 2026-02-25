@@ -1,84 +1,111 @@
 <div class="search-panel">
-    <mat-form-field class="search-bar" subscriptSizing="dynamic">
-        <mat-icon matPrefix>search</mat-icon>
+    <label class="search-field">
+        <mat-icon>search</mat-icon>
         <input
-            matInput
-            spellcheck="false"
             type="search"
+            spellcheck="false"
             [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
             [(ngModel)]="searchString"
         />
-    </mat-form-field>
+    </label>
 </div>
 
 <div class="channels-list">
-    <cdk-virtual-scroll-viewport
-        [itemSize]="68"
-        class="scroll-viewport-portals"
-    >
-        <div
-            *cdkVirtualFor="
-                let item of sortedChannels() | filterBy: searchString() : 'title';
-                trackBy: trackBy;
-                templateCacheSize: 0
-            "
-            class="channel-item"
-            [class.active]="xtreamStore.selectedItem()?.xtream_id === item.xtream_id"
-            (click)="playClicked.emit(item)"
-        >
-            <img
-                class="stream-icon"
-                [src]="item.stream_icon ?? item.poster_url"
-                (error)="$event.target.src = './assets/images/default-poster.png'"
-                alt="channel icon"
-            />
-            <div class="channel-info">
-                <div class="title">{{ item.title }}</div>
-                @if (currentPrograms.get(item.xtream_id)) {
-                    <div class="program-info">
-                        <div class="current-program">
-                            {{ currentPrograms.get(item.xtream_id) }}
-                        </div>
-                        @if (currentProgramsProgress.has(item.xtream_id)) {
-                            <div class="progress-container">
-                                <span>{{
-                                    programTimings.get(item.xtream_id)?.start
-                                        | date: 'HH:mm'
-                                }}</span>
-                                <div class="progress-bar">
-                                    <div
-                                        class="progress"
-                                        [style.width.%]="
-                                            currentProgramsProgress.get(item.xtream_id)
-                                        "
-                                    ></div>
+    @if (
+        sortedChannels() | filterBy: searchString() : 'title';
+        as filteredChannels
+    ) {
+        @if (filteredChannels.length > 0) {
+            <cdk-virtual-scroll-viewport
+                [itemSize]="68"
+                class="scroll-viewport-portals"
+            >
+                <div
+                    *cdkVirtualFor="
+                        let item of filteredChannels;
+                        trackBy: trackBy;
+                        templateCacheSize: 0
+                    "
+                    class="channel-item"
+                    [class.active]="
+                        xtreamStore.selectedItem()?.xtream_id === item.xtream_id
+                    "
+                    (click)="playClicked.emit(item)"
+                >
+                    <img
+                        class="stream-icon"
+                        [src]="item.stream_icon ?? item.poster_url"
+                        (error)="
+                            $event.target.src =
+                                './assets/images/default-poster.png'
+                        "
+                        alt="channel icon"
+                    />
+                    <div class="channel-info">
+                        <div class="title">{{ item.title }}</div>
+                        @if (currentPrograms.get(item.xtream_id)) {
+                            <div class="program-info">
+                                <div class="current-program">
+                                    {{ currentPrograms.get(item.xtream_id) }}
                                 </div>
-                                <span>{{
-                                    programTimings.get(item.xtream_id)?.end
-                                        | date: 'HH:mm'
-                                }}</span>
+                                @if (
+                                    currentProgramsProgress.has(item.xtream_id)
+                                ) {
+                                    <div class="progress-container">
+                                        <span>{{
+                                            programTimings.get(item.xtream_id)
+                                                ?.start | date: 'HH:mm'
+                                        }}</span>
+                                        <div class="progress-bar">
+                                            <div
+                                                class="progress"
+                                                [style.width.%]="
+                                                    currentProgramsProgress.get(
+                                                        item.xtream_id
+                                                    )
+                                                "
+                                            ></div>
+                                        </div>
+                                        <span>{{
+                                            programTimings.get(item.xtream_id)
+                                                ?.end | date: 'HH:mm'
+                                        }}</span>
+                                    </div>
+                                }
+                            </div>
+                        } @else {
+                            <div class="program-info no-epg-placeholder">
+                                <div class="placeholder-bar"></div>
+                                <div class="progress-container">
+                                    <span>--:--</span>
+                                    <div class="progress-bar"></div>
+                                    <span>--:--</span>
+                                </div>
                             </div>
                         }
                     </div>
-                } @else {
-                    <div class="program-info no-epg-placeholder">
-                        <div class="placeholder-bar"></div>
-                        <div class="progress-container">
-                            <span>--:--</span>
-                            <div class="progress-bar"></div>
-                            <span>--:--</span>
-                        </div>
-                    </div>
-                }
+                    <button
+                        class="favorite-btn"
+                        (click)="toggleFavorite($event, item)"
+                    >
+                        <mat-icon>
+                            {{
+                                favorites.get(item.xtream_id)
+                                    ? 'star'
+                                    : 'star_outline'
+                            }}
+                        </mat-icon>
+                    </button>
+                </div>
+            </cdk-virtual-scroll-viewport>
+        } @else {
+            <div class="empty-search-state">
+                <div class="empty-icon-wrapper">
+                    <mat-icon>search_off</mat-icon>
+                </div>
+                <h3>{{ 'CHANNELS.NO_CHANNELS_FOUND' | translate }}</h3>
+                <p>We couldn't find anything matching "{{ searchString() }}"</p>
             </div>
-            <button
-                class="favorite-btn"
-                (click)="toggleFavorite($event, item)"
-            >
-                <mat-icon>
-                    {{ favorites.get(item.xtream_id) ? 'star' : 'star_outline' }}
-                </mat-icon>
-            </button>
-        </div>
-    </cdk-virtual-scroll-viewport>
+        }
+    }
 </div>

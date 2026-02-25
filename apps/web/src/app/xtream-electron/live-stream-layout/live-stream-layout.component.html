@@ -12,11 +12,13 @@
     >
         <div class="sidebar-header">
             @if (selectedCategoryId()) {
-                <button mat-icon-button (click)="backToCategories()">
+                <!-- <button mat-icon-button (click)="backToCategories()">
                     <mat-icon>chevron_left</mat-icon>
-                </button>
+                </button> -->
                 <h2 class="category-title">
-                    {{ selectedCategoryInfo()?.name }} ({{ selectedCategoryInfo()?.count }})
+                    {{ selectedCategoryInfo()?.name }} ({{
+                        selectedCategoryInfo()?.count
+                    }})
                 </h2>
                 <button
                     mat-icon-button
@@ -27,19 +29,28 @@
                     <mat-icon>sort_by_alpha</mat-icon>
                 </button>
                 <mat-menu #channelSortMenu="matMenu">
-                    <button mat-menu-item (click)="setLiveChannelSortMode('server')">
+                    <button
+                        mat-menu-item
+                        (click)="setLiveChannelSortMode('server')"
+                    >
                         <span>Server Order</span>
                         @if (liveChannelSortMode() === 'server') {
                             <mat-icon>check</mat-icon>
                         }
                     </button>
-                    <button mat-menu-item (click)="setLiveChannelSortMode('name-asc')">
+                    <button
+                        mat-menu-item
+                        (click)="setLiveChannelSortMode('name-asc')"
+                    >
                         <span>Name A-Z</span>
                         @if (liveChannelSortMode() === 'name-asc') {
                             <mat-icon>check</mat-icon>
                         }
                     </button>
-                    <button mat-menu-item (click)="setLiveChannelSortMode('name-desc')">
+                    <button
+                        mat-menu-item
+                        (click)="setLiveChannelSortMode('name-desc')"
+                    >
                         <span>Name Z-A</span>
                         @if (liveChannelSortMode() === 'name-desc') {
                             <mat-icon>check</mat-icon>
@@ -50,7 +61,11 @@
                 @if (!isWorkspaceLayout) {
                     <app-playlist-switcher
                         class="switcher"
-                        [currentTitle]="currentPlaylist()?.name || currentPlaylist()?.title || 'Playlist'"
+                        [currentTitle]="
+                            currentPlaylist()?.name ||
+                            currentPlaylist()?.title ||
+                            'Playlist'
+                        "
                         [subtitle]="'Xtream Code'"
                     />
                 }
@@ -58,7 +73,9 @@
                     mat-icon-button
                     class="manage-categories-btn"
                     (click)="openCategoryManagement()"
-                    [matTooltip]="'XTREAM.CATEGORY_MANAGEMENT.TITLE' | translate"
+                    [matTooltip]="
+                        'XTREAM.CATEGORY_MANAGEMENT.TITLE' | translate
+                    "
                 >
                     <mat-icon>tune</mat-icon>
                 </button>
@@ -95,10 +112,12 @@
         </div>
     } @else {
         <div class="no-channel-selected">
-            <button mat-icon-button disabled>
-                <mat-icon>category</mat-icon>
-            </button>
-            {{ 'PORTALS.SELECT_CATEGORY' | translate }}
+            @if (!selectedCategoryId()) {
+                <button mat-icon-button disabled>
+                    <mat-icon>category</mat-icon>
+                </button>
+                {{ 'PORTALS.SELECT_CATEGORY' | translate }}
+            }
         </div>
     }
     <!-- <app-mpv-player-bar /> -->

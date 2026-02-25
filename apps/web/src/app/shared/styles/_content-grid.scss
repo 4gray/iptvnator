@@ -60,9 +60,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.85);
     color: #fff;
 
     &.live {

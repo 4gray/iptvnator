@@ -21,7 +21,7 @@
                         width: '100%',
                         'border-radius': '8px',
                         'aspect-ratio': '2/3',
-                        display: 'block'
+                        display: 'block',
                     }"
                 />
             </div>
@@ -35,7 +35,7 @@
                         height: '40px',
                         width: '60%',
                         'margin-bottom': '16px',
-                        display: 'block'
+                        display: 'block',
                     }"
                 />
 
@@ -46,7 +46,7 @@
                         [theme]="{
                             height: '24px',
                             width: '60px',
-                            display: 'block'
+                            display: 'block',
                         }"
                     />
                 </div>
@@ -58,7 +58,7 @@
                         height: '16px',
                         'margin-bottom': '8px',
                         width: '100%',
-                        display: 'block'
+                        display: 'block',
                     }"
                 />
 
@@ -69,7 +69,7 @@
                         [theme]="{
                             height: '40px',
                             width: '100px',
-                            display: 'block'
+                            display: 'block',
                         }"
                     />
                 </div>
@@ -81,7 +81,7 @@
                         [theme]="{
                             height: '48px',
                             width: '140px',
-                            display: 'block'
+                            display: 'block',
                         }"
                     />
                 </div>
@@ -91,13 +91,15 @@
         <!-- Backdrop Image -->
         <div
             class="hero__backdrop"
-            [class.hero__backdrop--blurred]="!backdropUrl()"
+            [class.hero__backdrop--blurred]="
+                !backdropUrl() && posterUrl() && !posterError()
+            "
             [style.backgroundImage]="
-                backdropUrl()
+                backdropUrl() && !posterError()
                     ? 'url(' + backdropUrl() + ')'
-                    : posterUrl()
+                    : posterUrl() && !posterError()
                       ? 'url(' + posterUrl() + ')'
-                      : 'none'
+                      : fallbackBackdropBackground()
             "
         ></div>
 
@@ -108,24 +110,30 @@
         <div class="hero__content">
             <!-- Poster Card -->
             <div class="poster">
-                @if (posterUrl()) {
+                @if (posterUrl() && !posterError()) {
                     <img
                         class="poster__image"
                         [src]="posterUrl()"
-                        (error)="
-                            $event.target.src =
-                                './assets/images/default-poster.png'
-                        "
+                        (error)="onPosterError()"
                         alt="Poster"
                     />
                 } @else {
-                    <div class="poster__placeholder">No Poster</div>
+                    <div
+                        class="poster__placeholder"
+                        [style.backgroundImage]="fallbackPosterBackground()"
+                    >
+                        <mat-icon class="poster__placeholder-icon"
+                            >movie</mat-icon
+                        >
+                        <span class="poster__placeholder-text">{{
+                            formattedTitle()
+                        }}</span>
+                    </div>
                 }
             </div>
 
-            <!-- Details -->
             <div class="details">
-                <h1 class="details__title">{{ title() }}</h1>
+                <h1 class="details__title">{{ formattedTitle() }}</h1>
 
                 <!-- Tags Slot -->
                 <div class="details__tags">
