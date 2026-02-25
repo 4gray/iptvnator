@@ -25,6 +25,7 @@ export class RecentlyAddedComponent {
     readonly recentlyAddedSeries = computed(() =>
         this.getRecentlyAdded(this.xtreamStore.serialStreams(), true)
     );
+    readonly selectedContentType = this.xtreamStore.selectedContentType;
 
     private getRecentlyAdded(items: any[], isSeries = false) {
         return [...items]
@@ -41,6 +42,10 @@ export class RecentlyAddedComponent {
     getDate(item: any): number {
         const timestamp = item.added || item.last_modified;
         return parseInt(timestamp) * 1000;
+    }
+
+    isSectionActive(type: ContentType): boolean {
+        return this.selectedContentType() === type;
     }
 
     openItem(item: any, type: ContentType) {

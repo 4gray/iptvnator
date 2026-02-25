@@ -1,4 +1,4 @@
-import { Component, effect, inject } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
     ActivatedRoute,
@@ -36,40 +36,49 @@ export class XtreamShellComponent {
     readonly portalStatus = this.xtreamStore.portalStatus;
     readonly isWorkspaceLayout =
         this.route.snapshot.data['layout'] === 'workspace';
+    readonly showImportOverlay = computed(() => {
+        const section = this.currentSection();
+        return this.isImporting() && this.isContentSection(section);
+    });
 
     private currentPlaylistId: string | null = null;
-    private currentSection: string | null = null;
+    private readonly currentSection = signal<string | null>(null);
 
     constructor() {
         // Subscribe to route params to handle switching between playlists
-        this.route.params.pipe(takeUntilDestroyed()).subscribe(async (params) => {
-            const newPlaylistId = params['id'];
+        this.route.params
+            .pipe(takeUntilDestroyed())
+            .subscribe(async (params) => {
+                const newPlaylistId = params['id'];
 
-            // Skip if playlist ID hasn't changed
-            if (this.currentPlaylistId === newPlaylistId) {
-                return;
-            }
+                // Skip if playlist ID hasn't changed
+                if (this.currentPlaylistId === newPlaylistId) {
+                    return;
+                }
 
-            // Always reset the store when playlist changes to prevent stale data
-            // from previous sessions showing up (the store is a singleton)
-            this.xtreamStore.resetStore(newPlaylistId);
-            this.currentPlaylistId = newPlaylistId;
+                // Always reset the store when playlist changes to prevent stale data
+                // from previous sessions showing up (the store is a singleton)
+                this.xtreamStore.resetStore(newPlaylistId);
+                this.currentPlaylistId = newPlaylistId;
 
-            this.store.dispatch(
-                PlaylistActions.setActivePlaylist({
-                    playlistId: newPlaylistId,
-                })
-            );
+                this.store.dispatch(
+                    PlaylistActions.setActivePlaylist({
+                        playlistId: newPlaylistId,
+                    })
+                );
 
-            // Must await fetchXtreamPlaylist before checking status
-            // because checkPortalStatus needs currentPlaylist to be set
-            await this.xtreamStore.fetchXtreamPlaylist();
-            await this.xtreamStore.checkPortalStatus();
-        });
+                // Must await fetchXtreamPlaylist before checking status
+                // because checkPortalStatus needs currentPlaylist to be set
+                await this.xtreamStore.fetchXtreamPlaylist();
+                await this.xtreamStore.checkPortalStatus();
+            });
 
         this.router.events
             .pipe(
-                filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+                filter(
+                    (event): event is NavigationEnd =>
+                        event instanceof NavigationEnd
+                ),
                 takeUntilDestroyed()
             )
             .subscribe(() => {
@@ -81,11 +90,16 @@ export class XtreamShellComponent {
         effect(() => {
             const playlist = this.xtreamStore.currentPlaylist();
             const playlistId = this.xtreamStore.playlistId();
+            const section = this.currentSection();
+
+            if (!this.isContentSection(section)) {
+                return;
+            }
 
             // Only initialize content when playlist is loaded AND matches the current playlistId
             // This prevents stale data from a previous session from being used
             if (playlist !== null && playlist.id === playlistId) {
-                this.xtreamStore.initializeContent();
+                void this.xtreamStore.initializeContent();
             }
         });
     }
@@ -96,11 +110,11 @@ export class XtreamShellComponent {
         const sectionFromUrl = this.getSectionFromUrl(this.router.url);
         const section = sectionFromSnapshot ?? sectionFromUrl;
 
-        if (!section || section === this.currentSection) {
+        if (!section || section === this.currentSection()) {
             return;
         }
 
-        this.currentSection = section;
+        this.currentSection.set(section);
 
         if (section === 'vod' || section === 'live' || section === 'series') {
             this.xtreamStore.setSelectedContentType(section);
@@ -115,5 +129,15 @@ export class XtreamShellComponent {
             /^\/(?:workspace\/)?xtreams\/[^\/\?]+\/([^\/\?]+)/
         );
         return match?.[1] ?? null;
+    }
+
+    private isContentSection(section: string | null): boolean {
+        return (
+            section === 'vod' ||
+            section === 'live' ||
+            section === 'series' ||
+            section === 'search' ||
+            section === 'recently-added'
+        );
     }
 }

@@ -38,6 +38,7 @@
 
         <div class="rail-footer">
             <a
+                class="rail-shortcut"
                 routerLink="/workspace/settings"
                 [class.is-active]="isSettingsRoute()"
                 matTooltip="Settings"
@@ -108,6 +109,7 @@
             @if (downloadsContext()) {
                 <button
                     type="button"
+                    class="header-shortcut"
                     mat-icon-button
                     [class.is-active]="isDownloadsView()"
                     (click)="openDownloadsShortcut()"
@@ -131,6 +133,7 @@
             }
             <button
                 type="button"
+                class="header-shortcut"
                 mat-icon-button
                 [class.is-active]="isFavoritesView()"
                 (click)="toggleFavoritesShortcut()"

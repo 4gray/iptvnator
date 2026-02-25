@@ -13,11 +13,47 @@ h2 {
 }
 
 .section {
+    padding: 12px 14px 0;
+    border: 1px solid transparent;
+    border-radius: 16px;
     margin-bottom: 32px;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
 
     h3 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         margin-bottom: 16px;
         opacity: 0.8;
+    }
+}
+
+.section.section--active {
+    border-color: var(--app-selection-border);
+    background: linear-gradient(
+        145deg,
+        var(--app-selection-surface),
+        color-mix(in srgb, var(--app-selection-color) 6%, transparent)
+    );
+    box-shadow:
+        inset 0 0 0 1px var(--app-selection-border),
+        0 14px 24px -22px var(--app-selection-glow);
+
+    h3 {
+        color: var(--app-selection-color);
+        opacity: 1;
+
+        &::after {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: var(--app-selection-color);
+            box-shadow: 0 0 10px var(--app-selection-glow);
+        }
     }
 }
 
@@ -26,9 +62,9 @@ h2 {
     overflow-x: auto;
     gap: 16px;
     padding-bottom: 16px;
-    
+
     scrollbar-width: thin;
-    
+
     .carousel-item {
         min-width: 160px;
         width: 160px;

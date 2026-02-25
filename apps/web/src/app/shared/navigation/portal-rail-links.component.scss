@@ -4,25 +4,29 @@
     --rail-link-color: var(--mat-sys-on-surface-variant);
     --rail-link-hover-color: var(--mat-sys-on-surface);
     --rail-link-hover-bg: var(--mat-sys-surface-container);
-    /* Keep consistent with category-item.selected tone */
-    --rail-link-active-bg: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
-    --rail-link-active-color: var(--mat-sys-primary);
-    --rail-link-active-icon: var(--mat-sys-primary);
-    --rail-link-active-border: color-mix(in srgb, var(--mat-sys-primary) 42%, transparent);
-    --rail-link-active-glow: color-mix(in srgb, var(--mat-sys-primary) 24%, transparent);
+    --rail-link-active-bg: var(--app-selection-surface);
+    --rail-link-active-bg-strong: var(--app-selection-surface-strong);
+    --rail-link-active-color: var(--app-selection-color);
+    --rail-link-active-icon: var(--app-selection-color);
+    --rail-link-active-border: var(--app-selection-border);
+    --rail-link-active-glow: var(--app-selection-glow);
 }
 
 .p-0.m-0 {
-
     .mdc-list-item {
         min-height: 28px;
         height: 28px;
         padding: 0 !important;
-        border-radius: 4px;
+        border-radius: 10px;
         margin: 2px 0;
         display: flex;
         justify-content: center;
         color: var(--rail-link-color);
+        transition:
+            background 0.2s ease,
+            color 0.2s ease,
+            box-shadow 0.2s ease,
+            transform 0.2s ease;
 
         .mdc-list-item__start {
             margin-inline-end: 0 !important;
@@ -43,11 +47,16 @@
 
     .mdc-list-item.active,
     .mdc-list-item.is-active {
-        background: var(--rail-link-active-bg);
+        background: linear-gradient(
+            145deg,
+            var(--rail-link-active-bg-strong),
+            var(--rail-link-active-bg)
+        );
         color: var(--rail-link-active-color);
         box-shadow:
             inset 0 0 0 1px var(--rail-link-active-border),
             0 8px 18px -14px var(--rail-link-active-glow);
+        transform: translateY(-1px);
 
         mat-icon {
             color: var(--rail-link-active-icon);
@@ -55,7 +64,7 @@
     }
 }
 
-nav.flex a {
+nav.flex .portal-rail-link {
     width: 44px;
     height: 44px;
     border-radius: 14px;
@@ -65,38 +74,47 @@ nav.flex a {
     justify-content: center;
     color: var(--rail-link-color);
     text-decoration: none;
-    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
     app-region: no-drag;
 }
 
-nav.flex a:hover {
+nav.flex .portal-rail-link:hover {
     color: var(--rail-link-hover-color);
     background: var(--rail-link-hover-bg);
 }
 
-nav.flex a.is-active,
-nav.flex a.active {
+nav.flex .portal-rail-link.is-active,
+nav.flex .portal-rail-link.active {
     color: var(--rail-link-active-color);
-    background: var(--rail-link-active-bg);
+    background: linear-gradient(
+        145deg,
+        var(--rail-link-active-bg-strong),
+        var(--rail-link-active-bg)
+    );
     box-shadow:
         inset 0 0 0 1px var(--rail-link-active-border),
         0 10px 20px -16px var(--rail-link-active-glow);
+    transform: translateY(-1px);
 }
 
-nav.flex a.is-active mat-icon,
-nav.flex a.active mat-icon {
+nav.flex .portal-rail-link.is-active mat-icon,
+nav.flex .portal-rail-link.active mat-icon {
     color: var(--rail-link-active-icon);
 }
 
-nav.flex a.is-active::after,
-nav.flex a.active::after {
+nav.flex .portal-rail-link.is-active::after,
+nav.flex .portal-rail-link.active::after {
     content: '';
     position: absolute;
     right: -4px;
     top: 50%;
     transform: translateY(-50%);
-    width: 3px;
-    height: 18px;
+    width: 4px;
+    height: 20px;
     border-radius: 999px;
     background: var(--rail-link-active-icon);
     box-shadow: 0 0 10px var(--rail-link-active-glow);

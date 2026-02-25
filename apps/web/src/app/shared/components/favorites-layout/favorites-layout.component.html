@@ -25,12 +25,8 @@
 <div class="main-content">
     <div class="content-header">
         <h2>
-            {{
-                (titleTranslationString() | translate) +
-                    ' (' +
-                    selectedCategoryId() +
-                    ')'
-            }}
+            {{ titleTranslationString() | translate }}
+            <span class="selected-category-pill">{{ selectedCategoryId() }}</span>
         </h2>
         @if (showHeaderAction() && !isWorkspaceLayout) {
             <button

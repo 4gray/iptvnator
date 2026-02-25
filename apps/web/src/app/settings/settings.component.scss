@@ -33,14 +33,42 @@
 }
 
 .settings-group {
+    position: relative;
     background: transparent;
     overflow: hidden;
     scroll-margin-top: 24px;
     padding-bottom: 24px;
     border-bottom: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 18px;
+    transition:
+        background 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
 
     &:last-child {
         border-bottom: none;
+    }
+}
+
+.settings-group--active {
+    background: linear-gradient(
+        145deg,
+        var(--app-selection-surface),
+        color-mix(in srgb, var(--app-selection-color) 6%, transparent)
+    );
+    border-color: var(--app-selection-border);
+    box-shadow:
+        inset 0 0 0 1px var(--app-selection-border),
+        0 16px 28px -24px var(--app-selection-glow);
+
+    .settings-group__header-icon {
+        background: var(--app-selection-surface-strong);
+        color: var(--app-selection-color);
+        box-shadow: inset 0 0 0 1px var(--app-selection-border);
+    }
+
+    .settings-group__header-text h3 {
+        color: var(--app-selection-color);
     }
 }
 

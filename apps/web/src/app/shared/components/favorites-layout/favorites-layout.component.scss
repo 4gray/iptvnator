@@ -33,6 +33,24 @@
         align-items: center;
         gap: 10px;
     }
+
+    .selected-category-pill {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--app-selection-color);
+        background: linear-gradient(
+            145deg,
+            var(--app-selection-surface-strong),
+            var(--app-selection-surface)
+        );
+        box-shadow:
+            inset 0 0 0 1px var(--app-selection-border),
+            0 10px 16px -18px var(--app-selection-glow);
+    }
 }
 
 .scrollable-content {

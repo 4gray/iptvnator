@@ -41,7 +41,9 @@
         line-height: 32px;
         border-radius: 8px;
         color: var(--mat-sys-on-surface-variant);
-        transition: background 0.15s ease, color 0.15s ease;
+        transition:
+            background 0.15s ease,
+            color 0.15s ease;
 
         &:hover {
             background: var(--mat-sys-surface-container);
@@ -61,7 +63,7 @@
     align-items: center;
     gap: 4px;
     margin-top: 5px;
-    padding: 2px 8px;
+    padding: 2px 0;
     border-radius: 999px;
     background: var(--mat-sys-surface-container);
     color: var(--mat-sys-on-surface-variant);
@@ -97,4 +99,87 @@ app-category-view {
     overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: var(--mat-sys-outline-variant) transparent;
+}
+
+.context-skeleton {
+    display: grid;
+    gap: 8px;
+    padding: 4px 6px 2px;
+    overflow: hidden;
+}
+
+.context-skeleton__row {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr) 28px;
+    align-items: center;
+    gap: 10px;
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 12px;
+    background: color-mix(
+        in srgb,
+        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 88%,
+        var(--app-widget-bg, var(--mat-sys-surface-container)) 12%
+    );
+    border: 1px solid
+        color-mix(
+            in srgb,
+            var(--app-widget-header-border, var(--mat-sys-outline-variant)) 96%,
+            transparent
+        );
+}
+
+.context-skeleton__dot,
+.context-skeleton__label,
+.context-skeleton__count {
+    position: relative;
+    overflow: hidden;
+    background: color-mix(
+        in srgb,
+        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 52%,
+        var(--app-body-color, var(--mat-sys-on-surface-variant)) 48%
+    );
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            100deg,
+            transparent 8%,
+            color-mix(
+                    in srgb,
+                    var(--app-heading-color, var(--mat-sys-on-surface)) 18%,
+                    transparent
+                )
+                44%,
+            transparent 74%
+        );
+        transform: translateX(-120%);
+        animation: context-skeleton-shimmer 1.15s ease-in-out infinite;
+    }
+}
+
+.context-skeleton__dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+}
+
+.context-skeleton__label {
+    height: 9px;
+    border-radius: 999px;
+}
+
+.context-skeleton__count {
+    justify-self: end;
+    width: 22px;
+    height: 9px;
+    border-radius: 999px;
+}
+
+@keyframes context-skeleton-shimmer {
+    100% {
+        transform: translateX(120%);
+    }
 }

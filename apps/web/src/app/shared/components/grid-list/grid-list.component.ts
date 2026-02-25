@@ -1,13 +1,32 @@
-import { Component, input, output } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
-import { MatPaginatorModule } from '@angular/material/paginator';
-import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistErrorViewComponent } from '../../../xtream-electron/playlist-error-view/playlist-error-view.component';
 import { ProgressCapsuleComponent } from '../../../xtream-electron/shared/progress-capsule/progress-capsule.component';
 import { WatchedBadgeComponent } from '../../../xtream-electron/shared/watched-badge/watched-badge.component';
+
+interface GridListItem {
+    id?: number | string;
+    is_series?: number | string | boolean;
+    xtream_id?: number | string;
+    series_id?: number | string;
+    stream_id?: number | string;
+    category_id?: number | string;
+    poster_url?: string;
+    cover?: string;
+    title?: string;
+    o_name?: string;
+    name?: string;
+    rating?: string | number;
+    rating_imdb?: string | number;
+    progress?: number;
+    isWatched?: boolean;
+    hasSeriesProgress?: boolean;
+    [key: string]: unknown;
+}
 
 @Component({
     selector: 'app-grid-list',
@@ -15,9 +34,21 @@ import { WatchedBadgeComponent } from '../../../xtream-electron/shared/watched-b
             class="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-4"
         >
             @if (isLoading()) {
-                <div class="flex justify-center items-center p-8">
-                    <mat-spinner diameter="50"></mat-spinner>
-                </div>
+                @for (row of skeletonRows(); track row) {
+                    <div class="grid-skeleton-card" aria-hidden="true">
+                        <div class="grid-skeleton-thumb">
+                            <span class="grid-skeleton-badge"></span>
+                        </div>
+                        <div class="grid-skeleton-title">
+                            <span
+                                class="grid-skeleton-line grid-skeleton-line--primary"
+                            ></span>
+                            <span
+                                class="grid-skeleton-line grid-skeleton-line--secondary"
+                            ></span>
+                        </div>
+                    </div>
+                }
             } @else {
                 @for (item of items(); track $index) {
                     @let i = $any(item);
@@ -100,7 +131,6 @@ import { WatchedBadgeComponent } from '../../../xtream-electron/shared/watched-b
         PlaylistErrorViewComponent,
         MatCardModule,
         MatIcon,
-        MatProgressSpinner,
         MatTooltip,
         MatPaginatorModule,
         ProgressCapsuleComponent,
@@ -108,14 +138,20 @@ import { WatchedBadgeComponent } from '../../../xtream-electron/shared/watched-b
     ],
 })
 export class GridListComponent {
-    readonly items = input<any[]>();
+    readonly items = input<GridListItem[]>();
     readonly isLoading = input<boolean>();
     readonly showPaginator = input(true);
-    readonly itemClicked = output<any>();
-    readonly pageChange = output<any>();
+    readonly itemClicked = output<GridListItem>();
+    readonly pageChange = output<PageEvent>();
 
     readonly pageIndex = input<number>();
     readonly totalPages = input<number>();
     readonly limit = input<number>();
     readonly pageSizeOptions = input<number[]>();
+
+    readonly skeletonRows = computed(() => {
+        const preferredCount = this.limit() ?? 12;
+        const count = Math.max(8, Math.min(18, preferredCount));
+        return Array.from({ length: count }, (_, index) => index);
+    });
 }

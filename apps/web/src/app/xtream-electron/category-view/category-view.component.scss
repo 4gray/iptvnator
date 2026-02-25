@@ -20,6 +20,11 @@
     }
 }
 
+.category-item--selected .item-count {
+    color: var(--app-selection-color) !important;
+    opacity: 0.95;
+}
+
 mat-card-content {
     overflow-wrap: break-word;
     padding: 12px;

@@ -2,7 +2,7 @@
     <h2>{{ 'PORTALS.SIDEBAR.RECENTLY_ADDED' | translate }}</h2>
 
     @if (recentlyAddedVod().length > 0) {
-        <div class="section">
+        <div class="section" [class.section--active]="isSectionActive('vod')">
             <h3>{{ 'PORTALS.SIDEBAR.MOVIES' | translate }}</h3>
             <div class="carousel">
                 @for (item of recentlyAddedVod(); track item.xtream_id) {
@@ -20,7 +20,10 @@
     }
 
     @if (recentlyAddedSeries().length > 0) {
-        <div class="section">
+        <div
+            class="section"
+            [class.section--active]="isSectionActive('series')"
+        >
             <h3>{{ 'PORTALS.SIDEBAR.SERIES' | translate }}</h3>
             <div class="carousel">
                 @for (item of recentlyAddedSeries(); track item.xtream_id) {
@@ -38,7 +41,7 @@
     }
 
     @if (recentlyAddedLive().length > 0) {
-        <div class="section">
+        <div class="section" [class.section--active]="isSectionActive('live')">
             <h3>{{ 'PORTALS.SIDEBAR.LIVE_TV' | translate }}</h3>
             <div class="carousel">
                 @for (item of recentlyAddedLive(); track item.xtream_id) {

@@ -2,6 +2,7 @@
     <mat-nav-list class="p-0 m-0">
         @for (link of links(); track link.path.join('/')) {
             <a
+                class="portal-rail-link"
                 mat-list-item
                 [routerLink]="link.path"
                 [routerLinkActive]="activeClass()"
@@ -9,6 +10,7 @@
                 [matTooltip]="link.tooltip"
                 matTooltipPosition="right"
                 [attr.aria-label]="link.tooltip"
+                [attr.aria-current]="isActive(link) ? 'page' : null"
                 [class.active]="activeClass() === 'active' && isActive(link)"
                 [class.is-active]="
                     activeClass() === 'is-active' && isActive(link)
@@ -22,12 +24,14 @@
     <nav class="flex flex-col items-center gap-2 w-full">
         @for (link of links(); track link.path.join('/')) {
             <a
+                class="portal-rail-link"
                 [routerLink]="link.path"
                 [routerLinkActive]="activeClass()"
                 [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
                 [matTooltip]="link.tooltip"
                 [matTooltipPosition]="'right'"
                 [attr.aria-label]="link.tooltip"
+                [attr.aria-current]="isActive(link) ? 'page' : null"
                 [class.active]="activeClass() === 'active' && isActive(link)"
                 [class.is-active]="
                     activeClass() === 'is-active' && isActive(link)

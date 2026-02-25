@@ -209,7 +209,9 @@ export class WorkspaceShellComponent {
         return (
             (context.provider === 'xtreams' ||
                 context.provider === 'stalker') &&
-            (section === 'favorites' || section === 'recent')
+            (section === 'favorites' ||
+                section === 'recent' ||
+                section === 'downloads')
         );
     });
     readonly showContextPanel = computed(

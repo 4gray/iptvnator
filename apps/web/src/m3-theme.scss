@@ -52,6 +52,28 @@ html {
     --app-rail-border: rgba(0, 0, 0, 0.08);
     --app-search-bg: rgba(255, 255, 255, 0.7);
     --app-search-border: rgba(0, 0, 0, 0.1);
+    --app-selection-color: #2f7bff;
+    --app-selection-on-color: #eef4ff;
+    --app-selection-surface: color-mix(
+        in srgb,
+        var(--app-selection-color) 14%,
+        transparent
+    );
+    --app-selection-surface-strong: color-mix(
+        in srgb,
+        var(--app-selection-color) 22%,
+        transparent
+    );
+    --app-selection-border: color-mix(
+        in srgb,
+        var(--app-selection-color) 52%,
+        transparent
+    );
+    --app-selection-glow: color-mix(
+        in srgb,
+        var(--app-selection-color) 34%,
+        transparent
+    );
 
     // Widget surfaces — no borders, layered backgrounds
     --app-widget-bg: #ffffff;
@@ -96,6 +118,28 @@ html {
         --app-rail-border: rgba(255, 255, 255, 0.05);
         --app-search-bg: rgba(255, 255, 255, 0.05);
         --app-search-border: rgba(255, 255, 255, 0.09);
+        --app-selection-color: #78adff;
+        --app-selection-on-color: #071225;
+        --app-selection-surface: color-mix(
+            in srgb,
+            var(--app-selection-color) 18%,
+            transparent
+        );
+        --app-selection-surface-strong: color-mix(
+            in srgb,
+            var(--app-selection-color) 28%,
+            transparent
+        );
+        --app-selection-border: color-mix(
+            in srgb,
+            var(--app-selection-color) 62%,
+            transparent
+        );
+        --app-selection-glow: color-mix(
+            in srgb,
+            var(--app-selection-color) 44%,
+            transparent
+        );
 
         // Widget surfaces — NO border, surface contrast does the work
         // Widgets sit on content-bg (#161a22), so widget-bg is notably lighter

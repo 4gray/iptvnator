@@ -47,11 +47,12 @@
     --rail-link-color: var(--mat-sys-on-surface-variant);
     --rail-link-hover-color: var(--mat-sys-on-surface);
     --rail-link-hover-bg: var(--mat-sys-surface-container);
-    --rail-link-active-bg: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
-    --rail-link-active-color: var(--mat-sys-primary);
-    --rail-link-active-icon: var(--mat-sys-primary);
-    --rail-link-active-border: color-mix(in srgb, var(--mat-sys-primary) 42%, transparent);
-    --rail-link-active-glow: color-mix(in srgb, var(--mat-sys-primary) 24%, transparent);
+    --rail-link-active-bg: var(--app-selection-surface);
+    --rail-link-active-bg-strong: var(--app-selection-surface-strong);
+    --rail-link-active-color: var(--app-selection-color);
+    --rail-link-active-icon: var(--app-selection-color);
+    --rail-link-active-border: var(--app-selection-border);
+    --rail-link-active-glow: var(--app-selection-glow);
 }
 
 .app-rail a {
@@ -64,7 +65,11 @@
     justify-content: center;
     color: var(--rail-link-color);
     text-decoration: none;
-    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
     app-region: no-drag;
 
     mat-icon {
@@ -82,10 +87,15 @@
 .app-rail a.is-active,
 .app-rail a.active {
     color: var(--rail-link-active-color);
-    background: var(--rail-link-active-bg);
+    background: linear-gradient(
+        145deg,
+        var(--rail-link-active-bg-strong),
+        var(--rail-link-active-bg)
+    );
     box-shadow:
         inset 0 0 0 1px var(--rail-link-active-border),
         0 10px 20px -16px var(--rail-link-active-glow);
+    transform: translateY(-1px);
 
     mat-icon {
         color: var(--rail-link-active-icon);
@@ -237,8 +247,15 @@
         }
 
         &.is-active {
-            color: var(--mat-sys-on-primary-container);
-            background: var(--mat-sys-primary-container);
+            color: var(--app-selection-color);
+            background: linear-gradient(
+                145deg,
+                var(--app-selection-surface-strong),
+                var(--app-selection-surface)
+            );
+            box-shadow:
+                inset 0 0 0 1px var(--app-selection-border),
+                0 10px 20px -16px var(--app-selection-glow);
         }
     }
 }
@@ -336,9 +353,14 @@
     }
 
     &.is-active {
-        border-color: transparent;
-        color: var(--mat-sys-on-primary-container);
-        background: var(--mat-sys-primary-container);
+        border-color: var(--app-selection-border);
+        color: var(--app-selection-color);
+        background: linear-gradient(
+            145deg,
+            var(--app-selection-surface-strong),
+            var(--app-selection-surface)
+        );
+        box-shadow: 0 10px 20px -18px var(--app-selection-glow);
         font-weight: 500;
     }
 }

@@ -14,7 +14,11 @@
         novalidate
     >
         <div class="settings-content">
-            <section class="settings-group" id="general">
+            <section
+                class="settings-group"
+                [class.settings-group--active]="activeSection() === 'general'"
+                id="general"
+            >
                 <header class="settings-group__header">
                     <div class="settings-group__header-icon">
                         <mat-icon>settings</mat-icon>
@@ -105,7 +109,11 @@
                 </div>
             </section>
 
-            <section class="settings-group" id="playback">
+            <section
+                class="settings-group"
+                [class.settings-group--active]="activeSection() === 'playback'"
+                id="playback"
+            >
                 <header class="settings-group__header">
                     <div class="settings-group__header-icon">
                         <mat-icon>play_circle</mat-icon>
@@ -269,7 +277,11 @@
             </section>
 
             @if (isDesktop) {
-                <section class="settings-group" id="epg">
+                <section
+                    class="settings-group"
+                    [class.settings-group--active]="activeSection() === 'epg'"
+                    id="epg"
+                >
                     <header class="settings-group__header">
                         <div class="settings-group__header-icon">
                             <mat-icon>list_alt</mat-icon>
@@ -369,7 +381,13 @@
             }
 
             @if (isDesktop) {
-                <section class="settings-group" id="remote-control">
+                <section
+                    class="settings-group"
+                    [class.settings-group--active]="
+                        activeSection() === 'remote-control'
+                    "
+                    id="remote-control"
+                >
                     <header class="settings-group__header">
                         <div class="settings-group__header-icon">
                             <mat-icon>settings_remote</mat-icon>
@@ -546,7 +564,11 @@
                 </section>
             }
 
-            <section class="settings-group" id="data">
+            <section
+                class="settings-group"
+                [class.settings-group--active]="activeSection() === 'data'"
+                id="data"
+            >
                 <header class="settings-group__header">
                     <div class="settings-group__header-icon">
                         <mat-icon>sync_alt</mat-icon>
@@ -631,7 +653,11 @@
                 }
             </section>
 
-            <section class="settings-group" id="about">
+            <section
+                class="settings-group"
+                [class.settings-group--active]="activeSection() === 'about'"
+                id="about"
+            >
                 <header class="settings-group__header">
                     <div class="settings-group__header-icon">
                         <mat-icon>info</mat-icon>

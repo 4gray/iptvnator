@@ -17,7 +17,6 @@ mat-card:hover {
 
 // ─── Grid layout ─────────────────────────────────────────────────────────────
 .grid {
-
     mat-card {
         cursor: pointer;
         width: 100%;
@@ -106,5 +105,99 @@ mat-card:hover {
         font-size: 13px;
         height: 14px;
         width: 14px;
+    }
+}
+
+.grid-skeleton-card {
+    width: 100%;
+}
+
+.grid-skeleton-thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: 10px;
+    overflow: hidden;
+    background: color-mix(
+        in srgb,
+        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 84%,
+        var(--app-widget-bg, var(--mat-sys-surface-container)) 16%
+    );
+    border: 1px solid
+        color-mix(
+            in srgb,
+            var(--app-widget-header-border, var(--mat-sys-outline-variant)) 94%,
+            transparent
+        );
+}
+
+.grid-skeleton-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 34px;
+    height: 14px;
+    border-radius: 999px;
+    background: color-mix(
+        in srgb,
+        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 56%,
+        var(--app-body-color, var(--mat-sys-on-surface-variant)) 44%
+    );
+}
+
+.grid-skeleton-title {
+    margin-top: 10px;
+    padding: 0 3px;
+    display: grid;
+    gap: 6px;
+}
+
+.grid-skeleton-line {
+    height: 9px;
+    border-radius: 999px;
+    background: color-mix(
+        in srgb,
+        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 52%,
+        var(--app-body-color, var(--mat-sys-on-surface-variant)) 48%
+    );
+
+    &--primary {
+        width: 92%;
+    }
+
+    &--secondary {
+        width: 68%;
+    }
+}
+
+.grid-skeleton-thumb,
+.grid-skeleton-badge,
+.grid-skeleton-line {
+    position: relative;
+    overflow: hidden;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            100deg,
+            transparent 10%,
+            color-mix(
+                    in srgb,
+                    var(--app-heading-color, var(--mat-sys-on-surface)) 20%,
+                    transparent
+                )
+                46%,
+            transparent 76%
+        );
+        transform: translateX(-120%);
+        animation: grid-skeleton-shimmer 1.2s ease-in-out infinite;
+    }
+}
+
+@keyframes grid-skeleton-shimmer {
+    100% {
+        transform: translateX(120%);
     }
 }

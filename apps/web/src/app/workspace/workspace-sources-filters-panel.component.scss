@@ -57,10 +57,37 @@
     min-height: 0;
 }
 
-
 .option-list {
     overflow-y: auto;
     min-height: 0;
+}
+
+.option-row {
+    border-radius: 12px;
+    transition:
+        box-shadow 0.18s ease,
+        transform 0.18s ease;
+
+    .option-label,
+    .option-meta,
+    mat-icon {
+        transition: color 0.18s ease, opacity 0.18s ease;
+    }
+
+    &.selected {
+        box-shadow: 0 10px 20px -18px var(--app-selection-glow);
+        transform: translateY(-1px);
+
+        .option-label,
+        .option-meta,
+        mat-icon {
+            color: var(--app-selection-color) !important;
+        }
+
+        .option-meta {
+            opacity: 0.95;
+        }
+    }
 }
 
 .panel-section-title {

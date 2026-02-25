@@ -17,14 +17,18 @@
             </div>
         }
         @if (isCategoryLoading()) {
-            <ngx-skeleton-loader
-                count="20"
-                [theme]="{
-                    width: '95%',
-                    height: '48px',
-                    borderRadius: '40px',
-                }"
-            />
+            <div class="category-skeleton" aria-hidden="true">
+                @for (row of skeletonRows; track row) {
+                    <div class="category-skeleton__row">
+                        <span class="category-skeleton__dot"></span>
+                        <span
+                            class="category-skeleton__label"
+                            [style.width.%]="skeletonLabelWidths[row]"
+                        ></span>
+                        <span class="category-skeleton__count"></span>
+                    </div>
+                }
+            </div>
         } @else if (isCategoryFailed()) {
             <app-playlist-error-view
                 [title]="'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE' | translate"

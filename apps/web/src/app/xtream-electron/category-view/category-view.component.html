@@ -5,6 +5,8 @@
                 class="nav-item category-item"
                 [attr.data-category-id]="$any(item).category_id ?? item.id"
                 [class.selected]="isSelected(item)"
+                [class.category-item--selected]="isSelected(item)"
+                [attr.aria-current]="isSelected(item) ? 'true' : null"
                 (click)="categoryClicked.emit(item)"
             >
                 <span class="nav-item-label">

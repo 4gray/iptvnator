@@ -30,14 +30,18 @@
         />
     } @else if (isStalkerCategories()) {
         @if (isStalkerCategoryLoading()) {
-            <ngx-skeleton-loader
-                count="18"
-                [theme]="{
-                    width: '95%',
-                    height: '36px',
-                    borderRadius: '8px',
-                }"
-            />
+            <div class="context-skeleton" aria-hidden="true">
+                @for (row of skeletonRows; track row) {
+                    <div class="context-skeleton__row">
+                        <span class="context-skeleton__dot"></span>
+                        <span
+                            class="context-skeleton__label"
+                            [style.width.%]="skeletonLabelWidths[row]"
+                        ></span>
+                        <span class="context-skeleton__count"></span>
+                    </div>
+                }
+            </div>
         } @else if (isStalkerCategoryFailed()) {
             <app-playlist-error-view
                 [title]="'Unable to load categories'"

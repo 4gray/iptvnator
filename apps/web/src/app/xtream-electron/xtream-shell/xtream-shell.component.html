@@ -1,4 +1,4 @@
-@if (isImporting()) {
+@if (showImportOverlay()) {
     <app-loading-overlay
         [current]="getImportCount()"
         [total]="itemsToImport()"

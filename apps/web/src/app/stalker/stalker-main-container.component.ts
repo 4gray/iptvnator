@@ -4,7 +4,6 @@ import { MatIcon } from '@angular/material/icon';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { CategoryViewComponent } from '../xtream-electron/category-view/category-view.component';
 import { PlaylistErrorViewComponent } from '../xtream-electron/playlist-error-view/playlist-error-view.component';
@@ -23,7 +22,6 @@ import { StalkerStore } from './stalker.store';
         MatIcon,
         MatIconButton,
         MatPaginatorModule,
-        NgxSkeletonLoaderModule,
         PlaylistErrorViewComponent,
         PlaylistSwitcherComponent,
         ResizableDirective,
@@ -56,6 +54,10 @@ export class StalkerMainContainerComponent {
     /** content items */
     readonly contentItems = this.stalkerStore.getPaginatedContent;
     readonly isContentLoading = this.stalkerStore.isPaginatedContentLoading;
+    readonly skeletonRows = Array.from({ length: 12 }, (_, index) => index);
+    readonly skeletonLabelWidths = [
+        82, 70, 77, 66, 86, 73, 79, 62, 84, 68, 76, 71,
+    ];
 
     constructor() {
         // reset category title after changing content type
@@ -98,7 +100,8 @@ export class StalkerMainContainerComponent {
         const selectedTypeLabel =
             typeLabelByContentType[selectedContentType] ?? '';
 
-        const selectedCategoryName = this.stalkerStore.getSelectedCategoryName();
+        const selectedCategoryName =
+            this.stalkerStore.getSelectedCategoryName();
         let categoryName = selectedCategoryName;
 
         // For implicit "All" view, show a type-specific title so switching

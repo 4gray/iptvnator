@@ -4,7 +4,6 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
-import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { PlaylistErrorViewComponent } from '../xtream-electron/playlist-error-view/playlist-error-view.component';
 import {
     CategoryManagementDialogComponent,
@@ -33,7 +32,6 @@ interface XtreamCategoryLike {
         MatIcon,
         MatIconButton,
         MatTooltip,
-        NgxSkeletonLoaderModule,
         PlaylistErrorViewComponent,
     ],
     templateUrl: './workspace-context-panel.component.html',
@@ -69,8 +67,14 @@ export class WorkspaceContextPanelComponent {
 
     readonly stalkerCategories = this.stalkerStore.getCategoryResource;
     readonly stalkerSelectedCategoryId = this.stalkerStore.selectedCategoryId;
-    readonly isStalkerCategoryLoading = this.stalkerStore.isCategoryResourceLoading;
-    readonly isStalkerCategoryFailed = this.stalkerStore.isCategoryResourceFailed;
+    readonly isStalkerCategoryLoading =
+        this.stalkerStore.isCategoryResourceLoading;
+    readonly isStalkerCategoryFailed =
+        this.stalkerStore.isCategoryResourceFailed;
+    readonly skeletonRows = Array.from({ length: 14 }, (_, index) => index);
+    readonly skeletonLabelWidths = [
+        78, 66, 74, 59, 83, 69, 76, 62, 81, 64, 72, 67, 79, 61,
+    ];
 
     readonly title = computed(() => {
         if (this.isXtreamCategories()) {
