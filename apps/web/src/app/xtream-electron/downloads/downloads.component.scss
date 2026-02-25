@@ -1,11 +1,25 @@
 :host {
     width: 100%;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+}
+
+.downloads-layout {
+    display: flex;
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
 }
 
 .downloads {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 20px);
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
     overflow: hidden;
 
     &__header {
@@ -59,6 +73,9 @@
 
         &-actions {
             display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
             gap: 0.5rem;
         }
     }
@@ -72,29 +89,40 @@
         font-weight: 600;
     }
 
-    &__folder {
-        display: flex;
+    &__folder-inline {
+        display: inline-flex;
         align-items: center;
-        gap: 0.75rem;
-        padding: 12px 14px;
-        margin: 0 16px 1rem;
-        background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
-        border: 1px solid var(--mat-sys-primary);
-        border-radius: 12px;
+        gap: 8px;
+        max-width: min(42vw, 460px);
+        padding: 7px 10px;
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-surface-container-high) 86%,
+            transparent
+        );
+        border: 1px solid var(--mat-sys-outline-variant);
+        border-radius: 8px;
+        box-shadow: inset 0 1px 0
+            color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent);
 
         mat-icon {
+            width: 16px;
+            height: 16px;
+            font-size: 16px;
             color: var(--mat-sys-primary);
+            flex-shrink: 0;
         }
+    }
 
-        &-path {
-            flex: 1;
-            font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
-            font-size: 0.875rem;
-            color: var(--mat-sys-on-surface);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+    &__folder-inline-path {
+        font-family:
+            'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
+            monospace;
+        font-size: 0.78rem;
+        color: var(--mat-sys-on-surface);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     &__empty {
@@ -129,58 +157,63 @@
     &__list-wrapper {
         flex: 1;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 0 16px;
+        container-type: inline-size;
     }
 
     &__list {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
         gap: 12px;
         padding-bottom: 24px;
+        align-content: start;
     }
 
     &__item {
-        display: flex;
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr) auto;
+        grid-template-areas: 'poster info actions';
         align-items: center;
         gap: 1rem;
         padding: 1rem;
-        background: var(--mat-sys-surface-container-low);
-        border-radius: 16px;
-        border: 1px solid var(--mat-sys-outline-variant);
+        min-width: 0;
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-surface-container-high) 90%,
+            var(--mat-sys-surface) 10%
+        );
+        border-radius: 0;
+        border: 1px solid
+            color-mix(
+                in srgb,
+                var(--mat-sys-outline-variant) 80%,
+                var(--mat-sys-on-surface) 20%
+            );
+        box-shadow: inset 0 1px 0
+            color-mix(in srgb, var(--mat-sys-on-surface) 7%, transparent);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
-        &:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
-            background: var(--mat-sys-surface-container);
-            border-color: var(--mat-sys-outline);
+        &--clickable {
+            cursor: pointer;
 
-            .downloads__item-actions {
-                opacity: 1;
-                transform: translateX(0);
+            &:focus-visible {
+                outline: 2px solid var(--mat-sys-primary);
+                outline-offset: 2px;
             }
         }
 
-        // Status colors using Material semantics where possible, falling back to clean hexes
-        &.status-downloading {
-            border-left: 4px solid #2196f3;
-            background: color-mix(in srgb, #2196f3 4%, var(--mat-sys-surface-container-low));
-        }
-
-        &.status-completed {
-            border-left: 4px solid #4caf50;
-        }
-
-        &.status-failed {
-            border-left: 4px solid var(--mat-sys-error);
-            background: color-mix(in srgb, var(--mat-sys-error) 4%, var(--mat-sys-surface-container-low));
-        }
-
-        &.status-queued {
-            border-left: 4px solid var(--mat-sys-outline);
+        &:hover {
+            background: color-mix(
+                in srgb,
+                var(--mat-sys-surface-container-high) 72%,
+                var(--mat-sys-surface-container) 28%
+            );
+            border-color: var(--mat-sys-outline);
         }
 
         &-poster {
+            grid-area: poster;
             width: 64px;
             height: 90px;
             border-radius: 8px;
@@ -208,6 +241,7 @@
         }
 
         &-info {
+            grid-area: info;
             flex: 1;
             min-width: 0;
             display: flex;
@@ -230,6 +264,7 @@
         &-meta {
             display: flex;
             align-items: center;
+            flex-wrap: wrap;
             gap: 1rem;
             font-size: 0.85rem;
             color: var(--mat-sys-on-surface-variant);
@@ -262,7 +297,11 @@
 
             &.status-failed {
                 color: var(--mat-sys-error);
-                background: color-mix(in srgb, var(--mat-sys-error) 12%, transparent);
+                background: color-mix(
+                    in srgb,
+                    var(--mat-sys-error) 12%,
+                    transparent
+                );
             }
 
             &.status-queued {
@@ -271,7 +310,9 @@
         }
 
         &-size {
-            font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+            font-family:
+                'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
+                monospace;
             background: var(--mat-sys-surface-container-high);
             padding: 2px 8px;
             border-radius: 12px;
@@ -280,17 +321,22 @@
         &-error {
             color: var(--mat-sys-error);
             font-size: 0.8rem;
-            background: color-mix(in srgb, var(--mat-sys-error) 12%, transparent);
+            background: color-mix(
+                in srgb,
+                var(--mat-sys-error) 12%,
+                transparent
+            );
             padding: 2px 8px;
             border-radius: 12px;
         }
 
         &-actions {
+            grid-area: actions;
             display: flex;
             gap: 0.25rem;
             flex-shrink: 0;
-            opacity: 0.7;
-            transform: translateX(4px);
+            justify-self: end;
+            opacity: 1;
             transition: all 0.2s ease;
         }
 
@@ -312,3 +358,51 @@
     }
 }
 
+.sidebar-header h2 {
+    margin: 0;
+}
+
+@media (max-width: 980px) {
+    .downloads {
+        &__header {
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        &__header-actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        &__folder-inline {
+            max-width: 100%;
+        }
+
+        &__list {
+            grid-template-columns: 1fr;
+        }
+    }
+}
+
+@container (max-width: 760px) {
+    .downloads__item {
+        grid-template-columns: 64px minmax(0, 1fr);
+        grid-template-areas:
+            'poster info'
+            'actions actions';
+        align-items: start;
+        row-gap: 10px;
+    }
+
+    .downloads__item-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .downloads__item-title {
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+}

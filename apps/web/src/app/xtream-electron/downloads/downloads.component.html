@@ -1,234 +1,311 @@
-<div class="downloads">
-    <header class="downloads__header">
-        <div class="downloads__header-left">
-            <div class="settings-group__header-icon">
-                <mat-icon>downloading</mat-icon>
+<div class="downloads-layout">
+    @if (!isWorkspaceLayout) {
+        <div
+            class="sidebar"
+            appResizable
+            [minWidth]="250"
+            [maxWidth]="600"
+            [defaultWidth]="320"
+            storageKey="sidebar-width"
+        >
+            <div class="sidebar-header">
+                <h2>{{ 'DOWNLOADS.TITLE' | translate }}</h2>
             </div>
-            <div class="settings-group__header-text">
-                <h1>{{ 'DOWNLOADS.TITLE' | translate }}</h1>
-                @if (activeCount() > 0) {
-                    <span class="downloads__badge">{{ activeCount() }}</span>
-                }
-            </div>
-        </div>
-        <div class="downloads__header-actions">
-            @if (hasDownloads() && !isWorkspaceLayout) {
-                <button
-                    mat-stroked-button
-                    (click)="clearCompleted()"
-                    [matTooltip]="'DOWNLOADS.CLEAR_COMPLETED' | translate"
-                >
-                    <mat-icon>delete_sweep</mat-icon>
-                    {{ 'DOWNLOADS.CLEAR_COMPLETED' | translate }}
-                </button>
-            }
-        </div>
-    </header>
-
-    <div class="downloads__folder">
-        <mat-icon>folder_open</mat-icon>
-        <span class="downloads__folder-path">{{
-            downloadFolder() || ('DOWNLOADS.NO_FOLDER' | translate)
-        }}</span>
-        <button mat-flat-button color="accent" (click)="changeFolder()">
-            {{ 'DOWNLOADS.CHANGE_FOLDER' | translate }}
-        </button>
-    </div>
-
-    @if (!isAvailable()) {
-        <div class="downloads__empty">
-            <mat-icon>desktop_access_disabled</mat-icon>
-            <p>{{ 'DOWNLOADS.NOT_AVAILABLE' | translate }}</p>
-            <span>{{ 'DOWNLOADS.DESKTOP_ONLY' | translate }}</span>
-        </div>
-    } @else if (!hasDownloads()) {
-        <div class="downloads__empty">
-            <mat-icon>download</mat-icon>
-            <p>{{ 'DOWNLOADS.EMPTY' | translate }}</p>
-            <span>{{ 'DOWNLOADS.EMPTY_HINT' | translate }}</span>
-        </div>
-    } @else if (filteredDownloads().length === 0) {
-        <div class="downloads__empty">
-            <mat-icon>search_off</mat-icon>
-            <p>No downloads match the current filter</p>
-            <span>Try a different search term</span>
-        </div>
-    } @else {
-        <div class="downloads__list-wrapper">
-            <div class="downloads__list">
-                @for (item of filteredDownloads(); track item.id) {
-                    <div
-                        class="downloads__item"
-                        [class]="getStatusColor(item.status)"
-                    >
-                        <div class="downloads__item-poster">
-                            @if (item.posterUrl) {
-                                <img
-                                    [src]="item.posterUrl"
-                                    [alt]="item.title"
-                                    loading="lazy"
-                                />
-                            } @else {
-                                <mat-icon>movie</mat-icon>
-                            }
-                        </div>
-
-                        <div class="downloads__item-info">
-                            <div class="downloads__item-title">
-                                {{ item.title }}
-                                @if (item.contentType === 'episode') {
-                                    <span class="downloads__episode-badge">
-                                        {{ formatEpisodeLabel(item) }}
-                                    </span>
-                                }
-                            </div>
-
-                            <div class="downloads__item-meta">
-                                <span
-                                    class="downloads__item-status"
-                                    [class]="getStatusColor(item.status)"
-                                >
-                                    <mat-icon>{{
-                                        getStatusIcon(item.status)
-                                    }}</mat-icon>
-                                    {{
-                                        'DOWNLOADS.STATUS.' +
-                                            item.status.toUpperCase()
-                                            | translate
-                                    }}
-                                </span>
-
-                                @if (
-                                    item.status === 'downloading' ||
-                                    item.status === 'completed'
-                                ) {
-                                    <span class="downloads__item-size">
-                                        {{ formatBytes(item.bytesDownloaded) }}
-                                        @if (item.totalBytes) {
-                                            / {{ formatBytes(item.totalBytes) }}
-                                        }
-                                    </span>
-                                }
-
-                                @if (item.errorMessage) {
-                                    <span class="downloads__item-error">
-                                        {{ item.errorMessage }}
-                                    </span>
-                                }
-                            </div>
-
-                            @if (item.status === 'downloading') {
-                                <mat-progress-bar
-                                    mode="determinate"
-                                    [value]="getProgress(item)"
-                                ></mat-progress-bar>
-                            }
-                        </div>
-
-                        <div class="downloads__item-actions">
-                            @switch (item.status) {
-                                @case ('queued') {
-                                    <button
-                                        mat-icon-button
-                                        (click)="cancel(item)"
-                                        [matTooltip]="
-                                            'DOWNLOADS.CANCEL' | translate
-                                        "
-                                    >
-                                        <mat-icon>close</mat-icon>
-                                    </button>
-                                }
-                                @case ('downloading') {
-                                    <button
-                                        mat-icon-button
-                                        (click)="cancel(item)"
-                                        [matTooltip]="
-                                            'DOWNLOADS.CANCEL' | translate
-                                        "
-                                    >
-                                        <mat-icon>close</mat-icon>
-                                    </button>
-                                }
-                                @case ('completed') {
-                                    <button
-                                        mat-icon-button
-                                        color="primary"
-                                        (click)="play(item)"
-                                        [matTooltip]="
-                                            'DOWNLOADS.PLAY' | translate
-                                        "
-                                    >
-                                        <mat-icon>play_arrow</mat-icon>
-                                    </button>
-                                    <button
-                                        mat-icon-button
-                                        (click)="reveal(item)"
-                                        [matTooltip]="
-                                            'DOWNLOADS.REVEAL' | translate
-                                        "
-                                    >
-                                        <mat-icon>folder_open</mat-icon>
-                                    </button>
-                                    <button
-                                        mat-icon-button
-                                        color="warn"
-                                        (click)="remove(item)"
-                                        [matTooltip]="
-                                            'DOWNLOADS.REMOVE' | translate
-                                        "
-                                    >
-                                        <mat-icon>delete</mat-icon>
-                                    </button>
-                                }
-                                @case ('failed') {
-                                    <button
-                                        mat-icon-button
-                                        color="accent"
-                                        (click)="retry(item)"
-                                        [matTooltip]="
-                                            'DOWNLOADS.RETRY' | translate
-                                        "
-                                    >
-                                        <mat-icon>refresh</mat-icon>
-                                    </button>
-                                    <button
-                                        mat-icon-button
-                                        color="warn"
-                                        (click)="remove(item)"
-                                        [matTooltip]="
-                                            'DOWNLOADS.REMOVE' | translate
-                                        "
-                                    >
-                                        <mat-icon>delete</mat-icon>
-                                    </button>
-                                }
-                                @case ('canceled') {
-                                    <button
-                                        mat-icon-button
-                                        color="accent"
-                                        (click)="retry(item)"
-                                        [matTooltip]="
-                                            'DOWNLOADS.RETRY' | translate
-                                        "
-                                    >
-                                        <mat-icon>refresh</mat-icon>
-                                    </button>
-                                    <button
-                                        mat-icon-button
-                                        color="warn"
-                                        (click)="remove(item)"
-                                        [matTooltip]="
-                                            'DOWNLOADS.REMOVE' | translate
-                                        "
-                                    >
-                                        <mat-icon>delete</mat-icon>
-                                    </button>
-                                }
-                            }
-                        </div>
-                    </div>
-                }
-            </div>
+            <app-category-view
+                [items]="categories()"
+                [selectedCategoryId]="selectedCategoryId()"
+                (categoryClicked)="setCategoryId($any($event).category_id)"
+            />
         </div>
     }
+
+    <div class="downloads">
+        <header class="downloads__header">
+            <div class="downloads__header-left">
+                <div class="settings-group__header-icon">
+                    <mat-icon>downloading</mat-icon>
+                </div>
+                <div class="settings-group__header-text">
+                    <h1>{{ 'DOWNLOADS.TITLE' | translate }}</h1>
+                    @if (activeCount() > 0) {
+                        <span class="downloads__badge">{{
+                            activeCount()
+                        }}</span>
+                    }
+                </div>
+            </div>
+            <div class="downloads__header-actions">
+                @if (isAvailable()) {
+                    <div
+                        class="downloads__folder-inline"
+                        [attr.title]="
+                            downloadFolder() ||
+                            ('DOWNLOADS.NO_FOLDER' | translate)
+                        "
+                    >
+                        <mat-icon>folder_open</mat-icon>
+                        <span class="downloads__folder-inline-path">
+                            {{
+                                downloadFolder() ||
+                                    ('DOWNLOADS.NO_FOLDER' | translate)
+                            }}
+                        </span>
+                    </div>
+                    <button mat-stroked-button (click)="changeFolder()">
+                        {{ 'DOWNLOADS.CHANGE_FOLDER' | translate }}
+                    </button>
+                }
+                @if (hasDownloads() && !isWorkspaceLayout) {
+                    <button
+                        mat-stroked-button
+                        (click)="clearCompleted()"
+                        [matTooltip]="'DOWNLOADS.CLEAR_COMPLETED' | translate"
+                    >
+                        <mat-icon>delete_sweep</mat-icon>
+                        {{ 'DOWNLOADS.CLEAR_COMPLETED' | translate }}
+                    </button>
+                }
+            </div>
+        </header>
+
+        @if (!isAvailable()) {
+            <div class="downloads__empty">
+                <mat-icon>desktop_access_disabled</mat-icon>
+                <p>{{ 'DOWNLOADS.NOT_AVAILABLE' | translate }}</p>
+                <span>{{ 'DOWNLOADS.DESKTOP_ONLY' | translate }}</span>
+            </div>
+        } @else if (!hasDownloads()) {
+            <div class="downloads__empty">
+                <mat-icon>download</mat-icon>
+                <p>{{ 'DOWNLOADS.EMPTY' | translate }}</p>
+                <span>{{ 'DOWNLOADS.EMPTY_HINT' | translate }}</span>
+            </div>
+        } @else if (filteredDownloads().length === 0) {
+            <div class="downloads__empty">
+                <mat-icon>search_off</mat-icon>
+                <p>No downloads match the current filter</p>
+                <span>Try a different search term</span>
+            </div>
+        } @else {
+            <div class="downloads__list-wrapper">
+                <div class="downloads__list">
+                    @for (item of filteredDownloads(); track item.id) {
+                        <div
+                            class="downloads__item"
+                            [class]="getStatusColor(item.status)"
+                            [class.downloads__item--clickable]="
+                                isItemNavigable(item)
+                            "
+                            [attr.role]="
+                                isItemNavigable(item) ? 'button' : null
+                            "
+                            [attr.tabindex]="isItemNavigable(item) ? 0 : null"
+                            (click)="openInLibrary(item)"
+                            (keydown)="onItemCardKeydown($event, item)"
+                        >
+                            <div class="downloads__item-poster">
+                                @if (item.posterUrl) {
+                                    <img
+                                        [src]="item.posterUrl"
+                                        [alt]="item.title"
+                                        loading="lazy"
+                                    />
+                                } @else {
+                                    <mat-icon>movie</mat-icon>
+                                }
+                            </div>
+
+                            <div class="downloads__item-info">
+                                <div class="downloads__item-title">
+                                    {{ item.title }}
+                                    @if (item.contentType === 'episode') {
+                                        <span class="downloads__episode-badge">
+                                            {{ formatEpisodeLabel(item) }}
+                                        </span>
+                                    }
+                                </div>
+
+                                <div class="downloads__item-meta">
+                                    <span
+                                        class="downloads__item-status"
+                                        [class]="getStatusColor(item.status)"
+                                    >
+                                        <mat-icon>{{
+                                            getStatusIcon(item.status)
+                                        }}</mat-icon>
+                                        {{
+                                            'DOWNLOADS.STATUS.' +
+                                                item.status.toUpperCase()
+                                                | translate
+                                        }}
+                                    </span>
+
+                                    @if (
+                                        item.status === 'downloading' ||
+                                        item.status === 'completed'
+                                    ) {
+                                        <span class="downloads__item-size">
+                                            {{
+                                                formatBytes(
+                                                    item.bytesDownloaded
+                                                )
+                                            }}
+                                            @if (item.totalBytes) {
+                                                /
+                                                {{
+                                                    formatBytes(item.totalBytes)
+                                                }}
+                                            }
+                                        </span>
+                                    }
+
+                                    @if (item.errorMessage) {
+                                        <span class="downloads__item-error">
+                                            {{ item.errorMessage }}
+                                        </span>
+                                    }
+                                </div>
+
+                                @if (item.status === 'downloading') {
+                                    <mat-progress-bar
+                                        mode="determinate"
+                                        [value]="getProgress(item)"
+                                    ></mat-progress-bar>
+                                }
+                            </div>
+
+                            <div class="downloads__item-actions">
+                                @switch (item.status) {
+                                    @case ('queued') {
+                                        <button
+                                            mat-icon-button
+                                            (click)="
+                                                $event.stopPropagation();
+                                                cancel(item)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.CANCEL' | translate
+                                            "
+                                        >
+                                            <mat-icon>close</mat-icon>
+                                        </button>
+                                    }
+                                    @case ('downloading') {
+                                        <button
+                                            mat-icon-button
+                                            (click)="
+                                                $event.stopPropagation();
+                                                cancel(item)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.CANCEL' | translate
+                                            "
+                                        >
+                                            <mat-icon>close</mat-icon>
+                                        </button>
+                                    }
+                                    @case ('completed') {
+                                        <button
+                                            mat-icon-button
+                                            color="primary"
+                                            (click)="
+                                                $event.stopPropagation();
+                                                play(item)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.PLAY' | translate
+                                            "
+                                        >
+                                            <mat-icon>play_arrow</mat-icon>
+                                        </button>
+                                        <button
+                                            mat-icon-button
+                                            (click)="
+                                                $event.stopPropagation();
+                                                reveal(item)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.REVEAL' | translate
+                                            "
+                                        >
+                                            <mat-icon>folder_open</mat-icon>
+                                        </button>
+                                        <button
+                                            mat-icon-button
+                                            color="warn"
+                                            (click)="
+                                                $event.stopPropagation();
+                                                remove(item)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.REMOVE' | translate
+                                            "
+                                        >
+                                            <mat-icon>delete</mat-icon>
+                                        </button>
+                                    }
+                                    @case ('failed') {
+                                        <button
+                                            mat-icon-button
+                                            color="accent"
+                                            (click)="
+                                                $event.stopPropagation();
+                                                retry(item)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.RETRY' | translate
+                                            "
+                                        >
+                                            <mat-icon>refresh</mat-icon>
+                                        </button>
+                                        <button
+                                            mat-icon-button
+                                            color="warn"
+                                            (click)="
+                                                $event.stopPropagation();
+                                                remove(item)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.REMOVE' | translate
+                                            "
+                                        >
+                                            <mat-icon>delete</mat-icon>
+                                        </button>
+                                    }
+                                    @case ('canceled') {
+                                        <button
+                                            mat-icon-button
+                                            color="accent"
+                                            (click)="
+                                                $event.stopPropagation();
+                                                retry(item)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.RETRY' | translate
+                                            "
+                                        >
+                                            <mat-icon>refresh</mat-icon>
+                                        </button>
+                                        <button
+                                            mat-icon-button
+                                            color="warn"
+                                            (click)="
+                                                $event.stopPropagation();
+                                                remove(item)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.REMOVE' | translate
+                                            "
+                                        >
+                                            <mat-icon>delete</mat-icon>
+                                        </button>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
 </div>
