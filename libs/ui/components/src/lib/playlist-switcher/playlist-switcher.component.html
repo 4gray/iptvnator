@@ -43,17 +43,44 @@
             class="search-input"
             [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"
             [ngModel]="searchQuery()"
-            (ngModelChange)="searchQuery.set($event)"
+            (ngModelChange)="setSearchQuery($event)"
         />
         @if (searchQuery()) {
             <button
                 mat-icon-button
                 class="clear-btn"
-                (click)="searchQuery.set('')"
+                (click)="setSearchQuery('')"
             >
                 <mat-icon>close</mat-icon>
             </button>
         }
+    </div>
+
+    <div class="type-filters" (click)="$event.stopPropagation()">
+        <button
+            type="button"
+            class="type-filter-chip"
+            [class.selected]="isTypeFilterSelected('m3u')"
+            (click)="togglePlaylistTypeFilter('m3u', $event)"
+        >
+            M3U
+        </button>
+        <button
+            type="button"
+            class="type-filter-chip"
+            [class.selected]="isTypeFilterSelected('stalker')"
+            (click)="togglePlaylistTypeFilter('stalker', $event)"
+        >
+            Stalker
+        </button>
+        <button
+            type="button"
+            class="type-filter-chip"
+            [class.selected]="isTypeFilterSelected('xtream')"
+            (click)="togglePlaylistTypeFilter('xtream', $event)"
+        >
+            Xtream
+        </button>
     </div>
 
     <div class="menu-content">

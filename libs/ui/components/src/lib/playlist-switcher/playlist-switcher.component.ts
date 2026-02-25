@@ -33,6 +33,7 @@ import { PlaylistMeta } from 'shared-interfaces';
 
 type PlaylistRouteProvider = 'playlists' | 'xtreams' | 'stalker';
 type PlaylistSectionProvider = Exclude<PlaylistRouteProvider, 'playlists'>;
+type PlaylistFilterType = 'm3u' | 'stalker' | 'xtream';
 
 interface PlaylistRouteContext {
     inWorkspace: boolean;
@@ -43,7 +44,15 @@ interface PlaylistRouteContext {
 }
 
 const LAST_SECTION_STORAGE_KEY = 'playlist-switcher:last-sections';
-const LAST_ACTIVE_PLAYLIST_STORAGE_KEY = 'playlist-switcher:last-active-playlist-id';
+const LAST_ACTIVE_PLAYLIST_STORAGE_KEY =
+    'playlist-switcher:last-active-playlist-id';
+const SEARCH_QUERY_STORAGE_KEY = 'playlist-switcher:search-query';
+const PLAYLIST_TYPE_FILTER_STORAGE_KEY = 'playlist-switcher:type-filters';
+const DEFAULT_PLAYLIST_TYPE_FILTERS: Record<PlaylistFilterType, boolean> = {
+    m3u: true,
+    stalker: true,
+    xtream: true,
+};
 interface PlaylistSectionMemory {
     providers: Partial<Record<PlaylistSectionProvider, string>>;
     playlists: Record<
@@ -107,32 +116,40 @@ export class PlaylistSwitcherComponent {
 
     readonly menuTrigger = viewChild.required<MatMenuTrigger>('menuTrigger');
     readonly playlistMenu = viewChild.required<MatMenu>('playlistMenu');
-    readonly triggerElement = viewChild.required<ElementRef<HTMLElement>>(
-        'triggerElement'
-    );
-    readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
+    readonly triggerElement =
+        viewChild.required<ElementRef<HTMLElement>>('triggerElement');
+    readonly searchInput =
+        viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
     /** Signal for tracking menu open state */
     readonly isMenuOpen = signal(false);
 
     /** Search query for filtering playlists */
-    readonly searchQuery = signal('');
+    readonly searchQuery = signal(this.readPersistedSearchQuery());
+    readonly playlistTypeFilters = signal(this.readPersistedTypeFilters());
 
     /** All playlists from store */
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
-    readonly allPlaylistsLoaded = this.store.selectSignal(selectPlaylistsLoadingFlag);
+    readonly allPlaylistsLoaded = this.store.selectSignal(
+        selectPlaylistsLoadingFlag
+    );
 
     /** Filtered playlists based on search query, sorted by importDate (newest first) */
     readonly filteredPlaylists = computed(() => {
         const query = this.searchQuery().toLowerCase().trim();
+        const filters = this.playlistTypeFilters();
         const allPlaylists = this.playlists();
+        const filteredByType = allPlaylists.filter((playlist) => {
+            const playlistType = this.getPlaylistFilterType(playlist);
+            return filters[playlistType];
+        });
         const filtered = query
-            ? allPlaylists.filter(
+            ? filteredByType.filter(
                   (p) =>
                       p.title?.toLowerCase().includes(query) ||
                       p.filename?.toLowerCase().includes(query)
               )
-            : allPlaylists;
+            : filteredByType;
 
         return [...filtered].sort(
             (a, b) =>
@@ -143,7 +160,9 @@ export class PlaylistSwitcherComponent {
 
     /** Current active playlist ID from route */
     readonly routePlaylistId = signal<string | null>(null);
-    readonly selectedPlaylistId = this.store.selectSignal(selectActivePlaylistId);
+    readonly selectedPlaylistId = this.store.selectSignal(
+        selectActivePlaylistId
+    );
     readonly activePlaylistId = computed(() => {
         return this.routePlaylistId() ?? this.selectedPlaylistId() ?? null;
     });
@@ -153,7 +172,10 @@ export class PlaylistSwitcherComponent {
             return null;
         }
 
-        return this.playlists().find((playlist) => playlist._id === playlistId) ?? null;
+        return (
+            this.playlists().find((playlist) => playlist._id === playlistId) ??
+            null
+        );
     });
     readonly displayTitle = computed(() => {
         if (!this.activePlaylistId()) {
@@ -181,12 +203,16 @@ export class PlaylistSwitcherComponent {
             if (!this.allPlaylistsLoaded()) {
                 return;
             }
-            const playlistIds = this.playlists().map((playlist) => playlist._id);
+            const playlistIds = this.playlists().map(
+                (playlist) => playlist._id
+            );
             this.removeDeletedPlaylistsFromSectionMemory(playlistIds);
         });
         effect(() => {
             const allPlaylistsLoaded = this.allPlaylistsLoaded();
-            const playlistIds = this.playlists().map((playlist) => playlist._id);
+            const playlistIds = this.playlists().map(
+                (playlist) => playlist._id
+            );
             const playlistIdSet = new Set(playlistIds);
             const selectedId = this.selectedPlaylistId();
             const routeId = this.routePlaylistId();
@@ -219,7 +245,12 @@ export class PlaylistSwitcherComponent {
 
             // On routes without playlist in URL (for example dashboard),
             // restore last known active playlist when store has none.
-            if (!routeId && !selectedId && storedId && playlistIdSet.has(storedId)) {
+            if (
+                !routeId &&
+                !selectedId &&
+                storedId &&
+                playlistIdSet.has(storedId)
+            ) {
                 this.store.dispatch(
                     PlaylistActions.setActivePlaylist({ playlistId: storedId })
                 );
@@ -251,7 +282,7 @@ export class PlaylistSwitcherComponent {
 
     private updateActivePlaylistFromRoute(url: string) {
         // Match routes like /playlists/:id, /xtreams/:id, /stalker/:id
-        const match = url.match(/\/(playlists|xtreams|stalker)\/([^\/\?]+)/);
+        const match = url.match(/\/(playlists|xtreams|stalker)\/([^/?]+)/);
         if (match) {
             this.routePlaylistId.set(match[2]);
         } else {
@@ -328,7 +359,31 @@ export class PlaylistSwitcherComponent {
         this.isMenuOpen.set(false);
         this.clearMenuOverlayWidth();
         this.clearSearchFocusTimeout();
-        this.searchQuery.set('');
+    }
+
+    setSearchQuery(value: string) {
+        this.searchQuery.set(value);
+        this.writePersistedSearchQuery(value);
+    }
+
+    togglePlaylistTypeFilter(type: PlaylistFilterType, event?: Event): void {
+        event?.stopPropagation();
+        const current = this.playlistTypeFilters();
+        const next = {
+            ...current,
+            [type]: !current[type],
+        };
+
+        if (!next.m3u && !next.stalker && !next.xtream) {
+            return;
+        }
+
+        this.playlistTypeFilters.set(next);
+        this.writePersistedTypeFilters(next);
+    }
+
+    isTypeFilterSelected(type: PlaylistFilterType): boolean {
+        return this.playlistTypeFilters()[type];
     }
 
     private syncMenuOverlayWidthToTrigger() {
@@ -393,7 +448,9 @@ export class PlaylistSwitcherComponent {
         return /^\/workspace(?:\/|$)/.test(url);
     }
 
-    private getProviderForPlaylist(playlist: PlaylistMeta): PlaylistRouteProvider {
+    private getProviderForPlaylist(
+        playlist: PlaylistMeta
+    ): PlaylistRouteProvider {
         if (playlist.serverUrl) {
             return 'xtreams';
         }
@@ -403,12 +460,22 @@ export class PlaylistSwitcherComponent {
         return 'playlists';
     }
 
+    private getPlaylistFilterType(playlist: PlaylistMeta): PlaylistFilterType {
+        if (playlist.macAddress) {
+            return 'stalker';
+        }
+        if (playlist.serverUrl) {
+            return 'xtream';
+        }
+        return 'm3u';
+    }
+
     private getRouteContext(url: string): PlaylistRouteContext {
         const inWorkspace = this.isWorkspaceRoute(url);
         const isWorkspaceDashboard =
             /^\/workspace(?:\/dashboard)?(?:\/)?(?:\?.*)?$/.test(url);
         const match = url.match(
-            /^\/(?:workspace\/)?(playlists|xtreams|stalker)\/([^\/\?]+)(?:\/([^\/\?]+))?/
+            /^\/(?:workspace\/)?(playlists|xtreams|stalker)\/([^/?]+)(?:\/([^/?]+))?/
         );
 
         return {
@@ -455,7 +522,10 @@ export class PlaylistSwitcherComponent {
         currentSection: string | null,
         targetPlaylistId: string
     ): string {
-        const fromCurrent = this.normalizeSectionForProvider(currentSection, provider);
+        const fromCurrent = this.normalizeSectionForProvider(
+            currentSection,
+            provider
+        );
         if (fromCurrent) {
             return fromCurrent;
         }
@@ -484,7 +554,9 @@ export class PlaylistSwitcherComponent {
         return 'vod';
     }
 
-    private supportsSectionNavigation(provider: PlaylistSectionProvider): boolean {
+    private supportsSectionNavigation(
+        provider: PlaylistSectionProvider
+    ): boolean {
         if (provider === 'xtreams') {
             return Boolean(window.electron);
         }
@@ -503,7 +575,9 @@ export class PlaylistSwitcherComponent {
             if (section === 'itv') {
                 return 'live';
             }
-            return XTREAM_SECTIONS.includes(section as (typeof XTREAM_SECTIONS)[number])
+            return XTREAM_SECTIONS.includes(
+                section as (typeof XTREAM_SECTIONS)[number]
+            )
                 ? section
                 : null;
         }
@@ -514,7 +588,9 @@ export class PlaylistSwitcherComponent {
         if (section === 'recently-added') {
             return 'recent';
         }
-        return STALKER_SECTIONS.includes(section as (typeof STALKER_SECTIONS)[number])
+        return STALKER_SECTIONS.includes(
+            section as (typeof STALKER_SECTIONS)[number]
+        )
             ? section
             : null;
     }
@@ -532,11 +608,17 @@ export class PlaylistSwitcherComponent {
                 return empty;
             }
 
-            const providers: Partial<Record<PlaylistSectionProvider, string>> = {};
+            const providers: Partial<Record<PlaylistSectionProvider, string>> =
+                {};
             const playlists: PlaylistSectionMemory['playlists'] = {};
 
-            const parsedProviders = (parsed as Record<string, unknown>)['providers'];
-            if (typeof parsedProviders === 'object' && parsedProviders !== null) {
+            const parsedProviders = (parsed as Record<string, unknown>)[
+                'providers'
+            ];
+            if (
+                typeof parsedProviders === 'object' &&
+                parsedProviders !== null
+            ) {
                 const candidate = parsedProviders as Record<string, unknown>;
                 if (typeof candidate['xtreams'] === 'string') {
                     providers.xtreams = candidate['xtreams'];
@@ -556,38 +638,39 @@ export class PlaylistSwitcherComponent {
                 }
             }
 
-            const parsedPlaylists = (parsed as Record<string, unknown>)['playlists'];
-            if (typeof parsedPlaylists === 'object' && parsedPlaylists !== null) {
-                Object.entries(parsedPlaylists as Record<string, unknown>).forEach(
-                    ([playlistId, value]) => {
-                        if (
-                            !value ||
-                            typeof value !== 'object' ||
-                            !playlistId
-                        ) {
-                            return;
-                        }
-
-                        const row = value as Record<string, unknown>;
-                        const provider = row['provider'];
-                        const section = row['section'];
-                        const updatedAt = row['updatedAt'];
-                        const isProviderValid =
-                            provider === 'xtreams' || provider === 'stalker';
-                        if (!isProviderValid || typeof section !== 'string') {
-                            return;
-                        }
-
-                        playlists[playlistId] = {
-                            provider,
-                            section,
-                            updatedAt:
-                                typeof updatedAt === 'number'
-                                    ? updatedAt
-                                    : Date.now(),
-                        };
+            const parsedPlaylists = (parsed as Record<string, unknown>)[
+                'playlists'
+            ];
+            if (
+                typeof parsedPlaylists === 'object' &&
+                parsedPlaylists !== null
+            ) {
+                Object.entries(
+                    parsedPlaylists as Record<string, unknown>
+                ).forEach(([playlistId, value]) => {
+                    if (!value || typeof value !== 'object' || !playlistId) {
+                        return;
                     }
-                );
+
+                    const row = value as Record<string, unknown>;
+                    const provider = row['provider'];
+                    const section = row['section'];
+                    const updatedAt = row['updatedAt'];
+                    const isProviderValid =
+                        provider === 'xtreams' || provider === 'stalker';
+                    if (!isProviderValid || typeof section !== 'string') {
+                        return;
+                    }
+
+                    playlists[playlistId] = {
+                        provider,
+                        section,
+                        updatedAt:
+                            typeof updatedAt === 'number'
+                                ? updatedAt
+                                : Date.now(),
+                    };
+                });
             }
 
             return { providers, playlists };
@@ -598,7 +681,10 @@ export class PlaylistSwitcherComponent {
 
     private writeSectionMemory(memory: PlaylistSectionMemory): void {
         try {
-            localStorage.setItem(LAST_SECTION_STORAGE_KEY, JSON.stringify(memory));
+            localStorage.setItem(
+                LAST_SECTION_STORAGE_KEY,
+                JSON.stringify(memory)
+            );
         } catch {
             // Ignore storage write failures (private mode/storage quota).
         }
@@ -606,7 +692,9 @@ export class PlaylistSwitcherComponent {
 
     private readPersistedActivePlaylistId(): string | null {
         try {
-            const value = localStorage.getItem(LAST_ACTIVE_PLAYLIST_STORAGE_KEY);
+            const value = localStorage.getItem(
+                LAST_ACTIVE_PLAYLIST_STORAGE_KEY
+            );
             return value && value.trim().length > 0 ? value : null;
         } catch {
             return null;
@@ -629,7 +717,64 @@ export class PlaylistSwitcherComponent {
         }
     }
 
-    private removeDeletedPlaylistsFromSectionMemory(existingIds: string[]): void {
+    private readPersistedSearchQuery(): string {
+        try {
+            return localStorage.getItem(SEARCH_QUERY_STORAGE_KEY) ?? '';
+        } catch {
+            return '';
+        }
+    }
+
+    private writePersistedSearchQuery(value: string): void {
+        try {
+            localStorage.setItem(SEARCH_QUERY_STORAGE_KEY, value);
+        } catch {
+            // Ignore storage write failures (private mode/storage quota).
+        }
+    }
+
+    private readPersistedTypeFilters(): Record<PlaylistFilterType, boolean> {
+        try {
+            const raw = localStorage.getItem(PLAYLIST_TYPE_FILTER_STORAGE_KEY);
+            if (!raw) {
+                return { ...DEFAULT_PLAYLIST_TYPE_FILTERS };
+            }
+
+            const parsed = JSON.parse(raw) as Partial<
+                Record<PlaylistFilterType, boolean>
+            >;
+            const next = {
+                m3u: parsed.m3u !== false,
+                stalker: parsed.stalker !== false,
+                xtream: parsed.xtream !== false,
+            };
+
+            if (!next.m3u && !next.stalker && !next.xtream) {
+                return { ...DEFAULT_PLAYLIST_TYPE_FILTERS };
+            }
+
+            return next;
+        } catch {
+            return { ...DEFAULT_PLAYLIST_TYPE_FILTERS };
+        }
+    }
+
+    private writePersistedTypeFilters(
+        filters: Record<PlaylistFilterType, boolean>
+    ): void {
+        try {
+            localStorage.setItem(
+                PLAYLIST_TYPE_FILTER_STORAGE_KEY,
+                JSON.stringify(filters)
+            );
+        } catch {
+            // Ignore storage write failures (private mode/storage quota).
+        }
+    }
+
+    private removeDeletedPlaylistsFromSectionMemory(
+        existingIds: string[]
+    ): void {
         const existingIdSet = new Set(existingIds);
         const memory = this.readSectionMemory();
         const currentEntries = Object.entries(memory.playlists);
