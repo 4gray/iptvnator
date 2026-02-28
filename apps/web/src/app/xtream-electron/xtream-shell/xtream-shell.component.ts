@@ -9,10 +9,10 @@ import {
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
+import { filter } from 'rxjs';
 import { LoadingOverlayComponent } from '../loading-overlay/loading-overlay.component';
 import { NavigationComponent } from '../navigation/navigation.component';
 import { XtreamStore } from '../stores/xtream.store';
-import { filter } from 'rxjs';
 
 @Component({
     templateUrl: './xtream-shell.component.html',
@@ -51,14 +51,17 @@ export class XtreamShellComponent {
             .subscribe(async (params) => {
                 const newPlaylistId = params['id'];
 
-                // Skip if playlist ID hasn't changed
+                // Skip if this component instance already processed this ID
                 if (this.currentPlaylistId === newPlaylistId) {
                     return;
                 }
 
-                // Always reset the store when playlist changes to prevent stale data
-                // from previous sessions showing up (the store is a singleton)
-                this.xtreamStore.resetStore(newPlaylistId);
+                // If the global store already has this playlist loaded, don't wipe it out.
+                // This prevents reloading everything when returning from other views (e.g. Sources).
+                if (this.xtreamStore.playlistId() !== newPlaylistId) {
+                    this.xtreamStore.resetStore(newPlaylistId);
+                }
+
                 this.currentPlaylistId = newPlaylistId;
 
                 this.store.dispatch(

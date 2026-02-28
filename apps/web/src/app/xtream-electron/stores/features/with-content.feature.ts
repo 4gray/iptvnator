@@ -12,13 +12,13 @@ import {
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
+import { createLogger } from '../../../shared/utils/logger';
 import {
     XTREAM_DATA_SOURCE,
     XtreamCategoryFromDb,
 } from '../../data-sources/xtream-data-source.interface';
 import { XtreamCredentials } from '../../services/xtream-api.service';
 import { ContentType } from '../../xtream-state';
-import { createLogger } from '../../../shared/utils/logger';
 
 /**
  * Content state for managing categories and streams
@@ -35,6 +35,7 @@ export interface ContentState {
     isImporting: boolean;
     importCount: number;
     itemsToImport: number;
+    isContentInitialized: boolean;
 }
 
 /**
@@ -52,6 +53,7 @@ const initialContentState: ContentState = {
     isImporting: false,
     importCount: 0,
     itemsToImport: 0,
+    isContentInitialized: false,
 };
 
 /**
@@ -108,6 +110,11 @@ export function withContent() {
              * Check if content is being imported
              */
             isContentImporting: computed(() => store.isImporting()),
+
+            /**
+             * Check if content is already initialized
+             */
+            isContentInitialized: computed(() => store.isContentInitialized()),
         })),
 
         withMethods((store) => {
@@ -248,6 +255,11 @@ export function withContent() {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
 
+                    // Skip if we already initialized content for this playlist
+                    if (store.isContentInitialized()) {
+                        return;
+                    }
+
                     patchState(store, {
                         isImporting: true,
                         importCount: 0,
@@ -280,6 +292,9 @@ export function withContent() {
                                 logger.error('Error restoring user data', err);
                             }
                         }
+
+                        // Mark as initialized so next routings won't re-trigger it
+                        patchState(store, { isContentInitialized: true });
                     } finally {
                         patchState(store, { isImporting: false });
                     }
