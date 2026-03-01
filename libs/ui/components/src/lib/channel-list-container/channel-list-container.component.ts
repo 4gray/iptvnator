@@ -5,12 +5,14 @@ import {
     computed,
     inject,
     Input,
+    input,
     OnDestroy,
     OnInit,
     signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTabsModule } from '@angular/material/tabs';
+import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -22,18 +24,12 @@ import {
     selectActivePlaylistId,
     selectFavorites,
 } from 'm3u-state';
-import { BehaviorSubject, combineLatest, map, skipWhile } from 'rxjs';
+import { BehaviorSubject, combineLatest, filter, map, skipWhile } from 'rxjs';
 import { EpgService } from 'services';
-import {
-    Channel,
-    EpgProgram,
-    GLOBAL_FAVORITES_PLAYLIST_ID,
-    Settings,
-    STORE_KEY,
-} from 'shared-interfaces';
-import { AllChannelsTabComponent } from './all-channels-tab/all-channels-tab.component';
-import { FavoritesTabComponent } from './favorites-tab/favorites-tab.component';
-import { GroupsTabComponent } from './groups-tab/groups-tab.component';
+import { Channel, EpgProgram, Settings, STORE_KEY } from 'shared-interfaces';
+import { AllChannelsViewComponent } from './all-channels-view/all-channels-view.component';
+import { FavoritesViewComponent } from './favorites-view/favorites-view.component';
+import { GroupsViewComponent } from './groups-view/groups-view.component';
 
 @Component({
     selector: 'app-channel-list-container',
@@ -41,12 +37,11 @@ import { GroupsTabComponent } from './groups-tab/groups-tab.component';
     styleUrls: ['./channel-list-container.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        AllChannelsTabComponent,
+        AllChannelsViewComponent,
         CommonModule,
-        FavoritesTabComponent,
-        GroupsTabComponent,
+        FavoritesViewComponent,
+        GroupsViewComponent,
         MatIconModule,
-        MatTabsModule,
         TranslatePipe,
     ],
 })
@@ -54,6 +49,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly epgService = inject(EpgService);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
+    private readonly router = inject(Router);
 
     /** Map of channel ID to current EPG program */
     readonly channelEpgMap = signal(new Map<string, EpgProgram | null>());
@@ -72,6 +68,30 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Item size for virtual scroll - compact when no EPG */
     readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 48));
+
+    /** Active view (all, groups, favorites) */
+    readonly activeView = input<string>('all');
+
+    readonly currentUrl = toSignal(
+        this.router.events.pipe(
+            filter((event) => event instanceof NavigationEnd),
+            map((event) => (event as NavigationEnd).urlAfterRedirects)
+        ),
+        { initialValue: this.router.url }
+    );
+
+    readonly viewTitle = computed(() => {
+        const view = this.activeView();
+        const url = this.currentUrl();
+        if (view === 'all') return 'CHANNELS.ALL_CHANNELS';
+        if (view === 'groups') return 'CHANNELS.GROUPS';
+        if (view === 'favorites') {
+            return url.includes('/workspace/global-favorites')
+                ? 'HOME.PLAYLISTS.GLOBAL_FAVORITES'
+                : 'CHANNELS.FAVORITES';
+        }
+        return '';
+    });
 
     /** Channels array */
     _channelList: Channel[] = [];
@@ -98,11 +118,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Displayed channels - filters out unfavorited channels in global favorites view */
     readonly displayedChannels = computed(() => {
-        const channels = this.channelListSignal();
-        if (this.activePlaylistIdSignal() === GLOBAL_FAVORITES_PLAYLIST_ID) {
-            return channels.filter((ch) => this.favoriteIds().has(ch.url));
-        }
-        return channels;
+        return this.channelListSignal();
     });
 
     /** Object with channels sorted by groups */

@@ -11,11 +11,14 @@ import {
     inject,
     viewChild,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
+import { MatIcon } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     ArtPlayerComponent,
     AudioPlayerComponent,
@@ -29,8 +32,10 @@ import {
     ToolbarComponent,
     VjsPlayerComponent,
 } from 'components';
-import { PlaylistActions, ChannelActions, FavoritesActions } from 'm3u-state';
 import {
+    ChannelActions,
+    FavoritesActions,
+    PlaylistActions,
     selectActive,
     selectChannels,
     selectCurrentEpgProgram,
@@ -40,6 +45,7 @@ import {
     Subscription,
     combineLatest,
     combineLatestWith,
+    distinctUntilChanged,
     filter,
     map,
     startWith,
@@ -56,13 +62,14 @@ import {
     VideoPlayer,
 } from 'shared-interfaces';
 import { SettingsStore } from '../../services/settings-store.service';
+import { SettingsComponent } from '../../settings/settings.component';
 import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
 } from '../../shared/services/remote-channel-navigation.util';
-import { SettingsComponent } from '../../settings/settings.component';
 
 @Component({
+    selector: 'app-video-player',
     imports: [
         ArtPlayerComponent,
         AsyncPipe,
@@ -71,11 +78,13 @@ import { SettingsComponent } from '../../settings/settings.component';
         EpgListComponent,
         HtmlVideoPlayerComponent,
         InfoOverlayComponent,
+        MatIcon,
         MatSidenavModule,
         ResizableDirective,
         RouterLink,
         SidebarComponent,
         ToolbarComponent,
+        TranslatePipe,
         VjsPlayerComponent,
     ],
     templateUrl: './video-player.component.html',
@@ -93,13 +102,34 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly store = inject(Store);
 
     /** Active selected channel */
-    readonly activeChannel$ = this.store.select(selectActive);
+    readonly activeChannel = this.store.selectSignal(selectActive);
 
     /** Channels list */
-    channels$!: Observable<Channel[]>;
+    readonly channels$: Observable<Channel[]> = this.store.select(
+        selectChannels
+    ) as Observable<Channel[]>;
 
     /** Current epg program */
-    readonly epgProgram$ = this.store.select(selectCurrentEpgProgram);
+    readonly epgProgram = this.store.selectSignal(selectCurrentEpgProgram);
+
+    /** Active M3U view (all, groups, favorites) */
+    readonly activeView = toSignal(
+        this.activatedRoute.params.pipe(
+            map((params) => {
+                if (this.router.url.includes('/workspace/global-favorites')) {
+                    return 'favorites';
+                }
+                return params['view'] || 'all';
+            })
+        ),
+        {
+            initialValue: this.router.url.includes(
+                '/workspace/global-favorites'
+            )
+                ? 'favorites'
+                : 'all',
+        }
+    );
 
     /** Selected video player options */
     playerSettings: Partial<Settings> = {
@@ -118,6 +148,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
     private statusSubscription?: Subscription;
+    private routeSubscription?: Subscription;
     private lastKnownVolume = 1;
 
     /** Info overlay component reference for manual triggering */
@@ -155,11 +186,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
         // Setup remote control channel change listener (Electron only)
         if (this.isDesktop && window.electron?.onChannelChange) {
-            const unsubscribe = window.electron.onChannelChange((data: {
-                direction: 'up' | 'down';
-            }) => {
-                this.handleRemoteChannelChange(data.direction);
-            });
+            const unsubscribe = window.electron.onChannelChange(
+                (data: { direction: 'up' | 'down' }) => {
+                    this.handleRemoteChannelChange(data.direction);
+                }
+            );
             if (typeof unsubscribe === 'function') {
                 this.unsubscribeRemoteChannelChange = unsubscribe;
             }
@@ -175,66 +206,109 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             }
         }
 
-        this.channels$ = this.activatedRoute.params.pipe(
-            combineLatestWith(this.activatedRoute.queryParams),
-            switchMap(([params, queryParams]) => {
-                if (params['id']) {
-                    this.store.dispatch(ChannelActions.resetActiveChannel());
-                    this.store.dispatch(
-                        PlaylistActions.setActivePlaylist({
-                            playlistId: params['id'],
-                        })
+        this.routeSubscription = this.activatedRoute.params
+            .pipe(
+                distinctUntilChanged((prev, curr) => prev['id'] === curr['id']),
+                combineLatestWith(this.activatedRoute.queryParams),
+                switchMap(([params, queryParams]) => {
+                    const isGlobalFavorites = this.router.url.includes(
+                        '/workspace/global-favorites'
                     );
-                    return this.playlistsService.getPlaylist(params['id']).pipe(
-                        map((playlist) => {
-                            // Set user agent if specified on playlist level
-                            if (playlist.userAgent) {
-                                window.electron?.setUserAgent(
-                                    playlist.userAgent,
-                                    'localhost'
-                                );
-                            }
 
-                            this.store.dispatch(
-                                ChannelActions.setChannels({
-                                    channels: playlist.playlist.items,
+                    if (isGlobalFavorites) {
+                        this.store.dispatch(
+                            ChannelActions.resetActiveChannel()
+                        );
+                        this.store.dispatch(
+                            PlaylistActions.setActivePlaylist({
+                                playlistId: '',
+                            })
+                        );
+                        return this.playlistsService
+                            .getPlaylistWithGlobalFavorites()
+                            .pipe(
+                                map((playlist) => {
+                                    this.store.dispatch(
+                                        ChannelActions.setChannels({
+                                            channels: playlist.playlist.items,
+                                        })
+                                    );
+
+                                    if (
+                                        playlist.favorites &&
+                                        playlist.favorites.length > 0
+                                    ) {
+                                        this.store.dispatch(
+                                            FavoritesActions.setFavorites({
+                                                channelIds: playlist.favorites,
+                                            })
+                                        );
+                                    } else {
+                                        this.store.dispatch(
+                                            FavoritesActions.setFavorites({
+                                                channelIds: [],
+                                            })
+                                        );
+                                    }
                                 })
                             );
+                    } else if (params['id']) {
+                        this.store.dispatch(
+                            ChannelActions.resetActiveChannel()
+                        );
+                        this.store.dispatch(
+                            PlaylistActions.setActivePlaylist({
+                                playlistId: params['id'],
+                            })
+                        );
+                        return this.playlistsService
+                            .getPlaylist(params['id'])
+                            .pipe(
+                                map((playlist) => {
+                                    // Set user agent if specified on playlist level
+                                    if (playlist.userAgent) {
+                                        window.electron?.setUserAgent(
+                                            playlist.userAgent,
+                                            'localhost'
+                                        );
+                                    }
 
-                            // Load favorites from the playlist
-                            if (
-                                playlist.favorites &&
-                                playlist.favorites.length > 0
-                            ) {
-                                this.store.dispatch(
-                                    FavoritesActions.setFavorites({
-                                        channelIds: playlist.favorites,
-                                    })
-                                );
-                            } else {
-                                // Clear favorites if playlist has none
-                                this.store.dispatch(
-                                    FavoritesActions.setFavorites({
-                                        channelIds: [],
-                                    })
-                                );
-                            }
+                                    this.store.dispatch(
+                                        ChannelActions.setChannels({
+                                            channels: playlist.playlist.items,
+                                        })
+                                    );
 
-                            return playlist.playlist.items as Channel[];
-                        })
-                    );
-                } else if (queryParams['url']) {
-                    return this.store.select(selectChannels) as Observable<
-                        Channel[]
-                    >;
-                }
-            })
-        );
+                                    // Load favorites from the playlist
+                                    if (
+                                        playlist.favorites &&
+                                        playlist.favorites.length > 0
+                                    ) {
+                                        this.store.dispatch(
+                                            FavoritesActions.setFavorites({
+                                                channelIds: playlist.favorites,
+                                            })
+                                        );
+                                    } else {
+                                        // Clear favorites if playlist has none
+                                        this.store.dispatch(
+                                            FavoritesActions.setFavorites({
+                                                channelIds: [],
+                                            })
+                                        );
+                                    }
+                                })
+                            );
+                    }
+                    return [];
+                })
+            )
+            .subscribe();
 
         this.statusSubscription = combineLatest([
             this.channels$,
-            this.activeChannel$,
-            this.epgProgram$.pipe(startWith(null)),
+            this.store.select(selectActive),
+            this.store.select(selectCurrentEpgProgram).pipe(startWith(null)),
         ]).subscribe(([channels, activeChannel, epgProgram]) => {
             if (!window.electron?.updateRemoteControlStatus || !activeChannel) {
                 return;
@@ -247,9 +321,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             window.electron.updateRemoteControlStatus({
                 portal: 'm3u',
                 isLiveView: true,
-                channelName:
-                    activeChannel.name ??
-                    activeChannel.tvg?.name,
+                channelName: activeChannel.name ?? activeChannel.tvg?.name,
                 channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
                 epgTitle: (epgProgram as any)?.title,
                 epgStart: (epgProgram as any)?.start,
@@ -268,7 +340,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         console.log(`Remote control: changing channel ${direction}`);
 
         // Use combineLatest to get both values and take only the first emission
-        combineLatest([this.channels$, this.activeChannel$])
+        combineLatest([this.channels$, this.store.select(selectActive)])
             .pipe(
                 filter(([channels, activeChannel]) => {
                     return channels.length > 0 && !!activeChannel;
@@ -310,6 +382,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         this.statusSubscription?.unsubscribe();
+        this.routeSubscription?.unsubscribe();
     }
 
     /**
@@ -382,11 +455,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         ) as Observable<Channel[]>;
 
         // Pass the active channel's tvg.id for highlighting
-        this.activeChannel$.pipe(take(1)).subscribe((channel) => {
-            if (channel) {
-                componentRef.instance.activeChannelId = (channel as Channel).tvg?.id || null;
-            }
-        });
+        const currentChannel = this.activeChannel();
+        if (currentChannel) {
+            componentRef.instance.activeChannelId =
+                currentChannel.tvg?.id || null;
+        }
 
         this.overlayRef.backdropClick().subscribe(() => {
             this.overlayRef.dispose();
@@ -479,7 +552,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.channels$
             .pipe(
                 take(1),
-                map((channels) => getChannelItemByNumber(channels, channelNumber))
+                map((channels) =>
+                    getChannelItemByNumber(channels, channelNumber)
+                )
             )
             .subscribe((channel) => {
                 if (channel) {

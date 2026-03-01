@@ -32,7 +32,9 @@
         "package:app": "nx run electron-backend:make --prepackageOnly",
         "make:app": "nx run electron-backend:make",
         "serve:website": "nx serve website",
-        "build:website": "nx build website"
+        "build:website": "nx build website",
+        "lint": "nx lint electron-backend",
+        "build": "nx build electron-backend"
     },
     "private": true,
     "packageManager": "pnpm@10.17.1",

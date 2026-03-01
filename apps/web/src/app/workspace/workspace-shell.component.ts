@@ -36,7 +36,6 @@ import {
 } from 'm3u-state';
 import { filter, firstValueFrom } from 'rxjs';
 import { PlaylistsService } from 'services';
-import { GLOBAL_FAVORITES_PLAYLIST_ID } from 'shared-interfaces';
 import { DownloadsService } from '../services/downloads.service';
 import { AddPlaylistDialogComponent } from '../shared/components/add-playlist/add-playlist-dialog.component';
 import {
@@ -146,12 +145,13 @@ export class WorkspaceShellComponent {
             return routeContext;
         }
 
-        // On dashboard, sources, and settings we still want provider-specific rail links
+        // On dashboard, sources, settings, and global favorites we still want provider-specific rail links
         // for the currently active playlist selected in the switcher.
         if (
             !this.isDashboardRoute() &&
             !this.isSourcesRoute() &&
-            !this.isSettingsRoute()
+            !this.isSettingsRoute() &&
+            !this.isGlobalFavoritesRoute()
         ) {
             return null;
         }
@@ -174,6 +174,11 @@ export class WorkspaceShellComponent {
     );
     readonly isSettingsRoute = computed(() =>
         /^\/workspace\/settings(?:\/)?(?:\?.*)?$/.test(this.currentUrl())
+    );
+    readonly isGlobalFavoritesRoute = computed(() =>
+        /^\/workspace\/global-favorites(?:\/)?(?:\?.*)?$/.test(
+            this.currentUrl()
+        )
     );
     readonly dashboardXtreamContext = computed<WorkspaceContext | null>(() => {
         if (!this.isDashboardRoute()) {
@@ -221,17 +226,6 @@ export class WorkspaceShellComponent {
             this.isCategoryContextRoute() ||
             this.isFavoritesContextRoute()
     );
-    readonly isFavoritesView = computed(() => {
-        const context = this.currentContext();
-        if (
-            context?.provider === 'playlists' &&
-            context.playlistId === GLOBAL_FAVORITES_PLAYLIST_ID
-        ) {
-            return true;
-        }
-
-        return this.currentSection() === 'favorites';
-    });
     readonly canUseSearch = computed(() => {
         if (this.isSettingsRoute()) {
             return false;
@@ -504,9 +498,7 @@ export class WorkspaceShellComponent {
                 return;
             }
 
-            if (context.playlistId !== GLOBAL_FAVORITES_PLAYLIST_ID) {
-                this.lastM3uPlaylistId.set(context.playlistId);
-            }
+            this.lastM3uPlaylistId.set(context.playlistId);
         });
     }
 
@@ -597,55 +589,6 @@ export class WorkspaceShellComponent {
                 )
             );
             this.bumpRefreshQueryParam();
-        }
-    }
-
-    toggleFavoritesShortcut(): void {
-        const context = this.currentContext();
-        if (!context) return;
-
-        if (context.provider === 'xtreams') {
-            if (!this.isElectron) return;
-
-            const base = ['/workspace', 'xtreams', context.playlistId];
-            this.router.navigate(
-                this.isFavoritesView()
-                    ? [...base, 'vod']
-                    : [...base, 'favorites']
-            );
-            return;
-        }
-
-        if (context.provider === 'stalker') {
-            const base = ['/workspace', 'stalker', context.playlistId];
-            this.router.navigate(
-                this.isFavoritesView()
-                    ? [...base, 'vod']
-                    : [...base, 'favorites']
-            );
-            return;
-        }
-
-        if (context.provider === 'playlists') {
-            if (context.playlistId === GLOBAL_FAVORITES_PLAYLIST_ID) {
-                const fallbackPlaylist = this.lastM3uPlaylistId();
-                if (fallbackPlaylist) {
-                    this.router.navigate([
-                        '/workspace',
-                        'playlists',
-                        fallbackPlaylist,
-                    ]);
-                } else {
-                    this.router.navigate(['/workspace', 'dashboard']);
-                }
-                return;
-            }
-
-            this.router.navigate([
-                '/workspace',
-                'playlists',
-                GLOBAL_FAVORITES_PLAYLIST_ID,
-            ]);
         }
     }
 

@@ -12,14 +12,18 @@ export const epgReducers = [
         const epgParams = `?utc=${from}&lutc=${now}`;
         return {
             ...state,
-            active: { ...state.active, epgParams } as Channel,
+            active: state.active
+                ? ({ ...state.active, epgParams } as Channel)
+                : undefined,
         };
     }),
     on(
         EpgActions.resetActiveEpgProgram,
         (state): PlaylistState => ({
             ...state,
-            active: { ...state.active, epgParams: '' } as Channel,
+            active: state.active
+                ? ({ ...state.active, epgParams: '' } as Channel)
+                : undefined,
         })
     ),
     on(

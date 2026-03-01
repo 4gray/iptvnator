@@ -1,5 +1,6 @@
 :host {
-    display: block;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     height: 100%;
     container-type: inline-size;
@@ -51,4 +52,34 @@
     .tab-icon {
         display: block;
     }
+}
+
+// ─── Header ───────────────────────────────────────────────────────────────────
+.context-header {
+    padding: 12px 16px 8px;
+    flex-shrink: 0;
+}
+
+.context-header__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    h2 {
+        margin: 0;
+        font-size: 0.94rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--mat-sys-on-surface);
+    }
+}
+
+// ─── Divider ──────────────────────────────────────────────────────────────────
+.context-divider {
+    height: 1px;
+    background: var(--mat-sys-outline-variant);
+    margin: 0 0 6px;
+    opacity: 0.6;
+    flex-shrink: 0;
 }

@@ -131,18 +131,16 @@
                     <mat-icon>{{ action.icon }}</mat-icon>
                 </button>
             }
-            <!-- <button
-                type="button"
+            <a
                 class="header-shortcut"
                 mat-icon-button
-                [class.is-active]="isFavoritesView()"
-                (click)="toggleFavoritesShortcut()"
-                [matTooltip]="'WORKSPACE.FAVORITES_ONLY' | translate"
-                [disabled]="!currentContext()"
-                aria-label="Toggle favorites only"
+                routerLink="/workspace/global-favorites"
+                [class.is-active]="isGlobalFavoritesRoute()"
+                [matTooltip]="'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate"
+                aria-label="Open global favorites"
             >
-                <mat-icon>favorite</mat-icon>
-            </button> -->
+                <mat-icon>star</mat-icon>
+            </a>
             @if (canSort()) {
                 <button
                     type="button"

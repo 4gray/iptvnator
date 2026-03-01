@@ -16,13 +16,13 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Channel, EpgProgram } from 'shared-interfaces';
-import { EnrichedChannel } from '../all-channels-tab/all-channels-tab.component';
+import { EnrichedChannel } from '../all-channels-view/all-channels-view.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 
 @Component({
-    selector: 'app-groups-tab',
-    templateUrl: './groups-tab.component.html',
-    styleUrls: ['./groups-tab.component.scss'],
+    selector: 'app-groups-view',
+    templateUrl: './groups-view.component.html',
+    styleUrls: ['./groups-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         ChannelListItemComponent,
@@ -33,7 +33,7 @@ import { ChannelListItemComponent } from '../channel-list-item/channel-list-item
         TranslatePipe,
     ],
 })
-export class GroupsTabComponent implements AfterViewInit, OnDestroy {
+export class GroupsViewComponent implements AfterViewInit, OnDestroy {
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly ngZone = inject(NgZone);
 

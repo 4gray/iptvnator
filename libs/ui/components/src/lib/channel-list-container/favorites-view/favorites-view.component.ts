@@ -12,17 +12,17 @@ import {
 } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Channel, EpgProgram } from 'shared-interfaces';
-import { EnrichedChannel } from '../all-channels-tab/all-channels-tab.component';
+import { EnrichedChannel } from '../all-channels-view/all-channels-view.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 
 @Component({
-    selector: 'app-favorites-tab',
-    templateUrl: './favorites-tab.component.html',
-    styleUrls: ['./favorites-tab.component.scss'],
+    selector: 'app-favorites-view',
+    templateUrl: './favorites-view.component.html',
+    styleUrls: ['./favorites-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [ChannelListItemComponent, DragDropModule, TranslatePipe],
 })
-export class FavoritesTabComponent {
+export class FavoritesViewComponent {
     /** Favorite channels */
     readonly favorites = input.required<Channel[]>();
 

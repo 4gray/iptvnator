@@ -26,20 +26,20 @@ export interface EnrichedChannel extends Channel {
 }
 
 @Component({
-    selector: 'app-all-channels-tab',
-    templateUrl: './all-channels-tab.component.html',
-    styleUrls: ['./all-channels-tab.component.scss'],
+    selector: 'app-all-channels-view',
+    templateUrl: './all-channels-view.component.html',
+    styleUrls: ['./all-channels-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-    ChannelListItemComponent,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    ScrollingModule,
-    TranslatePipe
-],
+        ChannelListItemComponent,
+        MatFormFieldModule,
+        MatIconModule,
+        MatInputModule,
+        ScrollingModule,
+        TranslatePipe,
+    ],
 })
-export class AllChannelsTabComponent implements OnDestroy {
+export class AllChannelsViewComponent implements OnDestroy {
     /** All channels (will be filtered by search) */
     readonly channels = input.required<Channel[]>();
 

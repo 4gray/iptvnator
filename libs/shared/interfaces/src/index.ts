@@ -1,6 +1,5 @@
 export * from './lib/channel.interface';
 export * from './lib/channel.model';
-export * from './lib/constants';
 export * from './lib/epg-channel-with-programs.interface';
 export * from './lib/epg-channel.model';
 export * from './lib/epg-item.interface';
@@ -29,9 +28,9 @@ export * from './lib/xtream-vod-details.interface';
 export * from './lib/xtream-vod-stream.interface';
 
 // Stalker interfaces
-export * from './lib/stalker-vod-details.interface';
 export * from './lib/stalker-serial-details.interface';
+export * from './lib/stalker-vod-details.interface';
 
 // Unified VOD details (discriminated union + adapters)
-export * from './lib/vod-details-item.interface';
 export * from './lib/vod-details-adapters';
+export * from './lib/vod-details-item.interface';

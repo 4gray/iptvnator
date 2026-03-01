@@ -49,6 +49,21 @@ export const routes: Routes = [
             },
             {
                 path: 'playlists/:id',
+                pathMatch: 'full',
+                redirectTo: 'playlists/:id/all',
+            },
+            {
+                path: 'playlists/:id/:view',
+                data: {
+                    layout: 'workspace',
+                },
+                loadComponent: () =>
+                    import('./home/video-player/video-player.component').then(
+                        (c) => c.VideoPlayerComponent
+                    ),
+            },
+            {
+                path: 'global-favorites',
                 data: {
                     layout: 'workspace',
                 },
@@ -90,6 +105,11 @@ export const routes: Routes = [
     },
     {
         path: 'playlists/:id',
+        pathMatch: 'full',
+        redirectTo: 'playlists/:id/all',
+    },
+    {
+        path: 'playlists/:id/:view',
         loadComponent: () =>
             import('./home/video-player/video-player.component').then(
                 (c) => c.VideoPlayerComponent

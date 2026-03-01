@@ -13,6 +13,7 @@
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Neue Playlist hochladen oder eine andere aussuchen",
         "USE_STAR_TO_FAVORITE": "Nutzen Sie das Star-Icon um Sender als Favoriten zu markieren",
         "FAVORITES_UPDATED": "Favoriten wurden aktualisiert!",
+        "SELECT_CHANNEL_PLAYBACK": "Bitte wählen Sie einen Sender aus, um die Wiedergabe zu starten",
         "SORT_BY": "Sortieren nach",
         "SORT_BY_DATE": "Nach Datum sortieren (Neueste zuerst)",
         "SORT_BY_RATING": "Nach Bewertung sortieren",

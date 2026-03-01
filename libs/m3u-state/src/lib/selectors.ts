@@ -1,10 +1,6 @@
 import { EntityState } from '@ngrx/entity';
 import { createFeatureSelector, createSelector, Selector } from '@ngrx/store';
-import {
-    GLOBAL_FAVORITES_PLAYLIST_ID,
-    Playlist,
-    PlaylistMeta,
-} from 'shared-interfaces';
+import { Playlist, PlaylistMeta } from 'shared-interfaces';
 import * as fromPlaylistMetaState from './playlists.state';
 import * as fromPlaylistState from './reducers';
 import { selectRouteParam } from './router.selectors';
@@ -80,9 +76,7 @@ export const selectPlaylistTitle = createSelector(
     fromPlaylistMetaState.getPlaylistMetaEntities,
     selectCurrentPlaylistId,
     (data) => {
-        if (data.selectedId === GLOBAL_FAVORITES_PLAYLIST_ID) {
-            return 'Global favorites';
-        } else if (
+        if (
             data.entities &&
             data.selectedId &&
             data.entities[data.selectedId]

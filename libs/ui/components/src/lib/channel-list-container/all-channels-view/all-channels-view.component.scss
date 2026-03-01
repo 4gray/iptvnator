@@ -1,7 +1,14 @@
 @use '@angular/material' as mat;
 
+:host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
 .scroll-viewport {
-    min-height: calc(100vh - 190px);
+    height: 100%;
     overflow-x: hidden;
     width: 100%;
 
@@ -26,9 +33,9 @@
 }
 
 #all-channels {
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
-    overflow-x: hidden;
-    max-height: calc(100vh - 167px);
 }
 
 .channel-list {
@@ -89,7 +96,5 @@
 }
 
 @media only screen and (max-width: 599px) {
-    .scroll-viewport {
-        min-height: calc(50vh - 159px);
-    }
+    /* Mobile responsive tweaks if needed */
 }

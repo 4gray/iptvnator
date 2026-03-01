@@ -8,10 +8,10 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
+    FavoritesActions,
     selectActivePlaylistId,
     selectFavorites,
     selectIsEpgAvailable,
-    FavoritesActions,
 } from 'm3u-state';
 import { Channel } from 'shared-interfaces';
 

@@ -126,3 +126,29 @@
         transform: scale(1);
     }
 }
+
+.empty-state-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: calc(100% - 64px); 
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+
+    .empty-state-icon {
+        font-size: 72px;
+        width: 72px;
+        height: 72px;
+        margin-bottom: 24px;
+        opacity: 0.2;
+    }
+
+    .empty-state-title {
+        font-family: 'DM Sans', sans-serif;
+        font-weight: 500;
+        font-size: 1.25rem;
+        margin: 0;
+        opacity: 0.5;
+    }
+}

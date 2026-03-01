@@ -227,6 +227,7 @@
         "REMOVE_FAVORITE": "Remove from favorites",
         "ADD_FAVORITE": "Add to favorites",
         "FAVORITES_UPDATED": "Favorites were updated!",
+        "SELECT_CHANNEL_PLAYBACK": "Please select a channel to start playback",
         "SORT_BY": "Sort by",
         "SORT_BY_DATE": "Sort by Date Added (Newest First)",
         "SORT_BY_RATING": "Sort by Rating",

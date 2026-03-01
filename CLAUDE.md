@@ -264,6 +264,24 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
     - Same schema structure but implemented in IndexedDB
     - Limited by browser storage quotas
 
+**TypeScript File Size Rule**:
+
+Keep TypeScript files under **300 lines**. Hard maximum is **350–400 lines**.
+
+- When creating new files, design them to stay within this limit from the start.
+- When adding a feature to an existing file that would push it past 350 lines, **refactor first**: extract helpers, sub-services, or feature modules before adding the new code.
+- When you notice a file already exceeds 350 lines, **proactively suggest a refactoring** (or perform it if the change is straightforward) — even if the immediate task is small.
+
+Typical split strategies:
+- Angular components: extract child components, move logic to a dedicated service or store feature
+- Signal store features: split into smaller `with*` feature functions in separate files
+- Services: split by responsibility (e.g. separate API, transformation, and state concerns)
+- Utility files: group by domain and export from a barrel `index.ts`
+
+This rule exists to keep the codebase navigable and reviewable. A 150-line file is always preferable to a 500-line file.
+
+---
+
 **Angular Coding Standards**:
 
 This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use the following:

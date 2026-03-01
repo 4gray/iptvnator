@@ -234,7 +234,8 @@
     gap: 2px;
     app-region: no-drag;
 
-    button {
+    button,
+    a {
         color: var(--mat-sys-on-surface-variant);
         border-radius: 8px;
         transition:

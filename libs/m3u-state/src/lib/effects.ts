@@ -17,7 +17,6 @@ import {
 } from 'rxjs';
 import { DataService, EpgService, PlaylistsService } from 'services';
 import {
-    GLOBAL_FAVORITES_PLAYLIST_ID,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
     Playlist,
@@ -25,10 +24,10 @@ import {
     VideoPlayer,
 } from 'shared-interfaces';
 import {
-    PlaylistActions,
     ChannelActions,
     EpgActions,
     FavoritesActions,
+    PlaylistActions,
 } from './actions';
 import {
     selectActive,
@@ -57,10 +56,7 @@ export class PlaylistEffects {
                     this.store.select(selectFavorites),
                     this.store.select(selectActivePlaylistId)
                 ),
-                filter(
-                    ([, , playlistId]) =>
-                        playlistId !== GLOBAL_FAVORITES_PLAYLIST_ID
-                ),
+                filter(([, , playlistId]) => !!playlistId),
                 switchMap(([, favorites, playlistId]) =>
                     this.playlistsService.updateFavorites(playlistId, favorites)
                 ),
@@ -81,10 +77,7 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(FavoritesActions.setFavorites),
                 combineLatestWith(this.store.select(selectActivePlaylistId)),
-                filter(
-                    ([, playlistId]) =>
-                        playlistId !== GLOBAL_FAVORITES_PLAYLIST_ID
-                ),
+                filter(([, playlistId]) => !!playlistId),
                 switchMap(([action, playlistId]) =>
                     this.playlistsService.setFavorites(
                         playlistId,
@@ -116,7 +109,8 @@ export class PlaylistEffects {
                                         activeChannel?.url +
                                         (activeChannel?.epgParams ?? ''),
                                     title: activeChannel?.name ?? '',
-                                    'user-agent': activeChannel?.http?.['user-agent'],
+                                    'user-agent':
+                                        activeChannel?.http?.['user-agent'],
                                     referer: activeChannel?.http?.referrer,
                                     origin: activeChannel?.http?.origin,
                                 });
@@ -130,7 +124,8 @@ export class PlaylistEffects {
                                         activeChannel?.url +
                                         (activeChannel?.epgParams ?? ''),
                                     title: activeChannel?.name ?? '',
-                                    'user-agent': activeChannel?.http?.['user-agent'],
+                                    'user-agent':
+                                        activeChannel?.http?.['user-agent'],
                                     referer: activeChannel?.http?.referrer,
                                     origin: activeChannel?.http?.origin,
                                 });
@@ -314,7 +309,10 @@ export class PlaylistEffects {
                             type: 'xtream',
                         });
                         this.router.navigate(['/xtreams/', playlist._id]);
-                    } else if (playlist.macAddress && this.dataService.isElectron) {
+                    } else if (
+                        playlist.macAddress &&
+                        this.dataService.isElectron
+                    ) {
                         // Create Stalker playlist in SQLite
                         await window.electron.dbCreatePlaylist({
                             id: playlist._id.toString(),
@@ -394,7 +392,9 @@ export class PlaylistEffects {
                     // Also delete from SQLite if running in Electron
                     if ((window as any).electron?.dbDeleteAllPlaylists) {
                         try {
-                            await (window as any).electron.dbDeleteAllPlaylists();
+                            await (
+                                window as any
+                            ).electron.dbDeleteAllPlaylists();
                         } catch (error) {
                             console.error(
                                 'Error deleting playlists from SQLite:',

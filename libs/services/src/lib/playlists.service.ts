@@ -13,7 +13,6 @@ import { combineLatest, map, switchMap } from 'rxjs';
 import {
     Channel,
     DbStores,
-    GLOBAL_FAVORITES_PLAYLIST_ID,
     Playlist,
     PlaylistMeta,
     PlaylistUpdateState,
@@ -44,7 +43,7 @@ export class PlaylistsService {
     }
 
     getPlaylist(id: string) {
-        if (id === GLOBAL_FAVORITES_PLAYLIST_ID) {
+        if (id === 'global-favorites') {
             return this.getPlaylistWithGlobalFavorites();
         } else {
             return this.dbService.getByID<Playlist>(DbStores.Playlists, id);
@@ -102,7 +101,10 @@ export class PlaylistsService {
                         : {}),
                     // Stalker portal optional fields
                     ...(updatedPlaylist.stalkerSerialNumber !== undefined
-                        ? { stalkerSerialNumber: updatedPlaylist.stalkerSerialNumber }
+                        ? {
+                              stalkerSerialNumber:
+                                  updatedPlaylist.stalkerSerialNumber,
+                          }
                         : {}),
                     ...(updatedPlaylist.stalkerDeviceId1 !== undefined
                         ? { stalkerDeviceId1: updatedPlaylist.stalkerDeviceId1 }
@@ -111,10 +113,16 @@ export class PlaylistsService {
                         ? { stalkerDeviceId2: updatedPlaylist.stalkerDeviceId2 }
                         : {}),
                     ...(updatedPlaylist.stalkerSignature1 !== undefined
-                        ? { stalkerSignature1: updatedPlaylist.stalkerSignature1 }
+                        ? {
+                              stalkerSignature1:
+                                  updatedPlaylist.stalkerSignature1,
+                          }
                         : {}),
                     ...(updatedPlaylist.stalkerSignature2 !== undefined
-                        ? { stalkerSignature2: updatedPlaylist.stalkerSignature2 }
+                        ? {
+                              stalkerSignature2:
+                                  updatedPlaylist.stalkerSignature2,
+                          }
                         : {}),
                 })
             )
@@ -220,29 +228,26 @@ export class PlaylistsService {
             switchMap((portal) =>
                 this.dbService.update(DbStores.Playlists, {
                     ...portal,
-                    favorites: portal.favorites?.filter(
-                        (i) => {
-                            const expectedId = String(favoriteId);
-                            const streamId = String(
-                                (i as Partial<XtreamItem>).stream_id ?? ''
-                            );
-                            const seriesId = String(
-                                (i as Partial<XtreamSerieItem>).series_id ?? ''
-                            );
-                            const movieId = String(
-                                (i as Partial<{ movie_id: string }>).movie_id ??
-                                    ''
-                            );
-                            const itemId = String((i as any).id ?? '');
+                    favorites: portal.favorites?.filter((i) => {
+                        const expectedId = String(favoriteId);
+                        const streamId = String(
+                            (i as Partial<XtreamItem>).stream_id ?? ''
+                        );
+                        const seriesId = String(
+                            (i as Partial<XtreamSerieItem>).series_id ?? ''
+                        );
+                        const movieId = String(
+                            (i as Partial<{ movie_id: string }>).movie_id ?? ''
+                        );
+                        const itemId = String((i as any).id ?? '');
 
-                            return (
-                                streamId !== expectedId &&
-                                seriesId !== expectedId &&
-                                movieId !== expectedId &&
-                                itemId !== expectedId
-                            );
-                        }
-                    ),
+                        return (
+                            streamId !== expectedId &&
+                            seriesId !== expectedId &&
+                            movieId !== expectedId &&
+                            itemId !== expectedId
+                        );
+                    }),
                 })
             )
         );

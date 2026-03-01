@@ -1,5 +1,3 @@
-import { GLOBAL_FAVORITES_PLAYLIST_ID } from 'shared-interfaces';
-
 export type PortalProvider = 'xtreams' | 'stalker' | 'playlists';
 
 export interface PortalRailLink {
@@ -160,29 +158,36 @@ export function buildPortalRailLinks(
         return { primary, secondary };
     }
 
-    return {
-        primary: [
+    if (provider === 'playlists') {
+        const primary: PortalRailLink[] = [
             {
-                icon: 'play_circle',
-                tooltip: 'Player',
-                path: root,
+                icon: 'list',
+                tooltip: 'All Channels',
+                path: [...root, 'all'],
                 exact: true,
-                section: 'player',
+                section: 'all',
             },
-        ],
-        secondary: workspace
-            ? [
-                  {
-                      icon: 'favorite',
-                      tooltip: 'Global favorites',
-                      path: [
-                          '/workspace',
-                          'playlists',
-                          GLOBAL_FAVORITES_PLAYLIST_ID,
-                      ],
-                      section: 'favorites',
-                  },
-              ]
-            : [],
-    };
+            {
+                icon: 'folder',
+                tooltip: 'Groups',
+                path: [...root, 'groups'],
+                exact: true,
+                section: 'groups',
+            },
+            {
+                icon: 'star',
+                tooltip: 'Favorites',
+                path: [...root, 'favorites'],
+                exact: true,
+                section: 'favorites',
+            },
+        ];
+
+        return {
+            primary,
+            secondary: [],
+        };
+    }
+
+    return { primary: [], secondary: [] };
 }

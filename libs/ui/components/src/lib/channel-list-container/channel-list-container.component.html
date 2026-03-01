@@ -1,14 +1,16 @@
 @if (displayedChannels().length) {
-    <mat-tab-group color="primary" backgroundColor="primary">
-        <!-- All Channels Tab -->
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">list</mat-icon>
-                <div class="tab-title">
-                    {{ 'CHANNELS.ALL_CHANNELS' | translate }}
-                </div>
-            </ng-template>
-            <app-all-channels-tab
+    @if (viewTitle()) {
+        <header class="context-header">
+            <div class="context-header__top">
+                <h2>{{ viewTitle() | translate }}</h2>
+            </div>
+        </header>
+        <div class="context-divider"></div>
+    }
+
+    @switch (activeView()) {
+        @case ('all') {
+            <app-all-channels-view
                 [channels]="displayedChannels()"
                 [channelEpgMap]="channelEpgMap()"
                 [progressTick]="progressTick()"
@@ -19,17 +21,9 @@
                 (channelSelected)="onChannelSelected($event)"
                 (favoriteToggled)="onFavoriteToggled($event)"
             />
-        </mat-tab>
-
-        <!-- Groups Tab -->
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">category</mat-icon>
-                <div class="tab-title">
-                    {{ 'CHANNELS.GROUPS' | translate }}
-                </div>
-            </ng-template>
-            <app-groups-tab
+        }
+        @case ('groups') {
+            <app-groups-view
                 [groupedChannels]="groupedChannels()"
                 [channelEpgMap]="channelEpgMap()"
                 [progressTick]="progressTick()"
@@ -39,34 +33,23 @@
                 (channelSelected)="onChannelSelected($event)"
                 (favoriteToggled)="onFavoriteToggled($event)"
             />
-        </mat-tab>
-
-        <!-- Favorites Tab -->
-        @let showFavorites = (playlistId$ | async) !== 'GLOBAL_FAVORITES';
-        @if (showFavorites) {
-            <mat-tab>
-                <ng-template mat-tab-label>
-                    <mat-icon class="tab-icon">star</mat-icon>
-                    <div class="tab-title">
-                        {{ 'CHANNELS.FAVORITES' | translate }}
-                    </div>
-                </ng-template>
-                @let favorites = favorites$ | async;
-                @if (favorites) {
-                    <app-favorites-tab
-                        [favorites]="favorites"
-                        [channelEpgMap]="channelEpgMap()"
-                        [progressTick]="progressTick()"
-                        [shouldShowEpg]="shouldShowEpg()"
-                        [activeChannelUrl]="activeChannelUrl()"
-                        (channelSelected)="onChannelSelected($event)"
-                        (favoriteToggled)="onFavoriteToggled($event)"
-                        (favoritesReordered)="onFavoritesReordered($event)"
-                    />
-                }
-            </mat-tab>
         }
-    </mat-tab-group>
+        @case ('favorites') {
+            @let favorites = favorites$ | async;
+            @if (favorites) {
+                <app-favorites-view
+                    [favorites]="favorites"
+                    [channelEpgMap]="channelEpgMap()"
+                    [progressTick]="progressTick()"
+                    [shouldShowEpg]="shouldShowEpg()"
+                    [activeChannelUrl]="activeChannelUrl()"
+                    (channelSelected)="onChannelSelected($event)"
+                    (favoriteToggled)="onFavoriteToggled($event)"
+                    (favoritesReordered)="onFavoritesReordered($event)"
+                />
+            }
+        }
+    }
 } @else {
     <div class="loading-container">
         <mat-icon class="loading-spinner">sync</mat-icon>

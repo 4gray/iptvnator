@@ -1,6 +1,15 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
 #favorites-list {
-    height: calc(100vh - 105px);
+    flex: 1;
+    min-height: 0;
     overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .channel-list {

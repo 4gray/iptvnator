@@ -18,7 +18,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { DataService } from 'services';
-import { GLOBAL_FAVORITES_PLAYLIST_ID } from 'shared-interfaces';
 //import { shell } from 'electron';
 import { AddPlaylistMenuComponent, PlaylistType } from 'components';
 import { HomeComponent } from '../../../home/home.component';
@@ -85,7 +84,7 @@ export class HeaderComponent implements OnInit {
      * Navigates to the global favorites view
      */
     navigateToGlobalFavorites(): void {
-        this.router.navigate(['playlists', GLOBAL_FAVORITES_PLAYLIST_ID]);
+        this.router.navigate(['/workspace', 'global-favorites']);
     }
 
     /**
