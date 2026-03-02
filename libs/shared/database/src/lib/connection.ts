@@ -56,7 +56,20 @@ const CREATE_TABLE_STATEMENTS = [
       autoRefresh INTEGER DEFAULT 0,
       macAddress TEXT,
       url TEXT,
+      portal_url TEXT,
+      count INTEGER,
+      import_date TEXT,
+      update_date INTEGER,
+      position INTEGER,
+      favorites TEXT,
+      recently_viewed TEXT,
+      payload TEXT,
       last_usage TEXT
+  )`,
+    `CREATE TABLE IF NOT EXISTS app_state (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT DEFAULT (datetime('now'))
   )`,
     `CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -209,6 +222,15 @@ const CREATE_TABLE_STATEMENTS = [
 const MIGRATION_STATEMENTS = [
     // v1.0.0 -> v1.1.0: Add hidden column to categories for category management
     `ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0`,
+    // v1.1.0 -> v1.2.0: Add playlist metadata/payload columns for M3U + unified playlist persistence
+    `ALTER TABLE playlists ADD COLUMN portal_url TEXT`,
+    `ALTER TABLE playlists ADD COLUMN count INTEGER`,
+    `ALTER TABLE playlists ADD COLUMN import_date TEXT`,
+    `ALTER TABLE playlists ADD COLUMN update_date INTEGER`,
+    `ALTER TABLE playlists ADD COLUMN position INTEGER`,
+    `ALTER TABLE playlists ADD COLUMN favorites TEXT`,
+    `ALTER TABLE playlists ADD COLUMN recently_viewed TEXT`,
+    `ALTER TABLE playlists ADD COLUMN payload TEXT`,
 ];
 
 /**

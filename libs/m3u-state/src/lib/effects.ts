@@ -217,23 +217,9 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(PlaylistActions.removePlaylist),
                 switchMap(async (action) => {
-                    // Delete from IndexedDB
                     await firstValueFrom(
                         this.playlistsService.deletePlaylist(action.playlistId)
                     );
-                    // Also delete from SQLite if running in Electron
-                    if ((window as any).electron?.dbDeletePlaylist) {
-                        try {
-                            await (window as any).electron.dbDeletePlaylist(
-                                action.playlistId
-                            );
-                        } catch (error) {
-                            console.error(
-                                'Error deleting playlist from SQLite:',
-                                error
-                            );
-                        }
-                    }
                 })
             );
         },
@@ -288,7 +274,7 @@ export class PlaylistEffects {
                     return this.playlistsService.addPlaylist(action.playlist);
                 }),
                 map((playlist: Playlist) => {
-                    if (playlist.serverUrl && !this.dataService.isElectron) {
+                    if (playlist.serverUrl) {
                         this.router.navigate([
                             '/workspace/xtreams/',
                             playlist._id,
@@ -305,35 +291,6 @@ export class PlaylistEffects {
                         ]);
                     }
                     return playlist;
-                }),
-                map(async (playlist) => {
-                    if (playlist.serverUrl && this.dataService.isElectron) {
-                        // Create Xtream playlist in SQLite
-                        await window.electron.dbCreatePlaylist({
-                            id: playlist._id.toString(),
-                            name: playlist.title || '',
-                            serverUrl: playlist.serverUrl || '',
-                            username: playlist.username || '',
-                            password: playlist.password || '',
-                            type: 'xtream',
-                        });
-                        this.router.navigate([
-                            '/workspace/xtreams/',
-                            playlist._id,
-                        ]);
-                    } else if (
-                        playlist.macAddress &&
-                        this.dataService.isElectron
-                    ) {
-                        // Create Stalker playlist in SQLite
-                        await window.electron.dbCreatePlaylist({
-                            id: playlist._id.toString(),
-                            name: playlist.title || '',
-                            macAddress: playlist.macAddress || '',
-                            url: playlist.portalUrl || '',
-                            type: 'stalker',
-                        });
-                    }
                 })
             );
         },
@@ -344,13 +301,9 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylistMeta),
-                switchMap((action) => {
-                    // TODO update playlist in sqlite db
-
-                    return this.playlistsService.updatePlaylistMeta(
-                        action.playlist
-                    );
-                })
+                switchMap((action) =>
+                    this.playlistsService.updatePlaylistMeta(action.playlist)
+                )
             );
         },
         { dispatch: false }
@@ -399,21 +352,7 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(PlaylistActions.removeAllPlaylists),
                 switchMap(async () => {
-                    // Delete from IndexedDB
                     await firstValueFrom(this.playlistsService.removeAll());
-                    // Also delete from SQLite if running in Electron
-                    if ((window as any).electron?.dbDeleteAllPlaylists) {
-                        try {
-                            await (
-                                window as any
-                            ).electron.dbDeleteAllPlaylists();
-                        } catch (error) {
-                            console.error(
-                                'Error deleting playlists from SQLite:',
-                                error
-                            );
-                        }
-                    }
                     this.snackBar.open(
                         this.translate.instant('SETTINGS.PLAYLISTS_REMOVED'),
                         undefined,

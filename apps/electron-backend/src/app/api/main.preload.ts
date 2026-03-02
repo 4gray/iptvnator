@@ -154,6 +154,13 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('DB_CREATE_PLAYLIST', playlist),
     dbGetPlaylist: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_PLAYLIST', playlistId),
+    dbUpsertAppPlaylist: (playlist: any) =>
+        ipcRenderer.invoke('DB_UPSERT_APP_PLAYLIST', playlist),
+    dbUpsertAppPlaylists: (playlists: any[]) =>
+        ipcRenderer.invoke('DB_UPSERT_APP_PLAYLISTS', playlists),
+    dbGetAppPlaylists: () => ipcRenderer.invoke('DB_GET_APP_PLAYLISTS'),
+    dbGetAppPlaylist: (playlistId: string) =>
+        ipcRenderer.invoke('DB_GET_APP_PLAYLIST', playlistId),
     dbUpdatePlaylist: (playlistId: string, updates: any) =>
         ipcRenderer.invoke('DB_UPDATE_PLAYLIST', playlistId, updates),
     dbDeletePlaylist: (playlistId: string) =>
@@ -234,6 +241,9 @@ contextBridge.exposeInMainWorld('electron', {
     dbGetContentByXtreamId: (xtreamId: number, playlistId: string) =>
         ipcRenderer.invoke('DB_GET_CONTENT_BY_XTREAM_ID', xtreamId, playlistId),
     dbDeleteAllPlaylists: () => ipcRenderer.invoke('DB_DELETE_ALL_PLAYLISTS'),
+    dbGetAppState: (key: string) => ipcRenderer.invoke('DB_GET_APP_STATE', key),
+    dbSetAppState: (key: string, value: string) =>
+        ipcRenderer.invoke('DB_SET_APP_STATE', key, value),
     // Playback Positions
     dbSavePlaybackPosition: (playlistId: string, data: any) =>
         ipcRenderer.invoke('DB_SAVE_PLAYBACK_POSITION', playlistId, data),
