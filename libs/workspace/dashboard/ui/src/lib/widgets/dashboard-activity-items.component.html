@@ -51,9 +51,29 @@
                         {{ item.subtitle }}
                     </span>
                 </span>
+
+                @if (showRemoveAction()) {
+                    <button
+                        type="button"
+                        class="activity-item__action-btn"
+                        (click)="onActionClick($event, item)"
+                        [attr.aria-label]="removeActionLabel()"
+                        [title]="removeActionLabel()"
+                    >
+                        <mat-icon>close</mat-icon>
+                    </button>
+                }
             </a>
         }
     </div>
 } @else {
-    <p class="empty">{{ emptyLabel() }}</p>
+    <div class="empty-state" [class.empty-state--grid]="viewMode() === 'grid'">
+        @if (emptyIcon()) {
+            <mat-icon class="empty-state__icon">{{ emptyIcon() }}</mat-icon>
+        }
+        <p class="empty-state__title">{{ emptyLabel() }}</p>
+        @if (emptyHint()) {
+            <p class="empty-state__hint">{{ emptyHint() }}</p>
+        }
+    </div>
 }

@@ -1,6 +1,10 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { selectActivePlaylist, selectAllPlaylistsMeta } from 'm3u-state';
+import {
+    PlaylistActions,
+    selectActivePlaylist,
+    selectAllPlaylistsMeta,
+} from 'm3u-state';
 import {
     DatabaseService,
     GlobalFavoriteItem as DbGlobalFavoriteItem,
@@ -17,7 +21,7 @@ type RecentActivityType = 'live' | 'movie' | 'series';
 
 export type DashboardContentKind = 'all' | 'channels' | 'vod' | 'series';
 
-interface GlobalRecentItem {
+export interface GlobalRecentItem {
     id: string | number;
     title: string;
     type: RecentActivityType;
@@ -259,6 +263,51 @@ export class DashboardDataService {
         return this.getRecentItemNavigation(item).state;
     }
 
+    async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {
+        if (item.source === 'xtream') {
+            await this.dbService.removeRecentItem(
+                item.id as number,
+                item.playlist_id
+            );
+            await this.reloadGlobalRecentItems();
+            return;
+        }
+
+        if (item.source === 'stalker') {
+            const playlist = this.playlists().find(
+                (p) => p._id === item.playlist_id
+            );
+            if (!playlist) return;
+
+            const currentRecent = Array.isArray(
+                (playlist as any).recentlyViewed
+            )
+                ? [...(playlist as any).recentlyViewed]
+                : [];
+
+            const itemMatchStr = String(item.id);
+            const filteredRecent = currentRecent.filter((raw, index) => {
+                const rawId = String(
+                    (raw as any)?.id ??
+                        (raw as any)?.stream_id ??
+                        (raw as any)?.series_id ??
+                        (raw as any)?.movie_id ??
+                        `${playlist._id}-${index}`
+                );
+                return rawId !== itemMatchStr && rawId !== '';
+            });
+
+            this.store.dispatch(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: {
+                        _id: item.playlist_id,
+                        recentlyViewed: filteredRecent,
+                    } as unknown as PlaylistMeta,
+                }) as any
+            );
+        }
+    }
+
     getFavoriteItemProviderLabel(item: DashboardFavoriteItem): string {
         if (item.source === 'stalker') {
             return 'Stalker';
@@ -281,6 +330,50 @@ export class DashboardDataService {
         item: DashboardFavoriteItem
     ): Record<string, unknown> | undefined {
         return this.getGlobalFavoriteNavigation(item).state;
+    }
+
+    async removeGlobalFavorite(item: DashboardFavoriteItem): Promise<void> {
+        if (item.source === 'xtream') {
+            await this.dbService.removeFromFavorites(
+                item.id as number,
+                item.playlist_id
+            );
+            await this.reloadGlobalFavorites();
+            return;
+        }
+
+        if (item.source === 'stalker') {
+            const playlist = this.playlists().find(
+                (p) => p._id === item.playlist_id
+            );
+            if (!playlist) return;
+
+            const currentFavorites = Array.isArray(playlist.favorites)
+                ? [...playlist.favorites]
+                : [];
+            const itemMatchStr = String(item.id);
+
+            // Stalker favorite objects are usually stored entirely in the favorites array
+            const filteredFavorites = currentFavorites.filter((raw, index) => {
+                const rawId = String(
+                    (raw as any)?.id ??
+                        (raw as any)?.stream_id ??
+                        (raw as any)?.series_id ??
+                        (raw as any)?.movie_id ??
+                        `${playlist._id}-${index}`
+                );
+                return rawId !== itemMatchStr && rawId !== '';
+            });
+
+            this.store.dispatch(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: {
+                        _id: item.playlist_id,
+                        favorites: filteredFavorites,
+                    } as unknown as PlaylistMeta,
+                }) as any
+            );
+        }
     }
 
     formatTimestamp(value?: string | number): string {

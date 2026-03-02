@@ -116,6 +116,28 @@ export class RecentlyWatchedWidgetComponent {
         this.visibleItemLimit.update((value) => value + PAGE_SIZE);
     }
 
+    onRemoveItem(item: DashboardActivityItemViewModel): void {
+        const globalItem = this.data
+            .globalRecentItems()
+            .find((i) => `${i.id}-${i.playlist_id}-${i.viewed_at}` === item.id);
+
+        if (globalItem) {
+            void this.data.removeGlobalRecentItem(globalItem);
+        } else {
+            // Fallback strategy if custom ID mapping changed
+            const fallbackItem = this.data
+                .globalRecentItems()
+                .find(
+                    (i) =>
+                        item.link.includes(String(i.xtream_id)) ||
+                        item.link.includes(i.playlist_id)
+                );
+            if (fallbackItem) {
+                void this.data.removeGlobalRecentItem(fallbackItem);
+            }
+        }
+    }
+
     private setKind(value: unknown): void {
         if (
             value === 'all' ||

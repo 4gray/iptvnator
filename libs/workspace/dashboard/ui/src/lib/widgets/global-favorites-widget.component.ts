@@ -117,6 +117,28 @@ export class GlobalFavoritesWidgetComponent {
         this.visibleItemLimit.update((value) => value + PAGE_SIZE);
     }
 
+    onRemoveItem(item: DashboardActivityItemViewModel): void {
+        const globalItem = this.data
+            .globalFavoriteItems()
+            .find((i) => `${i.id}-${i.playlist_id}-${i.added_at}` === item.id);
+
+        if (globalItem) {
+            void this.data.removeGlobalFavorite(globalItem);
+        } else {
+            // Fallback strategy
+            const fallbackItem = this.data
+                .globalFavoriteItems()
+                .find(
+                    (i) =>
+                        item.link.includes(String(i.xtream_id)) ||
+                        item.link.includes(i.playlist_id)
+                );
+            if (fallbackItem) {
+                void this.data.removeGlobalFavorite(fallbackItem);
+            }
+        }
+    }
+
     private setKind(value: unknown): void {
         if (
             value === 'all' ||

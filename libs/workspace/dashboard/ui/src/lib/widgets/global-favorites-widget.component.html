@@ -79,7 +79,12 @@
     <app-dashboard-activity-items
         [items]="activityItems()"
         [emptyLabel]="'WORKSPACE.DASHBOARD.NO_FAVORITES' | translate"
+        emptyIcon="favorite_border"
+        [emptyHint]="'WORKSPACE.DASHBOARD.NO_FAVORITES_HINT' | translate"
         [viewMode]="viewMode()"
+        [showRemoveAction]="true"
+        [removeActionLabel]="'Remove favorite'"
+        (itemAction)="onRemoveItem($event)"
         (scrolledToEnd)="onItemsScrolledToEnd()"
     />
 </app-dashboard-widget-shell>

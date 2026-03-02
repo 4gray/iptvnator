@@ -48,8 +48,16 @@
         </div>
     } @else {
         <article class="empty-state">
-            <p>{{ 'WORKSPACE.DASHBOARD.NO_SOURCES' | translate }}</p>
-            <a routerLink="/workspace/sources">{{
+            <mat-icon class="empty-state__icon">library_add</mat-icon>
+            <div class="empty-content">
+                <p class="empty-title">
+                    {{ 'WORKSPACE.DASHBOARD.NO_SOURCES' | translate }}
+                </p>
+                <p class="empty-hint">
+                    {{ 'WORKSPACE.DASHBOARD.NO_SOURCES_HINT' | translate }}
+                </p>
+            </div>
+            <a mat-stroked-button routerLink="/workspace/sources">{{
                 'WORKSPACE.DASHBOARD.OPEN_SOURCES' | translate
             }}</a>
         </article>

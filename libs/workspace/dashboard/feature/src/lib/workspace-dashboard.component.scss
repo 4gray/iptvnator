@@ -336,6 +336,11 @@ h1 {
         0 18px 28px -20px var(--dashboard-frame-glow);
 }
 
+.widget-slot[data-widget-type="source-stats"] {
+    height: auto;
+    align-self: start;
+}
+
 .widget-slot--editing {
     cursor: grab;
 }

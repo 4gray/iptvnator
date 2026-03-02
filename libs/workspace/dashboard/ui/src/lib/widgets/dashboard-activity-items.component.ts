@@ -25,7 +25,14 @@ export class DashboardActivityItemsComponent {
 
     readonly items = input.required<DashboardActivityItemViewModel[]>();
     readonly emptyLabel = input('No items to show.');
+    readonly emptyIcon = input<string>();
+    readonly emptyHint = input<string>();
     readonly viewMode = input<DashboardActivityViewMode>('list');
+    readonly showRemoveAction = input(false);
+    readonly removeActionLabel = input('Remove item');
+
+    @Output() readonly itemAction =
+        new EventEmitter<DashboardActivityItemViewModel>();
 
     readonly failedImages = signal<Record<string, true>>({});
 
@@ -68,9 +75,16 @@ export class DashboardActivityItemsComponent {
             return;
         }
 
-        const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
+        const remaining =
+            target.scrollHeight - target.scrollTop - target.clientHeight;
         if (remaining <= 120) {
             this.scrolledToEnd.emit();
         }
+    }
+
+    onActionClick(event: Event, item: DashboardActivityItemViewModel): void {
+        event.preventDefault();
+        event.stopPropagation();
+        this.itemAction.emit(item);
     }
 }

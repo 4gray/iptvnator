@@ -39,16 +39,47 @@
     border: 1px dashed var(--mat-sys-outline);
     background: var(--mat-sys-surface-container-low);
     border-radius: 12px;
-    padding: 12px;
+    padding: 16px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 16px;
+    flex-wrap: wrap;
 }
 
-.focus-empty p {
+.focus-empty__content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.focus-empty__icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: var(--mat-sys-outline);
+    opacity: 0.7;
+}
+
+.focus-empty__text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.focus-empty__title {
     margin: 0;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--mat-sys-on-surface);
+}
+
+.focus-empty__hint {
+    margin: 0;
+    font-size: 0.75rem;
     color: var(--mat-sys-on-surface-variant);
+    max-width: 320px;
+    line-height: 1.4;
 }
 
 .quick-list {

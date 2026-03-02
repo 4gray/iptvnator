@@ -34,7 +34,22 @@
         </article>
     } @else {
         <article class="focus-empty">
-            <p>{{ 'WORKSPACE.DASHBOARD.NO_ACTIVE_SOURCE' | translate }}</p>
+            <div class="focus-empty__content">
+                <mat-icon class="focus-empty__icon"
+                    >play_circle_outline</mat-icon
+                >
+                <div class="focus-empty__text">
+                    <p class="focus-empty__title">
+                        {{ 'WORKSPACE.DASHBOARD.NO_ACTIVE_SOURCE' | translate }}
+                    </p>
+                    <p class="focus-empty__hint">
+                        {{
+                            'WORKSPACE.DASHBOARD.NO_ACTIVE_SOURCE_HINT'
+                                | translate
+                        }}
+                    </p>
+                </div>
+            </div>
             <a mat-flat-button routerLink="/workspace/sources">
                 <mat-icon>add</mat-icon>
                 {{ 'WORKSPACE.DASHBOARD.ADD_SOURCE' | translate }}

@@ -33,7 +33,7 @@ export interface DashboardLayoutState {
     widgets: DashboardWidgetConfig[];
 }
 
-export const DASHBOARD_LAYOUT_VERSION = 5;
+export const DASHBOARD_LAYOUT_VERSION = 6;
 export const DASHBOARD_WIDGET_SIZE_OPTIONS: DashboardWidgetSize[] = [
     'one-third',
     'half',
@@ -90,7 +90,7 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
         type: 'recently-watched',
         title: 'Recently Watched',
         description: 'Global watch history across channels, VOD and series.',
-        size: 'one-third',
+        size: 'two-thirds',
         enabled: true,
         order: 3,
         settings: {
@@ -102,7 +102,7 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
         type: 'global-favorites',
         title: 'Global Favorites',
         description: 'Pinned items across all connected providers.',
-        size: 'two-thirds',
+        size: 'one-third',
         enabled: true,
         order: 4,
         settings: {

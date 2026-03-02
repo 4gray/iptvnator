@@ -51,18 +51,52 @@
     );
     padding: 8px;
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
+    transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.activity-item__action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--mat-sys-on-surface-variant);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+    
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.activity-item:hover .activity-item__action-btn {
+    opacity: 0.6;
+}
+
+.activity-item__action-btn:hover {
+    opacity: 1 !important;
+    background: var(--mat-sys-surface-container-highest);
+    color: var(--mat-sys-on-surface);
 }
 
 .activity-item:hover {
-    border-color: color-mix(in srgb, var(--mat-sys-outline) 72%, var(--mat-sys-primary) 28%);
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--mat-sys-outline) 60%, var(--mat-sys-primary) 40%);
     background: linear-gradient(
         180deg,
         var(--mat-sys-surface-container-high) 0%,
-        var(--mat-sys-surface-container) 100%
+        var(--mat-sys-surface-container-low) 100%
     );
+    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
 }
 
 .activity-item__media {
@@ -184,10 +218,46 @@
     font-size: 0.68rem;
 }
 
-.empty {
-    margin: 0;
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 36px 16px;
+    text-align: center;
+    border: 1px dashed var(--mat-sys-outline-variant);
+    border-radius: 12px;
+    margin: 8px 0;
     color: var(--mat-sys-on-surface-variant);
-    font-size: 0.82rem;
+    flex: 1;
+
+    &.empty-state--grid {
+        min-height: 180px;
+    }
+}
+
+.empty-state__icon {
+    font-size: 36px;
+    width: 36px;
+    height: 36px;
+    margin-bottom: 12px;
+    color: var(--mat-sys-outline);
+    opacity: 0.7;
+}
+
+.empty-state__title {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface);
+}
+
+.empty-state__hint {
+    margin: 6px 0 0;
+    font-size: 0.78rem;
+    color: var(--mat-sys-on-surface-variant);
+    max-width: 280px;
+    line-height: 1.45;
 }
 
 @media (max-width: 920px) {

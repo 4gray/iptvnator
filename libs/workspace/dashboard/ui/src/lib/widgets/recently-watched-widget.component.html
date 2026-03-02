@@ -79,7 +79,12 @@
     <app-dashboard-activity-items
         [items]="activityItems()"
         [emptyLabel]="'WORKSPACE.DASHBOARD.NO_HISTORY' | translate"
+        emptyIcon="history"
+        [emptyHint]="'WORKSPACE.DASHBOARD.NO_HISTORY_HINT' | translate"
         [viewMode]="viewMode()"
+        [showRemoveAction]="true"
+        [removeActionLabel]="'Remove from history'"
+        (itemAction)="onRemoveItem($event)"
         (scrolledToEnd)="onItemsScrolledToEnd()"
     />
 </app-dashboard-widget-shell>

@@ -4,23 +4,32 @@
             <p class="eyebrow">Workspace Dashboard</p>
             <h1>Control Center</h1>
             <p class="description">
-                Keep your daily sources in one place. In customize mode, edit directly
-                on the canvas, then use the sidebar for visibility and scope.
+                Keep your daily sources in one place. In customize mode, edit
+                directly on the canvas, then use the sidebar for visibility and
+                scope.
             </p>
         </div>
     </header>
 
-    <section class="dashboard-toolbar" [class.dashboard-toolbar--editing]="editMode()">
+    <section
+        class="dashboard-toolbar"
+        [class.dashboard-toolbar--editing]="editMode()"
+    >
         <p class="toolbar-hint">
             @if (editMode()) {
-                Drag cards by the handle. Resize inline. Use the sidebar for visibility and scope.
+                Drag cards by the handle. Resize inline. Use the sidebar for
+                visibility and scope.
             } @else {
                 Start customize mode to rearrange and resize widgets in place.
             }
         </p>
         <div class="toolbar-actions">
             @if (editMode()) {
-                <button type="button" mat-button (click)="layoutService.reset()">
+                <button
+                    type="button"
+                    mat-button
+                    (click)="layoutService.reset()"
+                >
                     Reset Layout
                 </button>
             }
@@ -31,7 +40,10 @@
         </div>
     </section>
 
-    <section class="dashboard-editor-shell" [class.dashboard-editor-shell--editing]="editMode()">
+    <section
+        class="dashboard-editor-shell"
+        [class.dashboard-editor-shell--editing]="editMode()"
+    >
         <section class="dashboard-canvas">
             <section
                 class="widget-grid"
@@ -45,10 +57,15 @@
                     <article
                         class="widget-slot"
                         cdkDrag
+                        [attr.data-widget-type]="widget.type"
                         [cdkDragDisabled]="!editMode()"
-                        [class.widget-slot--one-third]="widget.size === 'one-third'"
+                        [class.widget-slot--one-third]="
+                            widget.size === 'one-third'
+                        "
                         [class.widget-slot--half]="widget.size === 'half'"
-                        [class.widget-slot--two-thirds]="widget.size === 'two-thirds'"
+                        [class.widget-slot--two-thirds]="
+                            widget.size === 'two-thirds'
+                        "
                         [class.widget-slot--full]="widget.size === 'full'"
                         [class.widget-slot--editing]="editMode()"
                     >
@@ -63,14 +80,21 @@
                                 >
                                     <mat-icon>drag_indicator</mat-icon>
                                 </button>
-                                <p class="widget-inline-editor__title">{{ widget.title }}</p>
+                                <p class="widget-inline-editor__title">
+                                    {{ widget.title }}
+                                </p>
                                 <mat-button-toggle-group
                                     class="inline-size-control"
                                     [value]="widget.size"
-                                    (change)="setWidgetSize(widget.id, $event.value)"
+                                    (change)="
+                                        setWidgetSize(widget.id, $event.value)
+                                    "
                                     aria-label="Widget width"
                                 >
-                                    @for (size of sizeOptions; track size.value) {
+                                    @for (
+                                        size of sizeOptions;
+                                        track size.value
+                                    ) {
                                         <mat-button-toggle [value]="size.value">
                                             {{ size.label }}
                                         </mat-button-toggle>
@@ -103,7 +127,8 @@
                 <section class="layout-editor">
                     <h2>Widget Library</h2>
                     <p class="layout-editor__hint">
-                        Show/hide widgets and configure provider scope without leaving the canvas.
+                        Show/hide widgets and configure provider scope without
+                        leaving the canvas.
                     </p>
                     <div class="editor-list">
                         @for (widget of allWidgets(); track widget.id) {
@@ -113,10 +138,16 @@
                                     <p>{{ widget.description }}</p>
                                 </div>
                                 <div class="editor-item__actions">
-                                    <p class="editor-item__action-label">Visibility</p>
+                                    <p class="editor-item__action-label">
+                                        Visibility
+                                    </p>
                                     <mat-slide-toggle
                                         [checked]="widget.enabled"
-                                        (change)="layoutService.toggleWidget(widget.id)"
+                                        (change)="
+                                            layoutService.toggleWidget(
+                                                widget.id
+                                            )
+                                        "
                                         color="primary"
                                     >
                                         Visible
@@ -126,52 +157,105 @@
                                 @if (supportsScope(widget)) {
                                     <mat-expansion-panel class="advanced-panel">
                                         <mat-expansion-panel-header>
-                                            <mat-panel-title>Advanced settings</mat-panel-title>
+                                            <mat-panel-title
+                                                >Advanced
+                                                settings</mat-panel-title
+                                            >
                                             <mat-panel-description>
-                                                Scope ({{ getScopeProviderSummary(widget) }})
+                                                Scope ({{
+                                                    getScopeProviderSummary(
+                                                        widget
+                                                    )
+                                                }})
                                             </mat-panel-description>
                                         </mat-expansion-panel-header>
                                         <section class="scope-editor">
-                                            <p class="scope-editor__title">Scope</p>
+                                            <p class="scope-editor__title">
+                                                Scope
+                                            </p>
                                             <p class="scope-editor__subtitle">
-                                                Provider filters: {{ getScopeProviderSummary(widget) }}
+                                                Provider filters:
+                                                {{
+                                                    getScopeProviderSummary(
+                                                        widget
+                                                    )
+                                                }}
                                             </p>
                                             @if (isAllProvidersScope(widget)) {
-                                                <p class="scope-editor__subtitle">
-                                                    No providers selected means all providers are included.
+                                                <p
+                                                    class="scope-editor__subtitle"
+                                                >
+                                                    No providers selected means
+                                                    all providers are included.
                                                 </p>
                                             }
-                                            <mat-chip-listbox class="scope-providers" multiple>
-                                                @for (provider of providerOptions; track provider) {
+                                            <mat-chip-listbox
+                                                class="scope-providers"
+                                                multiple
+                                            >
+                                                @for (
+                                                    provider of providerOptions;
+                                                    track provider
+                                                ) {
                                                     <mat-chip-option
-                                                        [selected]="isProviderSelected(widget, provider)"
+                                                        [selected]="
+                                                            isProviderSelected(
+                                                                widget,
+                                                                provider
+                                                            )
+                                                        "
                                                         (click)="
-                                                            toggleScopeProvider(widget.id, provider)
+                                                            toggleScopeProvider(
+                                                                widget.id,
+                                                                provider
+                                                            )
                                                         "
                                                     >
-                                                        {{ getProviderLabel(provider) }}
+                                                        {{
+                                                            getProviderLabel(
+                                                                provider
+                                                            )
+                                                        }}
                                                     </mat-chip-option>
                                                 }
                                             </mat-chip-listbox>
 
                                             <p class="scope-editor__subtitle">
-                                                Playlists (leave empty to use all playlists in current provider scope)
+                                                Playlists (leave empty to use
+                                                all playlists in current
+                                                provider scope)
                                             </p>
                                             <div class="scope-playlists">
-                                                @for (playlist of getScopePlaylists(widget); track playlist._id) {
+                                                @for (
+                                                    playlist of getScopePlaylists(
+                                                        widget
+                                                    );
+                                                    track playlist._id
+                                                ) {
                                                     <mat-checkbox
                                                         [checked]="
-                                                            isPlaylistSelected(widget, playlist._id)
+                                                            isPlaylistSelected(
+                                                                widget,
+                                                                playlist._id
+                                                            )
                                                         "
                                                         (change)="
-                                                            toggleScopePlaylist(widget.id, playlist._id)
+                                                            toggleScopePlaylist(
+                                                                widget.id,
+                                                                playlist._id
+                                                            )
                                                         "
                                                     >
-                                                        {{ getPlaylistTitle(playlist) }}
+                                                        {{
+                                                            getPlaylistTitle(
+                                                                playlist
+                                                            )
+                                                        }}
                                                     </mat-checkbox>
                                                 } @empty {
                                                     <p class="scope-empty">
-                                                        No playlists available for selected providers.
+                                                        No playlists available
+                                                        for selected providers.
                                                     </p>
                                                 }
                                             </div>

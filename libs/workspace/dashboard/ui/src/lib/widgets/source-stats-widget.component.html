@@ -3,20 +3,38 @@
     [title]="'WORKSPACE.DASHBOARD.SOURCE_STATS' | translate"
 >
     <div class="stats-grid">
-        <article class="stat-tile">
-            <p class="label">{{ 'WORKSPACE.DASHBOARD.TOTAL' | translate }}</p>
+        <article class="stat-tile stat-tile--total">
+            <div class="stat-tile__header">
+                <mat-icon>dns</mat-icon>
+                <p class="label">
+                    {{ 'WORKSPACE.DASHBOARD.TOTAL' | translate }}
+                </p>
+            </div>
             <p class="value">{{ data.stats().total }}</p>
         </article>
         <article class="stat-tile">
-            <p class="label">{{ 'WORKSPACE.DASHBOARD.XTREAM' | translate }}</p>
+            <div class="stat-tile__header">
+                <mat-icon>tv</mat-icon>
+                <p class="label">
+                    {{ 'WORKSPACE.DASHBOARD.XTREAM' | translate }}
+                </p>
+            </div>
             <p class="value">{{ data.stats().xtream }}</p>
         </article>
         <article class="stat-tile">
-            <p class="label">{{ 'WORKSPACE.DASHBOARD.STALKER' | translate }}</p>
+            <div class="stat-tile__header">
+                <mat-icon>router</mat-icon>
+                <p class="label">
+                    {{ 'WORKSPACE.DASHBOARD.STALKER' | translate }}
+                </p>
+            </div>
             <p class="value">{{ data.stats().stalker }}</p>
         </article>
         <article class="stat-tile">
-            <p class="label">{{ 'WORKSPACE.DASHBOARD.M3U' | translate }}</p>
+            <div class="stat-tile__header">
+                <mat-icon>list_alt</mat-icon>
+                <p class="label">{{ 'WORKSPACE.DASHBOARD.M3U' | translate }}</p>
+            </div>
             <p class="value">{{ data.stats().m3u }}</p>
         </article>
     </div>

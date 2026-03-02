@@ -1,11 +1,12 @@
 import { Component, inject } from '@angular/core';
+import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DashboardDataService } from 'workspace-dashboard-data-access';
 import { DashboardWidgetShellComponent } from './dashboard-widget-shell.component';
 
 @Component({
     selector: 'app-source-stats-widget',
-    imports: [DashboardWidgetShellComponent, TranslatePipe],
+    imports: [DashboardWidgetShellComponent, TranslatePipe, MatIcon],
     templateUrl: './source-stats-widget.component.html',
     styleUrl: './source-stats-widget.component.scss',
 })
