@@ -1,6 +1,5 @@
 import {
     Component,
-    HostBinding,
     OnInit,
     inject,
     input,
@@ -20,7 +19,6 @@ import { TranslateModule } from '@ngx-translate/core';
 import { DataService } from 'services';
 //import { shell } from 'electron';
 import { AddPlaylistMenuComponent, PlaylistType } from 'components';
-import { HomeComponent } from '../../../home/home.component';
 import { AboutDialogComponent } from '../about-dialog/about-dialog.component';
 import { AddPlaylistDialogComponent } from '../add-playlist/add-playlist-dialog.component';
 import { FilterSortMenuComponent } from '../filter-sort-menu/filter-sort-menu.component';
@@ -44,10 +42,6 @@ import { FilterSortMenuComponent } from '../filter-sort-menu/filter-sort-menu.co
     ],
 })
 export class HeaderComponent implements OnInit {
-    @HostBinding('class.home-header') get isHomeHeader() {
-        return this.isHome;
-    }
-
     private activatedRoute = inject(ActivatedRoute);
     private dialog = inject(MatDialog);
     private dataService = inject(DataService);
@@ -66,11 +60,10 @@ export class HeaderComponent implements OnInit {
     readonly globalSearchClicked = output<void>();
     readonly globalRecentClicked = output<void>();
 
-    isHome = true;
+    readonly isHome = false;
 
     ngOnInit() {
-        this.isHome =
-            this.activatedRoute.snapshot.component.name === HomeComponent.name;
+        // Initialization if needed
     }
 
     /**

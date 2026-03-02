@@ -1,3 +1,5 @@
+@use '../../../libs/ui/components/src/lib/resizable/resizable.scss';
+
 // ─── Tailwind CSS ─────────────────────────────────────────────────────────────
 // Preflight is disabled in tailwind.config.js to avoid conflicts with
 // Angular Material. Only components + utilities are loaded.
@@ -7,7 +9,6 @@
 
 // ─── Third-party ─────────────────────────────────────────────────────────────
 @import '@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
-@import '../../../libs/ui/components/src/lib/resizable/resizable.scss';
 
 // ─── Google Fonts ─────────────────────────────────────────────────────────────
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');

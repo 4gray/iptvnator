@@ -289,11 +289,20 @@ export class PlaylistEffects {
                 }),
                 map((playlist: Playlist) => {
                     if (playlist.serverUrl && !this.dataService.isElectron) {
-                        this.router.navigate(['/xtreams/', playlist._id]);
+                        this.router.navigate([
+                            '/workspace/xtreams/',
+                            playlist._id,
+                        ]);
                     } else if (playlist.macAddress) {
-                        this.router.navigate(['stalker', playlist._id]);
+                        this.router.navigate([
+                            '/workspace/stalker/',
+                            playlist._id,
+                        ]);
                     } else {
-                        this.router.navigate(['/playlists/', playlist._id]);
+                        this.router.navigate([
+                            '/workspace/playlists/',
+                            playlist._id,
+                        ]);
                     }
                     return playlist;
                 }),
@@ -308,7 +317,10 @@ export class PlaylistEffects {
                             password: playlist.password || '',
                             type: 'xtream',
                         });
-                        this.router.navigate(['/xtreams/', playlist._id]);
+                        this.router.navigate([
+                            '/workspace/xtreams/',
+                            playlist._id,
+                        ]);
                     } else if (
                         playlist.macAddress &&
                         this.dataService.isElectron

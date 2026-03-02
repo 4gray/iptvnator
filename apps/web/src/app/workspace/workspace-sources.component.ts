@@ -1,14 +1,11 @@
-import { map } from 'rxjs';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { Component, computed, inject } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
+import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
-import {
-    selectActiveTypeFilters,
-    selectAllPlaylistsMeta,
-} from 'm3u-state';
 import { PlaylistType, RecentPlaylistsComponent } from 'components';
+import { selectActiveTypeFilters, selectAllPlaylistsMeta } from 'm3u-state';
+import { map } from 'rxjs';
 import { AddPlaylistDialogComponent } from '../shared/components/add-playlist/add-playlist-dialog.component';
 
 @Component({
@@ -25,7 +22,9 @@ export class WorkspaceSourcesComponent {
     private readonly activeTypeFilters = this.store.selectSignal(
         selectActiveTypeFilters
     );
-    private readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
+    private readonly playlists = this.store.selectSignal(
+        selectAllPlaylistsMeta
+    );
 
     readonly searchQuery = toSignal(
         this.route.queryParamMap.pipe(map((params) => params.get('q') ?? '')),
@@ -72,7 +71,8 @@ export class WorkspaceSourcesComponent {
 
                 return isStalkerFilter || isXtreamFilter || isM3uFilter;
             })
-            .filter((item) => item.title.toLowerCase().includes(query)).length;
+            .filter((item) => (item.title || '').toLowerCase().includes(query))
+            .length;
     });
 
     readonly subtitle = computed(() => {

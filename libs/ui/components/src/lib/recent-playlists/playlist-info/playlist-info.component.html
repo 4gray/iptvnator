@@ -6,14 +6,14 @@
         {{ 'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_DETAILS' | translate }}
     </h2>
     <mat-dialog-content class="mat-typography">
-        <mat-form-field class="full-width">
+        <mat-form-field class="w-full">
             <mat-label>{{
                 'HOME.PLAYLISTS.INFO_DIALOG.TITLE' | translate
             }}</mat-label>
             <input formControlName="title" matInput />
         </mat-form-field>
         @if (playlist.portalUrl) {
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.SERVER_URL' | translate
                 }}</mat-label>
@@ -21,7 +21,7 @@
             </mat-form-field>
         }
         @if (playlist.macAddress) {
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.MAC_ADDRESS' | translate
                 }}</mat-label>
@@ -29,31 +29,31 @@
             </mat-form-field>
         }
         @if (playlist.portalUrl) {
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.STALKER_PORTAL.SERIAL_NUMBER' | translate
                 }}</mat-label>
                 <input matInput formControlName="stalkerSerialNumber" />
             </mat-form-field>
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.STALKER_PORTAL.DEVICE_ID_1' | translate
                 }}</mat-label>
                 <input matInput formControlName="stalkerDeviceId1" />
             </mat-form-field>
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.STALKER_PORTAL.DEVICE_ID_2' | translate
                 }}</mat-label>
                 <input matInput formControlName="stalkerDeviceId2" />
             </mat-form-field>
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.STALKER_PORTAL.SIGNATURE_1' | translate
                 }}</mat-label>
                 <input matInput formControlName="stalkerSignature1" />
             </mat-form-field>
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.STALKER_PORTAL.SIGNATURE_2' | translate
                 }}</mat-label>
@@ -61,7 +61,7 @@
             </mat-form-field>
         }
         @if (playlist.serverUrl) {
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.SERVER_URL' | translate
                 }}</mat-label>
@@ -69,7 +69,7 @@
             </mat-form-field>
         }
         @if (playlist.username) {
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.USERNAME' | translate
                 }}</mat-label>
@@ -77,7 +77,7 @@
             </mat-form-field>
         }
         @if (playlist.password) {
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.PASSWORD' | translate
                 }}</mat-label>
@@ -85,7 +85,7 @@
             </mat-form-field>
         }
         @if (playlist.url) {
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.FROM_URL' | translate
                 }}</mat-label>
@@ -95,20 +95,22 @@
                     matSuffix
                     type="button"
                     (click)="copyUrl()"
-                    [matTooltip]="'HOME.PLAYLISTS.INFO_DIALOG.COPY_URL' | translate"
+                    [matTooltip]="
+                        'HOME.PLAYLISTS.INFO_DIALOG.COPY_URL' | translate
+                    "
                 >
                     <mat-icon>content_copy</mat-icon>
                 </button>
             </mat-form-field>
         }
         @if (playlist.filename) {
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.ORIGINAL_FILENAME' | translate
                 }}</mat-label>
                 <input matInput formControlName="filename" />
             </mat-form-field>
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.IMPORT_DATE' | translate
                 }}</mat-label>
@@ -116,7 +118,7 @@
             </mat-form-field>
         }
         @if (playlist.count) {
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.CHANNELS' | translate
                 }}</mat-label>
@@ -124,7 +126,7 @@
             </mat-form-field>
         }
         @if (isDesktop) {
-            <mat-form-field class="full-width mb-10">
+            <mat-form-field class="w-full mb-10">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.USER_AGENT' | translate
                 }}</mat-label>
@@ -135,7 +137,7 @@
             </mat-form-field>
         }
         @if (playlist.filePath) {
-            <mat-form-field class="full-width">
+            <mat-form-field class="w-full">
                 <mat-label>
                     {{ 'HOME.PLAYLISTS.INFO_DIALOG.FILE_PATH' | translate }}
                 </mat-label>
@@ -151,7 +153,7 @@
             </mat-form-field>
         }
         @if (isDesktop && (playlist.url || playlist.filePath)) {
-            <mat-checkbox class="full-width" formControlName="autoRefresh">
+            <mat-checkbox class="w-full" formControlName="autoRefresh">
                 {{ 'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE' | translate }}
             </mat-checkbox>
             <p>

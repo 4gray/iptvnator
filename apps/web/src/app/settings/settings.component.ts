@@ -48,7 +48,6 @@ import {
     VideoPlayer,
 } from 'shared-interfaces';
 import { SettingsStore } from '../services/settings-store.service';
-import { HeaderComponent } from '../shared/components/header/header.component';
 import { SettingsContextService } from '../workspace/settings-context.service';
 import { SettingsService } from './../services/settings.service';
 
@@ -65,7 +64,6 @@ interface SettingsSection {
     imports: [
         CommonModule,
         FormsModule,
-        HeaderComponent,
         MatButtonModule,
         MatCheckboxModule,
         MatDividerModule,

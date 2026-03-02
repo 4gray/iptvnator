@@ -72,6 +72,14 @@ export const routes: Routes = [
                         (c) => c.VideoPlayerComponent
                     ),
             },
+            {
+                path: 'downloads',
+                data: { layout: 'workspace' },
+                loadComponent: () =>
+                    import('./xtream-electron/downloads/downloads.component').then(
+                        (c) => c.DownloadsComponent
+                    ),
+            },
             ...withWorkspaceLayout(xtreamRoutes),
             ...withWorkspaceLayout(stalkerRoutes),
             {
@@ -85,50 +93,10 @@ export const routes: Routes = [
         ],
     },
     {
-        path: 'home',
-        loadComponent: () =>
-            import('./home/home.component').then((c) => c.HomeComponent),
-    },
-    {
-        path: 'playlists',
-        loadComponent: () =>
-            import('./home/video-player/video-player.component').then(
-                (c) => c.VideoPlayerComponent
-            ),
-    },
-    {
-        path: 'iptv',
-        loadComponent: () =>
-            import('./home/video-player/video-player.component').then(
-                (c) => c.VideoPlayerComponent
-            ),
-    },
-    {
-        path: 'playlists/:id',
-        pathMatch: 'full',
-        redirectTo: 'playlists/:id/all',
-    },
-    {
-        path: 'playlists/:id/:view',
-        loadComponent: () =>
-            import('./home/video-player/video-player.component').then(
-                (c) => c.VideoPlayerComponent
-            ),
-    },
-    {
         path: 'settings',
         redirectTo: '/workspace/settings',
         pathMatch: 'full',
     },
-    ...xtreamRoutes,
-    {
-        path: 'portals/:id',
-        loadComponent: () =>
-            import('./stalker/stalker-main-container.component').then(
-                (c) => c.StalkerMainContainerComponent
-            ),
-    },
-    ...stalkerRoutes,
     {
         path: '**',
         redirectTo: '',

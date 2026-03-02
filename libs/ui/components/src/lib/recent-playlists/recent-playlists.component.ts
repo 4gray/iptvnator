@@ -112,7 +112,9 @@ export class RecentPlaylistsComponent {
                     );
                 })
                 .filter((item) =>
-                    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+                    (item.title || '')
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase())
                 );
 
             // Apply sorting using the SortService
@@ -160,11 +162,11 @@ export class RecentPlaylistsComponent {
 
     getPlaylist(playlistMeta: PlaylistMeta): void {
         if (playlistMeta.serverUrl) {
-            this.router.navigate(['xtreams', playlistMeta._id]);
+            this.router.navigate(['/workspace', 'xtreams', playlistMeta._id]);
         } else if (playlistMeta.macAddress) {
-            this.router.navigate(['stalker', playlistMeta._id]);
+            this.router.navigate(['/workspace', 'stalker', playlistMeta._id]);
         } else {
-            this.router.navigate(['playlists', playlistMeta._id]);
+            this.router.navigate(['/workspace', 'playlists', playlistMeta._id]);
             this.playlistClicked.emit(playlistMeta._id);
         }
     }
@@ -280,7 +282,7 @@ export class RecentPlaylistsComponent {
                     );
 
                     // Navigate to the playlist to trigger re-import
-                    this.router.navigate(['xtreams', item._id]);
+                    this.router.navigate(['/workspace', 'xtreams', item._id]);
                 } catch (error) {
                     console.error('Error refreshing Xtream playlist:', error);
                     this.snackBar.open(

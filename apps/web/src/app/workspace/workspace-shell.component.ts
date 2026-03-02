@@ -17,7 +17,6 @@ import {
     NavigationEnd,
     Router,
     RouterLink,
-    RouterLinkActive,
     RouterOutlet,
 } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -79,7 +78,6 @@ const SEARCH_INPUT_DEBOUNCE_MS = 350;
         PlaylistSwitcherComponent,
         TranslatePipe,
         RouterLink,
-        RouterLinkActive,
         RouterOutlet,
         WorkspaceContextPanelComponent,
         WorkspaceFavoritesContextPanelComponent,
@@ -179,6 +177,9 @@ export class WorkspaceShellComponent {
         /^\/workspace\/global-favorites(?:\/)?(?:\?.*)?$/.test(
             this.currentUrl()
         )
+    );
+    readonly isGlobalDownloadsRoute = computed(() =>
+        /^\/workspace\/downloads(?:\/)?(?:\?.*)?$/.test(this.currentUrl())
     );
     readonly dashboardXtreamContext = computed<WorkspaceContext | null>(() => {
         if (!this.isDashboardRoute()) {
@@ -338,23 +339,10 @@ export class WorkspaceShellComponent {
             workspace: true,
         }).secondary.filter((link) => link.section !== 'downloads');
     });
-    readonly downloadsContext = computed<WorkspaceContext | null>(() => {
-        if (!this.isElectron) {
-            return null;
-        }
-
-        const context = this.currentContext() ?? this.railContext();
-        if (
-            !context ||
-            (context.provider !== 'xtreams' && context.provider !== 'stalker')
-        ) {
-            return null;
-        }
-
-        return context;
-    });
     readonly isDownloadsView = computed(
-        () => this.currentSection() === 'downloads'
+        () =>
+            this.currentSection() === 'downloads' ||
+            this.isGlobalDownloadsRoute()
     );
     readonly canOpenPlaylistInfo = computed(() =>
         Boolean(this.activePlaylist())
@@ -366,20 +354,21 @@ export class WorkspaceShellComponent {
         () => {
             const context = this.currentContext();
             const section = this.currentSection();
-            if (!context || !section) {
-                return null;
-            }
+            const isGlobalDownloads = this.isGlobalDownloadsRoute();
 
             if (
-                (context.provider === 'xtreams' ||
-                    context.provider === 'stalker') &&
-                section === 'downloads'
+                isGlobalDownloads ||
+                (context &&
+                    (context.provider === 'xtreams' ||
+                        context.provider === 'stalker') &&
+                    section === 'downloads')
             ) {
+                const playlistId = context?.playlistId;
                 const hasClearable = this.downloadsService
                     .downloads()
                     .some(
                         (item) =>
-                            item.playlistId === context.playlistId &&
+                            (!playlistId || item.playlistId === playlistId) &&
                             (item.status === 'completed' ||
                                 item.status === 'failed' ||
                                 item.status === 'canceled')
@@ -390,6 +379,10 @@ export class WorkspaceShellComponent {
                     ariaLabel: 'Clear completed downloads',
                     disabled: !hasClearable,
                 };
+            }
+
+            if (!context || !section) {
+                return null;
             }
 
             if (context.provider === 'xtreams' && section === 'recent') {
@@ -563,17 +556,22 @@ export class WorkspaceShellComponent {
     async runHeaderBulkAction(): Promise<void> {
         const context = this.currentContext();
         const section = this.currentSection();
-        if (!context || !section) {
+        const isGlobalDownloads = this.isGlobalDownloadsRoute();
+
+        if (
+            isGlobalDownloads ||
+            (context &&
+                (context.provider === 'xtreams' ||
+                    context.provider === 'stalker') &&
+                section === 'downloads')
+        ) {
+            const playlistId = context?.playlistId;
+            await this.downloadsService.clearCompleted(playlistId);
+            await this.downloadsService.loadDownloads(playlistId);
             return;
         }
 
-        if (
-            (context.provider === 'xtreams' ||
-                context.provider === 'stalker') &&
-            section === 'downloads'
-        ) {
-            await this.downloadsService.clearCompleted(context.playlistId);
-            await this.downloadsService.loadDownloads(context.playlistId);
+        if (!context || !section) {
             return;
         }
 
@@ -593,17 +591,7 @@ export class WorkspaceShellComponent {
     }
 
     openDownloadsShortcut(): void {
-        const context = this.downloadsContext();
-        if (!context) {
-            return;
-        }
-
-        this.router.navigate([
-            '/workspace',
-            context.provider,
-            context.playlistId,
-            'downloads',
-        ]);
+        this.router.navigate(['/workspace/downloads']);
     }
 
     openPlaylistInfo(): void {
