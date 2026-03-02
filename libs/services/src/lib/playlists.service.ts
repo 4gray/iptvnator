@@ -9,7 +9,7 @@ import {
     createPlaylistObject,
 } from 'm3u-utils';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { combineLatest, map, switchMap } from 'rxjs';
+import { combineLatest, map, Observable, switchMap } from 'rxjs';
 import {
     Channel,
     DbStores,
@@ -50,7 +50,7 @@ export class PlaylistsService {
         }
     }
 
-    deletePlaylist(playlistId: string) {
+    deletePlaylist(playlistId: string): Observable<any> {
         return this.dbService.delete(DbStores.Playlists, playlistId);
     }
 
@@ -366,7 +366,7 @@ export class PlaylistsService {
         return this.dbService.getAll<Playlist>(DbStores.Playlists);
     }
 
-    removeAll() {
+    removeAll(): Observable<any> {
         return this.dbService.clear(DbStores.Playlists);
     }
 
