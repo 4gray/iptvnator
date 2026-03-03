@@ -14,6 +14,7 @@ import {
     firstValueFrom,
     from,
     map,
+    Observable,
     of,
     switchMap,
 } from 'rxjs';
@@ -183,14 +184,16 @@ export class PlaylistsService {
         return this.getPlaylistById(id);
     }
 
-    deletePlaylist(playlistId: string) {
+    deletePlaylist(playlistId: string): Observable<{ success: boolean }> {
         if (this.isElectronStorageAvailable) {
             return this.runOnSqlite(() =>
                 window.electron.dbDeletePlaylist(playlistId)
-            );
+            ).pipe(map(() => ({ success: true })));
         }
 
-        return this.dbService.delete(DbStores.Playlists, playlistId);
+        return this.dbService
+            .delete(DbStores.Playlists, playlistId)
+            .pipe(map(() => ({ success: true })));
     }
 
     updatePlaylist(playlistId: string, updatedPlaylist: Playlist) {
@@ -587,12 +590,16 @@ export class PlaylistsService {
         return this.dbService.getAll<Playlist>(DbStores.Playlists);
     }
 
-    removeAll() {
+    removeAll(): Observable<void> {
         if (this.isElectronStorageAvailable) {
-            return this.runOnSqlite(() => window.electron.dbDeleteAllPlaylists());
+            return this.runOnSqlite(() =>
+                window.electron.dbDeleteAllPlaylists()
+            ).pipe(map(() => undefined));
         }
 
-        return this.dbService.clear(DbStores.Playlists);
+        return this.dbService
+            .clear(DbStores.Playlists)
+            .pipe(map(() => undefined));
     }
 
     getPortalRecentlyViewed(portalId: string) {
