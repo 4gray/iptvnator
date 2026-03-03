@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
+import { getExtensionFromUrl } from 'm3u-utils';
 import mpegts from 'mpegts.js';
 import { Channel } from 'shared-interfaces';
 
@@ -87,8 +88,8 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         const el = this.elementRef.nativeElement.querySelector(
             '.artplayer-container'
         );
-        const url = this.channel?.url?.toLowerCase() ?? '';
-        const isLive = url.includes('m3u8') || url.endsWith('.ts');
+        const extension = getExtensionFromUrl(this.channel?.url ?? '');
+        const isLive = extension === 'm3u8' || extension === 'ts';
 
         this.player = new Artplayer({
             container: el,
@@ -206,7 +207,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     private getVideoType(url: string): string {
-        const extension = url.split('.').pop()?.toLowerCase();
+        const extension = getExtensionFromUrl(url);
         switch (extension) {
             case 'mkv':
                 return 'video/matroska';

@@ -143,6 +143,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             const newSource = changes['options'].currentValue.sources[0];
             if (this.isMpegTsSource(newSource?.src)) {
                 this.destroyMpegTs();
+                this.player.reset();
                 this.initMpegTs(newSource.src);
             } else {
                 this.destroyMpegTs();
