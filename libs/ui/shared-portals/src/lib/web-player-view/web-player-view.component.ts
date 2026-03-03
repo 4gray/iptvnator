@@ -56,9 +56,11 @@ export class WebPlayerViewComponent {
     setVjsOptions(streamUrl: string) {
         const extension = getExtensionFromUrl(streamUrl);
         const mimeType =
-            extension === 'm3u' || extension === 'm3u8' || extension === 'ts'
+            extension === 'm3u' || extension === 'm3u8'
                 ? 'application/x-mpegURL'
-                : 'video/mp4';
+                : extension === 'ts'
+                  ? 'video/mp2t'
+                  : 'video/mp4';
 
         this.vjsOptions = {
             sources: [{ src: streamUrl, type: mimeType }],

@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
+import mpegts from 'mpegts.js';
 import { Channel } from 'shared-interfaces';
 
 Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
@@ -46,6 +47,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
 
     private player!: Artplayer;
     private hls: Hls | null = null;
+    private mpegtsPlayer: mpegts.Player | null = null;
 
     private readonly elementRef = inject(ElementRef);
 
@@ -65,6 +67,13 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     private destroyPlayer(): void {
+        if (this.mpegtsPlayer) {
+            this.mpegtsPlayer.pause();
+            this.mpegtsPlayer.unload();
+            this.mpegtsPlayer.detachMediaElement();
+            this.mpegtsPlayer.destroy();
+            this.mpegtsPlayer = null;
+        }
         if (this.hls) {
             this.hls.destroy();
             this.hls = null;
@@ -78,7 +87,8 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         const el = this.elementRef.nativeElement.querySelector(
             '.artplayer-container'
         );
-        const isLive = this.channel?.url?.toLowerCase().includes('m3u8');
+        const url = this.channel?.url?.toLowerCase() ?? '';
+        const isLive = url.includes('m3u8') || url.endsWith('.ts');
 
         this.player = new Artplayer({
             container: el,
@@ -116,6 +126,21 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                         video.canPlayType('application/vnd.apple.mpegurl')
                     ) {
                         video.src = url;
+                    }
+                },
+                ts: (video: HTMLVideoElement, url: string) => {
+                    if (mpegts.isSupported()) {
+                        if (this.mpegtsPlayer) {
+                            this.mpegtsPlayer.destroy();
+                        }
+                        this.mpegtsPlayer = mpegts.createPlayer({
+                            type: 'mpegts',
+                            isLive: true,
+                            url: url,
+                        });
+                        this.mpegtsPlayer.attachMediaElement(video);
+                        this.mpegtsPlayer.load();
+                        this.mpegtsPlayer.play();
                     }
                 },
                 mkv: function (video: HTMLVideoElement, url: string) {
@@ -189,6 +214,8 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                 return 'm3u8';
             case 'mp4':
                 return 'mp4';
+            case 'ts':
+                return 'ts';
             default:
                 return 'auto';
         }

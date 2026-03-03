@@ -12,6 +12,8 @@ import {
     ViewEncapsulation,
 } from '@angular/core';
 import '@yangkghjh/videojs-aspect-ratio-panel';
+import { getExtensionFromUrl } from 'm3u-utils';
+import mpegts from 'mpegts.js';
 import videoJs from 'video.js';
 import 'videojs-contrib-quality-levels';
 import 'videojs-quality-selector-hls';
@@ -33,6 +35,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     @Input() options!: any;
     /** VideoJs object */
     player!: any;
+    /** mpegts.js player for raw MPEG-TS streams */
+    private mpegtsPlayer: mpegts.Player | null = null;
     @Input() volume = 1;
     @Input() startTime = 0;
     @Output() timeUpdate = new EventEmitter<{
@@ -44,12 +48,17 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * Instantiate Video.js on component init
      */
     ngOnInit(): void {
+        const source = this.options?.sources?.[0];
+        const isMpegTs = this.isMpegTsSource(source?.src);
+
+        // For raw MPEG-TS streams, init Video.js without a source (UI/controls only)
+        const vjsOptions = isMpegTs
+            ? { ...this.options, sources: [], autoplay: false }
+            : { ...this.options, autoplay: true };
+
         this.player = videoJs(
             this.target.nativeElement,
-            {
-                ...this.options,
-                autoplay: true,
-            },
+            vjsOptions,
             () => {
                 console.log(
                     'Setting VideoJS player initial volume to:',
@@ -100,6 +109,11 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                         duration: this.player.duration(),
                     });
                 });
+
+                // Attach mpegts.js after Video.js is ready
+                if (isMpegTs) {
+                    this.initMpegTs(source.src);
+                }
             }
         );
         try {
@@ -125,8 +139,15 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * @param changes contains changed channel object
      */
     ngOnChanges(changes: SimpleChanges): void {
-        if (changes['options'].previousValue) {
-            this.player.src(changes['options'].currentValue.sources[0]);
+        if (changes['options']?.previousValue) {
+            const newSource = changes['options'].currentValue.sources[0];
+            if (this.isMpegTsSource(newSource?.src)) {
+                this.destroyMpegTs();
+                this.initMpegTs(newSource.src);
+            } else {
+                this.destroyMpegTs();
+                this.player.src(newSource);
+            }
         }
         if (changes['volume']?.currentValue !== undefined && this.player) {
             console.log(
@@ -141,8 +162,39 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * Removes the players HTML reference on destroy
      */
     ngOnDestroy(): void {
+        this.destroyMpegTs();
         if (this.player) {
             this.player.dispose();
+        }
+    }
+
+    private isMpegTsSource(url?: string): boolean {
+        if (!url) return false;
+        return getExtensionFromUrl(url) === 'ts' && mpegts.isSupported();
+    }
+
+    private initMpegTs(url: string): void {
+        const videoEl = this.player.tech({ IWillNotUseThisInPlugins: true })?.el();
+        if (!videoEl) return;
+
+        console.log('Using mpegts.js for TS stream:', url);
+        this.mpegtsPlayer = mpegts.createPlayer({
+            type: 'mpegts',
+            isLive: true,
+            url: url,
+        });
+        this.mpegtsPlayer.attachMediaElement(videoEl as HTMLVideoElement);
+        this.mpegtsPlayer.load();
+        this.mpegtsPlayer.play();
+    }
+
+    private destroyMpegTs(): void {
+        if (this.mpegtsPlayer) {
+            this.mpegtsPlayer.pause();
+            this.mpegtsPlayer.unload();
+            this.mpegtsPlayer.detachMediaElement();
+            this.mpegtsPlayer.destroy();
+            this.mpegtsPlayer = null;
         }
     }
 
