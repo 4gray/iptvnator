@@ -91,6 +91,14 @@ declare global {
             // Database operations
             dbCreatePlaylist: (playlist: any) => Promise<{ success: boolean }>;
             dbGetPlaylist: (playlistId: string) => Promise<any>;
+            dbUpsertAppPlaylist: (
+                playlist: any
+            ) => Promise<{ success: boolean }>;
+            dbUpsertAppPlaylists: (
+                playlists: any[]
+            ) => Promise<{ success: boolean; count: number }>;
+            dbGetAppPlaylists: () => Promise<any[]>;
+            dbGetAppPlaylist: (playlistId: string) => Promise<any | null>;
             dbUpdatePlaylist: (
                 playlistId: string,
                 updates: any
@@ -195,6 +203,11 @@ declare global {
                 xtreamId: number,
                 playlistId: string
             ) => Promise<any | null>;
+            dbGetAppState: (key: string) => Promise<string | null>;
+            dbSetAppState: (
+                key: string,
+                value: string
+            ) => Promise<{ success: boolean }>;
             // Remote control
             onChannelChange?: (
                 callback: (data: { direction: 'up' | 'down' }) => void

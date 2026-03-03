@@ -35,7 +35,22 @@ export const playlists = sqliteTable('playlists', {
     autoRefresh: integer('autoRefresh', { mode: 'boolean' }).default(false),
     macAddress: text('macAddress'),
     url: text('url'),
+    portalUrl: text('portal_url'),
+    count: integer('count'),
+    importDate: text('import_date'),
+    updateDate: integer('update_date'),
+    position: integer('position'),
+    favorites: text('favorites'),
+    recentlyViewed: text('recently_viewed'),
+    payload: text('payload'),
     lastUsage: text('last_usage'),
+});
+
+// App key-value state table (e.g. one-time migration flags)
+export const appState = sqliteTable('app_state', {
+    key: text('key').primaryKey(),
+    value: text('value').notNull(),
+    updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 // Categories table
@@ -214,6 +229,8 @@ export const playbackPositions = sqliteTable(
 // Type exports for TypeScript
 export type Playlist = typeof playlists.$inferSelect;
 export type NewPlaylist = typeof playlists.$inferInsert;
+export type AppState = typeof appState.$inferSelect;
+export type NewAppState = typeof appState.$inferInsert;
 
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
