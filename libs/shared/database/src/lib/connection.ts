@@ -242,6 +242,15 @@ function createTables(sqliteDb: Database.Database): void {
     }
 }
 
+function isDuplicateColumnError(error: unknown): boolean {
+    const message =
+        typeof error === 'object' && error !== null && 'message' in error
+            ? String((error as { message?: unknown }).message ?? '')
+            : '';
+
+    return message.toLowerCase().includes('duplicate column name');
+}
+
 /**
  * Run migrations that may fail if already applied
  */
@@ -250,9 +259,22 @@ function runMigrations(sqliteDb: Database.Database): void {
         try {
             sqliteDb.exec(stmt);
         } catch (error) {
-            // Log and ignore errors for migrations that may have already been applied
-            // (e.g., "duplicate column name" for ALTER TABLE ADD COLUMN)
-            console.debug('Migration already applied or failed:', error);
+            // Ignore idempotent ALTER TABLE errors on existing columns.
+            if (isDuplicateColumnError(error)) {
+                continue;
+            }
+
+            const compactStmt = stmt.replace(/\s+/g, ' ').trim();
+            const message =
+                typeof error === 'object' &&
+                error !== null &&
+                'message' in error
+                    ? String((error as { message?: unknown }).message ?? error)
+                    : String(error);
+
+            console.warn(
+                `Migration failed (continuing): ${compactStmt} :: ${message}`
+            );
         }
     }
 }
