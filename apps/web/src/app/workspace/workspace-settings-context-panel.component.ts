@@ -22,7 +22,7 @@ import { SettingsContextService } from './settings-context.service';
             </button>
 
             <p class="panel-header" style="padding-top: 8px;">
-                App preferences
+                {{ 'SETTINGS.APP_PREFERENCES' | translate }}
             </p>
             <div class="nav-list">
                 @for (section of ctx.sections(); track section.id) {
@@ -30,7 +30,7 @@ import { SettingsContextService } from './settings-context.service';
                         type="button"
                         class="nav-item"
                         [class.active]="ctx.activeSection() === section.id"
-                        (click)="ctx.setActiveSection(section.id)"
+                        (click)="ctx.navigateToSection(section.id)"
                     >
                         <mat-icon>{{ section.icon }}</mat-icon>
                         <span>{{ section.label | translate }}</span>

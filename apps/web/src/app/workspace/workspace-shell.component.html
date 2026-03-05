@@ -3,7 +3,7 @@
         <a
             class="brand"
             routerLink="/workspace/dashboard"
-            matTooltip="Dashboard"
+            matTooltip="Dashboard (all playlists)"
             [matTooltipPosition]="'right'"
             aria-label="Open dashboard"
         >
@@ -41,7 +41,7 @@
                 class="rail-shortcut"
                 routerLink="/workspace/settings"
                 [class.is-active]="isSettingsRoute()"
-                matTooltip="Settings"
+                matTooltip="Settings (global)"
                 [matTooltipPosition]="'right'"
                 aria-label="Open settings"
             >
@@ -69,6 +69,16 @@
                 [placeholder]="searchPlaceholder()"
                 aria-label="Search"
             />
+            <button
+                type="button"
+                class="command-trigger"
+                mat-icon-button
+                (click)="openCommandPalette()"
+                matTooltip="Command palette (Ctrl/Cmd+K)"
+                aria-label="Open command palette"
+            >
+                <mat-icon>keyboard_command_key</mat-icon>
+            </button>
         </label>
 
         <div class="header-actions">
@@ -76,7 +86,7 @@
                 type="button"
                 mat-icon-button
                 [matMenuTriggerFor]="addPlaylistMenu().menu()"
-                [matTooltip]="'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate"
+                matTooltip="Add playlist (all playlists)"
                 aria-label="Add playlist"
             >
                 <mat-icon>add</mat-icon>
@@ -84,28 +94,16 @@
             <app-add-playlist-menu
                 (playlistTypeSelected)="openAddPlaylistDialog($event)"
             />
-            @if (canOpenPlaylistInfo()) {
-                <button
-                    type="button"
-                    mat-icon-button
-                    (click)="openPlaylistInfo()"
-                    [matTooltip]="'PORTALS.SIDEBAR.PLAYLIST_INFO' | translate"
-                    aria-label="Open playlist info"
-                >
-                    <mat-icon>playlist_play</mat-icon>
-                </button>
-            }
-            @if (canOpenAccountInfo()) {
-                <button
-                    type="button"
-                    mat-icon-button
-                    (click)="openAccountInfo()"
-                    [matTooltip]="'PORTALS.SIDEBAR.ACCOUNT_INFO' | translate"
-                    aria-label="Open account info"
-                >
-                    <mat-icon>person</mat-icon>
-                </button>
-            }
+            <a
+                class="header-shortcut"
+                mat-icon-button
+                routerLink="/workspace/global-favorites"
+                [class.is-active]="isGlobalFavoritesRoute()"
+                matTooltip="Global favorites (all playlists)"
+                aria-label="Open global favorites"
+            >
+                <mat-icon>star</mat-icon>
+            </a>
             @if (isElectron) {
                 <button
                     type="button"
@@ -113,91 +111,115 @@
                     mat-icon-button
                     [class.is-active]="isDownloadsView()"
                     (click)="openDownloadsShortcut()"
-                    [matTooltip]="'DOWNLOADS.TITLE' | translate"
+                    matTooltip="Downloads (all playlists)"
                     aria-label="Open downloads"
                 >
                     <mat-icon>download</mat-icon>
                 </button>
             }
-            @if (headerBulkAction(); as action) {
-                <button
-                    type="button"
-                    mat-icon-button
-                    (click)="runHeaderBulkAction()"
-                    [matTooltip]="action.tooltip"
-                    [disabled]="action.disabled"
-                    [attr.aria-label]="action.ariaLabel"
-                >
-                    <mat-icon>{{ action.icon }}</mat-icon>
-                </button>
-            }
-            <a
-                class="header-shortcut"
+            <button
+                type="button"
                 mat-icon-button
-                routerLink="/workspace/global-favorites"
-                [class.is-active]="isGlobalFavoritesRoute()"
-                [matTooltip]="'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate"
-                aria-label="Open global favorites"
+                [matMenuTriggerFor]="contextActionsMenu"
+                matTooltip="Context actions (this section)"
+                aria-label="Open context actions"
             >
-                <mat-icon>star</mat-icon>
-            </a>
-            @if (canSort()) {
-                <button
-                    type="button"
-                    mat-icon-button
-                    [matMenuTriggerFor]="sortMenu"
-                    [matTooltip]="
-                        ('WORKSPACE.SORT_LABEL' | translate) +
-                        contentSortLabel()
-                    "
-                    aria-label="Sorting options"
-                >
-                    <mat-icon>sort</mat-icon>
-                </button>
-                <mat-menu #sortMenu="matMenu">
-                    <button
-                        mat-menu-item
-                        (click)="setContentSortMode('date-desc')"
-                    >
-                        <span>{{
-                            'WORKSPACE.SORT_DATE_DESC' | translate
-                        }}</span>
-                        @if (contentSortMode() === 'date-desc') {
-                            <mat-icon>check</mat-icon>
-                        }
-                    </button>
-                    <button
-                        mat-menu-item
-                        (click)="setContentSortMode('date-asc')"
-                    >
-                        <span>{{ 'WORKSPACE.SORT_DATE_ASC' | translate }}</span>
-                        @if (contentSortMode() === 'date-asc') {
-                            <mat-icon>check</mat-icon>
-                        }
-                    </button>
-                    <button
-                        mat-menu-item
-                        (click)="setContentSortMode('name-asc')"
-                    >
-                        <span>{{ 'WORKSPACE.SORT_NAME_ASC' | translate }}</span>
-                        @if (contentSortMode() === 'name-asc') {
-                            <mat-icon>check</mat-icon>
-                        }
-                    </button>
-                    <button
-                        mat-menu-item
-                        (click)="setContentSortMode('name-desc')"
-                    >
-                        <span>{{
-                            'WORKSPACE.SORT_NAME_DESC' | translate
-                        }}</span>
-                        @if (contentSortMode() === 'name-desc') {
-                            <mat-icon>check</mat-icon>
-                        }
-                    </button>
-                </mat-menu>
-            }
+                <mat-icon>more_horiz</mat-icon>
+            </button>
         </div>
+
+        <mat-menu #contextActionsMenu="matMenu">
+            @if (!hasContextActions()) {
+                <button mat-menu-item disabled>
+                    <span>No actions for this section</span>
+                </button>
+            } @else {
+                @if (contextActionGroups().hasPlaylistActions) {
+                    @if (canOpenPlaylistInfo()) {
+                        <button mat-menu-item (click)="openPlaylistInfo()">
+                            <mat-icon>playlist_play</mat-icon>
+                            <span>Playlist info (this playlist)</span>
+                        </button>
+                    }
+                    @if (canOpenAccountInfo()) {
+                        <button mat-menu-item (click)="openAccountInfo()">
+                            <mat-icon>person</mat-icon>
+                            <span>Account info (this playlist)</span>
+                        </button>
+                    }
+                }
+
+                @if (
+                    contextActionGroups().hasPlaylistActions &&
+                    (contextActionGroups().hasSectionActions ||
+                        contextActionGroups().hasCleanupActions)
+                ) {
+                    <mat-divider />
+                }
+
+                @if (contextActionGroups().hasSectionActions) {
+                    @if (canManageCategories()) {
+                        <button mat-menu-item (click)="openManageCategories()">
+                            <mat-icon>tune</mat-icon>
+                            <span>Manage categories (this section)</span>
+                        </button>
+                    }
+                    @if (canSort()) {
+                        <button mat-menu-item [matMenuTriggerFor]="sortMenu">
+                            <mat-icon>sort</mat-icon>
+                            <span>Sort content (this section)</span>
+                        </button>
+                    }
+                }
+
+                @if (
+                    contextActionGroups().hasCleanupActions &&
+                    (contextActionGroups().hasPlaylistActions ||
+                        contextActionGroups().hasSectionActions)
+                ) {
+                    <mat-divider />
+                }
+
+                @if (headerBulkAction(); as action) {
+                    <button
+                        mat-menu-item
+                        (click)="runHeaderBulkAction()"
+                        [disabled]="action.disabled"
+                        [attr.aria-label]="action.ariaLabel"
+                    >
+                        <mat-icon>{{ action.icon }}</mat-icon>
+                        <span>{{ action.tooltip }}</span>
+                    </button>
+                }
+            }
+        </mat-menu>
+
+        <mat-menu #sortMenu="matMenu">
+            <button mat-menu-item (click)="setContentSortMode('date-desc')">
+                <span>{{ 'WORKSPACE.SORT_DATE_DESC' | translate }}</span>
+                @if (contentSortMode() === 'date-desc') {
+                    <mat-icon>check</mat-icon>
+                }
+            </button>
+            <button mat-menu-item (click)="setContentSortMode('date-asc')">
+                <span>{{ 'WORKSPACE.SORT_DATE_ASC' | translate }}</span>
+                @if (contentSortMode() === 'date-asc') {
+                    <mat-icon>check</mat-icon>
+                }
+            </button>
+            <button mat-menu-item (click)="setContentSortMode('name-asc')">
+                <span>{{ 'WORKSPACE.SORT_NAME_ASC' | translate }}</span>
+                @if (contentSortMode() === 'name-asc') {
+                    <mat-icon>check</mat-icon>
+                }
+            </button>
+            <button mat-menu-item (click)="setContentSortMode('name-desc')">
+                <span>{{ 'WORKSPACE.SORT_NAME_DESC' | translate }}</span>
+                @if (contentSortMode() === 'name-desc') {
+                    <mat-icon>check</mat-icon>
+                }
+            </button>
+        </mat-menu>
     </header>
 
     <div class="workspace-body" [class.single-pane]="!showContextPanel()">

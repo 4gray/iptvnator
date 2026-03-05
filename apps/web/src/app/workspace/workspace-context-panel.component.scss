@@ -23,7 +23,7 @@
 .context-header__top {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 8px;
 
     h2 {
@@ -32,29 +32,6 @@
         font-weight: 600;
         letter-spacing: -0.01em;
         color: var(--mat-sys-on-surface);
-    }
-
-    button[mat-icon-button] {
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        line-height: 32px;
-        border-radius: 8px;
-        color: var(--mat-sys-on-surface-variant);
-        transition:
-            background 0.15s ease,
-            color 0.15s ease;
-
-        &:hover {
-            background: var(--mat-sys-surface-container);
-            color: var(--mat-sys-on-surface);
-        }
-
-        mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-        }
     }
 }
 

@@ -1,14 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
-import { MatIconButton } from '@angular/material/button';
-import { MatIcon } from '@angular/material/icon';
-import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { PlaylistErrorViewComponent } from '../xtream-electron/playlist-error-view/playlist-error-view.component';
-import {
-    CategoryManagementDialogComponent,
-    CategoryManagementDialogData,
-} from '../xtream-electron/category-management-dialog/category-management-dialog.component';
 import { CategoryViewComponent } from '../xtream-electron/category-view/category-view.component';
 import { XtreamStore } from '../xtream-electron/stores/xtream.store';
 import { StalkerStore } from '../stalker/stalker.store';
@@ -27,19 +19,12 @@ interface XtreamCategoryLike {
 
 @Component({
     selector: 'app-workspace-context-panel',
-    imports: [
-        CategoryViewComponent,
-        MatIcon,
-        MatIconButton,
-        MatTooltip,
-        PlaylistErrorViewComponent,
-    ],
+    imports: [CategoryViewComponent, PlaylistErrorViewComponent],
     templateUrl: './workspace-context-panel.component.html',
     styleUrl: './workspace-context-panel.component.scss',
 })
 export class WorkspaceContextPanelComponent {
     private readonly router = inject(Router);
-    private readonly dialog = inject(MatDialog);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly stalkerStore = inject(StalkerStore);
 
@@ -161,40 +146,5 @@ export class WorkspaceContextPanelComponent {
             section,
             categoryId,
         ]);
-    }
-
-    openXtreamCategoryManagement(): void {
-        const context = this.context();
-        const section = this.section();
-        if (!this.isXtreamCategories()) {
-            return;
-        }
-
-        const contentType =
-            section === 'series'
-                ? 'series'
-                : section === 'live'
-                  ? 'live'
-                  : 'vod';
-
-        const dialogRef = this.dialog.open<
-            CategoryManagementDialogComponent,
-            CategoryManagementDialogData,
-            boolean
-        >(CategoryManagementDialogComponent, {
-            data: {
-                playlistId: context.playlistId,
-                contentType,
-                itemCounts: this.xtreamCategoryItemCounts(),
-            },
-            width: '500px',
-            maxHeight: '80vh',
-        });
-
-        dialogRef.afterClosed().subscribe((result) => {
-            if (result) {
-                this.xtreamStore.reloadCategories();
-            }
-        });
     }
 }

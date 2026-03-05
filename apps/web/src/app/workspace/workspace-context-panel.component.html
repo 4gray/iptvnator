@@ -2,16 +2,6 @@
     <header class="context-header">
         <div class="context-header__top">
             <h2>{{ title() }}</h2>
-            @if (isXtreamCategories()) {
-                <button
-                    mat-icon-button
-                    [matTooltip]="'Manage categories'"
-                    aria-label="Manage categories"
-                    (click)="openXtreamCategoryManagement()"
-                >
-                    <mat-icon>tune</mat-icon>
-                </button>
-            }
         </div>
         <!-- @if (subtitle(); as text) {
             <span class="context-header__badge">{{ text }}</span>

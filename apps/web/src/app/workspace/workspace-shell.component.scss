@@ -27,7 +27,8 @@
     align-items: center;
     gap: 2px;
     padding: 10px 8px;
-    border-right: 1px solid var(--app-rail-border, var(--mat-sys-outline-variant));
+    border-right: 1px solid
+        var(--app-rail-border, var(--mat-sys-outline-variant));
     background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
     app-region: drag;
     overflow-y: auto;
@@ -225,6 +226,27 @@
             opacity: 0.7;
         }
     }
+
+    .command-trigger {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        margin-right: -4px;
+        color: var(--mat-sys-on-surface-variant);
+        border-radius: 8px;
+        flex-shrink: 0;
+
+        &:hover {
+            background: var(--mat-sys-surface-container-high);
+            color: var(--mat-sys-on-surface);
+        }
+
+        mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+        }
+    }
 }
 
 // ─── Header Actions ───────────────────────────────────────────────────────────
@@ -394,6 +416,13 @@
     // Distinctive top-left inset radius (GitButler-style panel inset)
     border-radius: 16px 0 0 0;
     box-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+// ─── Dialog Surfaces ──────────────────────────────────────────────────────────
+:host ::ng-deep .workspace-command-palette-overlay .mat-mdc-dialog-surface {
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
 }
 
 // ─── Responsive ───────────────────────────────────────────────────────────────

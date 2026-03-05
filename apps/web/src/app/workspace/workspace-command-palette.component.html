@@ -1,0 +1,52 @@
+<div class="palette-shell">
+    <header class="palette-header">
+        <h2>Command palette</h2>
+        <p>Global and contextual actions</p>
+    </header>
+
+    <label class="palette-search">
+        <mat-icon>search</mat-icon>
+        <input
+            #queryInput
+            type="search"
+            spellcheck="false"
+            [value]="query()"
+            (input)="onQueryInput($event)"
+            (keydown)="onInputKeydown($event)"
+            placeholder="Type to filter commands"
+            aria-label="Filter commands"
+        />
+        <span class="palette-search__hint">Ctrl/Cmd+K</span>
+    </label>
+
+    <div class="palette-results">
+        @if (commandGroups().length === 0) {
+            <div class="palette-empty">No commands found</div>
+        } @else {
+            @for (group of commandGroups(); track group.scope) {
+                <section class="palette-group">
+                    <h3>{{ group.title }}</h3>
+                    <div class="palette-group__items">
+                        @for (command of group.items; track command.id) {
+                            <button
+                                type="button"
+                                class="palette-command"
+                                [class.is-selected]="isCommandSelected(command)"
+                                [disabled]="!command.enabled"
+                                (mouseenter)="onCommandHover(command)"
+                                (click)="onCommandClick(command)"
+                            >
+                                <span class="palette-command__label">{{
+                                    command.label
+                                }}</span>
+                                <span class="palette-command__description">{{
+                                    command.description
+                                }}</span>
+                            </button>
+                        }
+                    </div>
+                </section>
+            }
+        }
+    </div>
+</div>
