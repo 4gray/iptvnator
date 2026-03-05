@@ -33,23 +33,38 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0;
 }
 
 .video-player {
-    flex: 1;
-    height: 50%;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
 }
 
 .epg {
-    flex: 1;
-    height: 50%;
+    flex: 1 1 0;
+    min-height: 0;
     overflow: hidden;
+}
+
+.video-player > app-web-player-view {
+    flex: 1;
+    min-height: 0;
 }
 
 .epg-content {
     height: 100%;
-    overflow-y: auto;
-    padding-bottom: 20px;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.epg-content > app-epg-view {
+    flex: 1;
+    min-height: 0;
 }
 
 .no-channel-selected {
@@ -62,7 +77,6 @@
     gap: 10px;
 }
 
-// Channel list
 .search-panel {
     padding: 8px 12px;
     flex-shrink: 0;
@@ -91,125 +105,10 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 4px 0;
-}
-
-.channel-item {
-    display: flex;
-    align-items: center;
-    padding: 8px;
-    margin: 2px 4px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    min-height: 48px;
-    box-sizing: border-box;
-    gap: 8px;
-    width: calc(100% - 8px);
-    min-width: 0;
-    overflow: hidden;
-
-    &:hover {
-        background-color: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent);
-
-        .title {
-            color: var(--mat-sys-primary);
-        }
-    }
-
-    &.active {
-        background-color: color-mix(in srgb, var(--mat-sys-primary) 16%, transparent);
-
-        .title {
-            color: var(--mat-sys-primary);
-        }
-    }
-}
-
-.stream-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 4px;
-    object-fit: cover;
-    flex-shrink: 0;
-    background: color-mix(in srgb, var(--mat-sys-on-surface) 5%, transparent);
-}
-
-.channel-info {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: 100%;
+    padding: 4px 8px 12px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-
-    .title {
-        font-weight: 600;
-        font-size: 14px;
-        transition: color 0.2s ease;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .current-program {
-        font-size: 12px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        opacity: 0.8;
-    }
-
-    .progress-container {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 11px;
-        opacity: 0.6;
-
-        span {
-            flex-shrink: 0;
-        }
-
-        .progress-bar {
-            flex: 1;
-            height: 3px;
-            background: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
-            border-radius: 2px;
-            overflow: hidden;
-            min-width: 20px;
-
-            .progress {
-                height: 100%;
-                background: var(--mat-sys-primary);
-                transition: width 1s linear;
-            }
-        }
-    }
-}
-
-.favorite-btn {
-    background: none;
-    border: none;
-    padding: 8px;
-    cursor: pointer;
-    color: inherit;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover {
-        opacity: 1;
-    }
-
-    mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-    }
+    gap: 2px;
 }
 
 .loading-indicator {
@@ -224,43 +123,9 @@
     padding: 8px 0;
 }
 
-// Container queries for responsive behavior
 @container (max-width: 350px) {
-    .channel-item {
-        gap: 6px;
-        padding: 6px;
-    }
-
-    .stream-icon {
-        width: 28px;
-        height: 28px;
-    }
-
-    .favorite-btn {
-        padding: 4px;
-
-        mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-        }
-    }
-}
-
-@container (max-width: 300px) {
-    .stream-icon {
-        width: 24px;
-        height: 24px;
-    }
-
-    .favorite-btn {
-        display: none;
-    }
-}
-
-@container (max-width: 260px) {
-    .stream-icon {
-        display: none;
+    .channels-list {
+        padding-inline: 6px;
     }
 }
 

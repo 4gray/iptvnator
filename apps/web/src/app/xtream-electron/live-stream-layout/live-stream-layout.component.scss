@@ -39,23 +39,38 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0;
 }
 
 .video-player {
-    flex: 1;
-    height: 50%;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
 }
 
 .epg {
-    flex: 1;
-    height: 50%;
+    flex: 1 1 0;
+    min-height: 0;
     overflow: hidden;
+}
+
+.video-player > app-web-player-view {
+    flex: 1;
+    min-height: 0;
 }
 
 .epg-content {
     height: 100%;
-    overflow-y: auto;
-    padding-bottom: 20px;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.epg-content > app-epg-view {
+    flex: 1;
+    min-height: 0;
 }
 
 .sidebar-header {

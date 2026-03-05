@@ -2,13 +2,16 @@
 
 :host {
     width: 100%;
+    height: 100%;
+    min-height: 0;
+    display: block;
 }
 
 .itv-container {
     display: grid;
     // Use auto for sidebar to respect the directive's width
     grid-template-columns: auto 1fr 1fr;
-    grid-template-rows: 50% 50%;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0 0;
     grid-auto-flow: row;
     grid-template-areas:
@@ -21,7 +24,7 @@
     display: grid;
     // Use auto for sidebar to respect the directive's width
     grid-template-columns: auto 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
     gap: 0 0;
     grid-auto-flow: row;
     grid-template-areas:
@@ -44,9 +47,23 @@
     flex-direction: column;
 }
 
-.video-player { grid-area: video-player; }
+.video-player {
+    grid-area: video-player;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+}
 
-.epg { grid-area: epg; }
+.video-player > app-web-player-view {
+    flex: 1;
+    min-height: 0;
+}
+
+.epg {
+    grid-area: epg;
+    min-height: 0;
+    overflow: hidden;
+}
 
 .search-panel {
     margin-top: 10px;
@@ -61,10 +78,17 @@
 }
 
 .epg-content {
-    height: calc(50vh - 20px);
-    overflow-y: auto;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     border-right: #111 1px solid;
-    padding-bottom: 20px; 
+}
+
+.epg-content > app-epg-view {
+    flex: 1;
+    min-height: 0;
 }
 
 .sidebar-content {
@@ -175,4 +199,3 @@
         }
     }
 }
-

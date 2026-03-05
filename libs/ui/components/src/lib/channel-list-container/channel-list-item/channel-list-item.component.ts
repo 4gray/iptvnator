@@ -3,9 +3,11 @@ import { NgStyle } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
+    effect,
     inject,
     input,
     output,
+    signal,
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -31,11 +33,13 @@ import { EpgItemDescriptionComponent } from '../../epg-list/epg-item-description
 })
 export class ChannelListItemComponent {
     private readonly dialog = inject(MatDialog);
+    private readonly logoFailed = signal(false);
 
     readonly isDraggable = input(false);
-    readonly logo = input.required<string>();
+    readonly logo = input<string | null | undefined>('');
     readonly name = input('');
     readonly showFavoriteButton = input(false);
+    readonly showProgramInfoButton = input(true);
     readonly isFavorite = input(false);
     readonly selected = input(false);
     readonly showEpg = input(true);
@@ -45,6 +49,13 @@ export class ChannelListItemComponent {
 
     readonly clicked = output<void>();
     readonly favoriteToggled = output<MouseEvent>();
+
+    constructor() {
+        effect(() => {
+            this.logo();
+            this.logoFailed.set(false);
+        });
+    }
 
     /**
      * Formats time for display (HH:mm)
@@ -68,5 +79,22 @@ export class ChannelListItemComponent {
         this.dialog.open(EpgItemDescriptionComponent, {
             data: program,
         });
+    }
+
+    onFavoriteClick(event: MouseEvent): void {
+        event.stopPropagation();
+        this.favoriteToggled.emit(event);
+    }
+
+    showLogoFallback(): boolean {
+        return !this.logo() || this.logoFailed();
+    }
+
+    onLogoError(event: Event): void {
+        this.logoFailed.set(true);
+        (event.target as HTMLImageElement | null)?.style.setProperty(
+            'display',
+            'none'
+        );
     }
 }

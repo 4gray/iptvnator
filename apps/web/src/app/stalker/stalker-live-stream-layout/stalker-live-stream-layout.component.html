@@ -46,61 +46,27 @@
             </div> -->
             <div #scrollContainer class="channels-list">
                 @for (item of itvChannels(); track item.id ?? $index) {
-                    <div
-                        class="channel-item"
-                        [class.active]="stalkerStore.selectedItem()?.id === item.id"
-                        (click)="playChannel(item)"
-                    >
-                        <img
-                            class="stream-icon"
-                            [src]="item.logo"
-                            (error)="
-                                $event.target.src =
-                                    './assets/images/default-poster.png'
-                            "
-                            alt=""
-                        />
-                        <div class="channel-info">
-                            <span class="title">{{
-                                item.o_name || item.name
-                            }}</span>
-                            @if (currentPrograms.get(item.id)) {
-                                <div class="program-info">
-                                    <div class="current-program">
-                                        {{ currentPrograms.get(item.id) }}
-                                    </div>
-                                    @if (currentProgramsProgress.has(item.id)) {
-                                        <div class="progress-container">
-                                            <span>{{
-                                                programTimings.get(item.id)?.start
-                                                    | date: 'HH:mm'
-                                            }}</span>
-                                            <div class="progress-bar">
-                                                <div
-                                                    class="progress"
-                                                    [style.width.%]="
-                                                        currentProgramsProgress.get(item.id)
-                                                    "
-                                                ></div>
-                                            </div>
-                                            <span>{{
-                                                programTimings.get(item.id)?.end
-                                                    | date: 'HH:mm'
-                                            }}</span>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </div>
-                        <button
-                            class="favorite-btn"
-                            (click)="toggleFavorite(item); $event.stopPropagation()"
-                        >
-                            <mat-icon>{{
-                                favorites.get(item.id) ? 'star' : 'star_outline'
-                            }}</mat-icon>
-                        </button>
-                    </div>
+                    <app-channel-list-item
+                        [name]="item.o_name || item.name"
+                        [logo]="item.logo"
+                        [selected]="isSelectedChannel(item)"
+                        [epgProgram]="
+                            epgPreviewPrograms.get(normalizeStalkerEntityId(item.id)) ??
+                            null
+                        "
+                        [progressPercentage]="
+                            currentProgramsProgress.get(
+                                normalizeStalkerEntityId(item.id)
+                            ) ?? 0
+                        "
+                        [showFavoriteButton]="true"
+                        [showProgramInfoButton]="false"
+                        [isFavorite]="
+                            favorites.get(normalizeStalkerEntityId(item.id)) ?? false
+                        "
+                        (clicked)="playChannel(item)"
+                        (favoriteToggled)="toggleFavorite(item)"
+                    />
                 }
 
                 @if (isLoadingMore()) {

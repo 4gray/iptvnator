@@ -1,37 +1,49 @@
 <div class="epg-title">{{ 'EPG.TITLE' | translate }}</div>
-<mat-list>
+
+<div class="epg-list">
     @for (item of epgItems; track $index) {
-        <mat-list-item
-            [lines]="3"
-            [class.current-program]="isCurrentProgram(item)"
-        >
-            <div class="title" matListItemTitle>{{ item.title }}</div>
-            <div class="description" matListItemLine>
-                {{ item.description }}
-            </div>
-            <div matListItemLine>
-                {{ item.start | date: 'HH:mm' }} -
-                {{ item.stop ?? item.end | date: 'HH:mm (dd.MM.yyyy)' }}
-            </div>
-            <span matListItemMeta>
-                <button mat-icon-button (click)="showDetails(item)">
+        <article class="epg-item" [class.current-program]="isCurrentProgram(item)">
+            <div class="epg-item__meta">
+                <div class="epg-item__time">
+                    {{ item.start | date: 'HH:mm' }} -
+                    {{ item.stop ?? item.end | date: 'HH:mm' }}
+                </div>
+                @if (isCurrentProgram(item)) {
+                    <span class="epg-item__badge">Live</span>
+                }
+                <button
+                    mat-icon-button
+                    class="epg-item__info"
+                    (click)="showDetails(item)"
+                >
                     <mat-icon>info</mat-icon>
                 </button>
-            </span>
-            @if (isCurrentProgram(item)) {
-                <div class="progress-container">
-                    <div
-                        class="progress"
-                        [style.width.%]="getProgress(item)"
-                    ></div>
+            </div>
+
+            <div class="epg-item__title">{{ item.title }}</div>
+
+            @if (item.description) {
+                <div class="epg-item__description">
+                    {{ item.description }}
                 </div>
             }
-        </mat-list-item>
+
+            @if (isCurrentProgram(item)) {
+                <div class="epg-item__progress">
+                    <div class="epg-progress-track">
+                        <div
+                            class="epg-progress-fill"
+                            [style.width.%]="getProgress(item)"
+                        ></div>
+                    </div>
+                </div>
+            }
+        </article>
     }
 
     @if (epgItems?.length === 0) {
-        <mat-list-item>
+        <div class="epg-empty">
             {{ 'EPG.EPG_NOT_AVAILABLE_CHANNEL_TITLE' | translate }}
-        </mat-list-item>
+        </div>
     }
-</mat-list>
+</div>

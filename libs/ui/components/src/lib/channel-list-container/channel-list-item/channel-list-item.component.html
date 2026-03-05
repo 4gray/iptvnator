@@ -12,78 +12,84 @@
         <mat-icon cdkDragHandle class="drag-icon">drag_indicator</mat-icon>
     }
     <div class="channel-content">
-        @if (logo()) {
-            <img
-                class="channel-logo"
-                [src]="logo()"
-                onerror="this.style.display = 'none'"
-                alt="Channel Logo"
-            />
-        }
+        <div class="channel-logo-shell" aria-hidden="true">
+            @if (showLogoFallback()) {
+                <mat-icon class="channel-logo-fallback">live_tv</mat-icon>
+            }
+            @if (logo()) {
+                <img
+                    class="channel-logo"
+                    [src]="logo()"
+                    (error)="onLogoError($event)"
+                    alt="Channel Logo"
+                />
+            }
+        </div>
         <div class="channel-details">
             <div class="channel-name">{{ name() }}</div>
             @if (showEpg()) {
-                <div class="epg-container">
-                    <div class="epg-content">
-                        @if (epgProgram(); as program) {
-                            <div class="epg-title">
-                                {{ program.title }}
-                            </div>
-                            <div class="epg-timeline">
-                                <span class="epg-time"
-                                    >{{ formatTime(program.start) }} -
-                                    {{ formatTime(program.stop) }}</span
-                                >
-                                <div class="epg-progress-track">
-                                    <div
-                                        class="epg-progress-fill"
-                                        [ngStyle]="{
-                                            width: progressPercentage() + '%',
-                                        }"
-                                    ></div>
-                                </div>
-                            </div>
-                        } @else {
-                            <div class="epg-placeholder">
-                                {{ 'EPG.NO_PROGRAM_INFO' | translate }}
-                            </div>
-                        }
+                @if (epgProgram(); as program) {
+                    <div class="epg-title">
+                        {{ program.title }}
                     </div>
-                </div>
+                    <div class="epg-timeline">
+                        <span class="epg-time">{{
+                            formatTime(program.start)
+                        }}</span>
+                        <div class="epg-progress-track">
+                            <div
+                                class="epg-progress-fill"
+                                [ngStyle]="{
+                                    width: progressPercentage() + '%',
+                                }"
+                            ></div>
+                        </div>
+                        <span class="epg-time">{{
+                            formatTime(program.stop)
+                        }}</span>
+                    </div>
+                } @else {
+                    <div class="epg-placeholder">
+                        {{ 'EPG.NO_PROGRAM_INFO' | translate }}
+                    </div>
+                }
             }
         </div>
     </div>
-    <!-- Action buttons column -->
-    <div class="action-buttons">
-        @if (showEpg() && epgProgram(); as program) {
-            <button
-                mat-icon-button
-                class="program-info-button"
-                [matTooltip]="
-                    'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
-                "
-                (click)="showProgramDescription(program, $event)"
-            >
-                <mat-icon>info</mat-icon>
-            </button>
-        }
-        @if (showFavoriteButton()) {
-            <button
-                mat-icon-button
-                class="favorite-button"
-                color="primary"
-                [matTooltip]="
-                    (isFavorite()
-                        ? 'CHANNELS.REMOVE_FAVORITE'
-                        : 'CHANNELS.ADD_FAVORITE'
-                    ) | translate
-                "
-                (click)="favoriteToggled.emit($event)"
-            >
-                <mat-icon [color]="isFavorite() ? 'accent' : ''">{{
-                    isFavorite() ? 'star' : 'star_border'
-                }}</mat-icon>
-            </button>
-        }
-    </div>
+    @if (
+        (showProgramInfoButton() && showEpg() && epgProgram()) ||
+        showFavoriteButton()
+    ) {
+        <div class="action-buttons">
+            @if (showProgramInfoButton() && showEpg() && epgProgram(); as program) {
+                <button
+                    mat-icon-button
+                    class="program-info-button"
+                    [matTooltip]="
+                        'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
+                    "
+                    (click)="showProgramDescription(program, $event)"
+                >
+                    <mat-icon>info</mat-icon>
+                </button>
+            }
+            @if (showFavoriteButton()) {
+                <button
+                    mat-icon-button
+                    class="favorite-button"
+                    [matTooltip]="
+                        (isFavorite()
+                            ? 'CHANNELS.REMOVE_FAVORITE'
+                            : 'CHANNELS.ADD_FAVORITE'
+                        ) | translate
+                    "
+                    (click)="onFavoriteClick($event)"
+                >
+                    <mat-icon>{{
+                        isFavorite() ? 'star' : 'star_outline'
+                    }}</mat-icon>
+                </button>
+            }
+        </div>
+    }
 </div>
