@@ -15,6 +15,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
     PlaylistActions,
+    selectActivePlaylistId,
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
@@ -62,6 +63,7 @@ export class RecentPlaylistsComponent {
     readonly allPlaylistsLoaded = this.store.selectSignal(
         selectPlaylistsLoadingFlag
     );
+    readonly activePlaylistId = this.store.selectSignal(selectActivePlaylistId);
 
     private readonly currentSortOptions = toSignal(
         this.sortService.getSortOptions(),

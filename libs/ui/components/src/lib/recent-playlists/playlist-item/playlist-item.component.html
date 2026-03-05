@@ -2,6 +2,7 @@
     cdkDrag
     [cdkDragDisabled]="!isDraggable()"
     cdkDragPreviewContainer="parent"
+    [class.selected]="isSelected()"
     (click)="playlistClicked.emit(item._id)"
 >
     @if (isDraggable()) {

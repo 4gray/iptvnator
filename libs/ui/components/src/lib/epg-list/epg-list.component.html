@@ -4,9 +4,17 @@
 <!-- channel info panel -->
 <div id="channel-header" color="primary">
     <div class="channel-info">
-        <div class="channel-icon">
+        <div class="channel-icon-shell" aria-hidden="true">
+            @if (showChannelIconFallback(channel)) {
+                <mat-icon class="channel-icon-fallback">live_tv</mat-icon>
+            }
             @if (getChannelIcon(channel)) {
-                <img [src]="getChannelIcon(channel)" width="48" alt="icon" />
+                <img
+                    [src]="getChannelIcon(channel)"
+                    width="48"
+                    alt="icon"
+                    (error)="onChannelIconError($event)"
+                />
             }
         </div>
         <div class="channel-details">
@@ -48,13 +56,16 @@
 
 @if (timeshiftUntil) {
     <!-- program list -->
-    <div id="program-list">
+    <div id="program-list" #programList>
         @if (items?.length > 0) {
             @for (program of items; track $index) {
                 @if (
                     program.start < timeshiftUntil || program.start >= timeNow
                 ) {
-                    <div class="program-item">
+                    <div
+                        class="program-item"
+                        [class.current-program]="isProgramPlaying(program)"
+                    >
                         <div class="program-meta">
                             <app-epg-list-item
                                 [timeshiftUntil]="timeshiftUntil"
@@ -79,6 +90,7 @@
                 } @else {
                     <div
                         class="program-item clickable"
+                        [class.current-program]="isProgramPlaying(program)"
                         [class.active]="
                             timeNow >= program.start && timeNow <= program.stop
                         "

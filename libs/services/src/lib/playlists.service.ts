@@ -102,7 +102,8 @@ export class PlaylistsService {
         playlist: Partial<Playlist> & { _id?: string; id?: string }
     ): Playlist {
         const id = String(playlist._id ?? playlist.id ?? '');
-        return {
+        return this.normalizeStalkerPortalFlags({
+            ...playlist,
             _id: id,
             title: playlist.title ?? '',
             count: Number(playlist.count ?? 0),
@@ -130,6 +131,29 @@ export class PlaylistsService {
             stalkerDeviceId2: playlist.stalkerDeviceId2,
             stalkerSignature1: playlist.stalkerSignature1,
             stalkerSignature2: playlist.stalkerSignature2,
+            isFullStalkerPortal: playlist.isFullStalkerPortal,
+            stalkerToken: playlist.stalkerToken,
+            stalkerAccountInfo: playlist.stalkerAccountInfo,
+        } as Playlist);
+    }
+
+    /**
+     * Full Stalker portals (e.g. Ministra) require handshake/token auth.
+     * Infer the mode from URL when legacy records are missing explicit flag.
+     */
+    private normalizeStalkerPortalFlags(playlist: Playlist): Playlist {
+        if (!playlist?.macAddress || playlist.isFullStalkerPortal !== undefined) {
+            return playlist;
+        }
+
+        const portalUrl = playlist.portalUrl ?? playlist.url ?? '';
+        const isFullPortal =
+            portalUrl.includes('/stalker_portal') ||
+            portalUrl.includes('/server/load.php');
+
+        return {
+            ...playlist,
+            isFullStalkerPortal: isFullPortal,
         };
     }
 
@@ -153,7 +177,7 @@ export class PlaylistsService {
                 const playlists = await window.electron.dbGetAppPlaylists();
                 return (playlists as Playlist[]).map(
                     ({ playlist, items, header, ...rest }) => ({
-                        ...rest,
+                        ...this.normalizeStalkerPortalFlags(rest as Playlist),
                     })
                 );
             });
@@ -162,7 +186,7 @@ export class PlaylistsService {
         return this.dbService.getAll<Playlist>(DbStores.Playlists).pipe(
             map((data) =>
                 data.map(({ playlist, items, header, ...rest }) => ({
-                    ...rest,
+                    ...this.normalizeStalkerPortalFlags(rest as Playlist),
                 }))
             )
         );
@@ -586,7 +610,10 @@ export class PlaylistsService {
         if (this.isElectronStorageAvailable) {
             return this.runOnSqlite(
                 async () =>
-                    (await window.electron.dbGetAppPlaylists()) as Playlist[]
+                    ((await window.electron.dbGetAppPlaylists()) as Playlist[])
+                        .map((playlist) =>
+                            this.normalizeStalkerPortalFlags(playlist)
+                        )
             );
         }
 

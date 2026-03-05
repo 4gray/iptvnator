@@ -3,9 +3,40 @@ mat-list-item {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 12px;
     margin: 2px 4px;
+    border: 1px solid transparent;
 
     &:hover {
         background-color: rgba(255, 255, 255, 0.03) !important;
+    }
+
+    &.selected {
+        background: linear-gradient(
+            135deg,
+            var(--app-selection-surface-strong),
+            var(--app-selection-surface)
+        ) !important;
+        border-color: var(--app-selection-border) !important;
+        color: var(--app-selection-color) !important;
+        box-shadow:
+            inset 0 0 0 1px var(--app-selection-border),
+            0 12px 20px -18px var(--app-selection-glow);
+        transform: translateY(-1px);
+
+        .meta,
+        .upload-type-icon,
+        .drag-icon,
+        .action-buttons button,
+        .action-buttons mat-icon {
+            color: inherit !important;
+        }
+
+        .status-dot {
+            border-color: color-mix(
+                in srgb,
+                var(--app-selection-surface-strong) 85%,
+                transparent
+            );
+        }
     }
 }
 

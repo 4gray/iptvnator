@@ -1,5 +1,15 @@
 import { AsyncPipe } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    ChangeDetectorRef,
+    Component,
+    ElementRef,
+    effect,
+    inject,
+    Injector,
+    OnInit,
+    viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -44,6 +54,7 @@ export class EpgListComponent implements OnInit {
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
     private readonly cdr = inject(ChangeDetectorRef);
+    private readonly injector = inject(Injector);
 
     /** Channel info in EPG format */
     channel!: EpgChannel;
@@ -61,6 +72,8 @@ export class EpgListComponent implements OnInit {
 
     /** EPG selected program */
     playingNow!: EpgProgram;
+
+    channelIconFailed = false;
 
     /** Selected date */
     selectedDate!: string;
@@ -83,6 +96,7 @@ export class EpgListComponent implements OnInit {
                 url: active?.url ? [active.url] : [],
                 icon: icons,
             };
+            this.channelIconFailed = false;
             return (
                 active?.tvg?.rec || active?.timeshift || active?.catchup?.days
             );
@@ -96,6 +110,8 @@ export class EpgListComponent implements OnInit {
     private readonly selectedDate$ = new BehaviorSubject<string>(
         moment().format(DATE_FORMAT)
     );
+    readonly programList = viewChild<ElementRef<HTMLElement>>('programList');
+    private scrollScheduled = false;
 
     /** Filtered EPG programs based on selected date */
     filteredItems$ = combineLatest([this.items$, this.selectedDate$]).pipe(
@@ -135,10 +151,47 @@ export class EpgListComponent implements OnInit {
         return channel.icon[0]?.src || '';
     }
 
+    showChannelIconFallback(channel: EpgChannel): boolean {
+        return !this.getChannelIcon(channel) || this.channelIconFailed;
+    }
+
+    onChannelIconError(event: Event): void {
+        this.channelIconFailed = true;
+        (event.target as HTMLImageElement | null)?.style.setProperty(
+            'display',
+            'none'
+        );
+        this.cdr.markForCheck();
+    }
+
     /**
      * Subscribe for values from the store on component init
      */
     ngOnInit(): void {
+        effect(
+            (onCleanup) => {
+                const programList = this.programList()?.nativeElement;
+                if (!programList || typeof ResizeObserver === 'undefined') {
+                    return;
+                }
+
+                const resizeObserver = new ResizeObserver((entries) => {
+                    const [entry] = entries;
+                    if (
+                        entry &&
+                        entry.contentRect.height > 0 &&
+                        entry.contentRect.width > 0
+                    ) {
+                        this.scheduleScrollToCurrentProgram();
+                    }
+                });
+
+                resizeObserver.observe(programList);
+                onCleanup(() => resizeObserver.disconnect());
+            },
+            { injector: this.injector }
+        );
+
         this.items$.subscribe((programs) => this.handleEpgData(programs));
         this.dateToday = moment().format(DATE_FORMAT);
         this.selectedDate$.next(this.dateToday);
@@ -167,6 +220,7 @@ export class EpgListComponent implements OnInit {
 
         // Trigger change detection for OnPush strategy
         this.cdr.markForCheck();
+        this.scheduleScrollToCurrentProgram();
     }
 
     /**
@@ -198,6 +252,7 @@ export class EpgListComponent implements OnInit {
 
         this.dateToday = newDate;
         this.selectedDate$.next(newDate);
+        this.scheduleScrollToCurrentProgram();
     }
 
     /**
@@ -273,5 +328,48 @@ export class EpgListComponent implements OnInit {
             this.timeNow >= program.start && this.timeNow <= program.stop;
 
         return isPlaying;
+    }
+
+    private scheduleScrollToCurrentProgram(): void {
+        if (this.selectedDate$.value !== moment().format(DATE_FORMAT)) {
+            return;
+        }
+
+        if (this.scrollScheduled) {
+            return;
+        }
+
+        this.scrollScheduled = true;
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                this.scrollScheduled = false;
+                this.scrollCurrentProgramIntoView();
+            });
+        });
+    }
+
+    private scrollCurrentProgramIntoView(): void {
+        const container = this.programList()?.nativeElement;
+        const currentProgram = container?.querySelector<HTMLElement>(
+            '.program-item.current-program'
+        );
+
+        if (!container || !currentProgram) {
+            return;
+        }
+
+        const viewTop = container.scrollTop;
+        const viewBottom = viewTop + container.clientHeight;
+        const itemTop = currentProgram.offsetTop;
+        const itemBottom = itemTop + currentProgram.offsetHeight;
+
+        if (itemTop >= viewTop && itemBottom <= viewBottom) {
+            return;
+        }
+
+        currentProgram.scrollIntoView({
+            block: 'center',
+            inline: 'nearest',
+        });
     }
 }

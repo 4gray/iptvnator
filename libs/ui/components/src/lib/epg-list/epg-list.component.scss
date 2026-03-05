@@ -2,214 +2,254 @@
     display: flex;
     flex-direction: column;
     position: absolute;
-    top: 0;
-    right: 0;
-    left: 0;
-    bottom: 0;
+    inset: 0;
     height: 100%;
     overflow-x: hidden;
+    background: transparent;
 }
 
-// Header divider
 .header-divider {
     height: 1px;
-    background: rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.08);
 }
 
-// Dark theme support
-::ng-deep .dark-theme {
-    .header-divider {
-        background: rgba(255, 255, 255, 0.12);
-    }
-}
-
-// Channel header
 #channel-header {
-    flex-direction: column;
-    box-sizing: border-box;
     display: flex;
+    flex-direction: column;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+        rgba(127, 127, 127, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 
     .channel-info {
-        flex-direction: row;
-        box-sizing: border-box;
         display: flex;
-        padding: 12px;
-        gap: 12px;
-    }
-
-    .channel-icon {
-        overflow: hidden;
-        place-content: center;
         align-items: center;
-        flex-direction: row;
-        box-sizing: border-box;
-        display: flex;
-        flex: 0 0 48px;
-        width: 48px;
-        height: 48px;
-        border-radius: 4px;
-
-        img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-    }
-
-    .channel-details {
-        flex: 1 1 100%;
-        box-sizing: border-box;
-        max-width: 100%;
-        align-self: center;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-    }
-
-    .channel-name {
-        font-family: 'DM Sans', sans-serif;
-        font-weight: 500;
-        font-size: 0.9rem;
-        line-height: 1.3;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .program-name {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        font-size: 0.8rem;
-        font-weight: 500;
-        opacity: 0.85;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        line-height: 1.2;
+        padding: 14px 16px 12px;
+        gap: 14px;
     }
 }
 
-// Date navigator
+.channel-icon-shell {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+        rgba(127, 127, 127, 0.12);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+        inset 0 1px 1px rgba(0, 0, 0, 0.15);
+
+    img {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 6px;
+        box-sizing: border-box;
+    }
+}
+
+.channel-icon-fallback {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    opacity: 0.46;
+}
+
+.channel-details {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.channel-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.program-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.84rem;
+    line-height: 1.2;
+    opacity: 0.82;
+}
+
 #date-navigator {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px;
+    padding: 8px 10px 10px;
     gap: 8px;
 
     button {
-        transition: all 0.2s ease;
+        border-radius: 10px;
+        opacity: 0.84;
+        transition:
+            opacity 0.15s ease,
+            background-color 0.15s ease,
+            transform 0.15s ease;
+
+        &:hover:not([disabled]) {
+            opacity: 1;
+            background: color-mix(in srgb, currentColor 10%, transparent);
+            transform: translateY(-1px);
+        }
 
         &[disabled] {
             opacity: 0.3;
         }
     }
-
-    .selected-date {
-        flex: 1;
-        font-family: 'DM Sans', sans-serif;
-        font-size: 0.85rem;
-        font-weight: 500;
-        text-align: center;
-        opacity: 0.8;
-    }
 }
 
-// Program list styling
+.selected-date {
+    flex: 1;
+    text-align: center;
+    font-size: 0.83rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    opacity: 0.8;
+}
+
 #program-list {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-}
-
-// Program list items
-.program-item {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-    transition: background-color 0.2s ease;
-    position: relative;
-    padding: 10px 12px;
+    padding: 10px 10px 14px;
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+
+.program-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)),
+        rgba(127, 127, 127, 0.045);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 10px 20px -20px rgba(0, 0, 0, 0.35);
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.18s ease,
+        transform 0.18s ease;
     cursor: default;
 
     &.clickable {
         cursor: pointer;
 
         &:hover {
-            background-color: rgba(0, 0, 0, 0.04);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)),
+                rgba(127, 127, 127, 0.065);
+            transform: translateY(-1px);
         }
     }
 
     &.active {
-        background-color: rgba(0, 0, 0, 0.08);
-    }
+        background: linear-gradient(
+            135deg,
+            var(--app-selection-surface-strong),
+            var(--app-selection-surface)
+        );
+        border-color: var(--app-selection-border);
+        box-shadow:
+            inset 0 0 0 1px var(--app-selection-border),
+            0 12px 20px -18px var(--app-selection-glow);
 
-    .program-meta {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .program-title {
-        font-family: 'DM Sans', sans-serif;
-        font-size: 0.9rem;
-        font-weight: 500;
-        line-height: 1.4;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-    }
-
-    .program-progress {
-        margin-top: 4px;
-    }
-}
-
-// Dark theme support
-::ng-deep .dark-theme {
-    .program-item {
-        border-bottom-color: rgba(255, 255, 255, 0.08);
-
-        &.clickable:hover {
-            background-color: rgba(255, 255, 255, 0.04);
-        }
-
-        &.active {
-            background-color: rgba(255, 255, 255, 0.08);
+        .program-title {
+            color: var(--app-selection-color);
         }
     }
 }
 
-// Progress bar (matching channel list)
+.program-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.program-title {
+    font-size: 0.94rem;
+    line-height: 1.4;
+    font-weight: 560;
+    letter-spacing: 0.005em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.program-progress {
+    padding-top: 2px;
+}
+
 .epg-progress-track {
     position: relative;
     width: 100%;
-    height: 3px;
-    background: rgba(128, 128, 128, 0.2);
-    border-radius: 2px;
+    height: 6px;
     overflow: hidden;
+    border-radius: 999px;
+    background-color: rgba(127, 127, 127, 0.28);
+    background-image: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.12),
+        rgba(255, 255, 255, 0)
+    );
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+        inset 0 1px 1px rgba(0, 0, 0, 0.18);
 }
 
 .epg-progress-fill {
     position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);
-    border-radius: 2px;
-    transition: width 0.5s ease-out;
-    box-shadow: 0 0 6px rgba(124, 58, 237, 0.4);
+    inset-block: 0;
+    inset-inline-start: 0;
+    border-radius: inherit;
+    background-color: var(--app-selection-color);
+    background-image: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.18),
+        rgba(255, 255, 255, 0)
+    );
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--app-selection-border) 82%, transparent),
+        0 0 10px -2px var(--app-selection-glow);
+    transition: width 0.35s ease;
 }
 
-// Empty state styling
 .epg-not-available {
-    padding: 24px;
+    margin: auto 10px;
+    padding: 22px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
     text-align: center;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.875rem;
-    opacity: 0.6;
-    font-style: italic;
+    font-size: 0.88rem;
+    opacity: 0.66;
 }

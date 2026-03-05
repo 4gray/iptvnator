@@ -3,104 +3,70 @@
     align-items: center;
     gap: 8px;
     width: 100%;
+    min-width: 0;
 }
 
 .time {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.7rem;
-    opacity: 0.6;
-    letter-spacing: 0.02em;
+    font-size: 0.76rem;
     line-height: 1;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
+    opacity: 0.76;
 }
 
 .badge {
-    border-radius: 4px;
-    padding: 3px 8px;
-    color: white;
-    text-transform: uppercase;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 40px;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    min-width: 42px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    line-height: 1.35;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 1px solid transparent;
 }
 
 .live {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    animation: livePulse 2s ease-in-out infinite;
-    box-shadow: 0 0 12px rgba(239, 68, 68, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
-
-    &::after {
-        content: '●';
-        margin-left: 4px;
-        animation: blink 1.5s ease-in-out infinite;
-    }
+    color: #ff8f8f;
+    background: rgba(255, 95, 95, 0.12);
+    border-color: rgba(255, 95, 95, 0.28);
 }
 
 .rec {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
-
-    &::after {
-        content: '◉';
-        margin-left: 4px;
-    }
+    color: #9abfff;
+    background: color-mix(in srgb, var(--app-selection-color) 14%, transparent);
+    border-color: color-mix(in srgb, var(--app-selection-border) 72%, transparent);
 }
 
 .description-icon {
-    margin-left: auto;
-    cursor: pointer;
-    opacity: 0.6;
-    transition: all 0.2s ease;
-    padding: 4px;
-    border-radius: 4px;
-    display: flex;
+    margin-inline-start: auto;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    border-radius: 9px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition:
+        opacity 0.15s ease,
+        background-color 0.15s ease,
+        transform 0.15s ease;
 
     mat-icon {
-        font-size: 18px;
         width: 18px;
         height: 18px;
+        font-size: 18px;
     }
 
     &:hover {
         opacity: 1;
-        background: rgba(0, 0, 0, 0.04);
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
-}
-
-// Dark theme support
-::ng-deep .dark-theme {
-    .description-icon:hover {
-        background: rgba(255, 255, 255, 0.04);
-    }
-}
-
-// Animations
-@keyframes livePulse {
-    0%, 100% {
-        box-shadow: 0 0 12px rgba(239, 68, 68, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 2px 12px rgba(0, 0, 0, 0.4);
-    }
-}
-
-@keyframes blink {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.3;
+        background: color-mix(in srgb, currentColor 10%, transparent);
+        transform: translateY(-1px);
     }
 }

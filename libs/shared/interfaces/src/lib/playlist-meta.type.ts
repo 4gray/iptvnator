@@ -23,6 +23,7 @@ export type PlaylistMeta = Pick<
     | 'macAddress'
     | 'portalUrl'
     | 'recentlyViewed'
+    | 'isFullStalkerPortal'
     | 'stalkerSerialNumber'
     | 'stalkerDeviceId1'
     | 'stalkerDeviceId2'

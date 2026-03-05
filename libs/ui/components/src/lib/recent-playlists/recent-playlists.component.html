@@ -26,6 +26,7 @@
                     ) {
                         <app-playlist-item
                             [item]="item"
+                            [isSelected]="activePlaylistId() === item._id"
                             [showActions]="!sidebarMode()"
                             [isDraggable]="isCustomSortActive()"
                             (editPlaylistClicked)="openInfoDialog($event)"

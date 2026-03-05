@@ -27,6 +27,7 @@ export class PlaylistItemComponent implements OnInit {
     @Input() item!: PlaylistMeta;
     readonly showActions = input(true);
     readonly isDraggable = input(false);
+    readonly isSelected = input(false);
 
     readonly editPlaylistClicked = output<PlaylistMeta>();
     readonly playlistClicked = output<string>();

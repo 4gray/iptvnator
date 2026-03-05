@@ -41,6 +41,7 @@ function generateRandom(): string {
  * Constant value for consistency across all sessions
  */
 export const STALKER_SERIAL_NUMBER = 'BEDACD4569BAF';
+const STALKER_WATCHDOG_INTERVAL_MS = 25_000;
 
 export interface StalkerHandshakeResponse {
     js: {
@@ -87,6 +88,10 @@ export class StalkerSessionService {
         string,
         Promise<{ token: string; serialNumber?: string }>
     >();
+    private watchdogIntervals = new Map<string, ReturnType<typeof setInterval>>();
+    private watchdogPlaylists = new Map<string, Playlist>();
+    private watchdogInFlight = new Set<string>();
+    private activeWatchdogPlaylistId: string | null = null;
 
     /**
      * Generates a consistent 64-character device ID from MAC address
@@ -139,6 +144,105 @@ export class StalkerSessionService {
     }
 
     /**
+     * Sets which playlist should receive periodic watchdog pings.
+     * This keeps some Ministra/Stalker sessions alive for live playback.
+     */
+    setActiveWatchdogPlaylist(playlist?: Playlist | null): void {
+        const nextPlaylistId = playlist?._id ?? null;
+
+        if (
+            this.activeWatchdogPlaylistId &&
+            this.activeWatchdogPlaylistId !== nextPlaylistId
+        ) {
+            this.stopWatchdog(this.activeWatchdogPlaylistId);
+        }
+
+        this.activeWatchdogPlaylistId = nextPlaylistId;
+
+        if (
+            !playlist ||
+            !playlist.isFullStalkerPortal ||
+            !playlist.portalUrl ||
+            !playlist.macAddress
+        ) {
+            if (nextPlaylistId) {
+                this.stopWatchdog(nextPlaylistId);
+            }
+            return;
+        }
+
+        this.startWatchdog(playlist);
+    }
+
+    private startWatchdog(playlist: Playlist): void {
+        const playlistId = playlist._id;
+        this.watchdogPlaylists.set(playlistId, playlist);
+
+        if (this.watchdogIntervals.has(playlistId)) {
+            return;
+        }
+
+        void this.sendWatchdogPing(playlistId, '1');
+
+        const intervalId = setInterval(() => {
+            void this.sendWatchdogPing(playlistId, '0');
+        }, STALKER_WATCHDOG_INTERVAL_MS);
+
+        this.watchdogIntervals.set(playlistId, intervalId);
+    }
+
+    private stopWatchdog(playlistId: string): void {
+        const intervalId = this.watchdogIntervals.get(playlistId);
+        if (intervalId) {
+            clearInterval(intervalId);
+            this.watchdogIntervals.delete(playlistId);
+        }
+        this.watchdogPlaylists.delete(playlistId);
+        this.watchdogInFlight.delete(playlistId);
+    }
+
+    private async sendWatchdogPing(
+        playlistId: string,
+        init: '0' | '1'
+    ): Promise<void> {
+        if (this.watchdogInFlight.has(playlistId)) {
+            return;
+        }
+
+        const playlist = this.watchdogPlaylists.get(playlistId);
+        if (
+            !playlist ||
+            !playlist.portalUrl ||
+            !playlist.macAddress ||
+            !playlist.isFullStalkerPortal
+        ) {
+            this.stopWatchdog(playlistId);
+            return;
+        }
+
+        this.watchdogInFlight.add(playlistId);
+        try {
+            await this.makeAuthenticatedRequest(
+                playlist,
+                {
+                    type: 'watchdog',
+                    action: 'get_events',
+                    event_active_id: '0',
+                    cur_play_type: '0',
+                    init,
+                    JsHttpRequest: '1-xml',
+                },
+                false
+            );
+        } catch (error) {
+            // Keep failures non-fatal; next interval can recover after token refresh.
+            console.warn('[StalkerSession] Watchdog ping failed:', error);
+        } finally {
+            this.watchdogInFlight.delete(playlistId);
+        }
+    }
+
+    /**
      * Performs handshake to get a session token for a full stalker portal
      * Returns both the token and the random value for use in subsequent requests
      */
@@ -155,8 +259,6 @@ export class StalkerSessionService {
             prehash,
             JsHttpRequest: '1-xml',
         };
-
-        const fullUrl = `${portalUrl}?type=stb&action=handshake&token=&prehash=${prehash}&JsHttpRequest=1-xml`;
 
         try {
             const response: StalkerHandshakeResponse =
