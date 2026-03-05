@@ -12,6 +12,7 @@ import {
     ViewChild,
 } from '@angular/core';
 import Hls from 'hls.js';
+import mpegts from 'mpegts.js';
 import { getExtensionFromUrl } from 'm3u-utils';
 import { DataService } from 'services';
 import { Channel } from 'shared-interfaces';
@@ -43,6 +44,8 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
 
     /** HLS object */
     hls!: Hls;
+    /** mpegts.js player for raw MPEG-TS streams */
+    private mpegtsPlayer: mpegts.Player | null = null;
 
     /** Captions/subtitles indicator */
     @Input() showCaptions!: boolean;
@@ -89,6 +92,13 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * @param channel given channel object
      */
     playChannel(channel: Channel): void {
+        if (this.mpegtsPlayer) {
+            this.mpegtsPlayer.pause();
+            this.mpegtsPlayer.unload();
+            this.mpegtsPlayer.detachMediaElement();
+            this.mpegtsPlayer.destroy();
+            this.mpegtsPlayer = null;
+        }
         if (this.hls) this.hls.destroy();
         if (channel.url) {
             const url = channel.url + (channel.epgParams ?? '');
@@ -102,7 +112,19 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 );
             }
 
-            if (
+            if (extension === 'ts' && mpegts.isSupported()) {
+                console.log('Using mpegts.js for TS stream:', channel.name, url);
+                this.mpegtsPlayer = mpegts.createPlayer({
+                    type: 'mpegts',
+                    isLive: true,
+                    url: url,
+                });
+                this.mpegtsPlayer.attachMediaElement(
+                    this.videoPlayer.nativeElement
+                );
+                this.mpegtsPlayer.load();
+                this.handlePlayOperation();
+            } else if (
                 extension !== 'mp4' &&
                 extension !== 'mpv' &&
                 Hls &&
@@ -182,6 +204,13 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             'volumechange',
             this.onVolumeChange
         );
+        if (this.mpegtsPlayer) {
+            this.mpegtsPlayer.pause();
+            this.mpegtsPlayer.unload();
+            this.mpegtsPlayer.detachMediaElement();
+            this.mpegtsPlayer.destroy();
+            this.mpegtsPlayer = null;
+        }
         if (this.hls) {
             this.hls.destroy();
         }
