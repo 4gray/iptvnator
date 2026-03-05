@@ -38,12 +38,12 @@
         }
     </div>
 } @else {
-    <app-playlist-error-view
-        [title]="'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE' | translate"
-        [description]="
-            'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION' | translate
-        "
-        [showActionButtons]="false"
-        [viewType]="'EMPTY_CATEGORY'"
-    />
+    <div class="category-empty-state">
+        <app-playlist-error-view
+            [title]="'No categories available'"
+            [showIllustration]="false"
+            [showActionButtons]="false"
+            [viewType]="'EMPTY_CATEGORY'"
+        />
+    </div>
 }

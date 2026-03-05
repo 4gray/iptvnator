@@ -35,6 +35,7 @@ import { ContentType } from '../xtream-state';
 
 interface SearchResultsData {
     isGlobalSearch: boolean;
+    initialQuery?: string;
 }
 
 @Component({
@@ -128,6 +129,7 @@ export class SearchResultsComponent implements AfterViewInit {
         @Optional() public dialogRef: MatDialogRef<SearchResultsComponent>
     ) {
         this.isGlobalSearch = data?.isGlobalSearch || false;
+        const initialQuery = (data?.initialQuery ?? '').trim();
 
         if (this.isGlobalSearch) {
             const savedFilters = localStorage.getItem(
@@ -146,6 +148,10 @@ export class SearchResultsComponent implements AfterViewInit {
                 } catch {
                     // Ignore malformed storage value and keep defaults.
                 }
+            }
+
+            if (initialQuery) {
+                this.xtreamStore.setSearchTerm(initialQuery);
             }
         }
 
@@ -254,7 +260,8 @@ export class SearchResultsComponent implements AfterViewInit {
             this.dialogRef?.close();
             const type = item.type === 'movie' ? 'vod' : item.type;
             this.router.navigate([
-                '/xtreams',
+                '/workspace',
+                'xtreams',
                 item.playlist_id,
                 type,
                 item.category_id,

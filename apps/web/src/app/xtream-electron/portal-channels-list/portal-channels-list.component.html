@@ -20,83 +20,27 @@
                 [itemSize]="68"
                 class="scroll-viewport-portals"
             >
-                <div
+                <app-channel-list-item
                     *cdkVirtualFor="
                         let item of filteredChannels;
                         trackBy: trackBy;
                         templateCacheSize: 0
                     "
-                    class="channel-item"
-                    [class.active]="
+                    [name]="item.title || item.name"
+                    [logo]="item.stream_icon ?? item.poster_url"
+                    [selected]="
                         xtreamStore.selectedItem()?.xtream_id === item.xtream_id
                     "
-                    (click)="playClicked.emit(item)"
-                >
-                    <img
-                        class="stream-icon"
-                        [src]="item.stream_icon ?? item.poster_url"
-                        (error)="
-                            $event.target.src =
-                                './assets/images/default-poster.png'
-                        "
-                        alt="channel icon"
-                    />
-                    <div class="channel-info">
-                        <div class="title">{{ item.title }}</div>
-                        @if (currentPrograms.get(item.xtream_id)) {
-                            <div class="program-info">
-                                <div class="current-program">
-                                    {{ currentPrograms.get(item.xtream_id) }}
-                                </div>
-                                @if (
-                                    currentProgramsProgress.has(item.xtream_id)
-                                ) {
-                                    <div class="progress-container">
-                                        <span>{{
-                                            programTimings.get(item.xtream_id)
-                                                ?.start | date: 'HH:mm'
-                                        }}</span>
-                                        <div class="progress-bar">
-                                            <div
-                                                class="progress"
-                                                [style.width.%]="
-                                                    currentProgramsProgress.get(
-                                                        item.xtream_id
-                                                    )
-                                                "
-                                            ></div>
-                                        </div>
-                                        <span>{{
-                                            programTimings.get(item.xtream_id)
-                                                ?.end | date: 'HH:mm'
-                                        }}</span>
-                                    </div>
-                                }
-                            </div>
-                        } @else {
-                            <div class="program-info no-epg-placeholder">
-                                <div class="placeholder-bar"></div>
-                                <div class="progress-container">
-                                    <span>--:--</span>
-                                    <div class="progress-bar"></div>
-                                    <span>--:--</span>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                    <button
-                        class="favorite-btn"
-                        (click)="toggleFavorite($event, item)"
-                    >
-                        <mat-icon>
-                            {{
-                                favorites.get(item.xtream_id)
-                                    ? 'star'
-                                    : 'star_outline'
-                            }}
-                        </mat-icon>
-                    </button>
-                </div>
+                    [epgProgram]="epgPrograms.get(item.xtream_id) ?? null"
+                    [progressPercentage]="
+                        currentProgramsProgress.get(item.xtream_id) ?? 0
+                    "
+                    [showFavoriteButton]="true"
+                    [showProgramInfoButton]="false"
+                    [isFavorite]="favorites.get(item.xtream_id) ?? false"
+                    (clicked)="playClicked.emit(item)"
+                    (favoriteToggled)="toggleFavorite($event, item)"
+                />
             </cdk-virtual-scroll-viewport>
         } @else {
             <div class="empty-search-state">

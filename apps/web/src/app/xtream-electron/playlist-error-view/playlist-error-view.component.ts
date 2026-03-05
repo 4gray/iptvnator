@@ -28,6 +28,7 @@ export class PlaylistErrorViewComponent {
     );
 
     readonly description = input<string>(undefined);
+    readonly showIllustration = input(true);
     readonly showActionButtons = input(true);
     readonly title = input<string>(undefined);
     readonly viewType = input<'ERROR' | 'EMPTY_CATEGORY' | 'NO_SEARCH_RESULTS'>(

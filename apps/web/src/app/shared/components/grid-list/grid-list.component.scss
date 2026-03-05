@@ -111,6 +111,28 @@ mat-card:hover {
     width: 100%;
 }
 
+.grid-empty-state {
+    grid-column: 1 / -1;
+    min-height: clamp(320px, 56vh, 620px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(12px, 2.8vw, 30px);
+    box-sizing: border-box;
+
+    app-playlist-error-view {
+        --error-empty-illustration-size: clamp(170px, 18vw, 250px);
+        --error-empty-max-width: min(480px, 100%);
+        --error-empty-title-size: clamp(1.45rem, 2vw, 1.9rem);
+        --error-empty-description-size: clamp(0.95rem, 1.15vw, 1.05rem);
+        --error-empty-title-weight: 660;
+        --error-empty-title-spacing: -0.014em;
+        --error-empty-copy-gap: 10px;
+        --error-empty-description-line-height: 1.44;
+        --error-empty-description-opacity: 0.9;
+    }
+}
+
 .grid-skeleton-thumb {
     position: relative;
     width: 100%;
@@ -198,5 +220,21 @@ mat-card:hover {
 @keyframes grid-skeleton-shimmer {
     100% {
         transform: translateX(120%);
+    }
+}
+
+@media (max-width: 768px) {
+    .grid-empty-state {
+        min-height: clamp(260px, 48vh, 460px);
+        padding: 14px;
+
+        app-playlist-error-view {
+            --error-empty-illustration-size: 165px;
+            --error-empty-max-width: 310px;
+            --error-empty-title-size: 1.3rem;
+            --error-empty-description-size: 0.9rem;
+            --error-empty-title-weight: 640;
+            --error-empty-copy-gap: 8px;
+        }
     }
 }

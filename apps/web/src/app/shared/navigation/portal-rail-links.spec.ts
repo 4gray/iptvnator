@@ -1,8 +1,7 @@
-import { GLOBAL_FAVORITES_PLAYLIST_ID } from 'shared-interfaces';
 import { buildPortalRailLinks } from './portal-rail-links';
 
 describe('buildPortalRailLinks', () => {
-    it('builds legacy Xtream links with downloads on Electron', () => {
+    it('builds Xtream links with scoped tooltip labels on Electron', () => {
         const links = buildPortalRailLinks({
             provider: 'xtreams',
             playlistId: 'xtream-1',
@@ -22,7 +21,10 @@ describe('buildPortalRailLinks', () => {
             'favorites',
             'downloads',
         ]);
-        expect(links.primary[0]?.path).toEqual(['/xtreams', 'xtream-1', 'vod']);
+
+        expect(links.primary[0]?.tooltip).toBe('Movies (this playlist)');
+        expect(links.secondary[3]?.tooltip).toBe('Favorites (this playlist)');
+        expect(links.secondary[4]?.tooltip).toBe('Downloads (this playlist)');
     });
 
     it('builds workspace Xtream links without downloads on web', () => {
@@ -36,7 +38,7 @@ describe('buildPortalRailLinks', () => {
         expect(links.primary).toEqual([
             {
                 icon: 'movie',
-                tooltip: 'Xtream library',
+                tooltip: 'Xtream library (this playlist)',
                 path: ['/workspace', 'xtreams', 'xtream-web'],
                 exact: true,
                 section: 'library',
@@ -45,7 +47,7 @@ describe('buildPortalRailLinks', () => {
         expect(links.secondary).toEqual([]);
     });
 
-    it('builds Stalker links with mapped itv section', () => {
+    it('builds Stalker links with scoped tooltip labels', () => {
         const links = buildPortalRailLinks({
             provider: 'stalker',
             playlistId: 'portal-1',
@@ -63,10 +65,13 @@ describe('buildPortalRailLinks', () => {
             'recent',
             'favorites',
         ]);
-        expect(links.primary[1]?.path).toEqual(['/stalker', 'portal-1', 'itv']);
+
+        expect(links.primary[1]?.tooltip).toBe('Live TV (this playlist)');
+        expect(links.secondary[0]?.tooltip).toBe('Search (this playlist)');
+        expect(links.secondary[2]?.tooltip).toBe('Favorites (this playlist)');
     });
 
-    it('builds playlist links with global favorites in workspace', () => {
+    it('builds M3U playlist links with scoped tooltip labels', () => {
         const links = buildPortalRailLinks({
             provider: 'playlists',
             playlistId: 'm3u-1',
@@ -76,21 +81,27 @@ describe('buildPortalRailLinks', () => {
 
         expect(links.primary).toEqual([
             {
-                icon: 'play_circle',
-                tooltip: 'Player',
-                path: ['/workspace', 'playlists', 'm3u-1'],
+                icon: 'list',
+                tooltip: 'All channels (this playlist)',
+                path: ['/workspace', 'playlists', 'm3u-1', 'all'],
                 exact: true,
-                section: 'player',
+                section: 'all',
             },
-        ]);
-
-        expect(links.secondary).toEqual([
             {
-                icon: 'favorite',
-                tooltip: 'Global favorites',
-                path: ['/workspace', 'playlists', GLOBAL_FAVORITES_PLAYLIST_ID],
+                icon: 'folder',
+                tooltip: 'Groups (this playlist)',
+                path: ['/workspace', 'playlists', 'm3u-1', 'groups'],
+                exact: true,
+                section: 'groups',
+            },
+            {
+                icon: 'star',
+                tooltip: 'Favorites (this playlist)',
+                path: ['/workspace', 'playlists', 'm3u-1', 'favorites'],
+                exact: true,
                 section: 'favorites',
             },
         ]);
+        expect(links.secondary).toEqual([]);
     });
 });

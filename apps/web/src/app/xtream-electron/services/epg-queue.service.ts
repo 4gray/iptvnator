@@ -19,6 +19,7 @@ interface CacheEntry {
 export class EpgQueueService implements OnDestroy {
     private readonly apiService = inject(XtreamApiService);
     private readonly logger = createLogger('EpgQueueService');
+    private readonly previewLimit = 3;
 
     private readonly cache = new Map<number, CacheEntry>();
     private queue: number[] = [];
@@ -109,12 +110,16 @@ export class EpgQueueService implements OnDestroy {
             const items = await this.apiService.getShortEpg(
                 credentials,
                 streamId,
-                1
+                this.previewLimit
             );
-            this.cache.set(streamId, {
-                data: items,
-                timestamp: Date.now(),
-            });
+            if (items.length > 0) {
+                this.cache.set(streamId, {
+                    data: items,
+                    timestamp: Date.now(),
+                });
+            } else {
+                this.cache.delete(streamId);
+            }
             this.epgResult$.next({ streamId, items });
         } catch (error) {
             this.logger.error(

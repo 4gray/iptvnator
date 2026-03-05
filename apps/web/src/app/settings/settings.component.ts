@@ -2,9 +2,11 @@
 import { CommonModule } from '@angular/common';
 import {
     Component,
+    ElementRef,
     effect,
     inject,
     Inject,
+    Injector,
     Input,
     OnDestroy,
     OnInit,
@@ -58,6 +60,11 @@ interface SettingsSection {
     visible: boolean;
 }
 
+interface ObservedSettingsSection {
+    id: string;
+    element: HTMLElement;
+}
+
 @Component({
     templateUrl: './settings.component.html',
     styleUrls: ['./settings.component.scss'],
@@ -89,6 +96,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
     private store = inject(Store);
     private translate = inject(TranslateService);
     private matDialog = inject(MatDialog);
+    private readonly elementRef = inject(ElementRef<HTMLElement>);
+    private readonly injector = inject(Injector);
 
     @Input() isDialog = false;
     /** List with available languages as enum */
@@ -108,11 +117,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
     readonly osPlayers = [
         {
             id: VideoPlayer.MPV,
-            label: 'MPV Player',
+            labelKey: 'SETTINGS.PLAYER_MPV',
         },
         {
             id: VideoPlayer.VLC,
-            label: 'VLC',
+            labelKey: 'SETTINGS.PLAYER_VLC',
         },
     ];
 
@@ -120,15 +129,15 @@ export class SettingsComponent implements OnInit, OnDestroy {
     readonly players = [
         {
             id: VideoPlayer.Html5Player,
-            label: 'HTML5 Video Player',
+            labelKey: 'SETTINGS.PLAYER_HTML5',
         },
         {
             id: VideoPlayer.VideoJs,
-            label: 'VideoJs Player',
+            labelKey: 'SETTINGS.PLAYER_VIDEOJS',
         },
         {
             id: VideoPlayer.ArtPlayer,
-            label: 'ArtPlayer',
+            labelKey: 'SETTINGS.PLAYER_ARTPLAYER',
         },
         ...(this.isDesktop ? this.osPlayers : []),
     ];
@@ -178,41 +187,42 @@ export class SettingsComponent implements OnInit, OnDestroy {
     visibleQrCodeIp = signal<string | null>(null);
 
     private settingsStore = inject(SettingsStore);
+    private sectionObserver?: IntersectionObserver;
 
     readonly sectionNavItems: SettingsSection[] = [
         {
             id: 'general',
-            label: 'SETTINGS.GENERAL',
+            label: 'SETTINGS.NAV_GENERAL',
             icon: 'tune',
             visible: true,
         },
         {
             id: 'playback',
-            label: 'SETTINGS.VIDEO_PLAYER_LABEL',
+            label: 'SETTINGS.NAV_PLAYBACK',
             icon: 'play_circle',
             visible: true,
         },
         {
             id: 'epg',
-            label: 'SETTINGS.EPG_URL_LABEL',
+            label: 'SETTINGS.NAV_EPG',
             icon: 'calendar_month',
             visible: this.isDesktop,
         },
         {
             id: 'remote-control',
-            label: 'SETTINGS.REMOTE_CONTROL',
+            label: 'SETTINGS.NAV_REMOTE',
             icon: 'smartphone',
             visible: this.isDesktop,
         },
         {
             id: 'data',
-            label: 'SETTINGS.IMPORT_EXPORT_DATA',
+            label: 'SETTINGS.NAV_DATA',
             icon: 'swap_horiz',
             visible: true,
         },
         {
             id: 'about',
-            label: 'SETTINGS.VERSION',
+            label: 'SETTINGS.NAV_ABOUT',
             icon: 'info',
             visible: true,
         },
@@ -223,14 +233,63 @@ export class SettingsComponent implements OnInit, OnDestroy {
     ) {
         this.isDialog = data?.isDialog ?? false;
 
-        effect(() => {
-            const sectionId = this.settingsCtx.activeSection();
-            if (sectionId && typeof document !== 'undefined') {
+        effect(
+            () => {
+                const sectionId = this.settingsCtx.pendingScrollTarget();
+                if (!sectionId || typeof document === 'undefined') {
+                    return;
+                }
+
+                const scrollTargetId =
+                    sectionId === 'general' ? 'settings-intro' : sectionId;
                 document
-                    .getElementById(sectionId)
+                    .getElementById(scrollTargetId)
                     ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        });
+                this.settingsCtx.clearPendingScrollTarget();
+            },
+            { injector: this.injector }
+        );
+
+        effect(
+            (onCleanup) => {
+                const activeSectionId = this.activeSection();
+                const activeSectionElement =
+                    this.elementRef.nativeElement.querySelector(
+                        `#${activeSectionId}`
+                    ) as HTMLElement | null;
+
+                if (!activeSectionElement || activeSectionId === 'general') {
+                    return;
+                }
+
+                const animation = activeSectionElement.animate(
+                    [
+                        {
+                            transform: 'translateY(0)',
+                            boxShadow:
+                                'inset 0 0 0 1px var(--app-selection-border), 0 12px 20px -18px var(--app-selection-glow)',
+                        },
+                        {
+                            transform: 'translateY(-2px)',
+                            boxShadow:
+                                'inset 0 0 0 1px var(--app-selection-border), 0 18px 28px -18px var(--app-selection-glow)',
+                        },
+                        {
+                            transform: 'translateY(0)',
+                            boxShadow:
+                                'inset 0 0 0 1px var(--app-selection-border), 0 12px 20px -18px var(--app-selection-glow)',
+                        },
+                    ],
+                    {
+                        duration: 260,
+                        easing: 'ease-out',
+                    }
+                );
+
+                onCleanup(() => animation.cancel());
+            },
+            { injector: this.injector }
+        );
     }
 
     get sectionNav(): SettingsSection[] {
@@ -251,9 +310,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
         if (!this.isDialog) {
             this.settingsCtx.setSections(this.sectionNav);
         }
+
+        requestAnimationFrame(() => this.setupSectionObserver());
     }
 
     ngOnDestroy(): void {
+        this.sectionObserver?.disconnect();
         this.settingsCtx.reset();
     }
 
@@ -555,5 +617,92 @@ export class SettingsComponent implements OnInit, OnDestroy {
             onConfirm: (): void =>
                 this.store.dispatch(PlaylistActions.removeAllPlaylists()),
         });
+    }
+
+    private setupSectionObserver(): void {
+        if (typeof IntersectionObserver === 'undefined') {
+            return;
+        }
+
+        const scrollRoot = this.getScrollRoot();
+        const introSection = this.elementRef.nativeElement.querySelector(
+            '#settings-intro'
+        ) as HTMLElement | null;
+        const contentSections = Array.from(
+            this.elementRef.nativeElement.querySelectorAll(
+                '.settings-group[id]'
+            )
+        ) as HTMLElement[];
+        const sections: ObservedSettingsSection[] = [
+            ...(introSection
+                ? [{ id: 'general', element: introSection }]
+                : []),
+            ...contentSections.map((section) => ({
+                id: section.id,
+                element: section,
+            })),
+        ];
+
+        if (sections.length === 0) {
+            return;
+        }
+
+        this.sectionObserver?.disconnect();
+        this.sectionObserver = new IntersectionObserver(
+            () => {
+                const activeSection = this.resolveActiveSection(sections);
+                if (activeSection) {
+                    this.settingsCtx.setActiveSection(activeSection);
+                }
+            },
+            {
+                root: scrollRoot,
+                threshold: [0.12, 0.24, 0.4, 0.6],
+                rootMargin: '-18% 0px -52% 0px',
+            }
+        );
+
+        sections.forEach((section) =>
+            this.sectionObserver?.observe(section.element)
+        );
+
+        const initialSection = this.resolveActiveSection(sections);
+        if (initialSection) {
+            this.settingsCtx.setActiveSection(initialSection);
+        }
+    }
+
+    private resolveActiveSection(
+        sections: ObservedSettingsSection[]
+    ): string | null {
+        const scrollRoot = this.getScrollRoot();
+        const rootTop = scrollRoot?.getBoundingClientRect().top ?? 0;
+        const rootHeight = scrollRoot?.clientHeight ?? window.innerHeight;
+        const activationLine = rootTop + Math.min(rootHeight * 0.28, 220);
+        const sectionAtActivationLine = sections.find((section) => {
+            const rect = section.element.getBoundingClientRect();
+            return rect.top <= activationLine && rect.bottom >= activationLine;
+        });
+
+        if (sectionAtActivationLine) {
+            return sectionAtActivationLine.id;
+        }
+
+        const nearestSection = sections
+            .map((section) => ({
+                id: section.id,
+                distance: Math.abs(
+                    section.element.getBoundingClientRect().top - activationLine
+                ),
+            }))
+            .sort((a, b) => a.distance - b.distance)[0];
+
+        return nearestSection?.id ?? null;
+    }
+
+    private getScrollRoot(): HTMLElement | null {
+        return this.elementRef.nativeElement.closest(
+            'main.workspace-content'
+        ) as HTMLElement | null;
     }
 }

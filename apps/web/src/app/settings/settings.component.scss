@@ -1,11 +1,128 @@
 :host {
     display: block;
+    --settings-intro-bg: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.96) 0%,
+        color-mix(in srgb, var(--mat-sys-surface-container-low) 88%, white) 100%
+    );
+    --settings-intro-border: color-mix(
+        in srgb,
+        var(--mat-sys-outline-variant) 80%,
+        transparent
+    );
+    --settings-intro-shadow:
+        0 10px 24px -22px rgba(15, 23, 42, 0.26),
+        0 1px 0 rgba(255, 255, 255, 0.8) inset;
+    --settings-group-bg: rgba(255, 255, 255, 0.72);
+    --settings-group-border: color-mix(
+        in srgb,
+        var(--mat-sys-outline-variant) 70%,
+        transparent
+    );
+    --settings-group-shadow: 0 10px 24px -24px rgba(15, 23, 42, 0.18);
+    --settings-group-active-bg: color-mix(
+        in srgb,
+        var(--app-selection-color) 4%,
+        rgba(255, 255, 255, 0.94)
+    );
+    --settings-group-active-shadow:
+        inset 0 0 0 1px var(--app-selection-border),
+        0 14px 28px -26px var(--app-selection-glow);
+    --settings-item-bg: rgba(255, 255, 255, 0.92);
+    --settings-item-border: color-mix(
+        in srgb,
+        var(--mat-sys-outline-variant) 72%,
+        transparent
+    );
+    --settings-item-shadow: 0 6px 20px -24px rgba(15, 23, 42, 0.18);
+    --settings-item-danger-bg: color-mix(
+        in srgb,
+        var(--mat-sys-error) 5%,
+        rgba(255, 255, 255, 0.94)
+    );
+    --settings-item-danger-border: color-mix(
+        in srgb,
+        var(--mat-sys-error) 18%,
+        transparent
+    );
+    --settings-action-bar-bg: color-mix(
+        in srgb,
+        var(--mat-sys-surface-container-low) 90%,
+        rgba(255, 255, 255, 0.86)
+    );
+    --settings-action-bar-border: color-mix(
+        in srgb,
+        var(--mat-sys-outline-variant) 68%,
+        transparent
+    );
+    --settings-action-bar-shadow: 0 10px 26px -24px rgba(15, 23, 42, 0.28);
+    --settings-muted: color-mix(
+        in srgb,
+        var(--mat-sys-on-surface) 68%,
+        transparent
+    );
+}
+
+:host-context(.dark-theme),
+:host-context([data-theme='dark']),
+:host-context(.mat-app-background.dark) {
+    --settings-intro-bg: color-mix(
+        in srgb,
+        var(--app-selection-surface) 72%,
+        rgba(10, 16, 26, 0.96)
+    );
+    --settings-intro-border: color-mix(
+        in srgb,
+        var(--app-selection-border) 55%,
+        transparent
+    );
+    --settings-intro-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 18px 28px -30px rgba(0, 0, 0, 0.45);
+    --settings-group-bg: rgba(255, 255, 255, 0.02);
+    --settings-group-border: rgba(255, 255, 255, 0.06);
+    --settings-group-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 14px 26px -26px rgba(0, 0, 0, 0.45);
+    --settings-group-active-bg: color-mix(
+        in srgb,
+        var(--app-selection-surface) 82%,
+        rgba(255, 255, 255, 0.02)
+    );
+    --settings-group-active-shadow:
+        inset 0 0 0 1px var(--app-selection-border),
+        0 16px 28px -24px var(--app-selection-glow);
+    --settings-item-bg: rgba(8, 12, 20, 0.3);
+    --settings-item-border: rgba(255, 255, 255, 0.05);
+    --settings-item-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    --settings-item-danger-bg: color-mix(
+        in srgb,
+        var(--mat-sys-error) 10%,
+        rgba(24, 10, 12, 0.9)
+    );
+    --settings-item-danger-border: color-mix(
+        in srgb,
+        var(--mat-sys-error) 34%,
+        transparent
+    );
+    --settings-action-bar-bg: color-mix(
+        in srgb,
+        var(--mat-sys-surface-container) 88%,
+        transparent
+    );
+    --settings-action-bar-border: var(--mat-sys-outline-variant);
+    --settings-action-bar-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    --settings-muted: color-mix(
+        in srgb,
+        var(--mat-sys-on-surface) 74%,
+        transparent
+    );
 }
 
 .settings-container {
     height: auto;
     overflow: visible;
-    padding: 20px;
+    padding: 20px 20px 32px;
 }
 
 .settings-container.dialog-mode {
@@ -18,48 +135,81 @@
 .settings-layout {
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: 24px;
     align-items: stretch;
-    max-width: 800px;
+    max-width: 960px;
     margin: 0 auto;
     padding-bottom: 80px; /* space for FAB */
+}
+
+.settings-intro {
+    position: relative;
+    overflow: hidden;
+    padding: 28px;
+    border: 1px solid var(--settings-intro-border);
+    border-radius: 28px;
+    background: var(--settings-intro-bg);
+    box-shadow: var(--settings-intro-shadow);
+}
+
+.settings-intro__content {
+    position: relative;
+    z-index: 1;
+    max-width: 640px;
+}
+
+.settings-intro__eyebrow {
+    margin-bottom: 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--app-selection-color);
+    opacity: 0.86;
+}
+
+.settings-intro__title {
+    margin: 0;
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-weight: 800;
+}
+
+.settings-intro__lead {
+    margin: 12px 0 0;
+    max-width: 52ch;
+    color: color-mix(in srgb, var(--mat-sys-on-surface) 78%, transparent);
+    font-size: 0.98rem;
+    line-height: 1.5;
 }
 
 .settings-content {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: 20px;
 }
 
 .settings-group {
     position: relative;
-    background: transparent;
+    background: var(--settings-group-bg);
     overflow: hidden;
     scroll-margin-top: 24px;
-    padding-bottom: 24px;
-    border-bottom: 1px solid var(--mat-sys-outline-variant);
-    border-radius: 18px;
+    padding: 4px;
+    border: 1px solid var(--settings-group-border);
+    border-radius: 24px;
+    box-shadow: var(--settings-group-shadow);
     transition:
         background 0.2s ease,
         box-shadow 0.2s ease,
         border-color 0.2s ease;
-
-    &:last-child {
-        border-bottom: none;
-    }
 }
 
 .settings-group--active {
-    background: linear-gradient(
-        145deg,
-        var(--app-selection-surface),
-        color-mix(in srgb, var(--app-selection-color) 6%, transparent)
-    );
+    background: var(--settings-group-active-bg);
     border-color: var(--app-selection-border);
-    box-shadow:
-        inset 0 0 0 1px var(--app-selection-border),
-        0 16px 28px -24px var(--app-selection-glow);
+    box-shadow: var(--settings-group-active-shadow);
 
     .settings-group__header-icon {
         background: var(--app-selection-surface-strong);
@@ -76,7 +226,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 24px 16px 12px;
+    padding: 20px 18px 14px;
 
     .settings-group__header-icon {
         display: flex;
@@ -113,8 +263,8 @@
 }
 
 .settings-group__footer {
-    padding: 16px 16px 0;
-    margin-top: 16px;
+    padding: 14px 16px 12px;
+    margin-top: 8px;
     border-top: 1px dashed var(--mat-sys-outline-variant);
 }
 
@@ -122,16 +272,20 @@
     display: grid;
     grid-template-columns: minmax(220px, 1fr) minmax(240px, 440px);
     gap: 18px;
+    margin: 0 10px 10px;
     padding: 16px 16px;
-    border-bottom: 1px dashed var(--mat-sys-surface-variant);
+    border: 1px solid var(--settings-item-border);
+    border-radius: 18px;
+    background: var(--settings-item-bg);
+    box-shadow: var(--settings-item-shadow);
 
     &:last-of-type {
-        border-bottom: none;
+        margin-bottom: 0;
     }
 }
 
 .settings-group .setting-item:last-child {
-    border-bottom: none;
+    margin-bottom: 0;
 }
 
 .setting-item__meta {
@@ -262,24 +416,25 @@
 }
 
 .danger-zone {
-    background: color-mix(in srgb, var(--mat-sys-error) 8%, transparent);
+    background: var(--settings-item-danger-bg);
+    border-color: var(--settings-item-danger-border);
 }
 
 .action-bar {
-    position: fixed;
-    bottom: 32px;
-    right: 32px;
+    position: sticky;
+    bottom: 24px;
+    margin-left: auto;
     z-index: 100;
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
     padding: 12px 20px;
-    border: 1px solid var(--mat-sys-outline-variant);
+    border: 1px solid var(--settings-action-bar-border);
     border-radius: 99px; /* Pill shape */
-    background: color-mix(in srgb, var(--mat-sys-surface-container) 88%, transparent);
+    background: var(--settings-action-bar-bg);
     backdrop-filter: blur(12px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--settings-action-bar-shadow);
 }
 
 .settings-container.dialog-mode .action-bar {
@@ -294,7 +449,7 @@
 @media (max-width: 1100px) {
     .settings-layout {
         max-width: 100%;
-        padding: 0 16px;
+        padding: 0;
     }
 }
 
@@ -302,6 +457,11 @@
     .settings-container {
         height: auto;
         padding: 12px;
+    }
+
+    .settings-intro {
+        padding: 22px 18px;
+        border-radius: 24px;
     }
 
     .setting-item {
@@ -336,6 +496,8 @@
         align-items: stretch;
         border-radius: 16px;
         box-shadow: none;
+        width: 100%;
+        margin-left: 0;
 
         button {
             width: 100%;

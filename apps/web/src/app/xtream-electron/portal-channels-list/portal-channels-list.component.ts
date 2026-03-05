@@ -2,12 +2,12 @@ import {
     CdkVirtualScrollViewport,
     ScrollingModule,
 } from '@angular/cdk/scrolling';
-import { DatePipe } from '@angular/common';
 import {
     AfterViewInit,
     ChangeDetectorRef,
     Component,
     computed,
+    effect,
     inject,
     input,
     OnDestroy,
@@ -16,28 +16,23 @@ import {
     viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { ActivatedRoute } from '@angular/router';
 import { FilterPipe } from '@iptvnator/pipes';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
-import { XtreamCategory, XtreamItem } from 'shared-interfaces';
+import {
+    EpgItem,
+    EpgProgram,
+    XtreamCategory,
+    XtreamItem,
+} from 'shared-interfaces';
+import { ChannelListItemComponent } from 'components';
 import { EpgQueueService } from '../services/epg-queue.service';
 import { XtreamCredentials } from '../services/xtream-api.service';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../stores/xtream.store';
-
-interface EpgProgram {
-    id: string;
-    title: string;
-    start: string;
-    end: string;
-    start_timestamp: string;
-    stop_timestamp: string;
-}
 
 type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 
@@ -46,12 +41,10 @@ type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
     templateUrl: './portal-channels-list.component.html',
     styleUrls: ['./portal-channels-list.component.scss'],
     imports: [
-        DatePipe,
+        ChannelListItemComponent,
         FilterPipe,
         FormsModule,
-        MatFormFieldModule,
         MatIcon,
-        MatInputModule,
         ScrollingModule,
         TranslatePipe,
     ],
@@ -87,15 +80,30 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     favorites = new Map<number, boolean>();
     searchString = signal<string>('');
-    currentPrograms = new Map<number, string>();
+    epgPrograms = new Map<number, EpgProgram>();
     currentProgramsProgress = new Map<number, number>();
-    programTimings = new Map<number, { start: number; end: number }>();
 
     readonly viewport = viewChild(CdkVirtualScrollViewport);
 
     private subscriptions = new Subscription();
 
-    constructor(private cdr: ChangeDetectorRef) {}
+    constructor(private cdr: ChangeDetectorRef) {
+        effect(() => {
+            const selectedItem = this.xtreamStore.selectedItem();
+            const epgItems = this.xtreamStore.epgItems();
+
+            if (!selectedItem?.xtream_id || epgItems.length === 0) {
+                return;
+            }
+
+            const previewProgram = this.pickPreviewProgram(epgItems);
+            if (!previewProgram) {
+                return;
+            }
+
+            this.applyProgram(selectedItem.xtream_id, previewProgram);
+        });
+    }
 
     trackBy(_index: number, item: XtreamItem) {
         return item.xtream_id;
@@ -121,13 +129,9 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         this.subscriptions.add(
             this.epgQueueService.epgResult$.subscribe(
                 ({ streamId, items }) => {
-                    if (items && items.length > 0) {
-                        this.currentPrograms.set(streamId, items[0].title);
-                        this.updateProgramProgress(
-                            streamId,
-                            items[0] as unknown as EpgProgram
-                        );
-                        this.cdr.detectChanges();
+                    const previewProgram = this.pickPreviewProgram(items);
+                    if (previewProgram) {
+                        this.applyProgram(streamId, previewProgram);
                     }
                 }
             )
@@ -169,18 +173,12 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         // Apply cached results immediately
         for (const channel of channels) {
             const cached = this.epgQueueService.getCached(channel.xtream_id);
-            if (cached && cached.length > 0) {
-                if (!this.currentPrograms.has(channel.xtream_id)) {
-                    this.currentPrograms.set(
-                        channel.xtream_id,
-                        cached[0].title
-                    );
-                    this.updateProgramProgress(
-                        channel.xtream_id,
-                        cached[0] as unknown as EpgProgram
-                    );
+            const previewProgram = this.pickPreviewProgram(cached ?? []);
+            if (previewProgram) {
+                if (!this.epgPrograms.has(channel.xtream_id)) {
+                    this.applyProgram(channel.xtream_id, previewProgram);
                 }
-            } else if (!this.currentPrograms.has(channel.xtream_id)) {
+            } else if (!this.epgPrograms.has(channel.xtream_id)) {
                 uncachedIds.push(channel.xtream_id);
             }
         }
@@ -190,10 +188,19 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    private updateProgramProgress(streamId: number, program: EpgProgram) {
-        const now = new Date().getTime() / 1000;
-        const start = parseInt(program.start_timestamp);
-        const end = parseInt(program.stop_timestamp);
+    private updateProgramProgress(
+        streamId: number,
+        program: EpgItem
+    ) {
+        const now = Date.now();
+        const start = this.getProgramTimestampMs(
+            program.start,
+            program.start_timestamp
+        );
+        const end = this.getProgramTimestampMs(
+            program.stop ?? program.end,
+            program.stop_timestamp
+        );
 
         if (now >= start && now <= end) {
             const duration = end - start;
@@ -201,11 +208,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             const progress = (elapsed / duration) * 100;
 
             this.currentProgramsProgress.set(streamId, progress);
-            this.programTimings.set(streamId, {
-                start: start * 1000,
-                end: end * 1000,
-            });
+            return;
         }
+
+        this.currentProgramsProgress.delete(streamId);
     }
 
     isSelected(item: XtreamCategory): boolean {
@@ -233,5 +239,72 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.subscriptions.unsubscribe();
+    }
+
+    private applyProgram(streamId: number, program: EpgItem): void {
+        this.epgPrograms.set(streamId, this.toSharedEpgProgram(program));
+        this.updateProgramProgress(streamId, program);
+        this.cdr.detectChanges();
+    }
+
+    private pickPreviewProgram(items: EpgItem[]): EpgItem | null {
+        if (!items.length) {
+            return null;
+        }
+
+        const now = Date.now();
+        const normalizedItems = [...items].sort(
+            (a, b) =>
+                this.getProgramTimestampMs(a.start, a.start_timestamp) -
+                this.getProgramTimestampMs(b.start, b.start_timestamp)
+        );
+
+        const currentProgram = normalizedItems.find((item) => {
+            const start = this.getProgramTimestampMs(
+                item.start,
+                item.start_timestamp
+            );
+            const end = this.getProgramTimestampMs(
+                item.stop ?? item.end,
+                item.stop_timestamp
+            );
+            return now >= start && now <= end;
+        });
+
+        if (currentProgram) {
+            return currentProgram;
+        }
+
+        const nextProgram = normalizedItems.find((item) => {
+            return (
+                this.getProgramTimestampMs(item.start, item.start_timestamp) >
+                now
+            );
+        });
+
+        return nextProgram ?? normalizedItems[0];
+    }
+
+    private getProgramTimestampMs(
+        dateValue: string | undefined,
+        unixTimestampValue: string | undefined
+    ): number {
+        const unixTimestamp = Number(unixTimestampValue);
+        if (Number.isFinite(unixTimestamp) && unixTimestamp > 0) {
+            return unixTimestamp * 1000;
+        }
+
+        return new Date(dateValue ?? '').getTime();
+    }
+
+    private toSharedEpgProgram(program: EpgItem): EpgProgram {
+        return {
+            start: program.start,
+            stop: program.stop ?? program.end,
+            channel: program.channel_id ?? program.id,
+            title: program.title,
+            desc: program.description ?? null,
+            category: null,
+        };
     }
 }

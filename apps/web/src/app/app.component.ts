@@ -146,13 +146,13 @@ export class AppComponent implements OnInit {
         this.router.navigateByUrl(route);
     }
 
-    openGlobalSearch(): void {
+    openGlobalSearch(initialQuery = ''): void {
         this.dialog.open(GlobalSearchResultsComponent, {
             width: '100%',
             height: '100%',
             maxWidth: '100%',
             panelClass: 'global-search-overlay',
-            data: { isGlobalSearch: true },
+            data: { isGlobalSearch: true, initialQuery },
         });
     }
 

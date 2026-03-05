@@ -88,16 +88,16 @@
             opacity: 0.92;
         }
 
-        &::before {
+        /* &::before {
             content: '';
             position: absolute;
-            inset-inline-start: 6px;
+            inset-inline-start: 2px;
             top: 7px;
             bottom: 7px;
-            width: 3px;
+            width: 2px;
             border-radius: 999px;
             background: var(--app-selection-color);
             box-shadow: 0 0 10px var(--app-selection-glow);
-        }
+        } */
     }
 }

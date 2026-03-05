@@ -35,7 +35,7 @@ export function buildPortalRailLinks(
         if (workspace && !isElectron) {
             primary.push({
                 icon: 'movie',
-                tooltip: 'Xtream library',
+                tooltip: 'Xtream library (this playlist)',
                 path: root,
                 exact: true,
                 section: 'library',
@@ -46,19 +46,19 @@ export function buildPortalRailLinks(
         primary.push(
             {
                 icon: 'movie',
-                tooltip: 'Movies',
+                tooltip: 'Movies (this playlist)',
                 path: [...root, 'vod'],
                 section: 'vod',
             },
             {
                 icon: 'live_tv',
-                tooltip: 'Live TV',
+                tooltip: 'Live TV (this playlist)',
                 path: [...root, 'live'],
                 section: 'live',
             },
             {
                 icon: 'tv',
-                tooltip: 'Series',
+                tooltip: 'Series (this playlist)',
                 path: [...root, 'series'],
                 section: 'series',
             }
@@ -67,25 +67,25 @@ export function buildPortalRailLinks(
         secondary.push(
             {
                 icon: 'new_releases',
-                tooltip: 'Recently added',
+                tooltip: 'Recently added (this playlist)',
                 path: [...root, 'recently-added'],
                 section: 'recently-added',
             },
             {
                 icon: 'search',
-                tooltip: 'Search',
+                tooltip: 'Search (this playlist)',
                 path: [...root, 'search'],
                 section: 'search',
             },
             {
                 icon: 'history',
-                tooltip: 'Recently viewed',
+                tooltip: 'Recently viewed (this playlist)',
                 path: [...root, 'recent'],
                 section: 'recent',
             },
             {
                 icon: 'favorite',
-                tooltip: 'Favorites',
+                tooltip: 'Favorites (this playlist)',
                 path: [...root, 'favorites'],
                 section: 'favorites',
             }
@@ -94,7 +94,7 @@ export function buildPortalRailLinks(
         if (isElectron) {
             secondary.push({
                 icon: 'download',
-                tooltip: 'Downloads',
+                tooltip: 'Downloads (this playlist)',
                 path: [...root, 'downloads'],
                 section: 'downloads',
             });
@@ -107,19 +107,19 @@ export function buildPortalRailLinks(
         const primary: PortalRailLink[] = [
             {
                 icon: 'movie',
-                tooltip: 'Movies',
+                tooltip: 'Movies (this playlist)',
                 path: [...root, 'vod'],
                 section: 'vod',
             },
             {
                 icon: 'live_tv',
-                tooltip: 'Live TV',
+                tooltip: 'Live TV (this playlist)',
                 path: [...root, 'itv'],
                 section: 'itv',
             },
             {
                 icon: 'tv',
-                tooltip: 'Series',
+                tooltip: 'Series (this playlist)',
                 path: [...root, 'series'],
                 section: 'series',
             },
@@ -128,19 +128,19 @@ export function buildPortalRailLinks(
         const secondary: PortalRailLink[] = [
             {
                 icon: 'search',
-                tooltip: 'Search',
+                tooltip: 'Search (this playlist)',
                 path: [...root, 'search'],
                 section: 'search',
             },
             {
                 icon: 'history',
-                tooltip: 'Recently viewed',
+                tooltip: 'Recently viewed (this playlist)',
                 path: [...root, 'recent'],
                 section: 'recent',
             },
             {
                 icon: 'favorite',
-                tooltip: 'Favorites',
+                tooltip: 'Favorites (this playlist)',
                 path: [...root, 'favorites'],
                 section: 'favorites',
             },
@@ -149,7 +149,7 @@ export function buildPortalRailLinks(
         if (isElectron) {
             secondary.push({
                 icon: 'download',
-                tooltip: 'Downloads',
+                tooltip: 'Downloads (this playlist)',
                 path: [...root, 'downloads'],
                 section: 'downloads',
             });
@@ -162,21 +162,21 @@ export function buildPortalRailLinks(
         const primary: PortalRailLink[] = [
             {
                 icon: 'list',
-                tooltip: 'All Channels',
+                tooltip: 'All channels (this playlist)',
                 path: [...root, 'all'],
                 exact: true,
                 section: 'all',
             },
             {
                 icon: 'folder',
-                tooltip: 'Groups',
+                tooltip: 'Groups (this playlist)',
                 path: [...root, 'groups'],
                 exact: true,
                 section: 'groups',
             },
             {
                 icon: 'star',
-                tooltip: 'Favorites',
+                tooltip: 'Favorites (this playlist)',
                 path: [...root, 'favorites'],
                 exact: true,
                 section: 'favorites',

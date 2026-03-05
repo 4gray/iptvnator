@@ -42,6 +42,7 @@
     // Width is controlled by appResizable directive
     // Default: 350px, min: 200px, max: 600px
     overflow-x: hidden !important; // Hide horizontal scrollbar
+    border-radius: 0 !important;
 
     .resize-handle--right {
         right: 0;

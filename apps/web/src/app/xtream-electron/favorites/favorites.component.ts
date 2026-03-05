@@ -150,6 +150,28 @@ export class FavoritesComponent implements OnInit, OnDestroy {
             const streamUrl = this.xtreamStore.constructStreamUrl(item);
             this.xtreamStore.openPlayer(streamUrl, item.title, item.poster_url);
         } else {
+            const routePlaylistId = this.route.snapshot.params['id'];
+            const hasGlobalContext = this.router.url.includes(
+                '/workspace/global-favorites'
+            );
+            const shouldNavigateAbsolute =
+                hasGlobalContext ||
+                (item.playlist_id &&
+                    routePlaylistId &&
+                    item.playlist_id !== routePlaylistId);
+
+            if (shouldNavigateAbsolute && item.playlist_id) {
+                this.router.navigate([
+                    '/workspace',
+                    'xtreams',
+                    item.playlist_id,
+                    type,
+                    item.category_id,
+                    item.xtream_id,
+                ]);
+                return;
+            }
+
             this.router.navigate(
                 ['..', type, item.category_id, item.xtream_id],
                 {

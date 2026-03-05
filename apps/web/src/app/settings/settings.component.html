@@ -13,6 +13,20 @@
         class="settings-layout"
         novalidate
     >
+        <section class="settings-intro" id="settings-intro">
+            <div class="settings-intro__content">
+                <div class="settings-intro__eyebrow">
+                    {{ 'SETTINGS.HERO_EYEBROW' | translate }}
+                </div>
+                <h1 class="settings-intro__title">
+                    {{ 'SETTINGS.HERO_TITLE' | translate }}
+                </h1>
+                <p class="settings-intro__lead">
+                    {{ 'SETTINGS.HERO_DESCRIPTION' | translate }}
+                </p>
+            </div>
+        </section>
+
         <div class="settings-content">
             <section
                 class="settings-group"
@@ -119,7 +133,7 @@
                         <mat-icon>play_circle</mat-icon>
                     </div>
                     <div class="settings-group__header-text">
-                        <h3>{{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}</h3>
+                        <h3>{{ 'SETTINGS.PLAYBACK' | translate }}</h3>
                         <p>
                             {{
                                 'SETTINGS.VIDEO_PLAYER_DESCRIPTION' | translate
@@ -150,7 +164,7 @@
                                     <mat-option
                                         [value]="player.id"
                                         [attr.data-test-id]="player.id"
-                                        >{{ player.label }}
+                                        >{{ player.labelKey | translate }}
                                     </mat-option>
                                 }
                             </mat-select>
@@ -287,8 +301,13 @@
                             <mat-icon>list_alt</mat-icon>
                         </div>
                         <div class="settings-group__header-text">
-                            <h3>{{ 'SETTINGS.EPG_URL_LABEL' | translate }}</h3>
-                            <p>Add single or multiple URLs as EPG sources</p>
+                            <h3>{{ 'SETTINGS.EPG_SOURCES' | translate }}</h3>
+                            <p>
+                                {{
+                                    'SETTINGS.EPG_SOURCES_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
                         </div>
                     </header>
 
@@ -438,7 +457,9 @@
                             </div>
                             <div class="setting-item__control">
                                 <mat-form-field appearance="outline">
-                                    <mat-label>Port (1-65535)</mat-label>
+                                    <mat-label>{{
+                                        'SETTINGS.PORT_RANGE_LABEL' | translate
+                                    }}</mat-label>
                                     <input
                                         matInput
                                         type="number"
@@ -574,7 +595,7 @@
                         <mat-icon>sync_alt</mat-icon>
                     </div>
                     <div class="settings-group__header-text">
-                        <h3>{{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}</h3>
+                        <h3>{{ 'SETTINGS.DATA' | translate }}</h3>
                         <p>
                             {{
                                 'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION'
@@ -663,7 +684,7 @@
                         <mat-icon>info</mat-icon>
                     </div>
                     <div class="settings-group__header-text">
-                        <h3>{{ 'SETTINGS.VERSION' | translate }}</h3>
+                        <h3>{{ 'SETTINGS.ABOUT' | translate }}</h3>
                         <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
                     </div>
                 </header>

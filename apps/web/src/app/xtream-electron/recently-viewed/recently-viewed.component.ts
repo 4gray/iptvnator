@@ -235,22 +235,25 @@ export class RecentlyViewedComponent implements OnDestroy {
 
         if (source === 'stalker' && this.isGlobal) {
             this.dialogRef?.close();
-            this.router.navigate(['/stalker', item.playlist_id, 'recent'], {
-                state: {
-                    openRecentItem: item.stalker_item ?? {
-                        id: item.id,
-                        title: item.title,
-                        name: item.title,
-                        category_id:
-                            item.type === 'movie'
-                                ? 'vod'
-                                : item.type === 'live'
-                                  ? 'itv'
-                                  : 'series',
-                        cover: item.poster_url,
+            this.router.navigate(
+                ['/workspace', 'stalker', item.playlist_id, 'recent'],
+                {
+                    state: {
+                        openRecentItem: item.stalker_item ?? {
+                            id: item.id,
+                            title: item.title,
+                            name: item.title,
+                            category_id:
+                                item.type === 'movie'
+                                    ? 'vod'
+                                    : item.type === 'live'
+                                      ? 'itv'
+                                      : 'series',
+                            cover: item.poster_url,
+                        },
                     },
-                },
-            });
+                }
+            );
             return;
         }
 
@@ -261,7 +264,8 @@ export class RecentlyViewedComponent implements OnDestroy {
             this.dialogRef?.close();
 
             this.router.navigate([
-                '/xtreams',
+                '/workspace',
+                'xtreams',
                 item.playlist_id,
                 type,
                 item.category_id,

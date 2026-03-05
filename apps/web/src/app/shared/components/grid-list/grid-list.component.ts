@@ -100,18 +100,20 @@ interface GridListItem {
                         </mat-card-actions>
                     </mat-card>
                 } @empty {
-                    <app-playlist-error-view
-                        [title]="
-                            'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE'
-                                | translate
-                        "
-                        [description]="
-                            'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION'
-                                | translate
-                        "
-                        [showActionButtons]="false"
-                        [viewType]="'EMPTY_CATEGORY'"
-                    />
+                    <div class="grid-empty-state">
+                        <app-playlist-error-view
+                            [title]="
+                                'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE'
+                                    | translate
+                            "
+                            [description]="
+                                'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION'
+                                    | translate
+                            "
+                            [showActionButtons]="false"
+                            [viewType]="'EMPTY_CATEGORY'"
+                        />
+                    </div>
                 }
             }
         </div>
