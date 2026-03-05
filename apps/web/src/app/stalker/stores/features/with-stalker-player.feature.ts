@@ -3,14 +3,18 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { signalStoreFeature, withMethods } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
 import { DataService, PlaylistsService, StalkerSessionService } from 'services';
-import { Playlist, STALKER_REQUEST, StalkerPortalActions } from 'shared-interfaces';
+import {
+    Playlist,
+    STALKER_REQUEST,
+    StalkerPortalActions,
+} from 'shared-interfaces';
 import { PlayerService } from '../../../services/player.service';
+import { createLogger } from '../../../shared/utils/logger';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import {
     normalizeStalkerEntityId,
     normalizeStalkerEntityIdAsNumber,
 } from '../../stalker-vod.utils';
-import { createLogger } from '../../../shared/utils/logger';
 
 type StalkerContentType = 'itv' | 'vod' | 'series';
 
@@ -61,6 +65,30 @@ export function withStalkerPlayer() {
                     cmd: string,
                     series?: number
                 ) => {
+                    const normalizeCmdValue = (value: string): string => {
+                        const trimmed = String(value ?? '').trim();
+                        if (!trimmed) return '';
+
+                        // Some portals prepend transport wrappers like:
+                        // "ffmpeg http://...", "ffrt http://...", etc.
+                        const splitAt = trimmed.indexOf(' ');
+                        if (splitAt > 0) {
+                            const candidate = trimmed
+                                .slice(splitAt + 1)
+                                .trim();
+                            if (
+                                candidate.startsWith('http://') ||
+                                candidate.startsWith('https://') ||
+                                candidate.startsWith('/') ||
+                                candidate.startsWith('?')
+                            ) {
+                                return candidate;
+                            }
+                        }
+
+                        return trimmed;
+                    };
+
                     const selectedContentType =
                         storeState.selectedContentType();
                     const type = series ? 'vod' : selectedContentType;
@@ -69,7 +97,8 @@ export function withStalkerPlayer() {
                     // The server adds the required token for playback authorization
                     // Note: cmd is already transformed during item processing (has_files items)
                     const params = {
-                        action: StalkerContentTypes[selectedContentType].getLink,
+                        action: StalkerContentTypes[selectedContentType]
+                            .getLink,
                         cmd: cmd,
                         type,
                         disable_ad: '0',
@@ -83,10 +112,11 @@ export function withStalkerPlayer() {
                     let response: StalkerResponse;
                     if (playlist?.isFullStalkerPortal) {
                         // Full stalker portal - use authenticated request with retry
-                        response = await stalkerSession.makeAuthenticatedRequest(
-                            playlist,
-                            params
-                        );
+                        response =
+                            await stalkerSession.makeAuthenticatedRequest(
+                                playlist,
+                                params
+                            );
                     } else {
                         // Simple stalker portal - no auth needed
                         response = await dataService.sendIpcEvent(
@@ -106,16 +136,13 @@ export function withStalkerPlayer() {
                         throw new Error(errorMsg);
                     }
 
-                    let url = response.js.cmd as string;
+                    let url = normalizeCmdValue(response.js.cmd as string);
 
                     // If cmd is empty, the content is not available
                     if (!url) {
                         throw new Error('nothing_to_play');
                     }
 
-                    if (url.startsWith('ffmpeg')) {
-                        url = url.split(' ')[1];
-                    }
                     // Handle incomplete URLs - some portals return just query params or relative paths
                     if (
                         url &&
@@ -136,7 +163,8 @@ export function withStalkerPlayer() {
                                     pathParts[i] === 'portal'
                                 ) {
                                     basePath =
-                                        '/' + pathParts.slice(1, i + 1).join('/');
+                                        '/' +
+                                        pathParts.slice(1, i + 1).join('/');
                                     break;
                                 }
                             }
@@ -144,9 +172,17 @@ export function withStalkerPlayer() {
                             // If url starts with ?, it's just query params
                             // Combine with the original cmd path to form the complete streaming URL
                             if (url.startsWith('?')) {
+                                const normalizedCmd = normalizeCmdValue(cmd);
                                 // The streaming URL is: portal origin + base path + original cmd path + token query
                                 // e.g., http://portal.com + /stalker_portal + /media/12345.mpg + ?token=xxx
-                                url = `${portalUrlObj.origin}${basePath}${cmd}${url}`;
+                                if (
+                                    normalizedCmd.startsWith('http://') ||
+                                    normalizedCmd.startsWith('https://')
+                                ) {
+                                    url = `${normalizedCmd}${url}`;
+                                } else {
+                                    url = `${portalUrlObj.origin}${basePath}${normalizedCmd}${url}`;
+                                }
                             } else if (url.startsWith('/')) {
                                 // Relative path - prepend origin and base path
                                 url = `${portalUrlObj.origin}${basePath}${url}`;
@@ -173,10 +209,11 @@ export function withStalkerPlayer() {
 
                     let response: StalkerResponse;
                     if (playlist.isFullStalkerPortal) {
-                        response = await stalkerSession.makeAuthenticatedRequest(
-                            playlist,
-                            queryParams
-                        );
+                        response =
+                            await stalkerSession.makeAuthenticatedRequest(
+                                playlist,
+                                queryParams
+                            );
                     } else {
                         response = await dataService.sendIpcEvent(
                             STALKER_REQUEST,
@@ -205,8 +242,10 @@ export function withStalkerPlayer() {
                 ) => {
                     const playlistId = storeState.currentPlaylist()?._id;
                     if (!playlistId) return;
-                    const recentlyViewedItem: { id: string; title: string } &
-                        Record<string, unknown> = {
+                    const recentlyViewedItem: {
+                        id: string;
+                        title: string;
+                    } & Record<string, unknown> = {
                         ...item,
                         id: normalizeStalkerEntityId(item?.id),
                         cmd,

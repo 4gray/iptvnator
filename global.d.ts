@@ -37,7 +37,8 @@ declare global {
                 referer?: string,
                 origin?: string,
                 contentInfo?: any,
-                startTime?: number
+                startTime?: number,
+                headers?: Record<string, string>
             ) => void;
             openInVlc: (
                 url: string,
@@ -46,7 +47,8 @@ declare global {
                 referer?: string,
                 origin?: string,
                 contentInfo?: any,
-                startTime?: number
+                startTime?: number,
+                headers?: Record<string, string>
             ) => void;
             autoUpdatePlaylists: (playlists: Playlist[]) => Promise<Playlist[]>;
             fetchEpg: (
@@ -83,6 +85,7 @@ declare global {
                 macAddress: string;
                 params: Record<string, string>;
                 token?: string;
+                serialNumber?: string;
             }) => Promise<any>;
             xtreamRequest: (payload: {
                 url: string;

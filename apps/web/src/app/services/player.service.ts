@@ -31,7 +31,8 @@ export class PlayerService {
         referer?: string,
         origin?: string,
         contentInfo?: any,
-        startTime?: number
+        startTime?: number,
+        headers?: Record<string, string>
     ) {
         const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
 
@@ -46,6 +47,7 @@ export class PlayerService {
                 'user-agent': userAgent,
                 referer: referer,
                 origin: origin,
+                headers,
                 contentInfo,
                 startTime,
             });
@@ -60,6 +62,7 @@ export class PlayerService {
                 'user-agent': userAgent,
                 referer: referer,
                 origin: origin,
+                headers,
                 contentInfo,
                 startTime,
             });

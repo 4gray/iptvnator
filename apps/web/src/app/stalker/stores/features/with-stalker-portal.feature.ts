@@ -64,42 +64,51 @@ export function withStalkerPortal() {
                 },
             })
         ),
-        withMethods((store, dataService = inject(DataService)) => ({
-            async setCurrentPlaylist(playlist: PlaylistMeta | undefined) {
-                patchState(store, { currentPlaylist: playlist });
+        withMethods(
+            (
+                store,
+                dataService = inject(DataService),
+                stalkerSession = inject(StalkerSessionService)
+            ) => ({
+                async setCurrentPlaylist(playlist: PlaylistMeta | undefined) {
+                    stalkerSession.setActiveWatchdogPlaylist(
+                        (playlist as Playlist) || undefined
+                    );
+                    patchState(store, { currentPlaylist: playlist });
 
-                // Ensure Stalker playlist exists in SQLite for playback positions
-                // Only sync if this is actually a Stalker playlist (has macAddress and portalUrl)
-                if (
-                    playlist &&
-                    dataService.isElectron &&
-                    playlist._id &&
-                    playlist.macAddress &&
-                    playlist.portalUrl
-                ) {
-                    try {
-                        const playlistId = String(playlist._id);
-                        // Check if playlist exists in SQLite
-                        const existing =
-                            await window.electron.dbGetPlaylist(playlistId);
-                        if (!existing) {
-                            // Create playlist in SQLite
-                            await window.electron.dbCreatePlaylist({
-                                id: playlistId,
-                                name: playlist.title || '',
-                                macAddress: playlist.macAddress || '',
-                                url: playlist.portalUrl || '',
-                                type: 'stalker',
-                            });
+                    // Ensure Stalker playlist exists in SQLite for playback positions
+                    // Only sync if this is actually a Stalker playlist (has macAddress and portalUrl)
+                    if (
+                        playlist &&
+                        dataService.isElectron &&
+                        playlist._id &&
+                        playlist.macAddress &&
+                        playlist.portalUrl
+                    ) {
+                        try {
+                            const playlistId = String(playlist._id);
+                            // Check if playlist exists in SQLite
+                            const existing =
+                                await window.electron.dbGetPlaylist(playlistId);
+                            if (!existing) {
+                                // Create playlist in SQLite
+                                await window.electron.dbCreatePlaylist({
+                                    id: playlistId,
+                                    name: playlist.title || '',
+                                    macAddress: playlist.macAddress || '',
+                                    url: playlist.portalUrl || '',
+                                    type: 'stalker',
+                                });
+                            }
+                        } catch (error) {
+                            logger.error(
+                                'Error syncing Stalker playlist to SQLite',
+                                error
+                            );
                         }
-                    } catch (error) {
-                        logger.error(
-                            'Error syncing Stalker playlist to SQLite',
-                            error
-                        );
                     }
-                }
-            },
-        }))
+                },
+            })
+        )
     );
 }

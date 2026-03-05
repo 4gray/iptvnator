@@ -99,7 +99,8 @@ export class ElectronService extends DataService {
                     data.referer ?? undefined,
                     data.origin ?? undefined,
                     data.contentInfo,
-                    data.startTime
+                    data.startTime,
+                    data.headers ?? undefined
                 );
                 /* thumbnail: data.thumbnail ?? '', */
             } catch (error: any) {
@@ -124,7 +125,8 @@ export class ElectronService extends DataService {
                     data.referer ?? undefined,
                     data.origin ?? undefined,
                     data.contentInfo,
-                    data.startTime
+                    data.startTime,
+                    data.headers ?? undefined
                 );
             } catch (error: any) {
                 const errorMessage = error?.message || String(error);

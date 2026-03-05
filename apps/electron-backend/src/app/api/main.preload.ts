@@ -88,7 +88,8 @@ contextBridge.exposeInMainWorld('electron', {
         referer?: string,
         origin?: string,
         contentInfo?: any,
-        startTime?: number
+        startTime?: number,
+        headers?: Record<string, string>
     ) =>
         ipcRenderer.invoke(
             'OPEN_MPV_PLAYER',
@@ -98,7 +99,8 @@ contextBridge.exposeInMainWorld('electron', {
             referer,
             origin,
             contentInfo,
-            startTime
+            startTime,
+            headers
         ),
     openInVlc: (
         url: string,
@@ -107,7 +109,8 @@ contextBridge.exposeInMainWorld('electron', {
         referer?: string,
         origin?: string,
         contentInfo?: any,
-        startTime?: number
+        startTime?: number,
+        headers?: Record<string, string>
     ) =>
         ipcRenderer.invoke(
             'OPEN_VLC_PLAYER',
@@ -117,7 +120,8 @@ contextBridge.exposeInMainWorld('electron', {
             referer,
             origin,
             contentInfo,
-            startTime
+            startTime,
+            headers
         ),
     autoUpdatePlaylists: (playlists) =>
         ipcRenderer.invoke('AUTO_UPDATE', playlists),
@@ -146,6 +150,7 @@ contextBridge.exposeInMainWorld('electron', {
         macAddress: string;
         params: Record<string, string>;
         token?: string;
+        serialNumber?: string;
     }) => ipcRenderer.invoke('STALKER_REQUEST', payload),
     xtreamRequest: (payload: { url: string; params: Record<string, string> }) =>
         ipcRenderer.invoke('XTREAM_REQUEST', payload),

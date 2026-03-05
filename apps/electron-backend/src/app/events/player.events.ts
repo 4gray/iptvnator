@@ -17,6 +17,7 @@ import { ChildProcess, spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { AddressInfo, createConnection, createServer } from 'net';
 import path from 'path';
+import { getStalkerPlaybackContextHeaders } from '../services/stalker-playback-context.service';
 
 export default class PlayerEvents {
     static bootstrapPlayerEvents(): Electron.IpcMain {
@@ -152,6 +153,41 @@ function maskUrlForLogs(rawUrl: string): string {
 function shouldIgnoreMpvStdoutLine(line: string): boolean {
     // Suppress MPV realtime progress spam.
     return /^(\(Paused\)\s*)?AV:\s/.test(line);
+}
+
+function buildHttpHeaderFields(
+    origin?: string,
+    headers?: Record<string, string>
+): string[] {
+    const fields: string[] = [];
+    const normalizedHeaders = headers ?? {};
+
+    if (
+        origin &&
+        normalizedHeaders['Origin'] === undefined &&
+        normalizedHeaders['origin'] === undefined
+    ) {
+        fields.push(`Origin: ${origin}`);
+    }
+
+    Object.entries(normalizedHeaders).forEach(([name, value]) => {
+        if (!name || value === undefined || value === null) return;
+        const trimmedValue = String(value).trim();
+        if (!trimmedValue) return;
+        fields.push(`${name}: ${trimmedValue}`);
+    });
+
+    return fields;
+}
+
+function isStalkerDirectStreamProfile(
+    headers: Record<string, string>
+): boolean {
+    const icyMetaData = headers['Icy-MetaData'] ?? headers['icy-metadata'];
+    const userAgent = headers['User-Agent'] ?? headers['user-agent'];
+
+    return String(icyMetaData).trim() === '1' &&
+        String(userAgent).trim().toLowerCase() === 'ksplayer';
 }
 
 function startPositionPolling(socketPath: string, contentInfo: any) {
@@ -312,19 +348,47 @@ ipcMain.handle(
         referer?: string,
         origin?: string,
         contentInfo?: any,
-        startTime?: number
+        startTime?: number,
+        headers?: Record<string, string>
     ) => {
         try {
             const mpvPath = getMpvPath();
             const reuseInstance = store.get(MPV_REUSE_INSTANCE, false);
+            const fallbackHeaders = getStalkerPlaybackContextHeaders(url) ?? {};
+            const mergedHeaders = isStalkerDirectStreamProfile(fallbackHeaders)
+                ? fallbackHeaders
+                : {
+                      ...fallbackHeaders,
+                      ...(headers ?? {}),
+                  };
+            const effectiveOrigin =
+                origin ??
+                mergedHeaders['Origin'] ??
+                mergedHeaders['origin'] ??
+                undefined;
+            const effectiveReferer =
+                referer ??
+                mergedHeaders['Referer'] ??
+                mergedHeaders['referer'] ??
+                undefined;
+            const effectiveUserAgent =
+                userAgent ??
+                mergedHeaders['User-Agent'] ??
+                mergedHeaders['user-agent'] ??
+                undefined;
+            const headerFields = buildHttpHeaderFields(
+                effectiveOrigin,
+                mergedHeaders
+            );
 
             console.log('[MPV] Opening player', {
                 path: mpvPath,
                 reuseInstance,
                 stream: maskUrlForLogs(url),
-                hasUserAgent: Boolean(userAgent),
-                hasReferer: Boolean(referer),
-                hasOrigin: Boolean(origin),
+                hasUserAgent: Boolean(effectiveUserAgent),
+                hasReferer: Boolean(effectiveReferer),
+                hasOrigin: Boolean(effectiveOrigin),
+                headerCount: headerFields.length,
                 hasContentInfo: Boolean(contentInfo),
                 startTime: startTime ?? null,
             });
@@ -338,11 +402,38 @@ ipcMain.handle(
             ) {
                 console.log('Reusing existing MPV instance');
                 try {
-                    const loadFileArgs: Array<string | number> = [url, 'replace'];
+                    if (effectiveUserAgent) {
+                        await sendMpvCommand('set_property', [
+                            'user-agent',
+                            effectiveUserAgent,
+                        ]);
+                    }
+                    if (effectiveReferer) {
+                        await sendMpvCommand('set_property', [
+                            'referrer',
+                            effectiveReferer,
+                        ]);
+                    }
+                    if (headerFields.length > 0) {
+                        await sendMpvCommand('set_property', [
+                            'http-header-fields',
+                            headerFields.join(','),
+                        ]);
+                    }
+
+                    const loadFileArgs: Array<string | number> = [
+                        url,
+                        'replace',
+                    ];
+                    const loadFileOptions: string[] = [];
+
+                    // loadfile args are: url, flags, index, options
+                    // Index must be numeric; options are a comma-separated key=value list.
                     if (title) {
-                        // loadfile args are: url, flags, index, options
-                        // Index must be numeric; use -1, then pass options as 4th arg.
-                        loadFileArgs.push(-1, `force-media-title=${title}`);
+                        loadFileOptions.push(`force-media-title=${title}`);
+                    }
+                    if (loadFileOptions.length > 0) {
+                        loadFileArgs.push(-1, loadFileOptions.join(','));
                     }
 
                     await sendMpvCommand('loadfile', loadFileArgs);
@@ -388,22 +479,26 @@ ipcMain.handle(
                     ? `\\\\.\\pipe\\mpv-${Date.now()}`
                     : `/tmp/mpvsocket-${Date.now()}`;
 
-            const args = [`--input-ipc-server=${socketPath}`, '--idle=yes'];
+            const args = [
+                `--input-ipc-server=${socketPath}`,
+                '--idle=yes',
+                // IPTV URLs often look like generic web pages to ytdl_hook and can fail with 403.
+                // Force MPV to open them directly instead of probing via yt-dlp/youtube-dl.
+                '--ytdl=no',
+            ];
 
             // Add user agent if provided
-            if (userAgent) {
-                args.push(`--user-agent=${userAgent}`);
+            if (effectiveUserAgent) {
+                args.push(`--user-agent=${effectiveUserAgent}`);
             }
 
             // Add referer if provided
-            if (referer) {
-                args.push(`--referrer=${referer}`);
+            if (effectiveReferer) {
+                args.push(`--referrer=${effectiveReferer}`);
             }
 
-            // Add origin as custom HTTP header if provided
-            // MPV doesn't have a direct --origin flag, so we use --http-header-fields
-            if (origin) {
-                args.push(`--http-header-fields=Origin: ${origin}`);
+            if (headerFields.length > 0) {
+                args.push(`--http-header-fields=${headerFields.join(',')}`);
             }
 
             // Add title if provided
@@ -587,10 +682,33 @@ ipcMain.handle(
         referer?: string,
         origin?: string,
         contentInfo?: any,
-        startTime?: number
+        startTime?: number,
+        headers?: Record<string, string>
     ) => {
         try {
             const vlcPath = getVlcPath();
+            const fallbackHeaders = getStalkerPlaybackContextHeaders(url) ?? {};
+            const mergedHeaders = isStalkerDirectStreamProfile(fallbackHeaders)
+                ? fallbackHeaders
+                : {
+                      ...fallbackHeaders,
+                      ...(headers ?? {}),
+                  };
+            const effectiveOrigin =
+                origin ??
+                mergedHeaders['Origin'] ??
+                mergedHeaders['origin'] ??
+                undefined;
+            const effectiveReferer =
+                referer ??
+                mergedHeaders['Referer'] ??
+                mergedHeaders['referer'] ??
+                undefined;
+            const effectiveUserAgent =
+                userAgent ??
+                mergedHeaders['User-Agent'] ??
+                mergedHeaders['user-agent'] ??
+                undefined;
             console.log('Opening VLC player with path:', vlcPath);
             console.log('URL:', url);
             // console.log('User-Agent:', userAgent);
@@ -618,17 +736,29 @@ ipcMain.handle(
             }
 
             // Add user agent if provided (VLC uses :http-user-agent= format)
-            if (userAgent) {
-                args.push(`:http-user-agent=${userAgent}`);
+            if (effectiveUserAgent) {
+                args.push(`:http-user-agent=${effectiveUserAgent}`);
             }
 
             // Add referer if provided (VLC uses :http-referrer= format)
-            if (referer) {
-                args.push(`:http-referrer=${referer}`);
+            if (effectiveReferer) {
+                args.push(`:http-referrer=${effectiveReferer}`);
             }
 
             // Note: VLC doesn't have a direct origin option, but origin is typically
             // included in referer for most IPTV use cases
+            if (effectiveOrigin && !effectiveReferer) {
+                args.push(`:http-referrer=${effectiveOrigin}`);
+            }
+
+            if (Object.keys(mergedHeaders).length > 0) {
+                Object.entries(mergedHeaders).forEach(([name, value]) => {
+                    if (!name || value === undefined || value === null) return;
+                    const trimmedValue = String(value).trim();
+                    if (!trimmedValue) return;
+                    args.push(`:http-header=${name}: ${trimmedValue}`);
+                });
+            }
 
             // Add start time if provided
             if (startTime) {
