@@ -66,6 +66,15 @@
             }
         </ng-container>
 
+        @if (inlinePlayback(); as playback) {
+            <app-portal-inline-player
+                [playback]="playback"
+                (timeUpdate)="handleInlineTimeUpdate($event)"
+                (closed)="closeInlinePlayer()"
+                (streamUrlCopied)="showCopyNotification()"
+            />
+        }
+
         <!-- Seasons & Episodes -->
         <app-season-container
             [seasons]="item.episodes"
@@ -82,4 +91,3 @@
 } @else {
     <app-content-hero [isLoading]="true" (backClicked)="goBack()" />
 }
-

@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { DataService, PlaylistsService, StalkerSessionService } from 'services';
 import {
     Playlist,
+    ResolvedPortalPlayback,
     STALKER_REQUEST,
     StalkerPortalActions,
 } from 'shared-interfaces';
@@ -234,6 +235,94 @@ export function withStalkerPlayer() {
                     return null;
                 };
 
+                const resolveVodPlaybackInternal = async (
+                    cmd?: string,
+                    title?: string,
+                    thumbnail?: string,
+                    episodeNum?: number,
+                    episodeId?: number,
+                    startTime?: number
+                ): Promise<ResolvedPortalPlayback> => {
+                    const item = storeState.selectedItem();
+                    let cmdToUse = cmd ?? item?.cmd;
+
+                    if (!cmdToUse) {
+                        throw new Error('nothing_to_play');
+                    }
+
+                    // For items with has_files and relative path, we need to fetch the file id first
+                    if (
+                        item?.has_files !== undefined &&
+                        cmdToUse &&
+                        !cmdToUse.includes('://') &&
+                        cmdToUse.includes('/media/') &&
+                        !cmdToUse.includes('/media/file_')
+                    ) {
+                        const fileId = await fetchMovieFileIdInternal(
+                            normalizeStalkerEntityId(item.id)
+                        );
+                        if (fileId) {
+                            cmdToUse = `/media/file_${fileId}.mpg`;
+                        }
+                    }
+
+                    const playlist = storeState.currentPlaylist();
+                    if (!playlist) {
+                        throw new Error('nothing_to_play');
+                    }
+
+                    const streamUrl = await fetchLinkToPlayInternal(
+                        playlist.portalUrl,
+                        playlist.macAddress,
+                        cmdToUse,
+                        episodeNum
+                    );
+
+                    if (typeof storeState.addToRecentlyViewed === 'function') {
+                        storeState.addToRecentlyViewed({
+                            ...item,
+                            id: item?.id,
+                            cmd: cmd,
+                            cover: thumbnail,
+                            title,
+                        });
+                    } else {
+                        addToRecentlyViewedInternal(
+                            item,
+                            cmd,
+                            thumbnail,
+                            title
+                        );
+                    }
+
+                    const isEpisode =
+                        episodeNum !== undefined || episodeId !== undefined;
+                    const selectedItemId =
+                        normalizeStalkerEntityIdAsNumber(item?.id) ?? 0;
+
+                    return {
+                        streamUrl,
+                        title: title ?? '',
+                        thumbnail,
+                        startTime,
+                        userAgent: playlist.userAgent,
+                        referer: playlist.referrer,
+                        origin: playlist.origin,
+                        contentInfo: {
+                            playlistId: playlist._id,
+                            // For episodes, use episodeId if provided, otherwise fall back to item.id
+                            contentXtreamId:
+                                isEpisode && episodeId
+                                    ? episodeId
+                                    : selectedItemId,
+                            contentType: isEpisode ? 'episode' : 'vod',
+                            seriesXtreamId: isEpisode
+                                ? selectedItemId
+                                : undefined,
+                        },
+                    };
+                };
+
                 const addToRecentlyViewedInternal = (
                     item: StalkerPlayableItem,
                     cmd?: string,
@@ -346,6 +435,23 @@ export function withStalkerPlayer() {
                     ): Promise<string | null> {
                         return fetchMovieFileIdInternal(movieId);
                     },
+                    async resolveVodPlayback(
+                        cmd?: string,
+                        title?: string,
+                        thumbnail?: string,
+                        episodeNum?: number,
+                        episodeId?: number,
+                        startTime?: number
+                    ): Promise<ResolvedPortalPlayback> {
+                        return resolveVodPlaybackInternal(
+                            cmd,
+                            title,
+                            thumbnail,
+                            episodeNum,
+                            episodeId,
+                            startTime
+                        );
+                    },
                     /**
                      * Play VOD or episode content
                      * @param cmd The media command/path
@@ -364,88 +470,19 @@ export function withStalkerPlayer() {
                         startTime?: number
                     ) {
                         try {
-                            const item = storeState.selectedItem();
-                            let cmdToUse = cmd ?? item?.cmd;
-
-                            if (!cmdToUse) {
-                                throw new Error('nothing_to_play');
-                            }
-
-                            // For items with has_files and relative path, we need to fetch the file id first
-                            if (
-                                item?.has_files !== undefined &&
-                                cmdToUse &&
-                                !cmdToUse.includes('://') &&
-                                cmdToUse.includes('/media/') &&
-                                !cmdToUse.includes('/media/file_')
-                            ) {
-                                const fileId = await fetchMovieFileIdInternal(
-                                    normalizeStalkerEntityId(item.id)
-                                );
-                                if (fileId) {
-                                    cmdToUse = `/media/file_${fileId}.mpg`;
-                                }
-                            }
-
-                            const playlist = storeState.currentPlaylist();
-                            if (!playlist) {
-                                throw new Error('nothing_to_play');
-                            }
-                            const url = await fetchLinkToPlayInternal(
-                                playlist.portalUrl,
-                                playlist.macAddress,
-                                cmdToUse,
-                                episodeNum
-                            );
-                            if (
-                                typeof storeState.addToRecentlyViewed ===
-                                'function'
-                            ) {
-                                storeState.addToRecentlyViewed({
-                                    ...item,
-                                    id: item?.id,
-                                    cmd: cmd,
-                                    cover: thumbnail,
-                                    title,
-                                });
-                            } else {
-                                addToRecentlyViewedInternal(
-                                    item,
+                            const playback =
+                                await resolveVodPlaybackInternal(
                                     cmd,
+                                    title,
                                     thumbnail,
-                                    title
+                                    episodeNum,
+                                    episodeId,
+                                    startTime
                                 );
-                            }
 
-                            const isEpisode =
-                                episodeNum !== undefined ||
-                                episodeId !== undefined;
-                            const selectedItemId =
-                                normalizeStalkerEntityIdAsNumber(item?.id) ?? 0;
-                            const contentInfo = {
-                                playlistId: playlist._id,
-                                // For episodes, use episodeId if provided, otherwise fall back to item.id
-                                contentXtreamId:
-                                    isEpisode && episodeId
-                                        ? episodeId
-                                        : selectedItemId,
-                                contentType: isEpisode ? 'episode' : 'vod',
-                                seriesXtreamId: isEpisode
-                                    ? selectedItemId
-                                    : undefined,
-                            };
-
-                            playerService.openPlayer(
-                                url,
-                                title,
-                                thumbnail,
-                                true,
-                                false,
-                                playlist?.userAgent,
-                                playlist?.referrer,
-                                playlist?.origin,
-                                contentInfo,
-                                startTime
+                            playerService.openResolvedPlayback(
+                                playback,
+                                true
                             );
                         } catch (error) {
                             logger.error('Failed to get playback URL', error);

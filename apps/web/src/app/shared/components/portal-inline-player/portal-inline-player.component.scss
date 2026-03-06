@@ -1,0 +1,106 @@
+:host {
+    display: block;
+    width: 100%;
+}
+
+.player-shell {
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+    margin-top: 8px;
+    border-radius: 18px;
+    border: 1px solid rgba(20, 20, 20, 0.08);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 250, 245, 0.92)),
+        rgba(255, 250, 245, 0.9);
+    box-shadow:
+        0 20px 56px rgba(25, 20, 20, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(18px);
+}
+
+.player-shell__header {
+    display: grid;
+    gap: 8px;
+}
+
+.player-shell__eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(26, 26, 26, 0.58);
+}
+
+.player-shell__title-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.player-shell__title {
+    margin: 0;
+    font-size: clamp(1.05rem, 1vw + 0.9rem, 1.4rem);
+    font-weight: 700;
+    line-height: 1.2;
+    color: #161616;
+}
+
+.player-shell__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.player-shell__viewport {
+    overflow: hidden;
+    min-height: 320px;
+    max-height: min(70vh, 720px);
+    aspect-ratio: 16 / 9;
+    border-radius: 14px;
+    background: #000;
+}
+
+.player-shell__viewport > app-web-player-view {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+:host-context(.dark-theme) .player-shell {
+    border-color: rgba(255, 255, 255, 0.12);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+        rgba(12, 12, 12, 0.72);
+    box-shadow:
+        0 24px 80px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:host-context(.dark-theme) .player-shell__eyebrow {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+:host-context(.dark-theme) .player-shell__title {
+    color: #fff;
+}
+
+@media (max-width: 900px) {
+    .player-shell {
+        padding: 14px;
+    }
+
+    .player-shell__title-row {
+        flex-direction: column;
+    }
+
+    .player-shell__actions {
+        justify-content: flex-start;
+    }
+
+    .player-shell__viewport {
+        min-height: 220px;
+    }
+}

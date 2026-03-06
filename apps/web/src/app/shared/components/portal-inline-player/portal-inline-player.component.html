@@ -1,0 +1,40 @@
+@if (hasPlayback()) {
+    <section class="player-shell" aria-label="Inline player">
+        <header class="player-shell__header">
+            <div class="player-shell__eyebrow">Now Playing</div>
+            <div class="player-shell__title-row">
+                <h3 class="player-shell__title" [matTooltip]="title()">
+                    {{ title() }}
+                </h3>
+                <div class="player-shell__actions">
+                    <button
+                        mat-button
+                        type="button"
+                        [cdkCopyToClipboard]="streamUrl()"
+                        [matTooltip]="streamUrl()"
+                        (click)="onCopied()"
+                    >
+                        <mat-icon>content_copy</mat-icon>
+                        Copy Stream URL
+                    </button>
+                    <button
+                        mat-stroked-button
+                        type="button"
+                        (click)="onClose()"
+                    >
+                        <mat-icon>close</mat-icon>
+                        Close Player
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="player-shell__viewport">
+            <app-web-player-view
+                [streamUrl]="streamUrl()"
+                [startTime]="startTime()"
+                (timeUpdate)="onTimeUpdate($event)"
+            />
+        </div>
+    </section>
+}

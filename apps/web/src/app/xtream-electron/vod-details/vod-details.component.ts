@@ -11,6 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ContentHeroComponent } from 'components';
 import {
+    ResolvedPortalPlayback,
     VodDetailsItem,
     normalizeVodDetails,
     getVodNumericId,
@@ -18,6 +19,7 @@ import {
 import { DownloadsService } from '../../services/downloads.service';
 import { SafePipe } from '@iptvnator/pipes';
 import { StalkerStore } from '../../stalker/stalker.store';
+import { PortalInlinePlayerComponent } from '../../shared/components/portal-inline-player/portal-inline-player.component';
 
 /**
  * Unified VOD details component for both Xtream and Stalker portals.
@@ -46,6 +48,7 @@ import { StalkerStore } from '../../stalker/stalker.store';
         ContentHeroComponent,
         MatIcon,
         MatProgressSpinnerModule,
+        PortalInlinePlayerComponent,
         SafePipe,
         TranslatePipe,
     ],
@@ -61,6 +64,9 @@ export class VodDetailsComponent implements OnDestroy {
 
     /** Playback position in seconds for resume feature (managed by parent) */
     readonly playbackPosition = input<number | null>(null);
+
+    /** Inline playback payload for embedded players (managed by parent) */
+    readonly inlinePlayback = input<ResolvedPortalPlayback | null>(null);
 
     // ============ Outputs ============
 
@@ -78,6 +84,18 @@ export class VodDetailsComponent implements OnDestroy {
 
     /** Emitted when download is requested (parent handles URL construction) */
     readonly downloadRequested = output<VodDetailsItem>();
+
+    /** Emitted when inline playback position changes */
+    readonly inlineTimeUpdated = output<{
+        currentTime: number;
+        duration: number;
+    }>();
+
+    /** Emitted when the inline player should be closed */
+    readonly inlinePlaybackClosed = output<void>();
+
+    /** Emitted when the stream url is copied */
+    readonly streamUrlCopied = output<void>();
 
     // ============ Services ============
 
@@ -179,6 +197,21 @@ export class VodDetailsComponent implements OnDestroy {
     /** Handle download request */
     onDownload(): void {
         this.downloadRequested.emit(this.item());
+    }
+
+    onInlineTimeUpdate(event: {
+        currentTime: number;
+        duration: number;
+    }): void {
+        this.inlineTimeUpdated.emit(event);
+    }
+
+    closeInlinePlayback(): void {
+        this.inlinePlaybackClosed.emit();
+    }
+
+    onStreamUrlCopied(): void {
+        this.streamUrlCopied.emit();
     }
 
     /** Play from local downloaded file */

@@ -6,13 +6,14 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { PlayerContentInfo } from 'shared-interfaces';
 import { WebPlayerViewComponent } from 'shared-portals';
 import { XtreamStore } from '../stores/xtream.store';
 
 export interface PlayerDialogData {
     streamUrl: string;
     title: string;
-    contentInfo?: any;
+    contentInfo?: PlayerContentInfo;
     startTime?: number;
 }
 

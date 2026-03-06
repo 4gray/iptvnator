@@ -35,6 +35,7 @@ describe('StalkerStore API compatibility smoke', () => {
                     provide: PlayerService,
                     useValue: {
                         openPlayer: jest.fn(),
+                        openResolvedPlayback: jest.fn(),
                     },
                 },
                 {
@@ -138,6 +139,7 @@ describe('StalkerStore API compatibility smoke', () => {
             'addToFavorites',
             'removeFromFavorites',
             'fetchMovieFileId',
+            'resolveVodPlayback',
             'createLinkToPlayVod',
             'addToRecentlyViewed',
             'removeFromRecentlyViewed',

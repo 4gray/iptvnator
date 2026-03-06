@@ -4,6 +4,8 @@ import { DataService } from 'services';
 import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
+    PlayerContentInfo,
+    ResolvedPortalPlayback,
     VideoPlayer,
 } from 'shared-interfaces';
 import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
@@ -21,6 +23,16 @@ export class PlayerService {
     private dataService = inject(DataService);
     private settingsStore = inject(SettingsStore);
 
+    isEmbeddedPlayer(
+        player = this.settingsStore.player() ?? VideoPlayer.VideoJs
+    ): boolean {
+        return (
+            player === VideoPlayer.VideoJs ||
+            player === VideoPlayer.Html5Player ||
+            player === VideoPlayer.ArtPlayer
+        );
+    }
+
     openPlayer(
         streamUrl: string,
         title: string,
@@ -30,11 +42,42 @@ export class PlayerService {
         userAgent?: string,
         referer?: string,
         origin?: string,
-        contentInfo?: any,
+        contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>
     ) {
+        this.openResolvedPlayback(
+            {
+                streamUrl,
+                title,
+                thumbnail,
+                startTime,
+                contentInfo,
+                headers,
+                userAgent,
+                referer,
+                origin,
+            },
+            hideExternalInfoDialog
+        );
+    }
+
+    openResolvedPlayback(
+        playback: ResolvedPortalPlayback,
+        hideExternalInfoDialog = true
+    ) {
         const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
+        const {
+            streamUrl,
+            title,
+            thumbnail,
+            userAgent,
+            referer,
+            origin,
+            headers,
+            contentInfo,
+            startTime,
+        } = playback;
 
         if (player === VideoPlayer.MPV) {
             if (!hideExternalInfoDialog) {

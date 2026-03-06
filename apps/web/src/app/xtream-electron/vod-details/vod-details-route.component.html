@@ -116,6 +116,15 @@
             }
         </ng-container>
 
+        @if (inlinePlayback(); as playback) {
+            <app-portal-inline-player
+                [playback]="playback"
+                (timeUpdate)="handleInlineTimeUpdate($event)"
+                (closed)="closeInlinePlayer()"
+                (streamUrlCopied)="showCopyNotification()"
+            />
+        }
+
         <!-- YouTube Trailer -->
         @if (item.info?.youtube_trailer) {
             <div class="youtube-trailer">
@@ -143,4 +152,3 @@
 } @else {
     <app-content-hero [isLoading]="true" (backClicked)="goBack()" />
 }
-

@@ -57,6 +57,15 @@
             />
         </ng-container>
 
+        @if (inlinePlayback(); as playback) {
+            <app-portal-inline-player
+                [playback]="playback"
+                (timeUpdate)="handleInlineTimeUpdate($event)"
+                (closed)="closeInlinePlayer()"
+                (streamUrlCopied)="showCopyNotification()"
+            />
+        }
+
         <!-- Seasons & Episodes -->
         @if (mappedSeasons()) {
             <app-season-container
