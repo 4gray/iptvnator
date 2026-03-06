@@ -1,6 +1,8 @@
 import { VodDetailsItem } from 'shared-interfaces';
 import {
+    createStalkerInlineDetailState,
     createStalkerDetailViewState,
+    normalizeStalkerFavoriteItem,
     toggleStalkerVodFavorite,
 } from './stalker-vod.utils';
 
@@ -105,5 +107,62 @@ describe('stalker-vod.utils regressions', () => {
         );
         expect(removeFromFavorites).toHaveBeenCalledTimes(1);
         expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('normalizes nested favorite details for the shared inline detail shell', () => {
+        const detailState = createStalkerInlineDetailState(
+            normalizeStalkerFavoriteItem({
+                id: '7',
+                category_id: 'vod',
+                name: 'Nested Movie',
+                details: {
+                    id: '7',
+                    cmd: '/media/file_7.mpg',
+                    series: [11, 12],
+                    info: {
+                        name: 'Nested Movie',
+                        movie_image: '',
+                        description: '',
+                        actors: '',
+                        director: '',
+                        releasedate: '',
+                        genre: '',
+                        rating_imdb: '',
+                        rating_kinopoisk: '',
+                    },
+                },
+            } as any),
+            null
+        );
+
+        expect(detailState.categoryId).toBe('vod');
+        expect(detailState.seriesItem?.series).toEqual([11, 12]);
+        expect(detailState.isSeries).toBe(false);
+        expect(detailState.vodDetailsItem).toBeNull();
+    });
+
+    it('allows search to force series mode when results omit category metadata', () => {
+        const detailState = createStalkerInlineDetailState(
+            {
+                id: '9',
+                cmd: '/media/file_9.mpg',
+                info: {
+                    name: 'Series Result',
+                    movie_image: '',
+                    description: '',
+                    actors: '',
+                    director: '',
+                    releasedate: '',
+                    genre: '',
+                    rating_imdb: '',
+                    rating_kinopoisk: '',
+                },
+            },
+            null,
+            'series'
+        );
+
+        expect(detailState.categoryId).toBe('series');
+        expect(detailState.seriesItem?.id).toBe('9');
     });
 });

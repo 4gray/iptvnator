@@ -2,14 +2,11 @@ import { KeyValuePipe } from '@angular/common';
 import {
     Component,
     computed,
-    effect,
     inject,
-    OnDestroy,
     Optional,
     signal,
 } from '@angular/core';
 
-import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -17,33 +14,60 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import groupBy from 'lodash/groupBy';
-import { firstValueFrom, map } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
-import { XtreamCategory } from 'shared-interfaces';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
-import { FavoritesLayoutComponent } from '../../shared/components/favorites-layout/favorites-layout.component';
+import {
+    PortalCollectionShellComponent,
+    PortalCollectionShellLayout,
+} from '../../shared/components/portal-collection-shell/portal-collection-shell.component';
+import {
+    isWorkspaceLayoutRoute,
+    queryParamSignal,
+} from '../../shared/navigation/portal-route.utils';
+import { createPortalCollectionContext } from '../../shared/utils/portal-collection-context';
+import {
+    buildStandardCollectionCategories,
+    filterCollectionBucket,
+} from '../../shared/utils/portal-collection-items';
 import { createLogger } from '../../shared/utils/logger';
-import { StalkerStore } from '../../stalker/stalker.store';
 import { FavoritesContextService } from '../../workspace/favorites-context.service';
 import { XtreamStore } from '../stores/xtream.store';
+
+const XTREAM_RECENT_LAYOUT: Omit<
+    PortalCollectionShellLayout,
+    'showHeaderAction'
+> = {
+    titleTranslationKey: 'PORTALS.SIDEBAR.RECENT',
+    removeTooltip: 'Remove from history',
+    emptyIcon: 'history',
+    headerActionIcon: 'delete_sweep',
+    headerActionTooltip: 'Clear history',
+};
+const XTREAM_COLLECTION_LABELS = {
+    all: 'All',
+    movie: 'Movies',
+    live: 'Live TV',
+    series: 'Series',
+};
 
 @Component({
     selector: 'app-recently-viewed',
     imports: [
         ContentCardComponent,
-        FavoritesLayoutComponent,
         FormsModule,
         KeyValuePipe,
         MatButton,
         MatCheckboxModule,
         MatIcon,
         MatIconButton,
+        PortalCollectionShellComponent,
     ],
     providers: [],
     templateUrl: './recently-viewed.component.html',
     styleUrl: './recently-viewed.component.scss',
 })
-export class RecentlyViewedComponent implements OnDestroy {
+export class RecentlyViewedComponent {
     private static readonly GROUP_BY_STORAGE_KEY =
         'global-recent-group-by-playlist';
     private static readonly TYPE_FILTERS_STORAGE_KEY =
@@ -55,14 +79,17 @@ export class RecentlyViewedComponent implements OnDestroy {
     private router = inject(Router);
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
-    private readonly stalkerStore = inject(StalkerStore);
     private dialogData = inject(MAT_DIALOG_DATA, { optional: true });
     private readonly logger = createLogger('XtreamRecentlyViewed');
     private readonly favoritesCtx = inject(FavoritesContextService);
 
     readonly isGlobal = this.dialogData?.isGlobal ?? false;
-    readonly isWorkspaceLayout =
-        this.activatedRoute.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
+    readonly nonGlobalLayout: PortalCollectionShellLayout = {
+        ...XTREAM_RECENT_LAYOUT,
+        showHeaderAction: !this.isWorkspaceLayout,
+    };
+    readonly playlistSubtitle = 'Xtream Code';
     private readonly _groupByPlaylist = (() => {
         const saved = localStorage.getItem(
             RecentlyViewedComponent.GROUP_BY_STORAGE_KEY
@@ -98,8 +125,7 @@ export class RecentlyViewedComponent implements OnDestroy {
             ? this.xtreamStore.globalRecentItems()
             : this.xtreamStore.recentItems()
     );
-    readonly selectedCategoryId = this.favoritesCtx.selectedCategoryId;
-    readonly categories = computed<XtreamCategory[]>(() => {
+    readonly categories = computed(() => {
         const items = this.recentItems();
         const movies = items.filter(
             (item: any) => item?.type === 'movie'
@@ -109,44 +135,28 @@ export class RecentlyViewedComponent implements OnDestroy {
             (item: any) => item?.type === 'series'
         ).length;
 
-        const cats: XtreamCategory[] = [
-            {
-                id: 1,
-                category_id: 'all',
-                category_name: 'All',
-                count: items.length,
-                parent_id: 0,
+        return buildStandardCollectionCategories({
+            labels: XTREAM_COLLECTION_LABELS,
+            counts: {
+                all: items.length,
+                movie: movies,
+                live,
+                series,
             },
-            {
-                id: 2,
-                category_id: 'movie',
-                category_name: 'Movies',
-                count: movies,
-                parent_id: 0,
-            },
-            {
-                id: 3,
-                category_id: 'live',
-                category_name: 'Live TV',
-                count: live,
-                parent_id: 0,
-            },
-            {
-                id: 4,
-                category_id: 'series',
-                category_name: 'Series',
-                count: series,
-                parent_id: 0,
-            },
-        ];
-        return cats;
+            includeLive: true,
+        });
     });
+    readonly collectionContext = createPortalCollectionContext({
+        ctx: this.favoritesCtx,
+        categories: this.categories,
+        enabled: () => !this.isGlobal,
+    });
+    readonly selectedCategoryId = this.collectionContext.selectedCategoryId;
     readonly recentSearchTerm = signal('');
-    readonly workspaceSearchTerm = toSignal(
-        this.activatedRoute.queryParamMap.pipe(
-            map((params) => (params.get('q') ?? '').trim().toLowerCase())
-        ),
-        { initialValue: '' }
+    readonly workspaceSearchTerm = queryParamSignal(
+        this.activatedRoute,
+        'q',
+        (value) => (value ?? '').trim().toLowerCase()
     );
     readonly filteredRecentItems = computed(() => {
         const term =
@@ -180,20 +190,25 @@ export class RecentlyViewedComponent implements OnDestroy {
     });
     readonly nonGlobalItemsToShow = computed(() => {
         const items = this.visibleRecentItems();
-
-        switch (this.selectedCategoryId()) {
-            case 'movie':
-                return items.filter((item: any) => item?.type === 'movie');
-            case 'live':
-                return items.filter((item: any) => item?.type === 'live');
-            case 'series':
-                return items.filter((item: any) => item?.type === 'series');
-            case 'all':
-            default:
-                return items;
-        }
+        return filterCollectionBucket({
+            selectedCategoryId: this.selectedCategoryId(),
+            allItems: items,
+            buckets: {
+                movie: items.filter((item: any) => item?.type === 'movie'),
+                live: items.filter((item: any) => item?.type === 'live'),
+                series: items.filter((item: any) => item?.type === 'series'),
+            },
+            textOf: (item: any) =>
+                `${item?.title ?? ''} ${item?.playlist_name ?? ''}`,
+        });
     });
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
+    readonly playlistTitle = computed(
+        () =>
+            this.currentPlaylist()?.name ||
+            this.currentPlaylist()?.title ||
+            'Playlist'
+    );
 
     constructor(
         @Optional() public dialogRef?: MatDialogRef<RecentlyViewedComponent>
@@ -205,13 +220,6 @@ export class RecentlyViewedComponent implements OnDestroy {
         } else if (this.currentPlaylist()) {
             this.xtreamStore.loadRecentItems(this.currentPlaylist);
         }
-
-        // Keep workspace context panel in sync with current categories
-        effect(() => {
-            if (!this.isGlobal) {
-                this.favoritesCtx.setCategories(this.categories());
-            }
-        });
     }
 
     private async loadGlobalItems() {
@@ -342,10 +350,6 @@ export class RecentlyViewedComponent implements OnDestroy {
     }
 
     setCategoryId(categoryId: string): void {
-        this.favoritesCtx.setCategoryId(categoryId);
-    }
-
-    ngOnDestroy(): void {
-        this.favoritesCtx.reset();
+        this.collectionContext.setCategoryId(categoryId);
     }
 }

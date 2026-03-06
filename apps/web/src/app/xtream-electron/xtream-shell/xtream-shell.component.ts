@@ -10,6 +10,11 @@ import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
 import { filter } from 'rxjs';
+import {
+    isWorkspaceLayoutRoute,
+    resolveCurrentPortalSection,
+} from '../../shared/navigation/portal-route.utils';
+import { PortalRailSection } from '../../shared/navigation/portal-rail-links';
 import { LoadingOverlayComponent } from '../loading-overlay/loading-overlay.component';
 import { NavigationComponent } from '../navigation/navigation.component';
 import { XtreamStore } from '../stores/xtream.store';
@@ -34,15 +39,14 @@ export class XtreamShellComponent {
     readonly isImporting = this.xtreamStore.isImporting;
     readonly itemsToImport = this.xtreamStore.itemsToImport;
     readonly portalStatus = this.xtreamStore.portalStatus;
-    readonly isWorkspaceLayout =
-        this.route.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     readonly showImportOverlay = computed(() => {
         const section = this.currentSection();
         return this.isImporting() && this.isContentSection(section);
     });
 
     private currentPlaylistId: string | null = null;
-    private readonly currentSection = signal<string | null>(null);
+    private readonly currentSection = signal<PortalRailSection | null>(null);
 
     constructor() {
         // Subscribe to route params to handle switching between playlists
@@ -108,10 +112,11 @@ export class XtreamShellComponent {
     }
 
     private syncSectionFromRoute(): void {
-        const sectionFromSnapshot =
-            this.route.firstChild?.snapshot?.url?.[0]?.path ?? null;
-        const sectionFromUrl = this.getSectionFromUrl(this.router.url);
-        const section = sectionFromSnapshot ?? sectionFromUrl;
+        const section = resolveCurrentPortalSection(
+            this.route,
+            this.router.url,
+            'xtreams'
+        );
 
         if (!section || section === this.currentSection()) {
             return;
@@ -127,14 +132,7 @@ export class XtreamShellComponent {
         this.xtreamStore.setSelectedContentType(undefined);
     }
 
-    private getSectionFromUrl(url: string): string | null {
-        const match = url.match(
-            /^\/(?:workspace\/)?xtreams\/[^\/\?]+\/([^\/\?]+)/
-        );
-        return match?.[1] ?? null;
-    }
-
-    private isContentSection(section: string | null): boolean {
+    private isContentSection(section: PortalRailSection | null): boolean {
         return (
             section === 'vod' ||
             section === 'live' ||

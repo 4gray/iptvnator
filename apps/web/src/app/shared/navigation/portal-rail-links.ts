@@ -1,11 +1,24 @@
 export type PortalProvider = 'xtreams' | 'stalker' | 'playlists';
+export type PortalRailSection =
+    | 'all'
+    | 'downloads'
+    | 'favorites'
+    | 'groups'
+    | 'itv'
+    | 'library'
+    | 'live'
+    | 'recent'
+    | 'recently-added'
+    | 'search'
+    | 'series'
+    | 'vod';
 
 export interface PortalRailLink {
     icon: string;
     tooltip: string;
     path: (string | number)[];
     exact?: boolean;
-    section?: string;
+    section?: PortalRailSection;
 }
 
 interface BuildPortalRailLinksOptions {

@@ -4,7 +4,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistErrorViewComponent } from '../../../xtream-electron/playlist-error-view/playlist-error-view.component';
+import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { ProgressCapsuleComponent } from '../../../xtream-electron/shared/progress-capsule/progress-capsule.component';
 import { WatchedBadgeComponent } from '../../../xtream-electron/shared/watched-badge/watched-badge.component';
 

@@ -1,5 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
-import { CategoryViewComponent } from '../xtream-electron/category-view/category-view.component';
+import { CategoryViewComponent } from '../shared/components/category-view/category-view.component';
 import { FavoritesContextService } from './favorites-context.service';
 
 /**

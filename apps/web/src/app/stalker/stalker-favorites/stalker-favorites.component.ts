@@ -3,23 +3,29 @@ import {
     computed,
     effect,
     inject,
-    OnDestroy,
     signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { map } from 'rxjs';
 import { PlaylistsService } from 'services';
 import { VodDetailsItem } from 'shared-interfaces';
-import { FavoritesLayoutComponent } from '../../shared/components/favorites-layout/favorites-layout.component';
+import {
+    PortalCollectionShellComponent,
+    PortalCollectionShellLayout,
+} from '../../shared/components/portal-collection-shell/portal-collection-shell.component';
+import { StalkerInlineDetailComponent } from '../../shared/components/stalker-inline-detail/stalker-inline-detail.component';
+import { queryParamSignal } from '../../shared/navigation/portal-route.utils';
+import { createPortalCollectionContext } from '../../shared/utils/portal-collection-context';
+import {
+    buildStandardCollectionCategories,
+    filterCollectionBucket,
+} from '../../shared/utils/portal-collection-items';
 import { createLogger } from '../../shared/utils/logger';
 import { FavoritesContextService } from '../../workspace/favorites-context.service';
-import { VodDetailsComponent } from '../../xtream-electron/vod-details/vod-details.component';
 import { StalkerFavoriteItem } from '../models';
-import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import {
     clearStalkerDetailViewState,
+    createStalkerInlineDetailState,
     createPortalFavoritesResource,
     createRefreshTrigger,
     createStalkerDetailViewState,
@@ -31,14 +37,12 @@ import {
 } from '../stalker-vod.utils';
 import { StalkerStore } from '../stalker.store';
 
+const STALKER_FAVORITES_LAYOUT: PortalCollectionShellLayout = {};
+
 @Component({
     selector: 'app-stalker-favorites',
     templateUrl: './stalker-favorites.component.html',
-    imports: [
-        FavoritesLayoutComponent,
-        StalkerSeriesViewComponent,
-        VodDetailsComponent,
-    ],
+    imports: [PortalCollectionShellComponent, StalkerInlineDetailComponent],
     styles: [
         `
             :host {
@@ -54,7 +58,7 @@ import { StalkerStore } from '../stalker.store';
         `,
     ],
 })
-export class StalkerFavoritesComponent implements OnDestroy {
+export class StalkerFavoritesComponent {
     private static isCategoryType(
         value: unknown
     ): value is 'vod' | 'series' | 'itv' {
@@ -80,6 +84,11 @@ export class StalkerFavoritesComponent implements OnDestroy {
     readonly isSelectedVodFavorite = signal<boolean>(false);
 
     readonly currentPlaylist = this.stalkerStore.currentPlaylist;
+    readonly layout = STALKER_FAVORITES_LAYOUT;
+    readonly playlistSubtitle = 'Stalker Portal';
+    readonly playlistTitle = computed(
+        () => this.currentPlaylist()?.title || 'Portal'
+    );
 
     readonly allFavorites = createPortalFavoritesResource(
         this.playlistService,
@@ -87,71 +96,48 @@ export class StalkerFavoritesComponent implements OnDestroy {
         () => this.favoritesRefresh.refreshVersion()
     );
 
-    readonly categories = computed(() => [
-        {
-            id: 1,
-            category_id: 'all',
-            category_name: this.translate.instant('PORTALS.ALL_CATEGORIES'),
-            count: this.allFavorites.value()?.length ?? 0,
-            parent_id: 0,
-        },
-        {
-            id: 2,
-            category_id: 'movie',
-            category_name: this.translate.instant('PORTALS.SIDEBAR.MOVIES'),
-            count: this.movies()?.length ?? 0,
-            parent_id: 0,
-        },
-        {
-            id: 3,
-            category_id: 'itv',
-            category_name: this.translate.instant('PORTALS.SIDEBAR.LIVE_TV'),
-            count: this.live()?.length ?? 0,
-            parent_id: 0,
-        },
-        {
-            id: 4,
-            category_id: 'series',
-            category_name: this.translate.instant('PORTALS.SIDEBAR.SERIES'),
-            count: this.series()?.length ?? 0,
-            parent_id: 0,
-        },
-    ]);
+    readonly categories = computed(() =>
+        buildStandardCollectionCategories({
+            labels: {
+                all: this.translate.instant('PORTALS.ALL_CATEGORIES'),
+                movie: this.translate.instant('PORTALS.SIDEBAR.MOVIES'),
+                live: this.translate.instant('PORTALS.SIDEBAR.LIVE_TV'),
+                series: this.translate.instant('PORTALS.SIDEBAR.SERIES'),
+            },
+            counts: {
+                all: this.allFavorites.value()?.length ?? 0,
+                movie: this.movies()?.length ?? 0,
+                live: this.live()?.length ?? 0,
+                series: this.series()?.length ?? 0,
+            },
+            includeLive: true,
+            liveCategoryId: 'itv',
+        })
+    );
+    readonly collectionContext = createPortalCollectionContext({
+        ctx: this.favoritesCtx,
+        categories: this.categories,
+    });
 
     readonly favoritesToShow = computed(() => {
-        const term = this.searchTerm();
-        const filterByTerm = (items: StalkerFavoriteItem[] | undefined) => {
-            if (!items) return [];
-            if (!term) return items;
-
-            return items.filter((item) =>
-                `${item?.name ?? ''} ${item?.o_name ?? ''}`
-                    .toLowerCase()
-                    .includes(term)
-            );
-        };
-
-        switch (this.selectedCategoryId()) {
-            case 'all':
-                return filterByTerm(this.allFavorites.value());
-            case 'movie':
-                return filterByTerm(this.movies());
-            case 'itv':
-                return filterByTerm(this.live());
-            case 'series':
-                return filterByTerm(this.series());
-            default:
-                return [];
-        }
+        return filterCollectionBucket({
+            selectedCategoryId: this.selectedCategoryId(),
+            allItems: this.allFavorites.value(),
+            buckets: {
+                movie: this.movies(),
+                live: this.live(),
+                series: this.series(),
+            },
+            searchTerm: this.searchTerm(),
+            liveCategoryId: 'itv',
+            textOf: (item: any) => `${item?.name ?? ''} ${item?.o_name ?? ''}`,
+        });
     });
 
     /** Synced with workspace context service so panel clicks are reactive */
-    readonly selectedCategoryId = this.favoritesCtx.selectedCategoryId;
-    readonly searchTerm = toSignal(
-        this.route.queryParamMap.pipe(
-            map((params) => (params.get('q') ?? '').trim().toLowerCase())
-        ),
-        { initialValue: '' }
+    readonly selectedCategoryId = this.collectionContext.selectedCategoryId;
+    readonly searchTerm = queryParamSignal(this.route, 'q', (value) =>
+        (value ?? '').trim().toLowerCase()
     );
 
     readonly series = computed(() =>
@@ -170,11 +156,6 @@ export class StalkerFavoritesComponent implements OnDestroy {
         effect(() => {
             this.allFavorites.value();
             this.syncSelectedVodFavorite();
-        });
-
-        // Keep workspace context panel in sync with categories
-        effect(() => {
-            this.favoritesCtx.setCategories(this.categories());
         });
 
         effect(() => {
@@ -227,7 +208,7 @@ export class StalkerFavoritesComponent implements OnDestroy {
     }
 
     setCategoryId(categoryId: string) {
-        this.favoritesCtx.setCategoryId(categoryId);
+        this.collectionContext.setCategoryId(categoryId);
     }
 
     openItem(item: StalkerFavoriteItem) {
@@ -331,6 +312,17 @@ export class StalkerFavoritesComponent implements OnDestroy {
         );
     }
 
+    inlineDetail() {
+        return createStalkerInlineDetailState(
+            this.itemDetails,
+            this.vodDetailsItem
+        );
+    }
+
+    showDetails() {
+        return this.inlineDetail().categoryId !== null;
+    }
+
     async createLinkToPlayVodItv(
         cmd?: string,
         title?: string,
@@ -342,9 +334,5 @@ export class StalkerFavoritesComponent implements OnDestroy {
             thumbnail,
         });
         await this.stalkerStore.createLinkToPlayVod(cmd, title, thumbnail);
-    }
-
-    ngOnDestroy(): void {
-        this.favoritesCtx.reset();
     }
 }

@@ -9,6 +9,11 @@ import {
 import { Store } from '@ngrx/store';
 import { PlaylistActions, selectPlaylistById } from 'm3u-state';
 import { map, switchMap } from 'rxjs';
+import { PortalRailSection } from '../../shared/navigation/portal-rail-links';
+import {
+    isWorkspaceLayoutRoute,
+    resolveCurrentPortalSection,
+} from '../../shared/navigation/portal-route.utils';
 import { createLogger } from '../../shared/utils/logger';
 import { NavigationComponent } from '../../xtream-electron/navigation/navigation.component';
 import { XtreamStore } from '../../xtream-electron/stores/xtream.store';
@@ -27,8 +32,7 @@ export class StalkerShellComponent implements OnDestroy {
     private readonly router = inject(Router);
     readonly stalkerStore = inject(StalkerStore);
     private readonly store = inject(Store);
-    readonly isWorkspaceLayout =
-        this.route.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
 
     /** Current playlist derived from route params */
     readonly currentPlaylist = toSignal(
@@ -37,7 +41,7 @@ export class StalkerShellComponent implements OnDestroy {
             switchMap((id) => this.store.select(selectPlaylistById(id)))
         )
     );
-    private currentSection: string | null = null;
+    private currentSection: PortalRailSection | null = null;
 
     constructor() {
         // Subscribe to route params to handle switching between playlists
@@ -84,10 +88,11 @@ export class StalkerShellComponent implements OnDestroy {
     }
 
     private syncSectionFromRoute(): void {
-        const sectionFromSnapshot =
-            this.route.firstChild?.snapshot?.url?.[0]?.path ?? null;
-        const sectionFromUrl = this.getSectionFromUrl(this.router.url);
-        const section = sectionFromSnapshot ?? sectionFromUrl;
+        const section = resolveCurrentPortalSection(
+            this.route,
+            this.router.url,
+            'stalker'
+        );
 
         if (!section || section === this.currentSection) {
             return;
@@ -101,12 +106,5 @@ export class StalkerShellComponent implements OnDestroy {
         }
 
         this.stalkerStore.setSelectedContentType(null as any);
-    }
-
-    private getSectionFromUrl(url: string): string | null {
-        const match = url.match(
-            /^\/(?:workspace\/)?stalker\/[^\/\?]+\/([^\/\?]+)/
-        );
-        return match?.[1] ?? null;
     }
 }

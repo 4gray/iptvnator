@@ -1,0 +1,23 @@
+@if (categoryId() === 'vod') {
+    @if ((seriesItem()?.series?.length ?? 0) > 0) {
+        <!-- VOD item with embedded series (vclub) -->
+        <app-stalker-series-view
+            [vodWithSeries]="seriesItem()"
+            (backClicked)="onBackClicked()"
+        />
+    } @else if (isSeries()) {
+        <!-- VOD item that is actually a series (Ministra plugin is_series=1) -->
+        <app-stalker-series-view (backClicked)="onBackClicked()" />
+    } @else if (vodDetailsItem()) {
+        <!-- Regular VOD item -->
+        <app-vod-details
+            [item]="vodDetailsItem()"
+            [isFavorite]="isFavorite()"
+            (playClicked)="onPlayClicked($event)"
+            (favoriteToggled)="onFavoriteToggled($event)"
+            (backClicked)="onBackClicked()"
+        />
+    }
+} @else if (categoryId() === 'series') {
+    <app-stalker-series-view (backClicked)="onBackClicked()" />
+}

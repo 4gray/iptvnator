@@ -11,11 +11,12 @@ import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { XtreamCategory } from 'shared-interfaces';
+import { CategoryViewComponent } from '../shared/components/category-view/category-view.component';
+import { isWorkspaceLayoutRoute } from '../shared/navigation/portal-route.utils';
 import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
 } from './category-management-dialog/category-management-dialog.component';
-import { CategoryViewComponent } from './category-view/category-view.component';
 import { XtreamStore } from './stores/xtream.store';
 import { XtreamCategorySortMode } from './stores/features/with-selection.feature';
 
@@ -24,7 +25,10 @@ const XTREAM_CATEGORY_SORT_STORAGE_KEY = 'xtream-category-sort-mode';
 @Component({
     selector: 'app-xtream-main-container',
     templateUrl: './xtream-main-container.component.html',
-    styleUrls: ['./xtream-main-container.component.scss', './sidebar.scss'],
+    styleUrls: [
+        './xtream-main-container.component.scss',
+        '../shared/styles/portal-sidebar.scss',
+    ],
     imports: [
         CategoryViewComponent,
         FormsModule,
@@ -58,8 +62,7 @@ export class XtreamMainContainerComponent implements OnInit {
         const type = this.xtreamStore.selectedContentType();
         return hasCategorySelected && (type === 'vod' || type === 'series');
     });
-    readonly isWorkspaceLayout =
-        this.route.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     readonly contentSortLabel = computed(() => {
         const mode = this.contentSortMode();
         if (mode === 'date-asc') return 'Date Added (Oldest First)';

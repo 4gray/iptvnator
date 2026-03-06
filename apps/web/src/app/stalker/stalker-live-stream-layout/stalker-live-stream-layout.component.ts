@@ -30,12 +30,13 @@ import { EpgItem, EpgProgram, PlaylistMeta } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
 import { PlayerService } from '../../services/player.service';
+import { isWorkspaceLayoutRoute } from '../../shared/navigation/portal-route.utils';
 import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
 } from '../../shared/services/remote-channel-navigation.util';
-import { CategoryViewComponent } from '../../xtream-electron/category-view/category-view.component';
-import { PlaylistErrorViewComponent } from '../../xtream-electron/playlist-error-view/playlist-error-view.component';
+import { CategoryViewComponent } from '../../shared/components/category-view/category-view.component';
+import { PlaylistErrorViewComponent } from '../../shared/components/playlist-error-view/playlist-error-view.component';
 import { StalkerStore } from '../stalker.store';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { createLogger } from '../../shared/utils/logger';
@@ -53,7 +54,7 @@ import {
     templateUrl: './stalker-live-stream-layout.component.html',
     styleUrls: [
         './stalker-live-stream-layout.component.scss',
-        '../../xtream-electron/sidebar.scss',
+        '../../shared/styles/portal-sidebar.scss',
     ],
     imports: [
         CategoryViewComponent,
@@ -95,8 +96,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly isCategoryFailed = this.stalkerStore.isCategoryResourceFailed;
     readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
     readonly currentPlaylist = this.stalkerStore.currentPlaylist;
-    readonly isWorkspaceLayout =
-        this.route.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
 
     /** Channels */
     readonly itvChannels = this.stalkerStore.itvChannels;

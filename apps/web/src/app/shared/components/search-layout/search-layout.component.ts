@@ -50,6 +50,9 @@ export class SearchLayoutComponent {
     /** Whether to show the inline search input */
     readonly showSearchInput = input<boolean>(true);
 
+    /** Whether inline details are active and should replace the search body */
+    readonly showDetails = input<boolean>(false);
+
     /** Minimum characters required for search */
     readonly minSearchLength = input<number>(3);
 

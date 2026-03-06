@@ -1,31 +1,48 @@
 import {
     Component,
-    OnDestroy,
     OnInit,
     computed,
     inject,
     signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { selectActivePlaylist } from 'm3u-state';
-import { BehaviorSubject, map, switchMap } from 'rxjs';
-import { XtreamCategory } from 'shared-interfaces';
-import { FavoritesLayoutComponent } from '../../shared/components/favorites-layout/favorites-layout.component';
+import { BehaviorSubject, switchMap } from 'rxjs';
 import { FavoritesContextService } from '../../workspace/favorites-context.service';
+import {
+    PortalCollectionShellComponent,
+    PortalCollectionShellLayout,
+} from '../../shared/components/portal-collection-shell/portal-collection-shell.component';
+import { queryParamSignal } from '../../shared/navigation/portal-route.utils';
+import { createPortalCollectionContext } from '../../shared/utils/portal-collection-context';
+import {
+    buildStandardCollectionCategories,
+    filterCollectionBucket,
+} from '../../shared/utils/portal-collection-items';
 import { FavoriteItem } from '../services/favorite-item.interface';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../stores/xtream.store';
 
+const XTREAM_FAVORITES_LAYOUT: PortalCollectionShellLayout = {};
+const XTREAM_COLLECTION_LABELS = {
+    all: 'All',
+    movie: 'Movies',
+    live: 'Live TV',
+    series: 'Series',
+};
+
 @Component({
     selector: 'app-favorites',
-    imports: [FavoritesLayoutComponent, MatCardModule],
+    imports: [PortalCollectionShellComponent, MatCardModule],
     templateUrl: './favorites.component.html',
-    styleUrls: ['./favorites.component.scss', '../sidebar.scss'],
+    styleUrls: [
+        './favorites.component.scss',
+        '../../shared/styles/portal-sidebar.scss',
+    ],
 })
-export class FavoritesComponent implements OnInit, OnDestroy {
+export class FavoritesComponent implements OnInit {
     private favoritesService = inject(FavoritesService);
     private route = inject(ActivatedRoute);
     private router = inject(Router);
@@ -33,47 +50,56 @@ export class FavoritesComponent implements OnInit, OnDestroy {
     private xtreamStore = inject(XtreamStore);
     private readonly favoritesCtx = inject(FavoritesContextService);
 
-    readonly categories = signal<XtreamCategory[]>([]);
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
+    readonly layout = XTREAM_FAVORITES_LAYOUT;
+    readonly playlistSubtitle = 'Xtream Code';
+    readonly playlistTitle = computed(
+        () =>
+            this.currentPlaylist()?.name ||
+            this.currentPlaylist()?.title ||
+            'Playlist'
+    );
 
     readonly allItems = signal<FavoriteItem[]>([]);
     readonly series = signal<FavoriteItem[]>([]);
     readonly movies = signal<FavoriteItem[]>([]);
     readonly live = signal<FavoriteItem[]>([]);
-    readonly searchTerm = toSignal(
-        this.route.queryParamMap.pipe(
-            map((params) => (params.get('q') ?? '').trim().toLowerCase())
-        ),
-        { initialValue: '' }
+    readonly searchTerm = queryParamSignal(this.route, 'q', (value) =>
+        (value ?? '').trim().toLowerCase()
     );
+    readonly categories = computed(() =>
+        buildStandardCollectionCategories({
+            labels: XTREAM_COLLECTION_LABELS,
+            counts: {
+                all: this.allItems().length,
+                movie: this.movies().length,
+                live: this.live().length,
+                series: this.series().length,
+            },
+            includeLive: true,
+        })
+    );
+    readonly collectionContext = createPortalCollectionContext({
+        ctx: this.favoritesCtx,
+        categories: this.categories,
+    });
 
     /** Synced with the workspace context service so panel clicks are reactive */
-    readonly selectedCategoryId = this.favoritesCtx.selectedCategoryId;
+    readonly selectedCategoryId = this.collectionContext.selectedCategoryId;
 
     /** Items filtered by the active category — fully reactive, no imperative calls */
     readonly filteredFavoritesToShow = computed(() => {
-        const term = this.searchTerm();
-        const categoryId = this.selectedCategoryId();
-
-        let items: FavoriteItem[];
-        switch (categoryId) {
-            case 'movie':
-                items = this.movies();
-                break;
-            case 'live':
-                items = this.live();
-                break;
-            case 'series':
-                items = this.series();
-                break;
-            default:
-                items = this.allItems();
-        }
-
-        if (!term) return items;
-        return items.filter((item) =>
-            `${item?.title ?? ''}`.toLowerCase().includes(term)
-        );
+        return filterCollectionBucket({
+            selectedCategoryId: this.selectedCategoryId(),
+            allItems: this.allItems(),
+            buckets: {
+                movie: this.movies(),
+                live: this.live(),
+                series: this.series(),
+            },
+            searchTerm: this.searchTerm(),
+            textOf: (item) => `${item?.title ?? ''}`,
+        });
     });
 
     private favoritesRefresh$ = new BehaviorSubject<void>(undefined);
@@ -92,47 +118,11 @@ export class FavoritesComponent implements OnInit, OnDestroy {
                 );
                 this.live.set(items.filter((item) => item.type === 'live'));
                 this.series.set(items.filter((item) => item.type === 'series'));
-                this.initCategories();
             });
     }
 
-    initCategories() {
-        const updated: XtreamCategory[] = [
-            {
-                id: 1,
-                category_id: 'all',
-                category_name: 'All',
-                count: this.allItems().length,
-                parent_id: 0,
-            },
-            {
-                id: 2,
-                category_id: 'movie',
-                category_name: 'Movies',
-                count: this.movies().length,
-                parent_id: 0,
-            },
-            {
-                id: 3,
-                category_id: 'live',
-                category_name: 'Live TV',
-                count: this.live().length,
-                parent_id: 0,
-            },
-            {
-                id: 4,
-                category_id: 'series',
-                category_name: 'Series',
-                count: this.series().length,
-                parent_id: 0,
-            },
-        ];
-        this.categories.set(updated);
-        this.favoritesCtx.setCategories(updated);
-    }
-
     setCategoryId(categoryId: string) {
-        this.favoritesCtx.setCategoryId(categoryId);
+        this.collectionContext.setCategoryId(categoryId);
     }
 
     async removeFromFavorites(item: any) {
@@ -179,9 +169,5 @@ export class FavoritesComponent implements OnInit, OnDestroy {
                 }
             );
         }
-    }
-
-    ngOnDestroy(): void {
-        this.favoritesCtx.reset();
     }
 }

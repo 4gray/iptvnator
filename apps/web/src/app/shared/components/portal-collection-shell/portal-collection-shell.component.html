@@ -1,0 +1,23 @@
+@if (showDetails()) {
+    <ng-content select="[details]" />
+} @else {
+    <app-favorites-layout
+        [categories]="categories()"
+        [favorites]="items()"
+        [playlistSubtitle]="playlistSubtitle()"
+        [playlistTitle]="playlistTitle()"
+        [selectedCategoryId]="selectedCategoryId()"
+        [titleTranslationString]="
+            layout().titleTranslationKey || 'CHANNELS.FAVORITES'
+        "
+        [removeTooltip]="layout().removeTooltip || ''"
+        [emptyIcon]="layout().emptyIcon || 'favorite_border'"
+        [showHeaderAction]="layout().showHeaderAction || false"
+        [headerActionIcon]="layout().headerActionIcon || 'delete_sweep'"
+        [headerActionTooltip]="layout().headerActionTooltip || ''"
+        (categoryClicked)="onCategoryClicked($event)"
+        (removeFavorite)="removeItem.emit($event)"
+        (headerActionClicked)="headerActionClicked.emit()"
+        (openItem)="openItem.emit($event)"
+    />
+}

@@ -20,6 +20,7 @@ import {
 } from 'shared-interfaces';
 import { DownloadsService } from '../../services/downloads.service';
 import { GridListComponent } from '../../shared/components/grid-list/grid-list.component';
+import { PlaylistErrorViewComponent } from '../../shared/components/playlist-error-view/playlist-error-view.component';
 import { createLogger } from '../../shared/utils/logger';
 import { StalkerVodSource } from '../../stalker/models';
 import { StalkerSeriesViewComponent } from '../../stalker/stalker-series-view/stalker-series-view.component';
@@ -34,7 +35,6 @@ import {
 } from '../../stalker/stalker-vod.utils';
 import { StalkerStore } from '../../stalker/stalker.store';
 import { XTREAM_DATA_SOURCE } from '../data-sources';
-import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 import { XtreamStore } from '../stores/xtream.store';
 import { VodDetailsComponent } from '../vod-details/vod-details.component';
 

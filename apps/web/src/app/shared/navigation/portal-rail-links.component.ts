@@ -8,7 +8,7 @@ import {
     RouterLink,
     RouterLinkActive,
 } from '@angular/router';
-import { PortalRailLink } from './portal-rail-links';
+import { PortalRailLink, PortalRailSection } from './portal-rail-links';
 
 @Component({
     selector: 'app-portal-rail-links',
@@ -20,7 +20,9 @@ export class PortalRailLinksComponent {
     private readonly router = inject(Router);
 
     readonly links = input<PortalRailLink[]>([]);
-    readonly selectedSection = input<string | null | undefined>(null);
+    readonly selectedSection = input<
+        PortalRailSection | string | null | undefined
+    >(null);
     readonly activeClass = input<'active' | 'is-active'>('active');
     readonly variant = input<'list' | 'rail'>('list');
 

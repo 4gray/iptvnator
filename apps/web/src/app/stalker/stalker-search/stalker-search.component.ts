@@ -1,5 +1,4 @@
 import { Component, effect, inject, resource, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { ActivatedRoute } from '@angular/router';
@@ -15,10 +14,13 @@ import {
 } from 'shared-interfaces';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
-import { VodDetailsComponent } from '../../xtream-electron/vod-details/vod-details.component';
+import { StalkerInlineDetailComponent } from '../../shared/components/stalker-inline-detail/stalker-inline-detail.component';
 import { StalkerContentTypes } from '../stalker-content-types';
-import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerStore } from '../stalker.store';
+import {
+    isWorkspaceLayoutRoute,
+    queryParamSignal,
+} from '../../shared/navigation/portal-route.utils';
 import { createLogger } from '../../shared/utils/logger';
 import {
     StalkerSelectedVodItem,
@@ -27,6 +29,7 @@ import {
 import {
     buildStalkerSelectedVodItem,
     clearStalkerDetailViewState,
+    createStalkerInlineDetailState,
     createPortalFavoritesResource,
     createRefreshTrigger,
     createStalkerDetailViewState,
@@ -48,9 +51,8 @@ interface StalkerFilter {
         FormsModule,
         MatCheckboxModule,
         SearchLayoutComponent,
-        StalkerSeriesViewComponent,
+        StalkerInlineDetailComponent,
         TranslatePipe,
-        VodDetailsComponent,
     ],
     templateUrl: './stalker-search.component.html',
     styleUrl: './stalker-search.component.scss',
@@ -68,8 +70,7 @@ export class StalkerSearchComponent {
         series: false,
         vod: true,
     });
-    readonly isWorkspaceLayout =
-        this.activatedRoute.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
     readonly filterConfig: StalkerFilter[] = [
         {
@@ -85,6 +86,11 @@ export class StalkerSearchComponent {
     ];
 
     readonly searchTerm = signal('');
+    readonly routeSearchTerm = queryParamSignal(
+        this.activatedRoute,
+        'q',
+        (value) => (value ?? '').trim()
+    );
 
     private readonly currentPlaylist = this.store.selectSignal(
         selectPlaylistById(this.activatedRoute?.parent?.snapshot.params.id)
@@ -162,14 +168,12 @@ export class StalkerSearchComponent {
     readonly isSelectedVodFavorite = signal<boolean>(false);
 
     constructor() {
-        this.activatedRoute.queryParamMap
-            .pipe(takeUntilDestroyed())
-            .subscribe((queryParams) => {
-                const routeTerm = queryParams.get('q')?.trim() ?? '';
-                if (routeTerm !== this.searchTerm()) {
-                    this.searchTerm.set(routeTerm);
-                }
-            });
+        effect(() => {
+            const routeTerm = this.routeSearchTerm();
+            if (routeTerm !== this.searchTerm()) {
+                this.searchTerm.set(routeTerm);
+            }
+        });
 
         effect(() => {
             // Re-evaluate favorite state whenever favorites resource changes.
@@ -180,7 +184,7 @@ export class StalkerSearchComponent {
 
     /** Check if showing item details */
     get showingDetails(): boolean {
-        return this.itemDetails !== null;
+        return this.inlineDetail().categoryId !== null;
     }
 
     /** Get results count for layout */
@@ -293,6 +297,14 @@ export class StalkerSearchComponent {
                 item,
                 this.portalFavorites.value() ?? []
             )
+        );
+    }
+
+    inlineDetail() {
+        return createStalkerInlineDetailState(
+            this.itemDetails,
+            this.vodDetailsItem,
+            this.selectedFilterType() === 'series' ? 'series' : 'vod'
         );
     }
 

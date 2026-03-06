@@ -23,6 +23,13 @@ export interface StalkerDetailViewState {
     vodDetailsItem: VodDetailsItem | null;
 }
 
+export interface StalkerInlineDetailState {
+    categoryId: 'vod' | 'series' | null;
+    seriesItem: StalkerSelectedVodItem | null;
+    isSeries: boolean;
+    vodDetailsItem: VodDetailsItem | null;
+}
+
 export interface StalkerFavoriteToggleEvent {
     item: VodDetailsItem;
     isFavorite: boolean;
@@ -219,6 +226,44 @@ export function normalizeStalkerVodDetailsItem(
         is_series: normalizeStalkerSeriesFlag(item?.is_series)
             ? true
             : undefined,
+    };
+}
+
+export function createStalkerInlineDetailState(
+    itemDetails: StalkerSelectedVodItem | NormalizedStalkerFavoriteItem | null,
+    vodDetailsItem: VodDetailsItem | null,
+    categoryOverride?: 'vod' | 'series' | null
+): StalkerInlineDetailState {
+    if (!itemDetails) {
+        return {
+            categoryId: null,
+            seriesItem: null,
+            isSeries: false,
+            vodDetailsItem: null,
+        };
+    }
+
+    const seriesItem =
+        'details' in itemDetails ? itemDetails.details : itemDetails;
+    const rawCategoryId =
+        categoryOverride ??
+        (typeof itemDetails.category_id === 'string'
+            ? itemDetails.category_id
+            : typeof seriesItem.category_id === 'string'
+              ? seriesItem.category_id
+              : undefined);
+    const categoryId =
+        rawCategoryId === 'vod' || rawCategoryId === 'movie'
+            ? 'vod'
+            : rawCategoryId === 'series'
+              ? 'series'
+              : null;
+
+    return {
+        categoryId,
+        seriesItem,
+        isSeries: isStalkerSeriesFlag(seriesItem?.is_series),
+        vodDetailsItem,
     };
 }
 

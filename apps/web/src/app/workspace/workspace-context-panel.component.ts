@@ -1,7 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
-import { PlaylistErrorViewComponent } from '../xtream-electron/playlist-error-view/playlist-error-view.component';
-import { CategoryViewComponent } from '../xtream-electron/category-view/category-view.component';
+import { CategoryViewComponent } from '../shared/components/category-view/category-view.component';
+import { PlaylistErrorViewComponent } from '../shared/components/playlist-error-view/playlist-error-view.component';
 import { XtreamStore } from '../xtream-electron/stores/xtream.store';
 import { StalkerStore } from '../stalker/stalker.store';
 

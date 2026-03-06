@@ -5,8 +5,9 @@ import { MatPaginatorModule } from '@angular/material/paginator';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
-import { CategoryViewComponent } from '../xtream-electron/category-view/category-view.component';
-import { PlaylistErrorViewComponent } from '../xtream-electron/playlist-error-view/playlist-error-view.component';
+import { CategoryViewComponent } from '../shared/components/category-view/category-view.component';
+import { PlaylistErrorViewComponent } from '../shared/components/playlist-error-view/playlist-error-view.component';
+import { isWorkspaceLayoutRoute } from '../shared/navigation/portal-route.utils';
 import { StalkerStore } from './stalker.store';
 
 @Component({
@@ -15,7 +16,7 @@ import { StalkerStore } from './stalker.store';
     styleUrls: [
         './stalker-main-container.component.scss',
         '../xtream-electron/xtream-main-container.component.scss',
-        '../xtream-electron/sidebar.scss',
+        '../shared/styles/portal-sidebar.scss',
     ],
     imports: [
         CategoryViewComponent,
@@ -34,8 +35,7 @@ export class StalkerMainContainerComponent {
     private readonly router = inject(Router);
     readonly stalkerStore = inject(StalkerStore);
     private readonly translateService = inject(TranslateService);
-    readonly isWorkspaceLayout =
-        this.route.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
 
     currentLayout:
         | 'category_content'

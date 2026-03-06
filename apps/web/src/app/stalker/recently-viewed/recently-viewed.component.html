@@ -1,48 +1,25 @@
-@if (itemDetails) {
-    @switch (itemDetails.category_id) {
-        @case ('vod') {
-            @if (itemDetails.series?.length > 0) {
-                <!-- VOD item with embedded series (vclub) -->
-                <app-stalker-series-view
-                    [vodWithSeries]="itemDetails"
-                    (backClicked)="itemDetails = null; vodDetailsItem = null"
-                />
-            } @else if (itemDetails.is_series === true) {
-                <!-- VOD item that is actually a series (Ministra plugin is_series=1) -->
-                <app-stalker-series-view
-                    (backClicked)="itemDetails = null; vodDetailsItem = null"
-                />
-            } @else if (vodDetailsItem) {
-                <!-- Regular VOD item -->
-                <app-vod-details
-                    [item]="vodDetailsItem"
-                    [isFavorite]="isSelectedVodFavorite()"
-                    (playClicked)="onVodPlay($event)"
-                    (favoriteToggled)="onVodFavoriteToggled($event)"
-                    (backClicked)="onVodBack()"
-                />
-            }
-        }
-        @case ('series') {
-            <app-stalker-series-view (backClicked)="itemDetails = null" />
-        }
-    }
-} @else {
-    <app-favorites-layout
-        [categories]="categories() ?? []"
-        [favorites]="itemsToShow() ?? []"
-        [playlistSubtitle]="'Stalker Portal'"
-        [playlistTitle]="currentPlaylist()?.title || 'Portal'"
-        [selectedCategoryId]="selectedCategoryId()"
-        [titleTranslationString]="'PORTALS.SIDEBAR.RECENT'"
-        [removeTooltip]="'Remove from recent'"
-        [emptyIcon]="'history'"
-        [showHeaderAction]="!isWorkspaceLayout"
-        [headerActionIcon]="'delete_sweep'"
-        [headerActionTooltip]="'Clear recently viewed'"
-        (categoryClicked)="setCategoryId($event.category_id)"
-        (removeFavorite)="removeFromRecentlyViewed($event)"
-        (headerActionClicked)="clearAllRecentlyViewed()"
-        (openItem)="openItem($event)"
+<app-portal-collection-shell
+    [categories]="categories() ?? []"
+    [items]="itemsToShow() ?? []"
+    [playlistSubtitle]="playlistSubtitle"
+    [playlistTitle]="playlistTitle()"
+    [selectedCategoryId]="selectedCategoryId()"
+    [layout]="layout"
+    [showDetails]="showDetails()"
+    (categoryClicked)="setCategoryId($event)"
+    (removeItem)="removeFromRecentlyViewed($event)"
+    (headerActionClicked)="clearAllRecentlyViewed()"
+    (openItem)="openItem($event)"
+>
+    <app-stalker-inline-detail
+        details
+        [categoryId]="inlineDetail().categoryId"
+        [seriesItem]="inlineDetail().seriesItem"
+        [isSeries]="inlineDetail().isSeries"
+        [vodDetailsItem]="inlineDetail().vodDetailsItem"
+        [isFavorite]="isSelectedVodFavorite()"
+        (playClicked)="onVodPlay($event)"
+        (favoriteToggled)="onVodFavoriteToggled($event)"
+        (backClicked)="onVodBack()"
     />
-}
+</app-portal-collection-shell>

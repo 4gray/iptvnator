@@ -1,10 +1,11 @@
-<app-favorites-layout
+<app-portal-collection-shell
     [categories]="categories()"
-    [favorites]="filteredFavoritesToShow()"
-    [playlistSubtitle]="'Xtream Code'"
-    [playlistTitle]="currentPlaylist()?.name || currentPlaylist()?.title || 'Playlist'"
+    [items]="filteredFavoritesToShow()"
+    [playlistSubtitle]="playlistSubtitle"
+    [playlistTitle]="playlistTitle()"
     [selectedCategoryId]="selectedCategoryId()"
-    (categoryClicked)="setCategoryId($event.category_id)"
-    (removeFavorite)="removeFromFavorites($event)"
+    [layout]="layout"
+    (categoryClicked)="setCategoryId($event)"
+    (removeItem)="removeFromFavorites($event)"
     (openItem)="openItem($event)"
 />

@@ -119,20 +119,15 @@
         }
     </div>
 } @else {
-    <app-favorites-layout
+    <app-portal-collection-shell
         [categories]="categories()"
-        [favorites]="nonGlobalItemsToShow()"
-        [playlistSubtitle]="'Xtream Code'"
-        [playlistTitle]="currentPlaylist()?.name || currentPlaylist()?.title || 'Playlist'"
+        [items]="nonGlobalItemsToShow()"
+        [playlistSubtitle]="playlistSubtitle"
+        [playlistTitle]="playlistTitle()"
         [selectedCategoryId]="selectedCategoryId()"
-        [titleTranslationString]="'PORTALS.SIDEBAR.RECENT'"
-        [removeTooltip]="'Remove from history'"
-        [emptyIcon]="'history'"
-        [showHeaderAction]="!isWorkspaceLayout"
-        [headerActionIcon]="'delete_sweep'"
-        [headerActionTooltip]="'Clear history'"
-        (categoryClicked)="setCategoryId($event.category_id)"
-        (removeFavorite)="onRemoveItem($event)"
+        [layout]="nonGlobalLayout"
+        (categoryClicked)="setCategoryId($event)"
+        (removeItem)="onRemoveItem($event)"
         (headerActionClicked)="clearHistory()"
         (openItem)="openItem($event)"
     />

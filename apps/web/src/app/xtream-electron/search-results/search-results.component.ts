@@ -10,7 +10,6 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -23,10 +22,13 @@ import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import groupBy from 'lodash/groupBy';
-import { map } from 'rxjs';
 import { DatabaseService } from 'services';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
+import {
+    isWorkspaceLayoutRoute,
+    queryParamSignal,
+} from '../../shared/navigation/portal-route.utils';
 import { createLogger } from '../../shared/utils/logger';
 import { XtreamContentItem } from '../data-sources/xtream-data-source.interface';
 import { SearchFilters } from '../stores/features/with-search.feature';
@@ -62,13 +64,11 @@ export class SearchResultsComponent implements AfterViewInit {
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
     private readonly logger = createLogger('XtreamSearchResults');
-    readonly isWorkspaceLayout =
-        this.activatedRoute.snapshot.data['layout'] === 'workspace';
-    readonly routeSearchTerm = toSignal(
-        this.activatedRoute.queryParamMap.pipe(
-            map((params) => (params.get('q') ?? '').trim())
-        ),
-        { initialValue: '' }
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
+    readonly routeSearchTerm = queryParamSignal(
+        this.activatedRoute,
+        'q',
+        (value) => (value ?? '').trim()
     );
 
     /** Search term from store */

@@ -27,6 +27,8 @@ import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { XtreamCategory } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
+import { CategoryViewComponent } from '../../shared/components/category-view/category-view.component';
+import { isWorkspaceLayoutRoute } from '../../shared/navigation/portal-route.utils';
 import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
@@ -35,9 +37,6 @@ import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
 } from '../category-management-dialog/category-management-dialog.component';
-import {
-    CategoryViewComponent,
-} from '../category-view/category-view.component';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { FavoritesService } from '../services/favorites.service';
 import { XtreamStore } from '../stores/xtream.store';
@@ -48,7 +47,10 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 @Component({
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
-    styleUrls: ['./live-stream-layout.component.scss', '../sidebar.scss'],
+    styleUrls: [
+        './live-stream-layout.component.scss',
+        '../../shared/styles/portal-sidebar.scss',
+    ],
     imports: [
         CategoryViewComponent,
         EpgViewComponent,
@@ -81,8 +83,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
     readonly epgItems = this.xtreamStore.epgItems;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
-    readonly isWorkspaceLayout =
-        this.route.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     readonly liveChannelSortMode = signal<LiveChannelSortMode>('server');
     private readonly pendingAutoOpenLiveItemId = signal<number | null>(null);
     readonly liveChannelSortLabel = computed(() => {

@@ -4,7 +4,6 @@ import {
     computed,
     effect,
     inject,
-    OnDestroy,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,20 +15,37 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from 'components';
 import { firstValueFrom, map } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
-import { XtreamCategory } from 'shared-interfaces';
 import {
     DownloadItem,
     DownloadsService,
 } from '../../services/downloads.service';
+import { CategoryViewComponent } from '../../shared/components/category-view/category-view.component';
+import {
+    isWorkspaceLayoutRoute,
+    queryParamSignal,
+} from '../../shared/navigation/portal-route.utils';
+import { createPortalCollectionContext } from '../../shared/utils/portal-collection-context';
+import {
+    buildStandardCollectionCategories,
+    filterCollectionBucket,
+} from '../../shared/utils/portal-collection-items';
 import { FavoritesContextService } from '../../workspace/favorites-context.service';
-import { CategoryViewComponent } from '../category-view/category-view.component';
 
 type PortalSource = 'xtream' | 'stalker';
+const DOWNLOAD_COLLECTION_LABELS = {
+    all: 'All',
+    movie: 'Movies',
+    live: 'Live TV',
+    series: 'Series',
+};
 
 @Component({
     selector: 'app-downloads',
     templateUrl: './downloads.component.html',
-    styleUrls: ['./downloads.component.scss', '../sidebar.scss'],
+    styleUrls: [
+        './downloads.component.scss',
+        '../../shared/styles/portal-sidebar.scss',
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         CategoryViewComponent,
@@ -41,31 +57,26 @@ type PortalSource = 'xtream' | 'stalker';
         TranslatePipe,
     ],
 })
-export class DownloadsComponent implements OnDestroy {
+export class DownloadsComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly favoritesCtx = inject(FavoritesContextService);
     readonly downloadsService = inject(DownloadsService);
-    readonly isWorkspaceLayout =
-        this.route.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
 
     readonly downloads = this.downloadsService.downloads;
     readonly downloadFolder = this.downloadsService.downloadFolder;
     readonly isAvailable = this.downloadsService.isAvailable;
     readonly hasDownloads = this.downloadsService.hasDownloads;
     readonly activeCount = this.downloadsService.activeCount;
-    readonly selectedCategoryId = this.favoritesCtx.selectedCategoryId;
     readonly playlistId = toSignal(
         this.route.paramMap.pipe(map((params) => params.get('id') ?? '')),
         { initialValue: this.route.snapshot.params['id'] ?? '' }
     );
-    readonly searchTerm = toSignal(
-        this.route.queryParamMap.pipe(
-            map((params) => (params.get('q') ?? '').trim().toLowerCase())
-        ),
-        { initialValue: '' }
+    readonly searchTerm = queryParamSignal(this.route, 'q', (value) =>
+        (value ?? '').trim().toLowerCase()
     );
 
     readonly scopedDownloads = computed(() => {
@@ -76,7 +87,7 @@ export class DownloadsComponent implements OnDestroy {
             : downloads;
     });
 
-    readonly categories = computed<XtreamCategory[]>(() => {
+    readonly categories = computed(() => {
         const downloads = this.scopedDownloads();
         const moviesCount = downloads.filter(
             (item) => item.contentType === 'vod'
@@ -85,54 +96,37 @@ export class DownloadsComponent implements OnDestroy {
             (item) => item.contentType === 'episode'
         ).length;
 
-        return [
-            {
-                id: 1,
-                category_id: 'all',
-                category_name: 'All',
-                count: downloads.length,
-                parent_id: 0,
+        return buildStandardCollectionCategories({
+            labels: DOWNLOAD_COLLECTION_LABELS,
+            counts: {
+                all: downloads.length,
+                movie: moviesCount,
+                series: seriesCount,
             },
-            {
-                id: 2,
-                category_id: 'movie',
-                category_name: 'Movies',
-                count: moviesCount,
-                parent_id: 0,
-            },
-            {
-                id: 3,
-                category_id: 'series',
-                category_name: 'Series',
-                count: seriesCount,
-                parent_id: 0,
-            },
-        ];
+        });
     });
+    readonly collectionContext = createPortalCollectionContext({
+        ctx: this.favoritesCtx,
+        categories: this.categories,
+    });
+    readonly selectedCategoryId = this.collectionContext.selectedCategoryId;
 
     /** Filter downloads for current playlist and sort by newest first */
     readonly filteredDownloads = computed(() => {
-        const selectedCategoryId = this.selectedCategoryId();
         const term = this.searchTerm();
         const downloads = this.scopedDownloads();
-
-        const filteredByCategory = downloads.filter((item) => {
-            if (selectedCategoryId === 'movie') {
-                return item.contentType === 'vod';
-            }
-            if (selectedCategoryId === 'series') {
-                return item.contentType === 'episode';
-            }
-            return true;
+        const filteredByTerm = filterCollectionBucket({
+            selectedCategoryId: this.selectedCategoryId(),
+            allItems: downloads,
+            buckets: {
+                movie: downloads.filter((item) => item.contentType === 'vod'),
+                series: downloads.filter(
+                    (item) => item.contentType === 'episode'
+                ),
+            },
+            searchTerm: term,
+            textOf: (item) => `${item.title ?? ''} ${item.errorMessage ?? ''}`,
         });
-
-        const filteredByTerm = term
-            ? filteredByCategory.filter((item) =>
-                  `${item.title ?? ''} ${item.errorMessage ?? ''}`
-                      .toLowerCase()
-                      .includes(term)
-              )
-            : filteredByCategory;
 
         // Sort by createdAt descending (newest first)
         return [...filteredByTerm].sort((a, b) => {
@@ -145,21 +139,13 @@ export class DownloadsComponent implements OnDestroy {
     constructor() {
         effect(() => {
             const playlistId = this.playlistId();
-            this.favoritesCtx.setCategoryId('all');
+            this.collectionContext.setCategoryId('all');
             void this.downloadsService.loadDownloads(playlistId || undefined);
-        });
-
-        effect(() => {
-            this.favoritesCtx.setCategories(this.categories());
         });
     }
 
     setCategoryId(categoryId: string) {
-        this.favoritesCtx.setCategoryId(categoryId);
-    }
-
-    ngOnDestroy(): void {
-        this.favoritesCtx.reset();
+        this.collectionContext.setCategoryId(categoryId);
     }
 
     getProgress(item: DownloadItem): number {

@@ -5,7 +5,8 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
-import { CategoryViewComponent } from '../../../xtream-electron/category-view/category-view.component';
+import { isWorkspaceLayoutRoute } from '../../navigation/portal-route.utils';
+import { CategoryViewComponent } from '../category-view/category-view.component';
 import { ContentCardComponent } from '../content-card/content-card.component';
 
 @Component({
@@ -13,7 +14,7 @@ import { ContentCardComponent } from '../content-card/content-card.component';
     templateUrl: './favorites-layout.component.html',
     styleUrls: [
         './favorites-layout.component.scss',
-        '../../../xtream-electron/sidebar.scss',
+        '../../styles/portal-sidebar.scss',
     ],
     imports: [
         CategoryViewComponent,
@@ -27,9 +28,9 @@ import { ContentCardComponent } from '../content-card/content-card.component';
     ],
 })
 export class FavoritesLayoutComponent {
-    private readonly route = inject(ActivatedRoute);
-    readonly isWorkspaceLayout =
-        this.route.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(
+        inject(ActivatedRoute)
+    );
 
     readonly categories = input<any[]>([]);
     readonly favorites = input<any[]>([]);
