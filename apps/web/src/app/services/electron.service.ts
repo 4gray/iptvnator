@@ -216,14 +216,52 @@ export class ElectronService extends DataService {
     }
 
     private async fetchM3uPlaylistFromUrl(payload: Partial<Playlist>) {
-        window.electron.fetchPlaylistByUrl(payload.url).then((result) => {
-            this.store.dispatch(
-                PlaylistActions.handleAddingPlaylistByUrl({
-                    isTemporary: !!payload?.isTemporary,
-                    playlist: result,
-                })
-            );
-        });
+        window.electron
+            .fetchPlaylistByUrl(payload.url)
+            .then((result) => {
+                this.store.dispatch(
+                    PlaylistActions.handleAddingPlaylistByUrl({
+                        isTemporary: !!payload?.isTemporary,
+                        playlist: result,
+                    })
+                );
+            })
+            .catch((error: unknown) => {
+                const statusCode = this.extractHttpStatusCode(error);
+                let messageKey =
+                    'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
+                if (statusCode === 403) {
+                    messageKey = 'HOME.URL_UPLOAD.ERROR_403';
+                } else if (statusCode === 404) {
+                    messageKey = 'HOME.URL_UPLOAD.ERROR_404';
+                } else if (statusCode === 401) {
+                    messageKey = 'HOME.URL_UPLOAD.ERROR_401';
+                }
+                this.snackBar.open(
+                    this.translateService.instant(messageKey),
+                    this.translateService.instant('CLOSE'),
+                    { duration: 5000 }
+                );
+            });
+    }
+
+    private extractHttpStatusCode(error: unknown): number | null {
+        if (
+            error &&
+            typeof error === 'object' &&
+            'response' in error &&
+            error.response &&
+            typeof error.response === 'object' &&
+            'status' in error.response
+        ) {
+            return error.response.status as number;
+        }
+        // Parse status from error message string (IPC serialization)
+        const msg = String(
+            (error as { message?: string })?.message ?? error
+        );
+        const match = msg.match(/status code (\d{3})/);
+        return match ? parseInt(match[1], 10) : null;
     }
 
     private async updateM3uPlaylistFromFile(data: {

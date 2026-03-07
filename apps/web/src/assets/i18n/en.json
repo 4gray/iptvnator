@@ -89,7 +89,11 @@
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",
             "ADD_PLAYLIST": "Add playlist",
-            "CORS_NOTE": "Note: In order to avoid CORS issues at this point the application uses a public CORS Proxy service. If you want to upload a playlist with sensitive data, it's more secure to import it from a file."
+            "CORS_NOTE": "Note: In order to avoid CORS issues at this point the application uses a public CORS Proxy service. If you want to upload a playlist with sensitive data, it's more secure to import it from a file.",
+            "ERROR_FETCH_FAILED": "Failed to fetch the playlist. Please check the URL and try again.",
+            "ERROR_403": "Access denied (403): The server refused the request. The URL may require authentication or the playlist is restricted.",
+            "ERROR_404": "Playlist not found (404): The URL does not point to a valid playlist. Please check the URL.",
+            "ERROR_401": "Unauthorized (401): Authentication is required to access this playlist."
         },
         "TEXT_IMPORT": {
             "LABEL": "Insert m3u(8) playlist as text",
