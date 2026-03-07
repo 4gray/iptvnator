@@ -1,0 +1,42 @@
+<div class="search-panel">
+    <label class="search-field">
+        <mat-icon>search</mat-icon>
+        <input
+            type="search"
+            spellcheck="false"
+            [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
+            [(ngModel)]="searchString"
+        />
+    </label>
+</div>
+
+<div class="channels-list">
+    @if (filteredItems().length > 0) {
+        @for (item of filteredItems(); track item.id) {
+            <app-channel-list-item
+                [name]="item.o_name || item.name || ''"
+                [logo]="item.logo"
+                [selected]="isSelected(item)"
+                [epgProgram]="
+                    epgPrograms.get(normalizeStalkerEntityId(item.id)) ?? null
+                "
+                [progressPercentage]="
+                    currentProgramsProgress.get(normalizeStalkerEntityId(item.id)) ?? 0
+                "
+                [showFavoriteButton]="true"
+                [showProgramInfoButton]="false"
+                [isFavorite]="isFavorite(item)"
+                (clicked)="onPlay(item)"
+                (favoriteToggled)="onFavoriteToggle(item)"
+            />
+        }
+    } @else {
+        <div class="empty-search-state">
+            <div class="empty-icon-wrapper">
+                <mat-icon>search_off</mat-icon>
+            </div>
+            <h3>{{ 'CHANNELS.NO_CHANNELS_FOUND' | translate }}</h3>
+            <p>We couldn't find anything matching "{{ searchString() }}"</p>
+        </div>
+    }
+</div>

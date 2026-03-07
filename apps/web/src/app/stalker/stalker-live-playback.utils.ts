@@ -1,0 +1,94 @@
+import { Playlist } from 'shared-interfaces';
+
+export const STALKER_MAG_USER_AGENT =
+    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250';
+export const STALKER_STREAM_USER_AGENT = 'KSPlayer';
+
+export function getStalkerPortalOrigin(
+    playlist: Playlist | undefined | null
+): string | undefined {
+    const portalUrl = playlist?.portalUrl;
+    if (!portalUrl) {
+        return undefined;
+    }
+
+    try {
+        return new URL(portalUrl).origin;
+    } catch {
+        return undefined;
+    }
+}
+
+export function isCrossOriginStalkerStream(
+    playlist: Playlist | undefined | null,
+    streamUrl?: string
+): boolean {
+    const portalOrigin = getStalkerPortalOrigin(playlist);
+    if (!portalOrigin || !streamUrl) {
+        return false;
+    }
+
+    try {
+        return new URL(streamUrl).origin !== portalOrigin;
+    } catch {
+        return false;
+    }
+}
+
+export function buildStalkerExternalPlaybackHeaders(
+    playlist: Playlist | undefined | null,
+    token?: string | null,
+    streamUrl?: string
+): Record<string, string> {
+    if (!playlist?.macAddress) {
+        return {};
+    }
+
+    if (isCrossOriginStalkerStream(playlist, streamUrl)) {
+        return {
+            'User-Agent': STALKER_STREAM_USER_AGENT,
+            Accept: '*/*',
+            Range: 'bytes=0-',
+            Connection: 'keep-alive',
+            'Icy-MetaData': '1',
+        };
+    }
+
+    const cookieParts = [
+        `mac=${playlist.macAddress}`,
+        'stb_lang=en_US@rg=dezzzz',
+        'timezone=Europe/Berlin',
+    ];
+
+    if (playlist.stalkerSerialNumber) {
+        cookieParts.push(
+            `__cfduid=${playlist.stalkerSerialNumber.toLowerCase()}e030245495acd6ebfc1`
+        );
+    }
+
+    const headers: Record<string, string> = {
+        Cookie: cookieParts.join('; '),
+        'X-User-Agent': STALKER_MAG_USER_AGENT,
+        SN: playlist.stalkerSerialNumber || '',
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const origin = getStalkerPortalOrigin(playlist);
+    if (origin) {
+        headers['Origin'] = origin;
+        headers['Referer'] = origin;
+    }
+
+    return Object.entries(headers).reduce<Record<string, string>>(
+        (acc, [name, value]) => {
+            if (value?.trim()) {
+                acc[name] = value;
+            }
+            return acc;
+        },
+        {}
+    );
+}

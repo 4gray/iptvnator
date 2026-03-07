@@ -11,6 +11,12 @@ import {
 } from 'shared-interfaces';
 import { PlayerService } from '../../../services/player.service';
 import { createLogger } from '../../../shared/utils/logger';
+import {
+    buildStalkerExternalPlaybackHeaders,
+    getStalkerPortalOrigin,
+    isCrossOriginStalkerStream,
+    STALKER_MAG_USER_AGENT,
+} from '../../stalker-live-playback.utils';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import {
     normalizeStalkerEntityId,
@@ -19,7 +25,7 @@ import {
 
 type StalkerContentType = 'itv' | 'vod' | 'series';
 
-interface StalkerPlayableItem extends Record<string, unknown> {
+interface StalkerPlayableItem {
     id?: string | number;
     cmd?: string;
     has_files?: unknown;
@@ -64,7 +70,8 @@ export function withStalkerPlayer() {
                     portalUrl: string,
                     macAddress: string,
                     cmd: string,
-                    series?: number
+                    series?: number,
+                    forcedContentType?: StalkerContentType
                 ) => {
                     const normalizeCmdValue = (value: string): string => {
                         const trimmed = String(value ?? '').trim();
@@ -91,7 +98,7 @@ export function withStalkerPlayer() {
                     };
 
                     const selectedContentType =
-                        storeState.selectedContentType();
+                        forcedContentType ?? storeState.selectedContentType();
                     const type = series ? 'vod' : selectedContentType;
 
                     // Always use create_link to get the tokenized streaming URL
@@ -323,6 +330,72 @@ export function withStalkerPlayer() {
                     };
                 };
 
+                const resolveItvPlaybackInternal = async (
+                    item: StalkerPlayableItem
+                ): Promise<ResolvedPortalPlayback> => {
+                    const playlist = storeState.currentPlaylist();
+                    if (!playlist || !item?.cmd) {
+                        throw new Error('nothing_to_play');
+                    }
+
+                    const streamUrl = await fetchLinkToPlayInternal(
+                        playlist.portalUrl,
+                        playlist.macAddress,
+                        item.cmd,
+                        undefined,
+                        'itv'
+                    );
+                    const token = stalkerSession.getCachedToken(playlist._id);
+                    const headers = buildStalkerExternalPlaybackHeaders(
+                        playlist,
+                        token,
+                        streamUrl
+                    );
+                    const crossOriginStream = isCrossOriginStalkerStream(
+                        playlist,
+                        streamUrl
+                    );
+                    const portalOrigin = getStalkerPortalOrigin(playlist);
+
+                    if (typeof storeState.addToRecentlyViewed === 'function') {
+                        storeState.addToRecentlyViewed({
+                            ...item,
+                            id: item.id,
+                            cover:
+                                (item as { logo?: string }).logo ??
+                                (item as { cover?: string }).cover,
+                            title:
+                                (item as { o_name?: string }).o_name ||
+                                (item as { name?: string }).name ||
+                                (item as { title?: string }).title,
+                        });
+                    }
+
+                    return {
+                        streamUrl,
+                        title:
+                            (item as { o_name?: string }).o_name ||
+                            (item as { name?: string }).name ||
+                            (item as { title?: string }).title ||
+                            '',
+                        thumbnail:
+                            (item as { logo?: string }).logo ??
+                            (item as { cover?: string }).cover ??
+                            null,
+                        headers,
+                        userAgent:
+                            headers['User-Agent'] ||
+                            playlist.userAgent ||
+                            STALKER_MAG_USER_AGENT,
+                        referer: crossOriginStream
+                            ? undefined
+                            : playlist.referrer || portalOrigin,
+                        origin: crossOriginStream
+                            ? undefined
+                            : playlist.origin || portalOrigin,
+                    };
+                };
+
                 const addToRecentlyViewedInternal = (
                     item: StalkerPlayableItem,
                     cmd?: string,
@@ -451,6 +524,11 @@ export function withStalkerPlayer() {
                             episodeId,
                             startTime
                         );
+                    },
+                    async resolveItvPlayback(
+                        item: StalkerPlayableItem
+                    ): Promise<ResolvedPortalPlayback> {
+                        return resolveItvPlaybackInternal(item);
                     },
                     /**
                      * Play VOD or episode content

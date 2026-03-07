@@ -52,12 +52,20 @@ type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     readonly playClicked = output<any>();
     readonly sortMode = input<LiveChannelSortMode>('server');
+    readonly channelsOverride = input<any[] | null>(null);
 
     readonly xtreamStore = inject(XtreamStore);
     private readonly favoritesService = inject(FavoritesService);
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
-    readonly channels = this.xtreamStore.selectItemsFromSelectedCategory;
+    readonly channels = computed(() => {
+        const override = this.channelsOverride();
+        if (Array.isArray(override)) {
+            return override;
+        }
+
+        return this.xtreamStore.selectItemsFromSelectedCategory();
+    });
     readonly sortedChannels = computed(() => {
         const mode = this.sortMode();
         const channels = this.channels();
@@ -111,7 +119,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     ngOnInit(): void {
         const { categoryId } = this.route.snapshot.params;
-        if (categoryId)
+        if (categoryId && !this.channelsOverride())
             this.xtreamStore.setSelectedCategory(Number(categoryId));
 
         const playlist = this.xtreamStore.currentPlaylist();

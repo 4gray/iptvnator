@@ -11,6 +11,8 @@ export interface PortalCollectionShellLayout {
     headerActionTooltip?: string;
 }
 
+export type PortalCollectionMode = 'grid' | 'detail' | 'live';
+
 @Component({
     selector: 'app-portal-collection-shell',
     imports: [FavoritesLayoutComponent],
@@ -33,7 +35,7 @@ export class PortalCollectionShellComponent {
     readonly playlistTitle = input<string>('Playlist');
     readonly selectedCategoryId = input<string>('all');
     readonly layout = input<PortalCollectionShellLayout>({});
-    readonly showDetails = input<boolean>(false);
+    readonly mode = input<PortalCollectionMode>('grid');
 
     readonly categoryClicked = output<string>();
     readonly removeItem = output<any>();

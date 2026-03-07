@@ -2,6 +2,7 @@ import { KeyValuePipe } from '@angular/common';
 import {
     Component,
     computed,
+    effect,
     inject,
     Optional,
     signal,
@@ -12,12 +13,20 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import groupBy from 'lodash/groupBy';
 import { firstValueFrom } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
+import { PlayerService } from '../../services/player.service';
 import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
 import {
+    PortalCollectionLiveShellComponent,
+} from '../../shared/components/portal-collection-live-shell/portal-collection-live-shell.component';
+import {
+    PortalCollectionMode,
     PortalCollectionShellComponent,
     PortalCollectionShellLayout,
 } from '../../shared/components/portal-collection-shell/portal-collection-shell.component';
@@ -32,6 +41,7 @@ import {
 } from '../../shared/utils/portal-collection-items';
 import { createLogger } from '../../shared/utils/logger';
 import { FavoritesContextService } from '../../workspace/favorites-context.service';
+import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { XtreamStore } from '../stores/xtream.store';
 
 const XTREAM_RECENT_LAYOUT: Omit<
@@ -50,6 +60,9 @@ const XTREAM_COLLECTION_LABELS = {
     live: 'Live TV',
     series: 'Series',
 };
+type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
+const XTREAM_RECENT_LIVE_SORT_STORAGE_KEY =
+    'xtream-recent-live-channel-sort-mode';
 
 @Component({
     selector: 'app-recently-viewed',
@@ -61,7 +74,12 @@ const XTREAM_COLLECTION_LABELS = {
         MatCheckboxModule,
         MatIcon,
         MatIconButton,
+        MatMenuModule,
+        MatTooltipModule,
+        PortalChannelsListComponent,
+        PortalCollectionLiveShellComponent,
         PortalCollectionShellComponent,
+        TranslatePipe,
     ],
     providers: [],
     templateUrl: './recently-viewed.component.html',
@@ -79,6 +97,7 @@ export class RecentlyViewedComponent {
     private router = inject(Router);
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly playerService = inject(PlayerService);
     private dialogData = inject(MAT_DIALOG_DATA, { optional: true });
     private readonly logger = createLogger('XtreamRecentlyViewed');
     private readonly favoritesCtx = inject(FavoritesContextService);
@@ -151,6 +170,11 @@ export class RecentlyViewedComponent {
         categories: this.categories,
         enabled: () => !this.isGlobal,
     });
+    readonly selectedLiveItem = signal<any | null>(null);
+    readonly liveStreamUrl = signal('');
+    readonly nonGlobalMode = computed<PortalCollectionMode>(() =>
+        this.isLiveCategory() ? 'live' : 'grid'
+    );
     readonly selectedCategoryId = this.collectionContext.selectedCategoryId;
     readonly recentSearchTerm = signal('');
     readonly workspaceSearchTerm = queryParamSignal(
@@ -202,6 +226,36 @@ export class RecentlyViewedComponent {
                 `${item?.title ?? ''} ${item?.playlist_name ?? ''}`,
         });
     });
+    readonly liveItemsToShow = computed(() =>
+        this.visibleRecentItems().filter((item: any) => {
+            if (item?.type !== 'live') {
+                return false;
+            }
+
+            const term =
+                this.isWorkspaceLayout && !this.isGlobal
+                    ? this.workspaceSearchTerm()
+                    : this.recentSearchTerm().trim().toLowerCase();
+            if (!term) {
+                return true;
+            }
+
+            return `${item?.title ?? ''} ${item?.playlist_name ?? ''}`
+                .toLowerCase()
+                .includes(term);
+        })
+    );
+    readonly isLiveCategory = computed(() => this.selectedCategoryId() === 'live');
+    readonly isEmbeddedPlayer = computed(() =>
+        this.playerService.isEmbeddedPlayer()
+    );
+    readonly liveChannelSortMode = signal<LiveChannelSortMode>('server');
+    readonly liveChannelSortLabel = computed(() => {
+        const mode = this.liveChannelSortMode();
+        if (mode === 'name-asc') return 'Name A-Z';
+        if (mode === 'name-desc') return 'Name Z-A';
+        return 'Server Order';
+    });
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
     readonly playlistTitle = computed(
         () =>
@@ -209,11 +263,52 @@ export class RecentlyViewedComponent {
             this.currentPlaylist()?.title ||
             'Playlist'
     );
+    readonly epgItems = this.xtreamStore.epgItems;
+    readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
 
     constructor(
         @Optional() public dialogRef?: MatDialogRef<RecentlyViewedComponent>
     ) {
         this.xtreamStore.setSelectedContentType(undefined);
+        const savedSortMode = localStorage.getItem(
+            XTREAM_RECENT_LIVE_SORT_STORAGE_KEY
+        );
+        if (
+            savedSortMode === 'server' ||
+            savedSortMode === 'name-asc' ||
+            savedSortMode === 'name-desc'
+        ) {
+            this.liveChannelSortMode.set(savedSortMode);
+        }
+
+        effect(() => {
+            if (this.isGlobal) {
+                return;
+            }
+
+            const selectedItem = this.selectedLiveItem();
+            if (!selectedItem) {
+                return;
+            }
+
+            const stillExists = this.liveItemsToShow().some(
+                (item) =>
+                    Number(item.xtream_id ?? item.id) ===
+                    Number(selectedItem.xtream_id ?? selectedItem.id)
+            );
+
+            if (!stillExists) {
+                this.clearLiveSelection();
+            }
+        });
+
+        effect(() => {
+            if (this.isGlobal || this.isLiveCategory()) {
+                return;
+            }
+
+            this.clearLiveSelection();
+        });
 
         if (this.isGlobal) {
             this.loadGlobalItems();
@@ -267,6 +362,12 @@ export class RecentlyViewedComponent {
 
         const type = item.type === 'movie' ? 'vod' : item.type;
         this.xtreamStore.setSelectedContentType(type);
+
+        if (!this.isGlobal && type === 'live') {
+            this.setCategoryId('live');
+            this.selectLiveItem(item);
+            return;
+        }
 
         if (this.isGlobal) {
             this.dialogRef?.close();
@@ -351,5 +452,34 @@ export class RecentlyViewedComponent {
 
     setCategoryId(categoryId: string): void {
         this.collectionContext.setCategoryId(categoryId);
+    }
+
+    selectLiveItem(item: any): void {
+        this.xtreamStore.setSelectedContentType('live');
+        this.selectedLiveItem.set(item);
+        const streamUrl = this.xtreamStore.constructStreamUrl(item);
+        this.liveStreamUrl.set(streamUrl);
+
+        if (this.isEmbeddedPlayer()) {
+            return;
+        }
+
+        this.xtreamStore.openPlayer(
+            streamUrl,
+            item.title,
+            item.poster_url || item.stream_icon || null
+        );
+    }
+
+    setLiveChannelSortMode(mode: LiveChannelSortMode): void {
+        this.liveChannelSortMode.set(mode);
+        localStorage.setItem(XTREAM_RECENT_LIVE_SORT_STORAGE_KEY, mode);
+    }
+
+    private clearLiveSelection(): void {
+        this.selectedLiveItem.set(null);
+        this.liveStreamUrl.set('');
+        this.xtreamStore.clearEpg();
+        this.xtreamStore.setSelectedItem(null);
     }
 }

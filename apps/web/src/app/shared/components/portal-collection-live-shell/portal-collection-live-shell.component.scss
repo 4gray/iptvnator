@@ -9,29 +9,15 @@
 }
 
 .sidebar {
-    // Width controlled by resizable directive
-    width: 400px; // Default, will be overridden by directive
+    width: 400px;
     min-width: 250px;
     max-width: 600px;
-    border-right: 1px solid var(--mat-sys-outline-variant);
+    border-right: 1px solid #333;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     overflow: hidden;
     position: relative;
-
-    app-portal-channels-list {
-        flex: 1;
-        overflow: hidden;
-        width: 100%;
-    }
-
-    app-category-view {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-        margin-right: 2px;
-    }
 }
 
 .content-container {
@@ -73,10 +59,15 @@
     min-height: 0;
 }
 
-.sidebar-header {
+.category-content-header {
     display: flex;
-    flex-direction: row;
+    justify-content: space-between;
     align-items: center;
+    gap: 8px;
+    min-height: 0;
+    padding: 11px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
     app-region: drag;
 
     button {
@@ -85,9 +76,42 @@
     }
 }
 
-.category-title {
+.category-meta {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
     flex: 1;
+}
+
+.category-title {
     margin: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.category-subtitle {
+    white-space: nowrap;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--app-selection-color);
+    background: linear-gradient(
+        145deg,
+        var(--app-selection-surface-strong),
+        var(--app-selection-surface)
+    );
+    box-shadow:
+        inset 0 0 0 1px var(--app-selection-border),
+        0 10px 16px -18px var(--app-selection-glow);
+    padding: 4px 10px;
+    border-radius: 999px;
+    flex-shrink: 0;
 }
 
 .empty-state-container {
@@ -117,6 +141,18 @@
     font-size: 1.25rem;
     margin: 0;
     opacity: 0.5;
+}
+
+.loading-indicator {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+}
+
+.load-more-epg {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
 }
 
 @keyframes placeholder-fade-in {

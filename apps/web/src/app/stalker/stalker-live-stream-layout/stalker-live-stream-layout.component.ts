@@ -26,7 +26,7 @@ import {
     ResizableDirective,
 } from 'components';
 import { PlaylistsService, StalkerSessionService } from 'services';
-import { EpgItem, EpgProgram, PlaylistMeta } from 'shared-interfaces';
+import { EpgItem, EpgProgram } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
 import { PlayerService } from '../../services/player.service';
@@ -45,6 +45,12 @@ import {
     StalkerFavoriteItem,
     StalkerItvChannel,
 } from '../models';
+import {
+    buildStalkerExternalPlaybackHeaders,
+    getStalkerPortalOrigin,
+    isCrossOriginStalkerStream,
+    STALKER_MAG_USER_AGENT,
+} from '../stalker-live-playback.utils';
 import {
     normalizeStalkerEntityId,
 } from '../stalker-vod.utils';
@@ -86,9 +92,6 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
     private readonly logger = createLogger('StalkerLiveStream');
-    private readonly stalkerMagUserAgent =
-        'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250';
-    private readonly stalkerStreamUserAgent = 'KSPlayer';
 
     /** Categories */
     readonly categories = this.stalkerStore.getCategoryResource;
@@ -279,57 +282,15 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.player() === 'artplayer';
 
         try {
-            const url = await this.stalkerStore.fetchLinkToPlay(
-                this.currentPlaylist().portalUrl,
-                this.currentPlaylist().macAddress,
-                item.cmd
-            );
+            const playback = await this.stalkerStore.resolveItvPlayback(item);
 
             this.loadEpgForChannel(item.id);
 
             if (isEmbeddedPlayer) {
-                this.streamUrl = url;
+                this.streamUrl = playback.streamUrl;
             } else {
-                const playlist = this.currentPlaylist();
-                const portalOrigin = this.getPortalOrigin(playlist);
-                const crossOriginStream = this.isCrossOriginStream(
-                    playlist,
-                    url
-                );
-                const playbackHeaders =
-                    this.buildExternalPlaybackHeaders(playlist, url);
-                const playbackUserAgent =
-                    playbackHeaders['User-Agent'] ||
-                    playlist?.userAgent ||
-                    this.stalkerMagUserAgent;
-                const playbackReferer = crossOriginStream
-                    ? undefined
-                    : playlist?.referrer || portalOrigin;
-                const playbackOrigin = crossOriginStream
-                    ? undefined
-                    : playlist?.origin || portalOrigin;
-                this.playerService.openPlayer(
-                    url,
-                    item.o_name || item.name,
-                    item.logo,
-                    true,
-                    true,
-                    playbackUserAgent,
-                    playbackReferer,
-                    playbackOrigin,
-                    undefined,
-                    undefined,
-                    playbackHeaders
-                );
+                this.playerService.openResolvedPlayback(playback, true);
             }
-
-            // Add to recently viewed
-            this.stalkerStore.addToRecentlyViewed({
-                ...item,
-                id: item.id,
-                cover: item.logo,
-                title: item.o_name || item.name,
-            });
         } catch (error) {
             this.logger.error('Playback failed', error);
             const errorMessage =
@@ -505,91 +466,6 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         if (this.scrollListener) {
             this.scrollListener();
             this.scrollListener = null;
-        }
-    }
-
-    private getPortalOrigin(
-        playlist: PlaylistMeta | undefined | null
-    ): string | undefined {
-        const portalUrl = playlist?.portalUrl;
-        if (!portalUrl) return undefined;
-        try {
-            return new URL(portalUrl).origin;
-        } catch {
-            return undefined;
-        }
-    }
-
-    private buildExternalPlaybackHeaders(
-        playlist: PlaylistMeta | undefined | null,
-        streamUrl?: string
-    ): Record<string, string> {
-        if (!playlist?.macAddress) {
-            return {};
-        }
-
-        if (this.isCrossOriginStream(playlist, streamUrl)) {
-            return {
-                'User-Agent': this.stalkerStreamUserAgent,
-                Accept: '*/*',
-                Range: 'bytes=0-',
-                Connection: 'keep-alive',
-                'Icy-MetaData': '1',
-            };
-        }
-
-        const cookieParts = [
-            `mac=${playlist.macAddress}`,
-            'stb_lang=en_US@rg=dezzzz',
-            'timezone=Europe/Berlin',
-        ];
-        if (playlist.stalkerSerialNumber) {
-            cookieParts.push(
-                `__cfduid=${playlist.stalkerSerialNumber.toLowerCase()}e030245495acd6ebfc1`
-            );
-        }
-
-        const headers: Record<string, string> = {
-            Cookie: cookieParts.join('; '),
-            'X-User-Agent': this.stalkerMagUserAgent,
-            SN: playlist.stalkerSerialNumber || '',
-        };
-
-        const token = this.stalkerSession.getCachedToken(playlist._id);
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const origin = this.getPortalOrigin(playlist);
-        if (origin) {
-            headers['Origin'] = origin;
-            headers['Referer'] = origin;
-        }
-
-        return Object.entries(headers).reduce<Record<string, string>>(
-            (acc, [name, value]) => {
-                if (value?.trim()) {
-                    acc[name] = value;
-                }
-                return acc;
-            },
-            {}
-        );
-    }
-
-    private isCrossOriginStream(
-        playlist: PlaylistMeta | undefined | null,
-        streamUrl?: string
-    ): boolean {
-        const portalOrigin = this.getPortalOrigin(playlist);
-        if (!portalOrigin || !streamUrl) {
-            return false;
-        }
-
-        try {
-            return new URL(streamUrl).origin !== portalOrigin;
-        } catch {
-            return false;
         }
     }
 

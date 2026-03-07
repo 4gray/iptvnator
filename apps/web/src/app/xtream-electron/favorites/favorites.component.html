@@ -1,11 +1,66 @@
-<app-portal-collection-shell
-    [categories]="categories()"
-    [items]="filteredFavoritesToShow()"
-    [playlistSubtitle]="playlistSubtitle"
-    [playlistTitle]="playlistTitle()"
-    [selectedCategoryId]="selectedCategoryId()"
-    [layout]="layout"
-    (categoryClicked)="setCategoryId($event)"
-    (removeItem)="removeFromFavorites($event)"
-    (openItem)="openItem($event)"
-/>
+@if (isLiveCategory()) {
+    <app-portal-collection-live-shell
+        [title]="'CHANNELS.FAVORITES' | translate"
+        [subtitle]="'PORTALS.SIDEBAR.LIVE_TV' | translate"
+        [count]="liveItemsToShow().length"
+        [streamUrl]="liveStreamUrl()"
+        [isEmbeddedPlayer]="isEmbeddedPlayer()"
+        [hasSelection]="!!selectedLiveItem()"
+        [epgItems]="epgItems()"
+        [isLoadingEpg]="isLoadingEpg()"
+    >
+        <ng-container liveHeaderActions>
+            <button
+                mat-icon-button
+                [matMenuTriggerFor]="channelSortMenu"
+                [matTooltip]="'Sort: ' + liveChannelSortLabel()"
+                aria-label="Sort channels"
+            >
+                <mat-icon>sort_by_alpha</mat-icon>
+            </button>
+            <mat-menu #channelSortMenu="matMenu">
+                <button mat-menu-item (click)="setLiveChannelSortMode('server')">
+                    <span>Server Order</span>
+                    @if (liveChannelSortMode() === 'server') {
+                        <mat-icon>check</mat-icon>
+                    }
+                </button>
+                <button mat-menu-item (click)="setLiveChannelSortMode('name-asc')">
+                    <span>Name A-Z</span>
+                    @if (liveChannelSortMode() === 'name-asc') {
+                        <mat-icon>check</mat-icon>
+                    }
+                </button>
+                <button
+                    mat-menu-item
+                    (click)="setLiveChannelSortMode('name-desc')"
+                >
+                    <span>Name Z-A</span>
+                    @if (liveChannelSortMode() === 'name-desc') {
+                        <mat-icon>check</mat-icon>
+                    }
+                </button>
+            </mat-menu>
+        </ng-container>
+
+        <app-portal-channels-list
+            liveChannels
+            [sortMode]="liveChannelSortMode()"
+            [channelsOverride]="liveItemsToShow()"
+            (playClicked)="selectLiveItem($event)"
+        />
+    </app-portal-collection-live-shell>
+} @else {
+    <app-portal-collection-shell
+        [categories]="categories()"
+        [items]="filteredFavoritesToShow()"
+        [playlistSubtitle]="playlistSubtitle"
+        [playlistTitle]="playlistTitle()"
+        [selectedCategoryId]="selectedCategoryId()"
+        [layout]="layout"
+        [mode]="mode()"
+        (categoryClicked)="setCategoryId($event)"
+        (removeItem)="removeFromFavorites($event)"
+        (openItem)="openItem($event)"
+    />
+}

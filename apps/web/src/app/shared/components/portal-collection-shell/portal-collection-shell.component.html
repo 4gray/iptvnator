@@ -1,6 +1,11 @@
-@if (showDetails()) {
-    <ng-content select="[details]" />
-} @else {
+@switch (mode()) {
+    @case ('detail') {
+        <ng-content select="[details]" />
+    }
+    @case ('live') {
+        <ng-content select="[live]" />
+    }
+    @default {
     <app-favorites-layout
         [categories]="categories()"
         [favorites]="items()"
@@ -20,4 +25,5 @@
         (headerActionClicked)="headerActionClicked.emit()"
         (openItem)="openItem.emit($event)"
     />
+    }
 }

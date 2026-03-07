@@ -1,20 +1,29 @@
 import {
     Component,
+    effect,
     OnInit,
     computed,
     inject,
     signal,
 } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { TranslatePipe } from '@ngx-translate/core';
 import { selectActivePlaylist } from 'm3u-state';
 import { BehaviorSubject, switchMap } from 'rxjs';
+import { PlayerService } from '../../services/player.service';
 import { FavoritesContextService } from '../../workspace/favorites-context.service';
 import {
+    PortalCollectionMode,
     PortalCollectionShellComponent,
     PortalCollectionShellLayout,
 } from '../../shared/components/portal-collection-shell/portal-collection-shell.component';
+import {
+    PortalCollectionLiveShellComponent,
+} from '../../shared/components/portal-collection-live-shell/portal-collection-live-shell.component';
 import { queryParamSignal } from '../../shared/navigation/portal-route.utils';
 import { createPortalCollectionContext } from '../../shared/utils/portal-collection-context';
 import {
@@ -23,6 +32,7 @@ import {
 } from '../../shared/utils/portal-collection-items';
 import { FavoriteItem } from '../services/favorite-item.interface';
 import { FavoritesService } from '../services/favorites.service';
+import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { XtreamStore } from '../stores/xtream.store';
 
 const XTREAM_FAVORITES_LAYOUT: PortalCollectionShellLayout = {};
@@ -32,10 +42,21 @@ const XTREAM_COLLECTION_LABELS = {
     live: 'Live TV',
     series: 'Series',
 };
+type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
+const XTREAM_FAVORITES_LIVE_SORT_STORAGE_KEY =
+    'xtream-favorites-live-channel-sort-mode';
 
 @Component({
     selector: 'app-favorites',
-    imports: [PortalCollectionShellComponent, MatCardModule],
+    imports: [
+        MatIconModule,
+        MatMenuModule,
+        MatTooltipModule,
+        PortalChannelsListComponent,
+        PortalCollectionLiveShellComponent,
+        PortalCollectionShellComponent,
+        TranslatePipe,
+    ],
     templateUrl: './favorites.component.html',
     styleUrls: [
         './favorites.component.scss',
@@ -48,6 +69,7 @@ export class FavoritesComponent implements OnInit {
     private router = inject(Router);
     private store = inject(Store);
     private xtreamStore = inject(XtreamStore);
+    private playerService = inject(PlayerService);
     private readonly favoritesCtx = inject(FavoritesContextService);
 
     readonly currentPlaylist = this.xtreamStore.currentPlaylist;
@@ -83,6 +105,34 @@ export class FavoritesComponent implements OnInit {
         ctx: this.favoritesCtx,
         categories: this.categories,
     });
+    readonly selectedLiveItem = signal<FavoriteItem | null>(null);
+    readonly liveStreamUrl = signal('');
+    readonly mode = computed<PortalCollectionMode>(() =>
+        this.isLiveCategory() ? 'live' : 'grid'
+    );
+    readonly liveItemsToShow = computed(() =>
+        this.live().filter((item) => {
+            const term = this.searchTerm();
+            if (!term) {
+                return true;
+            }
+
+            return `${item?.title ?? ''}`.toLowerCase().includes(term);
+        })
+    );
+    readonly isLiveCategory = computed(() => this.selectedCategoryId() === 'live');
+    readonly isEmbeddedPlayer = computed(() =>
+        this.playerService.isEmbeddedPlayer()
+    );
+    readonly liveChannelSortMode = signal<LiveChannelSortMode>('server');
+    readonly liveChannelSortLabel = computed(() => {
+        const mode = this.liveChannelSortMode();
+        if (mode === 'name-asc') return 'Name A-Z';
+        if (mode === 'name-desc') return 'Name Z-A';
+        return 'Server Order';
+    });
+    readonly epgItems = this.xtreamStore.epgItems;
+    readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
 
     /** Synced with the workspace context service so panel clicks are reactive */
     readonly selectedCategoryId = this.collectionContext.selectedCategoryId;
@@ -104,8 +154,44 @@ export class FavoritesComponent implements OnInit {
 
     private favoritesRefresh$ = new BehaviorSubject<void>(undefined);
 
+    constructor() {
+        effect(() => {
+            const selectedItem = this.selectedLiveItem();
+            if (!selectedItem) {
+                return;
+            }
+
+            const stillExists = this.liveItemsToShow().some(
+                (item) =>
+                    Number(item.xtream_id) === Number(selectedItem.xtream_id)
+            );
+
+            if (!stillExists) {
+                this.clearLiveSelection();
+            }
+        });
+
+        effect(() => {
+            if (this.isLiveCategory()) {
+                return;
+            }
+
+            this.clearLiveSelection();
+        });
+    }
+
     ngOnInit() {
         this.xtreamStore.setSelectedContentType(undefined);
+        const savedSortMode = localStorage.getItem(
+            XTREAM_FAVORITES_LIVE_SORT_STORAGE_KEY
+        );
+        if (
+            savedSortMode === 'server' ||
+            savedSortMode === 'name-asc' ||
+            savedSortMode === 'name-desc'
+        ) {
+            this.liveChannelSortMode.set(savedSortMode);
+        }
         const playlistId = this.store.selectSignal(selectActivePlaylist)()._id;
         this.favoritesRefresh$
             .pipe(
@@ -137,8 +223,8 @@ export class FavoritesComponent implements OnInit {
         const type = item.type === 'movie' ? 'vod' : item.type;
         this.xtreamStore.setSelectedContentType(type);
         if (type === 'live') {
-            const streamUrl = this.xtreamStore.constructStreamUrl(item);
-            this.xtreamStore.openPlayer(streamUrl, item.title, item.poster_url);
+            this.setCategoryId('live');
+            this.selectLiveItem(item);
         } else {
             const routePlaylistId = this.route.snapshot.params['id'];
             const hasGlobalContext = this.router.url.includes(
@@ -169,5 +255,34 @@ export class FavoritesComponent implements OnInit {
                 }
             );
         }
+    }
+
+    selectLiveItem(item: FavoriteItem) {
+        this.xtreamStore.setSelectedContentType('live');
+        this.selectedLiveItem.set(item);
+        const streamUrl = this.xtreamStore.constructStreamUrl(item);
+        this.liveStreamUrl.set(streamUrl);
+
+        if (this.isEmbeddedPlayer()) {
+            return;
+        }
+
+        this.xtreamStore.openPlayer(
+            streamUrl,
+            item.title,
+            item.poster_url || item.stream_icon || null
+        );
+    }
+
+    setLiveChannelSortMode(mode: LiveChannelSortMode): void {
+        this.liveChannelSortMode.set(mode);
+        localStorage.setItem(XTREAM_FAVORITES_LIVE_SORT_STORAGE_KEY, mode);
+    }
+
+    private clearLiveSelection() {
+        this.selectedLiveItem.set(null);
+        this.liveStreamUrl.set('');
+        this.xtreamStore.clearEpg();
+        this.xtreamStore.setSelectedItem(null);
     }
 }

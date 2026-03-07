@@ -128,11 +128,11 @@
             </div>
         </div>
     } @else {
-        <div class="no-channel-selected">
-            <button mat-icon-button disabled>
-                <mat-icon>category</mat-icon>
-            </button>
-            {{ 'PORTALS.SELECT_CATEGORY' | translate }}
+        <div class="empty-state-container">
+            <mat-icon class="empty-state-icon">live_tv</mat-icon>
+            <h2 class="empty-state-title">
+                {{ 'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate }}
+            </h2>
         </div>
     }
 </div>

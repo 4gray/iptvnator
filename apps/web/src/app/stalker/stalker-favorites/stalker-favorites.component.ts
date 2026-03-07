@@ -5,11 +5,15 @@ import {
     inject,
     signal,
 } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from 'services';
-import { VodDetailsItem } from 'shared-interfaces';
+import { EpgItem, VodDetailsItem } from 'shared-interfaces';
+import { PlayerService } from '../../services/player.service';
+import { PortalCollectionLiveShellComponent } from '../../shared/components/portal-collection-live-shell/portal-collection-live-shell.component';
 import {
+    PortalCollectionMode,
     PortalCollectionShellComponent,
     PortalCollectionShellLayout,
 } from '../../shared/components/portal-collection-shell/portal-collection-shell.component';
@@ -35,6 +39,7 @@ import {
     normalizeStalkerFavoriteItem,
     toggleStalkerVodFavorite,
 } from '../stalker-vod.utils';
+import { StalkerCollectionChannelsListComponent } from '../stalker-collection-channels-list/stalker-collection-channels-list.component';
 import { StalkerStore } from '../stalker.store';
 
 const STALKER_FAVORITES_LAYOUT: PortalCollectionShellLayout = {};
@@ -42,7 +47,13 @@ const STALKER_FAVORITES_LAYOUT: PortalCollectionShellLayout = {};
 @Component({
     selector: 'app-stalker-favorites',
     templateUrl: './stalker-favorites.component.html',
-    imports: [PortalCollectionShellComponent, StalkerInlineDetailComponent],
+    imports: [
+        PortalCollectionLiveShellComponent,
+        PortalCollectionShellComponent,
+        StalkerCollectionChannelsListComponent,
+        StalkerInlineDetailComponent,
+        TranslatePipe,
+    ],
     styles: [
         `
             :host {
@@ -75,13 +86,22 @@ export class StalkerFavoritesComponent {
     private readonly playlistService = inject(PlaylistsService);
     private readonly favoritesRefresh = createRefreshTrigger();
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly playerService = inject(PlayerService);
+    private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
     private readonly logger = createLogger('StalkerFavorites');
     private readonly favoritesCtx = inject(FavoritesContextService);
+    private previousSelectedCategoryId: string | null = null;
 
     itemDetails: NormalizedStalkerFavoriteItem | null = null;
     vodDetailsItem: VodDetailsItem | null = null;
     readonly isSelectedVodFavorite = signal<boolean>(false);
+    readonly selectedLiveItem = signal<StalkerFavoriteItem | null>(null);
+    readonly liveStreamUrl = signal('');
+    readonly epgItems = signal<EpgItem[]>([]);
+    readonly isLoadingEpg = signal(false);
+    readonly hasMoreEpg = signal(false);
+    readonly isResolvingPlayback = signal(false);
 
     readonly currentPlaylist = this.stalkerStore.currentPlaylist;
     readonly layout = STALKER_FAVORITES_LAYOUT;
@@ -118,6 +138,28 @@ export class StalkerFavoritesComponent {
         ctx: this.favoritesCtx,
         categories: this.categories,
     });
+    readonly liveItemsToShow = computed<StalkerFavoriteItem[]>(() =>
+        ((this.allFavorites.value() ?? []) as StalkerFavoriteItem[]).filter((item) => {
+            if (item.category_id !== 'itv') {
+                return false;
+            }
+
+            const term = this.searchTerm();
+            if (!term) {
+                return true;
+            }
+
+            return `${item?.name ?? ''} ${item?.o_name ?? ''}`
+                .toLowerCase()
+                .includes(term);
+        })
+    );
+    readonly isLiveCategory = computed(() => this.selectedCategoryId() === 'itv');
+    readonly isEmbeddedPlayer = computed(() =>
+        this.playerService.isEmbeddedPlayer()
+    );
+    private epgPageSize = 10;
+    private epgChannelId: number | string | null = null;
 
     readonly favoritesToShow = computed(() => {
         return filterCollectionBucket({
@@ -152,10 +194,57 @@ export class StalkerFavoritesComponent {
         this.allFavorites.value()?.filter((item) => item.category_id === 'itv')
     );
 
+    get mode(): PortalCollectionMode {
+        if (this.isLiveCategory()) {
+            return 'live';
+        }
+
+        return this.showDetails() ? 'detail' : 'grid';
+    }
+
     constructor() {
         effect(() => {
             this.allFavorites.value();
             this.syncSelectedVodFavorite();
+        });
+
+        effect(() => {
+            const selectedCategoryId = this.selectedCategoryId();
+            const hasInlineDetail = this.inlineDetail().categoryId !== null;
+            const previousCategoryId = this.previousSelectedCategoryId;
+
+            this.previousSelectedCategoryId = selectedCategoryId;
+
+            if (
+                hasInlineDetail &&
+                previousCategoryId !== null &&
+                previousCategoryId !== selectedCategoryId
+            ) {
+                this.resetDetailsView(false);
+            }
+        });
+
+        effect(() => {
+            const selectedItem = this.selectedLiveItem();
+            if (!selectedItem) {
+                return;
+            }
+
+            const stillExists = this.liveItemsToShow().some(
+                (item) => normalizeStalkerEntityId(item.id) === normalizeStalkerEntityId(selectedItem.id)
+            );
+
+            if (!stillExists) {
+                this.clearLiveSelection();
+            }
+        });
+
+        effect(() => {
+            if (this.isLiveCategory()) {
+                return;
+            }
+
+            this.clearLiveSelection();
         });
 
         effect(() => {
@@ -223,12 +312,9 @@ export class StalkerFavoritesComponent {
 
         switch (itemToOpen.category_id) {
             case 'itv':
-                this.stalkerStore.setSelectedContentType('itv');
-                this.createLinkToPlayVodItv(
-                    itemToOpen.cmd,
-                    itemToOpen.o_name || itemToOpen.name,
-                    itemToOpen.logo
-                );
+                this.setCategoryId('itv');
+                this.resetDetailsView(false);
+                void this.selectLiveItem(itemToOpen);
                 break;
             case 'vod': {
                 this.itemDetails = normalizedItem;
@@ -323,6 +409,53 @@ export class StalkerFavoritesComponent {
         return this.inlineDetail().categoryId !== null;
     }
 
+    async selectLiveItem(item: StalkerFavoriteItem) {
+        this.selectedLiveItem.set(item);
+        this.liveStreamUrl.set('');
+        this.stalkerStore.setSelectedContentType('itv');
+        this.stalkerStore.setSelectedItem(item as any);
+        this.isResolvingPlayback.set(true);
+
+        try {
+            const playback = await this.stalkerStore.resolveItvPlayback(
+                item as any
+            );
+            await this.loadEpgForChannel(item.id);
+            this.liveStreamUrl.set(playback.streamUrl);
+
+            if (this.isEmbeddedPlayer()) {
+            } else {
+                this.playerService.openResolvedPlayback(playback, true);
+            }
+        } catch (error) {
+            this.logger.error('Failed to resolve ITV playback', error);
+            this.showPlaybackError(error);
+        } finally {
+            this.isResolvingPlayback.set(false);
+        }
+    }
+
+    async loadMoreEpg() {
+        if (!this.epgChannelId || this.isLoadingEpg()) {
+            return;
+        }
+
+        this.epgPageSize += 10;
+        this.isLoadingEpg.set(true);
+        try {
+            const items = await this.stalkerStore.fetchChannelEpg(
+                this.epgChannelId,
+                this.epgPageSize
+            );
+            this.epgItems.set(items);
+            this.hasMoreEpg.set(items.length >= this.epgPageSize);
+        } catch {
+            this.hasMoreEpg.set(false);
+        } finally {
+            this.isLoadingEpg.set(false);
+        }
+    }
+
     async createLinkToPlayVodItv(
         cmd?: string,
         title?: string,
@@ -334,5 +467,75 @@ export class StalkerFavoritesComponent {
             thumbnail,
         });
         await this.stalkerStore.createLinkToPlayVod(cmd, title, thumbnail);
+    }
+
+    toggleLiveFavorite(item: StalkerFavoriteItem): void {
+        const itemId = normalizeStalkerEntityId(item.id);
+        if (this.liveFavoriteIds().has(itemId)) {
+            this.removeFromFavorites({ id: item.id });
+            return;
+        }
+
+        this.addToFavorites({
+            ...item,
+            category_id: 'itv',
+            title: item.o_name || item.name,
+            cover: item.logo,
+            added_at: new Date().toISOString(),
+        });
+    }
+
+    readonly liveFavoriteIds = computed(() => {
+        const ids = new Map<string | number, boolean>();
+        for (const item of this.liveItemsToShow()) {
+            ids.set(normalizeStalkerEntityId(item.id), true);
+        }
+        return ids;
+    });
+
+    private clearLiveSelection() {
+        this.selectedLiveItem.set(null);
+        this.liveStreamUrl.set('');
+        this.isResolvingPlayback.set(false);
+        this.epgItems.set([]);
+        this.isLoadingEpg.set(false);
+        this.hasMoreEpg.set(false);
+        this.epgChannelId = null;
+        this.stalkerStore.setSelectedItem(null);
+    }
+
+    private async loadEpgForChannel(channelId: number | string | undefined) {
+        if (channelId === undefined || channelId === null) {
+            this.epgItems.set([]);
+            this.hasMoreEpg.set(false);
+            return;
+        }
+
+        this.epgChannelId = channelId;
+        this.epgPageSize = 10;
+        this.isLoadingEpg.set(true);
+        this.epgItems.set([]);
+        this.hasMoreEpg.set(false);
+
+        try {
+            const items = await this.stalkerStore.fetchChannelEpg(
+                channelId,
+                this.epgPageSize
+            );
+            this.epgItems.set(items);
+            this.hasMoreEpg.set(items.length >= this.epgPageSize);
+        } catch {
+            this.epgItems.set([]);
+        } finally {
+            this.isLoadingEpg.set(false);
+        }
+    }
+
+    private showPlaybackError(error: unknown): void {
+        const errorMessage =
+            error instanceof Error && error.message === 'nothing_to_play'
+                ? this.translate.instant('PORTALS.CONTENT_NOT_AVAILABLE')
+                : this.translate.instant('PORTALS.PLAYBACK_ERROR');
+        this.snackBar.open(errorMessage, undefined, { duration: 3000 });
     }
 }

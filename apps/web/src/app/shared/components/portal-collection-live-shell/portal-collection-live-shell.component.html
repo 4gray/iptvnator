@@ -1,0 +1,57 @@
+<div
+    class="sidebar"
+    appResizable
+    [minWidth]="250"
+    [maxWidth]="600"
+    [defaultWidth]="400"
+    storageKey="sidebar-width"
+>
+    <div class="sidebar-header category-content-header">
+        <div class="category-meta">
+            <h2 class="category-title">{{ title() }}</h2>
+            <div class="category-subtitle">{{ subtitle() }}</div>
+        </div>
+        <ng-content select="[liveHeaderActions]" />
+    </div>
+
+    <ng-content select="[liveChannels]" />
+</div>
+
+<div class="content-container">
+    @if (hasSelection()) {
+        @if (streamUrl() && isEmbeddedPlayer()) {
+            <div class="video-player">
+                <app-web-player-view [streamUrl]="streamUrl()" />
+            </div>
+        }
+
+        <div class="epg">
+            <div class="epg-content">
+                @if (epgItems().length > 0) {
+                    <app-epg-view [epgItems]="epgItems()" />
+                }
+
+                @if (isLoadingEpg()) {
+                    <div class="loading-indicator">
+                        <mat-spinner diameter="24" />
+                    </div>
+                }
+
+                @if (hasMoreEpg() && !isLoadingEpg()) {
+                    <div class="load-more-epg">
+                        <button mat-button (click)="onLoadMoreEpg()">
+                            {{ 'CHANNELS.LOAD_MORE' | translate }}
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    } @else {
+        <div class="empty-state-container">
+            <mat-icon class="empty-state-icon">live_tv</mat-icon>
+            <h2 class="empty-state-title">
+                {{ 'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate }}
+            </h2>
+        </div>
+    }
+</div>
