@@ -6,8 +6,9 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { createHash } from 'crypto';
 import { ipcMain } from 'electron';
-import { STALKER_REQUEST } from 'shared-interfaces';
+import { PortalDebugEvent, STALKER_REQUEST } from 'shared-interfaces';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
+import { emitPortalDebugEvent } from './portal-debug.events';
 
 const LEGACY_DEFAULT_SERIAL = 'BEDACD4569BAF';
 
@@ -57,10 +58,14 @@ ipcMain.handle(
             params: Record<string, string>;
             token?: string;
             serialNumber?: string;
+            requestId?: string;
         }
     ) => {
+        const startedAt = Date.now();
+        let debugRequest: Record<string, unknown> | undefined;
         try {
-            const { url, macAddress, params, token, serialNumber } = payload;
+            const { url, macAddress, params, token, serialNumber, requestId } =
+                payload;
             const identity = deriveStalkerIdentity(macAddress, serialNumber);
             const effectiveSerialNumber = identity.serialNumber;
             const requestParams = { ...params };
@@ -153,6 +158,13 @@ ipcMain.handle(
                 timeout: requestTimeout,
                 validateStatus: (status) => status < 500, // Don't throw on 4xx errors
             };
+            debugRequest = {
+                method: config.method ?? 'GET',
+                url: fullUrl,
+                headers,
+                timeout: requestTimeout,
+                params: requestParams,
+            };
 
             const response = await axios(config);
 
@@ -184,8 +196,42 @@ ipcMain.handle(
                 });
             }
 
+            if (requestId) {
+                const debugEvent: PortalDebugEvent = {
+                    requestId,
+                    provider: 'stalker',
+                    operation: params.action ?? 'unknown',
+                    transport: 'electron-main',
+                    startedAt: new Date(startedAt).toISOString(),
+                    durationMs: Date.now() - startedAt,
+                    status: 'success',
+                    request: debugRequest,
+                    response: response.data,
+                };
+                emitPortalDebugEvent(debugEvent);
+            }
+
             return response.data;
         } catch (error) {
+            if (payload.requestId) {
+                const debugEvent: PortalDebugEvent = {
+                    requestId: payload.requestId,
+                    provider: 'stalker',
+                    operation: payload.params?.action ?? 'unknown',
+                    transport: 'electron-main',
+                    startedAt: new Date(startedAt).toISOString(),
+                    durationMs: Date.now() - startedAt,
+                    status: 'error',
+                    request: debugRequest ?? {
+                        method: 'GET',
+                        url: payload.url,
+                        params: payload.params,
+                    },
+                    error,
+                };
+                emitPortalDebugEvent(debugEvent);
+            }
+
             console.error('[StalkerEvents] Request error:', error);
 
             // Format error response

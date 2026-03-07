@@ -1,4 +1,21 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { ExternalPlayerSession } from 'shared-interfaces';
+
+const PORTAL_DEBUG_EVENT = 'PORTAL_DEBUG_EVENT';
+const EXTERNAL_PLAYER_SESSION_UPDATE = 'EXTERNAL_PLAYER_SESSION_UPDATE';
+
+type PortalDebugEvent = {
+    requestId: string;
+    provider: 'xtream' | 'stalker';
+    operation: string;
+    transport: 'electron-main' | 'electron-renderer' | 'pwa-http';
+    startedAt: string;
+    durationMs: number;
+    status: 'success' | 'error';
+    request: unknown;
+    response?: unknown;
+    error?: unknown;
+};
 
 contextBridge.exposeInMainWorld('electron', {
     // Remote control channel change listener
@@ -38,6 +55,12 @@ contextBridge.exposeInMainWorld('electron', {
     ) => {
         ipcRenderer.on('player-error', (_event, data) => callback(data));
     },
+    onPortalDebugEvent: (callback: (data: PortalDebugEvent) => void) => {
+        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
+            callback(data as PortalDebugEvent);
+        ipcRenderer.on(PORTAL_DEBUG_EVENT, handler);
+        return () => ipcRenderer.off(PORTAL_DEBUG_EVENT, handler);
+    },
     // EPG progress listener
     onEpgProgress: (
         callback: (data: {
@@ -55,6 +78,17 @@ contextBridge.exposeInMainWorld('electron', {
             callback(data);
         ipcRenderer.on('playback-position-update', handler);
         return () => ipcRenderer.off('playback-position-update', handler);
+    },
+    onExternalPlayerSessionUpdate: (
+        callback: (data: ExternalPlayerSession) => void
+    ) => {
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            data: ExternalPlayerSession
+        ) => callback(data);
+        ipcRenderer.on(EXTERNAL_PLAYER_SESSION_UPDATE, handler);
+        return () =>
+            ipcRenderer.off(EXTERNAL_PLAYER_SESSION_UPDATE, handler);
     },
     // DB save content progress listener
     onDbSaveContentProgress: (callback: (count: number) => void) => {
@@ -84,17 +118,19 @@ contextBridge.exposeInMainWorld('electron', {
     openInMpv: (
         url: string,
         title: string,
+        thumbnail: string,
         userAgent: string,
         referer?: string,
         origin?: string,
         contentInfo?: any,
         startTime?: number,
         headers?: Record<string, string>
-    ) =>
+    ): Promise<ExternalPlayerSession> =>
         ipcRenderer.invoke(
             'OPEN_MPV_PLAYER',
             url,
             title,
+            thumbnail,
             userAgent,
             referer,
             origin,
@@ -105,17 +141,19 @@ contextBridge.exposeInMainWorld('electron', {
     openInVlc: (
         url: string,
         title: string,
+        thumbnail: string,
         userAgent: string,
         referer?: string,
         origin?: string,
         contentInfo?: any,
         startTime?: number,
         headers?: Record<string, string>
-    ) =>
+    ): Promise<ExternalPlayerSession> =>
         ipcRenderer.invoke(
             'OPEN_VLC_PLAYER',
             url,
             title,
+            thumbnail,
             userAgent,
             referer,
             origin,
@@ -123,6 +161,8 @@ contextBridge.exposeInMainWorld('electron', {
             startTime,
             headers
         ),
+    closeExternalPlayerSession: (sessionId: string) =>
+        ipcRenderer.invoke('CLOSE_EXTERNAL_PLAYER_SESSION', sessionId),
     autoUpdatePlaylists: (playlists) =>
         ipcRenderer.invoke('AUTO_UPDATE', playlists),
     fetchEpg: (urls: string[]) =>
@@ -151,8 +191,13 @@ contextBridge.exposeInMainWorld('electron', {
         params: Record<string, string>;
         token?: string;
         serialNumber?: string;
+        requestId?: string;
     }) => ipcRenderer.invoke('STALKER_REQUEST', payload),
-    xtreamRequest: (payload: { url: string; params: Record<string, string> }) =>
+    xtreamRequest: (payload: {
+        url: string;
+        params: Record<string, string>;
+        requestId?: string;
+    }) =>
         ipcRenderer.invoke('XTREAM_REQUEST', payload),
     // Database operations
     dbCreatePlaylist: (playlist: any) =>

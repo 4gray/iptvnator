@@ -5,6 +5,8 @@
 
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
+import { PortalDebugEvent } from 'shared-interfaces';
+import { emitPortalDebugEvent } from './portal-debug.events';
 
 export default class XtreamEvents {
     static bootstrapXtreamEvents(): Electron.IpcMain {
@@ -59,10 +61,12 @@ ipcMain.handle(
         payload: {
             url: string;
             params: Record<string, string>;
+            requestId?: string;
         }
     ) => {
+        const startedAt = Date.now();
         try {
-            const { url, params } = payload;
+            const { url, params, requestId } = payload;
 
             // Build URL with query parameters
             // Xtream API endpoint is always at /player_api.php
@@ -94,12 +98,64 @@ ipcMain.handle(
                 };
             }
 
+            if (requestId) {
+                const debugEvent: PortalDebugEvent = {
+                    requestId,
+                    provider: 'xtream',
+                    operation: params.action ?? 'unknown',
+                    transport: 'electron-main',
+                    startedAt: new Date(startedAt).toISOString(),
+                    durationMs: Date.now() - startedAt,
+                    status: 'success',
+                    request: {
+                        method: config.method ?? 'GET',
+                        url: apiUrl.toString(),
+                        headers: config.headers,
+                        timeout: config.timeout,
+                        params,
+                    },
+                    response: response.data,
+                };
+                emitPortalDebugEvent(debugEvent);
+            }
+
             // Xtream API returns JSON data
             return {
                 payload: response.data,
                 action: params.action,
             };
         } catch (error) {
+            const requestId = payload.requestId;
+            if (requestId) {
+                const apiUrl = new URL(`${payload.url}/player_api.php`);
+                Object.entries(payload.params ?? {}).forEach(([key, value]) => {
+                    apiUrl.searchParams.append(key, value);
+                });
+
+                const debugEvent: PortalDebugEvent = {
+                    requestId,
+                    provider: 'xtream',
+                    operation: payload.params?.action ?? 'unknown',
+                    transport: 'electron-main',
+                    startedAt: new Date(startedAt).toISOString(),
+                    durationMs: Date.now() - startedAt,
+                    status: 'error',
+                    request: {
+                        method: 'GET',
+                        url: apiUrl.toString(),
+                        headers: {
+                            'User-Agent':
+                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            Accept: 'application/json',
+                        },
+                        timeout: 30000,
+                        params: payload.params,
+                    },
+                    error,
+                };
+                emitPortalDebugEvent(debugEvent);
+            }
+
             console.error(
                 '[XTREAM_REQUEST] Failed',
                 formatXtreamError(error, payload.url, payload.params?.action)

@@ -16,6 +16,10 @@ import {
     XTREAM_REQUEST,
 } from 'shared-interfaces';
 import { AppConfig } from '../../environments/environment';
+import {
+    createPortalDebugRequestContext,
+    logPortalDebugEvent,
+} from '../shared/utils/logger';
 
 @Injectable({
     providedIn: 'root',
@@ -36,6 +40,7 @@ export class ElectronService extends DataService {
         super();
         console.log('Electron service initialized...');
         this.setupPlayerErrorListener();
+        this.setupPortalDebugListener();
     }
 
     private setupPlayerErrorListener() {
@@ -59,6 +64,20 @@ export class ElectronService extends DataService {
                 }
             );
         }
+    }
+
+    private setupPortalDebugListener() {
+        const onPortalDebugEvent = (window.electron as any)?.onPortalDebugEvent as
+            | ((callback: (event: unknown) => void) => void)
+            | undefined;
+
+        if (AppConfig.production || !onPortalDebugEvent) {
+            return;
+        }
+
+        onPortalDebugEvent((event) => {
+            logPortalDebugEvent(event as Parameters<typeof logPortalDebugEvent>[0]);
+        });
     }
 
     getAppVersion(): string {
@@ -95,6 +114,7 @@ export class ElectronService extends DataService {
                 return await window.electron.openInMpv(
                     data.url,
                     data.title ?? '',
+                    data.thumbnail ?? '',
                     data['user-agent'] ?? undefined,
                     data.referer ?? undefined,
                     data.origin ?? undefined,
@@ -121,6 +141,7 @@ export class ElectronService extends DataService {
                 return await window.electron.openInVlc(
                     data.url,
                     data.title ?? '',
+                    data.thumbnail ?? '',
                     data['user-agent'] ?? undefined,
                     data.referer ?? undefined,
                     data.origin ?? undefined,
@@ -164,10 +185,22 @@ export class ElectronService extends DataService {
         url: string;
         macAddress: string;
         params: Record<string, string>;
+        token?: string;
+        serialNumber?: string;
     }) {
+        const context = createPortalDebugRequestContext({
+            provider: 'stalker',
+            operation: payload.params?.action ?? 'unknown',
+            transport: 'electron-renderer',
+            request: payload,
+        });
+
         try {
             // Use Electron IPC to make the Stalker request
-            const response = await window.electron.stalkerRequest(payload);
+            const response = await window.electron.stalkerRequest({
+                ...payload,
+                requestId: context.requestId,
+            } as any);
             return response;
         } catch (err) {
             console.error('Stalker request error:', err);
@@ -260,9 +293,19 @@ export class ElectronService extends DataService {
         url: string;
         params: Record<string, string>;
     }) {
+        const context = createPortalDebugRequestContext({
+            provider: 'xtream',
+            operation: payload.params?.action ?? 'unknown',
+            transport: 'electron-renderer',
+            request: payload,
+        });
+
         try {
             // Use Electron IPC to make the Xtream request
-            const response = await window.electron.xtreamRequest(payload);
+            const response = await window.electron.xtreamRequest({
+                ...payload,
+                requestId: context.requestId,
+            } as any);
 
             const result = {
                 type: XTREAM_RESPONSE,

@@ -19,6 +19,13 @@ import {
     XTREAM_RESPONSE,
 } from 'shared-interfaces';
 import { AppConfig } from '../../environments/environment';
+import {
+    createPortalDebugErrorEvent,
+    createPortalDebugRequestContext,
+    createPortalDebugSuccessEvent,
+    logPortalDebugEvent,
+    logPortalDebugRequest,
+} from '../shared/utils/logger';
 
 @Injectable({
     providedIn: 'root',
@@ -180,6 +187,29 @@ export class PwaService extends DataService {
                   },
               }
             : {};
+        const requestPayload = {
+            method: 'GET',
+            url: `${this.corsProxyUrl}/xtream`,
+            params: {
+                url: payload.url,
+                ...payload.params,
+            },
+            ...(payload.macAddress
+                ? {
+                      headers: {
+                          Cookie: `mac=${payload.macAddress}`,
+                      },
+                  }
+                : {}),
+        };
+        const context = createPortalDebugRequestContext({
+            provider: 'xtream',
+            operation: payload.params?.action ?? 'unknown',
+            transport: 'pwa-http',
+            request: requestPayload,
+        });
+        logPortalDebugRequest(context);
+
         try {
             let result: any;
             const response = await firstValueFrom(
@@ -197,6 +227,9 @@ export class PwaService extends DataService {
                 const isSilentAction = this.silentXtreamActions.has(action);
                 const normalizedMessage = this.getReadableXtreamErrorMessage(
                     response
+                );
+                logPortalDebugEvent(
+                    createPortalDebugErrorEvent(context, response)
                 );
 
                 if (isSilentAction) {
@@ -223,10 +256,14 @@ export class PwaService extends DataService {
                     payload: (response as any).payload,
                     action: payload.params.action,
                 };
+                logPortalDebugEvent(
+                    createPortalDebugSuccessEvent(context, response)
+                );
                 window.postMessage(result);
             }
             return result;
         } catch (error: any) {
+            logPortalDebugEvent(createPortalDebugErrorEvent(context, error));
             const action = payload.params.action;
             const isSilentAction = this.silentXtreamActions.has(action);
             const normalizedMessage = this.getReadableXtreamErrorMessage(error);
@@ -307,18 +344,31 @@ export class PwaService extends DataService {
         params: Record<string, string>;
         macAddress: string;
     }) {
-        try {
-            // Build the query parameters
-            const params = new URLSearchParams({
-                url: payload.url,
-                ...payload.params,
-                macAddress: payload.macAddress,
-            });
+        const params = new URLSearchParams({
+            url: payload.url,
+            ...payload.params,
+            macAddress: payload.macAddress,
+        });
+        const requestUrl = `${this.corsProxyUrl}/stalker?${params.toString()}`;
+        const context = createPortalDebugRequestContext({
+            provider: 'stalker',
+            operation: payload.params?.action ?? 'unknown',
+            transport: 'pwa-http',
+            request: {
+                method: 'GET',
+                url: requestUrl,
+                params: {
+                    url: payload.url,
+                    ...payload.params,
+                    macAddress: payload.macAddress,
+                },
+            },
+        });
+        logPortalDebugRequest(context);
 
+        try {
             // Make the fetch request
-            const response = await fetch(
-                `${this.corsProxyUrl}/stalker?${params.toString()}`
-            );
+            const response = await fetch(requestUrl);
 
             if (!response.ok) {
                 throw new Error(
@@ -327,8 +377,13 @@ export class PwaService extends DataService {
             }
 
             // Parse and return the JSON response
-            return (await response.json()).payload;
+            const responseBody = await response.json();
+            logPortalDebugEvent(
+                createPortalDebugSuccessEvent(context, responseBody)
+            );
+            return responseBody.payload;
         } catch (err) {
+            logPortalDebugEvent(createPortalDebugErrorEvent(context, err));
             console.error('Stalker request error:', err);
 
             this.snackBar.open(

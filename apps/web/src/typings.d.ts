@@ -4,9 +4,14 @@ interface NodeModule {
     id: string;
 }
 
+import { ExternalPlayerSession, PortalDebugEvent } from 'shared-interfaces';
+
 declare global {
     interface Window {
         electron: {
+            onPortalDebugEvent?: (
+                callback: (data: PortalDebugEvent) => void
+            ) => () => void;
             getAppVersion: () => Promise<string>;
             platform: string;
             fetchPlaylistByUrl: (
@@ -30,23 +35,25 @@ declare global {
             openInMpv: (
                 url: string,
                 title: string,
+                thumbnail: string,
                 userAgent: string,
                 referer?: string,
                 origin?: string,
                 contentInfo?: any,
                 startTime?: number,
                 headers?: Record<string, string>
-            ) => void;
+            ) => Promise<ExternalPlayerSession>;
             openInVlc: (
                 url: string,
                 title: string,
+                thumbnail: string,
                 userAgent: string,
                 referer?: string,
                 origin?: string,
                 contentInfo?: any,
                 startTime?: number,
                 headers?: Record<string, string>
-            ) => void;
+            ) => Promise<ExternalPlayerSession>;
             autoUpdatePlaylists: (playlists: any[]) => Promise<any[]>;
             fetchEpg: (
                 urls: string[]
@@ -83,10 +90,12 @@ declare global {
                 params: Record<string, string>;
                 token?: string;
                 serialNumber?: string;
+                requestId?: string;
             }) => Promise<any>;
             xtreamRequest: (payload: {
                 url: string;
                 params: Record<string, string>;
+                requestId?: string;
             }) => Promise<{ payload: any; action: string }>;
             // Database operations
             dbCreatePlaylist: (playlist: any) => Promise<{ success: boolean }>;
@@ -242,6 +251,9 @@ declare global {
                     originalError: string;
                 }) => void
             ) => void;
+            onExternalPlayerSessionUpdate?: (
+                callback: (data: ExternalPlayerSession) => void
+            ) => () => void;
             getLocalIpAddresses: () => Promise<string[]>;
             // EPG progress listener
             onEpgProgress?: (
@@ -293,6 +305,9 @@ declare global {
                 contentType: 'vod' | 'episode'
             ) => Promise<{ success: boolean }>;
             onPlaybackPositionUpdate: (callback: (data: any) => void) => () => void;
+            closeExternalPlayerSession: (
+                sessionId: string
+            ) => Promise<ExternalPlayerSession | null>;
             // Downloads
             downloadsStart: (data: {
                 playlistId: string;
