@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { DataService } from 'services';
-import { VideoPlayer } from 'shared-interfaces';
+import { ExternalPlayerSession, VideoPlayer } from 'shared-interfaces';
 import { SettingsStore } from './settings-store.service';
 import { PlayerService } from './player.service';
 
@@ -51,13 +51,42 @@ describe('PlayerService', () => {
         expect(service.isEmbeddedPlayer(VideoPlayer.VLC)).toBe(false);
     });
 
-    it('uses the dialog fallback for embedded players', () => {
-        service.openResolvedPlayback({
+    it('uses the dialog fallback for embedded players', async () => {
+        await service.openResolvedPlayback({
             streamUrl: 'https://example.com/video.mp4',
             title: 'Example Video',
         });
 
         expect(dialog.open).toHaveBeenCalled();
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('forwards external playback launches through IPC', async () => {
+        const session: ExternalPlayerSession = {
+            id: 'session-1',
+            player: 'mpv',
+            status: 'opened',
+            title: 'Example Video',
+            streamUrl: 'https://example.com/video.mp4',
+            startedAt: '2026-03-07T10:00:00.000Z',
+            updatedAt: '2026-03-07T10:00:00.000Z',
+            canClose: true,
+        };
+        settingsStore.player.mockReturnValue(VideoPlayer.MPV);
+        dataService.sendIpcEvent.mockResolvedValue(session);
+
+        const result = await service.openResolvedPlayback({
+            streamUrl: 'https://example.com/video.mp4',
+            title: 'Example Video',
+        });
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            'OPEN_MPV_PLAYER',
+            expect.objectContaining({
+                url: 'https://example.com/video.mp4',
+                title: 'Example Video',
+            })
+        );
+        expect(result).toEqual(session);
     });
 });

@@ -1,10 +1,9 @@
 import { ipcMain } from 'electron';
-/* import {
-    OPEN_MPV_PLAYER,
-    OPEN_VLC_PLAYER,
-    SET_MPV_PLAYER_PATH,
-    SET_VLC_PLAYER_PATH,
-} from 'shared-interfaces'; */
+import {
+    CLOSE_EXTERNAL_PLAYER_SESSION,
+    EXTERNAL_PLAYER_SESSION_UPDATE,
+    ExternalPlayerSession,
+} from 'shared-interfaces';
 import App from '../app';
 import {
     MPV_PLAYER_PATH,
@@ -18,6 +17,7 @@ import { existsSync } from 'fs';
 import { AddressInfo, createConnection, createServer } from 'net';
 import path from 'path';
 import { getStalkerPlaybackContextHeaders } from '../services/stalker-playback-context.service';
+import { ExternalPlayerSessionRegistry } from './external-player-session-registry';
 
 export default class PlayerEvents {
     static bootstrapPlayerEvents(): Electron.IpcMain {
@@ -29,6 +29,16 @@ export default class PlayerEvents {
 let mpvProcess: ChildProcess | null = null;
 let mpvSocketPath: string | null = null;
 let positionPollingInterval: NodeJS.Timeout | null = null;
+
+function sendExternalPlayerSessionUpdate(session: ExternalPlayerSession) {
+    if (App.mainWindow && !App.mainWindow.isDestroyed()) {
+        App.mainWindow.webContents.send(EXTERNAL_PLAYER_SESSION_UPDATE, session);
+    }
+}
+
+const externalPlayerSessions = new ExternalPlayerSessionRegistry(
+    sendExternalPlayerSessionUpdate
+);
 
 // Helper function to send error notifications to the renderer
 function sendPlayerErrorNotification(player: 'MPV' | 'VLC', error: string) {
@@ -190,7 +200,11 @@ function isStalkerDirectStreamProfile(
         String(userAgent).trim().toLowerCase() === 'ksplayer';
 }
 
-function startPositionPolling(socketPath: string, contentInfo: any) {
+function startPositionPolling(
+    socketPath: string,
+    contentInfo: any,
+    sessionId: string
+) {
     stopPositionPolling();
 
     // Initial delay to let video load
@@ -204,6 +218,7 @@ function startPositionPolling(socketPath: string, contentInfo: any) {
                 // console.log(`[PlayerEvents] Polling MPV: pos=${position}, dur=${duration}`);
 
                 if (position !== null && App.mainWindow) {
+                    externalPlayerSessions.markPlaying(sessionId);
                     /*
                     console.log('[PlayerEvents] Sending playback-position-update', {
                         positionSeconds: Math.floor(position),
@@ -214,6 +229,7 @@ function startPositionPolling(socketPath: string, contentInfo: any) {
                     App.mainWindow.webContents.send(
                         'playback-position-update',
                         {
+                            sessionId,
                             positionSeconds: Math.floor(position),
                             durationSeconds: duration
                                 ? Math.floor(duration)
@@ -275,7 +291,11 @@ async function getVlcProperty(port: number, command: string): Promise<string> {
     });
 }
 
-function startVlcPositionPolling(port: number, contentInfo: any) {
+function startVlcPositionPolling(
+    port: number,
+    contentInfo: any,
+    sessionId: string
+) {
     stopVlcPositionPolling();
 
     // VLC needs time to start and bind port
@@ -295,9 +315,11 @@ function startVlcPositionPolling(port: number, contentInfo: any) {
                 const duration = parseInt(lenStr, 10);
 
                 if (!isNaN(position) && App.mainWindow) {
+                    externalPlayerSessions.markPlaying(sessionId);
                     App.mainWindow.webContents.send(
                         'playback-position-update',
                         {
+                            sessionId,
                             positionSeconds: position,
                             durationSeconds: !isNaN(duration) ? duration : null,
                             ...contentInfo,
@@ -344,6 +366,7 @@ ipcMain.handle(
         event,
         url: string,
         title: string,
+        thumbnail?: string,
         userAgent?: string,
         referer?: string,
         origin?: string,
@@ -351,6 +374,14 @@ ipcMain.handle(
         startTime?: number,
         headers?: Record<string, string>
     ) => {
+        const session = externalPlayerSessions.beginSession({
+            player: 'mpv',
+            title,
+            thumbnail,
+            streamUrl: url,
+            contentInfo,
+        });
+
         try {
             const mpvPath = getMpvPath();
             const reuseInstance = store.get(MPV_REUSE_INSTANCE, false);
@@ -441,6 +472,16 @@ ipcMain.handle(
                         'Successfully loaded new URL in existing MPV instance'
                     );
 
+                    externalPlayerSessions.attachCloser(session.id, async () => {
+                        try {
+                            await sendMpvCommand('quit', []);
+                        } catch {
+                            if (mpvProcess && !mpvProcess.killed) {
+                                mpvProcess.kill();
+                            }
+                        }
+                    });
+
                     // Seek if startTime provided
                     if (startTime) {
                         await sendMpvCommand('seek', [
@@ -451,12 +492,18 @@ ipcMain.handle(
 
                     // Restart polling with new content info
                     if (contentInfo) {
-                        startPositionPolling(mpvSocketPath, contentInfo);
+                        startPositionPolling(
+                            mpvSocketPath,
+                            contentInfo,
+                            session.id
+                        );
                     } else {
                         stopPositionPolling();
                     }
 
-                    return;
+                    return (
+                        externalPlayerSessions.markOpened(session.id) ?? session
+                    );
                 } catch (err) {
                     console.error(
                         'Failed to send command to existing MPV:',
@@ -593,6 +640,10 @@ ipcMain.handle(
                     mpvProcess = null;
                     mpvSocketPath = null;
                     stopPositionPolling();
+                    externalPlayerSessions.markError(
+                        session.id,
+                        `Failed to start MPV player: ${err.message}`
+                    );
                     reject(
                         new Error(
                             `Failed to start MPV player: ${err.message}. Make sure MPV is installed and the path '${mpvPath}' is correct.`
@@ -615,7 +666,14 @@ ipcMain.handle(
                             'MPV',
                             `MPV player closed unexpectedly (exit code: ${code})`
                         );
+                        externalPlayerSessions.markError(
+                            session.id,
+                            `MPV player closed unexpectedly (exit code: ${code})`
+                        );
+                        return;
                     }
+
+                    externalPlayerSessions.markClosed(session.id);
                 });
 
                 // Store the process reference if reuse is enabled
@@ -631,9 +689,15 @@ ipcMain.handle(
                     proc.unref();
                 }
 
+                externalPlayerSessions.attachCloser(session.id, async () => {
+                    if (!proc.killed) {
+                        proc.kill();
+                    }
+                });
+
                 // Start polling if content info is provided
                 if (contentInfo) {
-                    startPositionPolling(socketPath, contentInfo);
+                    startPositionPolling(socketPath, contentInfo, session.id);
                 }
 
                 // Resolve immediately if spawn succeeds (error event would fire if it fails)
@@ -644,11 +708,17 @@ ipcMain.handle(
                     }
                 }, 100);
             });
+
+            return externalPlayerSessions.markOpened(session.id) ?? session;
         } catch (error) {
             console.error('Error opening MPV player:', error);
             mpvProcess = null;
             mpvSocketPath = null;
             stopPositionPolling();
+            externalPlayerSessions.markError(
+                session.id,
+                error instanceof Error ? error.message : String(error)
+            );
             throw error;
         }
     }
@@ -678,6 +748,7 @@ ipcMain.handle(
         event,
         url: string,
         title: string,
+        thumbnail?: string,
         userAgent?: string,
         referer?: string,
         origin?: string,
@@ -685,6 +756,14 @@ ipcMain.handle(
         startTime?: number,
         headers?: Record<string, string>
     ) => {
+        const session = externalPlayerSessions.beginSession({
+            player: 'vlc',
+            title,
+            thumbnail,
+            streamUrl: url,
+            contentInfo,
+        });
+
         try {
             const vlcPath = getVlcPath();
             const fallbackHeaders = getStalkerPlaybackContextHeaders(url) ?? {};
@@ -782,9 +861,15 @@ ipcMain.handle(
                         stdio: 'ignore', // Use 'ignore' for detached to allow clean shutdown
                     });
 
+                    externalPlayerSessions.attachCloser(session.id, async () => {
+                        if (!proc.killed) {
+                            proc.kill();
+                        }
+                    });
+
                     // Start polling if we have port and content info and NOT retrying (RC disabled on retry)
                     if (!isRetry && rcPort > 0 && contentInfo) {
-                        startVlcPositionPolling(rcPort, contentInfo);
+                        startVlcPositionPolling(rcPort, contentInfo, session.id);
                     }
 
                     // Capture stdout
@@ -820,6 +905,10 @@ ipcMain.handle(
                             );
                             spawnVlc(retryArgs, true);
                         } else {
+                            externalPlayerSessions.markError(
+                                session.id,
+                                `Failed to start VLC player: ${err.message}`
+                            );
                             reject(
                                 new Error(
                                     `Failed to start VLC player: ${err.message}. Make sure VLC is installed and the path '${vlcPath}' is correct.`
@@ -855,35 +944,30 @@ ipcMain.handle(
                                 'VLC',
                                 `VLC player closed unexpectedly (exit code: ${code})`
                             );
+                            externalPlayerSessions.markError(
+                                session.id,
+                                `VLC player closed unexpectedly (exit code: ${code})`
+                            );
+                            return;
                         }
-                        
-                        // Resolve only if we are done (success or final failure)
-                        // Note: detached process unref happens below, but for Promise we resolve here?
-                        // Actually OPEN_* handlers usually resolve immediately after spawn.
+
+                        externalPlayerSessions.markClosed(session.id);
                     });
 
                     proc.unref();
-                    // Resolve immediately if we assume success or handle failure asynchronously?
-                    // The original code resolved immediately.
-                    // We can't wait for exit to resolve.
-                    // But if we need to retry, we shouldn't resolve yet?
-                    // This structure is tricky because `spawn` is async but `exit` is later.
-                    // However, `exit` with code 1 happens almost immediately if arguments are bad.
                 };
 
-                // We need to refactor the promise structure to handle retry.
-                // Since `OPEN_MPV` logic resolves immediately after spawn check (100ms), we can do similar.
-                
-                // Let's execute the logic
                 spawnVlc(args);
-                
-                // We resolve immediately to let the main process continue, 
-                // but the retry logic happens in the background.
-                // This might mean `OPEN_VLC_PLAYER` returns while VLC is crashing/retrying.
                 resolve();
             });
+
+            return externalPlayerSessions.markOpened(session.id) ?? session;
         } catch (error) {
             console.error('Error opening VLC player:', error);
+            externalPlayerSessions.markError(
+                session.id,
+                error instanceof Error ? error.message : String(error)
+            );
             throw error;
         }
     }
@@ -893,6 +977,13 @@ ipcMain.handle('SET_VLC_PLAYER_PATH', (_event, vlcPlayerPath) => {
     console.log('... setting vlc player path', vlcPlayerPath);
     store.set(VLC_PLAYER_PATH, vlcPlayerPath);
 });
+
+ipcMain.handle(
+    CLOSE_EXTERNAL_PLAYER_SESSION,
+    async (_event, sessionId: string) => {
+        return externalPlayerSessions.closeSession(sessionId);
+    }
+);
 
 function getMpvPath() {
     const customMpvPath = store.get(MPV_PLAYER_PATH);

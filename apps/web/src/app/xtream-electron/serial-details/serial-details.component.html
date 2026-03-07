@@ -80,6 +80,8 @@
             [seasons]="item.episodes"
             [seriesId]="item.series_id"
             [seriesTitle]="item.info?.name"
+            [openingEpisodeId]="openingEpisodeId()"
+            [activeEpisodeId]="activeEpisodeId()"
             (episodeClicked)="playEpisode($event)"
         />
     </app-content-hero>

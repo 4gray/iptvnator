@@ -6,6 +6,8 @@ import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
 import { PlaylistsService } from 'services';
 import { DownloadsService } from '../services/downloads.service';
+import { ExternalPlaybackService } from '../services/external-playback.service';
+import { SettingsStore } from '../services/settings-store.service';
 import { XtreamStore } from '../xtream-electron/stores/xtream.store';
 import { FavoritesContextService } from './favorites-context.service';
 import { SettingsContextService } from './settings-context.service';
@@ -83,6 +85,21 @@ describe('WorkspaceShellComponent action matrix', () => {
                         downloads: signal([]),
                         clearCompleted: jest.fn().mockResolvedValue(undefined),
                         loadDownloads: jest.fn().mockResolvedValue(undefined),
+                    },
+                },
+                {
+                    provide: ExternalPlaybackService,
+                    useValue: {
+                        activeSession: signal(null),
+                        visibleSession: signal(null),
+                        closeActiveSession: jest.fn(),
+                        dismissActiveSession: jest.fn(),
+                    },
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: {
+                        showExternalPlaybackBar: signal(true),
                     },
                 },
                 {

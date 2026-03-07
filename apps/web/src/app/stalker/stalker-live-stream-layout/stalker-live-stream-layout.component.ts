@@ -289,7 +289,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             if (isEmbeddedPlayer) {
                 this.streamUrl = playback.streamUrl;
             } else {
-                this.playerService.openResolvedPlayback(playback, true);
+                void this.playerService.openResolvedPlayback(playback, true);
             }
         } catch (error) {
             this.logger.error('Playback failed', error);

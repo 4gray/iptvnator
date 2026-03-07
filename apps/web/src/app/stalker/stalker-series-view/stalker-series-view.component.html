@@ -72,6 +72,8 @@
                 [seasons]="mappedSeasons()"
                 [seriesId]="toSeriesId(serial.id)"
                 [seriesTitle]="serial.info?.name"
+                [openingEpisodeId]="openingEpisodeId()"
+                [activeEpisodeId]="activeEpisodeId()"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
                     (seasonContainer?.selectedSeason &&

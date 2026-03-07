@@ -422,7 +422,7 @@ export class RecentlyViewedComponent {
 
             if (this.isEmbeddedPlayer()) {
             } else {
-                this.playerService.openResolvedPlayback(playback, true);
+                void this.playerService.openResolvedPlayback(playback, true);
             }
         } catch (error) {
             this.logger.error('Failed to resolve ITV playback', error);

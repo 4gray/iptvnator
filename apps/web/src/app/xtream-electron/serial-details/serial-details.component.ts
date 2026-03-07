@@ -1,5 +1,5 @@
 import { Location, SlicePipe } from '@angular/common';
-import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
@@ -11,6 +11,7 @@ import {
     XtreamSerieEpisode,
 } from 'shared-interfaces';
 import { PlayerService } from '../../services/player.service';
+import { ExternalPlaybackService } from '../../services/external-playback.service';
 import { PortalInlinePlayerComponent } from '../../shared/components/portal-inline-player/portal-inline-player.component';
 import { SeasonContainerComponent } from '../season-container/season-container.component';
 import { XtreamStore } from '../stores/xtream.store';
@@ -33,6 +34,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private readonly route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playerService = inject(PlayerService);
+    private readonly externalPlayback = inject(ExternalPlaybackService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
 
@@ -43,6 +45,45 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly detailsError = this.xtreamStore.detailsError;
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     private lastSaveTime = 0;
+    readonly openingEpisodeId = signal<number | null>(null);
+    readonly activeEpisodeId = signal<number | null>(null);
+
+    constructor() {
+        effect(() => {
+            const session = this.externalPlayback.activeSession();
+            const selectedItem = this.selectedItem();
+            const playlistId = this.xtreamStore.currentPlaylist()?.id;
+
+            if (
+                !session?.contentInfo ||
+                !selectedItem?.series_id ||
+                !playlistId ||
+                session.contentInfo.contentType !== 'episode' ||
+                session.contentInfo.playlistId !== playlistId ||
+                session.contentInfo.seriesXtreamId !==
+                    Number(selectedItem.series_id)
+            ) {
+                this.openingEpisodeId.set(null);
+                this.activeEpisodeId.set(null);
+                return;
+            }
+
+            if (session.status === 'launching') {
+                this.openingEpisodeId.set(session.contentInfo.contentXtreamId);
+                this.activeEpisodeId.set(null);
+                return;
+            }
+
+            if (session.status === 'opened' || session.status === 'playing') {
+                this.openingEpisodeId.set(null);
+                this.activeEpisodeId.set(session.contentInfo.contentXtreamId);
+                return;
+            }
+
+            this.openingEpisodeId.set(null);
+            this.activeEpisodeId.set(null);
+        });
+    }
 
     ngOnInit(): void {
         const { categoryId, serialId } = this.route.snapshot.params;
@@ -153,6 +194,6 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         }
 
         this.closeInlinePlayer();
-        this.playerService.openResolvedPlayback(playback, true);
+        void this.playerService.openResolvedPlayback(playback, true);
     }
 }

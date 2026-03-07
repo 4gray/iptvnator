@@ -1,0 +1,66 @@
+<section
+    class="external-playback-dock"
+    [class.external-playback-dock--compact]="compact()"
+    [class.external-playback-dock--error]="session().status === 'error'"
+>
+    <div class="external-playback-dock__artwork">
+        @if (session().thumbnail) {
+            <img
+                [src]="session().thumbnail!"
+                [alt]="session().title"
+                loading="lazy"
+            />
+        } @else {
+            <div class="external-playback-dock__placeholder">
+                <mat-icon>play_circle</mat-icon>
+            </div>
+        }
+    </div>
+
+    <div class="external-playback-dock__meta">
+        <div class="external-playback-dock__topline">
+            <span class="external-playback-dock__chip">{{ playerLabel() }}</span>
+            @if (!compact()) {
+                <span class="external-playback-dock__caption">
+                    External player
+                </span>
+            }
+        </div>
+        <div class="external-playback-dock__title">{{ session().title }}</div>
+        <div class="external-playback-dock__status">
+            @if (showSpinner()) {
+                <mat-spinner diameter="14" strokeWidth="3"></mat-spinner>
+            } @else {
+                <mat-icon>{{
+                    session().status === 'error' ? 'error' : 'play_arrow'
+                }}</mat-icon>
+            }
+            <span>{{ statusLabel() }}</span>
+        </div>
+    </div>
+
+    <div class="external-playback-dock__actions">
+        @if (showCloseButton()) {
+            <button
+                type="button"
+                mat-stroked-button
+                class="external-playback-dock__button"
+                (click)="closeClicked.emit()"
+            >
+                <mat-icon>stop_circle</mat-icon>
+                @if (!compact()) {
+                    <span>Close player</span>
+                }
+            </button>
+        }
+        <button
+            type="button"
+            mat-icon-button
+            class="external-playback-dock__dismiss"
+            (click)="dismissClicked.emit()"
+            aria-label="Dismiss now playing panel"
+        >
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+</section>

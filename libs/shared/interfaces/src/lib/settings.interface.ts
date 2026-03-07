@@ -22,6 +22,8 @@ export interface Settings {
     streamFormat: StreamFormat;
     language: Language;
     showCaptions: boolean;
+    /** Show the desktop footer bar for external playback status */
+    showExternalPlaybackBar?: boolean;
     theme: Theme;
     mpvPlayerPath: string;
     mpvReuseInstance: boolean;

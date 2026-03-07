@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    inject,
+    input,
+    output,
+} from '@angular/core';
+import { ExternalPlaybackService } from '../../../services/external-playback.service';
 import { VodDetailsItem } from 'shared-interfaces';
 import { VodDetailsComponent } from '../../../xtream-electron/vod-details/vod-details.component';
 import { StalkerSelectedVodItem } from '../../../stalker/models/stalker-favorite-item.interface';
@@ -20,6 +27,7 @@ import { StalkerSeriesViewComponent } from '../../../stalker/stalker-series-view
     ],
 })
 export class StalkerInlineDetailComponent {
+    readonly externalPlayback = inject(ExternalPlaybackService);
     readonly categoryId = input<'vod' | 'series' | null>(null);
     readonly seriesItem = input<StalkerSelectedVodItem | null>(null);
     readonly isSeries = input<boolean>(false);

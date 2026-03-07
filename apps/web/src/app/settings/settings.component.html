@@ -205,6 +205,30 @@
                     </div>
                 </div>
 
+                @if (isDesktop) {
+                    <div class="setting-item">
+                        <div class="setting-item__meta">
+                            <h4>
+                                {{
+                                    'SETTINGS.SHOW_EXTERNAL_PLAYBACK_BAR'
+                                        | translate
+                                }}
+                            </h4>
+                            <p>
+                                {{
+                                    'SETTINGS.SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control setting-item__toggle">
+                            <mat-checkbox
+                                formControlName="showExternalPlaybackBar"
+                            ></mat-checkbox>
+                        </div>
+                    </div>
+                }
+
                 @if (settingsForm.value.player === 'mpv') {
                     <div class="setting-item">
                         <div class="setting-item__meta">

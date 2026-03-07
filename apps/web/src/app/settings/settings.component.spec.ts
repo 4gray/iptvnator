@@ -56,6 +56,7 @@ const DEFAULT_SETTINGS = {
     streamFormat: StreamFormat.M3u8StreamFormat,
     language: Language.ENGLISH,
     showCaptions: false,
+    showExternalPlaybackBar: true,
     theme: Theme.LightTheme,
     mpvPlayerPath: '',
     vlcPlayerPath: '',

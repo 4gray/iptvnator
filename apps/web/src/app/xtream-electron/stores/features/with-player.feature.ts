@@ -145,7 +145,7 @@ export function withPlayer() {
                     const contentType =
                         storeAny.selectedContentType?.() || 'vod';
 
-                    playerService.openPlayer(
+                    void playerService.openPlayer(
                         streamUrl,
                         title,
                         thumbnail,

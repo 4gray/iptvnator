@@ -77,6 +77,12 @@
                             [class.episode-card--in-progress]="
                                 isEpisodeInProgress(episode)
                             "
+                            [class.episode-card--launching]="
+                                isEpisodeLaunching(episode)
+                            "
+                            [class.episode-card--active-external]="
+                                isEpisodeActiveExternal(episode)
+                            "
                         >
                             <div class="episode-card__thumbnail">
                                 @if (episodeInfo?.movie_image) {
@@ -157,7 +163,15 @@
                                 </div>
                                 <div class="episode-card__overlay">
                                     <div class="episode-card__play">
-                                        <mat-icon>play_arrow</mat-icon>
+                                        @if (isEpisodeLaunching(episode)) {
+                                            <mat-spinner diameter="26"></mat-spinner>
+                                        } @else {
+                                            <mat-icon>{{
+                                                isEpisodeActiveExternal(episode)
+                                                    ? 'equalizer'
+                                                    : 'play_arrow'
+                                            }}</mat-icon>
+                                        }
                                     </div>
                                 </div>
                                 <div class="episode-card__number">
@@ -192,6 +206,8 @@
                             (click)="selectEpisode(episode)"
                             [class.episode-list-item--watched]="isEpisodeWatched(episode)"
                             [class.episode-list-item--in-progress]="isEpisodeInProgress(episode)"
+                            [class.episode-list-item--launching]="isEpisodeLaunching(episode)"
+                            [class.episode-list-item--active-external]="isEpisodeActiveExternal(episode)"
                         >
                             <div class="episode-list-item__number">
                                 {{ episode.episode_num }}
@@ -237,8 +253,17 @@
                                     class="action-btn play-btn"
                                     (click)="selectEpisode(episode); $event.stopPropagation()"
                                     [matTooltip]="'Play'"
+                                    [disabled]="isEpisodeLaunching(episode)"
                                 >
-                                    <mat-icon>play_arrow</mat-icon>
+                                    @if (isEpisodeLaunching(episode)) {
+                                        <mat-spinner diameter="18"></mat-spinner>
+                                    } @else {
+                                        <mat-icon>{{
+                                            isEpisodeActiveExternal(episode)
+                                                ? 'equalizer'
+                                                : 'play_arrow'
+                                        }}</mat-icon>
+                                    }
                                 </button>
                                 @if (isElectron()) {
                                     @if (isEpisodeDownloaded(episode)) {

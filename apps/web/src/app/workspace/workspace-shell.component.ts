@@ -37,7 +37,10 @@ import {
 import { filter, firstValueFrom } from 'rxjs';
 import { PlaylistsService } from 'services';
 import { DownloadsService } from '../services/downloads.service';
+import { ExternalPlaybackService } from '../services/external-playback.service';
+import { SettingsStore } from '../services/settings-store.service';
 import { AddPlaylistDialogComponent } from '../shared/components/add-playlist/add-playlist-dialog.component';
+import { ExternalPlaybackDockComponent } from '../shared/components/external-playback-dock/external-playback-dock.component';
 import {
     buildPortalRailLinks,
     PortalRailLink,
@@ -94,6 +97,7 @@ const SEARCH_INPUT_DEBOUNCE_MS = 350;
         MatMenuModule,
         MatTooltip,
         AddPlaylistMenuComponent,
+        ExternalPlaybackDockComponent,
         PlaylistSwitcherComponent,
         TranslatePipe,
         RouterLink,
@@ -114,6 +118,8 @@ export class WorkspaceShellComponent {
     private readonly xtreamStore = inject(XtreamStore);
     private readonly destroyRef = inject(DestroyRef);
     private readonly downloadsService = inject(DownloadsService);
+    readonly externalPlayback = inject(ExternalPlaybackService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly dialog = inject(MatDialog);
     readonly favoritesCtx = inject(FavoritesContextService);
@@ -210,6 +216,10 @@ export class WorkspaceShellComponent {
     readonly isGlobalDownloadsRoute = computed(() =>
         /^\/workspace\/downloads(?:\/)?(?:\?.*)?$/.test(this.currentUrl())
     );
+    readonly externalPlaybackSession = this.externalPlayback.visibleSession;
+    readonly showExternalPlaybackBar = computed(
+        () => this.settingsStore.showExternalPlaybackBar?.() ?? true
+    );
     readonly dashboardXtreamContext = computed<WorkspaceContext | null>(() => {
         if (!this.isDashboardRoute()) {
             return null;
@@ -282,6 +292,14 @@ export class WorkspaceShellComponent {
 
         return context?.provider === 'stalker';
     });
+
+    closeActiveExternalSession(): void {
+        void this.externalPlayback.closeActiveSession();
+    }
+
+    dismissActiveExternalSession(): void {
+        this.externalPlayback.dismissActiveSession();
+    }
     readonly searchPlaceholder = computed(() => {
         if (this.isSourcesRoute()) {
             return 'Search sources (all playlists)...';

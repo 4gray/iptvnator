@@ -21,6 +21,7 @@ import {
     VodDetailsItem,
 } from 'shared-interfaces';
 import { DownloadsService } from '../../services/downloads.service';
+import { ExternalPlaybackService } from '../../services/external-playback.service';
 import { PlayerService } from '../../services/player.service';
 import { GridListComponent } from '../../shared/components/grid-list/grid-list.component';
 import { PlaylistErrorViewComponent } from '../../shared/components/playlist-error-view/playlist-error-view.component';
@@ -90,6 +91,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly router = inject(Router);
     private readonly dataSource = inject(XTREAM_DATA_SOURCE);
     private readonly playerService = inject(PlayerService);
+    readonly externalPlayback = inject(ExternalPlaybackService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
 
@@ -692,7 +694,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             }
 
             this.closeInlinePlayer();
-            this.playerService.openResolvedPlayback(playback, true);
+            void this.playerService.openResolvedPlayback(playback, true);
         } catch (error) {
             this.logger.error('Failed to start inline VOD playback', error);
             const errorMessage =

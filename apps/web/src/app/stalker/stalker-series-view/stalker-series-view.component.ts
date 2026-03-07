@@ -33,6 +33,7 @@ import {
 import { StalkerSelectedVodItem, StalkerVodSource } from '../models';
 import { normalizeStalkerVodDetailsItem } from '../stalker-vod.utils';
 import { PlayerService } from '../../services/player.service';
+import { ExternalPlaybackService } from '../../services/external-playback.service';
 import { PortalInlinePlayerComponent } from '../../shared/components/portal-inline-player/portal-inline-player.component';
 
 /**
@@ -58,12 +59,15 @@ export class StalkerSeriesViewComponent {
     readonly stalkerStore = inject(StalkerStore);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playerService = inject(PlayerService);
+    private readonly externalPlayback = inject(ExternalPlaybackService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     readonly backClicked = output<void>();
     private readonly logger = createLogger('StalkerSeriesView');
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     private lastSaveTime = 0;
+    readonly openingEpisodeId = signal<number | null>(null);
+    readonly activeEpisodeId = signal<number | null>(null);
 
     /**
      * Optional input for VOD items with embedded series array (vclub mode)
@@ -135,6 +139,41 @@ export class StalkerSeriesViewComponent {
                     );
                 }
             }
+        });
+
+        effect(() => {
+            const session = this.externalPlayback.activeSession();
+            const item = this.displayItem();
+            const playlistId = this.stalkerStore.currentPlaylist()?._id;
+            const seriesId = item ? this.toSeriesId(item.id) : 0;
+
+            if (
+                !session?.contentInfo ||
+                !playlistId ||
+                !seriesId ||
+                session.contentInfo.contentType !== 'episode' ||
+                session.contentInfo.playlistId !== playlistId ||
+                session.contentInfo.seriesXtreamId !== seriesId
+            ) {
+                this.openingEpisodeId.set(null);
+                this.activeEpisodeId.set(null);
+                return;
+            }
+
+            if (session.status === 'launching') {
+                this.openingEpisodeId.set(session.contentInfo.contentXtreamId);
+                this.activeEpisodeId.set(null);
+                return;
+            }
+
+            if (session.status === 'opened' || session.status === 'playing') {
+                this.openingEpisodeId.set(null);
+                this.activeEpisodeId.set(session.contentInfo.contentXtreamId);
+                return;
+            }
+
+            this.openingEpisodeId.set(null);
+            this.activeEpisodeId.set(null);
         });
     }
 
@@ -415,7 +454,7 @@ export class StalkerSeriesViewComponent {
             }
 
             this.closeInlinePlayer();
-            this.playerService.openResolvedPlayback(playback, true);
+            void this.playerService.openResolvedPlayback(playback, true);
         } catch (error) {
             this.logger.error('Failed to start inline series playback', error);
             const errorMessage =

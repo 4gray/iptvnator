@@ -161,6 +161,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         streamFormat: StreamFormat.M3u8StreamFormat,
         language: Language.ENGLISH,
         showCaptions: false,
+        showExternalPlaybackBar: true,
         theme: Theme.LightTheme,
         mpvPlayerPath: '',
         mpvReuseInstance: false,

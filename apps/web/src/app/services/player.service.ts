@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { DataService } from 'services';
 import {
+    ExternalPlayerSession,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
     PlayerContentInfo,
@@ -45,8 +46,8 @@ export class PlayerService {
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>
-    ) {
-        this.openResolvedPlayback(
+    ): Promise<ExternalPlayerSession | void> {
+        return this.openResolvedPlayback(
             {
                 streamUrl,
                 title,
@@ -62,10 +63,10 @@ export class PlayerService {
         );
     }
 
-    openResolvedPlayback(
+    async openResolvedPlayback(
         playback: ResolvedPortalPlayback,
         hideExternalInfoDialog = true
-    ) {
+    ): Promise<ExternalPlayerSession | void> {
         const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
         const {
             streamUrl,
@@ -83,7 +84,7 @@ export class PlayerService {
             if (!hideExternalInfoDialog) {
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             }
-            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+            return await this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
                 url: streamUrl,
                 title,
                 thumbnail,
@@ -98,7 +99,7 @@ export class PlayerService {
             if (!hideExternalInfoDialog) {
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             }
-            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
+            return await this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
                 url: streamUrl,
                 title,
                 thumbnail,
@@ -109,16 +110,16 @@ export class PlayerService {
                 contentInfo,
                 startTime,
             });
-        } else {
-            this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
-                PlayerDialogComponent,
-                {
-                    data: { streamUrl, title, contentInfo, startTime },
-                    width: '80%',
-                    maxWidth: '1200px',
-                    maxHeight: '90vh',
-                }
-            );
         }
+
+        this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
+            PlayerDialogComponent,
+            {
+                data: { streamUrl, title, contentInfo, startTime },
+                width: '80%',
+                maxWidth: '1200px',
+                maxHeight: '90vh',
+            }
+        );
     }
 }

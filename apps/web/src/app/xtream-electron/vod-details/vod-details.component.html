@@ -55,18 +55,48 @@
     <ng-container hero-actions>
         <!-- Resume/Play buttons -->
         @if (hasPlaybackPosition()) {
-            <button class="play-btn play-btn--resume" (click)="onResume()">
-                <mat-icon>play_arrow</mat-icon>
-                {{ 'XTREAM.RESUME' | translate }} {{ formattedPosition() }}
+            <button
+                class="play-btn play-btn--resume"
+                (click)="onPrimaryAction()"
+                [disabled]="isExternalLaunchPending()"
+                [class.play-btn--state-launching]="externalPrimaryButtonState() === 'launching'"
+                [class.play-btn--state-stop]="externalPrimaryButtonState() === 'stop'"
+            >
+                <span class="play-btn__icon-shell" aria-hidden="true">
+                    <mat-icon class="play-btn__icon">{{ externalPrimaryIcon() }}</mat-icon>
+                </span>
+                <span class="play-btn__label">
+                    @if (externalPrimaryLabel(); as label) {
+                        {{ label }}
+                    } @else {
+                        {{ 'XTREAM.RESUME' | translate }} {{ formattedPosition() }}
+                    }
+                </span>
             </button>
-            <button class="play-btn play-btn--restart" (click)="onPlay()">
-                <mat-icon>replay</mat-icon>
-                {{ 'XTREAM.RESTART' | translate }}
-            </button>
+            @if (!isExternalStopAction()) {
+                <button class="play-btn play-btn--restart" (click)="onPlay()">
+                    <mat-icon>replay</mat-icon>
+                    {{ 'XTREAM.RESTART' | translate }}
+                </button>
+            }
         } @else {
-            <button class="play-btn" (click)="onPlay()">
-                <mat-icon>play_arrow</mat-icon>
-                {{ 'XTREAM.PLAY' | translate }}
+            <button
+                class="play-btn"
+                (click)="onPrimaryAction()"
+                [disabled]="isExternalLaunchPending()"
+                [class.play-btn--state-launching]="externalPrimaryButtonState() === 'launching'"
+                [class.play-btn--state-stop]="externalPrimaryButtonState() === 'stop'"
+            >
+                <span class="play-btn__icon-shell" aria-hidden="true">
+                    <mat-icon class="play-btn__icon">{{ externalPrimaryIcon() }}</mat-icon>
+                </span>
+                <span class="play-btn__label">
+                    @if (externalPrimaryLabel(); as label) {
+                        {{ label }}
+                    } @else {
+                        {{ 'XTREAM.PLAY' | translate }}
+                    }
+                </span>
             </button>
         }
 

@@ -277,6 +277,23 @@
         }
     }
 
+    &--launching,
+    &--active-external {
+        border-color: color-mix(in srgb, var(--mat-sys-tertiary) 56%, transparent);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--mat-sys-tertiary) 28%, transparent);
+    }
+
+    &--launching {
+        .episode-card__overlay {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.56);
+        }
+    }
+
+    &--active-external {
+        background: color-mix(in srgb, var(--mat-sys-tertiary-container) 18%, transparent);
+    }
+
     // Watched state
     &--watched {
         opacity: 0.7;
@@ -674,6 +691,12 @@
                 opacity: 0.5;
             }
         }
+    }
+
+    &--launching,
+    &--active-external {
+        border-color: color-mix(in srgb, var(--mat-sys-tertiary) 46%, transparent);
+        background: color-mix(in srgb, var(--mat-sys-tertiary-container) 12%, transparent);
     }
 
     // Always show actions on touch devices

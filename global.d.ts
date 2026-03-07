@@ -1,4 +1,5 @@
 import 'jest-extended';
+import { ExternalPlayerSession } from './libs/shared/interfaces/src/lib/external-player-session.interface';
 import { Playlist } from './libs/shared/interfaces/src/lib/playlist.interface';
 
 declare module 'video.js' {
@@ -33,23 +34,25 @@ declare global {
             openInMpv: (
                 url: string,
                 title: string,
+                thumbnail: string,
                 userAgent: string,
                 referer?: string,
                 origin?: string,
                 contentInfo?: any,
                 startTime?: number,
                 headers?: Record<string, string>
-            ) => void;
+            ) => Promise<ExternalPlayerSession>;
             openInVlc: (
                 url: string,
                 title: string,
+                thumbnail: string,
                 userAgent: string,
                 referer?: string,
                 origin?: string,
                 contentInfo?: any,
                 startTime?: number,
                 headers?: Record<string, string>
-            ) => void;
+            ) => Promise<ExternalPlayerSession>;
             autoUpdatePlaylists: (playlists: Playlist[]) => Promise<Playlist[]>;
             fetchEpg: (
                 urls: string[]
@@ -80,6 +83,12 @@ declare global {
             }>;
             setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
             setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;
+            onExternalPlayerSessionUpdate?: (
+                callback: (data: ExternalPlayerSession) => void
+            ) => () => void;
+            closeExternalPlayerSession: (
+                sessionId: string
+            ) => Promise<ExternalPlayerSession | null>;
             stalkerRequest: (payload: {
                 url: string;
                 macAddress: string;

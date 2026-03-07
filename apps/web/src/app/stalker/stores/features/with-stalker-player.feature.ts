@@ -558,7 +558,7 @@ export function withStalkerPlayer() {
                                     startTime
                                 );
 
-                            playerService.openResolvedPlayback(
+                            void playerService.openResolvedPlayback(
                                 playback,
                                 true
                             );

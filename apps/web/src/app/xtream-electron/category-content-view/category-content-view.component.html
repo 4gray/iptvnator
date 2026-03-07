@@ -14,6 +14,7 @@
                         [isFavorite]="isSelectedVodFavorite()"
                         [playbackPosition]="selectedVodPlaybackPosition()"
                         [inlinePlayback]="inlinePlayback()"
+                        [externalPlayback]="externalPlayback.activeSession()"
                         (playClicked)="onVodPlay($event)"
                         (resumeClicked)="onVodResume($event)"
                         (favoriteToggled)="onVodFavoriteToggled($event)"

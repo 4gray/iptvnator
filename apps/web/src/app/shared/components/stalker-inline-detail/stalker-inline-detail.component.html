@@ -13,6 +13,7 @@
         <app-vod-details
             [item]="vodDetailsItem()"
             [isFavorite]="isFavorite()"
+            [externalPlayback]="externalPlayback.activeSession()"
             (playClicked)="onPlayClicked($event)"
             (favoriteToggled)="onFavoriteToggled($event)"
             (backClicked)="onBackClicked()"

@@ -250,6 +250,8 @@
         "REMOVE_ALL_DESCRIPTION": "Dadurch werden alle vorhandenen Wiedergabelisten aus der Anwendung entfernt.",
         "MPV_PLAYER_PATH": "MPV-Player-Pfad",
         "SHOW_CAPTIONS_DESCRIPTION": "Untertitel standardmäßig ein- oder ausblenden",
+        "SHOW_EXTERNAL_PLAYBACK_BAR": "Now-Playing-Fußleiste anzeigen",
+        "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Zeigt die Statusleiste für externe Player unten im Arbeitsbereich auf dem Desktop an.",
         "IMPORT_DATA": "Import",
         "ADD_EPG_SOURCE": "EPG-Quelle hinzufügen",
         "IMPORT_ERROR": "Importfehler. Bitte versuchen Sie es mit einer anderen Datei.",

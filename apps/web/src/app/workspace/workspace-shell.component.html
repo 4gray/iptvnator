@@ -81,6 +81,17 @@
             </button>
         </label>
 
+        @if (externalPlaybackSession(); as session) {
+            <div class="header-now-playing">
+                <app-external-playback-dock
+                    [session]="session"
+                    [compact]="true"
+                    (closeClicked)="closeActiveExternalSession()"
+                    (dismissClicked)="dismissActiveExternalSession()"
+                />
+            </div>
+        }
+
         <div class="header-actions">
             <button
                 type="button"
@@ -280,4 +291,16 @@
             <router-outlet />
         </main>
     </div>
+
+    @if (showExternalPlaybackBar()) {
+        @if (externalPlaybackSession(); as session) {
+            <footer class="workspace-now-playing">
+                <app-external-playback-dock
+                    [session]="session"
+                    (closeClicked)="closeActiveExternalSession()"
+                    (dismissClicked)="dismissActiveExternalSession()"
+                />
+            </footer>
+        }
+    }
 </div>

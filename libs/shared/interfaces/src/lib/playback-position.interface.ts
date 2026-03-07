@@ -11,4 +11,5 @@ export interface PlaybackPositionData {
     durationSeconds?: number;
     playlistId?: string;
     updatedAt?: string;
+    sessionId?: string;
 }

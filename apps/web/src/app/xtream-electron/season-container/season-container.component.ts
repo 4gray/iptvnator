@@ -43,6 +43,8 @@ export class SeasonContainerComponent implements OnInit {
     readonly seriesId = input.required<number>();
     readonly seriesTitle = input<string>('');
     readonly isLoading = input<boolean>(false);
+    readonly openingEpisodeId = input<number | null>(null);
+    readonly activeEpisodeId = input<number | null>(null);
 
     readonly isElectron = this.downloadsService.isAvailable;
 
@@ -219,6 +221,14 @@ export class SeasonContainerComponent implements OnInit {
     isEpisodeInProgress(episode: XtreamSerieEpisode) {
         const contentId = this.getEpisodeContentId(episode);
         return this.xtreamStore.isInProgress(contentId, 'episode');
+    }
+
+    isEpisodeLaunching(episode: XtreamSerieEpisode): boolean {
+        return this.openingEpisodeId() === this.getEpisodeContentId(episode);
+    }
+
+    isEpisodeActiveExternal(episode: XtreamSerieEpisode): boolean {
+        return this.activeEpisodeId() === this.getEpisodeContentId(episode);
     }
 
     getEpisodeProgress(episode: XtreamSerieEpisode) {

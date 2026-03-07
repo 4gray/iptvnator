@@ -194,6 +194,8 @@
         "LANGUAGE_DESCRIPTION": "Select language of the application",
         "THEME_DESCRIPTION": "Select visual theme of the application",
         "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
+        "SHOW_EXTERNAL_PLAYBACK_BAR": "Show now playing footer",
+        "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Keep the external-player status bar visible at the bottom of the workspace on desktop.",
         "VERSION_DESCRIPTION": "Current version of the application",
         "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
         "EPG_NOTE_URL_TEXT": "Check it here",
