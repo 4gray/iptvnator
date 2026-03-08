@@ -9,8 +9,8 @@
     @if (!isWorkspaceLayout) {
         <app-navigation
             class="navigation-sidebar"
-            [portalStatus]="$any(portalStatus())"
-            [selectedContentType]="xtreamStore.selectedContentType()"
+            [portalStatus]="portalStatus()"
+            [selectedContentType]="selectedSection()"
         />
     }
     <router-outlet />

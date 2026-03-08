@@ -14,20 +14,28 @@ import { XtreamCategory } from 'shared-interfaces';
 import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
 import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
 import {
+    XtreamCategorySortMode,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
+import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
 } from './category-management-dialog/category-management-dialog.component';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { XtreamCategorySortMode } from '@iptvnator/portal/xtream/data-access';
 
 const XTREAM_CATEGORY_SORT_STORAGE_KEY = 'xtream-category-sort-mode';
+
+interface XtreamCategoryLike {
+    readonly id?: number | string;
+    readonly category_id?: number | string;
+    readonly name?: string;
+}
 
 @Component({
     selector: 'app-xtream-main-container',
     templateUrl: './xtream-main-container.component.html',
     styleUrls: [
-        '../portal-shared/portal-main-container.scss',
-        '../shared/styles/portal-sidebar.scss',
+        '../../../../shared/ui/src/lib/styles/portal-main-container.scss',
+        '../../../../shared/ui/src/lib/styles/portal-sidebar.scss',
     ],
     imports: [
         CategoryViewComponent,
@@ -72,7 +80,9 @@ export class XtreamMainContainerComponent implements OnInit {
     });
 
     ngOnInit(): void {
-        const savedSortMode = localStorage.getItem(XTREAM_CATEGORY_SORT_STORAGE_KEY);
+        const savedSortMode = localStorage.getItem(
+            XTREAM_CATEGORY_SORT_STORAGE_KEY
+        );
         if (
             savedSortMode === 'date-desc' ||
             savedSortMode === 'date-asc' ||
@@ -83,16 +93,16 @@ export class XtreamMainContainerComponent implements OnInit {
         }
 
         const { categoryId } = this.route.snapshot.params;
-        if (categoryId)
+        if (categoryId) {
             this.xtreamStore.setSelectedCategory(Number(categoryId));
+        }
     }
 
     categoryClicked(category: XtreamCategory) {
-        const categoryId = (category as any).category_id ?? category.id;
+        const categoryData = category as XtreamCategoryLike;
+        const categoryId = categoryData.category_id ?? categoryData.id;
 
-        // Clear any selected item when switching categories
         this.xtreamStore.setSelectedItem(null);
-
         this.xtreamStore.setSelectedCategory(Number(categoryId));
 
         this.router.navigate([categoryId], {
@@ -103,11 +113,11 @@ export class XtreamMainContainerComponent implements OnInit {
     getContentLabel(): string {
         const selectedCategoryId = this.xtreamStore.selectedCategoryId();
 
-        // When no category is selected, show "Recently Added"
         if (selectedCategoryId === null || selectedCategoryId === undefined) {
-            const recentlyAddedLabel = this.translateService.instant('PORTALS.SIDEBAR.RECENTLY_ADDED');
+            const recentlyAddedLabel = this.translateService.instant(
+                'PORTALS.SIDEBAR.RECENTLY_ADDED'
+            );
 
-            // Show page number when viewing recently added (not detail view)
             if (
                 !this.xtreamStore.selectedItem() &&
                 this.xtreamStore.getTotalPages() > 1
@@ -123,15 +133,14 @@ export class XtreamMainContainerComponent implements OnInit {
 
         const selectedCategory = this.xtreamStore.getSelectedCategory();
         const categoryName = selectedCategory
-            ? (selectedCategory as any).name
+            ? (selectedCategory as XtreamCategoryLike).name
             : 'Category Content';
 
-        // Show page number when viewing category content (not detail view)
         if (
             !this.xtreamStore.selectedItem() &&
             this.xtreamStore.getTotalPages() > 1
         ) {
-            const currentPage = this.xtreamStore.page() + 1; // +1 because page is 0-indexed
+            const currentPage = this.xtreamStore.page() + 1;
             const totalPages = this.xtreamStore.getTotalPages();
             const pageLabel = this.translateService.instant('PORTALS.PAGE');
             return `${categoryName} (${pageLabel} ${currentPage}/${totalPages})`;
@@ -147,7 +156,6 @@ export class XtreamMainContainerComponent implements OnInit {
     }
 
     openCategoryManagement(): void {
-        // The playlist id is in the parent route (xtreams/:id)
         const playlistId = this.route.parent?.snapshot.params['id'];
         const contentType = this.xtreamStore.selectedContentType();
 
@@ -167,7 +175,6 @@ export class XtreamMainContainerComponent implements OnInit {
 
         dialogRef.afterClosed().subscribe((result) => {
             if (result) {
-                // Reload categories from database to reflect visibility changes
                 this.xtreamStore.reloadCategories();
             }
         });

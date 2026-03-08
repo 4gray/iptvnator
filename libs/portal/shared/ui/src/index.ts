@@ -9,4 +9,5 @@ export * from './lib/components/portal-empty-state/portal-empty-state.component'
 export * from './lib/components/search-form/search-form.component';
 export * from './lib/components/search-layout/search-layout.component';
 export * from './lib/components/watched-badge/watched-badge.component';
+export * from './lib/navigation/navigation.component';
 export * from './lib/navigation/portal-rail-links.component';

@@ -5,9 +5,7 @@ type ComponentLoader = NonNullable<Route['loadComponent']>;
 
 export interface XtreamFeatureRouteOptions {
     readonly catalogProviders?: Provider[];
-    readonly loadShellComponent: ComponentLoader;
     readonly loadLiveStreamLayoutComponent: ComponentLoader;
-    readonly loadMainContainerComponent: ComponentLoader;
     readonly loadCategoryContentViewComponent: ComponentLoader;
     readonly loadVodDetailsRouteComponent: ComponentLoader;
     readonly loadSerialDetailsComponent: ComponentLoader;
@@ -22,13 +20,23 @@ const loadDownloadsComponent: ComponentLoader = () =>
         (c) => c.DownloadsComponent
     );
 
+const loadXtreamShellComponent: ComponentLoader = () =>
+    import('./xtream-shell/xtream-shell.component').then(
+        (c) => c.XtreamShellComponent
+    );
+
+const loadXtreamMainContainerComponent: ComponentLoader = () =>
+    import('./xtream-main-container.component').then(
+        (c) => c.XtreamMainContainerComponent
+    );
+
 export function createXtreamRoutes(
     options: XtreamFeatureRouteOptions
 ): Route[] {
     return [
         {
             path: 'xtreams/:id',
-            loadComponent: options.loadShellComponent,
+            loadComponent: loadXtreamShellComponent,
             children: [
                 {
                     path: '',
@@ -49,7 +57,7 @@ export function createXtreamRoutes(
                 {
                     path: 'vod',
                     providers: options.catalogProviders ?? [],
-                    loadComponent: options.loadMainContainerComponent,
+                    loadComponent: loadXtreamMainContainerComponent,
                     children: [
                         {
                             path: '',
@@ -71,7 +79,7 @@ export function createXtreamRoutes(
                 {
                     path: 'series',
                     providers: options.catalogProviders ?? [],
-                    loadComponent: options.loadMainContainerComponent,
+                    loadComponent: loadXtreamMainContainerComponent,
                     children: [
                         {
                             path: '',

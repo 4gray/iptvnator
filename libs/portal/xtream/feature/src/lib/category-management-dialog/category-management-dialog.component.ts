@@ -108,7 +108,6 @@ export class CategoryManagementDialogComponent implements OnInit {
     }
 
     getItemCount(category: CategoryWithSelection): number {
-        // content.category_id references categories.id (internal DB id), not xtream_id
         const categoryId = Number(category.id);
         return this.data.itemCounts.get(categoryId) ?? 0;
     }
@@ -156,18 +155,9 @@ export class CategoryManagementDialogComponent implements OnInit {
         this.isSaving.set(true);
         try {
             const categories = this.categories();
+            const toHide = categories.filter((c) => !c.selected).map((c) => c.id);
+            const toShow = categories.filter((c) => c.selected).map((c) => c.id);
 
-            // Get IDs of categories to hide (unselected)
-            const toHide = categories
-                .filter((c) => !c.selected)
-                .map((c) => c.id);
-
-            // Get IDs of categories to show (selected)
-            const toShow = categories
-                .filter((c) => c.selected)
-                .map((c) => c.id);
-
-            // Update visibility in database
             if (toHide.length > 0) {
                 await this.dbService.updateCategoryVisibility(toHide, true);
             }

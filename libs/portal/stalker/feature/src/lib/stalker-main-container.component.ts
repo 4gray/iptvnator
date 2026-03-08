@@ -5,8 +5,10 @@ import { MatPaginatorModule } from '@angular/material/paginator';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
-import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
-import { PlaylistErrorViewComponent } from '@iptvnator/portal/shared/ui';
+import {
+    CategoryViewComponent,
+    PlaylistErrorViewComponent,
+} from '@iptvnator/portal/shared/ui';
 import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 
@@ -15,8 +17,8 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
     templateUrl: './stalker-main-container.component.html',
     styleUrls: [
         './stalker-main-container.component.scss',
-        '../portal-shared/portal-main-container.scss',
-        '../shared/styles/portal-sidebar.scss',
+        '../../../../shared/ui/src/lib/styles/portal-main-container.scss',
+        '../../../../shared/ui/src/lib/styles/portal-sidebar.scss',
     ],
     imports: [
         CategoryViewComponent,
@@ -45,13 +47,9 @@ export class StalkerMainContainerComponent {
 
     readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
     readonly currentPlaylist = this.stalkerStore.currentPlaylist;
-
-    /** categories */
     readonly categories = this.stalkerStore.getCategoryResource;
     readonly isCategoryLoading = this.stalkerStore.isCategoryResourceLoading;
     readonly isCategoryFailed = this.stalkerStore.isCategoryResourceFailed;
-
-    /** content items */
     readonly contentItems = this.stalkerStore.getPaginatedContent;
     readonly isContentLoading = this.stalkerStore.isPaginatedContentLoading;
     readonly skeletonRows = Array.from({ length: 12 }, (_, index) => index);
@@ -60,7 +58,6 @@ export class StalkerMainContainerComponent {
     ];
 
     constructor() {
-        // reset category title after changing content type
         effect(() => {
             this.stalkerStore.selectedContentType();
         });
@@ -104,18 +101,14 @@ export class StalkerMainContainerComponent {
             this.stalkerStore.getSelectedCategoryName();
         let categoryName = selectedCategoryName;
 
-        // For implicit "All" view, show a type-specific title so switching
-        // between VOD/Series updates header text immediately.
         if (selectedCategoryId === '*') {
             categoryName = `${selectedTypeLabel} - ${this.translateService.instant(
                 'PORTALS.ALL_CATEGORIES'
             )}`;
         } else if (!categoryName) {
-            // Fallback while categories are loading or when no category is selected.
             categoryName = selectedTypeLabel;
         }
 
-        // Show page number when viewing category content (not detail view)
         if (
             !this.stalkerStore.selectedItem() &&
             !this.isContentLoading() &&

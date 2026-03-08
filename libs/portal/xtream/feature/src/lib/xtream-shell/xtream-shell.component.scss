@@ -9,10 +9,9 @@
     display: flex;
     flex: 1;
     overflow: hidden;
-    min-height: 0; // Important for proper flex behavior
+    min-height: 0;
 
     > router-outlet {
-        
         min-width: 0;
     }
 }

@@ -4,14 +4,6 @@ import { provideStalkerCatalogFacade } from './stalker-catalog-facade.service';
 // Temporary app-side loader map while Stalker route screens remain in apps/web.
 export const stalkerFeatureRouteOptions: StalkerFeatureRouteOptions = {
     catalogProviders: provideStalkerCatalogFacade(),
-    loadShellComponent: () =>
-        import('./stalker-shell/stalker-shell.component').then(
-            (c) => c.StalkerShellComponent
-        ),
-    loadMainContainerComponent: () =>
-        import('./stalker-main-container.component').then(
-            (c) => c.StalkerMainContainerComponent
-        ),
     loadCategoryContentViewComponent: () =>
         import(
             '../portal-shared/category-content-view/category-content-view.component'

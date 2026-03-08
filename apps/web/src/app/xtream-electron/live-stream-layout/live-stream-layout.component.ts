@@ -37,7 +37,7 @@ import {
 import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
-} from '../category-management-dialog/category-management-dialog.component';
+} from '@iptvnator/portal/xtream/feature';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';

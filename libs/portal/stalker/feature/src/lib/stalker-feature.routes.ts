@@ -5,8 +5,6 @@ type ComponentLoader = NonNullable<Route['loadComponent']>;
 
 export interface StalkerFeatureRouteOptions {
     readonly catalogProviders?: Provider[];
-    readonly loadShellComponent: ComponentLoader;
-    readonly loadMainContainerComponent: ComponentLoader;
     readonly loadCategoryContentViewComponent: ComponentLoader;
     readonly loadLiveStreamLayoutComponent: ComponentLoader;
     readonly loadFavoritesComponent: ComponentLoader;
@@ -19,13 +17,23 @@ const loadDownloadsComponent: ComponentLoader = () =>
         (c) => c.DownloadsComponent
     );
 
+const loadStalkerShellComponent: ComponentLoader = () =>
+    import('./stalker-shell/stalker-shell.component').then(
+        (c) => c.StalkerShellComponent
+    );
+
+const loadStalkerMainContainerComponent: ComponentLoader = () =>
+    import('./stalker-main-container.component').then(
+        (c) => c.StalkerMainContainerComponent
+    );
+
 export function createStalkerRoutes(
     options: StalkerFeatureRouteOptions
 ): Route[] {
     return [
         {
             path: 'stalker/:id',
-            loadComponent: options.loadShellComponent,
+            loadComponent: loadStalkerShellComponent,
             children: [
                 {
                     path: '',
@@ -35,7 +43,7 @@ export function createStalkerRoutes(
                 {
                     path: 'vod',
                     providers: options.catalogProviders ?? [],
-                    loadComponent: options.loadMainContainerComponent,
+                    loadComponent: loadStalkerMainContainerComponent,
                     children: [
                         {
                             path: '',
@@ -69,7 +77,7 @@ export function createStalkerRoutes(
                 {
                     path: 'series',
                     providers: options.catalogProviders ?? [],
-                    loadComponent: options.loadMainContainerComponent,
+                    loadComponent: loadStalkerMainContainerComponent,
                     children: [
                         {
                             path: '',

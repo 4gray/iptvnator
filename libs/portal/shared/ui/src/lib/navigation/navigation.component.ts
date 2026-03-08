@@ -1,23 +1,24 @@
 import { Component, computed, inject, input } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistInfoComponent } from 'components';
+import {
+    buildPortalRailLinks,
+    PORTAL_NAVIGATION_ACTIONS,
+    PortalRailSection,
+} from '@iptvnator/portal/shared/util';
 import { selectPlaylistById } from 'm3u-state';
 import { Playlist } from 'shared-interfaces';
-import { SettingsComponent } from '../../settings/settings.component';
-import { AccountInfoComponent } from '../../xtream-electron/account-info/account-info.component';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { buildPortalRailLinks } from '@iptvnator/portal/shared/util';
-import { PortalRailLinksComponent } from '@iptvnator/portal/shared/ui';
+import { PortalRailLinksComponent } from './portal-rail-links.component';
 
 @Component({
     selector: 'app-navigation',
     imports: [
+        MatDividerModule,
         MatIcon,
         MatListModule,
         MatTooltip,
@@ -31,27 +32,27 @@ import { PortalRailLinksComponent } from '@iptvnator/portal/shared/ui';
 })
 export class NavigationComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
-    private readonly dialog = inject(MatDialog);
+    private readonly navigationActions = inject(PORTAL_NAVIGATION_ACTIONS);
     private readonly store = inject(Store);
-    readonly xtreamStore = inject(XtreamStore);
 
-    readonly portalStatus = input<'active' | 'inactive' | 'expired'>();
-    readonly selectedContentType = input<string>();
+    readonly portalStatus = input<
+        'active' | 'inactive' | 'expired' | 'unavailable'
+    >();
+    readonly selectedContentType = input<PortalRailSection | undefined>();
 
     readonly currentPlaylist = this.store.selectSignal(
         selectPlaylistById(this.activatedRoute.snapshot.params.id)
     );
 
     readonly isStalkerPlaylist = computed(
-        () => !!(this.currentPlaylist() as Playlist)?.macAddress
+        () => !!(this.currentPlaylist() as Playlist | undefined)?.macAddress
     );
 
-    /** Check if running in Electron (downloads only available in desktop) */
     readonly isElectron = !!window.electron;
 
     readonly railLinks = computed(() => {
         const playlistId =
-            (this.currentPlaylist() as Playlist | null)?._id ??
+            (this.currentPlaylist() as Playlist | undefined)?._id ??
             this.activatedRoute.snapshot.params['id'];
         if (!playlistId) {
             return { primary: [], secondary: [] };
@@ -97,33 +98,15 @@ export class NavigationComponent {
         }
     }
 
-    openAccountInfo() {
-        this.dialog.open(AccountInfoComponent, {
-            width: '80%',
-            maxWidth: '1200px',
-            maxHeight: '90vh',
-            data: {
-                vodStreamsCount: this.xtreamStore.vodStreams().length,
-                liveStreamsCount: this.xtreamStore.liveStreams().length,
-                seriesCount: this.xtreamStore.serialStreams().length,
-            },
-        });
+    openAccountInfo(): void {
+        this.navigationActions.openAccountInfo();
     }
 
-    openSettings() {
-        this.dialog.open(SettingsComponent, {
-            width: '1200px',
-            maxWidth: '96vw',
-            maxHeight: '92vh',
-            data: {
-                isDialog: true,
-            },
-        });
+    openSettings(): void {
+        this.navigationActions.openSettings();
     }
 
-    openPlaylistInfo() {
-        this.dialog.open(PlaylistInfoComponent, {
-            data: this.currentPlaylist(),
-        });
+    openPlaylistInfo(): void {
+        this.navigationActions.openPlaylistInfo(this.currentPlaylist());
     }
 }

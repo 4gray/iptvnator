@@ -5,17 +5,9 @@ import { provideXtreamCatalogFacade } from './xtream-catalog-facade.service';
 // out of apps/web into the Xtream feature library.
 export const xtreamFeatureRouteOptions: XtreamFeatureRouteOptions = {
     catalogProviders: provideXtreamCatalogFacade(),
-    loadShellComponent: () =>
-        import('./xtream-shell/xtream-shell.component').then(
-            (c) => c.XtreamShellComponent
-        ),
     loadLiveStreamLayoutComponent: () =>
         import('./live-stream-layout/live-stream-layout.component').then(
             (c) => c.LiveStreamLayoutComponent
-        ),
-    loadMainContainerComponent: () =>
-        import('./xtream-main-container.component').then(
-            (c) => c.XtreamMainContainerComponent
         ),
     loadCategoryContentViewComponent: () =>
         import(

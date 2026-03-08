@@ -11,7 +11,7 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
-} from '../xtream-electron/category-management-dialog/category-management-dialog.component';
+} from '@iptvnator/portal/xtream/feature';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';

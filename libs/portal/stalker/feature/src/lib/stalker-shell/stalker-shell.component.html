@@ -2,7 +2,7 @@
     @if (!isWorkspaceLayout) {
         <app-navigation
             class="navigation-sidebar"
-            [selectedContentType]="stalkerStore.selectedContentType()"
+            [selectedContentType]="selectedSection()"
         />
     }
     <router-outlet />

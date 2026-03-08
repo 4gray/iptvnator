@@ -1,13 +1,12 @@
 <div
     class="portal-status-container"
     [class]="getStatusColor()"
-    [matTooltip]="xtreamStore.portalStatus()"
+    [matTooltip]="portalStatus() ?? ''"
     matTooltipPosition="right"
 >
     <mat-icon class="status-watermark">{{ getStatusIcon() }}</mat-icon>
 </div>
 <div class="nav-section">
-    <!-- <div class="nav-group-label">{{ 'PORTALS.SIDEBAR.MAIN' | translate }}</div> -->
     <mat-nav-list>
         <a
             mat-list-item
@@ -23,7 +22,6 @@
 </div>
 <mat-divider />
 <div class="nav-section">
-    <!-- <div class="nav-group-label">{{ 'PORTALS.SIDEBAR.MAIN' | translate }}</div> -->
     <app-portal-rail-links
         variant="list"
         activeClass="active"
@@ -34,9 +32,6 @@
 <mat-divider />
 
 <div class="nav-section">
-    <!-- <div class="nav-group-label">
-        {{ 'PORTALS.SIDEBAR.LIBRARY' | translate }}
-    </div> -->
     <app-portal-rail-links
         variant="list"
         activeClass="active"

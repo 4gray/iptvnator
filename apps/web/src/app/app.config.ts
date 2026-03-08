@@ -28,6 +28,7 @@ import { AppConfig } from '../environments/environment';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
 import { PlayerService } from './services/player.service';
+import { providePortalNavigationActions } from './services/portal-navigation-actions.service';
 import { PwaService } from './services/pwa.service';
 
 // AoT requires an exported function for factories
@@ -91,6 +92,7 @@ export const appConfig: ApplicationConfig = {
             provide: PORTAL_PLAYER,
             useExisting: PlayerService,
         },
+        ...providePortalNavigationActions(),
         ...provideXtreamDataSource(),
     ],
 };

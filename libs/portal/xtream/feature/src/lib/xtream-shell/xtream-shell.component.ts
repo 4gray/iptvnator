@@ -7,27 +7,21 @@ import {
     RouterOutlet,
 } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslateModule } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
 import { filter } from 'rxjs';
-import { PortalRailSection } from '@iptvnator/portal/shared/util';
 import {
     isWorkspaceLayoutRoute,
+    PortalRailSection,
     resolveCurrentPortalSection,
 } from '@iptvnator/portal/shared/util';
-import { LoadingOverlayComponent } from '../loading-overlay/loading-overlay.component';
-import { NavigationComponent } from '../../portal-shared/navigation/navigation.component';
+import { NavigationComponent } from '@iptvnator/portal/shared/ui';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { LoadingOverlayComponent } from '../loading-overlay.component';
 
 @Component({
     templateUrl: './xtream-shell.component.html',
     styleUrls: ['./xtream-shell.component.scss'],
-    imports: [
-        LoadingOverlayComponent,
-        NavigationComponent,
-        RouterOutlet,
-        TranslateModule,
-    ],
+    imports: [LoadingOverlayComponent, NavigationComponent, RouterOutlet],
 })
 export class XtreamShellComponent {
     private readonly route = inject(ActivatedRoute);
@@ -44,31 +38,24 @@ export class XtreamShellComponent {
         const section = this.currentSection();
         return this.isImporting() && this.isContentSection(section);
     });
+    readonly selectedSection = computed<PortalRailSection | undefined>(() => {
+        const section = this.currentSection();
+        return section ?? undefined;
+    });
 
     private currentPlaylistId: string | null = null;
     private readonly currentSection = signal<PortalRailSection | null>(null);
 
     constructor() {
-        // Subscribe to route params to handle switching between playlists
         this.route.params
             .pipe(takeUntilDestroyed())
             .subscribe(async (params) => {
                 const newPlaylistId = params['id'];
 
-                // Skip if this component instance already processed this ID
                 if (this.currentPlaylistId === newPlaylistId) {
                     return;
                 }
 
-                // Always reset the store when this is a fresh shell instance
-                // (currentPlaylistId is null = newly created component). This
-                // handles the refresh-from-sources flow where the DB content was
-                // cleared but the root-scoped store still holds stale
-                // isContentInitialized: true from the previous session.
-                //
-                // When navigating between sub-routes within the same shell
-                // (live → vod → series), currentPlaylistId is already set so
-                // reset is skipped and in-memory content is preserved.
                 const isFreshInstance = this.currentPlaylistId === null;
                 if (
                     isFreshInstance ||
@@ -85,8 +72,6 @@ export class XtreamShellComponent {
                     })
                 );
 
-                // Must await fetchXtreamPlaylist before checking status
-                // because checkPortalStatus needs currentPlaylist to be set
                 await this.xtreamStore.fetchXtreamPlaylist();
                 await this.xtreamStore.checkPortalStatus();
             });
@@ -114,8 +99,6 @@ export class XtreamShellComponent {
                 return;
             }
 
-            // Only initialize content when playlist is loaded AND matches the current playlistId
-            // This prevents stale data from a previous session from being used
             if (playlist !== null && playlist.id === playlistId) {
                 void this.xtreamStore.initializeContent();
             }
@@ -137,10 +120,7 @@ export class XtreamShellComponent {
 
         if (section === 'vod' || section === 'live' || section === 'series') {
             this.xtreamStore.setSelectedContentType(section);
-            return;
         }
-
-        this.xtreamStore.setSelectedContentType(undefined);
     }
 
     private isContentSection(section: PortalRailSection | null): boolean {
