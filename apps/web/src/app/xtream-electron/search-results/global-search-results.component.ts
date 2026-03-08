@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { SearchResultsComponent } from './search-results.component';
-import { XtreamStore } from '../stores/xtream.store';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 @Component({
     selector: 'app-global-search-results',

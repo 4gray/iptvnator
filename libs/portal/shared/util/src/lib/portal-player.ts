@@ -1,0 +1,29 @@
+import { InjectionToken } from '@angular/core';
+import {
+    ExternalPlayerSession,
+    ResolvedPortalPlayback,
+} from 'shared-interfaces';
+
+export interface PortalPlayer {
+    openPlayer(
+        streamUrl: string,
+        title: string,
+        thumbnail?: string | null,
+        hideExternalInfoDialog?: boolean,
+        isLiveContent?: boolean,
+        userAgent?: string,
+        referer?: string,
+        origin?: string,
+        contentInfo?: unknown,
+        startTime?: number,
+        headers?: Record<string, string>
+    ): Promise<ExternalPlayerSession | void>;
+    openResolvedPlayback(
+        playback: ResolvedPortalPlayback,
+        hideExternalInfoDialog?: boolean
+    ): Promise<ExternalPlayerSession | void>;
+}
+
+export const PORTAL_PLAYER = new InjectionToken<PortalPlayer>(
+    'PORTAL_PLAYER'
+);

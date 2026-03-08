@@ -14,7 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DatabaseService, XCategoryFromDb } from 'services';
-import { createLogger } from '../../shared/utils/logger';
+import { createLogger } from '@iptvnator/portal/shared/util';
 
 export interface CategoryManagementDialogData {
     playlistId: string;

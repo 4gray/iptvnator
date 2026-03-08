@@ -4,7 +4,7 @@
     "sourceRoot": "libs/ui/remote-control/src",
     "prefix": "lib",
     "projectType": "library",
-    "tags": [],
+    "tags": ["scope:shared", "domain:playback", "type:ui"],
     "targets": {
         "test": {
             "executor": "@nx/jest:jest",

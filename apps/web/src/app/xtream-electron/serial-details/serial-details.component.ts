@@ -14,7 +14,7 @@ import { PlayerService } from '../../services/player.service';
 import { ExternalPlaybackService } from '../../services/external-playback.service';
 import { PortalInlinePlayerComponent } from '../../shared/components/portal-inline-player/portal-inline-player.component';
 import { SeasonContainerComponent } from '../season-container/season-container.component';
-import { XtreamStore } from '../stores/xtream.store';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 @Component({
     selector: 'app-serial-details',

@@ -40,14 +40,14 @@ export const xtreamRoutes: Route[] = [
                         path: '',
                         loadComponent: () =>
                             import(
-                                './category-content-view/category-content-view.component'
+                                '../portal-shared/category-content-view/category-content-view.component'
                             ).then((c) => c.CategoryContentViewComponent),
                     },
                     {
                         path: ':categoryId',
                         loadComponent: () =>
                             import(
-                                './category-content-view/category-content-view.component'
+                                '../portal-shared/category-content-view/category-content-view.component'
                             ).then((c) => c.CategoryContentViewComponent),
                     },
                     {
@@ -70,14 +70,14 @@ export const xtreamRoutes: Route[] = [
                         path: '',
                         loadComponent: () =>
                             import(
-                                './category-content-view/category-content-view.component'
+                                '../portal-shared/category-content-view/category-content-view.component'
                             ).then((c) => c.CategoryContentViewComponent),
                     },
                     {
                         path: ':categoryId',
                         loadComponent: () =>
                             import(
-                                './category-content-view/category-content-view.component'
+                                '../portal-shared/category-content-view/category-content-view.component'
                             ).then((c) => c.CategoryContentViewComponent),
                     },
                     {
@@ -120,7 +120,7 @@ export const xtreamRoutes: Route[] = [
             {
                 path: 'downloads',
                 loadComponent: () =>
-                    import('./downloads/downloads.component').then(
+                    import('@iptvnator/portal/downloads/feature').then(
                         (c) => c.DownloadsComponent
                     ),
             },

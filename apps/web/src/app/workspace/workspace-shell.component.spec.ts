@@ -8,7 +8,7 @@ import { PlaylistsService } from 'services';
 import { DownloadsService } from '../services/downloads.service';
 import { ExternalPlaybackService } from '../services/external-playback.service';
 import { SettingsStore } from '../services/settings-store.service';
-import { XtreamStore } from '../xtream-electron/stores/xtream.store';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesContextService } from './favorites-context.service';
 import { SettingsContextService } from './settings-context.service';
 import { WorkspaceShellComponent } from './workspace-shell.component';

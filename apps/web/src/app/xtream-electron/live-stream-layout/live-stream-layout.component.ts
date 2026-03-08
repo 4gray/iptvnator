@@ -27,9 +27,9 @@ import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { XtreamCategory } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { SettingsStore } from '../../services/settings-store.service';
-import { CategoryViewComponent } from '../../shared/components/category-view/category-view.component';
-import { PortalEmptyStateComponent } from '../../shared/components/portal-empty-state/portal-empty-state.component';
-import { isWorkspaceLayoutRoute } from '../../shared/navigation/portal-route.utils';
+import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
+import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
+import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
 import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
@@ -39,8 +39,8 @@ import {
     CategoryManagementDialogData,
 } from '../category-management-dialog/category-management-dialog.component';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
-import { FavoritesService } from '../services/favorites.service';
-import { XtreamStore } from '../stores/xtream.store';
+import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';

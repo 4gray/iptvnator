@@ -7,12 +7,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamSerieEpisode, XtreamSerieEpisodeInfo } from 'shared-interfaces';
-import { XtreamStore } from '../stores/xtream.store';
-import { StalkerStore } from '../../stalker/stalker.store';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { ProgressCapsuleComponent } from '../shared/progress-capsule/progress-capsule.component';
 import { WatchedBadgeComponent } from '../shared/watched-badge/watched-badge.component';
 import { DownloadsService } from '../../services/downloads.service';
-import { createLogger } from '../../shared/utils/logger';
+import { createLogger } from '@iptvnator/portal/shared/util';
 
 type EpisodeViewMode = 'grid' | 'list';
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';

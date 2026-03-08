@@ -13,9 +13,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ChannelListItemComponent } from 'components';
 import { EpgItem, EpgProgram } from 'shared-interfaces';
-import { StalkerVodSource } from '../models';
-import { normalizeStalkerEntityId } from '../stalker-vod.utils';
-import { StalkerStore } from '../stalker.store';
+import { StalkerVodSource } from '@iptvnator/portal/stalker/data-access';
+import { normalizeStalkerEntityId } from '@iptvnator/portal/stalker/data-access';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 
 @Component({
     selector: 'app-stalker-collection-channels-list',

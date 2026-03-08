@@ -1,5 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
-import { CategoryViewComponent } from '../shared/components/category-view/category-view.component';
+import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
 import { FavoritesContextService } from './favorites-context.service';
 
 /**

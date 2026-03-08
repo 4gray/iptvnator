@@ -4,7 +4,7 @@
     "sourceRoot": "libs/services/src",
     "prefix": "lib",
     "projectType": "library",
-    "tags": [],
+    "tags": ["scope:shared", "type:data-access"],
     "targets": {
         "test": {
             "executor": "@nx/jest:jest",

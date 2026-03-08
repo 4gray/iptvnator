@@ -11,14 +11,14 @@ import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { XtreamCategory } from 'shared-interfaces';
-import { CategoryViewComponent } from '../shared/components/category-view/category-view.component';
-import { isWorkspaceLayoutRoute } from '../shared/navigation/portal-route.utils';
+import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
+import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
 import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
 } from './category-management-dialog/category-management-dialog.component';
-import { XtreamStore } from './stores/xtream.store';
-import { XtreamCategorySortMode } from './stores/features/with-selection.feature';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { XtreamCategorySortMode } from '@iptvnator/portal/xtream/data-access';
 
 const XTREAM_CATEGORY_SORT_STORAGE_KEY = 'xtream-category-sort-mode';
 

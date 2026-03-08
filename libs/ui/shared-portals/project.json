@@ -5,7 +5,9 @@
   "prefix": "lib",
   "projectType": "library",
   "tags": [
-    "ui"
+    "scope:portal",
+    "domain:portal-shared",
+    "type:ui"
   ],
   "targets": {
     "test": {

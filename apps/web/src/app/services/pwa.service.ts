@@ -25,7 +25,7 @@ import {
     createPortalDebugSuccessEvent,
     logPortalDebugEvent,
     logPortalDebugRequest,
-} from '../shared/utils/logger';
+} from '@iptvnator/portal/shared/util';
 
 @Injectable({
     providedIn: 'root',

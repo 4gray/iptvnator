@@ -1,0 +1,21 @@
+{
+    "name": "portal-stalker-data-access",
+    "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/portal/stalker/data-access/src",
+    "prefix": "lib",
+    "projectType": "library",
+    "tags": ["scope:portal", "domain:stalker", "type:data-access"],
+    "targets": {
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "libs/portal/stalker/data-access/jest.config.ts",
+                "tsConfig": "libs/portal/stalker/data-access/tsconfig.spec.json"
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}

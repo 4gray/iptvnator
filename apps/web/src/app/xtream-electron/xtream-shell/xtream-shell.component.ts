@@ -10,14 +10,14 @@ import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
 import { filter } from 'rxjs';
-import { PortalRailSection } from '../../shared/navigation/portal-rail-links';
+import { PortalRailSection } from '@iptvnator/portal/shared/util';
 import {
     isWorkspaceLayoutRoute,
     resolveCurrentPortalSection,
-} from '../../shared/navigation/portal-route.utils';
+} from '@iptvnator/portal/shared/util';
 import { LoadingOverlayComponent } from '../loading-overlay/loading-overlay.component';
-import { NavigationComponent } from '../navigation/navigation.component';
-import { XtreamStore } from '../stores/xtream.store';
+import { NavigationComponent } from '../../portal-shared/navigation/navigation.component';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 @Component({
     templateUrl: './xtream-shell.component.html',

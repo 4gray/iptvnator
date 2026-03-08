@@ -16,23 +16,23 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { selectActivePlaylist } from 'm3u-state';
 import { BehaviorSubject, switchMap } from 'rxjs';
 import { PlayerService } from '../../services/player.service';
-import { PortalCollectionLiveShellComponent } from '../../shared/components/portal-collection-live-shell/portal-collection-live-shell.component';
+import { PortalCollectionLiveShellComponent } from '@iptvnator/portal/shared/ui';
 import {
     PortalCollectionMode,
     PortalCollectionShellComponent,
     PortalCollectionShellLayout,
-} from '../../shared/components/portal-collection-shell/portal-collection-shell.component';
-import { queryParamSignal } from '../../shared/navigation/portal-route.utils';
-import { createPortalCollectionContext } from '../../shared/utils/portal-collection-context';
+} from '@iptvnator/portal/shared/ui';
+import { queryParamSignal } from '@iptvnator/portal/shared/util';
+import { createPortalCollectionContext } from '@iptvnator/portal/shared/util';
 import {
     buildStandardCollectionCategories,
     filterCollectionBucket,
-} from '../../shared/utils/portal-collection-items';
-import { FavoritesContextService } from '../../workspace/favorites-context.service';
+} from '@iptvnator/portal/shared/util';
+import { FavoritesContextService } from '@iptvnator/portal/shared/util';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
-import { FavoriteItem } from '../services/favorite-item.interface';
-import { FavoritesService } from '../services/favorites.service';
-import { XtreamStore } from '../stores/xtream.store';
+import { FavoriteItem } from '@iptvnator/portal/xtream/data-access';
+import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 const XTREAM_FAVORITES_LAYOUT: PortalCollectionShellLayout = {};
 const XTREAM_COLLECTION_LABELS = {

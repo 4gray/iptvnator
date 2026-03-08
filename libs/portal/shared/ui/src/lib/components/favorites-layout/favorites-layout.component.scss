@@ -1,0 +1,119 @@
+@use '@angular/material' as mat;
+@use '../../styles/content-grid' as grid;
+
+:host {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; // Important for proper flex behavior
+}
+
+.content-header {
+    padding: 8px 12px;
+    min-height: 48px;
+    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    border-bottom: 1px solid var(--app-separator);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.category-meta {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.category-title {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--mat-sys-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+// Informational badge — primary-tinted pill with definition ring
+.category-subtitle {
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 0.70rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: capitalize;
+    line-height: 1;
+    color: var(--mat-sys-primary);
+    background: color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-surface-container-high));
+    padding: 4px 10px;
+    border-radius: 999px;
+    box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent),
+        0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.scrollable-content {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.favorites-container {
+    padding: 20px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.items-grid {
+    @include grid.content-grid(140px, 20px);
+    padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+}
+
+.no-items {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+
+    mat-icon {
+        font-size: 48px;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 1rem;
+    }
+
+    p {
+        font-size: 1.1rem;
+        margin: 0;
+    }
+}
+
+.sidebar-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    button {
+        @include mat.form-field-density(-5);
+    }
+}

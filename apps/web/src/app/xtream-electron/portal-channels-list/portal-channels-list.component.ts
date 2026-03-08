@@ -29,10 +29,10 @@ import {
     XtreamItem,
 } from 'shared-interfaces';
 import { ChannelListItemComponent } from 'components';
-import { EpgQueueService } from '../services/epg-queue.service';
-import { XtreamCredentials } from '../services/xtream-api.service';
-import { FavoritesService } from '../services/favorites.service';
-import { XtreamStore } from '../stores/xtream.store';
+import { EpgQueueService } from '@iptvnator/portal/xtream/data-access';
+import { XtreamCredentials } from '@iptvnator/portal/xtream/data-access';
+import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 

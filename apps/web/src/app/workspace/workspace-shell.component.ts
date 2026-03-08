@@ -43,12 +43,12 @@ import { ExternalPlaybackDockComponent } from '../shared/components/external-pla
 import {
     buildPortalRailLinks,
     PortalRailLink,
-} from '../shared/navigation/portal-rail-links';
-import { PortalRailLinksComponent } from '../shared/navigation/portal-rail-links.component';
+} from '@iptvnator/portal/shared/util';
+import { PortalRailLinksComponent } from '@iptvnator/portal/shared/ui';
 import { AccountInfoComponent } from '../xtream-electron/account-info/account-info.component';
 import { GlobalRecentlyViewedComponent } from '../xtream-electron/recently-viewed/global-recently-viewed.component';
 import { GlobalSearchResultsComponent } from '../xtream-electron/search-results/global-search-results.component';
-import { XtreamStore } from '../xtream-electron/stores/xtream.store';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesContextService } from './favorites-context.service';
 import { SettingsContextService } from './settings-context.service';
 import {

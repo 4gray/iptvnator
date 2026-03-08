@@ -5,10 +5,10 @@ import { MatPaginatorModule } from '@angular/material/paginator';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
-import { CategoryViewComponent } from '../shared/components/category-view/category-view.component';
-import { PlaylistErrorViewComponent } from '../shared/components/playlist-error-view/playlist-error-view.component';
-import { isWorkspaceLayoutRoute } from '../shared/navigation/portal-route.utils';
-import { StalkerStore } from './stalker.store';
+import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
+import { PlaylistErrorViewComponent } from '@iptvnator/portal/shared/ui';
+import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 
 @Component({
     selector: 'app-stalker-main-container',

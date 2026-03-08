@@ -4,7 +4,7 @@
     "sourceRoot": "libs/workspace/dashboard/ui/src",
     "prefix": "lib",
     "projectType": "library",
-    "tags": [],
+    "tags": ["scope:workspace", "domain:workspace", "type:ui"],
     "targets": {
         "lint": {
             "executor": "@nx/eslint:lint"

@@ -1,0 +1,21 @@
+{
+    "name": "portal-shared-util",
+    "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/portal/shared/util/src",
+    "prefix": "lib",
+    "projectType": "library",
+    "tags": ["scope:portal", "domain:portal-shared", "type:util"],
+    "targets": {
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "libs/portal/shared/util/jest.config.ts",
+                "tsConfig": "libs/portal/shared/util/tsconfig.spec.json"
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}

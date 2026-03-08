@@ -23,9 +23,9 @@ import { ExternalPlaybackService } from '../../services/external-playback.servic
 import { PlayerService } from '../../services/player.service';
 import { SettingsStore } from '../../services/settings-store.service';
 import { PortalInlinePlayerComponent } from '../../shared/components/portal-inline-player/portal-inline-player.component';
-import { XtreamStore } from '../stores/xtream.store';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { SafePipe } from '@iptvnator/pipes';
-import { createLogger } from '../../shared/utils/logger';
+import { createLogger } from '@iptvnator/portal/shared/util';
 
 /**
  * Route-based VOD details container for Xtream.

@@ -1,9 +1,9 @@
 import { Component, computed, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
-import { XtreamStore } from '../stores/xtream.store';
-import { ContentType } from '../xtream-state';
+import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { ContentType } from '@iptvnator/portal/xtream/data-access';
 
 @Component({
     selector: 'app-recently-added',

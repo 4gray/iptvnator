@@ -19,7 +19,7 @@ import {
 import { DownloadsService } from '../../services/downloads.service';
 import { ExternalPlaybackService } from '../../services/external-playback.service';
 import { SafePipe } from '@iptvnator/pipes';
-import { StalkerStore } from '../../stalker/stalker.store';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PortalInlinePlayerComponent } from '../../shared/components/portal-inline-player/portal-inline-player.component';
 
 /**

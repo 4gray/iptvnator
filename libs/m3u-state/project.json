@@ -4,7 +4,7 @@
     "sourceRoot": "libs/m3u-state/src",
     "prefix": "lib",
     "projectType": "library",
-    "tags": [],
+    "tags": ["scope:playlist", "domain:m3u", "type:data-access"],
     "targets": {
         "test": {
             "executor": "@nx/jest:jest",

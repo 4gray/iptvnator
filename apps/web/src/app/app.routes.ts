@@ -76,7 +76,7 @@ export const routes: Routes = [
                 path: 'downloads',
                 data: { layout: 'workspace' },
                 loadComponent: () =>
-                    import('./xtream-electron/downloads/downloads.component').then(
+                    import('@iptvnator/portal/downloads/feature').then(
                         (c) => c.DownloadsComponent
                     ),
             },

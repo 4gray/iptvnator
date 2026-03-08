@@ -4,8 +4,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { BehaviorSubject, map, switchMap } from 'rxjs';
 import { PlaylistsService } from 'services';
-import { StalkerStore } from '../stalker.store';
-import { matchesFavoriteById } from '../stalker-vod.utils';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { matchesFavoriteById } from '@iptvnator/portal/stalker/data-access';
 
 @Component({
     selector: 'app-favorites-button',

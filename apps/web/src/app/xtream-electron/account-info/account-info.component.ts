@@ -5,9 +5,9 @@ import { MatListModule } from '@angular/material/list';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { selectActivePlaylist } from 'm3u-state';
-import { XtreamApiService } from '../services/xtream-api.service';
-import { XtreamAccountInfo } from './account-info.interface';
-import { createLogger } from '../../shared/utils/logger';
+import { XtreamApiService } from '@iptvnator/portal/xtream/data-access';
+import { XtreamAccountInfo } from '@iptvnator/portal/xtream/data-access';
+import { createLogger } from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-account-info',

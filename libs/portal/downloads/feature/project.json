@@ -1,0 +1,13 @@
+{
+    "name": "portal-downloads-feature",
+    "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/portal/downloads/feature/src",
+    "prefix": "lib",
+    "projectType": "library",
+    "tags": ["scope:portal", "domain:portal-shared", "type:feature"],
+    "targets": {
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}

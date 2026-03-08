@@ -21,28 +21,28 @@ import groupBy from 'lodash/groupBy';
 import { firstValueFrom } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
 import { PlayerService } from '../../services/player.service';
-import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
+import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import {
     PortalCollectionLiveShellComponent,
-} from '../../shared/components/portal-collection-live-shell/portal-collection-live-shell.component';
+} from '@iptvnator/portal/shared/ui';
 import {
     PortalCollectionMode,
     PortalCollectionShellComponent,
     PortalCollectionShellLayout,
-} from '../../shared/components/portal-collection-shell/portal-collection-shell.component';
+} from '@iptvnator/portal/shared/ui';
 import {
     isWorkspaceLayoutRoute,
     queryParamSignal,
-} from '../../shared/navigation/portal-route.utils';
-import { createPortalCollectionContext } from '../../shared/utils/portal-collection-context';
+} from '@iptvnator/portal/shared/util';
+import { createPortalCollectionContext } from '@iptvnator/portal/shared/util';
 import {
     buildStandardCollectionCategories,
     filterCollectionBucket,
-} from '../../shared/utils/portal-collection-items';
-import { createLogger } from '../../shared/utils/logger';
-import { FavoritesContextService } from '../../workspace/favorites-context.service';
+} from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util';
+import { FavoritesContextService } from '@iptvnator/portal/shared/util';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
-import { XtreamStore } from '../stores/xtream.store';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 const XTREAM_RECENT_LAYOUT: Omit<
     PortalCollectionShellLayout,

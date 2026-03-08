@@ -12,20 +12,20 @@ import {
     StalkerPortalActions,
     VodDetailsItem,
 } from 'shared-interfaces';
-import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
-import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
-import { StalkerInlineDetailComponent } from '../../shared/components/stalker-inline-detail/stalker-inline-detail.component';
-import { StalkerContentTypes } from '../stalker-content-types';
-import { StalkerStore } from '../stalker.store';
+import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
+import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
+import { StalkerInlineDetailComponent } from '../stalker-inline-detail/stalker-inline-detail.component';
+import { StalkerContentTypes } from '@iptvnator/portal/stalker/data-access';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import {
     isWorkspaceLayoutRoute,
     queryParamSignal,
-} from '../../shared/navigation/portal-route.utils';
-import { createLogger } from '../../shared/utils/logger';
+} from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     StalkerSelectedVodItem,
     StalkerVodSource,
-} from '../models';
+} from '@iptvnator/portal/stalker/data-access';
 import {
     buildStalkerSelectedVodItem,
     clearStalkerDetailViewState,
@@ -36,7 +36,7 @@ import {
     isSelectedStalkerVodFavorite,
     isStalkerSeriesFlag,
     toggleStalkerVodFavorite,
-} from '../stalker-vod.utils';
+} from '@iptvnator/portal/stalker/data-access';
 
 interface StalkerFilter {
     key: string;

@@ -11,25 +11,25 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from 'services';
 import { EpgItem, VodDetailsItem } from 'shared-interfaces';
 import { PlayerService } from '../../services/player.service';
-import { PortalCollectionLiveShellComponent } from '../../shared/components/portal-collection-live-shell/portal-collection-live-shell.component';
+import { PortalCollectionLiveShellComponent } from '@iptvnator/portal/shared/ui';
 import {
     PortalCollectionMode,
     PortalCollectionShellComponent,
     PortalCollectionShellLayout,
-} from '../../shared/components/portal-collection-shell/portal-collection-shell.component';
-import { StalkerInlineDetailComponent } from '../../shared/components/stalker-inline-detail/stalker-inline-detail.component';
+} from '@iptvnator/portal/shared/ui';
+import { StalkerInlineDetailComponent } from '../stalker-inline-detail/stalker-inline-detail.component';
 import {
     isWorkspaceLayoutRoute,
     queryParamSignal,
-} from '../../shared/navigation/portal-route.utils';
-import { createPortalCollectionContext } from '../../shared/utils/portal-collection-context';
+} from '@iptvnator/portal/shared/util';
+import { createPortalCollectionContext } from '@iptvnator/portal/shared/util';
 import {
     buildStandardCollectionCategories,
     filterCollectionBucket,
-} from '../../shared/utils/portal-collection-items';
-import { createLogger } from '../../shared/utils/logger';
-import { FavoritesContextService } from '../../workspace/favorites-context.service';
-import { StalkerSelectedVodItem, StalkerVodSource } from '../models';
+} from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util';
+import { FavoritesContextService } from '@iptvnator/portal/shared/util';
+import { StalkerSelectedVodItem, StalkerVodSource } from '@iptvnator/portal/stalker/data-access';
 import {
     clearStalkerDetailViewState,
     createStalkerInlineDetailState,
@@ -40,9 +40,9 @@ import {
     isSelectedStalkerVodFavorite,
     normalizeStalkerVodDetailsItem,
     toggleStalkerVodFavorite,
-} from '../stalker-vod.utils';
+} from '@iptvnator/portal/stalker/data-access';
 import { StalkerCollectionChannelsListComponent } from '../stalker-collection-channels-list/stalker-collection-channels-list.component';
-import { StalkerStore } from '../stalker.store';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 
 const STALKER_RECENT_LAYOUT: Omit<
     PortalCollectionShellLayout,

@@ -31,22 +31,22 @@ import { EpgItem, EpgProgram } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { PlayerService } from '../../services/player.service';
 import { SettingsStore } from '../../services/settings-store.service';
-import { CategoryViewComponent } from '../../shared/components/category-view/category-view.component';
-import { PlaylistErrorViewComponent } from '../../shared/components/playlist-error-view/playlist-error-view.component';
-import { PortalEmptyStateComponent } from '../../shared/components/portal-empty-state/portal-empty-state.component';
-import { isWorkspaceLayoutRoute } from '../../shared/navigation/portal-route.utils';
+import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
+import { PlaylistErrorViewComponent } from '@iptvnator/portal/shared/ui';
+import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
+import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
 import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
 } from '../../shared/services/remote-channel-navigation.util';
-import { createLogger } from '../../shared/utils/logger';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     StalkerCategoryItem,
     StalkerFavoriteItem,
     StalkerItvChannel,
-} from '../models';
-import { normalizeStalkerEntityId } from '../stalker-vod.utils';
-import { StalkerStore } from '../stalker.store';
+} from '@iptvnator/portal/stalker/data-access';
+import { normalizeStalkerEntityId } from '@iptvnator/portal/stalker/data-access';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',

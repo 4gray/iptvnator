@@ -18,7 +18,7 @@ import { AppConfig } from '../../environments/environment';
 import {
     createPortalDebugRequestContext,
     logPortalDebugEvent,
-} from '../shared/utils/logger';
+} from '@iptvnator/portal/shared/util';
 
 @Injectable({
     providedIn: 'root',

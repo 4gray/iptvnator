@@ -9,15 +9,15 @@ import {
 import { Store } from '@ngrx/store';
 import { PlaylistActions, selectPlaylistById } from 'm3u-state';
 import { map, switchMap } from 'rxjs';
-import { PortalRailSection } from '../../shared/navigation/portal-rail-links';
+import { PortalRailSection } from '@iptvnator/portal/shared/util';
 import {
     isWorkspaceLayoutRoute,
     resolveCurrentPortalSection,
-} from '../../shared/navigation/portal-route.utils';
-import { createLogger } from '../../shared/utils/logger';
-import { NavigationComponent } from '../../xtream-electron/navigation/navigation.component';
-import { XtreamStore } from '../../xtream-electron/stores/xtream.store';
-import { StalkerStore } from '../stalker.store';
+} from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util';
+import { NavigationComponent } from '../../portal-shared/navigation/navigation.component';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 
 @Component({
     selector: 'app-stalker-shell',

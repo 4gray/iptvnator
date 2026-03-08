@@ -28,7 +28,7 @@ export const stalkerRoutes: Route[] = [
                         },
                         loadComponent: () =>
                             import(
-                                '../xtream-electron/category-content-view/category-content-view.component'
+                                '../portal-shared/category-content-view/category-content-view.component'
                             ).then((c) => c.CategoryContentViewComponent),
                     },
                     {
@@ -39,7 +39,7 @@ export const stalkerRoutes: Route[] = [
                         },
                         loadComponent: () =>
                             import(
-                                '../xtream-electron/category-content-view/category-content-view.component'
+                                '../portal-shared/category-content-view/category-content-view.component'
                             ).then((c) => c.CategoryContentViewComponent),
                     },
                 ],
@@ -68,7 +68,7 @@ export const stalkerRoutes: Route[] = [
                         path: '',
                         loadComponent: () =>
                             import(
-                                '../xtream-electron/category-content-view/category-content-view.component'
+                                '../portal-shared/category-content-view/category-content-view.component'
                             ).then((c) => c.CategoryContentViewComponent),
                         data: {
                             api: 'stalker',
@@ -79,7 +79,7 @@ export const stalkerRoutes: Route[] = [
                         path: ':categoryId',
                         loadComponent: () =>
                             import(
-                                '../xtream-electron/category-content-view/category-content-view.component'
+                                '../portal-shared/category-content-view/category-content-view.component'
                             ).then((c) => c.CategoryContentViewComponent),
                         data: {
                             api: 'stalker',
@@ -113,7 +113,7 @@ export const stalkerRoutes: Route[] = [
                 path: 'downloads',
                 loadComponent: () =>
                     import(
-                        '../xtream-electron/downloads/downloads.component'
+                        '@iptvnator/portal/downloads/feature'
                     ).then((c) => c.DownloadsComponent),
             },
         ],

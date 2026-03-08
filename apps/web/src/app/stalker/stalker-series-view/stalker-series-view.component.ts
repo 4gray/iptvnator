@@ -11,14 +11,14 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../favorites-button/favorites-button.component';
 import { ContentHeroComponent } from 'components';
-import { StalkerStore } from '../stalker.store';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { SeasonContainerComponent } from '../../xtream-electron/season-container/season-container.component';
 import {
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
 } from 'shared-interfaces';
-import { XtreamStore } from '../../xtream-electron/stores/xtream.store';
-import { createLogger } from '../../shared/utils/logger';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     getVodSeriesSeasonKey,
     isVodSeriesItem,
@@ -29,9 +29,9 @@ import {
     StalkerMappedEpisode,
     StalkerSeriesSeasonVm,
     VodSeriesSeasonVm,
-} from '../stalker-series.adapters';
-import { StalkerSelectedVodItem, StalkerVodSource } from '../models';
-import { normalizeStalkerVodDetailsItem } from '../stalker-vod.utils';
+} from '@iptvnator/portal/stalker/data-access';
+import { StalkerSelectedVodItem, StalkerVodSource } from '@iptvnator/portal/stalker/data-access';
+import { normalizeStalkerVodDetailsItem } from '@iptvnator/portal/stalker/data-access';
 import { PlayerService } from '../../services/player.service';
 import { ExternalPlaybackService } from '../../services/external-playback.service';
 import { PortalInlinePlayerComponent } from '../../shared/components/portal-inline-player/portal-inline-player.component';

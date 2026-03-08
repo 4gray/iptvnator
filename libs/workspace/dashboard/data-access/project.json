@@ -4,7 +4,7 @@
     "sourceRoot": "libs/workspace/dashboard/data-access/src",
     "prefix": "lib",
     "projectType": "library",
-    "tags": [],
+    "tags": ["scope:workspace", "domain:workspace", "type:data-access"],
     "targets": {
         "test": {
             "executor": "@nx/jest:jest",

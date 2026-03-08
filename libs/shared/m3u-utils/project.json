@@ -3,7 +3,7 @@
     "$schema": "../../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "libs/shared/m3u-utils/src",
     "projectType": "library",
-    "tags": ["shared", "m3u"],
+    "tags": ["scope:playlist", "domain:m3u", "type:util"],
     "targets": {
         "build": {
             "executor": "@nx/js:tsc",

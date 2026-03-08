@@ -23,17 +23,17 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import groupBy from 'lodash/groupBy';
 import { DatabaseService } from 'services';
-import { ContentCardComponent } from '../../shared/components/content-card/content-card.component';
-import { SearchLayoutComponent } from '../../shared/components/search-layout/search-layout.component';
+import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
+import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
 import {
     isWorkspaceLayoutRoute,
     queryParamSignal,
-} from '../../shared/navigation/portal-route.utils';
-import { createLogger } from '../../shared/utils/logger';
-import { XtreamContentItem } from '../data-sources/xtream-data-source.interface';
-import { SearchFilters } from '../stores/features/with-search.feature';
-import { XtreamStore } from '../stores/xtream.store';
-import { ContentType } from '../xtream-state';
+} from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util';
+import { XtreamContentItem } from '@iptvnator/portal/xtream/data-access';
+import { SearchFilters } from '@iptvnator/portal/xtream/data-access';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { ContentType } from '@iptvnator/portal/xtream/data-access';
 
 interface SearchResultsData {
     isGlobalSearch: boolean;

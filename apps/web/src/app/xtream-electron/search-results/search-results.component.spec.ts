@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 import { DatabaseService } from 'services';
 import { SearchResultsComponent } from './search-results.component';
-import { XtreamStore } from '../stores/xtream.store';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 class MockXtreamStore {
     readonly searchTerm = signal('');

@@ -8,7 +8,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlayerContentInfo } from 'shared-interfaces';
 import { WebPlayerViewComponent } from 'shared-portals';
-import { XtreamStore } from '../stores/xtream.store';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 export interface PlayerDialogData {
     streamUrl: string;

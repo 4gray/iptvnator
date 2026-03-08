@@ -15,6 +15,21 @@
         "skipDefaultLibCheck": true,
         "baseUrl": ".",
         "paths": {
+            "@iptvnator/portal/downloads/feature": [
+                "libs/portal/downloads/feature/src/index.ts"
+            ],
+            "@iptvnator/portal/shared/ui": [
+                "libs/portal/shared/ui/src/index.ts"
+            ],
+            "@iptvnator/portal/shared/util": [
+                "libs/portal/shared/util/src/index.ts"
+            ],
+            "@iptvnator/portal/stalker/data-access": [
+                "libs/portal/stalker/data-access/src/index.ts"
+            ],
+            "@iptvnator/portal/xtream/data-access": [
+                "libs/portal/xtream/data-access/src/index.ts"
+            ],
             "@iptvnator/pipes": ["libs/ui/pipes/src/index.ts"],
             "@package": ["./package.json"],
             "components": ["libs/ui/components/src/index.ts"],
@@ -25,9 +40,6 @@
             "shared-portals": ["libs/ui/shared-portals/src/index.ts"],
             "remote-control": ["libs/ui/remote-control/src/index.ts"],
             "database": ["libs/shared/database/src/index.ts"],
-            "xtream-store": [
-                "apps/web/src/app/xtream-electron/stores/xtream.store.ts"
-            ],
             "workspace-dashboard-feature": [
                 "libs/workspace/dashboard/feature/src/index.ts"
             ],
