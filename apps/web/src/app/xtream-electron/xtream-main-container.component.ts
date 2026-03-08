@@ -26,7 +26,7 @@ const XTREAM_CATEGORY_SORT_STORAGE_KEY = 'xtream-category-sort-mode';
     selector: 'app-xtream-main-container',
     templateUrl: './xtream-main-container.component.html',
     styleUrls: [
-        './xtream-main-container.component.scss',
+        '../portal-shared/portal-main-container.scss',
         '../shared/styles/portal-sidebar.scss',
     ],
     imports: [

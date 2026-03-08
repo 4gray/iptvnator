@@ -12,7 +12,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../favorites-button/favorites-button.component';
 import { ContentHeroComponent } from 'components';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
-import { SeasonContainerComponent } from '../../xtream-electron/season-container/season-container.component';
+import { SeasonContainerComponent } from '../../portal-shared/season-container/season-container.component';
 import {
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
@@ -46,7 +46,7 @@ import { PortalInlinePlayerComponent } from '../../shared/components/portal-inli
 @Component({
     selector: 'app-stalker-series-view',
     templateUrl: './stalker-series-view.component.html',
-    styleUrls: ['../../xtream-electron/detail-view.scss'],
+    styleUrls: ['../../portal-shared/detail-view.scss'],
     imports: [
         FavoritesButtonComponent,
         ContentHeroComponent,

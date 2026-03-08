@@ -39,7 +39,7 @@ import { createLogger } from '@iptvnator/portal/shared/util';
  */
 @Component({
     templateUrl: './vod-details-route.component.html',
-    styleUrls: ['../detail-view.scss'],
+    styleUrls: ['../../portal-shared/detail-view.scss'],
     imports: [
         ContentHeroComponent,
         MatIcon,

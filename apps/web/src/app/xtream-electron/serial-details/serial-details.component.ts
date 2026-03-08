@@ -13,13 +13,13 @@ import {
 import { PlayerService } from '../../services/player.service';
 import { ExternalPlaybackService } from '../../services/external-playback.service';
 import { PortalInlinePlayerComponent } from '../../shared/components/portal-inline-player/portal-inline-player.component';
-import { SeasonContainerComponent } from '../season-container/season-container.component';
+import { SeasonContainerComponent } from '../../portal-shared/season-container/season-container.component';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 @Component({
     selector: 'app-serial-details',
     templateUrl: './serial-details.component.html',
-    styleUrls: ['../detail-view.scss'],
+    styleUrls: ['../../portal-shared/detail-view.scss'],
     imports: [
         ContentHeroComponent,
         MatIcon,

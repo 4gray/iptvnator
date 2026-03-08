@@ -4,9 +4,11 @@ import { MatIcon } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistErrorViewComponent } from '@iptvnator/portal/shared/ui';
-import { ProgressCapsuleComponent } from '../../../xtream-electron/shared/progress-capsule/progress-capsule.component';
-import { WatchedBadgeComponent } from '../../../xtream-electron/shared/watched-badge/watched-badge.component';
+import {
+    PlaylistErrorViewComponent,
+    ProgressCapsuleComponent,
+    WatchedBadgeComponent,
+} from '@iptvnator/portal/shared/ui';
 
 interface GridListItem {
     id?: number | string;

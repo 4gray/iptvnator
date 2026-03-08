@@ -15,7 +15,7 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
     templateUrl: './stalker-main-container.component.html',
     styleUrls: [
         './stalker-main-container.component.scss',
-        '../xtream-electron/xtream-main-container.component.scss',
+        '../portal-shared/portal-main-container.scss',
         '../shared/styles/portal-sidebar.scss',
     ],
     imports: [

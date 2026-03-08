@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { ExternalPlaybackService } from '../../services/external-playback.service';
 import { VodDetailsItem } from 'shared-interfaces';
-import { VodDetailsComponent } from '../../xtream-electron/vod-details/vod-details.component';
+import { VodDetailsComponent } from '../../portal-shared/vod-details/vod-details.component';
 import { StalkerSelectedVodItem } from '@iptvnator/portal/stalker/data-access';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 

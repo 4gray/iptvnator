@@ -45,7 +45,7 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import { XtreamCategorySortMode } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { VodDetailsComponent } from '../../xtream-electron/vod-details/vod-details.component';
+import { VodDetailsComponent } from '../vod-details/vod-details.component';
 
 const SORT_STORAGE_KEY = 'xtream-category-sort-mode';
 
