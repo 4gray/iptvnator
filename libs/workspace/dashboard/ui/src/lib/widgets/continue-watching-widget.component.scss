@@ -1,44 +1,213 @@
-.focus-source {
+:host {
+    // Deep-resume accent — vivid green
+    --app-eyebrow-color: oklch(60% 0.18 155);
+    --app-widget-border: color-mix(
+        in srgb,
+        oklch(60% 0.18 155) 22%,
+        var(--mat-sys-outline-variant) 78%
+    );
+
+    // Per-type accent vars (used by hero thumb + badge)
+    --_live-accent:   oklch(58% 0.21 25);
+    --_movie-accent:  oklch(60% 0.17 295);
+    --_series-accent: oklch(68% 0.16 55);
+}
+
+// ── Hero card ─────────────────────────────────────────────────────────────────
+
+.hero {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px;
+    border-radius: 14px;
     border: 1px solid var(--mat-sys-outline-variant);
     background: var(--mat-sys-surface-container-low);
-    border-radius: 12px;
-    padding: 12px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    min-width: 0;
+
+    &:hover {
+        background: var(--mat-sys-surface-container);
+        border-color: color-mix(in srgb, var(--mat-sys-outline) 60%, var(--app-eyebrow-color) 40%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
+
+        .hero__play mat-icon {
+            color: var(--mat-sys-primary);
+            transform: scale(1.1);
+        }
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--mat-sys-primary);
+        outline-offset: 2px;
+    }
+}
+
+// ── Thumbnail ─────────────────────────────────────────────────────────────────
+
+.hero__thumb {
+    flex-shrink: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--mat-sys-outline-variant);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--mat-sys-surface-container-highest);
+}
+
+// Live: square logo
+.hero__thumb--live {
+    width: 60px;
+    height: 60px;
+}
+
+// Movie: portrait poster 2:3
+.hero__thumb--movie {
+    width: 45px;
+    height: 60px;
+    border-radius: 8px;
+}
+
+// Series: widescreen 16:9
+.hero__thumb--series {
+    width: 80px;
+    height: 45px;
+    border-radius: 8px;
+}
+
+.hero__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.hero__thumb--live img {
+    object-fit: contain;
+    padding: 6px;
+    box-sizing: border-box;
+}
+
+.hero__thumb-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+
+    mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+    }
+}
+
+.hero__thumb--live .hero__thumb-placeholder {
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--_live-accent) 14%, transparent),
+        color-mix(in srgb, var(--_live-accent) 2%, transparent));
+    color: var(--_live-accent);
+}
+
+.hero__thumb--movie .hero__thumb-placeholder {
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--_movie-accent) 14%, transparent),
+        color-mix(in srgb, var(--_movie-accent) 2%, transparent));
+    color: var(--_movie-accent);
+}
+
+.hero__thumb--series .hero__thumb-placeholder {
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--_series-accent) 14%, transparent),
+        color-mix(in srgb, var(--_series-accent) 2%, transparent));
+    color: var(--_series-accent);
+}
+
+// ── Body ─────────────────────────────────────────────────────────────────────
+
+.hero__body {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
 }
 
-.focus-source__provider {
-    margin: 0;
-    color: var(--mat-sys-on-surface-variant);
-    font-size: 0.76rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+.hero__type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    width: fit-content;
+
+    mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+    }
 }
 
-.focus-source h4 {
-    margin: 0;
-    font-size: 1rem;
+.hero__type-badge--live   { color: var(--_live-accent); }
+.hero__type-badge--movie  { color: var(--_movie-accent); }
+.hero__type-badge--series { color: var(--_series-accent); }
+
+.hero__title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     line-height: 1.3;
 }
 
-.focus-source__title {
+.hero__playlist {
+    font-size: 0.73rem;
+    color: var(--mat-sys-on-surface-variant);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
-.focus-source__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+.hero__time {
+    font-size: 0.68rem;
+    color: color-mix(in srgb, var(--mat-sys-on-surface-variant) 60%, transparent);
 }
+
+// ── Play icon ─────────────────────────────────────────────────────────────────
+
+.hero__play {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+
+    mat-icon {
+        font-size: 32px;
+        width: 32px;
+        height: 32px;
+        color: color-mix(in srgb, var(--mat-sys-on-surface) 30%, transparent);
+        transition: color 0.15s ease, transform 0.15s ease;
+    }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
 
 .focus-empty {
-    border: 1px dashed var(--mat-sys-outline);
-    background: var(--mat-sys-surface-container-low);
-    border-radius: 12px;
+    border: 1px dashed color-mix(in srgb, var(--app-eyebrow-color) 30%, var(--mat-sys-outline-variant) 70%);
+    background: radial-gradient(
+        ellipse at 0% 50%,
+        color-mix(in srgb, var(--app-eyebrow-color) 6%, transparent),
+        transparent 70%
+    );
+    border-radius: 14px;
     padding: 16px 20px;
     display: flex;
     align-items: center;
@@ -54,11 +223,16 @@
 }
 
 .focus-empty__icon {
-    font-size: 32px;
-    width: 32px;
-    height: 32px;
-    color: var(--mat-sys-outline);
-    opacity: 0.7;
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    color: var(--app-eyebrow-color);
+    opacity: 0.8;
+    background: color-mix(in srgb, var(--app-eyebrow-color) 12%, transparent);
+    padding: 12px;
+    border-radius: 50%;
+    box-sizing: content-box;
+    flex-shrink: 0;
 }
 
 .focus-empty__text {
@@ -78,19 +252,21 @@
     margin: 0;
     font-size: 0.75rem;
     color: var(--mat-sys-on-surface-variant);
-    max-width: 320px;
+    max-width: 260px;
     line-height: 1.4;
 }
+
+// ── Quick playlist list ───────────────────────────────────────────────────────
 
 .quick-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
-.quick-list__title {
+.quick-list__label {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: 0.73rem;
     color: var(--mat-sys-on-surface-variant);
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -105,27 +281,30 @@
     border: 1px solid var(--mat-sys-outline-variant);
     border-radius: 10px;
     background: var(--mat-sys-surface-container-low);
-    padding: 8px 10px;
+    padding: 7px 10px;
     text-decoration: none;
     color: inherit;
     min-width: 0;
-}
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.2s ease, box-shadow 0.2s ease;
 
-.quick-item:hover {
-    border-color: var(--mat-sys-outline);
-    background: var(--mat-sys-surface-container-high);
+    &:hover {
+        border-color: color-mix(in srgb, var(--mat-sys-outline) 60%, var(--app-eyebrow-color) 40%);
+        background: var(--mat-sys-surface-container-high);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
+    }
 }
 
 .quick-item__title {
     min-width: 0;
+    font-size: 0.82rem;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.88rem;
 }
 
 .quick-item__meta {
+    flex-shrink: 0;
+    font-size: 0.72rem;
     color: var(--mat-sys-on-surface-variant);
-    font-size: 0.74rem;
-    white-space: nowrap;
 }

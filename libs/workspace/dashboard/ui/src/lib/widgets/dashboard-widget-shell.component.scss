@@ -20,7 +20,7 @@
 
 .widget-shell__header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
     padding: 14px 16px 10px;
@@ -33,6 +33,7 @@
 
 .widget-shell__headline {
     min-width: 0;
+    align-self: flex-start;
 }
 
 .widget-shell__eyebrow {
@@ -40,7 +41,7 @@
     color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-size: 0.67rem;
+    font-size: 0.72rem;
     font-weight: 600;
 }
 
@@ -70,11 +71,11 @@
     gap: 12px;
     min-height: 0;
     flex: 1;
-    padding: 0 16px 0;
+    padding: 0 16px 12px;
     box-sizing: border-box;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-gutter: stable;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+    scrollbar-color: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent) transparent;
 }

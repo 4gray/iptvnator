@@ -1,3 +1,9 @@
+:host {
+    // Activity / history tint — blue-teal
+    --app-eyebrow-color: oklch(54% 0.13 225);
+    --app-widget-border: color-mix(in srgb, oklch(54% 0.13 225) 22%, var(--mat-sys-outline-variant) 78%);
+}
+
 .view-toggle {
     border-radius: 8px;
     height: 32px;

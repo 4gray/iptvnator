@@ -1,4 +1,11 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import {
+    Component,
+    OnInit,
+    computed,
+    inject,
+    input,
+    signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIcon } from '@angular/material/icon';
@@ -40,7 +47,7 @@ const PAGE_SIZE = 20;
     templateUrl: './global-favorites-widget.component.html',
     styleUrl: './global-favorites-widget.component.scss',
 })
-export class GlobalFavoritesWidgetComponent {
+export class GlobalFavoritesWidgetComponent implements OnInit {
     readonly widget = input.required<DashboardWidgetConfig>();
     readonly data = inject(DashboardDataService);
     readonly selectedKind = signal<DashboardContentKind>(
@@ -94,8 +101,12 @@ export class GlobalFavoritesWidgetComponent {
             }))
     );
 
-    constructor() {
-        void this.data.reloadGlobalFavorites();
+    constructor() {}
+
+    ngOnInit(): void {
+        this.data.reloadGlobalFavorites().then(() => {
+            this.visibleItemLimit.set(INITIAL_PAGE_SIZE);
+        });
     }
 
     onKindChange(kind: DashboardContentKind): void {

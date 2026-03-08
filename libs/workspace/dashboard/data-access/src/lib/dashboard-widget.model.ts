@@ -1,7 +1,7 @@
 export type DashboardWidgetType =
-    | 'recent-sources'
     | 'source-stats'
     | 'continue-watching'
+    | 'on-air'
     | 'recently-watched'
     | 'global-favorites';
 
@@ -33,7 +33,7 @@ export interface DashboardLayoutState {
     widgets: DashboardWidgetConfig[];
 }
 
-export const DASHBOARD_LAYOUT_VERSION = 6;
+export const DASHBOARD_LAYOUT_VERSION = 12;
 export const DASHBOARD_WIDGET_SIZE_OPTIONS: DashboardWidgetSize[] = [
     'one-third',
     'half',
@@ -59,21 +59,12 @@ export function createDefaultWidgetScope(): DashboardWidgetScopeSettings {
 
 export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
     {
-        id: 'recent-sources',
-        type: 'recent-sources',
-        title: 'Recent Sources',
-        description: 'Latest added or refreshed playlists across providers.',
-        size: 'half',
-        enabled: true,
-        order: 0,
-    },
-    {
         id: 'source-stats',
         type: 'source-stats',
         title: 'Source Statistics',
         description: 'Current source mix and total connected libraries.',
         size: 'one-third',
-        enabled: true,
+        enabled: false,
         order: 1,
     },
     {
@@ -81,9 +72,18 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
         type: 'continue-watching',
         title: 'Continue Watching',
         description: 'Jump back into the last active source.',
-        size: 'half',
+        size: 'full',
         enabled: true,
         order: 2,
+    },
+    {
+        id: 'on-air',
+        type: 'on-air',
+        title: 'On Air Now',
+        description: 'Live programs currently airing across your EPG channels.',
+        size: 'full',
+        enabled: true,
+        order: 3,
     },
     {
         id: 'recently-watched',
@@ -92,7 +92,7 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
         description: 'Global watch history across channels, VOD and series.',
         size: 'two-thirds',
         enabled: true,
-        order: 3,
+        order: 4,
         settings: {
             scope: createDefaultWidgetScope(),
         },
@@ -104,7 +104,7 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
         description: 'Pinned items across all connected providers.',
         size: 'one-third',
         enabled: true,
-        order: 4,
+        order: 5,
         settings: {
             scope: createDefaultWidgetScope(),
         },

@@ -1,3 +1,9 @@
+:host {
+    // Favorites / library tint — amber-gold
+    --app-eyebrow-color: oklch(60% 0.16 55);
+    --app-widget-border: color-mix(in srgb, oklch(60% 0.16 55) 22%, var(--mat-sys-outline-variant) 78%);
+}
+
 .view-toggle {
     border-radius: 8px;
     height: 32px;

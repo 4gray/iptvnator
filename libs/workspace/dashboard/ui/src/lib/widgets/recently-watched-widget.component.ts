@@ -1,4 +1,11 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import {
+    Component,
+    OnInit,
+    computed,
+    inject,
+    input,
+    signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIcon } from '@angular/material/icon';
@@ -40,7 +47,7 @@ const PAGE_SIZE = 20;
     templateUrl: './recently-watched-widget.component.html',
     styleUrl: './recently-watched-widget.component.scss',
 })
-export class RecentlyWatchedWidgetComponent {
+export class RecentlyWatchedWidgetComponent implements OnInit {
     readonly widget = input.required<DashboardWidgetConfig>();
     readonly data = inject(DashboardDataService);
     readonly selectedKind = signal<DashboardContentKind>(
@@ -93,8 +100,12 @@ export class RecentlyWatchedWidgetComponent {
             }))
     );
 
-    constructor() {
-        void this.data.reloadGlobalRecentItems();
+    constructor() {}
+
+    ngOnInit(): void {
+        this.data.reloadGlobalRecentItems().then(() => {
+            this.visibleItemLimit.set(INITIAL_PAGE_SIZE);
+        });
     }
 
     onKindChange(kind: DashboardContentKind): void {

@@ -1,4 +1,5 @@
 import { Component, EventEmitter, input, Output, signal } from '@angular/core';
+import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 
@@ -16,7 +17,7 @@ type DashboardActivityViewMode = 'list' | 'grid';
 
 @Component({
     selector: 'app-dashboard-activity-items',
-    imports: [MatIcon, RouterLink],
+    imports: [MatButton, MatIcon, RouterLink],
     templateUrl: './dashboard-activity-items.component.html',
     styleUrl: './dashboard-activity-items.component.scss',
 })
@@ -27,6 +28,8 @@ export class DashboardActivityItemsComponent {
     readonly emptyLabel = input('No items to show.');
     readonly emptyIcon = input<string>();
     readonly emptyHint = input<string>();
+    readonly emptyActionLabel = input<string>();
+    readonly emptyActionLink = input<string[]>();
     readonly viewMode = input<DashboardActivityViewMode>('list');
     readonly showRemoveAction = input(false);
     readonly removeActionLabel = input('Remove item');

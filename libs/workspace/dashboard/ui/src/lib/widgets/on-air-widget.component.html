@@ -1,0 +1,130 @@
+<app-dashboard-widget-shell
+    [eyebrow]="'WORKSPACE.DASHBOARD.ON_AIR_EYEBROW' | translate"
+    [title]="'WORKSPACE.DASHBOARD.ON_AIR_TITLE' | translate"
+>
+    <ng-container widget-actions>
+        <mat-button-toggle-group
+            class="category-filter"
+            [value]="selectedCategory()"
+            hideSingleSelectionIndicator
+            aria-label="Filter by category"
+            (change)="setCategory($event.value)"
+        >
+            @for (cat of categoryKeys; track cat) {
+                <mat-button-toggle
+                    [value]="cat"
+                    [attr.aria-label]="categoryTranslationKey(cat) | translate"
+                >
+                    {{ categoryTranslationKey(cat) | translate }}
+                </mat-button-toggle>
+            }
+        </mat-button-toggle-group>
+    </ng-container>
+
+    @if (isLoading()) {
+        <div class="on-air-skeleton" aria-busy="true">
+            @for (_ of [1, 2, 3, 4]; track $index) {
+                <div class="skeleton-row">
+                    <div class="skeleton-avatar"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line skeleton-line--wide"></div>
+                        <div class="skeleton-line skeleton-line--narrow"></div>
+                    </div>
+                </div>
+            }
+        </div>
+    } @else if (filtered().length > 0) {
+        <div class="on-air-list" role="list">
+            @for (item of filtered(); track $index) {
+                <div class="on-air-item" role="listitem">
+                    <button
+                        type="button"
+                        class="on-air-item__avatar"
+                        [class.on-air-item__avatar--img]="item.channel_icon"
+                        [matTooltip]="
+                            'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS'
+                                | translate
+                        "
+                        (click)="openInfo(item)"
+                    >
+                        @if (item.channel_icon) {
+                            <img
+                                [src]="item.channel_icon"
+                                [alt]="item.channel_name ?? ''"
+                                loading="lazy"
+                            />
+                            <span
+                                class="on-air-item__avatar-badge"
+                                aria-hidden="true"
+                            >
+                                <mat-icon>info_outline</mat-icon>
+                            </span>
+                        } @else {
+                            <mat-icon>info_outline</mat-icon>
+                        }
+                    </button>
+                    <span class="on-air-item__body">
+                        <span class="on-air-item__channel">
+                            <span
+                                class="on-air-item__pulse"
+                                aria-hidden="true"
+                            ></span>
+                            {{ item.channel_name ?? item.channel_id }}
+                            @if (item.category) {
+                                <span class="on-air-item__category"
+                                    >· {{ item.category }}</span
+                                >
+                            }
+                        </span>
+                        <span
+                            class="on-air-item__title"
+                            [attr.title]="item.title"
+                            >{{ item.title }}</span
+                        >
+                        <span
+                            class="on-air-item__progress-row"
+                            [attr.aria-label]="
+                                item.minutesLeft + ' minutes left'
+                            "
+                        >
+                            <span class="on-air-item__bar-track">
+                                <span
+                                    class="on-air-item__bar-fill"
+                                    [style.width.%]="item.progressPercent"
+                                ></span>
+                            </span>
+                            <span class="on-air-item__time-left"
+                                >{{ item.minutesLeft }} min</span
+                            >
+                        </span>
+                    </span>
+                </div>
+            }
+        </div>
+    } @else {
+        <div class="on-air-empty">
+            <mat-icon class="on-air-empty__icon">schedule</mat-icon>
+            <p class="on-air-empty__title">
+                {{ 'WORKSPACE.DASHBOARD.ON_AIR_EMPTY' | translate }}
+            </p>
+            <p class="on-air-empty__hint">
+                {{
+                    (items().length > 0
+                        ? 'WORKSPACE.DASHBOARD.ON_AIR_EMPTY_FILTER'
+                        : 'WORKSPACE.DASHBOARD.ON_AIR_EMPTY_HINT'
+                    ) | translate
+                }}
+            </p>
+            @if (!items().length) {
+                <a
+                    mat-stroked-button
+                    class="on-air-empty__action"
+                    routerLink="/settings"
+                >
+                    <mat-icon>add</mat-icon>
+                    {{ 'WORKSPACE.DASHBOARD.ON_AIR_ADD_EPG' | translate }}
+                </a>
+            }
+        </div>
+    }
+</app-dashboard-widget-shell>

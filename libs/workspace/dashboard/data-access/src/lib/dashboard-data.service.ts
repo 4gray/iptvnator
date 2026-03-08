@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, NgZone, computed, inject, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import {
     PlaylistActions,
@@ -58,6 +58,7 @@ interface DashboardNavigationTarget {
 export class DashboardDataService {
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
+    private readonly ngZone = inject(NgZone);
 
     private readonly xtreamGlobalRecentItems = signal<GlobalRecentItem[]>([]);
     private readonly xtreamGlobalFavorites = signal<DashboardFavoriteItem[]>(
@@ -133,9 +134,13 @@ export class DashboardDataService {
             const normalized = recentItems.map((item) =>
                 this.mapGlobalRecent(item)
             );
-            this.xtreamGlobalRecentItems.set(normalized);
-        } catch {
-            this.xtreamGlobalRecentItems.set([]);
+            this.ngZone.run(() => this.xtreamGlobalRecentItems.set(normalized));
+        } catch (err) {
+            console.warn(
+                '[DashboardData] Failed to reload global recent items',
+                err
+            );
+            this.ngZone.run(() => this.xtreamGlobalRecentItems.set([]));
         }
     }
 
@@ -150,9 +155,13 @@ export class DashboardDataService {
             const normalized = favorites.map((item) =>
                 this.mapGlobalFavorite(item)
             );
-            this.xtreamGlobalFavorites.set(normalized);
-        } catch {
-            this.xtreamGlobalFavorites.set([]);
+            this.ngZone.run(() => this.xtreamGlobalFavorites.set(normalized));
+        } catch (err) {
+            console.warn(
+                '[DashboardData] Failed to reload global favorites',
+                err
+            );
+            this.ngZone.run(() => this.xtreamGlobalFavorites.set([]));
         }
     }
 

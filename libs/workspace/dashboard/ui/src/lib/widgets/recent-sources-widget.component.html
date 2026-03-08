@@ -10,16 +10,18 @@
             @for (item of data.recentPlaylists(); track item._id) {
                 <a class="source-row" [routerLink]="data.getPlaylistLink(item)">
                     <div class="source-row__head">
-                        <span class="provider">
-                            {{ data.getPlaylistProvider(item) }}
-                        </span>
+                        <span
+                            class="provider-pill"
+                            [class]="
+                                'provider-pill--' +
+                                data.getPlaylistProvider(item).toLowerCase()
+                            "
+                            >{{ data.getPlaylistProvider(item) }}</span
+                        >
                         @if (item.count) {
-                            <span class="count"
-                                >{{ item.count }}
-                                {{
-                                    'WORKSPACE.DASHBOARD.CHANNELS' | translate
-                                }}</span
-                            >
+                            <span class="count-chip">{{
+                                item.count | number
+                            }}</span>
                         }
                     </div>
                     <h4

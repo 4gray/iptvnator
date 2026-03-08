@@ -13,6 +13,10 @@
                 <span
                     class="activity-item__media"
                     [class.activity-item__media--live]="item.type === 'live'"
+                    [class.activity-item__media--movie]="item.type === 'movie'"
+                    [class.activity-item__media--series]="
+                        item.type === 'series'
+                    "
                     [class.activity-item__media--poster]="item.type !== 'live'"
                     [class.is-placeholder]="!hasImage(item)"
                     [class.is-placeholder-live]="
@@ -32,7 +36,7 @@
                             loading="lazy"
                             (error)="markImageAsFailed(item.id)"
                         />
-                    } @else {
+                    } @else if (viewMode() === 'grid') {
                         <mat-icon>{{ getFallbackIcon(item) }}</mat-icon>
                     }
                 </span>
@@ -74,6 +78,16 @@
         <p class="empty-state__title">{{ emptyLabel() }}</p>
         @if (emptyHint()) {
             <p class="empty-state__hint">{{ emptyHint() }}</p>
+        }
+        @if (emptyActionLink() && emptyActionLabel()) {
+            <a
+                mat-stroked-button
+                class="empty-state__action"
+                [routerLink]="emptyActionLink()"
+            >
+                <mat-icon>add</mat-icon>
+                {{ emptyActionLabel() }}
+            </a>
         }
     </div>
 }

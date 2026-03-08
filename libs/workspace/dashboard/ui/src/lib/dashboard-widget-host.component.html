@@ -1,12 +1,12 @@
 @switch (widget().type) {
-    @case ('recent-sources') {
-        <app-recent-sources-widget />
-    }
     @case ('source-stats') {
         <app-source-stats-widget />
     }
     @case ('continue-watching') {
         <app-continue-watching-widget />
+    }
+    @case ('on-air') {
+        <app-on-air-widget />
     }
     @case ('recently-watched') {
         <app-recently-watched-widget [widget]="widget()" />

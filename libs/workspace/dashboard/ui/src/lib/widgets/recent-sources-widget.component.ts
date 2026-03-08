@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -9,6 +10,7 @@ import { DashboardWidgetShellComponent } from './dashboard-widget-shell.componen
 @Component({
     selector: 'app-recent-sources-widget',
     imports: [
+        DecimalPipe,
         MatButtonModule,
         MatIcon,
         RouterLink,

@@ -28,6 +28,33 @@
             color: var(--mat-sys-on-primary-container);
         }
     }
+
+    // Xtream: teal accent
+    &--xtream {
+        --stat-accent: oklch(55% 0.13 185);
+        border-color: color-mix(in srgb, var(--stat-accent) 35%, var(--mat-sys-outline-variant) 65%);
+        background: color-mix(in srgb, var(--stat-accent) 7%, var(--mat-sys-surface-container-low) 93%);
+
+        .stat-tile__header mat-icon { color: var(--stat-accent); }
+    }
+
+    // Stalker: amber accent
+    &--stalker {
+        --stat-accent: oklch(68% 0.16 55);
+        border-color: color-mix(in srgb, var(--stat-accent) 35%, var(--mat-sys-outline-variant) 65%);
+        background: color-mix(in srgb, var(--stat-accent) 7%, var(--mat-sys-surface-container-low) 93%);
+
+        .stat-tile__header mat-icon { color: var(--stat-accent); }
+    }
+
+    // M3U: violet accent
+    &--m3u {
+        --stat-accent: oklch(55% 0.18 295);
+        border-color: color-mix(in srgb, var(--stat-accent) 35%, var(--mat-sys-outline-variant) 65%);
+        background: color-mix(in srgb, var(--stat-accent) 7%, var(--mat-sys-surface-container-low) 93%);
+
+        .stat-tile__header mat-icon { color: var(--stat-accent); }
+    }
 }
 
 .stat-tile__header {

@@ -2,36 +2,47 @@
     [eyebrow]="'WORKSPACE.DASHBOARD.FOCUS' | translate"
     [title]="'WORKSPACE.DASHBOARD.CONTINUE_WATCHING' | translate"
 >
-    @if (data.activePlaylist(); as active) {
-        <article class="focus-source">
-            <p class="focus-source__provider">
-                {{ data.getPlaylistProvider(active) }}
-            </p>
-            <h4
-                class="focus-source__title"
-                [attr.title]="
-                    active.title ||
-                    active.filename ||
-                    ('WORKSPACE.DASHBOARD.UNTITLED_SOURCE' | translate)
-                "
-            >
-                {{
-                    active.title ||
-                        active.filename ||
-                        ('WORKSPACE.DASHBOARD.UNTITLED_SOURCE' | translate)
-                }}
-            </h4>
-            <div class="focus-source__actions">
-                <a mat-flat-button [routerLink]="data.getPlaylistLink(active)">
-                    <mat-icon>play_arrow</mat-icon>
-                    {{ 'WORKSPACE.DASHBOARD.OPEN_SOURCE' | translate }}
-                </a>
-                <a mat-stroked-button routerLink="/workspace/sources">
-                    <mat-icon>library_books</mat-icon>
-                    {{ 'WORKSPACE.DASHBOARD.MANAGE_SOURCES' | translate }}
-                </a>
-            </div>
-        </article>
+    @if (lastItem(); as item) {
+        <a class="hero" [routerLink]="getLink(item)">
+            <!-- Thumbnail -->
+            <span class="hero__thumb" [class]="'hero__thumb--' + item.type">
+                @if (hasImage(item)) {
+                    <img
+                        [src]="item.poster_url"
+                        [alt]="item.title"
+                        loading="lazy"
+                    />
+                } @else {
+                    <span class="hero__thumb-placeholder">
+                        <mat-icon>{{ typeIcon(item.type) }}</mat-icon>
+                    </span>
+                }
+            </span>
+
+            <!-- Meta -->
+            <span class="hero__body">
+                <span
+                    class="hero__type-badge hero__type-badge--{{ item.type }}"
+                >
+                    <mat-icon>{{ typeIcon(item.type) }}</mat-icon>
+                    {{ typeKey(item.type) | translate }}
+                </span>
+                <span class="hero__title" [attr.title]="item.title">{{
+                    item.title
+                }}</span>
+                @if (item.playlist_name) {
+                    <span class="hero__playlist">{{ item.playlist_name }}</span>
+                }
+                <span class="hero__time">{{
+                    relativeTime(item.viewed_at)
+                }}</span>
+            </span>
+
+            <!-- Play CTA -->
+            <span class="hero__play" aria-hidden="true">
+                <mat-icon>play_circle</mat-icon>
+            </span>
+        </a>
     } @else {
         <article class="focus-empty">
             <div class="focus-empty__content">
@@ -40,17 +51,16 @@
                 >
                 <div class="focus-empty__text">
                     <p class="focus-empty__title">
-                        {{ 'WORKSPACE.DASHBOARD.NO_ACTIVE_SOURCE' | translate }}
+                        {{ 'WORKSPACE.DASHBOARD.NO_HISTORY_CW' | translate }}
                     </p>
                     <p class="focus-empty__hint">
                         {{
-                            'WORKSPACE.DASHBOARD.NO_ACTIVE_SOURCE_HINT'
-                                | translate
+                            'WORKSPACE.DASHBOARD.NO_HISTORY_CW_HINT' | translate
                         }}
                     </p>
                 </div>
             </div>
-            <a mat-flat-button routerLink="/workspace/sources">
+            <a mat-stroked-button routerLink="/workspace/sources">
                 <mat-icon>add</mat-icon>
                 {{ 'WORKSPACE.DASHBOARD.ADD_SOURCE' | translate }}
             </a>
@@ -59,7 +69,7 @@
 
     @if (data.quickRecent().length > 0) {
         <div class="quick-list">
-            <p class="quick-list__title">
+            <p class="quick-list__label">
                 {{ 'WORKSPACE.DASHBOARD.RECENTLY_USED' | translate }}
             </p>
             @for (item of data.quickRecent(); track item._id) {
@@ -75,9 +85,9 @@
                                     | translate)
                         }}
                     </span>
-                    <span class="quick-item__meta">
-                        {{ data.getPlaylistProvider(item) }}
-                    </span>
+                    <span class="quick-item__meta">{{
+                        data.getPlaylistProvider(item)
+                    }}</span>
                 </a>
             }
         </div>

@@ -1,43 +1,45 @@
 <section class="dashboard-page">
-    <header class="dashboard-header">
-        <div>
-            <p class="eyebrow">Workspace Dashboard</p>
-            <h1>Control Center</h1>
-            <p class="description">
-                Keep your daily sources in one place. In customize mode, edit
-                directly on the canvas, then use the sidebar for visibility and
-                scope.
-            </p>
-        </div>
-    </header>
-
     <section
-        class="dashboard-toolbar"
-        [class.dashboard-toolbar--editing]="editMode()"
+        class="dashboard-topbar"
+        [class.dashboard-topbar--editing]="editMode()"
     >
-        <p class="toolbar-hint">
-            @if (editMode()) {
-                Drag cards by the handle. Resize inline. Use the sidebar for
-                visibility and scope.
-            } @else {
-                Start customize mode to rearrange and resize widgets in place.
-            }
-        </p>
-        <div class="toolbar-actions">
-            @if (editMode()) {
+        @if (editMode()) {
+            <p class="topbar-edit-hint">
+                {{ 'WORKSPACE.DASHBOARD.TOOLBAR_HINT_EDITING' | translate }}
+            </p>
+            <div class="topbar-edit-actions">
                 <button
                     type="button"
                     mat-button
                     (click)="layoutService.reset()"
                 >
-                    Reset Layout
+                    {{ 'WORKSPACE.DASHBOARD.TOOLBAR_RESET' | translate }}
                 </button>
-            }
-            <button type="button" mat-flat-button (click)="toggleEditMode()">
-                <mat-icon>{{ editMode() ? 'check' : 'tune' }}</mat-icon>
-                {{ editMode() ? 'Done' : 'Customize' }}
+                <button
+                    type="button"
+                    mat-stroked-button
+                    (click)="toggleEditMode()"
+                >
+                    <mat-icon>check</mat-icon>
+                    {{ 'WORKSPACE.DASHBOARD.TOOLBAR_DONE' | translate }}
+                </button>
+            </div>
+        } @else {
+            <p class="topbar-label">
+                {{ 'WORKSPACE.DASHBOARD.TOPBAR_LABEL' | translate }}
+            </p>
+            <button
+                type="button"
+                mat-icon-button
+                (click)="toggleEditMode()"
+                [matTooltip]="
+                    'WORKSPACE.DASHBOARD.TOOLBAR_CUSTOMIZE' | translate
+                "
+                aria-label="Customize dashboard layout"
+            >
+                <mat-icon>tune</mat-icon>
             </button>
-        </div>
+        }
     </section>
 
     <section
@@ -80,26 +82,31 @@
                                 >
                                     <mat-icon>drag_indicator</mat-icon>
                                 </button>
-                                <p class="widget-inline-editor__title">
-                                    {{ widget.title }}
-                                </p>
-                                <mat-button-toggle-group
-                                    class="inline-size-control"
-                                    [value]="widget.size"
-                                    (change)="
-                                        setWidgetSize(widget.id, $event.value)
-                                    "
-                                    aria-label="Widget width"
-                                >
-                                    @for (
-                                        size of sizeOptions;
-                                        track size.value
-                                    ) {
-                                        <mat-button-toggle [value]="size.value">
-                                            {{ size.label }}
-                                        </mat-button-toggle>
-                                    }
-                                </mat-button-toggle-group>
+                                <div class="size-stepper">
+                                    <button
+                                        type="button"
+                                        mat-icon-button
+                                        class="size-stepper__btn"
+                                        [disabled]="isFirstSize(widget.size)"
+                                        (click)="cycleWidgetSize(widget.id, -1)"
+                                        aria-label="Make widget narrower"
+                                    >
+                                        <mat-icon>chevron_left</mat-icon>
+                                    </button>
+                                    <span class="size-stepper__label">{{
+                                        getSizeLabel(widget.size)
+                                    }}</span>
+                                    <button
+                                        type="button"
+                                        mat-icon-button
+                                        class="size-stepper__btn"
+                                        [disabled]="isLastSize(widget.size)"
+                                        (click)="cycleWidgetSize(widget.id, 1)"
+                                        aria-label="Make widget wider"
+                                    >
+                                        <mat-icon>chevron_right</mat-icon>
+                                    </button>
+                                </div>
                                 <button
                                     type="button"
                                     mat-icon-button
@@ -115,8 +122,17 @@
                     </article>
                 } @empty {
                     <article class="empty-state">
-                        <h3>No visible widgets</h3>
-                        <p>Enable at least one widget from the sidebar.</p>
+                        <h3>
+                            {{
+                                'WORKSPACE.DASHBOARD.EMPTY_WIDGETS' | translate
+                            }}
+                        </h3>
+                        <p>
+                            {{
+                                'WORKSPACE.DASHBOARD.EMPTY_WIDGETS_HINT'
+                                    | translate
+                            }}
+                        </p>
                     </article>
                 }
             </section>
@@ -125,10 +141,17 @@
         @if (editMode()) {
             <aside class="widget-library">
                 <section class="layout-editor">
-                    <h2>Widget Library</h2>
+                    <h2>
+                        {{
+                            'WORKSPACE.DASHBOARD.WIDGET_LIBRARY_TITLE'
+                                | translate
+                        }}
+                    </h2>
                     <p class="layout-editor__hint">
-                        Show/hide widgets and configure provider scope without
-                        leaving the canvas.
+                        {{
+                            'WORKSPACE.DASHBOARD.WIDGET_LIBRARY_HINT'
+                                | translate
+                        }}
                     </p>
                     <div class="editor-list">
                         @for (widget of allWidgets(); track widget.id) {
@@ -139,7 +162,10 @@
                                 </div>
                                 <div class="editor-item__actions">
                                     <p class="editor-item__action-label">
-                                        Visibility
+                                        {{
+                                            'WORKSPACE.DASHBOARD.WIDGET_VISIBILITY'
+                                                | translate
+                                        }}
                                     </p>
                                     <mat-slide-toggle
                                         [checked]="widget.enabled"
@@ -148,19 +174,16 @@
                                                 widget.id
                                             )
                                         "
-                                        color="primary"
-                                    >
-                                        Visible
-                                    </mat-slide-toggle>
+                                    ></mat-slide-toggle>
                                 </div>
 
                                 @if (supportsScope(widget)) {
                                     <mat-expansion-panel class="advanced-panel">
                                         <mat-expansion-panel-header>
-                                            <mat-panel-title
-                                                >Advanced
-                                                settings</mat-panel-title
-                                            >
+                                            <mat-panel-title>{{
+                                                'WORKSPACE.DASHBOARD.WIDGET_ADVANCED'
+                                                    | translate
+                                            }}</mat-panel-title>
                                             <mat-panel-description>
                                                 Scope ({{
                                                     getScopeProviderSummary(
@@ -171,10 +194,16 @@
                                         </mat-expansion-panel-header>
                                         <section class="scope-editor">
                                             <p class="scope-editor__title">
-                                                Scope
+                                                {{
+                                                    'WORKSPACE.DASHBOARD.WIDGET_SCOPE'
+                                                        | translate
+                                                }}
                                             </p>
                                             <p class="scope-editor__subtitle">
-                                                Provider filters:
+                                                {{
+                                                    'WORKSPACE.DASHBOARD.WIDGET_SCOPE_PROVIDERS'
+                                                        | translate
+                                                }}
                                                 {{
                                                     getScopeProviderSummary(
                                                         widget
@@ -185,8 +214,10 @@
                                                 <p
                                                     class="scope-editor__subtitle"
                                                 >
-                                                    No providers selected means
-                                                    all providers are included.
+                                                    {{
+                                                        'WORKSPACE.DASHBOARD.WIDGET_SCOPE_ALL_HINT'
+                                                            | translate
+                                                    }}
                                                 </p>
                                             }
                                             <mat-chip-listbox
@@ -221,9 +252,10 @@
                                             </mat-chip-listbox>
 
                                             <p class="scope-editor__subtitle">
-                                                Playlists (leave empty to use
-                                                all playlists in current
-                                                provider scope)
+                                                {{
+                                                    'WORKSPACE.DASHBOARD.WIDGET_SCOPE_PLAYLISTS'
+                                                        | translate
+                                                }}
                                             </p>
                                             <div class="scope-playlists">
                                                 @for (
@@ -254,8 +286,10 @@
                                                     </mat-checkbox>
                                                 } @empty {
                                                     <p class="scope-empty">
-                                                        No playlists available
-                                                        for selected providers.
+                                                        {{
+                                                            'WORKSPACE.DASHBOARD.WIDGET_SCOPE_EMPTY'
+                                                                | translate
+                                                        }}
                                                     </p>
                                                 }
                                             </div>

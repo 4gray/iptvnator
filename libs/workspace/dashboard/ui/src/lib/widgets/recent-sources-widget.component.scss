@@ -1,3 +1,9 @@
+:host {
+    --_xtream-accent: oklch(55% 0.13 185);
+    --_stalker-accent: oklch(68% 0.16 55);
+    --_m3u-accent:    oklch(55% 0.18 295);
+}
+
 [widget-actions] {
     color: var(--mat-sys-primary);
     text-decoration: none;
@@ -8,6 +14,55 @@
 
 [widget-actions]:hover {
     text-decoration: underline;
+}
+
+// ── Provider pill ─────────────────────────────────────────────────────────────
+
+.provider-pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.67rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    padding: 1px 7px;
+    border-radius: 20px;
+    border: 1px solid currentColor;
+    // Default (fallback)
+    color: var(--mat-sys-on-surface-variant);
+    background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.provider-pill--xtream {
+    color: var(--_xtream-accent);
+    border-color: color-mix(in srgb, var(--_xtream-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--_xtream-accent) 10%, transparent);
+}
+
+.provider-pill--stalker {
+    color: var(--_stalker-accent);
+    border-color: color-mix(in srgb, var(--_stalker-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--_stalker-accent) 10%, transparent);
+}
+
+.provider-pill--m3u {
+    color: var(--_m3u-accent);
+    border-color: color-mix(in srgb, var(--_m3u-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--_m3u-accent) 10%, transparent);
+}
+
+// ── Channel count chip ────────────────────────────────────────────────────────
+
+.count-chip {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface-variant);
+    background: var(--mat-sys-surface-container-high);
+    border: 1px solid var(--mat-sys-outline-variant);
+    padding: 0 6px;
+    border-radius: 10px;
+    line-height: 18px;
+    white-space: nowrap;
 }
 
 .source-list {
@@ -39,18 +94,6 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-}
-
-.provider,
-.count {
-    font-size: 0.75rem;
-    color: var(--mat-sys-on-surface-variant);
-}
-
-.provider {
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-weight: 600;
 }
 
 .source-row h4 {

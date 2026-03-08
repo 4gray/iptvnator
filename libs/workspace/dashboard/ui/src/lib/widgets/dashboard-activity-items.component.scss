@@ -51,7 +51,7 @@
     );
     padding: 8px;
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
     transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
@@ -100,8 +100,10 @@
 }
 
 .activity-item__media {
+    // Default: square for channels/live
     width: 44px;
     height: 44px;
+    flex-shrink: 0;
     border-radius: 9px;
     overflow: hidden;
     background: var(--mat-sys-surface-container-highest);
@@ -110,6 +112,21 @@
     justify-content: center;
     color: var(--mat-sys-on-surface-variant);
     border: 1px solid var(--mat-sys-outline-variant);
+}
+
+// Movie: portrait poster 2:3
+.activity-item__media--movie {
+    width: 30px;
+    height: 44px;
+    border-radius: 7px;
+}
+
+// Series: widescreen 16:9 — 64×36 keeps proportion without dominating the row
+.activity-item__media--series {
+    width: 64px;
+    height: 36px;
+    border-radius: 7px;
+    align-self: center;
 }
 
 .activity-item__media img {
@@ -131,22 +148,35 @@
     height: 1.15rem;
 }
 
+// Placeholder tints use oklch() matching the stat-tile accent approach
 .is-placeholder-live {
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(56, 189, 248, 0.02)) !important;
-    color: #38bdf8 !important;
-    border: 1px solid rgba(56, 189, 248, 0.2) !important;
+    --_accent: oklch(66% 0.17 210); // sky-blue: live TV
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--_accent) 14%, transparent),
+        color-mix(in srgb, var(--_accent) 2%, transparent)
+    ) !important;
+    color: var(--_accent) !important;
+    border-color: color-mix(in srgb, var(--_accent) 22%, var(--mat-sys-outline-variant) 78%) !important;
 }
 
 .is-placeholder-movie {
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(167, 139, 250, 0.02)) !important;
-    color: #a78bfa !important;
-    border: 1px solid rgba(167, 139, 250, 0.2) !important;
+    --_accent: oklch(60% 0.17 295); // violet: movies
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--_accent) 14%, transparent),
+        color-mix(in srgb, var(--_accent) 2%, transparent)
+    ) !important;
+    color: var(--_accent) !important;
+    border-color: color-mix(in srgb, var(--_accent) 22%, var(--mat-sys-outline-variant) 78%) !important;
 }
 
 .is-placeholder-series {
-    background: linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(251, 146, 60, 0.02)) !important;
-    color: #fb923c !important;
-    border: 1px solid rgba(251, 146, 60, 0.2) !important;
+    --_accent: oklch(68% 0.16 55); // amber: series
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--_accent) 14%, transparent),
+        color-mix(in srgb, var(--_accent) 2%, transparent)
+    ) !important;
+    color: var(--_accent) !important;
+    border-color: color-mix(in srgb, var(--_accent) 22%, var(--mat-sys-outline-variant) 78%) !important;
 }
 
 .is-placeholder mat-icon {
@@ -187,6 +217,40 @@
     align-items: stretch;
     gap: 5px;
     padding: 5px;
+    position: relative;
+
+    &:hover {
+        transform: translateY(-2px);
+        border-color: color-mix(in srgb, var(--mat-sys-outline) 60%, var(--mat-sys-primary) 40%);
+        background: linear-gradient(
+            180deg,
+            var(--mat-sys-surface-container-high) 0%,
+            var(--mat-sys-surface-container-low) 100%
+        );
+        box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
+    }
+}
+
+// In grid mode: float the remove button over the top-right corner
+.activity-items--grid .activity-item__action-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    background: color-mix(in srgb, var(--mat-sys-surface-container-highest) 90%, transparent);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+
+    mat-icon {
+        font-size: 15px;
+        width: 15px;
+        height: 15px;
+    }
+}
+
+.activity-items--grid .activity-item:hover .activity-item__action-btn {
+    opacity: 0.75;
 }
 
 .activity-items--grid .activity-item__media {
@@ -223,13 +287,18 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 36px 16px;
+    padding: 32px 16px;
     text-align: center;
     border: 1px dashed var(--mat-sys-outline-variant);
     border-radius: 12px;
     margin: 8px 0;
     color: var(--mat-sys-on-surface-variant);
     flex: 1;
+    background: radial-gradient(
+        ellipse at 50% 0%,
+        color-mix(in srgb, var(--mat-sys-primary) 4%, transparent),
+        transparent 70%
+    );
 
     &.empty-state--grid {
         min-height: 180px;
@@ -237,16 +306,20 @@
 }
 
 .empty-state__icon {
-    font-size: 36px;
-    width: 36px;
-    height: 36px;
-    margin-bottom: 12px;
-    color: var(--mat-sys-outline);
-    opacity: 0.7;
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 4px;
+    color: var(--mat-sys-primary);
+    opacity: 0.5;
+    background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+    padding: 14px;
+    border-radius: 50%;
+    box-sizing: content-box;
 }
 
 .empty-state__title {
-    margin: 0;
+    margin: 8px 0 0;
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--mat-sys-on-surface);
@@ -258,6 +331,10 @@
     color: var(--mat-sys-on-surface-variant);
     max-width: 280px;
     line-height: 1.45;
+}
+
+.empty-state__action {
+    margin-top: 16px;
 }
 
 @media (max-width: 920px) {
