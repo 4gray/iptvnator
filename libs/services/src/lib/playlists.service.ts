@@ -142,7 +142,10 @@ export class PlaylistsService {
      * Infer the mode from URL when legacy records are missing explicit flag.
      */
     private normalizeStalkerPortalFlags(playlist: Playlist): Playlist {
-        if (!playlist?.macAddress || playlist.isFullStalkerPortal !== undefined) {
+        if (
+            !playlist?.macAddress ||
+            playlist.isFullStalkerPortal !== undefined
+        ) {
             return playlist;
         }
 
@@ -264,23 +267,35 @@ export class PlaylistsService {
             switchMap((playlist) => {
                 const nextPlaylist: Playlist = {
                     ...playlist,
-                    title: updatedPlaylist.title,
-                    autoRefresh: updatedPlaylist.autoRefresh,
-                    userAgent: updatedPlaylist.userAgent,
-                    ...(updatedPlaylist.serverUrl !== null
+                    ...(updatedPlaylist.title != null
+                        ? { title: updatedPlaylist.title }
+                        : {}),
+                    ...(updatedPlaylist.autoRefresh != null
+                        ? { autoRefresh: updatedPlaylist.autoRefresh }
+                        : {}),
+                    ...(updatedPlaylist.userAgent != null
+                        ? { userAgent: updatedPlaylist.userAgent }
+                        : {}),
+                    ...(updatedPlaylist.serverUrl != null
                         ? { serverUrl: updatedPlaylist.serverUrl }
                         : {}),
-                    ...(updatedPlaylist.portalUrl !== null
+                    ...(updatedPlaylist.portalUrl != null
                         ? { portalUrl: updatedPlaylist.portalUrl }
                         : {}),
-                    ...(updatedPlaylist.macAddress !== null
+                    ...(updatedPlaylist.macAddress != null
                         ? { macAddress: updatedPlaylist.macAddress }
                         : {}),
-                    ...(updatedPlaylist.username !== null
+                    ...(updatedPlaylist.username != null
                         ? { username: updatedPlaylist.username }
                         : {}),
-                    ...(updatedPlaylist.password !== null
+                    ...(updatedPlaylist.password != null
                         ? { password: updatedPlaylist.password }
+                        : {}),
+                    ...(updatedPlaylist.favorites != null
+                        ? { favorites: updatedPlaylist.favorites }
+                        : {}),
+                    ...(updatedPlaylist.recentlyViewed != null
+                        ? { recentlyViewed: updatedPlaylist.recentlyViewed }
                         : {}),
                     ...(updatedPlaylist.updateDate !== undefined
                         ? { updateDate: updatedPlaylist.updateDate }
@@ -608,12 +623,10 @@ export class PlaylistsService {
 
     getAllData() {
         if (this.isElectronStorageAvailable) {
-            return this.runOnSqlite(
-                async () =>
-                    ((await window.electron.dbGetAppPlaylists()) as Playlist[])
-                        .map((playlist) =>
-                            this.normalizeStalkerPortalFlags(playlist)
-                        )
+            return this.runOnSqlite(async () =>
+                ((await window.electron.dbGetAppPlaylists()) as Playlist[]).map(
+                    (playlist) => this.normalizeStalkerPortalFlags(playlist)
+                )
             );
         }
 

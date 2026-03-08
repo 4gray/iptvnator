@@ -330,6 +330,66 @@ ipcMain.handle('EPG_DB_CLEAR_ALL', async () => {
 });
 
 /**
+ * Get currently airing programs across all channels (batch, for On Air Now widget)
+ * Returns programs where start <= now <= stop, joined with channel info.
+ */
+ipcMain.handle(
+    'EPG_DB_GET_NOW_PLAYING',
+    async (
+        _event,
+        { category, limit = 25 }: { category?: string; limit?: number } = {}
+    ) => {
+        try {
+            const db = await getDatabase();
+            const now = new Date().toISOString();
+
+            // Build base query using Drizzle ORM (consistent with other handlers)
+            // stop >= now is highly selective with idx_epg_programs_stop,
+            // filtering out all past programs before checking start <= now.
+            const results = await db
+                .select({
+                    channel_id: schema.epgPrograms.channelId,
+                    title: schema.epgPrograms.title,
+                    description: schema.epgPrograms.description,
+                    category: schema.epgPrograms.category,
+                    start: schema.epgPrograms.start,
+                    stop: schema.epgPrograms.stop,
+                    channel_name: schema.epgChannels.displayName,
+                    channel_icon: schema.epgChannels.iconUrl,
+                })
+                .from(schema.epgPrograms)
+                .leftJoin(
+                    schema.epgChannels,
+                    eq(schema.epgPrograms.channelId, schema.epgChannels.id)
+                )
+                .where(
+                    category && category !== 'all'
+                        ? and(
+                              lte(schema.epgPrograms.start, now),
+                              gte(schema.epgPrograms.stop, now),
+                              sql`LOWER(${schema.epgPrograms.category}) LIKE LOWER(${'%' + category + '%'})`
+                          )
+                        : and(
+                              lte(schema.epgPrograms.start, now),
+                              gte(schema.epgPrograms.stop, now)
+                          )
+                )
+                .orderBy(schema.epgChannels.displayName)
+                .limit(limit);
+
+            return results;
+        } catch (error) {
+            console.error(
+                loggerLabel,
+                'Error getting now playing programs:',
+                error
+            );
+            throw error;
+        }
+    }
+);
+
+/**
  * Get EPG statistics
  */
 ipcMain.handle('EPG_DB_GET_STATS', async () => {

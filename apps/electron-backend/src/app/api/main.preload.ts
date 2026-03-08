@@ -87,8 +87,7 @@ contextBridge.exposeInMainWorld('electron', {
             data: ExternalPlayerSession
         ) => callback(data);
         ipcRenderer.on(EXTERNAL_PLAYER_SESSION_UPDATE, handler);
-        return () =>
-            ipcRenderer.off(EXTERNAL_PLAYER_SESSION_UPDATE, handler);
+        return () => ipcRenderer.off(EXTERNAL_PLAYER_SESSION_UPDATE, handler);
     },
     // DB save content progress listener
     onDbSaveContentProgress: (callback: (count: number) => void) => {
@@ -178,6 +177,8 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('EPG_CHECK_FRESHNESS', { urls, maxAgeHours }),
     searchEpgPrograms: (searchTerm: string, limit?: number) =>
         ipcRenderer.invoke('EPG_DB_SEARCH_PROGRAMS', searchTerm, limit),
+    getNowPlayingPrograms: (options?: { category?: string; limit?: number }) =>
+        ipcRenderer.invoke('EPG_DB_GET_NOW_PLAYING', options ?? {}),
     setMpvPlayerPath: (mpvPlayerPath: string) =>
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
     setVlcPlayerPath: (vlcPlayerPath: string) =>
@@ -197,8 +198,7 @@ contextBridge.exposeInMainWorld('electron', {
         url: string;
         params: Record<string, string>;
         requestId?: string;
-    }) =>
-        ipcRenderer.invoke('XTREAM_REQUEST', payload),
+    }) => ipcRenderer.invoke('XTREAM_REQUEST', payload),
     // Database operations
     dbCreatePlaylist: (playlist: any) =>
         ipcRenderer.invoke('DB_CREATE_PLAYLIST', playlist),
@@ -264,9 +264,25 @@ contextBridge.exposeInMainWorld('electron', {
         searchTerm: string,
         types: string[],
         excludeHidden?: boolean
-    ) => ipcRenderer.invoke('DB_SEARCH_CONTENT', playlistId, searchTerm, types, excludeHidden),
-    dbGlobalSearch: (searchTerm: string, types: string[], excludeHidden?: boolean) =>
-        ipcRenderer.invoke('DB_GLOBAL_SEARCH', searchTerm, types, excludeHidden),
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SEARCH_CONTENT',
+            playlistId,
+            searchTerm,
+            types,
+            excludeHidden
+        ),
+    dbGlobalSearch: (
+        searchTerm: string,
+        types: string[],
+        excludeHidden?: boolean
+    ) =>
+        ipcRenderer.invoke(
+            'DB_GLOBAL_SEARCH',
+            searchTerm,
+            types,
+            excludeHidden
+        ),
     dbGetRecentlyViewed: () => ipcRenderer.invoke('DB_GET_RECENTLY_VIEWED'),
     dbClearRecentlyViewed: () => ipcRenderer.invoke('DB_CLEAR_RECENTLY_VIEWED'),
     // Favorites
@@ -352,7 +368,12 @@ contextBridge.exposeInMainWorld('electron', {
         episodeNumber?: number;
         // Playlist info for auto-creation if needed
         playlistName?: string;
-        playlistType?: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
+        playlistType?:
+            | 'xtream'
+            | 'stalker'
+            | 'm3u-file'
+            | 'm3u-text'
+            | 'm3u-url';
         serverUrl?: string;
         portalUrl?: string;
         macAddress?: string;

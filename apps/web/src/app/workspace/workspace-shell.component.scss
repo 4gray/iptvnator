@@ -137,7 +137,7 @@
 
 // ─── Rail Divider ─────────────────────────────────────────────────────────────
 .rail-divider {
-    width: 24px;
+    width: 44px;
     height: 1px;
     background: var(--mat-sys-outline-variant);
     margin: 6px 0;
@@ -155,7 +155,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 0 16px;
+    padding: 0 24px;
     height: 56px;
     border-bottom: 1px solid var(--mat-sys-outline-variant);
     background: var(--app-header-bg, var(--mat-sys-surface-container-low));
@@ -203,7 +203,7 @@
 
     &:focus-within {
         border-color: var(--mat-sys-primary);
-        box-shadow: 0 0 0 3px rgba(var(--mat-sys-primary), 0.12);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
     }
 
     mat-icon {
@@ -260,7 +260,7 @@
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
     app-region: no-drag;
 
     button,
@@ -288,6 +288,15 @@
                 0 10px 20px -16px var(--app-selection-glow);
         }
     }
+}
+
+.header-actions-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--mat-sys-outline-variant);
+    margin: 0 4px;
+    flex-shrink: 0;
+    opacity: 0.6;
 }
 
 // ─── Workspace Body ───────────────────────────────────────────────────────────

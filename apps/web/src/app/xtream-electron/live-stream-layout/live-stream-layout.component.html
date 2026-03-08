@@ -15,11 +15,16 @@
                 <!-- <button mat-icon-button (click)="backToCategories()">
                     <mat-icon>chevron_left</mat-icon>
                 </button> -->
-                <h2 class="category-title">
-                    {{ selectedCategoryInfo()?.name }} ({{
-                        selectedCategoryInfo()?.count
-                    }})
-                </h2>
+                <div class="category-heading">
+                    <h2 class="category-title">
+                        {{ selectedCategoryInfo()?.name }}
+                    </h2>
+                    @if (selectedCategoryInfo()?.count) {
+                        <span class="category-count">{{
+                            selectedCategoryInfo()?.count
+                        }}</span>
+                    }
+                </div>
                 <button
                     mat-icon-button
                     [matMenuTriggerFor]="channelSortMenu"
@@ -111,12 +116,10 @@
             </div>
         </div>
     } @else {
-        <div class="empty-state-container">
-            <mat-icon class="empty-state-icon">live_tv</mat-icon>
-            <h2 class="empty-state-title">
-                {{ 'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate }}
-            </h2>
-        </div>
+        <app-portal-empty-state
+            icon="live_tv"
+            [message]="'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate"
+        />
     }
     <!-- <app-mpv-player-bar /> -->
 </div>

@@ -24,10 +24,14 @@
 
 <div class="main-content">
     <div class="content-header">
-        <h2>
-            {{ titleTranslationString() | translate }}
-            <span class="selected-category-pill">{{ selectedCategoryId() }}</span>
-        </h2>
+        <div class="category-meta">
+            <h2 class="category-title">
+                {{ titleTranslationString() | translate }}
+            </h2>
+            @if (selectedCategoryId()) {
+                <div class="category-subtitle">{{ selectedCategoryId() }}</div>
+            }
+        </div>
         @if (showHeaderAction() && !isWorkspaceLayout) {
             <button
                 type="button"

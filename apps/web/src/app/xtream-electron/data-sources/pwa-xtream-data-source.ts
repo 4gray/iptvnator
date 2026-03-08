@@ -5,7 +5,13 @@ import {
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
-import { CategoryType, StreamType, XtreamApiService, XtreamCredentials } from '../services/xtream-api.service';
+import { createLogger } from '../../shared/utils/logger';
+import {
+    CategoryType,
+    StreamType,
+    XtreamApiService,
+    XtreamCredentials,
+} from '../services/xtream-api.service';
 import {
     DbCategoryType,
     IXtreamDataSource,
@@ -14,7 +20,6 @@ import {
     XtreamContentItem,
     XtreamPlaylistData,
 } from './xtream-data-source.interface';
-import { createLogger } from '../../shared/utils/logger';
 
 /**
  * LocalStorage keys for PWA persistence
@@ -305,9 +310,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
     }
 
-    private saveFavoritesToStorage(
-        favorites: Record<string, number[]>
-    ): void {
+    private saveFavoritesToStorage(favorites: Record<string, number[]>): void {
         localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
     }
 
@@ -371,7 +374,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
         return playlistPositions.filter(
             (p: any) =>
-                p.contentType === 'episode' && p.seriesXtreamId === seriesXtreamId
+                p.contentType === 'episode' &&
+                p.seriesXtreamId === seriesXtreamId
         );
     }
 
@@ -385,7 +389,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Sort by updatedAt descending
         playlistPositions.sort(
             (a: any, b: any) =>
-                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+                new Date(b.updatedAt).getTime() -
+                new Date(a.updatedAt).getTime()
         );
 
         return limit ? playlistPositions.slice(0, limit) : playlistPositions;
@@ -617,6 +622,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
     // Cache Management
     // =========================================================================
+
+    /**
+     * Clear in-memory cache entries for a specific playlist.
+     * Called by the store when switching playlists to prevent stale data bleed.
+     */
+    clearSessionCache(playlistId: string): void {
+        this.clearCacheForPlaylist(playlistId);
+    }
 
     private clearCacheForPlaylist(playlistId: string): void {
         const keysToDelete: string[] = [];

@@ -105,12 +105,13 @@
             <app-add-playlist-menu
                 (playlistTypeSelected)="openAddPlaylistDialog($event)"
             />
+            <span class="header-actions-divider" aria-hidden="true"></span>
             <a
                 class="header-shortcut"
                 mat-icon-button
                 routerLink="/workspace/global-favorites"
                 [class.is-active]="isGlobalFavoritesRoute()"
-                matTooltip="Global favorites (all playlists)"
+                matTooltip="Global favorites"
                 aria-label="Open global favorites"
             >
                 <mat-icon>star</mat-icon>
@@ -122,21 +123,24 @@
                     mat-icon-button
                     [class.is-active]="isDownloadsView()"
                     (click)="openDownloadsShortcut()"
-                    matTooltip="Downloads (all playlists)"
+                    matTooltip="Downloads"
                     aria-label="Open downloads"
                 >
                     <mat-icon>download</mat-icon>
                 </button>
             }
-            <button
-                type="button"
-                mat-icon-button
-                [matMenuTriggerFor]="contextActionsMenu"
-                matTooltip="Context actions (this section)"
-                aria-label="Open context actions"
-            >
-                <mat-icon>more_horiz</mat-icon>
-            </button>
+            @if (hasContextActions()) {
+                <span class="header-actions-divider" aria-hidden="true"></span>
+                <button
+                    type="button"
+                    mat-icon-button
+                    [matMenuTriggerFor]="contextActionsMenu"
+                    matTooltip="Section actions"
+                    aria-label="Open context actions"
+                >
+                    <mat-icon>more_horiz</mat-icon>
+                </button>
+            }
         </div>
 
         <mat-menu #contextActionsMenu="matMenu">

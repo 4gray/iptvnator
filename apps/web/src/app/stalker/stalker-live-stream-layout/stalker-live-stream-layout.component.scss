@@ -1,100 +1,7 @@
 @use '@angular/material' as mat;
+@use '../../shared/styles/portal-layout' as portal;
 
-:host {
-    display: flex;
-    flex-direction: row;
-    overflow: hidden;
-    height: 100%;
-    width: 100%;
-}
-
-.sidebar {
-    width: 400px;
-    min-width: 250px;
-    max-width: 600px;
-    border-right: 1px solid var(--mat-sys-outline-variant);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow: hidden;
-    position: relative;
-    container-type: inline-size;
-
-    app-category-view {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-        margin-right: 2px;
-    }
-}
-
-.content-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-height: 0;
-}
-
-.video-player {
-    flex: 1 1 0;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-}
-
-.epg {
-    flex: 1 1 0;
-    min-height: 0;
-    overflow: hidden;
-}
-
-.video-player > app-web-player-view {
-    flex: 1;
-    min-height: 0;
-}
-
-.epg-content {
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.epg-content > app-epg-view {
-    flex: 1;
-    min-height: 0;
-}
-
-.empty-state-container {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 0;
-    text-align: center;
-    color: rgba(255, 255, 255, 0.5);
-    animation: placeholder-fade-in 220ms ease-out;
-}
-
-.empty-state-icon {
-    font-size: 72px;
-    width: 72px;
-    height: 72px;
-    margin-bottom: 24px;
-    opacity: 0.2;
-    animation: placeholder-icon-float 2.8s ease-in-out infinite;
-}
-
-.empty-state-title {
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 500;
-    font-size: 1.25rem;
-    margin: 0;
-    opacity: 0.5;
-}
+@include portal.live-layout;
 
 .search-panel {
     padding: 8px 12px;
@@ -142,39 +49,8 @@
     padding: 8px 0;
 }
 
-@keyframes placeholder-fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes placeholder-icon-float {
-    0%,
-    100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-4px);
-    }
-}
-
 @container (max-width: 350px) {
     .channels-list {
         padding-inline: 6px;
-    }
-}
-
-::ng-deep {
-    .video-player
-        > app-web-player-view
-        > app-art-player
-        > .artplayer-container {
-        height: 100% !important;
-        width: 100% !important;
     }
 }

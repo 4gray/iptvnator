@@ -1,23 +1,26 @@
 import { inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { signalStoreFeature, withMethods } from '@ngrx/signals';
+import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { PlaylistActions } from 'm3u-state';
 import { DataService, PlaylistsService, StalkerSessionService } from 'services';
 import {
     Playlist,
+    PlaylistMeta,
     ResolvedPortalPlayback,
     STALKER_REQUEST,
     StalkerPortalActions,
 } from 'shared-interfaces';
 import { PlayerService } from '../../../services/player.service';
 import { createLogger } from '../../../shared/utils/logger';
+import { StalkerContentTypes } from '../../stalker-content-types';
 import {
     buildStalkerExternalPlaybackHeaders,
     getStalkerPortalOrigin,
     isCrossOriginStalkerStream,
     STALKER_MAG_USER_AGENT,
 } from '../../stalker-live-playback.utils';
-import { StalkerContentTypes } from '../../stalker-content-types';
 import {
     normalizeStalkerEntityId,
     normalizeStalkerEntityIdAsNumber,
@@ -63,7 +66,8 @@ export function withStalkerPlayer() {
                 playerService = inject(PlayerService),
                 stalkerSession = inject(StalkerSessionService),
                 snackBar = inject(MatSnackBar),
-                translate = inject(TranslateService)
+                translate = inject(TranslateService),
+                ngrxStore = inject(Store)
             ) => {
                 const storeState = store as unknown as StalkerPlayerStoreLike;
                 const fetchLinkToPlayInternal = async (
@@ -81,9 +85,7 @@ export function withStalkerPlayer() {
                         // "ffmpeg http://...", "ffrt http://...", etc.
                         const splitAt = trimmed.indexOf(' ');
                         if (splitAt > 0) {
-                            const candidate = trimmed
-                                .slice(splitAt + 1)
-                                .trim();
+                            const candidate = trimmed.slice(splitAt + 1).trim();
                             if (
                                 candidate.startsWith('http://') ||
                                 candidate.startsWith('https://') ||
@@ -418,7 +420,17 @@ export function withStalkerPlayer() {
                     };
                     playlistService
                         .addPortalRecentlyViewed(playlistId, recentlyViewedItem)
-                        .subscribe();
+                        .subscribe((updatedPlaylist) => {
+                            ngrxStore.dispatch(
+                                PlaylistActions.updatePlaylistMeta({
+                                    playlist: {
+                                        _id: playlistId,
+                                        recentlyViewed:
+                                            updatedPlaylist?.recentlyViewed,
+                                    } as PlaylistMeta,
+                                })
+                            );
+                        });
                 };
 
                 return {
@@ -548,15 +560,14 @@ export function withStalkerPlayer() {
                         startTime?: number
                     ) {
                         try {
-                            const playback =
-                                await resolveVodPlaybackInternal(
-                                    cmd,
-                                    title,
-                                    thumbnail,
-                                    episodeNum,
-                                    episodeId,
-                                    startTime
-                                );
+                            const playback = await resolveVodPlaybackInternal(
+                                cmd,
+                                title,
+                                thumbnail,
+                                episodeNum,
+                                episodeId,
+                                startTime
+                            );
 
                             void playerService.openResolvedPlayback(
                                 playback,

@@ -267,11 +267,11 @@ export function withContent() {
                     });
 
                     try {
-                        // Fetch categories first
-                        await this.fetchAllCategories();
-
-                        // Then fetch content (with progress tracking)
-                        await this.fetchAllContent();
+                        // Fetch categories and content in parallel for faster initial load
+                        await Promise.all([
+                            this.fetchAllCategories(),
+                            this.fetchAllContent(),
+                        ]);
 
                         // Restore user data if needed
                         const restoreKey = `xtream-restore-${ctx.playlistId}`;

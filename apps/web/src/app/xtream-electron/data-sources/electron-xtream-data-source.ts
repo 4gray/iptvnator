@@ -1,12 +1,12 @@
 import { inject, Injectable } from '@angular/core';
 import { DatabaseService, PlaybackPositionService } from 'services';
+import { XtreamCategory } from 'shared-interfaces';
 import {
-    XtreamCategory,
-    XtreamLiveStream,
-    XtreamSerieItem,
-    XtreamVodStream,
-} from 'shared-interfaces';
-import { CategoryType, StreamType, XtreamApiService, XtreamCredentials } from '../services/xtream-api.service';
+    CategoryType,
+    StreamType,
+    XtreamApiService,
+    XtreamCredentials,
+} from '../services/xtream-api.service';
 import {
     DbCategoryType,
     IXtreamDataSource,
@@ -81,15 +81,14 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     ): Promise<XtreamCategoryFromDb[]> {
         const dbType = mapCategoryTypeToDbType(type);
 
-        // Check if we have cached data
-        const exists = await this.dbService.hasXtreamCategories(
+        // Fetch from DB directly — avoids a separate 'has' round-trip.
+        // An empty result means the cache is cold; proceed to fetch from API.
+        const cached = await this.dbService.getXtreamCategories(
             playlistId,
             dbType
         );
-
-        if (exists) {
-            // Return from cache
-            return this.dbService.getXtreamCategories(playlistId, dbType);
+        if (cached.length > 0) {
+            return cached;
         }
 
         // Fetch from API and cache
@@ -100,8 +99,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
 
         if (remoteData && Array.isArray(remoteData) && remoteData.length > 0) {
             // Check if there are saved hidden categories to restore
-            const hiddenCategoryXtreamIds =
-                this.getHiddenCategoryXtreamIds(playlistId, dbType);
+            const hiddenCategoryXtreamIds = this.getHiddenCategoryXtreamIds(
+                playlistId,
+                dbType
+            );
 
             await this.dbService.saveXtreamCategories(
                 playlistId,
@@ -189,12 +190,11 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         onProgress?: (count: number) => void,
         onTotal?: (total: number) => void
     ): Promise<XtreamContentItem[]> {
-        // Check if we have cached data
-        const exists = await this.dbService.hasXtreamContent(playlistId, type);
-
-        if (exists) {
-            // Return from cache
-            return this.dbService.getXtreamContent(playlistId, type);
+        // Fetch from DB directly — avoids a separate 'has' round-trip.
+        // An empty result means the cache is cold; proceed to fetch from API.
+        const cached = await this.dbService.getXtreamContent(playlistId, type);
+        if (cached.length > 0) {
+            return cached;
         }
 
         // Fetch from API
@@ -243,7 +243,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         types: string[],
         excludeHidden?: boolean
     ): Promise<XtreamContentItem[]> {
-        return this.dbService.searchXtreamContent(playlistId, searchTerm, types, excludeHidden);
+        return this.dbService.searchXtreamContent(
+            playlistId,
+            searchTerm,
+            types,
+            excludeHidden
+        );
     }
 
     // =========================================================================
@@ -304,10 +309,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     // Playback Position Operations
     // =========================================================================
 
-    async savePlaybackPosition(
-        playlistId: string,
-        data: any
-    ): Promise<void> {
+    async savePlaybackPosition(playlistId: string, data: any): Promise<void> {
         await this.playbackService.savePlaybackPosition(playlistId, data);
     }
 
@@ -362,6 +364,13 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
     // Cleanup Operations
     // =========================================================================
+
+    /**
+     * No-op for Electron: DB-backed storage has no in-memory session cache to clear.
+     */
+    clearSessionCache(_playlistId: string): void {
+        // Electron uses the DB as its cache layer; no in-memory state to evict.
+    }
 
     async clearPlaylistContent(playlistId: string): Promise<{
         favoritedXtreamIds: number[];

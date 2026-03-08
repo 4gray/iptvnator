@@ -10,11 +10,11 @@ import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
 import { filter } from 'rxjs';
+import { PortalRailSection } from '../../shared/navigation/portal-rail-links';
 import {
     isWorkspaceLayoutRoute,
     resolveCurrentPortalSection,
 } from '../../shared/navigation/portal-route.utils';
-import { PortalRailSection } from '../../shared/navigation/portal-rail-links';
 import { LoadingOverlayComponent } from '../loading-overlay/loading-overlay.component';
 import { NavigationComponent } from '../navigation/navigation.component';
 import { XtreamStore } from '../stores/xtream.store';
@@ -60,9 +60,20 @@ export class XtreamShellComponent {
                     return;
                 }
 
-                // If the global store already has this playlist loaded, don't wipe it out.
-                // This prevents reloading everything when returning from other views (e.g. Sources).
-                if (this.xtreamStore.playlistId() !== newPlaylistId) {
+                // Always reset the store when this is a fresh shell instance
+                // (currentPlaylistId is null = newly created component). This
+                // handles the refresh-from-sources flow where the DB content was
+                // cleared but the root-scoped store still holds stale
+                // isContentInitialized: true from the previous session.
+                //
+                // When navigating between sub-routes within the same shell
+                // (live → vod → series), currentPlaylistId is already set so
+                // reset is skipped and in-memory content is preserved.
+                const isFreshInstance = this.currentPlaylistId === null;
+                if (
+                    isFreshInstance ||
+                    this.xtreamStore.playlistId() !== newPlaylistId
+                ) {
                     this.xtreamStore.resetStore(newPlaylistId);
                 }
 

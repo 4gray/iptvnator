@@ -1,151 +1,70 @@
 @use '@angular/material' as mat;
+@use '../../shared/styles/portal-layout' as portal;
 
-:host {
-    display: flex;
-    flex-direction: row;
-    overflow: hidden;
-    height: 100%;
-    width: 100%;
-}
+@include portal.live-layout;
 
-.sidebar {
-    // Width controlled by resizable directive
-    width: 400px; // Default, will be overridden by directive
-    min-width: 250px;
-    max-width: 600px;
-    border-right: 1px solid var(--mat-sys-outline-variant);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow: hidden;
-    position: relative;
-
-    app-portal-channels-list {
-        flex: 1;
-        overflow: hidden;
-        width: 100%;
-    }
-
-    app-category-view {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-        margin-right: 2px;
-    }
-}
-
-.content-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-height: 0;
-}
-
-.video-player {
-    flex: 1 1 0;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-}
-
-.epg {
-    flex: 1 1 0;
-    min-height: 0;
-    overflow: hidden;
-}
-
-.video-player > app-web-player-view {
-    flex: 1;
-    min-height: 0;
-}
-
-.epg-content {
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.epg-content > app-epg-view {
-    flex: 1;
-    min-height: 0;
-}
-
+// ─── Sidebar-header ────────────────────────────────────────────────────────
 .sidebar-header {
     display: flex;
     flex-direction: row;
     align-items: center;
+    padding: 8px 12px;
+    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    border-bottom: 1px solid var(--app-separator);
+    gap: 4px;
     app-region: drag;
+    flex-shrink: 0;
 
     button {
         @include mat.form-field-density(-5);
         app-region: no-drag;
     }
+
+    .switcher {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .manage-categories-btn {
+        margin-left: auto;
+    }
+}
+
+// ─── Category heading + count pill ─────────────────────────────────────────
+.category-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
 }
 
 .category-title {
-    flex: 1;
     margin: 0;
+    font-size: 0.94rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--mat-sys-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.empty-state-container {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 0;
-    text-align: center;
-    color: rgba(255, 255, 255, 0.5);
-    animation: placeholder-fade-in 220ms ease-out;
-}
-
-.empty-state-icon {
-    font-size: 72px;
-    width: 72px;
-    height: 72px;
-    margin-bottom: 24px;
-    opacity: 0.2;
-    animation: placeholder-icon-float 2.8s ease-in-out infinite;
-}
-
-.empty-state-title {
-    font-family: 'DM Sans', sans-serif;
+.category-count {
+    flex-shrink: 0;
+    font-size: 0.72rem;
     font-weight: 500;
-    font-size: 1.25rem;
-    margin: 0;
-    opacity: 0.5;
+    color: var(--mat-sys-on-surface-variant);
+    background: var(--mat-sys-surface-container);
+    padding: 2px 8px;
+    border-radius: 999px;
 }
 
-@keyframes placeholder-fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes placeholder-icon-float {
-    0%,
-    100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-4px);
-    }
-}
-
-::ng-deep {
-    .video-player
-        > app-web-player-view
-        > app-art-player
-        > .artplayer-container {
-        height: 100% !important;
-        width: 100% !important;
+// ─── Side-panel channel list ───────────────────────────────────────────────
+.sidebar {
+    app-portal-channels-list {
+        flex: 1;
+        overflow: hidden;
+        width: 100%;
     }
 }

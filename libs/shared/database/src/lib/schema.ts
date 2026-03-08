@@ -176,6 +176,7 @@ export const epgPrograms = sqliteTable(
     (table) => ({
         channelIdx: index('idx_epg_programs_channel').on(table.channelId),
         startIdx: index('idx_epg_programs_start').on(table.start),
+        stopIdx: index('idx_epg_programs_stop').on(table.stop),
         timeRangeIdx: index('idx_epg_programs_time_range').on(
             table.channelId,
             table.start,

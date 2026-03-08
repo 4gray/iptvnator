@@ -84,29 +84,36 @@ export const playlistReducers = [
         }
     ),
     on(PlaylistActions.updatePlaylistMeta, (state, action): PlaylistState => {
+        const p = action.playlist;
         return {
             ...state,
             playlists: playlistsAdapter.updateOne(
                 {
-                    id: action.playlist._id,
+                    id: p._id,
                     changes: {
-                        title: action.playlist.title,
-                        autoRefresh: action.playlist.autoRefresh || false,
-                        userAgent: action.playlist.userAgent,
-                        ...(action.playlist.serverUrl !== null
-                            ? { serverUrl: action.playlist.serverUrl }
+                        ...(p.title != null ? { title: p.title } : {}),
+                        ...(p.autoRefresh != null
+                            ? { autoRefresh: p.autoRefresh }
                             : {}),
-                        ...(action.playlist.username !== null
-                            ? { username: action.playlist.username }
+                        ...(p.userAgent != null
+                            ? { userAgent: p.userAgent }
                             : {}),
-                        ...(action.playlist.password !== null
-                            ? { password: action.playlist.password }
+                        ...(p.serverUrl != null
+                            ? { serverUrl: p.serverUrl }
                             : {}),
-                        ...(action.playlist.macAddress !== null
-                            ? { macAddress: action.playlist.macAddress }
+                        ...(p.username != null ? { username: p.username } : {}),
+                        ...(p.password != null ? { password: p.password } : {}),
+                        ...(p.macAddress != null
+                            ? { macAddress: p.macAddress }
                             : {}),
-                        ...(action.playlist.portalUrl !== null
-                            ? { portalUrl: action.playlist.portalUrl }
+                        ...(p.portalUrl != null
+                            ? { portalUrl: p.portalUrl }
+                            : {}),
+                        ...(p.favorites != null
+                            ? { favorites: p.favorites }
+                            : {}),
+                        ...(p.recentlyViewed != null
+                            ? { recentlyViewed: p.recentlyViewed }
                             : {}),
                     },
                 },

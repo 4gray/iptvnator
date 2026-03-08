@@ -25,35 +25,28 @@ import {
     PlaylistSwitcherComponent,
     ResizableDirective,
 } from 'components';
+import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { PlaylistsService, StalkerSessionService } from 'services';
 import { EpgItem, EpgProgram } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
-import { SettingsStore } from '../../services/settings-store.service';
 import { PlayerService } from '../../services/player.service';
+import { SettingsStore } from '../../services/settings-store.service';
+import { CategoryViewComponent } from '../../shared/components/category-view/category-view.component';
+import { PlaylistErrorViewComponent } from '../../shared/components/playlist-error-view/playlist-error-view.component';
+import { PortalEmptyStateComponent } from '../../shared/components/portal-empty-state/portal-empty-state.component';
 import { isWorkspaceLayoutRoute } from '../../shared/navigation/portal-route.utils';
 import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
 } from '../../shared/services/remote-channel-navigation.util';
-import { CategoryViewComponent } from '../../shared/components/category-view/category-view.component';
-import { PlaylistErrorViewComponent } from '../../shared/components/playlist-error-view/playlist-error-view.component';
-import { StalkerStore } from '../stalker.store';
-import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { createLogger } from '../../shared/utils/logger';
 import {
     StalkerCategoryItem,
     StalkerFavoriteItem,
     StalkerItvChannel,
 } from '../models';
-import {
-    buildStalkerExternalPlaybackHeaders,
-    getStalkerPortalOrigin,
-    isCrossOriginStalkerStream,
-    STALKER_MAG_USER_AGENT,
-} from '../stalker-live-playback.utils';
-import {
-    normalizeStalkerEntityId,
-} from '../stalker-vod.utils';
+import { normalizeStalkerEntityId } from '../stalker-vod.utils';
+import { StalkerStore } from '../stalker.store';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',
@@ -76,6 +69,7 @@ import {
         NgxSkeletonLoaderModule,
         PlaylistErrorViewComponent,
         PlaylistSwitcherComponent,
+        PortalEmptyStateComponent,
         ResizableDirective,
         TranslatePipe,
         WebPlayerViewComponent,
@@ -147,7 +141,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             .subscribe((favs) => {
                 favs.forEach((fav: StalkerFavoriteItem) => {
                     if (fav.id !== undefined) {
-                        this.favorites.set(normalizeStalkerEntityId(fav.id), true);
+                        this.favorites.set(
+                            normalizeStalkerEntityId(fav.id),
+                            true
+                        );
                     }
                 });
             });
@@ -181,7 +178,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         // Debounced server-side search
         effect(() => {
             const search = this.searchString();
-            if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
+            if (this.searchDebounceTimer)
+                clearTimeout(this.searchDebounceTimer);
             this.searchDebounceTimer = setTimeout(() => {
                 this.stalkerStore.setItvChannels([]);
                 this.stalkerStore.setSearchPhrase(search);
@@ -225,11 +223,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         });
 
         if (window.electron?.onChannelChange) {
-            const unsubscribe = window.electron.onChannelChange((data: {
-                direction: 'up' | 'down';
-            }) => {
-                this.handleRemoteChannelChange(data.direction);
-            });
+            const unsubscribe = window.electron.onChannelChange(
+                (data: { direction: 'up' | 'down' }) => {
+                    this.handleRemoteChannelChange(data.direction);
+                }
+            );
             if (typeof unsubscribe === 'function') {
                 this.unsubscribeRemoteChannelChange = unsubscribe;
             }
@@ -268,8 +266,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
     isSelectedChannel(item: StalkerItvChannel): boolean {
         return (
-            this.selectedChannelId() ===
-            this.normalizeStalkerEntityId(item.id)
+            this.selectedChannelId() === this.normalizeStalkerEntityId(item.id)
         );
     }
 
@@ -394,10 +391,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
     private async loadSingleEpgPreview(channelId: number | string) {
         try {
-            const items = await this.stalkerStore.fetchChannelEpg(
-                channelId,
-                1
-            );
+            const items = await this.stalkerStore.fetchChannelEpg(channelId, 1);
             if (items.length > 0) {
                 const program = items[0];
                 const id = normalizeStalkerEntityId(channelId);
@@ -411,8 +405,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 const end = parseInt(program.stop_timestamp, 10);
 
                 if (start && end && now >= start && now <= end) {
-                    const progress =
-                        ((now - start) / (end - start)) * 100;
+                    const progress = ((now - start) / (end - start)) * 100;
                     this.currentProgramsProgress.set(id, progress);
                 } else {
                     this.currentProgramsProgress.delete(id);
@@ -516,7 +509,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             return;
         }
 
-        const channel = getChannelItemByNumber(this.itvChannels(), command.number);
+        const channel = getChannelItemByNumber(
+            this.itvChannels(),
+            command.number
+        );
         if (!channel) {
             return;
         }

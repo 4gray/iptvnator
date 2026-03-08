@@ -239,32 +239,43 @@ export class RecentPlaylistsComponent {
             ),
             onConfirm: async () => {
                 try {
-                    // Delete all content and categories for this playlist
-                    // This returns the xtreamIds of favorites, recently viewed items, and hidden categories
-                    const {
-                        favoritedXtreamIds,
-                        recentlyViewedXtreamIds,
-                        hiddenCategories,
-                    } = await this.databaseService.deleteXtreamPlaylistContent(
-                        item._id
+                    // Show immediate feedback — deletion can take several seconds
+                    // for large playlists.
+                    this.snackBar.open(
+                        this.translate.instant(
+                            'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.STARTED'
+                        ),
+                        undefined,
+                        { duration: 2000 }
                     );
 
+                    // Delete content/categories and update the timestamp in
+                    // parallel — both operations are fully independent.
                     const updateDate = Date.now();
+                    const [
+                        {
+                            favoritedXtreamIds,
+                            recentlyViewedXtreamIds,
+                            hiddenCategories,
+                        },
+                    ] = await Promise.all([
+                        this.databaseService.deleteXtreamPlaylistContent(
+                            item._id
+                        ),
+                        this.databaseService.updateXtreamPlaylistDetails({
+                            id: item._id,
+                            updateDate,
+                        }),
+                    ]);
 
-                    // Update the updateDate timestamp in database (Electron)
-                    await this.databaseService.updateXtreamPlaylistDetails({
-                        id: item._id,
-                        updateDate,
-                    });
-
-                    // Update the updateDate timestamp in IndexedDB
+                    // Update the timestamp in NgRx / IndexedDB
                     this.store.dispatch(
                         PlaylistActions.updatePlaylistMeta({
                             playlist: { ...item, updateDate },
                         })
                     );
 
-                    // Store the user data in localStorage to restore after re-import
+                    // Persist user data so it can be restored after re-import
                     const restoreKey = `xtream-restore-${item._id}`;
                     localStorage.setItem(
                         restoreKey,
@@ -273,14 +284,6 @@ export class RecentPlaylistsComponent {
                             recentlyViewedXtreamIds,
                             hiddenCategories,
                         })
-                    );
-
-                    this.snackBar.open(
-                        this.translate.instant(
-                            'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.STARTED'
-                        ),
-                        undefined,
-                        { duration: 2000 }
                     );
 
                     // Navigate to the playlist to trigger re-import

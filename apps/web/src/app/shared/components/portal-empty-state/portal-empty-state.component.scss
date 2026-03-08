@@ -1,0 +1,55 @@
+:host {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.empty-state-container {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    text-align: center;
+    color: var(--mat-sys-on-surface-variant);
+    animation: portal-empty-state-fade-in 220ms ease-out;
+}
+
+.empty-state-icon {
+    font-size: 72px;
+    width: 72px;
+    height: 72px;
+    margin-bottom: 24px;
+    opacity: 0.2;
+    animation: portal-empty-state-float 2.8s ease-in-out infinite;
+}
+
+.empty-state-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin: 0;
+    opacity: 0.5;
+}
+
+@keyframes portal-empty-state-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes portal-empty-state-float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-4px);
+    }
+}

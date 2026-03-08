@@ -82,6 +82,7 @@ html {
     --app-widget-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
     --app-widget-header-border: rgba(0, 0, 0, 0.06);
     --app-card-hover-bg: #f0f2f5;
+    --app-separator: rgba(0, 0, 0, 0.14);
 
     // Typography — subdued, not pure black
     --app-heading-color: #1a1d23;
@@ -149,6 +150,7 @@ html {
         --app-widget-shadow: none;
         --app-widget-header-border: rgba(255, 255, 255, 0.05);
         --app-card-hover-bg: #252b3a;
+        --app-separator: rgba(255, 255, 255, 0.14);
 
         // Typography — NOT pure white. Warm graphite-tinted whites
         --app-heading-color: #d8dce8;       // soft off-white, not #fff

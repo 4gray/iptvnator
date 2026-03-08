@@ -51,8 +51,9 @@
                         [logo]="item.logo"
                         [selected]="isSelectedChannel(item)"
                         [epgProgram]="
-                            epgPreviewPrograms.get(normalizeStalkerEntityId(item.id)) ??
-                            null
+                            epgPreviewPrograms.get(
+                                normalizeStalkerEntityId(item.id)
+                            ) ?? null
                         "
                         [progressPercentage]="
                             currentProgramsProgress.get(
@@ -62,7 +63,8 @@
                         [showFavoriteButton]="true"
                         [showProgramInfoButton]="false"
                         [isFavorite]="
-                            favorites.get(normalizeStalkerEntityId(item.id)) ?? false
+                            favorites.get(normalizeStalkerEntityId(item.id)) ??
+                            false
                         "
                         (clicked)="playChannel(item)"
                         (favoriteToggled)="toggleFavorite(item)"
@@ -87,15 +89,20 @@
                 />
             } @else if (isCategoryFailed()) {
                 <app-playlist-error-view
-                    [title]="'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE' | translate"
+                    [title]="
+                        'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE' | translate
+                    "
                     [description]="
-                        'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION' | translate
+                        'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.DESCRIPTION'
+                            | translate
                     "
                 />
             } @else {
                 <app-category-view
                     [items]="categories()"
-                    [selectedCategoryId]="$any(stalkerStore.selectedCategoryId())"
+                    [selectedCategoryId]="
+                        $any(stalkerStore.selectedCategoryId())
+                    "
                     (categoryClicked)="selectCategory($event)"
                 />
             }
@@ -128,11 +135,9 @@
             </div>
         </div>
     } @else {
-        <div class="empty-state-container">
-            <mat-icon class="empty-state-icon">live_tv</mat-icon>
-            <h2 class="empty-state-title">
-                {{ 'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate }}
-            </h2>
-        </div>
+        <app-portal-empty-state
+            icon="live_tv"
+            [message]="'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate"
+        />
     }
 </div>

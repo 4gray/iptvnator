@@ -85,6 +85,7 @@ export default class App {
                 ? {
                       titleBarStyle: 'hidden',
                       titleBarOverlay: true,
+                      trafficLightPosition: { x: 16, y: 20 },
                   }
                 : {}),
         });

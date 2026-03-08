@@ -1,19 +1,24 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    input,
+    output,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from 'components';
 import { EpgItem } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
+import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-state.component';
 
 @Component({
     selector: 'app-portal-collection-live-shell',
     imports: [
         EpgViewComponent,
         MatButtonModule,
-        MatIconModule,
         MatProgressSpinnerModule,
+        PortalEmptyStateComponent,
         ResizableDirective,
         TranslatePipe,
         WebPlayerViewComponent,

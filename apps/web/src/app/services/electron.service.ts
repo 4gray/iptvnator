@@ -1,6 +1,5 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Params } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
@@ -11,9 +10,9 @@ import {
     Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
-    XtreamCodeActions,
-    XTREAM_RESPONSE,
     XTREAM_REQUEST,
+    XTREAM_RESPONSE,
+    XtreamCodeActions,
 } from 'shared-interfaces';
 import { AppConfig } from '../../environments/environment';
 import {
@@ -67,7 +66,8 @@ export class ElectronService extends DataService {
     }
 
     private setupPortalDebugListener() {
-        const onPortalDebugEvent = (window.electron as any)?.onPortalDebugEvent as
+        const onPortalDebugEvent = (window.electron as any)
+            ?.onPortalDebugEvent as
             | ((callback: (event: unknown) => void) => void)
             | undefined;
 
@@ -76,7 +76,9 @@ export class ElectronService extends DataService {
         }
 
         onPortalDebugEvent((event) => {
-            logPortalDebugEvent(event as Parameters<typeof logPortalDebugEvent>[0]);
+            logPortalDebugEvent(
+                event as Parameters<typeof logPortalDebugEvent>[0]
+            );
         });
     }
 
@@ -228,8 +230,7 @@ export class ElectronService extends DataService {
             })
             .catch((error: unknown) => {
                 const statusCode = this.extractHttpStatusCode(error);
-                let messageKey =
-                    'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
+                let messageKey = 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
                 if (statusCode === 403) {
                     messageKey = 'HOME.URL_UPLOAD.ERROR_403';
                 } else if (statusCode === 404) {
@@ -257,9 +258,7 @@ export class ElectronService extends DataService {
             return error.response.status as number;
         }
         // Parse status from error message string (IPC serialization)
-        const msg = String(
-            (error as { message?: string })?.message ?? error
-        );
+        const msg = String((error as { message?: string })?.message ?? error);
         const match = msg.match(/status code (\d{3})/);
         return match ? parseInt(match[1], 10) : null;
     }
@@ -409,9 +408,10 @@ export class ElectronService extends DataService {
                 if (
                     maybeError.error &&
                     typeof maybeError.error === 'object' &&
-                    'message' in (maybeError.error as Record<string, unknown>) &&
-                    typeof (maybeError.error as Record<string, unknown>).message ===
-                        'string'
+                    'message' in
+                        (maybeError.error as Record<string, unknown>) &&
+                    typeof (maybeError.error as Record<string, unknown>)
+                        .message === 'string'
                 ) {
                     return (maybeError.error as Record<string, string>).message;
                 }

@@ -1,77 +1,30 @@
 @use '@angular/material' as mat;
+@use '../../styles/portal-layout' as portal;
 
-:host {
-    display: flex;
-    flex-direction: row;
-    overflow: hidden;
-    height: 100%;
-    width: 100%;
-}
+@include portal.live-layout;
 
-.sidebar {
-    width: 400px;
-    min-width: 250px;
-    max-width: 600px;
-    border-right: 1px solid #333;
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow: hidden;
-    position: relative;
-}
-
-.content-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-height: 0;
-}
-
-.video-player {
-    flex: 1 1 0;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-}
-
-.epg {
-    flex: 1 1 0;
-    min-height: 0;
-    overflow: hidden;
-}
-
-.video-player > app-web-player-view {
-    flex: 1;
-    min-height: 0;
-}
-
-.epg-content {
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.epg-content > app-epg-view {
-    flex: 1;
-    min-height: 0;
-}
-
+// ─── Sidebar panel header ─────────────────────────────────────────────────────
 .category-content-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 8px;
-    min-height: 0;
-    padding: 11px;
+    padding: 8px 12px;
+    min-height: 48px;
     flex-shrink: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    border-bottom: 1px solid var(--app-separator);
     app-region: drag;
 
+    // Own buttons (direct children scoped to this component)
     button {
         @include mat.form-field-density(-5);
+        app-region: no-drag;
+    }
+
+    // Projected buttons (liveHeaderActions slot) — view encapsulation
+    // prevents the rule above from reaching them, so ng-deep is required.
+    ::ng-deep button {
         app-region: no-drag;
     }
 }
@@ -80,69 +33,41 @@
     min-width: 0;
     display: flex;
     align-items: baseline;
-    gap: 10px;
+    gap: 8px;
     flex: 1;
 }
 
+// ─── Title + count chip — now aligned with category-content-view ─────────────
 .category-title {
     margin: 0;
-    font-size: 1.2rem;
-    font-weight: 500;
-    color: inherit;
+    font-size: 0.94rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--mat-sys-on-surface);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+// Informational badge — primary-tinted pill with definition ring
 .category-subtitle {
     white-space: nowrap;
-    font-size: 0.76rem;
+    flex-shrink: 0;
+    font-size: 0.70rem;
     font-weight: 700;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: var(--app-selection-color);
-    background: linear-gradient(
-        145deg,
-        var(--app-selection-surface-strong),
-        var(--app-selection-surface)
-    );
-    box-shadow:
-        inset 0 0 0 1px var(--app-selection-border),
-        0 10px 16px -18px var(--app-selection-glow);
+    letter-spacing: 0.05em;
+    text-transform: capitalize;
+    line-height: 1;
+    color: var(--mat-sys-primary);
+    background: color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-surface-container-high));
     padding: 4px 10px;
     border-radius: 999px;
-    flex-shrink: 0;
+    box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent),
+        0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
-.empty-state-container {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 0;
-    text-align: center;
-    color: rgba(255, 255, 255, 0.5);
-    animation: placeholder-fade-in 220ms ease-out;
-}
-
-.empty-state-icon {
-    font-size: 72px;
-    width: 72px;
-    height: 72px;
-    margin-bottom: 24px;
-    opacity: 0.2;
-    animation: placeholder-icon-float 2.8s ease-in-out infinite;
-}
-
-.empty-state-title {
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 500;
-    font-size: 1.25rem;
-    margin: 0;
-    opacity: 0.5;
-}
-
+// ─── EPG controls ─────────────────────────────────────────────────────────────
 .loading-indicator {
     display: flex;
     justify-content: center;
@@ -153,35 +78,4 @@
     display: flex;
     justify-content: center;
     padding: 8px 0;
-}
-
-@keyframes placeholder-fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes placeholder-icon-float {
-    0%,
-    100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-4px);
-    }
-}
-
-::ng-deep {
-    .video-player
-        > app-web-player-view
-        > app-art-player
-        > .artplayer-container {
-        height: 100% !important;
-        width: 100% !important;
-    }
 }

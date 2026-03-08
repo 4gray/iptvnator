@@ -1,34 +1,28 @@
 import { computed, inject } from '@angular/core';
-import {
-    signalStore,
-    withComputed,
-    withMethods,
-} from '@ngrx/signals';
+import { signalStore, withComputed, withMethods } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { selectActivePlaylist } from 'm3u-state';
-import {
-    XtreamSerieDetails,
-    XtreamVodDetails,
-} from 'shared-interfaces';
+import { XtreamSerieDetails, XtreamVodDetails } from 'shared-interfaces';
 
 // Import existing features that are already separate
 import { withFavorites } from '../with-favorites.feature';
 import { withRecentItems } from '../with-recent-items';
 
 // Import service
+import { XTREAM_DATA_SOURCE } from '../data-sources/xtream-data-source.interface';
 import { XtreamApiService } from '../services/xtream-api.service';
 
 // Import new feature stores
-import {
-    withPortal,
-    withContent,
-    withSelection,
-    withSearch,
-    withEpg,
-    withPlayer,
-    withPlaybackPositions,
-} from './features';
 import { createLogger } from '../../shared/utils/logger';
+import {
+    withContent,
+    withEpg,
+    withPlaybackPositions,
+    withPlayer,
+    withPortal,
+    withSearch,
+    withSelection,
+} from './features';
 
 /**
  * XtreamStore - Facade composing all feature stores.
@@ -81,15 +75,26 @@ export const XtreamStore = signalStore(
     withMethods((store) => {
         const xtreamApiService = inject(XtreamApiService);
         const ngrxStore = inject(Store);
+        const dataSource = inject(XTREAM_DATA_SOURCE);
         const logger = createLogger('XtreamStore');
-        const searchContent = (store as any)
-            .searchContent as (term: string, types: string[], excludeHidden?: boolean) => Promise<unknown>;
+        const searchContent = (store as any).searchContent as (
+            term: string,
+            types: string[],
+            excludeHidden?: boolean
+        ) => Promise<unknown>;
 
         return {
             /**
              * Full store reset for switching between playlists
              */
             resetStore(newPlaylistId?: string): void {
+                // Clear the session cache for the playlist we're leaving so
+                // stale data cannot bleed into the new playlist (PWA path).
+                const leavingPlaylistId = store.playlistId();
+                if (leavingPlaylistId) {
+                    dataSource.clearSessionCache(leavingPlaylistId);
+                }
+
                 store.resetPortal();
                 store.resetContent();
                 store.resetSelection();
@@ -126,64 +131,84 @@ export const XtreamStore = signalStore(
              * Fetch VOD details with metadata
              * Accepts object format for backward compatibility with rxMethod callers
              */
-            fetchVodDetailsWithMetadata(
-                params: { vodId: string; categoryId: number }
-            ): void {
+            fetchVodDetailsWithMetadata(params: {
+                vodId: string;
+                categoryId: number;
+            }): void {
                 const playlist = ngrxStore.selectSignal(selectActivePlaylist)();
                 if (!playlist) return;
 
                 store.setIsLoadingDetails(true);
                 store.setDetailsError(null);
-                xtreamApiService.getVodInfo({
-                    serverUrl: playlist.serverUrl,
-                    username: playlist.username,
-                    password: playlist.password,
-                }, params.vodId).then((vodDetails: XtreamVodDetails) => {
-                    store.setSelectedCategory(params.categoryId);
-                    store.setSelectedItem({
-                        ...vodDetails,
-                        stream_id: params.vodId,
+                xtreamApiService
+                    .getVodInfo(
+                        {
+                            serverUrl: playlist.serverUrl,
+                            username: playlist.username,
+                            password: playlist.password,
+                        },
+                        params.vodId
+                    )
+                    .then((vodDetails: XtreamVodDetails) => {
+                        store.setSelectedCategory(params.categoryId);
+                        store.setSelectedItem({
+                            ...vodDetails,
+                            stream_id: params.vodId,
+                        });
+                    })
+                    .catch((error: unknown) => {
+                        logger.error('Error fetching VOD details', error);
+                        store.setDetailsError(
+                            error instanceof Error
+                                ? error.message
+                                : 'Unknown error'
+                        );
+                    })
+                    .finally(() => {
+                        store.setIsLoadingDetails(false);
                     });
-                }).catch((error: unknown) => {
-                    logger.error('Error fetching VOD details', error);
-                    store.setDetailsError(
-                        error instanceof Error ? error.message : 'Unknown error'
-                    );
-                }).finally(() => {
-                    store.setIsLoadingDetails(false);
-                });
             },
 
             /**
              * Fetch series details with metadata
              * Accepts object format for backward compatibility with rxMethod callers
              */
-            fetchSerialDetailsWithMetadata(
-                params: { serialId: string; categoryId: number }
-            ): void {
+            fetchSerialDetailsWithMetadata(params: {
+                serialId: string;
+                categoryId: number;
+            }): void {
                 const playlist = ngrxStore.selectSignal(selectActivePlaylist)();
                 if (!playlist) return;
 
                 store.setIsLoadingDetails(true);
                 store.setDetailsError(null);
-                xtreamApiService.getSeriesInfo({
-                    serverUrl: playlist.serverUrl,
-                    username: playlist.username,
-                    password: playlist.password,
-                }, params.serialId).then((serialDetails: XtreamSerieDetails) => {
-                    store.setSelectedCategory(params.categoryId);
-                    store.setSelectedItem({
-                        ...serialDetails,
-                        series_id: params.serialId,
+                xtreamApiService
+                    .getSeriesInfo(
+                        {
+                            serverUrl: playlist.serverUrl,
+                            username: playlist.username,
+                            password: playlist.password,
+                        },
+                        params.serialId
+                    )
+                    .then((serialDetails: XtreamSerieDetails) => {
+                        store.setSelectedCategory(params.categoryId);
+                        store.setSelectedItem({
+                            ...serialDetails,
+                            series_id: params.serialId,
+                        });
+                    })
+                    .catch((error: unknown) => {
+                        logger.error('Error fetching series details', error);
+                        store.setDetailsError(
+                            error instanceof Error
+                                ? error.message
+                                : 'Unknown error'
+                        );
+                    })
+                    .finally(() => {
+                        store.setIsLoadingDetails(false);
                     });
-                }).catch((error: unknown) => {
-                    logger.error('Error fetching series details', error);
-                    store.setDetailsError(
-                        error instanceof Error ? error.message : 'Unknown error'
-                    );
-                }).finally(() => {
-                    store.setIsLoadingDetails(false);
-                });
             },
 
             /**
@@ -230,9 +255,17 @@ export const XtreamStore = signalStore(
              * Search content wrapper for rxMethod compatibility
              * Can be called with object { term, types, excludeHidden } or direct params
              */
-            searchContent(params: { term: string; types: string[]; excludeHidden?: boolean }): void {
+            searchContent(params: {
+                term: string;
+                types: string[];
+                excludeHidden?: boolean;
+            }): void {
                 // Call the underlying search method from withSearch
-                void searchContent(params.term, params.types, params.excludeHidden);
+                void searchContent(
+                    params.term,
+                    params.types,
+                    params.excludeHidden
+                );
             },
         };
     })

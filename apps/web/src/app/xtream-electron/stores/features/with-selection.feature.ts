@@ -8,6 +8,15 @@ import {
 } from '@ngrx/signals';
 import { ContentType } from '../../xtream-state';
 
+/**
+ * Module-level collator — allocating Intl.Collator is expensive;
+ * one shared instance avoids repeated allocation on every sort call.
+ */
+const COLLATOR = new Intl.Collator(undefined, {
+    numeric: true,
+    sensitivity: 'base',
+});
+
 export type XtreamCategorySortMode =
     | 'date-desc'
     | 'date-asc'
@@ -57,10 +66,13 @@ export function withSelection() {
         withState<SelectionState>(initialSelectionState),
 
         withComputed((store) => {
-            const getItemDate = (item: any, categoryType: ContentType): number => {
+            const getItemDate = (
+                item: any,
+                categoryType: ContentType
+            ): number => {
                 const value =
                     categoryType === 'series'
-                        ? item.last_modified ?? item.added
+                        ? (item.last_modified ?? item.added)
                         : item.added;
                 return parseInt(value ?? '', 10) || 0;
             };
@@ -70,27 +82,31 @@ export function withSelection() {
                 sortMode: XtreamCategorySortMode,
                 categoryType: ContentType
             ): any[] => {
-                const collator = new Intl.Collator(undefined, {
-                    numeric: true,
-                    sensitivity: 'base',
-                });
-
                 return [...items].sort((a: any, b: any) => {
                     if (sortMode === 'date-desc') {
-                        return getItemDate(b, categoryType) - getItemDate(a, categoryType);
+                        return (
+                            getItemDate(b, categoryType) -
+                            getItemDate(a, categoryType)
+                        );
                     }
                     if (sortMode === 'date-asc') {
-                        return getItemDate(a, categoryType) - getItemDate(b, categoryType);
+                        return (
+                            getItemDate(a, categoryType) -
+                            getItemDate(b, categoryType)
+                        );
                     }
 
                     const titleA = a.title ?? a.name ?? '';
                     const titleB = b.title ?? b.name ?? '';
-                    const byName = collator.compare(titleA, titleB);
+                    const byName = COLLATOR.compare(titleA, titleB);
                     return sortMode === 'name-asc' ? byName : -byName;
                 });
             };
 
-            const filterBySearchTerm = (items: any[], searchTerm: string): any[] => {
+            const filterBySearchTerm = (
+                items: any[],
+                searchTerm: string
+            ): any[] => {
                 const normalized = searchTerm.trim().toLocaleLowerCase();
                 if (!normalized) {
                     return items;
@@ -114,6 +130,65 @@ export function withSelection() {
                           : storeAny.serialStreams?.() || [];
 
                 return sortByMode(content, 'date-desc', categoryType);
+            });
+
+            // ---------------------------------------------------------------------------
+            // Per-type category item-count maps.
+            // Each computed only recomputes when ITS streams array changes —
+            // switching content tabs no longer triggers an O(n) full scan.
+            // ---------------------------------------------------------------------------
+            const buildCountMap = (streams: any[]): Map<number, number> => {
+                const countMap = new Map<number, number>();
+                for (const item of streams) {
+                    const catId = Number(item.category_id);
+                    if (!isNaN(catId)) {
+                        countMap.set(catId, (countMap.get(catId) || 0) + 1);
+                    }
+                }
+                return countMap;
+            };
+
+            const liveItemCounts = computed(() =>
+                buildCountMap((store as any).liveStreams?.() || [])
+            );
+            const vodItemCounts = computed(() =>
+                buildCountMap((store as any).vodStreams?.() || [])
+            );
+            const seriesItemCounts = computed(() =>
+                buildCountMap((store as any).serialStreams?.() || [])
+            );
+
+            // ---------------------------------------------------------------------------
+            // Stable filter + sort intermediate.
+            // Depends on category / search / sort — but NOT on page or limit.
+            // This prevents re-sorting the full array on every page-navigation.
+            // ---------------------------------------------------------------------------
+            const filteredAndSortedContent = computed(() => {
+                const categoryId = store.selectedCategoryId();
+                const categoryType = store.selectedContentType();
+                const sortMode = store.contentSortMode();
+                const searchTerm = store.categorySearchTerm();
+
+                const storeAny = store as any;
+                const content =
+                    categoryType === 'live'
+                        ? storeAny.liveStreams?.() || []
+                        : categoryType === 'vod'
+                          ? storeAny.vodStreams?.() || []
+                          : storeAny.serialStreams?.() || [];
+
+                if (!categoryId) {
+                    return sortedContent();
+                }
+
+                let filtered = content.filter(
+                    (item: any) => Number(item.category_id) === categoryId
+                );
+                if (categoryType === 'vod' || categoryType === 'series') {
+                    filtered = filterBySearchTerm(filtered, searchTerm);
+                    filtered = sortByMode(filtered, sortMode, categoryType);
+                }
+                return filtered;
             });
 
             return {
@@ -172,118 +247,34 @@ export function withSelection() {
                 }),
 
                 /**
-                 * Get paginated content for the selected category
+                 * Get paginated content for the selected category.
+                 * Slices from the stable `filteredAndSortedContent` intermediate so
+                 * page navigation never triggers a full re-sort of the array.
                  */
                 getPaginatedContent: computed(() => {
-                    const startIndex = store.page() * store.limit();
-                    const endIndex = startIndex + store.limit();
-                    const categoryId = store.selectedCategoryId();
-                    const categoryType = store.selectedContentType();
-                    const sortMode = store.contentSortMode();
-                    const searchTerm = store.categorySearchTerm();
-
-                    // Access parent store content (from withContent)
-                    const storeAny = store as any;
-                    const content =
-                        categoryType === 'live'
-                            ? storeAny.liveStreams?.() || []
-                            : categoryType === 'vod'
-                              ? storeAny.vodStreams?.() || []
-                              : storeAny.serialStreams?.() || [];
-
-                    let filteredContent = content;
-                    if (categoryId) {
-                        filteredContent = content.filter(
-                            (item: any) =>
-                                Number(item.category_id) === categoryId
-                        );
-                        if (categoryType === 'vod' || categoryType === 'series') {
-                            filteredContent = filterBySearchTerm(
-                                filteredContent,
-                                searchTerm
-                            );
-                            filteredContent = sortByMode(
-                                filteredContent,
-                                sortMode,
-                                categoryType
-                            );
-                        }
-                    } else {
-                        filteredContent = sortedContent();
-                    }
-
-                    return filteredContent.slice(startIndex, endIndex);
-                }),
-
-                /**
-                 * Get all items from the selected category (without pagination)
-                 */
-                selectItemsFromSelectedCategory: computed(() => {
-                    const categoryId = store.selectedCategoryId();
-                    const categoryType = store.selectedContentType();
-                    const sortMode = store.contentSortMode();
-                    const searchTerm = store.categorySearchTerm();
-
-                    // Access parent store content (from withContent)
-                    const storeAny = store as any;
-                    const content =
-                        categoryType === 'live'
-                            ? storeAny.liveStreams?.() || []
-                            : categoryType === 'vod'
-                              ? storeAny.vodStreams?.() || []
-                              : storeAny.serialStreams?.() || [];
-
-                    if (!categoryId) {
-                        return sortedContent();
-                    }
-
-                    const filteredContent = content.filter(
-                        (item: any) => Number(item.category_id) === categoryId
+                    const start = store.page() * store.limit();
+                    return filteredAndSortedContent().slice(
+                        start,
+                        start + store.limit()
                     );
-                    if (categoryType === 'vod' || categoryType === 'series') {
-                        return sortByMode(
-                            filterBySearchTerm(filteredContent, searchTerm),
-                            sortMode,
-                            categoryType
-                        );
-                    }
-
-                    return filteredContent;
                 }),
 
                 /**
-                 * Get total pages for the selected category
+                 * Get all items from the selected category (without pagination).
+                 * Reuses the `filteredAndSortedContent` intermediate to avoid
+                 * duplicating the filter+sort work already done for pagination.
                  */
-                getTotalPages: computed(() => {
-                    const categoryId = store.selectedCategoryId();
-                    const categoryType = store.selectedContentType();
-                    const searchTerm = store.categorySearchTerm();
+                selectItemsFromSelectedCategory: computed(() =>
+                    filteredAndSortedContent()
+                ),
 
-                    // Access parent store content (from withContent)
-                    const storeAny = store as any;
-                    const content =
-                        categoryType === 'live'
-                            ? storeAny.liveStreams?.() || []
-                            : categoryType === 'vod'
-                              ? storeAny.vodStreams?.() || []
-                              : storeAny.serialStreams?.() || [];
-
-                    let totalItems = 0;
-                    if (categoryId) {
-                        let filtered = content.filter(
-                            (item: any) =>
-                                Number(item.category_id) === categoryId
-                        );
-                        if (categoryType === 'vod' || categoryType === 'series') {
-                            filtered = filterBySearchTerm(filtered, searchTerm);
-                        }
-                        totalItems = filtered.length;
-                    } else {
-                        totalItems = content.length;
-                    }
-
-                    return Math.ceil(totalItems / store.limit());
-                }),
+                /**
+                 * Get total pages for the selected category.
+                 * Derives length from the shared `filteredAndSortedContent` intermediate.
+                 */
+                getTotalPages: computed(() =>
+                    Math.ceil(filteredAndSortedContent().length / store.limit())
+                ),
 
                 /**
                  * Check if paginated content is loading
@@ -295,28 +286,17 @@ export function withSelection() {
                 }),
 
                 /**
-                 * Memoized category item counts map
+                 * Memoized category item counts map.
+                 * Selects from per-type pre-computed maps so switching content tabs
+                 * is O(1) — no full array scan on every tab switch.
                  */
                 getCategoryItemCounts: computed(() => {
                     const type = store.selectedContentType();
-
-                    // Access parent store content (from withContent)
-                    const storeAny = store as any;
-                    const streams =
-                        type === 'live'
-                            ? storeAny.liveStreams?.() || []
-                            : type === 'vod'
-                              ? storeAny.vodStreams?.() || []
-                              : storeAny.serialStreams?.() || [];
-
-                    const countMap = new Map<number, number>();
-                    for (const item of streams) {
-                        const catId = Number(item.category_id);
-                        if (!isNaN(catId)) {
-                            countMap.set(catId, (countMap.get(catId) || 0) + 1);
-                        }
-                    }
-                    return countMap;
+                    return type === 'live'
+                        ? liveItemCounts()
+                        : type === 'vod'
+                          ? vodItemCounts()
+                          : seriesItemCounts();
                 }),
 
                 /**

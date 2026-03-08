@@ -17,40 +17,51 @@
 }
 
 .content-header {
-    text-transform: capitalize;
-    padding: 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    padding: 8px 12px;
+    min-height: 48px;
+    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    border-bottom: 1px solid var(--app-separator);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
+}
 
-    h2 {
-        margin: 0;
-        font-size: 1.2rem;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
+.category-meta {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
 
-    .selected-category-pill {
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 0.76rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-        color: var(--app-selection-color);
-        background: linear-gradient(
-            145deg,
-            var(--app-selection-surface-strong),
-            var(--app-selection-surface)
-        );
-        box-shadow:
-            inset 0 0 0 1px var(--app-selection-border),
-            0 10px 16px -18px var(--app-selection-glow);
-    }
+.category-title {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--mat-sys-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+// Informational badge — primary-tinted pill with definition ring
+.category-subtitle {
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 0.70rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: capitalize;
+    line-height: 1;
+    color: var(--mat-sys-primary);
+    background: color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-surface-container-high));
+    padding: 4px 10px;
+    border-radius: 999px;
+    box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent),
+        0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 .scrollable-content {

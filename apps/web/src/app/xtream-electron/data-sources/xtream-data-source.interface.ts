@@ -6,10 +6,14 @@ import {
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
+import {
+    CategoryType,
+    StreamType,
+    XtreamCredentials,
+} from '../services/xtream-api.service';
 
 // Re-export for backward compatibility
 export { PlaybackPositionData };
-import { XtreamCredentials, CategoryType, StreamType } from '../services/xtream-api.service';
 
 /**
  * Playlist representation in the data source
@@ -101,7 +105,9 @@ export function mapCategoryTypeToDbType(type: CategoryType): DbCategoryType {
 /**
  * Maps StreamType to DbCategoryType for content storage
  */
-export function mapStreamTypeToDbType(type: StreamType): 'live' | 'movie' | 'series' {
+export function mapStreamTypeToDbType(
+    type: StreamType
+): 'live' | 'movie' | 'series' {
     return type;
 }
 
@@ -149,10 +155,7 @@ export interface IXtreamDataSource {
     /**
      * Check if categories exist for a playlist and type
      */
-    hasCategories(
-        playlistId: string,
-        type: DbCategoryType
-    ): Promise<boolean>;
+    hasCategories(playlistId: string, type: DbCategoryType): Promise<boolean>;
 
     /**
      * Get categories for a playlist and type
@@ -212,7 +215,12 @@ export interface IXtreamDataSource {
         type: StreamType,
         onProgress?: ProgressCallback,
         onTotal?: (total: number) => void
-    ): Promise<XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[] | XtreamContentItem[]>;
+    ): Promise<
+        | XtreamLiveStream[]
+        | XtreamVodStream[]
+        | XtreamSerieItem[]
+        | XtreamContentItem[]
+    >;
 
     /**
      * Save content in bulk
@@ -338,7 +346,9 @@ export interface IXtreamDataSource {
     /**
      * Get all playback positions for a playlist (for grid view)
      */
-    getAllPlaybackPositions(playlistId: string): Promise<PlaybackPositionData[]>;
+    getAllPlaybackPositions(
+        playlistId: string
+    ): Promise<PlaybackPositionData[]>;
 
     /**
      * Clear playback position (mark as unwatched)
@@ -352,6 +362,13 @@ export interface IXtreamDataSource {
     // =========================================================================
     // Cleanup Operations
     // =========================================================================
+
+    /**
+     * Clear any in-memory session cache for a playlist.
+     * Called when the store resets for a playlist switch so stale data
+     * cannot bleed into the new session (relevant for the PWA implementation).
+     */
+    clearSessionCache(playlistId: string): void;
 
     /**
      * Clear all content and categories for a playlist (for refresh)

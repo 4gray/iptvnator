@@ -4,6 +4,7 @@
     width: 100%;
     overflow: hidden;
     container-type: inline-size;
+    border-right: 1px solid var(--app-separator);
 }
 
 .channels-list {
@@ -34,6 +35,9 @@
     box-sizing: border-box;
     display: flex;
     align-items: center;
+    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    border-bottom: 1px solid var(--app-separator);
+    app-region: drag;
 }
 
 .search-field {

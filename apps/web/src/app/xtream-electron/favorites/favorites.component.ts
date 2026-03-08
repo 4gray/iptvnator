@@ -1,11 +1,12 @@
 import {
     Component,
-    effect,
-    OnInit,
     computed,
+    effect,
     inject,
+    OnInit,
     signal,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -15,24 +16,22 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { selectActivePlaylist } from 'm3u-state';
 import { BehaviorSubject, switchMap } from 'rxjs';
 import { PlayerService } from '../../services/player.service';
-import { FavoritesContextService } from '../../workspace/favorites-context.service';
+import { PortalCollectionLiveShellComponent } from '../../shared/components/portal-collection-live-shell/portal-collection-live-shell.component';
 import {
     PortalCollectionMode,
     PortalCollectionShellComponent,
     PortalCollectionShellLayout,
 } from '../../shared/components/portal-collection-shell/portal-collection-shell.component';
-import {
-    PortalCollectionLiveShellComponent,
-} from '../../shared/components/portal-collection-live-shell/portal-collection-live-shell.component';
 import { queryParamSignal } from '../../shared/navigation/portal-route.utils';
 import { createPortalCollectionContext } from '../../shared/utils/portal-collection-context';
 import {
     buildStandardCollectionCategories,
     filterCollectionBucket,
 } from '../../shared/utils/portal-collection-items';
+import { FavoritesContextService } from '../../workspace/favorites-context.service';
+import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { FavoriteItem } from '../services/favorite-item.interface';
 import { FavoritesService } from '../services/favorites.service';
-import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { XtreamStore } from '../stores/xtream.store';
 
 const XTREAM_FAVORITES_LAYOUT: PortalCollectionShellLayout = {};
@@ -49,6 +48,7 @@ const XTREAM_FAVORITES_LIVE_SORT_STORAGE_KEY =
 @Component({
     selector: 'app-favorites',
     imports: [
+        MatButtonModule,
         MatIconModule,
         MatMenuModule,
         MatTooltipModule,
@@ -120,7 +120,9 @@ export class FavoritesComponent implements OnInit {
             return `${item?.title ?? ''}`.toLowerCase().includes(term);
         })
     );
-    readonly isLiveCategory = computed(() => this.selectedCategoryId() === 'live');
+    readonly isLiveCategory = computed(
+        () => this.selectedCategoryId() === 'live'
+    );
     readonly isEmbeddedPlayer = computed(() =>
         this.playerService.isEmbeddedPlayer()
     );
