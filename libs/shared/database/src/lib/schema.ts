@@ -129,6 +129,8 @@ export const favorites = sqliteTable(
             .notNull()
             .references(() => playlists.id, { onDelete: 'cascade' }),
         addedAt: text('added_at').default(sql`CURRENT_TIMESTAMP`),
+        /** Display order position in the global favorites list (lower = first) */
+        position: integer('position').default(0),
     },
     (table) => ({
         contentPlaylistUnique: uniqueIndex(

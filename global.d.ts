@@ -202,6 +202,9 @@ declare global {
             ) => Promise<boolean>;
             dbGetFavorites: (playlistId: string) => Promise<any[]>;
             dbGetGlobalFavorites: () => Promise<any[]>;
+            dbReorderGlobalFavorites: (
+                updates: { content_id: number; position: number }[]
+            ) => Promise<{ success: boolean }>;
             // Recently viewed (playlist-specific)
             dbGetRecentItems: (playlistId: string) => Promise<any[]>;
             dbAddRecentItem: (

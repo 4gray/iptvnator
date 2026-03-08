@@ -1,0 +1,47 @@
+<div class="search-panel">
+    <mat-form-field class="search-bar">
+        <mat-icon matPrefix>search</mat-icon>
+        <input
+            matInput
+            type="search"
+            placeholder="Search favorites..."
+            [value]="searchTerm()"
+            (input)="searchTerm.set($any($event.target).value)"
+        />
+    </mat-form-field>
+</div>
+
+<div class="nav-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
+    @if (enrichedChannels().length === 0) {
+        <div class="empty-state">
+            <mat-icon class="empty-icon">star_border</mat-icon>
+            @if (searchTerm()) {
+                <p class="empty-title">No results</p>
+                <p class="empty-hint">Try a different search term</p>
+            } @else {
+                <p class="empty-title">No live TV favorites yet</p>
+                <p class="empty-hint">
+                    Star live channels from M3U, Xtream, or Stalker playlists to
+                    see them here.
+                </p>
+            }
+        </div>
+    }
+
+    @for (ch of enrichedChannels(); track trackByUid($index, ch)) {
+        <app-channel-list-item
+            [isDraggable]="!searchTerm()"
+            [logo]="ch.logo"
+            [name]="ch.name"
+            [selected]="activeUid() === ch.uid"
+            [showEpg]="true"
+            [epgProgram]="ch.currentEpgProgram"
+            [progressPercentage]="ch.progressPercentage"
+            [showFavoriteButton]="true"
+            [isFavorite]="true"
+            [showProgramInfoButton]="true"
+            (clicked)="onChannelClick(ch)"
+            (favoriteToggled)="onFavoriteToggled(ch)"
+        />
+    }
+</div>

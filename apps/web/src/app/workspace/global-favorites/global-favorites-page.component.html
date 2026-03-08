@@ -1,0 +1,117 @@
+<div class="global-favorites-page">
+    @if (isLoading()) {
+        <div class="loading-state">
+            <mat-spinner diameter="40" />
+        </div>
+    } @else {
+        <div
+            [class]="
+                activePlayback()
+                    ? isEmbeddedPlayer()
+                        ? 'itv-container'
+                        : 'itv-container--external'
+                    : 'itv-container-no-player'
+            "
+        >
+            <!-- Sidebar: resizable channel list -->
+            <div
+                class="sidebar"
+                appResizable
+                [minWidth]="250"
+                [maxWidth]="600"
+                [defaultWidth]="360"
+                storageKey="global-favorites-sidebar-width"
+            >
+                <div class="sidebar-header">
+                    <span class="sidebar-title">Global Favorites</span>
+                    <span class="sidebar-subtitle"
+                        >Live TV from all playlists</span
+                    >
+                </div>
+                <app-global-favorites-list
+                    [channels]="channels()"
+                    [epgMap]="epgMap()"
+                    [progressTick]="progressTick()"
+                    [activeUid]="activeUid()"
+                    (channelSelected)="onChannelSelected($event)"
+                    (channelsReordered)="onReorder($event)"
+                    (favoriteToggled)="onFavoriteToggled($event)"
+                />
+            </div>
+
+            @if (activePlayback()) {
+                <!-- Video player (embedded players only) -->
+                @if (isEmbeddedPlayer()) {
+                    <div class="video-player">
+                        <div class="player-toolbar">
+                            <span class="player-title">{{
+                                activePlayback()?.title
+                            }}</span>
+                            <button
+                                mat-icon-button
+                                (click)="onClose()"
+                                class="close-btn"
+                            >
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </div>
+
+                        @if (player() === 'videojs') {
+                            <app-vjs-player
+                                [options]="{
+                                    sources: [
+                                        {
+                                            src: currentStreamUrl(),
+                                            type: 'application/x-mpegURL',
+                                        },
+                                    ],
+                                }"
+                                [volume]="1"
+                            />
+                        }
+                        @if (player() === 'html5') {
+                            <app-html-video-player
+                                [channel]="activeChannelForOverlay()!"
+                                [volume]="1"
+                                [showCaptions]="false"
+                            />
+                        }
+                        @if (player() === 'artplayer') {
+                            <app-art-player
+                                [channel]="activeChannelForOverlay()!"
+                                [volume]="1"
+                                [showCaptions]="false"
+                            />
+                        }
+                    </div>
+                }
+
+                <!-- EPG panel: spans full height for external players -->
+                <div class="epg">
+                    @if (!isEmbeddedPlayer()) {
+                        <div class="player-toolbar">
+                            <span class="player-title">{{
+                                activePlayback()?.title
+                            }}</span>
+                            <button
+                                mat-icon-button
+                                (click)="onClose()"
+                                class="close-btn"
+                            >
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </div>
+                    }
+                    <div class="epg-content">
+                        <app-epg-view [epgItems]="currentEpgItems()" />
+                    </div>
+                </div>
+            } @else {
+                <div class="no-channel-selected">
+                    <mat-icon>live_tv</mat-icon>
+                    <p>Select a channel to start watching</p>
+                </div>
+            }
+        </div>
+    }
+</div>

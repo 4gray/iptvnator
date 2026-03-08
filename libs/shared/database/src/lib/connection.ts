@@ -232,6 +232,8 @@ const MIGRATION_STATEMENTS = [
     `ALTER TABLE playlists ADD COLUMN favorites TEXT`,
     `ALTER TABLE playlists ADD COLUMN recently_viewed TEXT`,
     `ALTER TABLE playlists ADD COLUMN payload TEXT`,
+    // v1.2.0 -> v1.3.0: Add position column to favorites for global favorites ordering
+    `ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0`,
 ];
 
 /**

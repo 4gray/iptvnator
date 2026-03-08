@@ -68,8 +68,8 @@ export const routes: Routes = [
                     layout: 'workspace',
                 },
                 loadComponent: () =>
-                    import('./home/video-player/video-player.component').then(
-                        (c) => c.VideoPlayerComponent
+                    import('./workspace/global-favorites/global-favorites-page.component').then(
+                        (c) => c.GlobalFavoritesPageComponent
                     ),
             },
             {

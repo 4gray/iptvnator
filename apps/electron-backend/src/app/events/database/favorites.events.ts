@@ -3,7 +3,7 @@
  * Operations for managing user's favorite content
  */
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { ipcMain } from 'electron';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
@@ -110,7 +110,7 @@ ipcMain.handle('DB_GET_FAVORITES', async (event, playlistId: string) => {
 });
 
 /**
- * Get global favorites across all playlists
+ * Get global favorites across all playlists (live TV channels only)
  */
 ipcMain.handle('DB_GET_GLOBAL_FAVORITES', async () => {
     try {
@@ -128,6 +128,7 @@ ipcMain.handle('DB_GET_GLOBAL_FAVORITES', async () => {
                 playlist_id: schema.playlists.id,
                 playlist_name: schema.playlists.name,
                 added_at: schema.favorites.addedAt,
+                position: schema.favorites.position,
             })
             .from(schema.favorites)
             .innerJoin(
@@ -142,7 +143,11 @@ ipcMain.handle('DB_GET_GLOBAL_FAVORITES', async () => {
                 schema.playlists,
                 eq(schema.categories.playlistId, schema.playlists.id)
             )
-            .orderBy(desc(schema.favorites.addedAt))
+            .where(eq(schema.content.type, 'live'))
+            .orderBy(
+                asc(schema.favorites.position),
+                desc(schema.favorites.addedAt)
+            )
             .limit(300);
         return result;
     } catch (error) {
@@ -150,3 +155,29 @@ ipcMain.handle('DB_GET_GLOBAL_FAVORITES', async () => {
         throw error;
     }
 });
+
+/**
+ * Reorder global favorites by updating the position field on each Xtream favorite row.
+ * Accepts an array of { content_id, position } pairs.
+ */
+ipcMain.handle(
+    'DB_REORDER_GLOBAL_FAVORITES',
+    async (event, updates: { content_id: number; position: number }[]) => {
+        try {
+            if (!Array.isArray(updates) || updates.length === 0) {
+                return { success: true };
+            }
+            const db = await getDatabase();
+            for (const { content_id, position } of updates) {
+                await db
+                    .update(schema.favorites)
+                    .set({ position })
+                    .where(eq(schema.favorites.contentId, content_id));
+            }
+            return { success: true };
+        } catch (error) {
+            console.error('Error reordering global favorites:', error);
+            throw error;
+        }
+    }
+);

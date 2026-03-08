@@ -14,10 +14,7 @@ declare global {
             ) => () => void;
             getAppVersion: () => Promise<string>;
             platform: string;
-            fetchPlaylistByUrl: (
-                url: string,
-                title?: string
-            ) => Promise<any>;
+            fetchPlaylistByUrl: (url: string, title?: string) => Promise<any>;
             updatePlaylistFromFilePath: (
                 filePath: string,
                 title: string
@@ -57,7 +54,11 @@ declare global {
             autoUpdatePlaylists: (playlists: any[]) => Promise<any[]>;
             fetchEpg: (
                 urls: string[]
-            ) => Promise<{ success: boolean; message?: string; skipped?: string[] }>;
+            ) => Promise<{
+                success: boolean;
+                message?: string;
+                skipped?: string[];
+            }>;
             getChannelPrograms: (channelId: string) => Promise<any>;
             getEpgChannels: () => Promise<any>;
             getEpgChannelsByRange: (
@@ -195,6 +196,9 @@ declare global {
             ) => Promise<boolean>;
             dbGetFavorites: (playlistId: string) => Promise<any[]>;
             dbGetGlobalFavorites: () => Promise<any[]>;
+            dbReorderGlobalFavorites: (
+                updates: { content_id: number; position: number }[]
+            ) => Promise<{ success: boolean }>;
             // Recently viewed (playlist-specific)
             dbGetRecentItems: (playlistId: string) => Promise<any[]>;
             dbAddRecentItem: (
@@ -265,7 +269,9 @@ declare global {
                 }) => void
             ) => void;
             // DB save content progress listener
-            onDbSaveContentProgress: (callback: (count: number) => void) => void;
+            onDbSaveContentProgress: (
+                callback: (count: number) => void
+            ) => void;
             removeDbSaveContentProgress: () => void;
             dbDeleteAllPlaylists: () => Promise<{ success: boolean }>;
             // Playback positions
@@ -296,15 +302,15 @@ declare global {
                 playlistId: string,
                 limit?: number
             ) => Promise<any[]>;
-            dbGetAllPlaybackPositions: (
-                playlistId: string
-            ) => Promise<any[]>;
+            dbGetAllPlaybackPositions: (playlistId: string) => Promise<any[]>;
             dbClearPlaybackPosition: (
                 playlistId: string,
                 contentXtreamId: number,
                 contentType: 'vod' | 'episode'
             ) => Promise<{ success: boolean }>;
-            onPlaybackPositionUpdate: (callback: (data: any) => void) => () => void;
+            onPlaybackPositionUpdate: (
+                callback: (data: any) => void
+            ) => () => void;
             closeExternalPlayerSession: (
                 sessionId: string
             ) => Promise<ExternalPlayerSession | null>;
@@ -327,7 +333,12 @@ declare global {
                 episodeNumber?: number;
                 // Playlist info for auto-creation if needed
                 playlistName?: string;
-                playlistType?: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
+                playlistType?:
+                    | 'xtream'
+                    | 'stalker'
+                    | 'm3u-file'
+                    | 'm3u-text'
+                    | 'm3u-url';
                 serverUrl?: string;
                 portalUrl?: string;
                 macAddress?: string;
