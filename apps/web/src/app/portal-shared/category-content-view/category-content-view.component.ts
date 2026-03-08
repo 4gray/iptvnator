@@ -14,7 +14,6 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from 'services';
 import {
@@ -24,30 +23,31 @@ import {
     StalkerVodDetails,
     VodDetailsItem,
 } from 'shared-interfaces';
-import { DownloadsService } from '../../services/downloads.service';
-import { ExternalPlaybackService } from '../../services/external-playback.service';
-import { PlayerService } from '../../services/player.service';
-import { GridListComponent } from '../../shared/components/grid-list/grid-list.component';
 import { PlaylistErrorViewComponent } from '@iptvnator/portal/shared/ui';
-import { createLogger } from '@iptvnator/portal/shared/util';
-import { StalkerVodSource } from '@iptvnator/portal/stalker/data-access';
-import { StalkerSeriesViewComponent } from '../../stalker/stalker-series-view/stalker-series-view.component';
 import {
-    buildStalkerSelectedVodItem,
+    createLogger,
+    isStalkerPortalCatalogFacade,
+    PortalCatalogFacade,
+    PortalCatalogSortMode,
+    PORTAL_CATALOG_FACADE,
+    StalkerPortalCatalogFacade,
+} from '@iptvnator/portal/shared/util';
+import {
     createPortalFavoritesResource,
     createRefreshTrigger,
     isSelectedStalkerVodFavorite,
     normalizeStalkerEntityId,
     normalizeStalkerEntityIdAsNumber,
+    StalkerSelectedVodItem,
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
-import { XtreamCategorySortMode } from '@iptvnator/portal/xtream/data-access';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { DownloadsService } from '../../services/downloads.service';
+import { ExternalPlaybackService } from '../../services/external-playback.service';
+import { PlayerService } from '../../services/player.service';
+import { GridListComponent } from '../../shared/components/grid-list/grid-list.component';
+import { StalkerSeriesViewComponent } from '../../stalker/stalker-series-view/stalker-series-view.component';
 import { VodDetailsComponent } from '../vod-details/vod-details.component';
-
-const SORT_STORAGE_KEY = 'xtream-category-sort-mode';
 
 interface CategoryContentItem {
     id?: number | string;
@@ -57,17 +57,6 @@ interface CategoryContentItem {
     stream_id?: number | string;
     category_id?: number | string;
     [key: string]: unknown;
-}
-
-interface CategoryStoreLike {
-    totalCount?: () => number;
-    selectItemsFromSelectedCategory?: () => unknown[];
-    getProgressPercent?: (id: number, type: 'vod') => number;
-    hasSeriesProgress?: (id: number) => boolean;
-    isWatched?: (id: number, type: 'vod') => boolean;
-    currentPlaylist?: () => { id?: string } | null;
-    loadAllPositions?: (playlistId: string) => void;
-    selectedCategoryId?: () => number | null;
 }
 
 interface DownloadVodData {
@@ -105,62 +94,47 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly externalPlayback = inject(ExternalPlaybackService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
-
-    readonly isStalker = this.activatedRoute.snapshot.data['api'] === 'stalker';
+    private readonly playlistService = inject(PlaylistsService);
+    private readonly downloadsService = inject(DownloadsService);
+    private readonly catalog = inject(
+        PORTAL_CATALOG_FACADE
+    ) as PortalCatalogFacade<
+        CategoryContentItem,
+        CategoryContentItem,
+        CategoryContentItem
+    >;
+    private readonly stalkerCatalog:
+        | StalkerPortalCatalogFacade<
+              CategoryContentItem,
+              CategoryContentItem,
+              CategoryContentItem
+          >
+        | null = isStalkerPortalCatalogFacade(this.catalog)
+        ? (this.catalog as StalkerPortalCatalogFacade<
+              CategoryContentItem,
+              CategoryContentItem,
+              CategoryContentItem
+          >)
+        : null;
     private readonly logger = createLogger('CategoryContentView');
-    private readonly store = this.isStalker
-        ? inject(StalkerStore)
-        : inject(XtreamStore);
+    private readonly favoritesRefresh = createRefreshTrigger();
+
+    readonly isStalker = this.catalog.provider === 'stalker';
 
     /** Unsubscribe function for playback position updates */
     private unsubscribePositionUpdates: (() => void) | null = null;
 
-    readonly contentType = this.store.selectedContentType;
-    private readonly playlistService = inject(PlaylistsService);
-    private readonly downloadsService = inject(DownloadsService);
-    private readonly favoritesRefresh = createRefreshTrigger();
+    readonly contentType = this.catalog.contentType;
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     private lastInlineSaveTime = 0;
 
-    readonly limit = this.store.limit;
-    readonly pageIndex = this.store.page;
-    readonly pageSizeOptions = this.isStalker ? [14] : [10, 25, 50, 100];
-    readonly selectedCategory = this.store.getSelectedCategory;
-    readonly paginatedContent = this.store.getPaginatedContent;
-    readonly selectedCategoryTitle = computed(() => {
-        const category = this.selectedCategory();
-        if (!category) return '';
-
-        // category_name is the StalkerCategoryItem field; name is the Xtream field
-        const fromCategory =
-            category.category_name ?? category.name ?? category.title ?? '';
-        if (fromCategory) return fromCategory;
-
-        // Stalker: fall back to getSelectedCategoryName computed (looks up directly from categories array)
-        if (this.isStalker) {
-            const stalkerStore = this.store as unknown as {
-                getSelectedCategoryName?: () => string;
-            };
-            const fromStoreComputed =
-                stalkerStore.getSelectedCategoryName?.() ?? '';
-            if (fromStoreComputed) return fromStoreComputed;
-        }
-
-        return '';
-    });
-    readonly categoryItemCount = computed(() => {
-        const storeLike = this.store as unknown as CategoryStoreLike;
-
-        if (this.isStalker && typeof storeLike.totalCount === 'function') {
-            return storeLike.totalCount();
-        }
-
-        if (typeof storeLike.selectItemsFromSelectedCategory === 'function') {
-            return storeLike.selectItemsFromSelectedCategory().length;
-        }
-
-        return 0;
-    });
+    readonly limit = this.catalog.limit;
+    readonly pageIndex = this.catalog.pageIndex;
+    readonly pageSizeOptions = Array.from(this.catalog.pageSizeOptions);
+    readonly selectedCategory = this.catalog.selectedCategory;
+    readonly paginatedContent = this.catalog.paginatedContent;
+    readonly selectedCategoryTitle = this.catalog.selectedCategoryTitle;
+    readonly categoryItemCount = this.catalog.categoryItemCount;
     readonly categoryItemSubtitle = computed(() => {
         const itemCount = this.categoryItemCount();
         return `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
@@ -178,14 +152,9 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private loadedPositionsForPlaylistId: string | null = null;
 
     constructor() {
-        // Effect to load Stalker positions when playlist becomes available
         if (this.isStalker) {
             effect(() => {
-                const stalkerStore = this.store as InstanceType<
-                    typeof StalkerStore
-                >;
-                const playlist = stalkerStore.currentPlaylist();
-                const playlistId = playlist?._id;
+                const playlistId = this.catalog.playlist()?.id;
 
                 if (
                     playlistId &&
@@ -196,20 +165,15 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
                 }
             });
 
-            // Effect to load position for selected VOD item (ensures fresh data after playback)
             effect(() => {
-                const stalkerStore = this.store as InstanceType<
-                    typeof StalkerStore
-                >;
                 const item = this.selectedItem();
-                const playlist = stalkerStore.currentPlaylist();
+                const playlistId = this.catalog.playlist()?.id;
 
-                if (item && playlist?._id && this.contentType() === 'vod') {
-                    this.loadSingleVodPosition(playlist._id, Number(item.id));
+                if (item && playlistId && this.contentType() === 'vod') {
+                    this.loadSingleVodPosition(playlistId, Number(item.id));
                 }
             });
 
-            // Listen for real-time playback position updates from video player
             if (window.electron?.onPlaybackPositionUpdate) {
                 this.unsubscribePositionUpdates =
                     window.electron.onPlaybackPositionUpdate(
@@ -237,25 +201,19 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     }
 
     readonly contentWithProgress = computed(() => {
-        const items = this.store.getPaginatedContent();
+        const items = this.paginatedContent();
         if (!items) return [];
 
         if (this.isStalker) {
-            // Enrich Stalker items with progress data
             const positions = this.stalkerPositions();
             const seriesPositions = this.stalkerSeriesPositions();
             const contentType = this.contentType();
 
             return items.map((item: CategoryContentItem) => {
                 const id = Number(item.id);
-
-                // Check if this item has series/episode progress (watched episodes)
-                // This works even when is_series flag isn't set on the item
                 const hasSeriesProgress = Boolean(
                     seriesPositions.get(id)?.length
                 );
-
-                // For series content type, or items with is_series flag
                 const isSeries =
                     contentType === 'series' ||
                     item.is_series === '1' ||
@@ -263,73 +221,59 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
                 if (hasSeriesProgress) {
                     return { ...item, hasSeriesProgress: true };
-                } else if (isSeries) {
-                    return { ...item, hasSeriesProgress: false };
-                } else {
-                    // Regular VOD item
-                    const vodKey = `vod_${id}`;
-                    const vodPosition = positions.get(vodKey);
-                    const vodProgress = this.calculateProgress(vodPosition);
-                    return {
-                        ...item,
-                        progress: vodProgress,
-                        isWatched: vodProgress >= 90,
-                    };
                 }
+
+                if (isSeries) {
+                    return { ...item, hasSeriesProgress: false };
+                }
+
+                const vodKey = `vod_${id}`;
+                const vodPosition = positions.get(vodKey);
+                const vodProgress = this.calculateProgress(vodPosition);
+                return {
+                    ...item,
+                    progress: vodProgress,
+                    isWatched: vodProgress >= 90,
+                };
             });
         }
 
-        const xtreamStore = this.store as unknown as CategoryStoreLike;
-        if (!xtreamStore.getProgressPercent) return items;
-
-        return items.map((item: CategoryContentItem) => {
-            const isSeries = this.contentType() === 'series';
-            const id = Number(
-                item.xtream_id || item.series_id || item.stream_id
-            );
-
-            if (isSeries) {
-                return {
-                    ...item,
-                    hasSeriesProgress: xtreamStore.hasSeriesProgress(id),
-                };
-            } else {
-                return {
-                    ...item,
-                    progress: xtreamStore.getProgressPercent(id, 'vod'),
-                    isWatched: xtreamStore.isWatched(id, 'vod'),
-                };
-            }
-        });
+        return items.map((item: CategoryContentItem) => ({
+            ...item,
+            ...this.catalog.getItemProgress(item),
+        }));
     });
 
-    readonly isPaginatedContentLoading = this.store.isPaginatedContentLoading;
-    readonly selectedItem = this.store.selectedItem;
-    readonly totalPages = this.store.getTotalPages;
-    readonly bigStore = inject(Store);
-    readonly contentSortMode = !this.isStalker
-        ? (this.store as unknown as InstanceType<typeof XtreamStore>)
-              .contentSortMode
-        : signal<XtreamCategorySortMode>('date-desc');
+    readonly isPaginatedContentLoading =
+        this.catalog.isPaginatedContentLoading;
+    readonly selectedItem = this.catalog.selectedItem;
+    readonly totalPages = this.catalog.totalPages;
+    readonly contentSortMode = this.catalog.contentSortMode;
+    readonly selectedStalkerItem = computed<StalkerSelectedVodItem | null>(
+        () => {
+            if (!this.isStalker) {
+                return null;
+            }
+
+            return (this.selectedItem() as unknown as StalkerSelectedVodItem | null) ?? null;
+        }
+    );
 
     /** Computed VodDetailsItem for the vod-details component */
     readonly vodDetailsItem = computed<VodDetailsItem | null>(() => {
-        const item = this.selectedItem();
+        const item = this.selectedStalkerItem();
         if (!item || !this.isStalker) return null;
-        // Access currentPlaylist from the store (type-safe since we're in stalker mode)
-        const stalkerStore = this.store as unknown as {
-            currentPlaylist: () => { _id: string } | null;
-        };
+
         return createStalkerVodItem(
-            item as StalkerVodDetails,
-            stalkerStore.currentPlaylist()?._id ?? ''
+            item as unknown as StalkerVodDetails,
+            this.catalog.playlist()?.id ?? ''
         );
     });
 
     /** Playback position for the selected VOD item (Stalker) */
     readonly selectedVodPlaybackPosition = computed<number | null>(() => {
         if (!this.isStalker) return null;
-        const item = this.selectedItem();
+        const item = this.selectedStalkerItem();
         if (!item) return null;
 
         const id = Number(item.id);
@@ -341,13 +285,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
     readonly portalFavorites = createPortalFavoritesResource(
         this.playlistService,
-        () => {
-            if (!this.isStalker) return undefined;
-            const stalkerStore = this.store as InstanceType<
-                typeof StalkerStore
-            >;
-            return stalkerStore.currentPlaylist()?._id;
-        },
+        () => (this.isStalker ? this.catalog.playlist()?.id : undefined),
         () => this.favoritesRefresh.refreshVersion()
     );
 
@@ -360,60 +298,23 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
     seasons = [];
 
-    setContentSortMode(mode: XtreamCategorySortMode): void {
-        (
-            this.store as unknown as InstanceType<typeof XtreamStore>
-        ).setContentSortMode(mode);
-        localStorage.setItem(SORT_STORAGE_KEY, mode);
+    setContentSortMode(mode: PortalCatalogSortMode): void {
+        this.catalog.setContentSortMode(mode);
     }
 
     ngOnInit() {
         const { categoryId } = this.activatedRoute.snapshot.params;
-
-        // Ensure playback positions are loaded (Xtream only - Stalker is handled via effect in constructor)
-        if (!this.isStalker) {
-            const savedSortMode = localStorage.getItem(SORT_STORAGE_KEY);
-            if (
-                savedSortMode === 'date-desc' ||
-                savedSortMode === 'date-asc' ||
-                savedSortMode === 'name-asc' ||
-                savedSortMode === 'name-desc'
-            ) {
-                (
-                    this.store as unknown as InstanceType<typeof XtreamStore>
-                ).setContentSortMode(savedSortMode);
-            }
-            const xtreamStore = this.store as unknown as CategoryStoreLike;
-            const playlistId = xtreamStore.currentPlaylist?.()?.id;
-            if (playlistId) {
-                xtreamStore.loadAllPositions?.(playlistId);
-            }
-        }
-
-        // Clear any previous selectedItem when entering category view
-        // This ensures the content-header is visible
-        this.store.setSelectedItem(null);
-
-        // Set category - setSelectedCategory only resets page if category actually changes
-        // This preserves the page state when navigating back from detail view
-        if (categoryId) {
-            this.store.setSelectedCategory(categoryId);
-        } else {
-            // Stalker uses "*" as the "All" category id
-            if (this.isStalker) {
-                (
-                    this.store as InstanceType<typeof StalkerStore>
-                ).setSelectedCategory('*');
-            } else {
-                this.store.setSelectedCategory(null);
-            }
-        }
+        this.catalog.initialize(categoryId ?? null);
 
         if (this.isStalker) {
-            const storeLike = this.store as unknown as CategoryStoreLike;
+            const selectedCategory =
+                (this.selectedCategory() as CategoryContentItem | null) ?? null;
             this.logger.warn('Stalker category init from route', {
                 routeCategoryId: categoryId ?? null,
-                selectedCategoryId: storeLike.selectedCategoryId?.(),
+                selectedCategoryId:
+                    selectedCategory?.category_id ??
+                    selectedCategory?.id ??
+                    null,
                 selectedContentType: this.contentType(),
             });
         }
@@ -433,7 +334,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             const key = `${pos.contentType}_${pos.contentXtreamId}`;
             positionsMap.set(key, pos);
 
-            // Group episodes by series ID
             if (pos.contentType === 'episode' && pos.seriesXtreamId) {
                 const existing = seriesMap.get(pos.seriesXtreamId) || [];
                 existing.push(pos);
@@ -477,7 +377,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         const percent =
             (position.positionSeconds / position.durationSeconds) * 100;
 
-        // If watched > 10s but percent < 1, return 1 to show visual progress
         if (position.positionSeconds > 10 && percent < 1) {
             return 1;
         }
@@ -486,36 +385,16 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     }
 
     onPageChange(event: PageEvent) {
-        this.store.setPage(event.pageIndex);
-        this.store.setLimit(event.pageSize);
-        localStorage.setItem('xtream-page-size', event.pageSize.toString());
+        this.catalog.setPage(event.pageIndex);
+        this.catalog.setLimit(event.pageSize);
     }
 
     onItemClick(item: CategoryContentItem) {
-        const selectedItem = buildStalkerSelectedVodItem(
-            item as StalkerVodSource,
-            this.contentType() === 'vod' &&
-                (item.is_series === '1' || item.is_series === 1)
-        );
-
-        if (this.isStalker) {
-            this.store.setSelectedItem(selectedItem);
-        } else {
-            const xtreamStore = this.store as unknown as CategoryStoreLike;
-            // When viewing "Recently Added" (no category selected), include category_id in path
-            const categoryId = xtreamStore.selectedCategoryId?.();
-            if (categoryId && item.xtream_id !== undefined) {
-                this.router.navigate([item.xtream_id], {
-                    relativeTo: this.activatedRoute,
-                });
-            } else if (
-                item.category_id !== undefined &&
-                item.xtream_id !== undefined
-            ) {
-                this.router.navigate([item.category_id, item.xtream_id], {
-                    relativeTo: this.activatedRoute,
-                });
-            }
+        const navigation = this.catalog.selectItem(item);
+        if (navigation?.length) {
+            this.router.navigate(navigation, {
+                relativeTo: this.activatedRoute,
+            });
         }
     }
 
@@ -524,31 +403,30 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         title?: string,
         thumbnail?: string
     ) {
-        await this.store.createLinkToPlayVod(cmd, title, thumbnail);
+        if (!this.stalkerCatalog) {
+            return;
+        }
+
+        await this.stalkerCatalog.createLinkToPlayVod(cmd, title, thumbnail);
     }
 
     addToFavorites(item: Record<string, unknown>, onDone?: () => void) {
         this.logger.debug('Add to favorites', item);
-        if (this.isStalker) {
-            (this.store as InstanceType<typeof StalkerStore>).addToFavorites(
-                item,
-                onDone
-            );
+        if (this.stalkerCatalog) {
+            this.stalkerCatalog.addToFavorites(item, onDone);
             return;
         }
-        this.store.addToFavorites(item);
+
         onDone?.();
     }
 
     removeFromFavorites(favoriteId: string, onDone?: () => void) {
         this.logger.debug('Remove from favorites', favoriteId);
-        if (this.isStalker) {
-            (
-                this.store as InstanceType<typeof StalkerStore>
-            ).removeFromFavorites(favoriteId, onDone);
+        if (this.stalkerCatalog) {
+            this.stalkerCatalog.removeFromFavorites(favoriteId, onDone);
             return;
         }
-        this.store.removeFromFavorites(favoriteId);
+
         onDone?.();
     }
 
@@ -596,7 +474,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     /** Handle back from vod-details component */
     onVodBack(): void {
         this.closeInlinePlayer();
-        this.store.setSelectedItem(null);
+        this.catalog.clearSelectedItem();
     }
 
     handleInlineTimeUpdate(event: {
@@ -644,17 +522,15 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
     /** Handle download from vod-details component */
     async onVodDownload(item: VodDetailsItem): Promise<void> {
-        if (item.type !== 'stalker') return;
+        if (item.type !== 'stalker' || !this.stalkerCatalog) return;
 
-        const stalkerStore = this.store as InstanceType<typeof StalkerStore>;
-        const playlist = stalkerStore.currentPlaylist();
+        const playlist = this.catalog.playlist();
         if (!playlist || !playlist.portalUrl || !playlist.macAddress) return;
 
         let cmdToUse = item.cmd;
         const itemData = item.data as DownloadVodData;
         const normalizedItemId = normalizeStalkerEntityId(itemData?.id);
 
-        // Align with playback path: resolve has_files references to /media/file_{id}.mpg
         if (
             itemData?.has_files !== undefined &&
             cmdToUse &&
@@ -663,13 +539,13 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             !cmdToUse.includes('/media/file_')
         ) {
             const fileId =
-                await stalkerStore.fetchMovieFileId(normalizedItemId);
+                await this.stalkerCatalog.fetchMovieFileId(normalizedItemId);
             if (fileId) {
                 cmdToUse = `/media/file_${fileId}.mpg`;
             }
         }
 
-        const url = await stalkerStore.fetchLinkToPlay(
+        const url = await this.stalkerCatalog.fetchLinkToPlay(
             playlist.portalUrl,
             playlist.macAddress,
             cmdToUse
@@ -679,7 +555,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         const numericId = normalizeStalkerEntityIdAsNumber(itemData?.id) ?? 0;
 
         await this.downloadsService.startDownload({
-            playlistId: playlist._id,
+            playlistId: playlist.id,
             xtreamId: numericId,
             contentType: 'vod',
             title: itemData?.info?.name || itemData?.title || 'Unknown',
@@ -687,10 +563,9 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             posterUrl: itemData?.info?.movie_image,
             headers: {
                 userAgent: playlist.userAgent,
-                referer: playlist.referrer,
+                referer: playlist.referer,
                 origin: playlist.origin,
             },
-            // Playlist info for auto-creation (Stalker playlists)
             playlistName: playlist.title || 'Stalker Portal',
             playlistType: 'stalker',
             portalUrl: playlist.portalUrl,
@@ -709,16 +584,15 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         thumbnail?: string,
         startTime?: number
     ): Promise<void> {
+        if (!this.stalkerCatalog) {
+            return;
+        }
+
         try {
-            const stalkerStore = this.store as InstanceType<
-                typeof StalkerStore
-            >;
-            const playback = await stalkerStore.resolveVodPlayback(
+            const playback = await this.stalkerCatalog.resolveVodPlayback(
                 cmd,
                 title,
                 thumbnail,
-                undefined,
-                undefined,
                 startTime
             );
 
