@@ -1,0 +1,93 @@
+// ─── Shared mixin for live-stream portal layouts ──────────────────────────────
+// Used by: xtream live-stream-layout, stalker live-stream-layout,
+//           portal-collection-live-shell
+//
+// Include this mixin in a component's SCSS to get the shared flex host+sidebar
+// skeleton, then add only the component-specific rules underneath.
+//
+// Usage (after adding libs/ui/styles to stylePreprocessorOptions.includePaths):
+//   @use 'portal-layout' as portal;
+//   @include portal.live-layout;
+
+@mixin live-layout {
+    :host {
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
+        height: 100%;
+        width: 100%;
+    }
+
+    // ─── Sidebar ─────────────────────────────────────────────────────────────
+    .sidebar {
+        // Width controlled by the resizable directive at runtime
+        width: 400px;
+        min-width: 250px;
+        max-width: 600px;
+        border-right: 1px solid var(--app-separator);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        overflow: hidden;
+        position: relative;
+        container-type: inline-size;
+
+        app-category-view {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            margin-right: 2px;
+        }
+    }
+
+    // ─── Main content column ─────────────────────────────────────────────────
+    .content-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    .video-player {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+
+        > app-web-player-view {
+            flex: 1;
+            min-height: 0;
+        }
+    }
+
+    .epg {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .epg-content {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+
+        > app-epg-view {
+            flex: 1;
+            min-height: 0;
+        }
+    }
+
+    // ─── Fix artplayer sizing when nested inside .video-player ───────────────
+    ::ng-deep {
+        .video-player
+            > app-web-player-view
+            > app-art-player
+            > .artplayer-container {
+            height: 100% !important;
+            width: 100% !important;
+        }
+    }
+}

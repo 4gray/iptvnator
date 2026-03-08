@@ -1,0 +1,11 @@
+// ─── IPTVnator UI styles library ─────────────────────────────────────────────
+// Add libs/ui/styles to stylePreprocessorOptions.includePaths in project.json
+// to import these without relative paths:
+//
+//   @use 'portal-layout'  as portal;
+//   @use 'content-grid'   as grid;
+//   @use 'portal-sidebar';
+
+@forward 'portal-layout';
+@forward 'content-grid';
+@forward 'portal-sidebar';

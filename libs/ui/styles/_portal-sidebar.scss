@@ -1,0 +1,49 @@
+// ─── Shared sidebar + sidebar-header styles ───────────────────────────────────
+// Plain CSS rules (not a mixin) used for M3U/legacy sidebar layouts.
+//
+// Usage (after adding libs/ui/styles to stylePreprocessorOptions.includePaths):
+//   @use 'portal-sidebar';   (no alias needed — no exported members to call)
+
+.sidebar {
+    // Width is controlled by the resizable directive
+    // Default fallback if directive not applied
+    width: 400px;
+    min-width: 250px;
+    max-width: 600px;
+    border-right: 1px solid var(--app-separator);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; // Prevent sidebar from shrinking
+
+    .sidebar-header {
+        padding: 8px 12px;
+        background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+        border-bottom: 1px solid var(--app-separator);
+        app-region: drag;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        h2 {
+            margin: 0;
+            font-size: 0.94rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--mat-sys-on-surface);
+            flex: 1;
+        }
+
+        button {
+            app-region: no-drag;
+        }
+
+        .switcher {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .manage-categories-btn {
+            margin-left: auto;
+        }
+    }
+}
