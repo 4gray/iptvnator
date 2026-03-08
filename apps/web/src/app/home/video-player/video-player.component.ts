@@ -234,22 +234,17 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                                         })
                                     );
 
-                                    if (
-                                        playlist.favorites &&
-                                        playlist.favorites.length > 0
-                                    ) {
-                                        this.store.dispatch(
-                                            FavoritesActions.setFavorites({
-                                                channelIds: playlist.favorites,
-                                            })
-                                        );
-                                    } else {
-                                        this.store.dispatch(
-                                            FavoritesActions.setFavorites({
-                                                channelIds: [],
-                                            })
-                                        );
-                                    }
+                                    const stringFavs = (
+                                        playlist.favorites ?? []
+                                    ).filter(
+                                        (f): f is string =>
+                                            typeof f === 'string'
+                                    );
+                                    this.store.dispatch(
+                                        FavoritesActions.setFavorites({
+                                            channelIds: stringFavs,
+                                        })
+                                    );
                                 })
                             );
                     } else if (params['id']) {
@@ -280,23 +275,17 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                                     );
 
                                     // Load favorites from the playlist
-                                    if (
-                                        playlist.favorites &&
-                                        playlist.favorites.length > 0
-                                    ) {
-                                        this.store.dispatch(
-                                            FavoritesActions.setFavorites({
-                                                channelIds: playlist.favorites,
-                                            })
-                                        );
-                                    } else {
-                                        // Clear favorites if playlist has none
-                                        this.store.dispatch(
-                                            FavoritesActions.setFavorites({
-                                                channelIds: [],
-                                            })
-                                        );
-                                    }
+                                    const stringFavs = (
+                                        playlist.favorites ?? []
+                                    ).filter(
+                                        (f): f is string =>
+                                            typeof f === 'string'
+                                    );
+                                    this.store.dispatch(
+                                        FavoritesActions.setFavorites({
+                                            channelIds: stringFavs,
+                                        })
+                                    );
                                 })
                             );
                     }

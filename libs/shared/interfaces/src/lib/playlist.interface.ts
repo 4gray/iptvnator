@@ -1,3 +1,5 @@
+import { StalkerPortalItem } from './stalker-portal-item.interface';
+
 /**
  * An interface that describe the possible states of the playlist update/refresh process
  */
@@ -17,7 +19,11 @@ export interface Playlist {
     playlist?: any;
     importDate: string;
     lastUsage: string;
-    favorites?: string[];
+    /**
+     * M3U playlists store channel URL strings (`string[]`).
+     * Stalker portals store full item objects (`StalkerPortalItem[]`).
+     */
+    favorites?: (string | StalkerPortalItem)[];
     items?: unknown[];
     header?: unknown;
     count: number;

@@ -81,17 +81,6 @@
             </button>
         </label>
 
-        @if (externalPlaybackSession(); as session) {
-            <div class="header-now-playing">
-                <app-external-playback-dock
-                    [session]="session"
-                    [compact]="true"
-                    (closeClicked)="closeActiveExternalSession()"
-                    (dismissClicked)="dismissActiveExternalSession()"
-                />
-            </div>
-        }
-
         <div class="header-actions">
             <button
                 type="button"
@@ -165,32 +154,8 @@
                 }
 
                 @if (
-                    contextActionGroups().hasPlaylistActions &&
-                    (contextActionGroups().hasSectionActions ||
-                        contextActionGroups().hasCleanupActions)
-                ) {
-                    <mat-divider />
-                }
-
-                @if (contextActionGroups().hasSectionActions) {
-                    @if (canManageCategories()) {
-                        <button mat-menu-item (click)="openManageCategories()">
-                            <mat-icon>tune</mat-icon>
-                            <span>Manage categories (this section)</span>
-                        </button>
-                    }
-                    @if (canSort()) {
-                        <button mat-menu-item [matMenuTriggerFor]="sortMenu">
-                            <mat-icon>sort</mat-icon>
-                            <span>Sort content (this section)</span>
-                        </button>
-                    }
-                }
-
-                @if (
                     contextActionGroups().hasCleanupActions &&
-                    (contextActionGroups().hasPlaylistActions ||
-                        contextActionGroups().hasSectionActions)
+                    contextActionGroups().hasPlaylistActions
                 ) {
                     <mat-divider />
                 }
@@ -207,33 +172,6 @@
                     </button>
                 }
             }
-        </mat-menu>
-
-        <mat-menu #sortMenu="matMenu">
-            <button mat-menu-item (click)="setContentSortMode('date-desc')">
-                <span>{{ 'WORKSPACE.SORT_DATE_DESC' | translate }}</span>
-                @if (contentSortMode() === 'date-desc') {
-                    <mat-icon>check</mat-icon>
-                }
-            </button>
-            <button mat-menu-item (click)="setContentSortMode('date-asc')">
-                <span>{{ 'WORKSPACE.SORT_DATE_ASC' | translate }}</span>
-                @if (contentSortMode() === 'date-asc') {
-                    <mat-icon>check</mat-icon>
-                }
-            </button>
-            <button mat-menu-item (click)="setContentSortMode('name-asc')">
-                <span>{{ 'WORKSPACE.SORT_NAME_ASC' | translate }}</span>
-                @if (contentSortMode() === 'name-asc') {
-                    <mat-icon>check</mat-icon>
-                }
-            </button>
-            <button mat-menu-item (click)="setContentSortMode('name-desc')">
-                <span>{{ 'WORKSPACE.SORT_NAME_DESC' | translate }}</span>
-                @if (contentSortMode() === 'name-desc') {
-                    <mat-icon>check</mat-icon>
-                }
-            </button>
         </mat-menu>
     </header>
 

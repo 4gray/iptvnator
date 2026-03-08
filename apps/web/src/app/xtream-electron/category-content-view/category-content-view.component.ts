@@ -7,8 +7,12 @@ import {
     OnInit,
     signal,
 } from '@angular/core';
+import { MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -39,8 +43,11 @@ import {
 } from '../../stalker/stalker-vod.utils';
 import { StalkerStore } from '../../stalker/stalker.store';
 import { XTREAM_DATA_SOURCE } from '../data-sources';
+import { XtreamCategorySortMode } from '../stores/features/with-selection.feature';
 import { XtreamStore } from '../stores/xtream.store';
 import { VodDetailsComponent } from '../vod-details/vod-details.component';
+
+const SORT_STORAGE_KEY = 'xtream-category-sort-mode';
 
 interface CategoryContentItem {
     id?: number | string;
@@ -79,7 +86,11 @@ interface DownloadVodData {
     styleUrls: ['./category-content-view.component.scss'],
     imports: [
         GridListComponent,
+        MatIcon,
+        MatIconButton,
+        MatMenuModule,
         MatPaginatorModule,
+        MatTooltip,
         PlaylistErrorViewComponent,
         StalkerSeriesViewComponent,
         TranslatePipe,
@@ -296,6 +307,10 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly selectedItem = this.store.selectedItem;
     readonly totalPages = this.store.getTotalPages;
     readonly bigStore = inject(Store);
+    readonly contentSortMode = !this.isStalker
+        ? (this.store as unknown as InstanceType<typeof XtreamStore>)
+              .contentSortMode
+        : signal<XtreamCategorySortMode>('date-desc');
 
     /** Computed VodDetailsItem for the vod-details component */
     readonly vodDetailsItem = computed<VodDetailsItem | null>(() => {
@@ -345,11 +360,29 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
     seasons = [];
 
+    setContentSortMode(mode: XtreamCategorySortMode): void {
+        (
+            this.store as unknown as InstanceType<typeof XtreamStore>
+        ).setContentSortMode(mode);
+        localStorage.setItem(SORT_STORAGE_KEY, mode);
+    }
+
     ngOnInit() {
         const { categoryId } = this.activatedRoute.snapshot.params;
 
         // Ensure playback positions are loaded (Xtream only - Stalker is handled via effect in constructor)
         if (!this.isStalker) {
+            const savedSortMode = localStorage.getItem(SORT_STORAGE_KEY);
+            if (
+                savedSortMode === 'date-desc' ||
+                savedSortMode === 'date-asc' ||
+                savedSortMode === 'name-asc' ||
+                savedSortMode === 'name-desc'
+            ) {
+                (
+                    this.store as unknown as InstanceType<typeof XtreamStore>
+                ).setContentSortMode(savedSortMode);
+            }
             const xtreamStore = this.store as unknown as CategoryStoreLike;
             const playlistId = xtreamStore.currentPlaylist?.()?.id;
             if (playlistId) {
@@ -677,7 +710,9 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         startTime?: number
     ): Promise<void> {
         try {
-            const stalkerStore = this.store as InstanceType<typeof StalkerStore>;
+            const stalkerStore = this.store as InstanceType<
+                typeof StalkerStore
+            >;
             const playback = await stalkerStore.resolveVodPlayback(
                 cmd,
                 title,
@@ -698,8 +733,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         } catch (error) {
             this.logger.error('Failed to start inline VOD playback', error);
             const errorMessage =
-                error instanceof Error &&
-                error.message === 'nothing_to_play'
+                error instanceof Error && error.message === 'nothing_to_play'
                     ? this.translateService.instant(
                           'PORTALS.CONTENT_NOT_AVAILABLE'
                       )

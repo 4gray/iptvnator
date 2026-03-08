@@ -137,7 +137,9 @@ export const selectFavorites = createSelector(
             data.selectedId &&
             data.entities[data.selectedId]
         ) {
-            return data.entities[data.selectedId]?.favorites || [];
+            return (data.entities[data.selectedId]?.favorites || []).filter(
+                (f): f is string => typeof f === 'string'
+            );
         } else return [];
     }
 );

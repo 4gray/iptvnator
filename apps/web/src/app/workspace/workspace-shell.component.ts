@@ -9,8 +9,8 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog } from '@angular/material/dialog';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -21,7 +21,6 @@ import {
     RouterOutlet,
 } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslatePipe } from '@ngx-translate/core';
 import {
     AddPlaylistMenuComponent,
     PlaylistInfoComponent,
@@ -47,13 +46,8 @@ import {
 } from '../shared/navigation/portal-rail-links';
 import { PortalRailLinksComponent } from '../shared/navigation/portal-rail-links.component';
 import { AccountInfoComponent } from '../xtream-electron/account-info/account-info.component';
-import {
-    CategoryManagementDialogComponent,
-    CategoryManagementDialogData,
-} from '../xtream-electron/category-management-dialog/category-management-dialog.component';
 import { GlobalRecentlyViewedComponent } from '../xtream-electron/recently-viewed/global-recently-viewed.component';
 import { GlobalSearchResultsComponent } from '../xtream-electron/search-results/global-search-results.component';
-import { XtreamCategorySortMode } from '../xtream-electron/stores/features/with-selection.feature';
 import { XtreamStore } from '../xtream-electron/stores/xtream.store';
 import { FavoritesContextService } from './favorites-context.service';
 import { SettingsContextService } from './settings-context.service';
@@ -85,7 +79,6 @@ interface WorkspaceContextActionGroup {
     hasCleanupActions: boolean;
 }
 
-const XTREAM_CATEGORY_SORT_STORAGE_KEY = 'xtream-category-sort-mode';
 const SEARCH_INPUT_DEBOUNCE_MS = 350;
 
 @Component({
@@ -99,7 +92,6 @@ const SEARCH_INPUT_DEBOUNCE_MS = 350;
         AddPlaylistMenuComponent,
         ExternalPlaybackDockComponent,
         PlaylistSwitcherComponent,
-        TranslatePipe,
         RouterLink,
         RouterOutlet,
         WorkspaceContextPanelComponent,
@@ -352,21 +344,6 @@ export class WorkspaceShellComponent {
 
         return 'Search in this playlist...';
     });
-    readonly canSort = computed(() => {
-        const context = this.currentContext();
-        const section = this.currentSection();
-        return context?.provider === 'xtreams'
-            ? section === 'vod' || section === 'series'
-            : false;
-    });
-    readonly contentSortMode = this.xtreamStore.contentSortMode;
-    readonly contentSortLabel = computed(() => {
-        const mode = this.contentSortMode();
-        if (mode === 'date-asc') return 'Date Added (Oldest First)';
-        if (mode === 'name-asc') return 'Name A-Z';
-        if (mode === 'name-desc') return 'Name Z-A';
-        return 'Date Added (Latest First)';
-    });
     readonly primaryContextLinks = computed<PortalRailLink[]>(() => {
         const context = this.railContext();
         if (!context) return [];
@@ -398,14 +375,6 @@ export class WorkspaceShellComponent {
     readonly canOpenAccountInfo = computed(() =>
         Boolean(this.activePlaylist()?.serverUrl)
     );
-    readonly canManageCategories = computed(() => {
-        const context = this.currentContext();
-        const section = this.currentSection();
-        return (
-            context?.provider === 'xtreams' &&
-            (section === 'vod' || section === 'series' || section === 'live')
-        );
-    });
     readonly headerBulkAction = computed<WorkspaceHeaderBulkAction | null>(
         () => {
             const context = this.currentContext();
@@ -469,7 +438,7 @@ export class WorkspaceShellComponent {
     readonly contextActionGroups = computed<WorkspaceContextActionGroup>(() => {
         const hasPlaylistActions =
             this.canOpenPlaylistInfo() || this.canOpenAccountInfo();
-        const hasSectionActions = this.canManageCategories() || this.canSort();
+        const hasSectionActions = false;
         const hasCleanupActions = Boolean(this.headerBulkAction());
         return {
             hasPlaylistActions,
@@ -497,18 +466,6 @@ export class WorkspaceShellComponent {
         });
 
         document.addEventListener('keydown', this.onDocumentKeydown);
-
-        const savedSortMode = localStorage.getItem(
-            XTREAM_CATEGORY_SORT_STORAGE_KEY
-        );
-        if (
-            savedSortMode === 'date-desc' ||
-            savedSortMode === 'date-asc' ||
-            savedSortMode === 'name-asc' ||
-            savedSortMode === 'name-desc'
-        ) {
-            this.xtreamStore.setContentSortMode(savedSortMode);
-        }
 
         this.router.events
             .pipe(
@@ -700,48 +657,6 @@ export class WorkspaceShellComponent {
         }
     }
 
-    openManageCategories(): void {
-        const context = this.currentContext();
-        const section = this.currentSection();
-        if (
-            !context ||
-            context.provider !== 'xtreams' ||
-            (section !== 'vod' && section !== 'series' && section !== 'live')
-        ) {
-            return;
-        }
-
-        const contentType =
-            section === 'series'
-                ? 'series'
-                : section === 'live'
-                  ? 'live'
-                  : 'vod';
-
-        const dialogRef = this.dialog.open<
-            CategoryManagementDialogComponent,
-            CategoryManagementDialogData,
-            boolean
-        >(CategoryManagementDialogComponent, {
-            data: {
-                playlistId: context.playlistId,
-                contentType,
-                itemCounts: this.xtreamStore.getCategoryItemCounts(),
-            },
-            width: '500px',
-            maxHeight: '80vh',
-        });
-
-        dialogRef
-            .afterClosed()
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe((result) => {
-                if (result) {
-                    this.xtreamStore.reloadCategories();
-                }
-            });
-    }
-
     openDownloadsShortcut(): void {
         this.router.navigate(['/workspace/downloads']);
     }
@@ -797,11 +712,6 @@ export class WorkspaceShellComponent {
                 seriesCount: this.xtreamStore.serialStreams().length,
             },
         });
-    }
-
-    setContentSortMode(mode: XtreamCategorySortMode): void {
-        this.xtreamStore.setContentSortMode(mode);
-        localStorage.setItem(XTREAM_CATEGORY_SORT_STORAGE_KEY, mode);
     }
 
     private getCommandPaletteItems(): WorkspaceCommandItem[] {

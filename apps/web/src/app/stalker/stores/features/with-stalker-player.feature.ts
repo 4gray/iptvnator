@@ -11,6 +11,7 @@ import {
     ResolvedPortalPlayback,
     STALKER_REQUEST,
     StalkerPortalActions,
+    StalkerPortalItem,
 } from 'shared-interfaces';
 import { PlayerService } from '../../../services/player.service';
 import { createLogger } from '../../../shared/utils/logger';
@@ -28,8 +29,7 @@ import {
 
 type StalkerContentType = 'itv' | 'vod' | 'series';
 
-interface StalkerPlayableItem {
-    id?: string | number;
+interface StalkerPlayableItem extends StalkerPortalItem {
     cmd?: string;
     has_files?: unknown;
 }
@@ -363,27 +363,15 @@ export function withStalkerPlayer() {
                         storeState.addToRecentlyViewed({
                             ...item,
                             id: item.id,
-                            cover:
-                                (item as { logo?: string }).logo ??
-                                (item as { cover?: string }).cover,
-                            title:
-                                (item as { o_name?: string }).o_name ||
-                                (item as { name?: string }).name ||
-                                (item as { title?: string }).title,
+                            cover: item.logo ?? item.cover,
+                            title: item.o_name || item.name || item.title,
                         });
                     }
 
                     return {
                         streamUrl,
-                        title:
-                            (item as { o_name?: string }).o_name ||
-                            (item as { name?: string }).name ||
-                            (item as { title?: string }).title ||
-                            '',
-                        thumbnail:
-                            (item as { logo?: string }).logo ??
-                            (item as { cover?: string }).cover ??
-                            null,
+                        title: item.o_name || item.name || item.title || '',
+                        thumbnail: item.logo ?? item.cover ?? null,
                         headers,
                         userAgent:
                             headers['User-Agent'] ||

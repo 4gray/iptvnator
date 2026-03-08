@@ -162,13 +162,6 @@
     app-region: drag;
 }
 
-.header-now-playing {
-    display: none;
-    min-width: 0;
-    flex: 0 1 280px;
-    app-region: no-drag;
-}
-
 .playlist-switcher {
     width: min(260px, 32vw);
     flex-shrink: 0;
@@ -448,23 +441,9 @@
 
 // ─── Responsive ───────────────────────────────────────────────────────────────
 @media (max-width: 960px) {
-    .header-now-playing {
-        display: block;
-    }
-
-    .workspace-now-playing {
-        display: none;
-    }
-
     .search-field {
         min-width: 120px;
         flex: 1 1 150px;
-    }
-}
-
-@media (min-width: 961px) {
-    .workspace-now-playing {
-        display: block;
     }
 }
 
@@ -491,7 +470,7 @@
 @media (max-width: 640px) {
     .workspace-shell {
         grid-template-columns: 1fr;
-        grid-template-rows: 52px 56px 1fr;
+        grid-template-rows: 52px 56px minmax(0, 1fr) auto;
     }
 
     .app-rail {
@@ -535,6 +514,7 @@
     }
 
     .workspace-now-playing {
-        display: none;
+        grid-column: 1;
+        grid-row: 4;
     }
 }

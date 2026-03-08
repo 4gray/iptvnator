@@ -23,7 +23,7 @@
 .context-header__top {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
     gap: 8px;
 
     h2 {
@@ -32,6 +32,20 @@
         font-weight: 600;
         letter-spacing: -0.01em;
         color: var(--mat-sys-on-surface);
+    }
+}
+
+.context-header__action {
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    flex-shrink: 0;
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: var(--mat-sys-on-surface-variant);
     }
 }
 

@@ -13,12 +13,15 @@
 .category-item {
     cursor: pointer;
     width: auto;
-    transition: all 0.2s ease;
 
     .item-count {
         opacity: 0.6;
         font-size: 0.85em;
         margin-left: 4px;
+    }
+
+    &:hover:not(.category-item--selected) {
+        background: var(--app-selection-surface);
     }
 }
 

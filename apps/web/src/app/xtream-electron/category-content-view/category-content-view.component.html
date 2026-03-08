@@ -33,11 +33,71 @@
         <div class="category-content-layout">
             <div class="category-content-header">
                 <div class="category-meta">
-                    <h2 class="category-title">{{ selectedCategoryTitle() }}</h2>
+                    <h2 class="category-title">
+                        {{ selectedCategoryTitle() }}
+                    </h2>
                     <div class="category-subtitle">
                         {{ categoryItemSubtitle() }}
                     </div>
                 </div>
+                @if (!isStalker) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="sort-action"
+                        [matMenuTriggerFor]="sortContentMenu"
+                        matTooltip="Sort content"
+                        aria-label="Sort content"
+                    >
+                        <mat-icon>sort</mat-icon>
+                    </button>
+                    <mat-menu #sortContentMenu="matMenu">
+                        <button
+                            mat-menu-item
+                            (click)="setContentSortMode('date-desc')"
+                        >
+                            <span>{{
+                                'WORKSPACE.SORT_DATE_DESC' | translate
+                            }}</span>
+                            @if (contentSortMode() === 'date-desc') {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                        <button
+                            mat-menu-item
+                            (click)="setContentSortMode('date-asc')"
+                        >
+                            <span>{{
+                                'WORKSPACE.SORT_DATE_ASC' | translate
+                            }}</span>
+                            @if (contentSortMode() === 'date-asc') {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                        <button
+                            mat-menu-item
+                            (click)="setContentSortMode('name-asc')"
+                        >
+                            <span>{{
+                                'WORKSPACE.SORT_NAME_ASC' | translate
+                            }}</span>
+                            @if (contentSortMode() === 'name-asc') {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                        <button
+                            mat-menu-item
+                            (click)="setContentSortMode('name-desc')"
+                        >
+                            <span>{{
+                                'WORKSPACE.SORT_NAME_DESC' | translate
+                            }}</span>
+                            @if (contentSortMode() === 'name-desc') {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                    </mat-menu>
+                }
                 @if (categoryItemCount() > 0) {
                     <mat-paginator
                         [pageIndex]="pageIndex()"

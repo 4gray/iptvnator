@@ -1,9 +1,18 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, DestroyRef, inject, input } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatIconButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { CategoryViewComponent } from '../shared/components/category-view/category-view.component';
 import { PlaylistErrorViewComponent } from '../shared/components/playlist-error-view/playlist-error-view.component';
-import { XtreamStore } from '../xtream-electron/stores/xtream.store';
 import { StalkerStore } from '../stalker/stalker.store';
+import {
+    CategoryManagementDialogComponent,
+    CategoryManagementDialogData,
+} from '../xtream-electron/category-management-dialog/category-management-dialog.component';
+import { XtreamStore } from '../xtream-electron/stores/xtream.store';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
 
@@ -19,7 +28,13 @@ interface XtreamCategoryLike {
 
 @Component({
     selector: 'app-workspace-context-panel',
-    imports: [CategoryViewComponent, PlaylistErrorViewComponent],
+    imports: [
+        CategoryViewComponent,
+        PlaylistErrorViewComponent,
+        MatIconButton,
+        MatIcon,
+        MatTooltip,
+    ],
     templateUrl: './workspace-context-panel.component.html',
     styleUrl: './workspace-context-panel.component.scss',
 })
@@ -27,6 +42,8 @@ export class WorkspaceContextPanelComponent {
     private readonly router = inject(Router);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly dialog = inject(MatDialog);
+    private readonly destroyRef = inject(DestroyRef);
 
     readonly context = input.required<WorkspaceContextRoute>();
     readonly section = input.required<string>();
@@ -86,6 +103,40 @@ export class WorkspaceContextPanelComponent {
         }
         return '';
     });
+
+    openManageCategories(): void {
+        const context = this.context();
+        const section = this.section();
+        const contentType =
+            section === 'series'
+                ? 'series'
+                : section === 'live'
+                  ? 'live'
+                  : 'vod';
+
+        const dialogRef = this.dialog.open<
+            CategoryManagementDialogComponent,
+            CategoryManagementDialogData,
+            boolean
+        >(CategoryManagementDialogComponent, {
+            data: {
+                playlistId: context.playlistId,
+                contentType,
+                itemCounts: this.xtreamStore.getCategoryItemCounts(),
+            },
+            width: '500px',
+            maxHeight: '80vh',
+        });
+
+        dialogRef
+            .afterClosed()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((result) => {
+                if (result) {
+                    this.xtreamStore.reloadCategories();
+                }
+            });
+    }
 
     onXtreamCategoryClicked(category: XtreamCategoryLike): void {
         const context = this.context();
