@@ -3,7 +3,6 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { DashboardWidgetConfig } from 'workspace-dashboard-data-access';
 import { ContinueWatchingWidgetComponent } from './widgets/continue-watching-widget.component';
 import { GlobalFavoritesWidgetComponent } from './widgets/global-favorites-widget.component';
-import { OnAirWidgetComponent } from './widgets/on-air-widget.component';
 import { RecentlyWatchedWidgetComponent } from './widgets/recently-watched-widget.component';
 import { SourceStatsWidgetComponent } from './widgets/source-stats-widget.component';
 
@@ -12,7 +11,6 @@ import { SourceStatsWidgetComponent } from './widgets/source-stats-widget.compon
     imports: [
         ContinueWatchingWidgetComponent,
         GlobalFavoritesWidgetComponent,
-        OnAirWidgetComponent,
         RecentlyWatchedWidgetComponent,
         SourceStatsWidgetComponent,
         TranslatePipe,

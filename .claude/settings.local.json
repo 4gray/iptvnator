@@ -1,37 +1,38 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(tree:*)",
-      "WebSearch",
-      "WebFetch(domain:www.electronjs.org)",
-      "Bash(npm run build:frontend:*)",
-      "Bash(cat:*)",
-      "Bash(npx asar:*)",
-      "Bash(npm run package:app:*)",
-      "Bash(npm run build:backend:*)",
-      "Bash(pnpm add:*)",
-      "WebFetch(domain:github.com)",
-      "WebFetch(domain:www.npmjs.com)",
-      "Skill(example-skills:frontend-design)",
-      "Bash(npm run test:frontend:*)",
-      "Bash(nx lint:*)",
-      "Bash(npx tsc:*)",
-      "Bash(find:*)",
-      "Bash(xargs sed:*)",
-      "Skill(frontend-design)",
-      "mcp__angular-cli__get_best_practices",
-      "mcp__nx-mcp__nx_workspace",
-      "Bash(grep:*)",
-      "Bash(npx nx lint:*)",
-      "Bash(npx nx build:*)",
-      "Bash(npx eslint:*)",
-      "Bash(npx nx run:*)"
-    ],
-    "deny": [],
-    "ask": []
-  },
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "nx-mcp"
-  ]
+    "permissions": {
+        "allow": [
+            "Bash(tree:*)",
+            "WebSearch",
+            "WebFetch(domain:www.electronjs.org)",
+            "Bash(npm run build:frontend:*)",
+            "Bash(cat:*)",
+            "Bash(npx asar:*)",
+            "Bash(npm run package:app:*)",
+            "Bash(npm run build:backend:*)",
+            "Bash(pnpm add:*)",
+            "WebFetch(domain:github.com)",
+            "WebFetch(domain:www.npmjs.com)",
+            "Skill(example-skills:frontend-design)",
+            "Bash(npm run test:frontend:*)",
+            "Bash(nx lint:*)",
+            "Bash(npx tsc:*)",
+            "Bash(find:*)",
+            "Bash(xargs sed:*)",
+            "Skill(frontend-design)",
+            "mcp__angular-cli__get_best_practices",
+            "mcp__nx-mcp__nx_workspace",
+            "Bash(grep:*)",
+            "Bash(npx nx lint:*)",
+            "Bash(npx nx build:*)",
+            "Bash(npx eslint:*)",
+            "Bash(npx nx run:*)",
+            "Bash(lsof:*)",
+            "Bash(xargs kill:*)",
+            "Bash(curl:*)"
+        ],
+        "deny": [],
+        "ask": []
+    },
+    "enableAllProjectMcpServers": true,
+    "enabledMcpjsonServers": ["nx-mcp"]
 }

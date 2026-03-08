@@ -75,10 +75,6 @@ declare global {
                 searchTerm: string,
                 limit?: number
             ) => Promise<any[]>;
-            getNowPlayingPrograms: (options?: {
-                category?: string;
-                limit?: number;
-            }) => Promise<any[]>;
             updateSettings: (settings: any) => Promise<void>;
             getAiSettings: () => Promise<{
                 aiProvider: string;

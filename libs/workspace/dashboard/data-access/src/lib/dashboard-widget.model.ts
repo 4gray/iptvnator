@@ -1,7 +1,6 @@
 export type DashboardWidgetType =
     | 'source-stats'
     | 'continue-watching'
-    | 'on-air'
     | 'recently-watched'
     | 'global-favorites';
 
@@ -75,15 +74,6 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
         size: 'full',
         enabled: true,
         order: 2,
-    },
-    {
-        id: 'on-air',
-        type: 'on-air',
-        title: 'On Air Now',
-        description: 'Live programs currently airing across your EPG channels.',
-        size: 'full',
-        enabled: true,
-        order: 3,
     },
     {
         id: 'recently-watched',

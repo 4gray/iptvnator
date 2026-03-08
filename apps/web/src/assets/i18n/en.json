@@ -587,17 +587,6 @@
             "TYPE_LIVE": "Live",
             "TYPE_MOVIE": "Movie",
             "TYPE_SERIES": "Series",
-            "ON_AIR_EYEBROW": "On Air",
-            "ON_AIR_TITLE": "Currently Airing",
-            "ON_AIR_EMPTY": "No EPG data available",
-            "ON_AIR_EMPTY_HINT": "Load an EPG source in Settings to see what's on right now.",
-            "ON_AIR_EMPTY_FILTER": "No programs match this category.",
-            "ON_AIR_ADD_EPG": "Add EPG Source",
-            "ON_AIR_CAT_ALL": "All",
-            "ON_AIR_CAT_SPORTS": "Sports",
-            "ON_AIR_CAT_NEWS": "News",
-            "ON_AIR_CAT_MOVIES": "Movies",
-            "ON_AIR_CAT_KIDS": "Kids",
             "MIN_LEFT": "min left"
         }
     }

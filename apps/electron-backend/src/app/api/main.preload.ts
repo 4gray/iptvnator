@@ -177,8 +177,6 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('EPG_CHECK_FRESHNESS', { urls, maxAgeHours }),
     searchEpgPrograms: (searchTerm: string, limit?: number) =>
         ipcRenderer.invoke('EPG_DB_SEARCH_PROGRAMS', searchTerm, limit),
-    getNowPlayingPrograms: (options?: { category?: string; limit?: number }) =>
-        ipcRenderer.invoke('EPG_DB_GET_NOW_PLAYING', options ?? {}),
     setMpvPlayerPath: (mpvPlayerPath: string) =>
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
     setVlcPlayerPath: (vlcPlayerPath: string) =>
