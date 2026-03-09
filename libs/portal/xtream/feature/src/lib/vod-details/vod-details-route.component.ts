@@ -12,7 +12,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { ContentHeroComponent, PortalInlinePlayerComponent } from 'components';
+import { ContentHeroComponent } from 'components';
 import { SafePipe } from '@iptvnator/pipes';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
@@ -22,6 +22,7 @@ import {
     getPortalPlaybackProgressPercent,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { DownloadsService, SettingsStore } from 'services';
 import {
     PlaybackPositionData,

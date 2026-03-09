@@ -21,7 +21,6 @@ import {
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import groupBy from 'lodash/groupBy';
 import { DatabaseService } from 'services';
 import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
@@ -38,6 +37,22 @@ import { ContentType } from '@iptvnator/portal/xtream/data-access';
 interface SearchResultsData {
     isGlobalSearch: boolean;
     initialQuery?: string;
+}
+
+function groupResultsByPlaylistName(
+    items: XtreamContentItem[]
+): Record<string, XtreamContentItem[]> {
+    return items.reduce<Record<string, XtreamContentItem[]>>(
+        (groups, item) => {
+            const key = String(item.playlist_name);
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(item);
+            return groups;
+        },
+        {}
+    );
 }
 
 @Component({
@@ -121,7 +136,7 @@ export class SearchResultsComponent implements AfterViewInit {
     readonly groupedResults = computed(() => {
         const results = this.xtreamStore.searchResults();
         if (!this.isGlobalSearch) return { default: results };
-        return groupBy(results, 'playlist_name');
+        return groupResultsByPlaylistName(results);
     });
 
     constructor(

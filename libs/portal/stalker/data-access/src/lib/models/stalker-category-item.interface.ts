@@ -1,4 +1,5 @@
 export interface StalkerCategoryItem {
     category_id: string;
     category_name: string;
+    [key: string]: unknown;
 }

@@ -22,13 +22,15 @@ import {
 } from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
-    AddPlaylistMenuComponent,
     ExternalPlaybackDockComponent,
+    ResizableDirective,
+} from 'components';
+import {
+    AddPlaylistMenuComponent,
     PlaylistInfoComponent,
     PlaylistSwitcherComponent,
     PlaylistType,
-    ResizableDirective,
-} from 'components';
+} from '@iptvnator/playlist/shared/ui';
 import {
     selectActivePlaylist,
     selectAllPlaylistsMeta,

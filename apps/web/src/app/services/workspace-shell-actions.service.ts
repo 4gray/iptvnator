@@ -1,12 +1,6 @@
 import { inject, Injectable, Provider } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { AddPlaylistDialogComponent } from '@iptvnator/playlist/import/feature';
-import {
-    AccountInfoComponent,
-    GlobalRecentlyViewedComponent,
-    GlobalSearchResultsComponent,
-} from '@iptvnator/portal/xtream/feature';
-import { PlaylistType } from 'components';
+import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspaceAccountInfoData,
@@ -18,44 +12,60 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
     private readonly dialog = inject(MatDialog);
 
     openAddPlaylistDialog(type: PlaylistType): void {
-        this.dialog.open(AddPlaylistDialogComponent, {
-            width: '600px',
-            data: { type },
-        });
+        void import('@iptvnator/playlist/import/feature').then(
+            ({ AddPlaylistDialogComponent }) => {
+                this.dialog.open(AddPlaylistDialogComponent, {
+                    width: '600px',
+                    data: { type },
+                });
+            }
+        );
     }
 
     openGlobalSearch(initialQuery = ''): void {
-        this.dialog.open(GlobalSearchResultsComponent, {
-            width: '100%',
-            height: '100%',
-            maxWidth: '100%',
-            panelClass: 'global-search-overlay',
-            data: {
-                isGlobalSearch: true,
-                initialQuery,
-            },
-        });
+        void import('@iptvnator/portal/xtream/feature').then(
+            ({ GlobalSearchResultsComponent }) => {
+                this.dialog.open(GlobalSearchResultsComponent, {
+                    width: '100%',
+                    height: '100%',
+                    maxWidth: '100%',
+                    panelClass: 'global-search-overlay',
+                    data: {
+                        isGlobalSearch: true,
+                        initialQuery,
+                    },
+                });
+            }
+        );
     }
 
     openGlobalRecent(): void {
-        this.dialog.open(GlobalRecentlyViewedComponent, {
-            width: '100%',
-            height: '100%',
-            maxWidth: '100%',
-            panelClass: 'global-search-overlay',
-            data: { isGlobal: true },
-            hasBackdrop: true,
-            disableClose: false,
-        });
+        void import('@iptvnator/portal/xtream/feature').then(
+            ({ GlobalRecentlyViewedComponent }) => {
+                this.dialog.open(GlobalRecentlyViewedComponent, {
+                    width: '100%',
+                    height: '100%',
+                    maxWidth: '100%',
+                    panelClass: 'global-search-overlay',
+                    data: { isGlobal: true },
+                    hasBackdrop: true,
+                    disableClose: false,
+                });
+            }
+        );
     }
 
     openAccountInfo(data: WorkspaceAccountInfoData): void {
-        this.dialog.open(AccountInfoComponent, {
-            width: '80%',
-            maxWidth: '1200px',
-            maxHeight: '90vh',
-            data,
-        });
+        void import('@iptvnator/portal/xtream/feature').then(
+            ({ AccountInfoComponent }) => {
+                this.dialog.open(AccountInfoComponent, {
+                    width: '80%',
+                    maxWidth: '1200px',
+                    maxHeight: '90vh',
+                    data,
+                });
+            }
+        );
     }
 }
 

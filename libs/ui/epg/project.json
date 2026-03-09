@@ -1,0 +1,13 @@
+{
+    "name": "ui-epg",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/ui/epg/src",
+    "prefix": "lib",
+    "projectType": "library",
+    "tags": ["scope:shared", "domain:playback", "type:ui"],
+    "targets": {
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}

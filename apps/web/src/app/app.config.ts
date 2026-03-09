@@ -24,7 +24,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
-import { PLAYLIST_PLAYER_ACTIONS } from '@iptvnator/playlist/m3u/feature-player';
+import { PLAYLIST_PLAYER_ACTIONS } from '@iptvnator/playlist/shared/util';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import { DataService } from 'services';
 import { dbConfig } from 'shared-interfaces';

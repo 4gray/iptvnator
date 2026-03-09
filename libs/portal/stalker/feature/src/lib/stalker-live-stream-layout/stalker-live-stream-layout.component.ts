@@ -23,10 +23,10 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     ChannelListItemComponent,
-    PlaylistSwitcherComponent,
     ResizableDirective,
 } from 'components';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
+import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { PlaylistsService } from 'services';
 import { EpgItem, EpgProgram } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';

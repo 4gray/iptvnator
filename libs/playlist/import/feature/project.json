@@ -4,7 +4,7 @@
     "sourceRoot": "libs/playlist/import/feature/src",
     "prefix": "lib",
     "projectType": "library",
-    "tags": ["scope:playlist", "domain:m3u", "type:feature"],
+    "tags": ["scope:playlist", "domain:playlist-import", "type:feature"],
     "targets": {
         "lint": {
             "executor": "@nx/eslint:lint"

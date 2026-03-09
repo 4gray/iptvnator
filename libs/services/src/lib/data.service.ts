@@ -1,12 +1,13 @@
-import { Params } from '@angular/router';
+type ElectronProcessWindow = Window & {
+    process?: {
+        type?: string;
+    };
+};
 
 export abstract class DataService {
     get isElectron(): boolean {
-        return !!(
-            window &&
-            window['process'] &&
-            (window['process'] as any).type
-        );
+        const currentWindow = window as ElectronProcessWindow;
+        return Boolean(currentWindow.process?.type);
     }
     get remote() {
         return null;
@@ -15,11 +16,14 @@ export abstract class DataService {
         return null;
     }
     abstract getAppVersion(): string;
-    abstract sendIpcEvent(type: string, payload?: unknown): any;
+    abstract sendIpcEvent<T = unknown>(
+        type: string,
+        payload?: unknown
+    ): T | Promise<T>;
     abstract removeAllListeners(type: string): void;
     abstract listenOn(
         command: string,
-        callback: (...args: any[]) => void
+        callback: (...args: unknown[]) => void
     ): void;
     abstract getAppEnvironment(): string;
 }

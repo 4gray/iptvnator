@@ -4,7 +4,7 @@
     "sourceRoot": "libs/portal/catalog/feature/src",
     "prefix": "lib",
     "projectType": "library",
-    "tags": ["scope:shared", "type:feature"],
+    "tags": ["scope:portal", "domain:portal-shared", "type:feature"],
     "targets": {
         "lint": {
             "executor": "@nx/eslint:lint"

@@ -7,8 +7,9 @@ import {
     withState,
 } from '@ngrx/signals';
 import { Playlist, PlaylistMeta, STALKER_REQUEST } from 'shared-interfaces';
-import { DataService, StalkerSessionService } from 'services';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { DataService } from 'services';
+import { StalkerSessionService } from '../../stalker-session.service';
 
 /**
  * Portal/session state and methods.
@@ -36,7 +37,7 @@ export function withStalkerPortal() {
                  */
                 async makeStalkerRequest(
                     playlist: PlaylistMeta,
-                    params: Record<string, any>
+                    params: Record<string, string | number>
                 ) {
                     // Get token if it's a full stalker portal
                     let token: string | undefined;

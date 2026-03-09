@@ -5,8 +5,14 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { StalkerVodSource } from '../../models';
+import { StalkerCategoryItem, StalkerVodSource } from '../../models';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
+
+interface SelectionStoreContext {
+    vodCategories(): StalkerCategoryItem[];
+    seriesCategories(): StalkerCategoryItem[];
+    itvCategories(): StalkerCategoryItem[];
+}
 
 /**
  * Selection/pagination/search feature state.
@@ -93,7 +99,7 @@ export function withStalkerSelection() {
             },
             /** getters */
             getSelectedCategory: computed(() => {
-                const storeAny = store as any;
+                const storeContext = store as unknown as SelectionStoreContext;
                 const categoryId = store.selectedCategoryId();
                 if (!categoryId) {
                     return {
@@ -105,15 +111,15 @@ export function withStalkerSelection() {
 
                 // Get categories based on content type
                 const contentType = store.selectedContentType();
-                let categories: any[] = [];
+                let categories: StalkerCategoryItem[] = [];
                 const readCategories = (
                     getterName:
                         | 'vodCategories'
                         | 'seriesCategories'
                         | 'itvCategories'
                 ) =>
-                    typeof storeAny[getterName] === 'function'
-                        ? storeAny[getterName]()
+                    typeof storeContext[getterName] === 'function'
+                        ? storeContext[getterName]()
                         : [];
                 if (contentType === 'vod') {
                     categories = readCategories('vodCategories');
@@ -125,7 +131,8 @@ export function withStalkerSelection() {
 
                 return (
                     categories.find(
-                        (c: any) => String(c.category_id) === String(categoryId)
+                        (category) =>
+                            String(category.category_id) === String(categoryId)
                     ) || {
                         category_id: categoryId,
                         category_name: '',

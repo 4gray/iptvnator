@@ -16,7 +16,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
-import groupBy from 'lodash/groupBy';
+import { EpgService } from '@iptvnator/epg/data-access';
 import {
     ChannelActions,
     FavoritesActions,
@@ -25,11 +25,21 @@ import {
     selectFavorites,
 } from 'm3u-state';
 import { BehaviorSubject, combineLatest, filter, map, skipWhile } from 'rxjs';
-import { EpgService } from 'services';
 import { Channel, EpgProgram, Settings, STORE_KEY } from 'shared-interfaces';
 import { AllChannelsViewComponent } from './all-channels-view/all-channels-view.component';
 import { FavoritesViewComponent } from './favorites-view/favorites-view.component';
 import { GroupsViewComponent } from './groups-view/groups-view.component';
+
+function groupChannelsByTitle(channels: Channel[]): Record<string, Channel[]> {
+    return channels.reduce<Record<string, Channel[]>>((groups, channel) => {
+        const key = channel.group?.title ?? '';
+        if (!groups[key]) {
+            groups[key] = [];
+        }
+        groups[key].push(channel);
+        return groups;
+    }, {});
+}
 
 @Component({
     selector: 'app-channel-list-container',
@@ -123,7 +133,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Object with channels sorted by groups */
     readonly groupedChannels = computed(() =>
-        groupBy(this.displayedChannels(), 'group.title')
+        groupChannelsByTitle(this.displayedChannels())
     );
 
     /** Selected channel */

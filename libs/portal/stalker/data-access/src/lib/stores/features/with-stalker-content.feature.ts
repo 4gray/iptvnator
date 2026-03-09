@@ -8,7 +8,7 @@ import {
     withState,
 } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
-import { DataService, StalkerSessionService } from 'services';
+import { DataService } from 'services';
 import {
     Playlist,
     STALKER_REQUEST,
@@ -21,6 +21,7 @@ import {
     StalkerItvChannel,
     StalkerVodSource,
 } from '../../models';
+import { StalkerSessionService } from '../../stalker-session.service';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import { toStalkerContentItem, toStalkerItvChannel } from '../utils';
 
@@ -45,6 +46,39 @@ const initialContentState: StalkerContentState = {
     itvChannels: [],
 };
 
+interface ResourceState<T> {
+    value(): T;
+    isLoading(): boolean;
+    error(): unknown;
+}
+
+interface StalkerCategoryResponseItem {
+    id?: string | number;
+    title?: string;
+}
+
+interface StalkerCategoryResponse {
+    js?: StalkerCategoryResponseItem[];
+}
+
+interface StalkerOrderedListResponse {
+    js?: {
+        data?: StalkerVodSource[];
+        total_items?: number;
+    };
+}
+
+interface StalkerContentStoreContext {
+    selectedContentType(): 'vod' | 'series' | 'itv';
+    currentPlaylist(): Playlist | undefined;
+    selectedCategoryId(): string | null | undefined;
+    searchPhrase(): string;
+    page(): number;
+    limit(): number;
+    getContentResource: ResourceState<StalkerContentItem[] | undefined>;
+    getCategoryResource: ResourceState<StalkerCategoryItem[]>;
+}
+
 export function withStalkerContent() {
     const logger = createLogger('withStalkerContent');
     return signalStoreFeature(
@@ -55,17 +89,21 @@ export function withStalkerContent() {
                 dataService = inject(DataService),
                 stalkerSession = inject(StalkerSessionService),
                 translateService = inject(TranslateService)
-            ) => ({
-                getCategoryResource: resource({
+            ) => {
+                const storeContext =
+                    store as unknown as StalkerContentStoreContext;
+
+                return {
+                    getCategoryResource: resource({
                     params: () => ({
-                        contentType: (store as any).selectedContentType(),
+                        contentType: storeContext.selectedContentType(),
                         action: StalkerPortalActions.GetCategories,
-                        currentPlaylist: (store as any).currentPlaylist(),
+                        currentPlaylist: storeContext.currentPlaylist(),
                     }),
                     loader: async ({
                         params,
                     }): Promise<StalkerCategoryItem[]> => {
-                        if (params.currentPlaylist === undefined) return;
+                        if (!params.currentPlaylist) return [];
 
                         switch (params.contentType) {
                             case 'itv':
@@ -96,17 +134,16 @@ export function withStalkerContent() {
                             type: params.contentType,
                         };
 
-                        let response: any;
+                        let response: StalkerCategoryResponse;
                         if (playlist.isFullStalkerPortal) {
                             // Full stalker portal - use authenticated request with retry
-                            response =
-                                await stalkerSession.makeAuthenticatedRequest(
+                            response = await stalkerSession.makeAuthenticatedRequest<StalkerCategoryResponse>(
                                     playlist,
                                     queryParams
                                 );
                         } else {
                             // Simple stalker portal - no auth needed
-                            response = await dataService.sendIpcEvent(
+                            response = await dataService.sendIpcEvent<StalkerCategoryResponse>(
                                 STALKER_REQUEST,
                                 {
                                     url: portalUrl,
@@ -166,18 +203,16 @@ export function withStalkerContent() {
                         });
                         return categories;
                     },
-                }),
-                getContentResource: resource({
+                    }),
+                    getContentResource: resource({
                     params: () => ({
-                        contentType: (store as any).selectedContentType(),
-                        category: (store as any).selectedCategoryId(),
+                        contentType: storeContext.selectedContentType(),
+                        category: storeContext.selectedCategoryId(),
                         action: StalkerPortalActions.GetOrderedList,
-                        search: (store as any).searchPhrase(),
-                        pageIndex: (store as any).page() + 1,
+                        search: storeContext.searchPhrase(),
+                        pageIndex: storeContext.page() + 1,
                         availableCategoryCount: (() => {
-                            const contentType = (
-                                store as any
-                            ).selectedContentType();
+                            const contentType = storeContext.selectedContentType();
                             const categories =
                                 contentType === 'vod'
                                     ? store.vodCategories()
@@ -211,7 +246,7 @@ export function withStalkerContent() {
                             return Promise.resolve(undefined);
                         }
 
-                        const currentPlaylist = (store as any).currentPlaylist;
+                        const currentPlaylist = storeContext.currentPlaylist;
 
                         // Guard: ensure currentPlaylist is available (may not be during deep link init)
                         if (
@@ -251,17 +286,16 @@ export function withStalkerContent() {
 
                         // Use makeAuthenticatedRequest for automatic retry on auth failure
                         const playlist = currentPlaylist() as Playlist;
-                        let response: any;
+                        let response: StalkerOrderedListResponse;
                         if (playlist.isFullStalkerPortal) {
                             // Full stalker portal - use authenticated request with retry
-                            response =
-                                await stalkerSession.makeAuthenticatedRequest(
+                            response = await stalkerSession.makeAuthenticatedRequest<StalkerOrderedListResponse>(
                                     playlist,
                                     queryParams
                                 );
                         } else {
                             // Simple stalker portal - no auth needed
-                            response = await dataService.sendIpcEvent(
+                            response = await dataService.sendIpcEvent<StalkerOrderedListResponse>(
                                 STALKER_REQUEST,
                                 {
                                     url: playlist.portalUrl,
@@ -287,7 +321,7 @@ export function withStalkerContent() {
                                 toStalkerContentItem(item, portalUrl)
                         );
 
-                        if ((store as any).selectedContentType() === 'itv') {
+                        if (storeContext.selectedContentType() === 'itv') {
                             const channels = newItems.map(toStalkerItvChannel);
                             // Check if we're loading the first page or loading more
                             if (params.pageIndex === 1) {
@@ -312,20 +346,21 @@ export function withStalkerContent() {
 
                         return newItems;
                     },
-                }),
-            })
+                    }),
+                };
+            }
         ),
         withComputed((store) => {
-            const storeAny = store as any;
+            const storeContext = store as unknown as StalkerContentStoreContext;
             return {
                 getTotalPages: computed(() => {
-                    return Math.ceil(store.totalCount() / storeAny.limit());
+                    return Math.ceil(store.totalCount() / storeContext.limit());
                 }),
                 getSelectedCategoryName: computed(() => {
-                    const type = storeAny.selectedContentType();
-                    const selectedCategoryId = storeAny.selectedCategoryId();
+                    const type = storeContext.selectedContentType();
+                    const selectedCategoryId = storeContext.selectedCategoryId();
                     if (!selectedCategoryId) return '';
-                    let categories = [];
+                    let categories: StalkerCategoryItem[] = [];
                     if (type === 'vod') {
                         categories = store.vodCategories();
                     } else if (type === 'series') {
@@ -342,23 +377,23 @@ export function withStalkerContent() {
                 }),
                 /** category content */
                 getPaginatedContent: computed(() =>
-                    storeAny.getContentResource.value()
+                    storeContext.getContentResource.value()
                 ),
                 isPaginatedContentLoading: computed(() =>
-                    storeAny.getContentResource.isLoading()
+                    storeContext.getContentResource.isLoading()
                 ),
                 isPaginatedContentFailed: computed(() =>
-                    storeAny.getContentResource.error()
+                    storeContext.getContentResource.error()
                 ),
                 /** category resource */
                 getCategoryResource: computed(() =>
-                    storeAny.getCategoryResource.value()
+                    storeContext.getCategoryResource.value()
                 ),
                 isCategoryResourceLoading: computed(() =>
-                    storeAny.getCategoryResource.isLoading()
+                    storeContext.getCategoryResource.isLoading()
                 ),
                 isCategoryResourceFailed: computed(() =>
-                    storeAny.getCategoryResource.error()
+                    storeContext.getCategoryResource.error()
                 ),
             };
         }),

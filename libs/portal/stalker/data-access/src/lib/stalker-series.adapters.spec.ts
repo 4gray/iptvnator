@@ -7,6 +7,13 @@ import {
 } from './stalker-series.adapters';
 import { StalkerSelectedVodItem } from './models';
 
+type EpisodeWithMetadata = {
+    custom_sid?: string;
+    id?: string;
+    originalId?: string;
+    originalCmd?: string;
+};
+
 describe('stalker-series.adapters', () => {
     it('detects vod-series flags from heterogeneous payloads', () => {
         expect(isVodSeriesItem({ is_series: true })).toBe(true);
@@ -65,9 +72,10 @@ describe('stalker-series.adapters', () => {
         );
 
         expect(mapped['1']).toHaveLength(2);
-        expect(mapped['1'][0].custom_sid).toBe('vod-series');
-        expect((mapped['1'][0] as any).originalId).toBe('api-shared-id');
-        expect(mapped['1'][0].id).not.toBe(mapped['1'][1].id);
+        const firstEpisode = mapped['1'][0] as EpisodeWithMetadata;
+        expect(firstEpisode.custom_sid).toBe('vod-series');
+        expect(firstEpisode.originalId).toBe('api-shared-id');
+        expect(firstEpisode.id).not.toBe(mapped['1'][1].id);
     });
 
     it('maps embedded series payload into regular season episodes', () => {
@@ -84,7 +92,8 @@ describe('stalker-series.adapters', () => {
         const mapped = mapRegularSeriesEpisodes(regularSeasons, 'poster.jpg');
         expect(regularSeasons[0].series).toEqual([1, 2]);
         expect(mapped['1']).toHaveLength(2);
-        expect(mapped['1'][0].custom_sid).toBe('regular-series');
-        expect((mapped['1'][0] as any).originalCmd).toBe('/media/file_100.mpg');
+        const firstEpisode = mapped['1'][0] as EpisodeWithMetadata;
+        expect(firstEpisode.custom_sid).toBe('regular-series');
+        expect(firstEpisode.originalCmd).toBe('/media/file_100.mpg');
     });
 });

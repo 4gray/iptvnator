@@ -1,5 +1,6 @@
 export * from './lib/favorites-context.service';
 export * from './lib/logger';
+export * from './lib/portal-catalog-detail';
 export * from './lib/portal-catalog-facade';
 export * from './lib/portal-external-playback';
 export * from './lib/portal-player';

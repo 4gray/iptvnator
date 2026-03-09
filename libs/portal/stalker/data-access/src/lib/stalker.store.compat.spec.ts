@@ -4,15 +4,12 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
-import {
-    DataService,
-    PlaylistsService,
-    StalkerSessionService,
-} from 'services';
+import { DataService, PlaylistsService } from 'services';
+import { StalkerSessionService } from './stalker-session.service';
 import { StalkerStore } from './stalker.store';
 
 describe('StalkerStore API compatibility smoke', () => {
-    let store: any;
+    let store: StalkerStore;
 
     beforeEach(() => {
         TestBed.configureTestingModule({

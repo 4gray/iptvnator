@@ -4,7 +4,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
+import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
+import { ResizableDirective } from 'components';
 import {
     CategoryViewComponent,
     PlaylistErrorViewComponent,

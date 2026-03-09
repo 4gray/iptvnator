@@ -28,13 +28,13 @@ export class InfoOverlayComponent implements OnChanges {
     finishedDuration!: number;
 
     /** Program start time */
-    start: any | undefined;
+    start: string | undefined;
 
     /** Program end time */
-    stop: any | undefined;
+    stop: string | undefined;
 
     /** Timeout for the overlay visibility */
-    private currentTimeout: any;
+    private currentTimeout: ReturnType<typeof setTimeout> | undefined;
 
     /**
      * Calculates the necessary information for the visualization in the overview popup
@@ -67,17 +67,19 @@ export class InfoOverlayComponent implements OnChanges {
      * @param start program start time
      * @param stop program stop time
      */
-    setProgramDuration(start: number, stop: number): void {
-        this.stop = moment(stop, 'YYYYMMDDHHmm ZZ');
-        this.start = moment(start, 'YYYYMMDDHHmm ZZ');
+    setProgramDuration(start: string | number, stop: string | number): void {
+        const stopMoment = moment(stop, 'YYYYMMDDHHmm ZZ');
+        const startMoment = moment(start, 'YYYYMMDDHHmm ZZ');
+        this.stop = stopMoment.toISOString();
+        this.start = startMoment.toISOString();
         const timeNow = moment(Date.now());
 
         this.generalDuration = moment
-            .duration(this.stop.diff(this.start))
+            .duration(stopMoment.diff(startMoment))
             .asMilliseconds();
 
         this.finishedDuration = moment
-            .duration(this.stop.diff(timeNow))
+            .duration(stopMoment.diff(timeNow))
             .asMilliseconds();
     }
 

@@ -1,4 +1,5 @@
 import { VodDetailsItem } from 'shared-interfaces';
+import { StalkerFavoriteItem } from './models';
 import {
     createStalkerInlineDetailState,
     createStalkerDetailViewState,
@@ -131,7 +132,7 @@ describe('stalker-vod.utils regressions', () => {
                         rating_kinopoisk: '',
                     },
                 },
-            } as any),
+            } as StalkerFavoriteItem),
             null
         );
 

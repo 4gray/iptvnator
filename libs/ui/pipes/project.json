@@ -4,7 +4,7 @@
     "sourceRoot": "libs/ui/pipes/src",
     "prefix": "lib",
     "projectType": "library",
-    "tags": ["scope:shared", "type:util"],
+    "tags": ["scope:shared", "domain:shared-ui", "type:util"],
     "targets": {
         "test": {
             "executor": "@nx/jest:jest",

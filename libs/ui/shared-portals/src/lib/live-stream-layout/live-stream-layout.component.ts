@@ -15,7 +15,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { FilterPipe } from '@iptvnator/pipes';
 import { TranslateModule } from '@ngx-translate/core';
-import { ResizableDirective, WebPlayerViewComponent } from 'components';
+import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
+import { ResizableDirective } from 'components';
 import { EpgItem, VideoPlayer, XtreamItem } from 'shared-interfaces';
 import { EpgViewComponent } from '../epg-view/epg-view.component';
 

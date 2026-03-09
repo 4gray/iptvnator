@@ -9,7 +9,8 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
+import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
+import { ResizableDirective } from 'components';
 import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
 import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
 import {

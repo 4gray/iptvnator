@@ -1,10 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { ExternalPlayerInfoDialogComponent } from 'components';
-import {
-    PlayerDialogComponent,
-    PlayerDialogData,
-} from '@iptvnator/portal/xtream/feature';
+import { ExternalPlayerInfoDialogComponent } from '@iptvnator/ui/playback';
 import { DataService } from 'services';
 import {
     ExternalPlayerSession,
@@ -85,7 +81,9 @@ export class PlayerService {
             if (!hideExternalInfoDialog) {
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             }
-            return await this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+            return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
+                OPEN_MPV_PLAYER,
+                {
                 url: streamUrl,
                 title,
                 thumbnail,
@@ -95,12 +93,15 @@ export class PlayerService {
                 headers,
                 contentInfo,
                 startTime,
-            });
+                }
+            );
         } else if (player === VideoPlayer.VLC) {
             if (!hideExternalInfoDialog) {
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             }
-            return await this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
+            return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
+                OPEN_VLC_PLAYER,
+                {
                 url: streamUrl,
                 title,
                 thumbnail,
@@ -110,16 +111,18 @@ export class PlayerService {
                 headers,
                 contentInfo,
                 startTime,
-            });
+                }
+            );
         }
 
-        this.dialog.open<PlayerDialogComponent, PlayerDialogData>(
-            PlayerDialogComponent,
-            {
-                data: { streamUrl, title, contentInfo, startTime },
-                width: '80%',
-                maxWidth: '1200px',
-                maxHeight: '90vh',
+        void import('@iptvnator/portal/xtream/feature').then(
+            ({ PlayerDialogComponent }) => {
+                this.dialog.open(PlayerDialogComponent, {
+                    data: { streamUrl, title, contentInfo, startTime },
+                    width: '80%',
+                    maxWidth: '1200px',
+                    maxHeight: '90vh',
+                });
             }
         );
     }

@@ -5,7 +5,17 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
 import { PlaylistsService } from 'services';
-import { PlaylistMeta } from 'shared-interfaces';
+import { PlaylistMeta, StalkerPortalItem } from 'shared-interfaces';
+
+interface FavoritesStoreContext {
+    currentPlaylist(): PlaylistMeta | undefined;
+    selectedContentType(): string;
+}
+
+type FavoritePayload = StalkerPortalItem & {
+    stream_id?: string | number;
+    id?: string | number;
+};
 
 /**
  * Favorites concern methods.
@@ -20,14 +30,14 @@ export function withStalkerFavorites() {
                 translate = inject(TranslateService),
                 ngrxStore = inject(Store)
             ) => {
-                const storeAny = store as any;
+                const storeContext = store as unknown as FavoritesStoreContext;
                 return {
-                    addToFavorites(item: any, onDone?: () => void) {
-                        const portalId = storeAny.currentPlaylist()?._id;
+                    addToFavorites(item: FavoritePayload, onDone?: () => void) {
+                        const portalId = storeContext.currentPlaylist()?._id;
                         playlistService
                             .addPortalFavorite(portalId, {
                                 ...item,
-                                category_id: storeAny.selectedContentType(),
+                                category_id: storeContext.selectedContentType(),
                                 added_at: Date.now(),
                                 id: item.stream_id ?? item.id,
                             })
@@ -57,7 +67,7 @@ export function withStalkerFavorites() {
                         favoriteId: string,
                         onDone?: () => void
                     ) {
-                        const portalId = storeAny.currentPlaylist()?._id;
+                        const portalId = storeContext.currentPlaylist()?._id;
                         playlistService
                             .removeFromPortalFavorites(portalId, favoriteId)
                             .subscribe((updatedPlaylist) => {

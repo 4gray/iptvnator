@@ -6,10 +6,9 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     ContentHeroComponent,
-    PortalInlinePlayerComponent,
+    SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
     SeasonContainerXtreamDownloadContext,
-    SeasonContainerComponent,
 } from 'components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
@@ -17,6 +16,7 @@ import {
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import {
     PlaybackPositionData,
     PlayerContentInfo,

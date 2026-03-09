@@ -7,11 +7,9 @@ import {
 } from '@angular/core';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { StalkerSelectedVodItem } from '@iptvnator/portal/stalker/data-access';
+import { VodDetailsComponent } from '@iptvnator/ui/playback';
 import { VodDetailsItem } from 'shared-interfaces';
-import {
-    StalkerSeriesViewComponent,
-    VodDetailsComponent,
-} from 'components';
+import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 
 @Component({
     selector: 'app-stalker-inline-detail',

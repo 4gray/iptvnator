@@ -96,26 +96,34 @@ export class PwaService extends DataService {
      * @param type ipc command type
      * @param payload payload
      */
-    sendIpcEvent(type: string, payload?: unknown) {
+    sendIpcEvent<T = unknown>(type: string, payload?: unknown): T {
         if (type === PLAYLIST_PARSE_BY_URL) {
             this.fetchFromUrl(payload);
-        } else if (type === PLAYLIST_UPDATE) {
+            return undefined as T;
+        }
+
+        if (type === PLAYLIST_UPDATE) {
             this.refreshPlaylist(payload);
-        } else if (type === XTREAM_REQUEST) {
+            return undefined as T;
+        }
+
+        if (type === XTREAM_REQUEST) {
             return this.forwardXtreamRequest(
                 payload as { url: string; params: Record<string, string> }
-            );
-        } else if (type === STALKER_REQUEST) {
+            ) as T;
+        }
+
+        if (type === STALKER_REQUEST) {
             return this.forwardStalkerRequest(
                 payload as {
                     url: string;
                     macAddress: string;
                     params: Record<string, string>;
                 }
-            );
-        } else {
-            return Promise.resolve();
+            ) as T;
         }
+
+        return undefined as T;
     }
 
     refreshPlaylist(payload: Partial<Playlist & { id: string }>) {

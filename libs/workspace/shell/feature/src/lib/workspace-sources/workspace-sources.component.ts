@@ -2,7 +2,10 @@ import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { PlaylistType, RecentPlaylistsComponent } from 'components';
+import {
+    PlaylistType,
+    RecentPlaylistsComponent,
+} from '@iptvnator/playlist/shared/ui';
 import { selectActiveTypeFilters, selectAllPlaylistsMeta } from 'm3u-state';
 import { map } from 'rxjs';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';

@@ -1,34 +1,6 @@
 @if (selectedCategory()) {
-    @if (isStalker && selectedStalkerItem()) {
-        @if (contentType() === 'vod') {
-            @if (selectedStalkerItem().series?.length > 0) {
-                <!-- VOD item with embedded series (vclub or Ministra) -->
-                <app-stalker-series-view [vodWithSeries]="selectedStalkerItem()" />
-            } @else if (selectedStalkerItem().is_series) {
-                <!-- VOD item that is actually a series (Ministra plugin is_series=1) -->
-                <app-stalker-series-view />
-            } @else {
-                @if (vodDetailsItem()) {
-                    <app-vod-details
-                        [item]="vodDetailsItem()!"
-                        [isFavorite]="isSelectedVodFavorite()"
-                        [playbackPosition]="selectedVodPlaybackPosition()"
-                        [inlinePlayback]="inlinePlayback()"
-                        [externalPlayback]="externalPlayback.activeSession()"
-                        (playClicked)="onVodPlay($event)"
-                        (resumeClicked)="onVodResume($event)"
-                        (favoriteToggled)="onVodFavoriteToggled($event)"
-                        (downloadRequested)="onVodDownload($event)"
-                        (backClicked)="onVodBack()"
-                        (inlineTimeUpdated)="handleInlineTimeUpdate($event)"
-                        (inlinePlaybackClosed)="closeInlinePlayer()"
-                        (streamUrlCopied)="showCopyNotification()"
-                    />
-                }
-            }
-        } @else if (contentType() === 'series') {
-            <app-stalker-series-view />
-        }
+    @if (selectedDetailComponent(); as detailComponentRef) {
+        <ng-container *ngComponentOutlet="detailComponentRef" />
     } @else {
         <div class="category-content-layout">
             <div class="category-content-header">
@@ -40,7 +12,7 @@
                         {{ categoryItemSubtitle() }}
                     </div>
                 </div>
-                @if (!isStalker) {
+                @if (canSortContent()) {
                     <button
                         type="button"
                         mat-icon-button

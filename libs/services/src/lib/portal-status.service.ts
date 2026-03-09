@@ -3,6 +3,15 @@ import { DataService } from './data.service';
 
 export type PortalStatus = 'active' | 'inactive' | 'expired' | 'unavailable';
 
+interface XtreamPortalStatusResponse {
+    payload?: {
+        user_info?: {
+            status?: string;
+            exp_date?: string;
+        };
+    };
+}
+
 @Injectable({
     providedIn: 'root',
 })
@@ -28,26 +37,27 @@ export class PortalStatusService {
                 normalizedUrl = serverUrl;
             }
 
-            let response = await this.dataService.sendIpcEvent(
-                'XTREAM_REQUEST',
-                {
-                    url: normalizedUrl,
-                    params: {
-                        password,
-                        username,
-                        action: 'get_account_info',
-                    },
-                }
-            );
-            response = response?.payload;
+            const response =
+                await this.dataService.sendIpcEvent<XtreamPortalStatusResponse>(
+                    'XTREAM_REQUEST',
+                    {
+                        url: normalizedUrl,
+                        params: {
+                            password,
+                            username,
+                            action: 'get_account_info',
+                        },
+                    }
+                );
+            const payload = response?.payload;
 
-            if (!response?.user_info?.status) {
+            if (!payload?.user_info?.status) {
                 return 'unavailable';
             }
 
-            if (response.user_info.status === 'Active') {
+            if (payload.user_info.status === 'Active') {
                 const expDate = new Date(
-                    parseInt(response.user_info.exp_date) * 1000
+                    parseInt(payload.user_info.exp_date) * 1000
                 );
                 return expDate < new Date() ? 'expired' : 'active';
             } else {

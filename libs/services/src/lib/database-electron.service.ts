@@ -4,7 +4,10 @@
  */
 
 import { Injectable } from '@angular/core';
-import { PlaylistMeta } from 'shared-interfaces';
+import {
+    PlaylistMeta,
+    XtreamCategory,
+} from 'shared-interfaces';
 
 export interface XCategoryFromDb {
     id: number;
@@ -36,6 +39,31 @@ export interface XtreamPlaylist {
     password: string;
     type: string;
 }
+
+type XtreamDatabasePlaylistUpdate = {
+    name?: string;
+    username?: string;
+    password?: string;
+    serverUrl?: string;
+    lastUpdated?: string;
+};
+
+type XtreamContentStream =
+    | {
+          category_id: string | number;
+          rating?: string | number;
+          rating_imdb?: string;
+          last_modified?: string;
+          added?: string;
+          stream_icon?: string;
+          poster?: string;
+          cover?: string;
+          name?: string;
+          title?: string;
+          series_id?: string | number;
+          stream_id?: string | number;
+      }
+    | Record<string, unknown>;
 
 export interface GlobalSearchResult extends XtreamContent {
     playlist_id: string;
@@ -103,7 +131,9 @@ export class DatabaseService {
     /**
      * Update playlist basic info
      */
-    async updateXtreamPlaylist(playlist: any): Promise<boolean> {
+    async updateXtreamPlaylist(
+        playlist: Pick<XtreamPlaylist, 'id' | 'name'>
+    ): Promise<boolean> {
         try {
             await window.electron.dbUpdatePlaylist(playlist.id, {
                 name: playlist.name,
@@ -127,7 +157,7 @@ export class DatabaseService {
         updateDate?: number;
     }): Promise<boolean> {
         try {
-            const updates: any = {};
+            const updates: XtreamDatabasePlaylistUpdate = {};
             if (playlist.title) updates.name = playlist.title;
             if (playlist.username) updates.username = playlist.username;
             if (playlist.password) updates.password = playlist.password;
@@ -171,7 +201,7 @@ export class DatabaseService {
      */
     async saveXtreamCategories(
         playlistId: string,
-        categories: any[],
+        categories: XtreamCategory[],
         type: 'live' | 'movies' | 'series',
         hiddenCategoryXtreamIds?: number[]
     ): Promise<void> {
@@ -237,7 +267,7 @@ export class DatabaseService {
      */
     async saveXtreamContent(
         playlistId: string,
-        streams: any[],
+        streams: XtreamContentStream[],
         type: 'live' | 'movie' | 'series',
         onProgress?: (count: number) => void
     ): Promise<number> {

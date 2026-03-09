@@ -27,6 +27,17 @@
             "@iptvnator/portal/shared/util": [
                 "libs/portal/shared/util/src/index.ts"
             ],
+            "@iptvnator/epg/data-access": [
+                "libs/epg/data-access/src/index.ts"
+            ],
+            "@iptvnator/playlist/shared/ui": [
+                "libs/playlist/shared/ui/src/index.ts"
+            ],
+            "@iptvnator/playlist/shared/util": [
+                "libs/playlist/shared/util/src/index.ts"
+            ],
+            "@iptvnator/ui/epg": ["libs/ui/epg/src/index.ts"],
+            "@iptvnator/ui/playback": ["libs/ui/playback/src/index.ts"],
             "@iptvnator/playlist/import/feature": [
                 "libs/playlist/import/feature/src/index.ts"
             ],

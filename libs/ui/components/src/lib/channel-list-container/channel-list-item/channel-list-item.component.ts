@@ -14,8 +14,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
 import { EpgProgram } from 'shared-interfaces';
-import { EpgItemDescriptionComponent } from '../../epg-list/epg-item-description/epg-item-description.component';
 
 @Component({
     selector: 'app-channel-list-item',

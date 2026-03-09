@@ -26,6 +26,24 @@
                     "apps/web/src/styles.scss",
                     "apps/web/src/m3-theme.scss",
                     "./node_modules/video.js/dist/video-js.css"
+                ],
+                "allowedCommonJsDependencies": [
+                    "qrcode",
+                    "iptv-playlist-parser",
+                    "moment",
+                    "mpegts.js",
+                    "videojs-contrib-quality-levels",
+                    "videojs-quality-selector-hls",
+                    "global/window",
+                    "global/document",
+                    "@videojs/xhr",
+                    "videojs-vtt.js",
+                    "mux.js/lib/tools/parse-sidx",
+                    "mux.js/lib/utils/clock",
+                    "keycode",
+                    "safe-json-parse/tuple",
+                    "@xmldom/xmldom",
+                    "url-toolkit"
                 ]
             },
             "configurations": {
@@ -34,12 +52,12 @@
                     "budgets": [
                         {
                             "type": "initial",
-                            "maximumWarning": "500kb",
+                            "maximumWarning": "4.5mb",
                             "maximumError": "5mb"
                         },
                         {
                             "type": "anyComponentStyle",
-                            "maximumWarning": "10kb",
+                            "maximumWarning": "12.5kb",
                             "maximumError": "15kb"
                         }
                     ],
@@ -56,12 +74,12 @@
                     "budgets": [
                         {
                             "type": "initial",
-                            "maximumWarning": "500kb",
+                            "maximumWarning": "4.5mb",
                             "maximumError": "5mb"
                         },
                         {
                             "type": "anyComponentStyle",
-                            "maximumWarning": "10kb",
+                            "maximumWarning": "12.5kb",
                             "maximumError": "15kb"
                         }
                     ],

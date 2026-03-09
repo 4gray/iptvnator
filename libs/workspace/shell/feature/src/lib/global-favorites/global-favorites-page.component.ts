@@ -10,23 +10,23 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import {
-    ArtPlayerComponent,
-    HtmlVideoPlayerComponent,
-    ResizableDirective,
-    VjsPlayerComponent,
-} from 'components';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
+import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
 import {
     XtreamApiService,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
+import {
+    ArtPlayerComponent,
+    HtmlVideoPlayerComponent,
+    VjsPlayerComponent,
+} from '@iptvnator/ui/playback';
+import { ResizableDirective } from 'components';
 import { firstValueFrom } from 'rxjs';
 import {
     DataService,
     PlaylistsService,
     SettingsStore,
-    StalkerSessionService,
 } from 'services';
 import {
     Channel,

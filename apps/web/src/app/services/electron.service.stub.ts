@@ -25,10 +25,10 @@ export class ElectronServiceStub {
         return this.remote.app.getVersion();
     }
 
-    sendIpcEvent(_type: string, _payload?: unknown): void {
+    sendIpcEvent<T = unknown>(_type: string, _payload?: unknown): T {
         void _type;
         void _payload;
-        return undefined;
+        return undefined as T;
     }
 
     listenOn(

@@ -1,4 +1,6 @@
 import { Route } from '@angular/router';
+import { PORTAL_CATALOG_DETAIL_COMPONENT } from '@iptvnator/portal/shared/util';
+import { StalkerCatalogDetailComponent } from './stalker-catalog-detail/stalker-catalog-detail.component';
 import { provideStalkerCatalogFacade } from './stalker-catalog-facade.service';
 
 type ComponentLoader = NonNullable<Route['loadComponent']>;
@@ -56,7 +58,13 @@ export function createStalkerRoutes(): Route[] {
                 },
                 {
                     path: 'vod',
-                    providers: provideStalkerCatalogFacade(),
+                    providers: [
+                        ...provideStalkerCatalogFacade(),
+                        {
+                            provide: PORTAL_CATALOG_DETAIL_COMPONENT,
+                            useValue: StalkerCatalogDetailComponent,
+                        },
+                    ],
                     loadComponent: loadStalkerMainContainerComponent,
                     children: [
                         {
@@ -88,7 +96,13 @@ export function createStalkerRoutes(): Route[] {
                 },
                 {
                     path: 'series',
-                    providers: provideStalkerCatalogFacade(),
+                    providers: [
+                        ...provideStalkerCatalogFacade(),
+                        {
+                            provide: PORTAL_CATALOG_DETAIL_COMPONENT,
+                            useValue: StalkerCatalogDetailComponent,
+                        },
+                    ],
                     loadComponent: loadStalkerMainContainerComponent,
                     children: [
                         {

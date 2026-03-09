@@ -24,11 +24,25 @@ import {
     Playlist,
     PlaylistMeta,
     PlaylistUpdateState,
-    XtreamItem,
-    XtreamSerieItem,
+    StalkerPortalItem,
 } from 'shared-interfaces';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
+
+type PortalFavoriteItem = StalkerPortalItem & {
+    category_id?: string;
+    raw?: string;
+    [key: string]: unknown;
+};
+
+type PortalRecentlyViewedItem = StalkerPortalItem & {
+    id?: string | number;
+    title?: string;
+};
+
+type PlaylistRawItem = {
+    raw?: string;
+};
 
 @Injectable({
     providedIn: 'root',
@@ -255,7 +269,7 @@ export class PlaylistsService {
                 const playlist = await window.electron.dbGetAppPlaylist(id);
                 return playlist
                     ? this.createSqliteFallbackPlaylist(playlist as Playlist)
-                    : (undefined as any);
+                    : (undefined as unknown as Playlist);
             });
         }
 
@@ -395,7 +409,7 @@ export class PlaylistsService {
         return this.getPlaylistById(portalId).pipe(
             map((item) => {
                 if (!item || !item.favorites) return [];
-                return item.favorites as Partial<XtreamItem>[];
+                return item.favorites as PortalFavoriteItem[];
             }),
             map((favorites) =>
                 favorites.sort(
@@ -411,7 +425,7 @@ export class PlaylistsService {
         return this.getPlaylistById(portalId).pipe(
             map((item) => {
                 if (!item || !item.favorites) return [];
-                return (item.favorites as Partial<XtreamItem>[]).filter(
+                return (item.favorites as PortalFavoriteItem[]).filter(
                     (itm) =>
                         itm && itm.stream_type && itm.stream_type === 'live'
                 );
@@ -419,7 +433,7 @@ export class PlaylistsService {
         );
     }
 
-    addPortalFavorite(portalId: string, item: any) {
+    addPortalFavorite(portalId: string, item: PortalFavoriteItem) {
         if (!portalId) {
             throw new Error('Portal ID is required');
         }
@@ -449,16 +463,11 @@ export class PlaylistsService {
                     ...portal,
                     favorites: portal.favorites?.filter((i) => {
                         const expectedId = String(favoriteId);
-                        const streamId = String(
-                            (i as Partial<XtreamItem>).stream_id ?? ''
-                        );
-                        const seriesId = String(
-                            (i as Partial<XtreamSerieItem>).series_id ?? ''
-                        );
-                        const movieId = String(
-                            (i as Partial<{ movie_id: string }>).movie_id ?? ''
-                        );
-                        const itemId = String((i as any).id ?? '');
+                        const favorite = i as PortalFavoriteItem;
+                        const streamId = String(favorite.stream_id ?? '');
+                        const seriesId = String(favorite.series_id ?? '');
+                        const movieId = String(favorite.movie_id ?? '');
+                        const itemId = String(favorite.id ?? '');
 
                         return (
                             streamId !== expectedId &&
@@ -614,7 +623,7 @@ export class PlaylistsService {
                     `${playlist.playlist?.header?.raw ?? ''}` +
                     '\n' +
                     (playlist.playlist?.items ?? [])
-                        .map((item: any) => item.raw)
+                        .map((item: PlaylistRawItem) => item.raw)
                         .join('\n')
                 );
             })
@@ -652,7 +661,7 @@ export class PlaylistsService {
         return this.getPlaylistById(portalId).pipe(
             map((item) => {
                 if (!item || !item.recentlyViewed) return [];
-                return item.recentlyViewed as Partial<XtreamItem>[];
+                return item.recentlyViewed as PortalRecentlyViewedItem[];
             }),
             map((items) =>
                 items.sort(
@@ -666,7 +675,7 @@ export class PlaylistsService {
 
     addPortalRecentlyViewed(
         portalId: string,
-        item: { id: string; title: string }
+        item: PortalRecentlyViewedItem & { id: string | number; title: string }
     ) {
         if (!portalId) {
             throw new Error('Portal ID is required');
@@ -674,9 +683,10 @@ export class PlaylistsService {
         return this.getPlaylistById(portalId).pipe(
             switchMap((portal) => {
                 const nowIso = new Date().toISOString();
-                const recentItems = portal.recentlyViewed ?? [];
+                const recentItems =
+                    (portal.recentlyViewed as PortalRecentlyViewedItem[]) ?? [];
                 const existingIndex = recentItems.findIndex(
-                    (i: any) => String(i?.id) === String(item.id)
+                    (recentItem) => String(recentItem?.id) === String(item.id)
                 );
 
                 if (existingIndex >= 0) {
@@ -708,7 +718,7 @@ export class PlaylistsService {
                         ...recentItems,
                         {
                             ...item,
-                            added_at: (item as any).added_at ?? nowIso,
+                            added_at: item.added_at ?? nowIso,
                         },
                     ],
                 };
@@ -736,8 +746,10 @@ export class PlaylistsService {
 
                 const nextPlaylist: Playlist = {
                     ...portal,
-                    recentlyViewed: portal.recentlyViewed?.filter((i: any) => {
-                        const itemId = String(i?.id ?? '');
+                    recentlyViewed: (
+                        portal.recentlyViewed as PortalRecentlyViewedItem[]
+                    )?.filter((item) => {
+                        const itemId = String(item?.id ?? '');
                         const itemNormalized = normalizePortalItemId(itemId);
                         return (
                             itemId !== expectedId &&

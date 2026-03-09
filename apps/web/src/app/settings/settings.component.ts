@@ -34,11 +34,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { EpgService } from '@iptvnator/epg/data-access';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { DialogService } from 'components';
 import { PlaylistActions, selectIsEpgAvailable } from 'm3u-state';
 import { take } from 'rxjs';
-import { DataService, EpgService, PlaylistsService } from 'services';
+import { DataService, PlaylistsService } from 'services';
 import {
     Language,
     Playlist,

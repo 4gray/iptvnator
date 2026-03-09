@@ -1,11 +1,10 @@
 import { inject, Injectable, Provider } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { PlaylistInfoComponent } from 'components';
+import { PlaylistInfoComponent } from '@iptvnator/playlist/shared/ui';
 import {
     PORTAL_NAVIGATION_ACTIONS,
     PortalNavigationActions,
 } from '@iptvnator/portal/shared/util';
-import { AccountInfoComponent } from '@iptvnator/portal/xtream/feature';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { Playlist } from 'shared-interfaces';
 import { SettingsComponent } from '../settings/settings.component';
@@ -18,16 +17,22 @@ export class AppPortalNavigationActionsService
     private readonly xtreamStore = inject(XtreamStore);
 
     openAccountInfo(): void {
-        this.dialog.open(AccountInfoComponent, {
-            width: '80%',
-            maxWidth: '1200px',
-            maxHeight: '90vh',
-            data: {
-                vodStreamsCount: this.xtreamStore.vodStreams().length,
-                liveStreamsCount: this.xtreamStore.liveStreams().length,
-                seriesCount: this.xtreamStore.serialStreams().length,
-            },
-        });
+        const data = {
+            vodStreamsCount: this.xtreamStore.vodStreams().length,
+            liveStreamsCount: this.xtreamStore.liveStreams().length,
+            seriesCount: this.xtreamStore.serialStreams().length,
+        };
+
+        void import('@iptvnator/portal/xtream/feature').then(
+            ({ AccountInfoComponent }) => {
+                this.dialog.open(AccountInfoComponent, {
+                    width: '80%',
+                    maxWidth: '1200px',
+                    maxHeight: '90vh',
+                    data,
+                });
+            }
+        );
     }
 
     openPlaylistInfo(playlist: Playlist | null | undefined): void {

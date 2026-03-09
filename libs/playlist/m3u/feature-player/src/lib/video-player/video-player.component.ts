@@ -19,18 +19,14 @@ import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-    ArtPlayerComponent,
-    AudioPlayerComponent,
+    InfoOverlayComponent,
+    ResizableDirective,
+} from 'components';
+import {
     COMPONENT_OVERLAY_REF,
     EpgListComponent,
-    HtmlVideoPlayerComponent,
-    InfoOverlayComponent,
     MultiEpgContainerComponent,
-    ResizableDirective,
-    SidebarComponent,
-    ToolbarComponent,
-    VjsPlayerComponent,
-} from 'components';
+} from '@iptvnator/ui/epg';
 import {
     ChannelActions,
     FavoritesActions,
@@ -55,6 +51,15 @@ import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
 } from '@iptvnator/portal/shared/util';
+import {
+    ArtPlayerComponent,
+    AudioPlayerComponent,
+    HtmlVideoPlayerComponent,
+    SidebarComponent,
+    ToolbarComponent,
+    VjsPlayerComponent,
+} from '@iptvnator/ui/playback';
+import { PLAYLIST_PLAYER_ACTIONS } from '@iptvnator/playlist/shared/util';
 import { DataService, PlaylistsService, SettingsStore } from 'services';
 import {
     Channel,
@@ -65,7 +70,6 @@ import {
     SidebarView,
     VideoPlayer,
 } from 'shared-interfaces';
-import { PLAYLIST_PLAYER_ACTIONS } from '../playlist-player-actions';
 
 @Component({
     selector: 'app-video-player',

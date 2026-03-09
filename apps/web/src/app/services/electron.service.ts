@@ -108,10 +108,16 @@ export class ElectronService extends DataService {
         return AppConfig.version;
     }
 
-    async sendIpcEvent(type: string, payload?: unknown) {
+    async sendIpcEvent<T = unknown>(
+        type: string,
+        payload?: unknown
+    ): Promise<T> {
         if (type === PLAYLIST_PARSE_BY_URL) {
             this.fetchM3uPlaylistFromUrl(payload);
-        } else if (type === PLAYLIST_UPDATE) {
+            return undefined as T;
+        }
+
+        if (type === PLAYLIST_UPDATE) {
             this.updateM3uPlaylistFromFile(
                 payload as {
                     id: string;
@@ -120,22 +126,29 @@ export class ElectronService extends DataService {
                     title: string;
                 }
             );
-        } else if (type === XTREAM_REQUEST) {
-            return await this.forwardXtreamRequest(
+            return undefined as T;
+        }
+
+        if (type === XTREAM_REQUEST) {
+            return (await this.forwardXtreamRequest(
                 payload as { url: string; params: Record<string, string> }
-            );
-        } else if (type === 'STALKER_REQUEST') {
-            return this.fetchStalkerData(
+            )) as T;
+        }
+
+        if (type === 'STALKER_REQUEST') {
+            return (await this.fetchStalkerData(
                 payload as {
                     url: string;
                     macAddress: string;
                     params: Record<string, string>;
                 }
-            );
-        } else if (type === 'OPEN_MPV_PLAYER') {
+            )) as T;
+        }
+
+        if (type === 'OPEN_MPV_PLAYER') {
             const data = payload as PlayerLaunchPayload;
             try {
-                return await window.electron.openInMpv(
+                return (await window.electron.openInMpv(
                     data.url,
                     data.title ?? '',
                     data.thumbnail ?? '',
@@ -145,8 +158,7 @@ export class ElectronService extends DataService {
                     data.contentInfo,
                     data.startTime,
                     data.headers ?? undefined
-                );
-                /* thumbnail: data.thumbnail ?? '', */
+                )) as T;
             } catch (error: unknown) {
                 const errorMessage =
                     this.getErrorDetails(error)?.message ?? String(error);
@@ -160,10 +172,12 @@ export class ElectronService extends DataService {
                 console.error('MPV launch error:', error);
                 throw error;
             }
-        } else if (type === 'OPEN_VLC_PLAYER') {
+        }
+
+        if (type === 'OPEN_VLC_PLAYER') {
             const data = payload as PlayerLaunchPayload;
             try {
-                return await window.electron.openInVlc(
+                return (await window.electron.openInVlc(
                     data.url,
                     data.title ?? '',
                     data.thumbnail ?? '',
@@ -173,7 +187,7 @@ export class ElectronService extends DataService {
                     data.contentInfo,
                     data.startTime,
                     data.headers ?? undefined
-                );
+                )) as T;
             } catch (error: unknown) {
                 const errorMessage =
                     this.getErrorDetails(error)?.message ?? String(error);
@@ -187,7 +201,9 @@ export class ElectronService extends DataService {
                 console.error('VLC launch error:', error);
                 throw error;
             }
-        } else if (type === AUTO_UPDATE_PLAYLISTS) {
+        }
+
+        if (type === AUTO_UPDATE_PLAYLISTS) {
             const data = payload as Playlist[];
             const playlists = await window.electron.autoUpdatePlaylists(data);
             this.store.dispatch(
@@ -202,9 +218,11 @@ export class ElectronService extends DataService {
                 null,
                 { duration: 2000 }
             );
-        } else {
-            console.log('Unknown type', type);
+            return playlists as T;
         }
+
+        console.log('Unknown type', type);
+        return undefined as T;
     }
 
     private async fetchStalkerData(payload: {

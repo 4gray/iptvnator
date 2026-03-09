@@ -1,4 +1,12 @@
-import { Provider, Injectable, computed, inject } from '@angular/core';
+import {
+    DestroyRef,
+    Injectable,
+    Provider,
+    computed,
+    effect,
+    inject,
+    signal,
+} from '@angular/core';
 import {
     buildStalkerSelectedVodItem,
     StalkerStore,
@@ -9,8 +17,25 @@ import {
     PortalCatalogPlaylistMeta,
     PortalCatalogSortMode,
     PORTAL_CATALOG_FACADE,
+    PORTAL_PLAYBACK_POSITIONS,
     StalkerPortalCatalogFacade,
 } from '@iptvnator/portal/shared/util';
+import { PlaybackPositionData } from 'shared-interfaces';
+
+function calculateProgress(position: PlaybackPositionData | undefined): number {
+    if (!position || !position.durationSeconds) {
+        return 0;
+    }
+
+    const percent =
+        (position.positionSeconds / position.durationSeconds) * 100;
+
+    if (position.positionSeconds > 10 && percent < 1) {
+        return 1;
+    }
+
+    return Math.min(100, Math.round(percent));
+}
 
 @Injectable()
 export class StalkerCatalogFacadeService
@@ -22,6 +47,15 @@ export class StalkerCatalogFacadeService
         >
 {
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
+    private readonly destroyRef = inject(DestroyRef);
+    private readonly stalkerPositions = signal<Map<string, PlaybackPositionData>>(
+        new Map()
+    );
+    private readonly stalkerSeriesPositions = signal<
+        Map<number, PlaybackPositionData[]>
+    >(new Map());
+    private loadedPositionsForPlaylistId: string | null = null;
 
     readonly provider = 'stalker' as const;
     readonly pageSizeOptions = [14] as const;
@@ -69,6 +103,51 @@ export class StalkerCatalogFacadeService
         };
     });
 
+    constructor() {
+        effect(() => {
+            const playlistId = this.playlist()?.id;
+
+            if (!playlistId) {
+                this.loadedPositionsForPlaylistId = null;
+                this.stalkerPositions.set(new Map());
+                this.stalkerSeriesPositions.set(new Map());
+                return;
+            }
+
+            if (playlistId === this.loadedPositionsForPlaylistId) {
+                return;
+            }
+
+            this.loadedPositionsForPlaylistId = playlistId;
+            void this.loadStalkerPositions(playlistId);
+        });
+
+        if (window.electron?.onPlaybackPositionUpdate) {
+            const unsubscribe = window.electron.onPlaybackPositionUpdate(
+                (data: PlaybackPositionData) => {
+                    if (data.playlistId !== this.playlist()?.id) {
+                        return;
+                    }
+
+                    if (data.contentType === 'vod') {
+                        this.updateVodPlaybackPosition(data);
+                    }
+
+                    if (
+                        data.contentType === 'episode' &&
+                        data.seriesXtreamId
+                    ) {
+                        this.updateSeriesPlaybackPosition(data);
+                    }
+                }
+            );
+
+            if (typeof unsubscribe === 'function') {
+                this.destroyRef.onDestroy(unsubscribe);
+            }
+        }
+    }
+
     initialize(categoryId?: string | null): void {
         this.clearSelectedItem();
         if (categoryId) {
@@ -108,8 +187,34 @@ export class StalkerCatalogFacadeService
     }
 
     getItemProgress(item: StalkerVodSource): PortalCatalogItemProgress {
-        void item;
-        return {};
+        const numericId = Number(item.id);
+        if (Number.isNaN(numericId)) {
+            return {};
+        }
+
+        const hasSeriesProgress = Boolean(
+            this.stalkerSeriesPositions().get(numericId)?.length
+        );
+        const isSeries =
+            this.contentType() === 'series' ||
+            item.is_series === '1' ||
+            item.is_series === 1;
+
+        if (hasSeriesProgress) {
+            return { hasSeriesProgress: true };
+        }
+
+        if (isSeries) {
+            return { hasSeriesProgress: false };
+        }
+
+        const progress = calculateProgress(
+            this.stalkerPositions().get(`vod_${numericId}`)
+        );
+        return {
+            progress,
+            isWatched: progress >= 90,
+        };
     }
 
     async createLinkToPlayVod(
@@ -154,6 +259,52 @@ export class StalkerCatalogFacadeService
             undefined,
             startTime
         );
+    }
+
+    private async loadStalkerPositions(playlistId: string): Promise<void> {
+        const positions =
+            await this.playbackPositions.getAllPlaybackPositions(playlistId);
+
+        const positionsMap = new Map<string, PlaybackPositionData>();
+        const seriesMap = new Map<number, PlaybackPositionData[]>();
+
+        positions.forEach((position) => {
+            positionsMap.set(
+                `${position.contentType}_${position.contentXtreamId}`,
+                position
+            );
+
+            if (position.contentType === 'episode' && position.seriesXtreamId) {
+                const existing = seriesMap.get(position.seriesXtreamId) ?? [];
+                existing.push(position);
+                seriesMap.set(position.seriesXtreamId, existing);
+            }
+        });
+
+        this.stalkerPositions.set(positionsMap);
+        this.stalkerSeriesPositions.set(seriesMap);
+    }
+
+    private updateVodPlaybackPosition(position: PlaybackPositionData): void {
+        const updated = new Map(this.stalkerPositions());
+        updated.set(`vod_${position.contentXtreamId}`, position);
+        this.stalkerPositions.set(updated);
+    }
+
+    private updateSeriesPlaybackPosition(position: PlaybackPositionData): void {
+        if (!position.seriesXtreamId) {
+            return;
+        }
+
+        const updated = new Map(this.stalkerSeriesPositions());
+        const positionsForSeries = [
+            ...(updated.get(position.seriesXtreamId) ?? []).filter(
+                (item) => item.contentXtreamId !== position.contentXtreamId
+            ),
+            position,
+        ];
+        updated.set(position.seriesXtreamId, positionsForSeries);
+        this.stalkerSeriesPositions.set(updated);
     }
 }
 

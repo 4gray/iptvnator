@@ -18,13 +18,14 @@ import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { EpgService } from '@iptvnator/epg/data-access';
 import {
     MockModule,
     MockProvider,
     MockProviders,
 } from 'ng-mocks';
 import { DialogService } from 'components';
-import { DataService, EpgService, PlaylistsService } from 'services';
+import { DataService, PlaylistsService } from 'services';
 import { Language, StreamFormat, Theme, VideoPlayer } from 'shared-interfaces';
 import { SettingsComponent } from './settings.component';
 

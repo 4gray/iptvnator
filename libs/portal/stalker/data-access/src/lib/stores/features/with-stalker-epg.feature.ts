@@ -1,12 +1,32 @@
 import { inject } from '@angular/core';
 import { signalStoreFeature, withMethods } from '@ngrx/signals';
-import { DataService, StalkerSessionService } from 'services';
+import { DataService } from 'services';
+import { StalkerSessionService } from '../../stalker-session.service';
 import {
     EpgItem,
     Playlist,
     STALKER_REQUEST,
     StalkerPortalActions,
 } from 'shared-interfaces';
+
+interface EpgStoreContext {
+    currentPlaylist(): Playlist | undefined;
+}
+
+interface StalkerEpgEntry {
+    id?: string | number;
+    name?: string;
+    descr?: string;
+    time?: string;
+    time_to?: string;
+    ch_id?: string | number;
+    start_timestamp?: string | number;
+    stop_timestamp?: string | number;
+}
+
+interface StalkerEpgResponse {
+    js?: StalkerEpgEntry[] | { data?: StalkerEpgEntry[] };
+}
 
 /**
  * EPG concern methods.
@@ -19,14 +39,14 @@ export function withStalkerEpg() {
                 dataService = inject(DataService),
                 stalkerSession = inject(StalkerSessionService)
             ) => {
-                const storeAny = store as any;
+                const storeContext = store as unknown as EpgStoreContext;
 
                 return {
                     async fetchChannelEpg(
                         channelId: number | string,
                         size = 10
                     ): Promise<EpgItem[]> {
-                        const playlist = storeAny.currentPlaylist() as Playlist;
+                        const playlist = storeContext.currentPlaylist();
                         if (!playlist) return [];
 
                         const queryParams: Record<string, string> = {
@@ -36,7 +56,7 @@ export function withStalkerEpg() {
                             size: String(size),
                         };
 
-                        let response: any;
+                        let response: StalkerEpgResponse;
                         if (playlist.isFullStalkerPortal) {
                             response =
                                 await stalkerSession.makeAuthenticatedRequest(
@@ -44,7 +64,8 @@ export function withStalkerEpg() {
                                     queryParams
                                 );
                         } else {
-                            response = await dataService.sendIpcEvent(
+                            response =
+                                await dataService.sendIpcEvent<StalkerEpgResponse>(
                                 STALKER_REQUEST,
                                 {
                                     url: playlist.portalUrl,
@@ -54,7 +75,9 @@ export function withStalkerEpg() {
                             );
                         }
 
-                        const epgData = response?.js?.data ?? response?.js ?? [];
+                        const epgData = Array.isArray(response?.js)
+                            ? response.js
+                            : response?.js?.data ?? [];
                         const items = Array.isArray(epgData) ? epgData : [];
 
                         return items.map((item) => ({

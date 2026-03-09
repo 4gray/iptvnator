@@ -4,8 +4,9 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
 import { selectPlaylistById } from 'm3u-state';
-import { DataService, PlaylistsService, StalkerSessionService } from 'services';
+import { DataService, PlaylistsService } from 'services';
 import {
     Playlist,
     STALKER_REQUEST,
@@ -42,6 +43,14 @@ interface StalkerFilter {
     key: string;
     label: string;
     translationKey: string;
+}
+
+interface StalkerSearchResponse {
+    js?: {
+        data?: StalkerVodSource[];
+    };
+    message?: string;
+    status?: number;
 }
 
 @Component({
@@ -136,9 +145,10 @@ export class StalkerSearchComponent {
                 }
             }
 
-            const response = await this.dataService.sendIpcEvent(
-                STALKER_REQUEST,
-                {
+            const response =
+                await this.dataService.sendIpcEvent<StalkerSearchResponse>(
+                    STALKER_REQUEST,
+                    {
                     url: portalUrl,
                     macAddress,
                     params: {
@@ -150,8 +160,8 @@ export class StalkerSearchComponent {
                     },
                     token,
                     serialNumber,
-                }
-            );
+                    }
+                );
             if (response) {
                 const items = response.js?.data || [];
                 return items.map((item: StalkerVodSource) =>

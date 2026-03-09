@@ -23,7 +23,8 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
+import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
+import { ResizableDirective } from 'components';
 import { CategoryViewComponent, PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
     PORTAL_PLAYER,

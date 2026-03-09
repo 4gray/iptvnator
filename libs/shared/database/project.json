@@ -3,7 +3,7 @@
     "$schema": "../../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "libs/shared/database/src",
     "projectType": "library",
-    "tags": ["scope:shared", "type:data-access"],
+    "tags": ["scope:shared", "domain:shared-runtime", "type:data-access"],
     "targets": {
         "build": {
             "executor": "@nx/esbuild:esbuild",

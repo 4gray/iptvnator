@@ -2,6 +2,7 @@ import {
     Directive,
     ElementRef,
     Renderer2,
+    inject,
     input,
     output,
     OnInit,
@@ -78,11 +79,10 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
     private boundMouseUp: ((e: MouseEvent) => void) | null = null;
     private boundTouchMove: ((e: TouchEvent) => void) | null = null;
     private boundTouchEnd: ((e: TouchEvent) => void) | null = null;
+    private readonly el = inject(ElementRef<HTMLElement>);
+    private readonly renderer = inject(Renderer2);
 
-    constructor(
-        private readonly el: ElementRef<HTMLElement>,
-        private readonly renderer: Renderer2
-    ) {
+    constructor() {
         // Apply resizing class when dragging
         effect(() => {
             if (this.isResizing()) {

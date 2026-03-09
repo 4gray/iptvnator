@@ -5,6 +5,7 @@ import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
+import { EpgService } from '@iptvnator/epg/data-access';
 import {
     combineLatestWith,
     EMPTY,
@@ -15,7 +16,7 @@ import {
     tap,
     withLatestFrom,
 } from 'rxjs';
-import { DataService, EpgService, PlaylistsService } from 'services';
+import { DataService, PlaylistsService } from 'services';
 import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,

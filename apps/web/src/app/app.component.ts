@@ -5,14 +5,11 @@ import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import {
-    GlobalRecentlyViewedComponent,
-    GlobalSearchResultsComponent,
-} from '@iptvnator/portal/xtream/feature';
-import { EpgProgressPanelComponent } from 'components';
+import { EpgService } from '@iptvnator/epg/data-access';
+import { EpgProgressPanelComponent } from '@iptvnator/ui/epg';
 import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
 import { filter, take } from 'rxjs';
-import { DataService, EpgService } from 'services';
+import { DataService } from 'services';
 import {
     AUTO_UPDATE_PLAYLISTS,
     Language,
@@ -149,25 +146,33 @@ export class AppComponent implements OnInit {
     }
 
     openGlobalSearch(initialQuery = ''): void {
-        this.dialog.open(GlobalSearchResultsComponent, {
-            width: '100%',
-            height: '100%',
-            maxWidth: '100%',
-            panelClass: 'global-search-overlay',
-            data: { isGlobalSearch: true, initialQuery },
-        });
+        void import('@iptvnator/portal/xtream/feature').then(
+            ({ GlobalSearchResultsComponent }) => {
+                this.dialog.open(GlobalSearchResultsComponent, {
+                    width: '100%',
+                    height: '100%',
+                    maxWidth: '100%',
+                    panelClass: 'global-search-overlay',
+                    data: { isGlobalSearch: true, initialQuery },
+                });
+            }
+        );
     }
 
     openGlobalRecent(): void {
-        this.dialog.open(GlobalRecentlyViewedComponent, {
-            width: '100%',
-            height: '100%',
-            maxWidth: '100%',
-            panelClass: 'global-search-overlay',
-            data: { isGlobal: true },
-            hasBackdrop: true,
-            disableClose: false,
-        });
+        void import('@iptvnator/portal/xtream/feature').then(
+            ({ GlobalRecentlyViewedComponent }) => {
+                this.dialog.open(GlobalRecentlyViewedComponent, {
+                    width: '100%',
+                    height: '100%',
+                    maxWidth: '100%',
+                    panelClass: 'global-search-overlay',
+                    data: { isGlobal: true },
+                    hasBackdrop: true,
+                    disableClose: false,
+                });
+            }
+        );
     }
 
     /**

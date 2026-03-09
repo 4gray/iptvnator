@@ -8,7 +8,7 @@ import {
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { PlaylistType } from 'components';
+import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { PlaylistActions } from 'm3u-state';
 import { getFilenameFromUrl } from 'm3u-utils';
 import { DataService } from 'services';

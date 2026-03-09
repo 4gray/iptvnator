@@ -3,8 +3,18 @@ import { signalStoreFeature, withMethods } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { PlaylistActions } from 'm3u-state';
 import { PlaylistsService } from 'services';
-import { PlaylistMeta } from 'shared-interfaces';
+import { PlaylistMeta, StalkerPortalItem } from 'shared-interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
+
+interface RecentStoreContext {
+    currentPlaylist(): PlaylistMeta | undefined;
+    selectedContentType(): string;
+}
+
+type RecentlyViewedPayload = StalkerPortalItem & {
+    id?: string | number;
+    title?: string;
+};
 
 /**
  * Recently-viewed concern methods.
@@ -18,17 +28,24 @@ export function withStalkerRecent() {
                 playlistService = inject(PlaylistsService),
                 ngrxStore = inject(Store)
             ) => {
-                const storeAny = store as any;
+                const storeContext = store as unknown as RecentStoreContext;
 
                 return {
-                    addToRecentlyViewed(item: any) {
-                        const portalId = storeAny.currentPlaylist()?._id;
+                    addToRecentlyViewed(item: RecentlyViewedPayload) {
+                        const portalId = storeContext.currentPlaylist()?._id;
+                        const recentItem = {
+                            ...item,
+                            category_id: storeContext.selectedContentType(),
+                            added_at: Date.now(),
+                            id: item.id ?? item.stream_id ?? '',
+                            title:
+                                item.title ??
+                                item.name ??
+                                item.o_name ??
+                                '',
+                        };
                         playlistService
-                            .addPortalRecentlyViewed(portalId, {
-                                ...item,
-                                category_id: storeAny.selectedContentType(),
-                                added_at: Date.now(),
-                            })
+                            .addPortalRecentlyViewed(portalId, recentItem)
                             .subscribe((updatedPlaylist) => {
                                 ngrxStore.dispatch(
                                     PlaylistActions.updatePlaylistMeta({
@@ -45,7 +62,7 @@ export function withStalkerRecent() {
                         itemId: string | number,
                         onComplete?: () => void
                     ) {
-                        const portalId = storeAny.currentPlaylist()?._id;
+                        const portalId = storeContext.currentPlaylist()?._id;
                         playlistService
                             .removeFromPortalRecentlyViewed(portalId, itemId)
                             .subscribe({

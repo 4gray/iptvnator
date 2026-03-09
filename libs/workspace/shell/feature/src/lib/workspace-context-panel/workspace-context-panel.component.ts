@@ -8,10 +8,6 @@ import { Router } from '@angular/router';
 import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
 import { PlaylistErrorViewComponent } from '@iptvnator/portal/shared/ui';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
-import {
-    CategoryManagementDialogComponent,
-    CategoryManagementDialogData,
-} from '@iptvnator/portal/xtream/feature';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
@@ -114,28 +110,31 @@ export class WorkspaceContextPanelComponent {
                   ? 'live'
                   : 'vod';
 
-        const dialogRef = this.dialog.open<
-            CategoryManagementDialogComponent,
-            CategoryManagementDialogData,
-            boolean
-        >(CategoryManagementDialogComponent, {
-            data: {
-                playlistId: context.playlistId,
-                contentType,
-                itemCounts: this.xtreamStore.getCategoryItemCounts(),
-            },
-            width: '500px',
-            maxHeight: '80vh',
-        });
+        void import('@iptvnator/portal/xtream/feature').then(
+            ({ CategoryManagementDialogComponent }) => {
+                const dialogRef = this.dialog.open(
+                    CategoryManagementDialogComponent,
+                    {
+                        data: {
+                            playlistId: context.playlistId,
+                            contentType,
+                            itemCounts: this.xtreamStore.getCategoryItemCounts(),
+                        },
+                        width: '500px',
+                        maxHeight: '80vh',
+                    }
+                );
 
-        dialogRef
-            .afterClosed()
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe((result) => {
-                if (result) {
-                    this.xtreamStore.reloadCategories();
-                }
-            });
+                dialogRef
+                    .afterClosed()
+                    .pipe(takeUntilDestroyed(this.destroyRef))
+                    .subscribe((result) => {
+                        if (result) {
+                            this.xtreamStore.reloadCategories();
+                        }
+                    });
+            }
+        );
     }
 
     onXtreamCategoryClicked(category: XtreamCategoryLike): void {

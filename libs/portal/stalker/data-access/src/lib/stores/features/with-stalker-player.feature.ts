@@ -5,7 +5,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
-import { DataService, PlaylistsService, StalkerSessionService } from 'services';
+import { DataService, PlaylistsService } from 'services';
 import {
     Playlist,
     PlaylistMeta,
@@ -22,6 +22,7 @@ import {
     isCrossOriginStalkerStream,
     STALKER_MAG_USER_AGENT,
 } from '../../stalker-live-playback.utils';
+import { StalkerSessionService } from '../../stalker-session.service';
 import {
     normalizeStalkerEntityId,
     normalizeStalkerEntityIdAsNumber,

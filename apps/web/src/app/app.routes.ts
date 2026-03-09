@@ -1,6 +1,4 @@
 import { Route, Routes } from '@angular/router';
-import { createStalkerRoutes } from '@iptvnator/portal/stalker/feature';
-import { createXtreamRoutes } from '@iptvnator/portal/xtream/feature';
 
 function withWorkspaceLayout(routes: Route[]): Route[] {
     return routes.map((route) => ({
@@ -80,8 +78,20 @@ export const routes: Routes = [
                         (c) => c.DownloadsComponent
                     ),
             },
-            ...withWorkspaceLayout(createXtreamRoutes()),
-            ...withWorkspaceLayout(createStalkerRoutes()),
+            {
+                path: '',
+                loadChildren: () =>
+                    import('@iptvnator/portal/xtream/feature').then((m) =>
+                        withWorkspaceLayout(m.createXtreamRoutes())
+                    ),
+            },
+            {
+                path: '',
+                loadChildren: () =>
+                    import('@iptvnator/portal/stalker/feature').then((m) =>
+                        withWorkspaceLayout(m.createStalkerRoutes())
+                    ),
+            },
             {
                 path: 'settings',
                 data: { layout: 'workspace' },

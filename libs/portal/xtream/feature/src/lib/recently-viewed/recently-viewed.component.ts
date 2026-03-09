@@ -17,7 +17,6 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import groupBy from 'lodash/groupBy';
 import { firstValueFrom } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
 import { ContentCardComponent, FavoriteLayoutItem } from '@iptvnator/portal/shared/ui';
@@ -80,6 +79,22 @@ interface XtreamRecentLiveItem {
     readonly stream_icon?: string;
     readonly title?: string;
     readonly xtream_id: number;
+}
+
+function groupItemsByPlaylistName(
+    items: XtreamRecentViewItem[]
+): Record<string, XtreamRecentViewItem[]> {
+    return items.reduce<Record<string, XtreamRecentViewItem[]>>(
+        (groups, item) => {
+            const key = String(item.playlist_name);
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(item);
+            return groups;
+        },
+        {}
+    );
 }
 
 function isXtreamRecentViewItem(
@@ -476,8 +491,7 @@ export class RecentlyViewedComponent {
     getGroupedItems() {
         const items = this.visibleRecentItems();
         if (!this.isGlobal) return { default: items };
-        const grouped = groupBy(items, 'playlist_name');
-        return grouped;
+        return groupItemsByPlaylistName(items);
     }
 
     updateRecentSearchTerm(term: string) {
