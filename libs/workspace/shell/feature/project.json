@@ -1,0 +1,13 @@
+{
+    "name": "workspace-shell-feature",
+    "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/workspace/shell/feature/src",
+    "prefix": "lib",
+    "projectType": "library",
+    "tags": ["scope:workspace", "domain:workspace", "type:feature"],
+    "targets": {
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}

@@ -5,10 +5,10 @@ import {
     PORTAL_NAVIGATION_ACTIONS,
     PortalNavigationActions,
 } from '@iptvnator/portal/shared/util';
+import { AccountInfoComponent } from '@iptvnator/portal/xtream/feature';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { Playlist } from 'shared-interfaces';
 import { SettingsComponent } from '../settings/settings.component';
-import { AccountInfoComponent } from '../xtream-electron/account-info/account-info.component';
 
 @Injectable({ providedIn: 'root' })
 export class AppPortalNavigationActionsService

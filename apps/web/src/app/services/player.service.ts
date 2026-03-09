@@ -1,5 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
+import { ExternalPlayerInfoDialogComponent } from 'components';
+import {
+    PlayerDialogComponent,
+    PlayerDialogData,
+} from '@iptvnator/portal/xtream/feature';
 import { DataService } from 'services';
 import {
     ExternalPlayerSession,
@@ -9,11 +14,6 @@ import {
     ResolvedPortalPlayback,
     VideoPlayer,
 } from 'shared-interfaces';
-import { ExternalPlayerInfoDialogComponent } from '../shared/components/external-player-info-dialog/external-player-info-dialog.component';
-import {
-    PlayerDialogComponent,
-    PlayerDialogData,
-} from '../xtream-electron/player-dialog/player-dialog.component';
 import { SettingsStore } from './settings-store.service';
 
 @Injectable({
@@ -39,7 +39,7 @@ export class PlayerService {
         title: string,
         thumbnail?: string,
         hideExternalInfoDialog = true,
-        isLiveContent = false,
+        _isLiveContent = false,
         userAgent?: string,
         referer?: string,
         origin?: string,
@@ -47,6 +47,7 @@ export class PlayerService {
         startTime?: number,
         headers?: Record<string, string>
     ): Promise<ExternalPlayerSession | void> {
+        void _isLiveContent;
         return this.openResolvedPlayback(
             {
                 streamUrl,

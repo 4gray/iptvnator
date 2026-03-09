@@ -5,6 +5,7 @@ import {
 } from 'shared-interfaces';
 
 export interface PortalPlayer {
+    isEmbeddedPlayer(): boolean;
     openPlayer(
         streamUrl: string,
         title: string,

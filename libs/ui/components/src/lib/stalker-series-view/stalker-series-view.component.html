@@ -1,0 +1,92 @@
+@if (displayItem(); as serial) {
+    <app-content-hero
+        [title]="serial.info.name"
+        [description]="serial.info.description"
+        [posterUrl]="serial.info.movie_image"
+        (backClicked)="goBack()"
+    >
+        <!-- Tags: Year, Genre, Rating -->
+        <ng-container hero-tags>
+            @if (serial.info.releasedate) {
+                <span class="details__tag">{{
+                    serial.info.releasedate
+                }}</span>
+            }
+            @if (serial.info.genre) {
+                <span class="details__tag">{{
+                    serial.info.genre
+                }}</span>
+            }
+            @if (serial.info.rating_imdb) {
+                <span class="details__tag details__tag--rating">
+                    ⭐ {{ serial.info.rating_imdb }}
+                </span>
+            }
+            @if (serial.info.rating_kinopoisk) {
+                <span class="details__tag">
+                    KP {{ serial.info.rating_kinopoisk }}
+                </span>
+            }
+        </ng-container>
+
+        <!-- Metadata Grid -->
+        <ng-container hero-meta>
+            @if (serial.info.actors) {
+                <div class="details__meta-item">
+                    <span class="label">{{
+                        'XTREAM.ACTORS' | translate
+                    }}</span>
+                    <span class="value">{{ serial.info.actors }}</span>
+                </div>
+            }
+            @if (serial.info.director) {
+                <div class="details__meta-item">
+                    <span class="label">{{
+                        'XTREAM.DIRECTOR' | translate
+                    }}</span>
+                    <span class="value">{{ serial.info.director }}</span>
+                </div>
+            }
+        </ng-container>
+
+        <!-- Action Buttons -->
+        <ng-container hero-actions>
+            <app-favorites-button
+                [itemId]="serial.id"
+                [item]="serial"
+            />
+        </ng-container>
+
+        @if (inlinePlayback(); as playback) {
+            <app-portal-inline-player
+                [playback]="playback"
+                (timeUpdate)="handleInlineTimeUpdate($event)"
+                (closed)="closeInlinePlayer()"
+                (streamUrlCopied)="showCopyNotification()"
+            />
+        }
+
+        <!-- Seasons & Episodes -->
+        @if (mappedSeasons()) {
+            <app-season-container
+                [seasons]="mappedSeasons()"
+                [seriesId]="toSeriesId(serial.id)"
+                [playlistId]="stalkerStore.currentPlaylist()?._id ?? ''"
+                [seriesTitle]="serial.info?.name"
+                [playbackPositions]="episodePlaybackPositions()"
+                [openingEpisodeId]="openingEpisodeId()"
+                [activeEpisodeId]="activeEpisodeId()"
+                [isLoading]="
+                    isVodSeriesSeasonsLoading() ||
+                    (seasonContainer?.selectedSeason &&
+                        isCurrentSeasonLoading(seasonContainer.selectedSeason))
+                "
+                (seasonSelected)="onSeasonSelected($event)"
+                (episodeClicked)="onEpisodeClicked($event)"
+                (episodeDownloadRequested)="downloadEpisode($event)"
+                (playbackToggleRequested)="handlePlaybackToggleRequested($event)"
+                #seasonContainer
+            />
+        }
+    </app-content-hero>
+}

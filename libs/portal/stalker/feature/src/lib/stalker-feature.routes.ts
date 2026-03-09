@@ -1,16 +1,7 @@
-import { Provider } from '@angular/core';
 import { Route } from '@angular/router';
+import { provideStalkerCatalogFacade } from './stalker-catalog-facade.service';
 
 type ComponentLoader = NonNullable<Route['loadComponent']>;
-
-export interface StalkerFeatureRouteOptions {
-    readonly catalogProviders?: Provider[];
-    readonly loadCategoryContentViewComponent: ComponentLoader;
-    readonly loadLiveStreamLayoutComponent: ComponentLoader;
-    readonly loadFavoritesComponent: ComponentLoader;
-    readonly loadRecentlyViewedComponent: ComponentLoader;
-    readonly loadSearchComponent: ComponentLoader;
-}
 
 const loadDownloadsComponent: ComponentLoader = () =>
     import('@iptvnator/portal/downloads/feature').then(
@@ -27,9 +18,32 @@ const loadStalkerMainContainerComponent: ComponentLoader = () =>
         (c) => c.StalkerMainContainerComponent
     );
 
-export function createStalkerRoutes(
-    options: StalkerFeatureRouteOptions
-): Route[] {
+const loadStalkerLiveStreamLayoutComponent: ComponentLoader = () =>
+    import('./stalker-live-stream-layout/stalker-live-stream-layout.component').then(
+        (c) => c.StalkerLiveStreamLayoutComponent
+    );
+
+const loadCategoryContentViewComponent: ComponentLoader = () =>
+    import('@iptvnator/portal/catalog/feature').then(
+        (c) => c.CategoryContentViewComponent
+    );
+
+const loadStalkerFavoritesComponent: ComponentLoader = () =>
+    import('./stalker-favorites/stalker-favorites.component').then(
+        (c) => c.StalkerFavoritesComponent
+    );
+
+const loadStalkerRecentlyViewedComponent: ComponentLoader = () =>
+    import('./recently-viewed/recently-viewed.component').then(
+        (c) => c.RecentlyViewedComponent
+    );
+
+const loadStalkerSearchComponent: ComponentLoader = () =>
+    import('./stalker-search/stalker-search.component').then(
+        (c) => c.StalkerSearchComponent
+    );
+
+export function createStalkerRoutes(): Route[] {
     return [
         {
             path: 'stalker/:id',
@@ -42,7 +56,7 @@ export function createStalkerRoutes(
                 },
                 {
                     path: 'vod',
-                    providers: options.catalogProviders ?? [],
+                    providers: provideStalkerCatalogFacade(),
                     loadComponent: loadStalkerMainContainerComponent,
                     children: [
                         {
@@ -51,8 +65,7 @@ export function createStalkerRoutes(
                                 api: 'stalker',
                                 contentType: 'vod',
                             },
-                            loadComponent:
-                                options.loadCategoryContentViewComponent,
+                            loadComponent: loadCategoryContentViewComponent,
                         },
                         {
                             path: ':categoryId',
@@ -60,8 +73,7 @@ export function createStalkerRoutes(
                                 api: 'stalker',
                                 contentType: 'vod',
                             },
-                            loadComponent:
-                                options.loadCategoryContentViewComponent,
+                            loadComponent: loadCategoryContentViewComponent,
                         },
                     ],
                 },
@@ -72,11 +84,11 @@ export function createStalkerRoutes(
                 },
                 {
                     path: 'itv',
-                    loadComponent: options.loadLiveStreamLayoutComponent,
+                    loadComponent: loadStalkerLiveStreamLayoutComponent,
                 },
                 {
                     path: 'series',
-                    providers: options.catalogProviders ?? [],
+                    providers: provideStalkerCatalogFacade(),
                     loadComponent: loadStalkerMainContainerComponent,
                     children: [
                         {
@@ -85,8 +97,7 @@ export function createStalkerRoutes(
                                 api: 'stalker',
                                 contentType: 'series',
                             },
-                            loadComponent:
-                                options.loadCategoryContentViewComponent,
+                            loadComponent: loadCategoryContentViewComponent,
                         },
                         {
                             path: ':categoryId',
@@ -94,22 +105,21 @@ export function createStalkerRoutes(
                                 api: 'stalker',
                                 contentType: 'series',
                             },
-                            loadComponent:
-                                options.loadCategoryContentViewComponent,
+                            loadComponent: loadCategoryContentViewComponent,
                         },
                     ],
                 },
                 {
                     path: 'favorites',
-                    loadComponent: options.loadFavoritesComponent,
+                    loadComponent: loadStalkerFavoritesComponent,
                 },
                 {
                     path: 'recent',
-                    loadComponent: options.loadRecentlyViewedComponent,
+                    loadComponent: loadStalkerRecentlyViewedComponent,
                 },
                 {
                     path: 'search',
-                    loadComponent: options.loadSearchComponent,
+                    loadComponent: loadStalkerSearchComponent,
                 },
                 {
                     path: 'downloads',

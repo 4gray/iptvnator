@@ -1,0 +1,174 @@
+@use '../../../../../shared/ui/src/lib/styles/content-grid' as grid;
+
+:host {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    height: 100%;
+    width: 100%;
+}
+
+.recent-container {
+    padding: 20px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+}
+
+.recent-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 1rem;
+    padding: 0 12px;
+    height: 42px;
+    border-radius: 12px;
+    border: 1px solid var(--app-separator);
+    background: var(--mat-sys-surface-container-low);
+
+    mat-icon {
+        opacity: 0.6;
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+
+    input {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        opacity: 0.95;
+
+        &::placeholder {
+            opacity: 0.5;
+        }
+    }
+}
+
+.items-grid {
+    @include grid.content-grid(140px, 20px);
+}
+
+.no-items {
+    text-align: center;
+    padding: 40px;
+
+    mat-icon {
+        font-size: 48px;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 16px;
+    }
+}
+
+.playlist-section {
+    .section-title {
+        margin: 0 0 1.5rem;
+        font-size: 0.94rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--mat-sys-on-surface);
+        padding: 0 8px;
+    }
+}
+
+.playlist-group {
+    margin-bottom: 2rem;
+
+    .playlist-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 1rem 0;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+        font-size: 1.1rem;
+        font-weight: 500;
+
+        mat-icon {
+            opacity: 0.7;
+        }
+
+        .item-count {
+            margin-left: auto;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+    }
+}
+
+// Subheader row for global recently viewed (note + grouping toggle)
+.global-recent-subheader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0 0 1rem;
+
+    .global-recent-subheader-left {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .global-recent-note {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        opacity: 0.55;
+
+        mat-icon {
+            font-size: 15px;
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+        }
+    }
+
+    .global-recent-filters {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    ::ng-deep mat-checkbox {
+        flex-shrink: 0;
+    }
+}
+
+:host-context(.global-search-overlay) {
+    // Prevent Electron drag-region from blocking click interactions.
+    app-region: no-drag;
+
+    .recent-container {
+        background: var(--background);
+        height: 100vh;
+    }
+
+    .header-actions,
+    .header-actions button {
+        app-region: no-drag;
+    }
+
+    .playlist-group {
+        .playlist-title {
+            background: var(--surface);
+        }
+    }
+}

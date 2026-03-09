@@ -20,16 +20,26 @@ import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { PlaylistEffects, playlistReducer } from 'm3u-state';
 import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
-import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
+import {
+    PORTAL_EXTERNAL_PLAYBACK,
+    PORTAL_PLAYER,
+} from '@iptvnator/portal/shared/util';
+import { PLAYLIST_PLAYER_ACTIONS } from '@iptvnator/playlist/m3u/feature-player';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import { DataService } from 'services';
 import { dbConfig } from 'shared-interfaces';
 import { AppConfig } from '../environments/environment';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
+import { ExternalPlaybackService } from './services/external-playback.service';
 import { PlayerService } from './services/player.service';
-import { providePortalNavigationActions } from './services/portal-navigation-actions.service';
+import {
+    AppPortalNavigationActionsService,
+    providePortalNavigationActions,
+} from './services/portal-navigation-actions.service';
+import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
 import { PwaService } from './services/pwa.service';
+import { provideWorkspaceShellActions } from './services/workspace-shell-actions.service';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -92,7 +102,17 @@ export const appConfig: ApplicationConfig = {
             provide: PORTAL_PLAYER,
             useExisting: PlayerService,
         },
+        {
+            provide: PORTAL_EXTERNAL_PLAYBACK,
+            useExisting: ExternalPlaybackService,
+        },
+        ...providePortalPlaybackPositions(),
         ...providePortalNavigationActions(),
+        {
+            provide: PLAYLIST_PLAYER_ACTIONS,
+            useExisting: AppPortalNavigationActionsService,
+        },
+        ...provideWorkspaceShellActions(),
         ...provideXtreamDataSource(),
     ],
 };

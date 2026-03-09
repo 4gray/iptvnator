@@ -1,0 +1,2 @@
+export * from './lib/playlist-player-actions';
+export * from './lib/video-player/video-player.component';

@@ -49,8 +49,8 @@ import {
     Theme,
     VideoPlayer,
 } from 'shared-interfaces';
+import { SettingsContextService } from '@iptvnator/workspace/shell/feature';
 import { SettingsStore } from '../services/settings-store.service';
-import { SettingsContextService } from '../workspace/settings-context.service';
 import { SettingsService } from './../services/settings.service';
 
 interface SettingsSection {

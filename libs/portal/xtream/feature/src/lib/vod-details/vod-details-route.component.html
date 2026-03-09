@@ -1,0 +1,187 @@
+@let item = selectedItem();
+@if (item && item.info) {
+    <app-content-hero
+        [title]="item.info?.name || item?.movie_data?.name"
+        [description]="item.info.description || item.info.plot"
+        [posterUrl]="item.info.movie_image"
+        [backdropUrl]="item.info?.backdrop_path?.[0]"
+        (backClicked)="goBack()"
+    >
+        <ng-container hero-tags>
+            @if (item.info?.releasedate) {
+                <span class="details__tag">{{
+                    item.info.releasedate | slice: 0 : 4
+                }}</span>
+            }
+            @if (item.info?.genre) {
+                <span class="details__tag">{{ item.info.genre }}</span>
+            }
+            @if (item.info?.duration) {
+                <span class="details__tag">{{ item.info.duration }}</span>
+            }
+            @if (item.info?.rating_imdb) {
+                <span class="details__tag details__tag--rating">
+                    ⭐ {{ item.info.rating_imdb }}
+                </span>
+            }
+            @if (item.info?.country) {
+                <span class="details__tag">{{ item.info.country }}</span>
+            }
+        </ng-container>
+
+        <ng-container hero-meta>
+            @if (item.info?.actors || item.info?.cast) {
+                <div class="details__meta-item">
+                    <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
+                    <span class="value">{{
+                        item.info.actors || item.info.cast
+                    }}</span>
+                </div>
+            }
+            @if (item.info?.director) {
+                <div class="details__meta-item">
+                    <span class="label">{{
+                        'XTREAM.DIRECTOR' | translate
+                    }}</span>
+                    <span class="value">{{ item.info.director }}</span>
+                </div>
+            }
+            @if (item.info?.rating_kinopoisk) {
+                <div class="details__meta-item">
+                    <span class="label">{{
+                        'XTREAM.KINOPOISK_RATING' | translate
+                    }}</span>
+                    <span class="value">{{ item.info.rating_kinopoisk }}</span>
+                </div>
+            }
+        </ng-container>
+
+        <ng-container hero-actions>
+            @if (hasPlaybackPosition()) {
+                <button
+                    class="play-btn play-btn--resume"
+                    (click)="onPrimaryAction(item)"
+                    [disabled]="isExternalLaunchPending()"
+                    [class.play-btn--state-launching]="externalPrimaryButtonState() === 'launching'"
+                    [class.play-btn--state-stop]="externalPrimaryButtonState() === 'stop'"
+                >
+                    <span class="play-btn__icon-shell" aria-hidden="true">
+                        <mat-icon class="play-btn__icon">{{
+                            externalPrimaryIcon()
+                        }}</mat-icon>
+                    </span>
+                    <span class="play-btn__label">
+                        @if (externalPrimaryLabel(); as label) {
+                            {{ label }}
+                        } @else {
+                            {{ 'XTREAM.RESUME' | translate }}
+                            {{ formatPosition() }}
+                        }
+                    </span>
+                </button>
+                @if (!isExternalStopAction()) {
+                    <button
+                        class="play-btn play-btn--restart"
+                        (click)="playVod(item)"
+                    >
+                        <mat-icon>replay</mat-icon>
+                        {{ 'XTREAM.RESTART' | translate }}
+                    </button>
+                }
+            } @else {
+                <button
+                    class="play-btn"
+                    (click)="onPrimaryAction(item)"
+                    [disabled]="isExternalLaunchPending()"
+                    [class.play-btn--state-launching]="externalPrimaryButtonState() === 'launching'"
+                    [class.play-btn--state-stop]="externalPrimaryButtonState() === 'stop'"
+                >
+                    <span class="play-btn__icon-shell" aria-hidden="true">
+                        <mat-icon class="play-btn__icon">{{
+                            externalPrimaryIcon()
+                        }}</mat-icon>
+                    </span>
+                    <span class="play-btn__label">
+                        @if (externalPrimaryLabel(); as label) {
+                            {{ label }}
+                        } @else {
+                            {{ 'XTREAM.PLAY' | translate }}
+                        }
+                    </span>
+                </button>
+            }
+            @if (!isFavorite()) {
+                <button class="favorite-btn" (click)="toggleFavorite()">
+                    <mat-icon>add</mat-icon>
+                    {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
+                </button>
+            } @else {
+                <button
+                    class="favorite-btn favorite-btn--active"
+                    (click)="toggleFavorite()"
+                >
+                    <mat-icon>check</mat-icon>
+                    {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
+                </button>
+            }
+            @if (isElectron()) {
+                @if (isDownloaded()) {
+                    <button
+                        class="download-btn download-btn--completed"
+                        (click)="playFromLocal()"
+                    >
+                        <mat-icon>play_circle</mat-icon>
+                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
+                    </button>
+                } @else if (isDownloading()) {
+                    <button
+                        class="download-btn download-btn--downloading"
+                        disabled
+                    >
+                        <mat-icon>downloading</mat-icon>
+                        {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
+                    </button>
+                } @else {
+                    <button class="download-btn" (click)="downloadVod(item)">
+                        <mat-icon>download</mat-icon>
+                        {{ 'DOWNLOADS.DOWNLOAD' | translate }}
+                    </button>
+                }
+            }
+        </ng-container>
+
+        @if (inlinePlayback(); as playback) {
+            <app-portal-inline-player
+                [playback]="playback"
+                (timeUpdate)="handleInlineTimeUpdate($event)"
+                (closed)="closeInlinePlayer()"
+                (streamUrlCopied)="showCopyNotification()"
+            />
+        }
+
+        @if (item.info?.youtube_trailer) {
+            <div class="youtube-trailer">
+                <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
+                <div class="trailer-wrapper">
+                    <iframe
+                        [src]="
+                            'https://www.youtube.com/embed/' +
+                                item.info.youtube_trailer | safe
+                        "
+                        title="YouTube video player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen
+                    ></iframe>
+                </div>
+            </div>
+        }
+    </app-content-hero>
+} @else if (detailsError()) {
+    <app-content-hero
+        [errorMessage]="detailsError()"
+        (backClicked)="goBack()"
+    />
+} @else {
+    <app-content-hero [isLoading]="true" (backClicked)="goBack()" />
+}

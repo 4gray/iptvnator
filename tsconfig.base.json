@@ -15,6 +15,9 @@
         "skipDefaultLibCheck": true,
         "baseUrl": ".",
         "paths": {
+            "@iptvnator/portal/catalog/feature": [
+                "libs/portal/catalog/feature/src/index.ts"
+            ],
             "@iptvnator/portal/downloads/feature": [
                 "libs/portal/downloads/feature/src/index.ts"
             ],
@@ -23,6 +26,12 @@
             ],
             "@iptvnator/portal/shared/util": [
                 "libs/portal/shared/util/src/index.ts"
+            ],
+            "@iptvnator/playlist/import/feature": [
+                "libs/playlist/import/feature/src/index.ts"
+            ],
+            "@iptvnator/playlist/m3u/feature-player": [
+                "libs/playlist/m3u/feature-player/src/index.ts"
             ],
             "@iptvnator/portal/stalker/feature": [
                 "libs/portal/stalker/feature/src/index.ts"
@@ -35,6 +44,9 @@
             ],
             "@iptvnator/portal/xtream/data-access": [
                 "libs/portal/xtream/data-access/src/index.ts"
+            ],
+            "@iptvnator/workspace/shell/feature": [
+                "libs/workspace/shell/feature/src/index.ts"
             ],
             "@iptvnator/pipes": ["libs/ui/pipes/src/index.ts"],
             "@package": ["./package.json"],

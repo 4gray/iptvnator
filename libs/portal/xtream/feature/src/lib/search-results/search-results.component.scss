@@ -1,0 +1,158 @@
+@use '../../../../../shared/ui/src/lib/styles/content-grid' as grid;
+
+:host {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    height: 100%;
+    width: 100%;
+}
+
+// Results grid styling
+.results-grid {
+    @include grid.content-grid(140px, 20px);
+    padding-bottom: 1rem;
+}
+
+// Global search overlay styles
+:host-context(.global-search-overlay) {
+    .results-grid {
+        mat-card {
+            position: relative;
+
+            .poster,
+            .poster-placeholder {
+                margin-top: 24px;
+            }
+
+            .playlist-badge {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: rgba(0, 0, 0, 0.85);
+                padding: 6px 8px;
+                font-size: 12px;
+                color: white;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                border-top-left-radius: inherit;
+                border-top-right-radius: inherit;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+
+                mat-icon {
+                    font-size: 14px;
+                    width: 14px;
+                    height: 14px;
+                    flex-shrink: 0;
+                }
+            }
+        }
+    }
+}
+
+// Subheader row for global search (note + grouping toggle)
+.global-search-subheader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+
+    .global-search-subheader-left {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .global-search-note {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        opacity: 0.55;
+
+        mat-icon {
+            font-size: 15px;
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+        }
+    }
+
+    .global-search-filters {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    ::ng-deep mat-checkbox {
+        flex-shrink: 0;
+    }
+}
+
+// Playlist grouping styles for global search
+.playlist-group {
+    margin-bottom: 2rem;
+
+    .playlist-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 1rem 0;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+        font-size: 1.1rem;
+        font-weight: 500;
+
+        mat-icon {
+            opacity: 0.7;
+        }
+
+        .item-count {
+            margin-left: auto;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+    }
+
+    .results-grid {
+        margin-bottom: 0;
+    }
+}
+
+:host-context(.global-search-overlay) {
+    .playlist-group {
+        .playlist-title {
+            background: var(--surface);
+        }
+    }
+
+    .results-grid {
+        mat-card {
+            .playlist-badge {
+                display: none;
+            }
+
+            .poster,
+            .poster-placeholder {
+                margin-top: 0;
+            }
+        }
+    }
+}
+
+.playlist-section {
+    .section-title {
+        margin: 0 0 1.5rem;
+        font-size: 1.2rem;
+        font-weight: normal;
+        color: var(--text-color-secondary);
+        padding: 0 8px;
+    }
+}

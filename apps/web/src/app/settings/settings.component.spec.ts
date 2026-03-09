@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/await-thenable */
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import {
@@ -20,29 +19,27 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
-    MockComponent,
     MockModule,
     MockProvider,
     MockProviders,
 } from 'ng-mocks';
+import { DialogService } from 'components';
+import { DataService, EpgService, PlaylistsService } from 'services';
 import { Language, StreamFormat, Theme, VideoPlayer } from 'shared-interfaces';
-import { DataService } from '../../../../../libs/services/src/lib/data.service';
-import { HeaderComponent } from '../shared/components';
 import { SettingsComponent } from './settings.component';
 
 import { signal } from '@angular/core';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { of } from 'rxjs';
 import { SETTINGS_UPDATE } from 'shared-interfaces';
-import { EpgService } from '../../../../../libs/services/src/lib/epg.service';
-import { PlaylistsService } from '../../../../../libs/services/src/lib/playlists.service';
-import { DialogService } from '../../../../../libs/ui/components/src/lib/confirm-dialog/dialog.service';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
 
 class MatSnackBarStub {
-    open() {}
+    open() {
+        return undefined;
+    }
 }
 
 export class MockRouter {
@@ -74,8 +71,11 @@ class MockSettingsStore {
     updateSettings = jest.fn().mockResolvedValue(undefined);
 
     // Helper method for tests to modify settings
-    _setSettings(newSettings: any) {
-        this._settings.set(newSettings);
+    _setSettings(newSettings: Partial<typeof DEFAULT_SETTINGS>) {
+        this._settings.set({
+            ...this._settings(),
+            ...newSettings,
+        });
     }
 }
 
@@ -89,7 +89,7 @@ describe('SettingsComponent', () => {
     let fixture: ComponentFixture<SettingsComponent>;
     let electronService: DataService;
     let router: Router;
-    let settingsStore: any;
+    let settingsStore: MockSettingsStore;
     let translate: TranslateService;
     let epgService: EpgService;
 
@@ -112,7 +112,6 @@ describe('SettingsComponent', () => {
             ],
             imports: [
                 SettingsComponent,
-                MockComponent(HeaderComponent),
                 HttpClientTestingModule,
                 FormsModule,
                 MockModule(MatSelectModule),

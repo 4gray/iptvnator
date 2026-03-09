@@ -15,11 +15,6 @@
 
 // ─── Shared Components ────────────────────────────────────────────────────────
 
-// ─── macOS specific: space for traffic lights ─────────────────────────────────
-app-root.macos-platform app-header .modern-header {
-    padding-left: 80px;
-}
-
 app-root.macos-platform .current-playlist {
     padding-top: 30px;
 }
@@ -93,16 +88,6 @@ textarea,
     }
 }
 
-// ─── Dialogs ──────────────────────────────────────────────────────────────────
-.about-dialog-overlay {
-    .mat-mdc-dialog-surface {
-        text-align: center;
-        background: var(--mat-sys-surface) !important;
-        color: var(--mat-sys-on-surface) !important;
-        padding: 10px;
-    }
-}
-
 .scroll-viewport-portals {
     min-height: calc(100vh - 170px) !important;
     overflow-x: hidden !important;
@@ -122,4 +107,3 @@ textarea,
 .global-search-overlay .mat-mdc-dialog-container {
     app-region: no-drag;
 }
-

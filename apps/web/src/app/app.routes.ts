@@ -1,8 +1,6 @@
 import { Route, Routes } from '@angular/router';
 import { createStalkerRoutes } from '@iptvnator/portal/stalker/feature';
 import { createXtreamRoutes } from '@iptvnator/portal/xtream/feature';
-import { stalkerFeatureRouteOptions } from './stalker/stalker-feature-loaders';
-import { xtreamFeatureRouteOptions } from './xtream-electron/xtream-feature-loaders';
 
 function withWorkspaceLayout(routes: Route[]): Route[] {
     return routes.map((route) => ({
@@ -26,7 +24,7 @@ export const routes: Routes = [
     {
         path: 'workspace',
         loadComponent: () =>
-            import('./workspace/workspace-shell.component').then(
+            import('@iptvnator/workspace/shell/feature').then(
                 (c) => c.WorkspaceShellComponent
             ),
         children: [
@@ -45,7 +43,7 @@ export const routes: Routes = [
             {
                 path: 'sources',
                 loadComponent: () =>
-                    import('./workspace/workspace-sources.component').then(
+                    import('@iptvnator/workspace/shell/feature').then(
                         (c) => c.WorkspaceSourcesComponent
                     ),
             },
@@ -60,7 +58,7 @@ export const routes: Routes = [
                     layout: 'workspace',
                 },
                 loadComponent: () =>
-                    import('./home/video-player/video-player.component').then(
+                    import('@iptvnator/playlist/m3u/feature-player').then(
                         (c) => c.VideoPlayerComponent
                     ),
             },
@@ -70,7 +68,7 @@ export const routes: Routes = [
                     layout: 'workspace',
                 },
                 loadComponent: () =>
-                    import('./workspace/global-favorites/global-favorites-page.component').then(
+                    import('@iptvnator/workspace/shell/feature').then(
                         (c) => c.GlobalFavoritesPageComponent
                     ),
             },
@@ -82,12 +80,8 @@ export const routes: Routes = [
                         (c) => c.DownloadsComponent
                     ),
             },
-            ...withWorkspaceLayout(
-                createXtreamRoutes(xtreamFeatureRouteOptions)
-            ),
-            ...withWorkspaceLayout(
-                createStalkerRoutes(stalkerFeatureRouteOptions)
-            ),
+            ...withWorkspaceLayout(createXtreamRoutes()),
+            ...withWorkspaceLayout(createStalkerRoutes()),
             {
                 path: 'settings',
                 data: { layout: 'workspace' },

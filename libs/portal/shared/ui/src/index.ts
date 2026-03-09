@@ -1,13 +1,14 @@
 export * from './lib/components/category-view/category-view.component';
 export * from './lib/components/content-card/content-card.component';
 export * from './lib/components/favorites-layout/favorites-layout.component';
+export * from './lib/components/grid-list/grid-list.component';
 export * from './lib/components/playlist-error-view/playlist-error-view.component';
-export * from './lib/components/progress-capsule/progress-capsule.component';
+export { ProgressCapsuleComponent } from 'components';
 export * from './lib/components/portal-collection-live-shell/portal-collection-live-shell.component';
 export * from './lib/components/portal-collection-shell/portal-collection-shell.component';
 export * from './lib/components/portal-empty-state/portal-empty-state.component';
 export * from './lib/components/search-form/search-form.component';
 export * from './lib/components/search-layout/search-layout.component';
-export * from './lib/components/watched-badge/watched-badge.component';
+export { WatchedBadgeComponent } from 'components';
 export * from './lib/navigation/navigation.component';
 export * from './lib/navigation/portal-rail-links.component';

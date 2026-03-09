@@ -14,9 +14,5 @@
         "jest.config.ts",
         "src/**/*.test.ts"
     ],
-    "include": [
-        "src/**/*.ts",
-        "../../../apps/web/src/app/home/video-player/video-player.component.spec.ts",
-        "../../../apps/web/src/app/home/video-player/video-player.component.ts"
-    ]
+    "include": ["src/**/*.ts"]
 }

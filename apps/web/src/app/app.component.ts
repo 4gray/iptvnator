@@ -5,6 +5,11 @@ import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import {
+    GlobalRecentlyViewedComponent,
+    GlobalSearchResultsComponent,
+} from '@iptvnator/portal/xtream/feature';
+import { EpgProgressPanelComponent } from 'components';
 import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
 import { filter, take } from 'rxjs';
 import { DataService, EpgService } from 'services';
@@ -17,9 +22,6 @@ import {
     Theme,
 } from 'shared-interfaces';
 import { SettingsService } from './services/settings.service';
-import { EpgProgressPanelComponent } from './shared/epg-progress-panel/epg-progress-panel.component';
-import { GlobalRecentlyViewedComponent } from './xtream-electron/recently-viewed/global-recently-viewed.component';
-import { GlobalSearchResultsComponent } from './xtream-electron/search-results/global-search-results.component';
 
 @Component({
     selector: 'app-root',
