@@ -23,7 +23,7 @@ interface WorkspaceContextRoute {
 
 interface XtreamCategoryLike {
     id?: number | string;
-    category_id?: string;
+    category_id?: number | string;
 }
 
 @Component({

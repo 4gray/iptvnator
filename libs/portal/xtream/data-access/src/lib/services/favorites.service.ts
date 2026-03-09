@@ -33,7 +33,7 @@ export class FavoritesService {
                 items.map((item) => ({
                     content_id: item.id,
                     playlist_id: playlistId,
-                    type: item.type as 'live' | 'vod' | 'series',
+                    type: item.type as FavoriteItem['type'],
                     title: item.title,
                     poster_url: item.poster_url,
                     added_at: item.added_at,

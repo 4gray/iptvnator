@@ -16,15 +16,29 @@ export class ElectronServiceStub {
 
     isElectron = true;
 
-    removeAllListeners(type: string) {}
+    removeAllListeners(_type: string): void {
+        void _type;
+        return undefined;
+    }
 
     getAppVersion() {
         return this.remote.app.getVersion();
     }
 
-    sendIpcEvent() {}
+    sendIpcEvent(_type: string, _payload?: unknown): void {
+        void _type;
+        void _payload;
+        return undefined;
+    }
 
-    listenOn() {}
+    listenOn(
+        _command: string,
+        _callback: (...args: unknown[]) => void
+    ): void {
+        void _command;
+        void _callback;
+        return undefined;
+    }
 
     getAppEnvironment() {
         return 'electron';

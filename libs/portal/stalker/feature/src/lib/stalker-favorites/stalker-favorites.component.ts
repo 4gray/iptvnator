@@ -12,6 +12,7 @@ import { PlaylistsService } from 'services';
 import { EpgItem, VodDetailsItem } from 'shared-interfaces';
 import { PortalCollectionLiveShellComponent } from '@iptvnator/portal/shared/ui';
 import {
+    FavoriteLayoutItem,
     PortalCollectionMode,
     PortalCollectionShellComponent,
     PortalCollectionShellLayout,
@@ -39,6 +40,7 @@ import {
     NormalizedStalkerFavoriteItem,
     normalizeStalkerEntityId,
     normalizeStalkerFavoriteItem,
+    StalkerVodSource,
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerCollectionChannelsListComponent } from '../stalker-collection-channels-list/stalker-collection-channels-list.component';
@@ -98,7 +100,7 @@ export class StalkerFavoritesComponent {
     itemDetails: NormalizedStalkerFavoriteItem | null = null;
     vodDetailsItem: VodDetailsItem | null = null;
     readonly isSelectedVodFavorite = signal<boolean>(false);
-    readonly selectedLiveItem = signal<StalkerFavoriteItem | null>(null);
+    readonly selectedLiveItem = signal<StalkerVodSource | null>(null);
     readonly liveStreamUrl = signal('');
     readonly epgItems = signal<EpgItem[]>([]);
     readonly isLoadingEpg = signal(false);
@@ -174,7 +176,8 @@ export class StalkerFavoritesComponent {
             },
             searchTerm: this.searchTerm(),
             liveCategoryId: 'itv',
-            textOf: (item: any) => `${item?.name ?? ''} ${item?.o_name ?? ''}`,
+            textOf: (item: StalkerFavoriteItem) =>
+                `${item.name ?? ''} ${item.o_name ?? ''}`,
         });
     });
 
@@ -302,7 +305,7 @@ export class StalkerFavoritesComponent {
         this.collectionContext.setCategoryId(categoryId);
     }
 
-    openItem(item: StalkerFavoriteItem) {
+    openItem(item: FavoriteLayoutItem) {
         this.logger.debug('Open item', item);
         const normalizedCategory =
             item.category_id === 'movie' ? 'vod' : item.category_id;
@@ -411,17 +414,15 @@ export class StalkerFavoritesComponent {
         return this.inlineDetail().categoryId !== null;
     }
 
-    async selectLiveItem(item: StalkerFavoriteItem) {
+    async selectLiveItem(item: StalkerVodSource) {
         this.selectedLiveItem.set(item);
         this.liveStreamUrl.set('');
         this.stalkerStore.setSelectedContentType('itv');
-        this.stalkerStore.setSelectedItem(item as any);
+        this.stalkerStore.setSelectedItem(item);
         this.isResolvingPlayback.set(true);
 
         try {
-            const playback = await this.stalkerStore.resolveItvPlayback(
-                item as any
-            );
+            const playback = await this.stalkerStore.resolveItvPlayback(item);
             await this.loadEpgForChannel(item.id);
             this.liveStreamUrl.set(playback.streamUrl);
 
@@ -470,7 +471,7 @@ export class StalkerFavoritesComponent {
         await this.stalkerStore.createLinkToPlayVod(cmd, title, thumbnail);
     }
 
-    toggleLiveFavorite(item: StalkerFavoriteItem): void {
+    toggleLiveFavorite(item: StalkerVodSource): void {
         const itemId = normalizeStalkerEntityId(item.id);
         if (this.liveFavoriteIds().has(itemId)) {
             this.removeFromFavorites({ id: item.id });

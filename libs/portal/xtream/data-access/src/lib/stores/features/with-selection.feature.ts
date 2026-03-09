@@ -29,7 +29,7 @@ export type XtreamCategorySortMode =
 export interface SelectionState {
     selectedContentType: ContentType;
     selectedCategoryId: number | null;
-    selectedItem: any | null;
+    selectedItem: XtreamSelectionItem | null;
     page: number;
     limit: number;
     contentSortMode: XtreamCategorySortMode;
@@ -53,6 +53,63 @@ const initialSelectionState: SelectionState = {
     detailsError: null,
 };
 
+interface XtreamSelectionCategory {
+    readonly [key: string]: unknown;
+    readonly category_name?: string;
+    readonly category_id?: string | number;
+    readonly id?: string | number;
+    readonly name?: string;
+    readonly type?: ContentType;
+}
+
+interface XtreamSelectionItem {
+    readonly [key: string]: unknown;
+    readonly added?: string;
+    readonly category_id?: string | number;
+    readonly episodes?: unknown;
+    readonly id?: string | number;
+    readonly info?: {
+        readonly actors?: string;
+        readonly backdrop_path?: string[];
+        readonly cast?: string;
+        readonly country?: string;
+        readonly cover?: string;
+        readonly description?: string;
+        readonly director?: string;
+        readonly duration?: string;
+        readonly episode_run_time?: number | string;
+        readonly genre?: string;
+        readonly movie_image?: string;
+        readonly name?: string;
+        readonly plot?: string;
+        readonly rating?: number | string;
+        readonly rating_imdb?: string;
+        readonly rating_kinopoisk?: string;
+        readonly releaseDate?: string;
+        readonly releasedate?: string;
+        readonly youtube_trailer?: string;
+    };
+    readonly last_modified?: string;
+    readonly movie_data?: {
+        readonly name?: string;
+    };
+    readonly name?: string;
+    readonly series_id?: string | number;
+    readonly stream_id?: string | number;
+    readonly title?: string;
+    readonly xtream_id?: number;
+}
+
+type ParentSelectionStoreLike = {
+    isLoadingContent?: () => boolean;
+    liveCategories?: () => XtreamSelectionCategory[];
+    liveStreams?: () => XtreamSelectionItem[];
+    serialCategories?: () => XtreamSelectionCategory[];
+    serialStreams?: () => XtreamSelectionItem[];
+    vodCategories?: () => XtreamSelectionCategory[];
+    vodStreams?: () => XtreamSelectionItem[];
+};
+
 /**
  * Selection feature store for managing UI selection and pagination.
  * Handles:
@@ -67,7 +124,7 @@ export function withSelection() {
 
         withComputed((store) => {
             const getItemDate = (
-                item: any,
+                item: XtreamSelectionItem,
                 categoryType: ContentType
             ): number => {
                 const value =
@@ -78,11 +135,11 @@ export function withSelection() {
             };
 
             const sortByMode = (
-                items: any[],
+                items: XtreamSelectionItem[],
                 sortMode: XtreamCategorySortMode,
                 categoryType: ContentType
-            ): any[] => {
-                return [...items].sort((a: any, b: any) => {
+            ): XtreamSelectionItem[] => {
+                return [...items].sort((a, b) => {
                     if (sortMode === 'date-desc') {
                         return (
                             getItemDate(b, categoryType) -
@@ -104,15 +161,15 @@ export function withSelection() {
             };
 
             const filterBySearchTerm = (
-                items: any[],
+                items: XtreamSelectionItem[],
                 searchTerm: string
-            ): any[] => {
+            ): XtreamSelectionItem[] => {
                 const normalized = searchTerm.trim().toLocaleLowerCase();
                 if (!normalized) {
                     return items;
                 }
 
-                return items.filter((item: any) => {
+                return items.filter((item) => {
                     const title = (item.title ?? item.name ?? '').toString();
                     return title.toLocaleLowerCase().includes(normalized);
                 });
@@ -121,7 +178,7 @@ export function withSelection() {
             // Memoized sorted content - only recalculates when content/type changes
             const sortedContent = computed(() => {
                 const categoryType = store.selectedContentType();
-                const storeAny = store as any;
+                const storeAny = store as ParentSelectionStoreLike;
                 const content =
                     categoryType === 'live'
                         ? storeAny.liveStreams?.() || []
@@ -137,7 +194,9 @@ export function withSelection() {
             // Each computed only recomputes when ITS streams array changes —
             // switching content tabs no longer triggers an O(n) full scan.
             // ---------------------------------------------------------------------------
-            const buildCountMap = (streams: any[]): Map<number, number> => {
+            const buildCountMap = (
+                streams: XtreamSelectionItem[]
+            ): Map<number, number> => {
                 const countMap = new Map<number, number>();
                 for (const item of streams) {
                     const catId = Number(item.category_id);
@@ -149,13 +208,19 @@ export function withSelection() {
             };
 
             const liveItemCounts = computed(() =>
-                buildCountMap((store as any).liveStreams?.() || [])
+                buildCountMap(
+                    (store as ParentSelectionStoreLike).liveStreams?.() || []
+                )
             );
             const vodItemCounts = computed(() =>
-                buildCountMap((store as any).vodStreams?.() || [])
+                buildCountMap(
+                    (store as ParentSelectionStoreLike).vodStreams?.() || []
+                )
             );
             const seriesItemCounts = computed(() =>
-                buildCountMap((store as any).serialStreams?.() || [])
+                buildCountMap(
+                    (store as ParentSelectionStoreLike).serialStreams?.() || []
+                )
             );
 
             // ---------------------------------------------------------------------------
@@ -169,7 +234,7 @@ export function withSelection() {
                 const sortMode = store.contentSortMode();
                 const searchTerm = store.categorySearchTerm();
 
-                const storeAny = store as any;
+                const storeAny = store as ParentSelectionStoreLike;
                 const content =
                     categoryType === 'live'
                         ? storeAny.liveStreams?.() || []
@@ -182,7 +247,7 @@ export function withSelection() {
                 }
 
                 let filtered = content.filter(
-                    (item: any) => Number(item.category_id) === categoryId
+                    (item) => Number(item.category_id) === categoryId
                 );
                 if (categoryType === 'vod' || categoryType === 'series') {
                     filtered = filterBySearchTerm(filtered, searchTerm);
@@ -206,15 +271,15 @@ export function withSelection() {
                     }
 
                     // Access parent store categories (from withContent)
-                    const storeAny = store as any;
-                    const allCategories = [
+                    const storeAny = store as ParentSelectionStoreLike;
+                    const allCategories: XtreamSelectionCategory[] = [
                         ...(storeAny.vodCategories?.() || []),
                         ...(storeAny.liveCategories?.() || []),
                         ...(storeAny.serialCategories?.() || []),
                     ];
 
                     return allCategories.find(
-                        (c: any) =>
+                        (c) =>
                             c.id === categoryId ||
                             c.category_id === String(categoryId)
                     );
@@ -230,7 +295,7 @@ export function withSelection() {
                     if (!selectedItem) return null;
 
                     // Access parent store content (from withContent)
-                    const storeAny = store as any;
+                    const storeAny = store as ParentSelectionStoreLike;
                     const content =
                         categoryType === 'live'
                             ? storeAny.liveStreams?.() || []
@@ -239,7 +304,7 @@ export function withSelection() {
                               : storeAny.serialStreams?.() || [];
 
                     return content.find(
-                        (item: any) =>
+                        (item) =>
                             item.stream_id === selectedItem.stream_id ||
                             item.id === selectedItem.id ||
                             item.series_id === selectedItem.series_id
@@ -281,7 +346,7 @@ export function withSelection() {
                  */
                 isPaginatedContentLoading: computed(() => {
                     // Access parent store loading state (from withContent)
-                    const storeAny = store as any;
+                    const storeAny = store as ParentSelectionStoreLike;
                     return storeAny.isLoadingContent?.() || false;
                 }),
 
@@ -306,7 +371,7 @@ export function withSelection() {
                     const type = store.selectedContentType();
 
                     // Access parent store categories (from withContent)
-                    const storeAny = store as any;
+                    const storeAny = store as ParentSelectionStoreLike;
                     return type === 'live'
                         ? storeAny.liveCategories?.() || []
                         : type === 'vod'
@@ -351,7 +416,7 @@ export function withSelection() {
             /**
              * Set the selected item
              */
-            setSelectedItem(item: any): void {
+            setSelectedItem(item: XtreamSelectionItem | null): void {
                 patchState(store, { selectedItem: item });
             },
 

@@ -6,8 +6,38 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
 import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
+import { StalkerPortalItem, XtreamCategory } from 'shared-interfaces';
 import { CategoryViewComponent } from '../category-view/category-view.component';
 import { ContentCardComponent } from '../content-card/content-card.component';
+
+interface FavoriteLayoutSelection {
+    readonly category_id?: string | number;
+}
+
+export interface FavoriteLayoutItem {
+    readonly added_at?: string | number;
+    readonly content_id?: number;
+    readonly category_id?: string | number;
+    readonly cover?: string;
+    readonly details?: {
+        readonly info?: {
+            readonly name?: string;
+        };
+    };
+    readonly id?: string | number;
+    readonly name?: string;
+    readonly o_name?: string;
+    readonly playlist_id?: string;
+    readonly playlist_name?: string;
+    readonly poster_url?: string;
+    readonly source?: 'xtream' | 'stalker';
+    readonly stalker_item?: StalkerPortalItem;
+    readonly stream_icon?: string;
+    readonly title?: string;
+    readonly type?: string;
+    readonly viewed_at?: string;
+    readonly xtream_id?: string | number;
+}
 
 @Component({
     selector: 'app-favorites-layout',
@@ -32,8 +62,8 @@ export class FavoritesLayoutComponent {
         inject(ActivatedRoute)
     );
 
-    readonly categories = input<any[]>([]);
-    readonly favorites = input<any[]>([]);
+    readonly categories = input<XtreamCategory[]>([]);
+    readonly favorites = input<FavoriteLayoutItem[]>([]);
     readonly playlistSubtitle = input<string>('');
     readonly playlistTitle = input<string>('Playlist');
     readonly selectedCategoryId = input<string>('movie');
@@ -44,20 +74,20 @@ export class FavoritesLayoutComponent {
     readonly headerActionIcon = input<string>('delete_sweep');
     readonly headerActionTooltip = input<string>('');
 
-    readonly categoryClicked = output<any>();
-    readonly removeFavorite = output<any>();
-    readonly openItem = output<any>();
+    readonly categoryClicked = output<FavoriteLayoutSelection>();
+    readonly removeFavorite = output<FavoriteLayoutItem>();
+    readonly openItem = output<FavoriteLayoutItem>();
     readonly headerActionClicked = output<void>();
 
-    setCategoryId(categoryId: any) {
+    setCategoryId(categoryId: string | number) {
         this.categoryClicked.emit({ category_id: categoryId });
     }
 
-    removeFromFavorites(item: any) {
+    removeFromFavorites(item: FavoriteLayoutItem) {
         this.removeFavorite.emit(item);
     }
 
-    openFavorite(item: any) {
+    openFavorite(item: FavoriteLayoutItem) {
         this.openItem.emit(item);
     }
 

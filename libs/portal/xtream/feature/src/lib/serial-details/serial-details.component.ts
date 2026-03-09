@@ -22,7 +22,12 @@ import {
     PlayerContentInfo,
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
+    XtreamSerieDetails,
 } from 'shared-interfaces';
+
+type XtreamSerieDetailsView = XtreamSerieDetails & {
+    readonly series_id: number;
+};
 
 @Component({
     selector: 'app-serial-details',
@@ -47,7 +52,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
 
-    readonly selectedItem = this.xtreamStore.selectedItem;
+    readonly selectedItem = signal<XtreamSerieDetailsView | null>(null);
     readonly selectedContentType = this.xtreamStore.selectedContentType;
     readonly isFavorite = this.xtreamStore.isFavorite;
     readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
@@ -65,6 +70,22 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly activeEpisodeId = signal<number | null>(null);
 
     constructor() {
+        effect(() => {
+            const item = this.xtreamStore.selectedItem() as unknown as
+                | (XtreamSerieDetails & {
+                      readonly series_id?: string | number;
+                  })
+                | null;
+            this.selectedItem.set(
+                item
+                    ? {
+                          ...item,
+                          series_id: Number(item.series_id),
+                      }
+                    : null
+            );
+        });
+
         effect(() => {
             const playlist = this.xtreamStore.currentPlaylist();
             this.currentPlaylistId.set(playlist?.id ?? '');

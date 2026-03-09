@@ -14,6 +14,7 @@ import {
     extractStalkerItemTitle,
     extractStalkerItemType,
     normalizeStalkerDate,
+    Playlist,
     PortalRecentItem,
 } from 'shared-interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -146,20 +147,18 @@ export const withRecentItems = function () {
                             await dbService.getGlobalRecentlyViewed();
                         const playlists = (await firstValueFrom(
                             playlistsService.getAllPlaylists()
-                        )) as any[];
+                        )) as Playlist[];
                         const stalkerItems: RecentlyViewedItem[] = playlists
-                            .filter((playlist: any) =>
-                                Boolean(playlist.macAddress)
-                            )
+                            .filter((playlist) => Boolean(playlist.macAddress))
                             .reduce(
-                                (acc: RecentlyViewedItem[], playlist: any) => {
+                                (acc: RecentlyViewedItem[], playlist) => {
                                     const recent = Array.isArray(
                                         playlist.recentlyViewed
                                     )
                                         ? playlist.recentlyViewed
                                         : [];
                                     const mapped = recent.map(
-                                        (rawItem: any, index: number) => {
+                                        (rawItem, index: number) => {
                                             const item = (rawItem ??
                                                 {}) as Record<string, unknown>;
                                             const id = extractStalkerItemId(
@@ -245,13 +244,13 @@ export const withRecentItems = function () {
                         await dbService.clearGlobalRecentlyViewed();
                         const playlists = (await firstValueFrom(
                             playlistsService.getAllPlaylists()
-                        )) as any[];
+                        )) as Playlist[];
                         await Promise.all(
                             playlists
-                                .filter((playlist: any) =>
+                                .filter((playlist) =>
                                     Boolean(playlist.macAddress)
                                 )
-                                .map((playlist: any) =>
+                                .map((playlist) =>
                                     firstValueFrom(
                                         playlistsService.clearPortalRecentlyViewed(
                                             playlist._id

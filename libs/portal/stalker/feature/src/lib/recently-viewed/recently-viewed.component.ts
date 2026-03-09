@@ -12,6 +12,7 @@ import { PlaylistsService } from 'services';
 import { EpgItem, VodDetailsItem } from 'shared-interfaces';
 import { PortalCollectionLiveShellComponent } from '@iptvnator/portal/shared/ui';
 import {
+    FavoriteLayoutItem,
     PortalCollectionMode,
     PortalCollectionShellComponent,
     PortalCollectionShellLayout,
@@ -104,9 +105,7 @@ export class RecentlyViewedComponent {
     itemDetails: StalkerSelectedVodItem | null = null;
     vodDetailsItem: VodDetailsItem | null = null;
     readonly isSelectedVodFavorite = signal<boolean>(false);
-    readonly selectedLiveItem = signal<
-        (StalkerVodSource & { category_id: string }) | null
-    >(null);
+    readonly selectedLiveItem = signal<StalkerVodSource | null>(null);
     readonly liveStreamUrl = signal('');
     readonly epgItems = signal<EpgItem[]>([]);
     readonly isLoadingEpg = signal(false);
@@ -165,7 +164,8 @@ export class RecentlyViewedComponent {
             },
             searchTerm: this.searchTerm(),
             liveCategoryId: 'itv',
-            textOf: (item: any) => `${item?.name ?? ''} ${item?.o_name ?? ''}`,
+            textOf: (item: StalkerVodSource) =>
+                `${item.name ?? ''} ${item.o_name ?? ''}`,
         });
     });
 
@@ -336,25 +336,30 @@ export class RecentlyViewedComponent {
         this.collectionContext.setCategoryId(categoryId);
     }
 
-    openItem(item: StalkerVodSource & { category_id: string }) {
-        if (!RecentlyViewedComponent.isCategoryType(item.category_id)) {
+    openItem(item: FavoriteLayoutItem) {
+        const categoryId = String(item.category_id ?? '');
+        if (!RecentlyViewedComponent.isCategoryType(categoryId)) {
             return;
         }
 
-        this.stalkerStore.setSelectedContentType(item.category_id);
-        switch (item.category_id) {
+        this.stalkerStore.setSelectedContentType(categoryId);
+        switch (categoryId) {
             case 'itv': {
                 this.setCategoryId('itv');
                 const cleared = clearStalkerDetailViewState();
                 this.itemDetails = cleared.itemDetails;
                 this.vodDetailsItem = cleared.vodDetailsItem;
                 this.isSelectedVodFavorite.set(false);
-                void this.selectLiveItem(item);
+                void this.selectLiveItem(
+                    item as StalkerVodSource & { category_id: string }
+                );
                 break;
             }
             case 'vod': {
                 // Normalize the item to ensure is_series flag is properly set
-                const normalizedItem = this.normalizeRecentItem(item);
+                const normalizedItem = this.normalizeRecentItem(
+                    item as StalkerVodSource & { category_id: string }
+                );
                 const detailViewState = createStalkerDetailViewState(
                     normalizedItem,
                     this.currentPlaylist()?._id ?? ''
@@ -369,7 +374,9 @@ export class RecentlyViewedComponent {
                 break;
             }
             case 'series':
-                this.itemDetails = this.normalizeRecentItem(item);
+                this.itemDetails = this.normalizeRecentItem(
+                    item as StalkerVodSource & { category_id: string }
+                );
                 this.stalkerStore.setSelectedItem(this.itemDetails);
                 break;
             default:
@@ -409,17 +416,15 @@ export class RecentlyViewedComponent {
         this.clearDetailsView();
     }
 
-    async selectLiveItem(item: StalkerVodSource & { category_id: string }) {
+    async selectLiveItem(item: StalkerVodSource) {
         this.selectedLiveItem.set(item);
         this.liveStreamUrl.set('');
         this.stalkerStore.setSelectedContentType('itv');
-        this.stalkerStore.setSelectedItem(item as any);
+        this.stalkerStore.setSelectedItem(item);
         this.isResolvingPlayback.set(true);
 
         try {
-            const playback = await this.stalkerStore.resolveItvPlayback(
-                item as any
-            );
+            const playback = await this.stalkerStore.resolveItvPlayback(item);
             await this.loadEpgForChannel(item.id);
             this.liveStreamUrl.set(playback.streamUrl);
 
@@ -476,7 +481,7 @@ export class RecentlyViewedComponent {
         this.stalkerStore.removeFromFavorites(favoriteId, onDone);
     }
 
-    toggleLiveFavorite(item: StalkerVodSource & { category_id: string }): void {
+    toggleLiveFavorite(item: StalkerVodSource): void {
         const itemId = String(item.id ?? '');
         if (this.liveFavoriteIds().has(itemId)) {
             this.removeFromFavorites(itemId);

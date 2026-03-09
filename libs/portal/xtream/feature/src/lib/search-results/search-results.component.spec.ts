@@ -4,26 +4,48 @@ import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 import { DatabaseService } from 'services';
 import { SearchResultsComponent } from './search-results.component';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    SearchFilters,
+    XtreamContentItem,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
+
+const DEFAULT_SEARCH_FILTERS: SearchFilters = {
+    live: true,
+    movie: true,
+    series: true,
+};
+
+function createSearchItem(
+    overrides: Partial<XtreamContentItem> = {}
+): XtreamContentItem {
+    return {
+        id: 1,
+        category_id: 123,
+        title: 'Matrix',
+        rating: '0',
+        added: '0',
+        poster_url: '',
+        xtream_id: 456,
+        type: 'movie',
+        ...overrides,
+    };
+}
 
 class MockXtreamStore {
     readonly searchTerm = signal('');
-    readonly searchFilters = signal({
-        live: true,
-        movie: true,
-        series: true,
-    });
-    readonly searchResults = signal<any[]>([]);
+    readonly searchFilters = signal(DEFAULT_SEARCH_FILTERS);
+    readonly searchResults = signal<XtreamContentItem[]>([]);
     readonly isSearching = signal(false);
 
     setSearchTerm = jest.fn((term: string) => {
         this.searchTerm.set(term);
     });
-    setSearchFilters = jest.fn((filters: any) => {
+    setSearchFilters = jest.fn((filters: SearchFilters) => {
         this.searchFilters.set(filters);
     });
     updateSearchFilter = jest.fn();
-    setGlobalSearchResults = jest.fn((items: any[]) => {
+    setGlobalSearchResults = jest.fn((items: XtreamContentItem[]) => {
         this.searchResults.set(items);
     });
     setIsSearching = jest.fn((state: boolean) => {
@@ -78,8 +100,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
                     {
                         isGlobalSearch: true,
                         initialQuery: 'matrix',
-                    },
-                    undefined as any
+                    }
                 )
         );
 
@@ -94,8 +115,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
                 new SearchResultsComponent(
                     {
                         isGlobalSearch: true,
-                    },
-                    undefined as any
+                    }
                 )
         );
 
@@ -109,17 +129,15 @@ describe('SearchResultsComponent initialQuery contract', () => {
                 new SearchResultsComponent(
                     {
                         isGlobalSearch: true,
-                    },
-                    undefined as any
+                    }
                 )
         );
 
-        component.selectItem({
-            playlist_id: 'playlist-1',
-            type: 'movie',
-            category_id: 123,
-            xtream_id: 456,
-        } as any);
+        component.selectItem(
+            createSearchItem({
+                playlist_id: 'playlist-1',
+            })
+        );
 
         expect(routerNavigateMock).toHaveBeenCalledWith([
             '/workspace',

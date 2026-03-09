@@ -1,6 +1,14 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { XtreamCategory } from 'shared-interfaces';
-import { FavoritesLayoutComponent } from '../favorites-layout/favorites-layout.component';
+import {
+    FavoriteLayoutItem,
+    FavoritesLayoutComponent,
+} from '../favorites-layout/favorites-layout.component';
+
+interface PortalCategorySelection {
+    readonly category_id?: string | number;
+    readonly id?: string | number;
+}
 
 export interface PortalCollectionShellLayout {
     titleTranslationKey?: string;
@@ -30,7 +38,7 @@ export type PortalCollectionMode = 'grid' | 'detail' | 'live';
 })
 export class PortalCollectionShellComponent {
     readonly categories = input<XtreamCategory[]>([]);
-    readonly items = input<any[]>([]);
+    readonly items = input<FavoriteLayoutItem[]>([]);
     readonly playlistSubtitle = input<string>('');
     readonly playlistTitle = input<string>('Playlist');
     readonly selectedCategoryId = input<string>('all');
@@ -38,15 +46,16 @@ export class PortalCollectionShellComponent {
     readonly mode = input<PortalCollectionMode>('grid');
 
     readonly categoryClicked = output<string>();
-    readonly removeItem = output<any>();
-    readonly openItem = output<any>();
+    readonly removeItem = output<FavoriteLayoutItem>();
+    readonly openItem = output<FavoriteLayoutItem>();
     readonly headerActionClicked = output<void>();
 
-    onCategoryClicked(event: { category_id?: string }) {
-        if (!event?.category_id) {
+    onCategoryClicked(event: PortalCategorySelection): void {
+        const categoryId = event.category_id ?? event.id;
+        if (categoryId == null) {
             return;
         }
 
-        this.categoryClicked.emit(event.category_id);
+        this.categoryClicked.emit(String(categoryId));
     }
 }

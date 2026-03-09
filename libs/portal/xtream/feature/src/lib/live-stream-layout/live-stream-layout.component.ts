@@ -31,9 +31,13 @@ import {
     getChannelItemByNumber,
     isWorkspaceLayoutRoute,
 } from '@iptvnator/portal/shared/util';
-import { FavoritesService, XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { XtreamCategory } from 'shared-interfaces';
+import {
+    FavoriteItem,
+    FavoritesService,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
+import { EpgItem } from 'shared-interfaces';
 import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
@@ -42,6 +46,21 @@ import { PortalChannelsListComponent } from '../portal-channels-list/portal-chan
 
 type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
+
+interface XtreamCategoryLike {
+    readonly category_id?: string | number;
+    readonly category_name?: string;
+    readonly id?: string | number;
+    readonly name?: string;
+}
+
+interface XtreamLiveChannelItem {
+    readonly name?: string;
+    readonly poster_url?: string;
+    readonly stream_icon?: string;
+    readonly title?: string;
+    readonly xtream_id: number;
+}
 
 @Component({
     selector: 'app-live-stream-layout',
@@ -96,7 +115,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
 
         const categories = this.categories();
         const category = categories?.find(
-            (c: any) => (c.category_id ?? c.id) === categoryId
+            (c) => (c.category_id ?? c.id) === categoryId
         );
         const count = this.categoryItemCounts()?.get(categoryId) ?? 0;
 
@@ -117,7 +136,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly usesEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
     );
-    streamUrl: string;
+    streamUrl = '';
     favorites = new Map<number, boolean>();
 
     constructor() {
@@ -136,8 +155,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                 return;
             }
 
-            const channels =
-                this.xtreamStore.selectItemsFromSelectedCategory() as any[];
+            const channels = this.getVisibleChannels();
             if (!Array.isArray(channels) || channels.length === 0) {
                 return;
             }
@@ -162,8 +180,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
 
             const selectedContentType = this.xtreamStore.selectedContentType();
             const selectedItem = this.xtreamStore.selectedItem();
-            const channels =
-                this.xtreamStore.selectItemsFromSelectedCategory() as any[];
+            const channels = this.getVisibleChannels();
             const epgItems = this.xtreamStore.epgItems();
 
             if (selectedContentType !== 'live' || !selectedItem?.xtream_id) {
@@ -179,7 +196,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                 (item) =>
                     Number(item.xtream_id) === Number(selectedItem.xtream_id)
             );
-            const currentProgram = epgItems?.[0];
+            const currentProgram: EpgItem | undefined = epgItems?.[0];
 
             window.electron.updateRemoteControlStatus({
                 portal: 'xtream',
@@ -187,8 +204,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                 channelName: selectedItem.title ?? selectedItem.name,
                 channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
                 epgTitle: currentProgram?.title,
-                epgStart: (currentProgram as any)?.start,
-                epgEnd: (currentProgram as any)?.end,
+                epgStart: currentProgram?.start,
+                epgEnd: currentProgram?.stop ?? currentProgram?.end,
                 supportsVolume: false,
             });
         });
@@ -233,7 +250,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                 .getFavorites(playlist.id)
                 .subscribe((favorites) => {
                     // Map using content.id instead of xtream_id
-                    favorites.forEach((fav: any) => {
+                    favorites.forEach((fav: FavoriteItem) => {
                         this.favorites.set(fav.xtream_id, true);
                     });
                 });
@@ -244,22 +261,29 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             this.xtreamStore.setSelectedCategory(Number(categoryId));
     }
 
-    playLive(item: any) {
+    playLive(item: XtreamLiveChannelItem) {
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
         this.streamUrl = streamUrl;
         if (this.usesEmbeddedPlayer()) {
             return;
         }
-        this.xtreamStore.openPlayer(streamUrl, item.title, item.poster_url);
+        this.xtreamStore.openPlayer(
+            streamUrl,
+            item.title ?? item.name ?? '',
+            item.poster_url ?? item.stream_icon ?? null
+        );
     }
 
-    selectCategory(category: XtreamCategory) {
+    selectCategory(category: XtreamCategoryLike) {
         const el = this.categoryView()?.nativeElement;
         if (el) {
             this.categoryScrollTop = el.scrollTop;
         }
-        const categoryId = (category as any).category_id ?? category.id;
-        this.xtreamStore.setSelectedCategory(categoryId);
+        const categoryId = category.category_id ?? category.id;
+        if (categoryId == null) {
+            return;
+        }
+        this.xtreamStore.setSelectedCategory(Number(categoryId));
     }
 
     backToCategories() {
@@ -316,8 +340,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             return;
         }
 
-        const channels =
-            this.xtreamStore.selectItemsFromSelectedCategory() as any[];
+        const channels = this.getVisibleChannels();
         const nextItem = getAdjacentChannelItem(
             channels,
             activeItem.xtream_id,
@@ -344,14 +367,18 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             return;
         }
 
-        const channels =
-            this.xtreamStore.selectItemsFromSelectedCategory() as any[];
+        const channels = this.getVisibleChannels();
         const channel = getChannelItemByNumber(channels, command.number);
         if (!channel) {
             return;
         }
 
         this.playLive(channel);
+    }
+
+    private getVisibleChannels(): XtreamLiveChannelItem[] {
+        return this.xtreamStore.selectItemsFromSelectedCategory() as
+            XtreamLiveChannelItem[];
     }
 
     private clearAutoOpenHistoryState(): void {

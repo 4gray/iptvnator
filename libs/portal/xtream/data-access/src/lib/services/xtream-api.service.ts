@@ -261,16 +261,23 @@ export class XtreamApiService {
     /**
      * Send request via IPC to avoid CORS issues
      */
-    private async sendRequest(url: string, params: Record<string, string | number>): Promise<any> {
+    private async sendRequest<TResponse>(
+        url: string,
+        params: Record<string, string | number>
+    ): Promise<TResponse> {
         const serializedParams: Record<string, string> = {};
         Object.entries(params).forEach(([key, value]) => {
             serializedParams[key] = String(value);
         });
 
-        const response = await this.dataService.sendIpcEvent(XTREAM_REQUEST, {
+        const response = (await this.dataService.sendIpcEvent(XTREAM_REQUEST, {
             url,
             params: serializedParams,
-        });
+        })) as {
+            message?: string;
+            payload?: unknown;
+            type?: string;
+        };
 
         // The IPC layer catches errors and returns { type: 'ERROR', message, status }
         // instead of rejecting. Convert that back into a thrown error so callers
@@ -279,6 +286,6 @@ export class XtreamApiService {
             throw new Error(response?.message ?? 'Request failed');
         }
 
-        return response?.payload;
+        return response?.payload as TResponse;
     }
 }

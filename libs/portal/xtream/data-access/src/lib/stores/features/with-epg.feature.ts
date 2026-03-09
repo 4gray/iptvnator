@@ -36,6 +36,17 @@ const initialEpgState: EpgState = {
  */
 export function withEpg() {
     const logger = createLogger('withEpg');
+    type ParentSelectionStoreLike = {
+        currentPlaylist?: () => {
+            password: string;
+            serverUrl: string;
+            username: string;
+        } | null;
+        selectedItem?: () => {
+            xtream_id?: number | null;
+        } | null;
+    };
+
     return signalStoreFeature(
         withState<EpgState>(initialEpgState),
 
@@ -46,7 +57,7 @@ export function withEpg() {
              * Helper to get credentials from parent store
              */
             const getCredentialsFromStore = (): XtreamCredentials | null => {
-                const storeAny = store as any;
+                const storeAny = store as ParentSelectionStoreLike;
                 const playlist = storeAny.currentPlaylist?.();
 
                 if (!playlist) {
@@ -72,7 +83,7 @@ export function withEpg() {
                     }
 
                     // Access selected item from parent store (from withSelection)
-                    const storeAny = store as any;
+                    const storeAny = store as ParentSelectionStoreLike;
                     const selectedItem = storeAny.selectedItem?.();
 
                     if (!selectedItem?.xtream_id) {

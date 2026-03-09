@@ -43,7 +43,6 @@ import {
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
-    StalkerCategoryItem,
     StalkerFavoriteItem,
     StalkerItvChannel,
     normalizeStalkerEntityId,
@@ -252,8 +251,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         }
     }
 
-    selectCategory(item: StalkerCategoryItem) {
-        this.stalkerStore.setSelectedCategory(item.category_id || '*');
+    selectCategory(item: { category_id?: string | number }) {
+        this.stalkerStore.setSelectedCategory(String(item.category_id ?? '*'));
         this.stalkerStore.setPage(0);
     }
 

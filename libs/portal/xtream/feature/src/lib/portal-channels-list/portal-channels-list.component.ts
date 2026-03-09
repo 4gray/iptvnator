@@ -36,6 +36,21 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 
+export interface XtreamChannelListItem {
+    readonly category_id?: string | number;
+    readonly id?: string | number;
+    readonly name?: string;
+    readonly poster_url?: string;
+    readonly stream_icon?: string;
+    readonly title?: string;
+    readonly xtream_id: number;
+}
+
+interface XtreamCategoryLike {
+    readonly category_id?: string | number;
+    readonly id?: string | number;
+}
+
 @Component({
     selector: 'app-portal-channels-list',
     templateUrl: './portal-channels-list.component.html',
@@ -50,9 +65,9 @@ type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
     ],
 })
 export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
-    readonly playClicked = output<any>();
+    readonly playClicked = output<XtreamChannelListItem>();
     readonly sortMode = input<LiveChannelSortMode>('server');
-    readonly channelsOverride = input<any[] | null>(null);
+    readonly channelsOverride = input<XtreamChannelListItem[] | null>(null);
 
     readonly xtreamStore = inject(XtreamStore);
     private readonly favoritesService = inject(FavoritesService);
@@ -64,7 +79,8 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return override;
         }
 
-        return this.xtreamStore.selectItemsFromSelectedCategory();
+        return this.xtreamStore.selectItemsFromSelectedCategory() as
+            XtreamChannelListItem[];
     });
     readonly sortedChannels = computed(() => {
         const mode = this.sortMode();
@@ -78,7 +94,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             sensitivity: 'base',
         });
 
-        return [...channels].sort((a: any, b: any) => {
+        return [...channels].sort((a, b) => {
             const titleA = a.title ?? a.name ?? '';
             const titleB = b.title ?? b.name ?? '';
             const result = collator.compare(titleA, titleB);
@@ -113,7 +129,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    trackBy(_index: number, item: XtreamItem) {
+    trackBy(_index: number, item: XtreamChannelListItem | XtreamItem) {
         return item.xtream_id;
     }
 
@@ -127,7 +143,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             this.favoritesService
                 .getFavorites(playlist.id)
                 .subscribe((favorites) => {
-                    favorites.forEach((fav: any) => {
+                    favorites.forEach((fav) => {
                         this.favorites.set(fav.xtream_id, true);
                     });
                 });
@@ -163,7 +179,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    private loadEpgForVisibleChannels(channels: any[]): void {
+    private loadEpgForVisibleChannels(channels: XtreamChannelListItem[]): void {
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) return;
 
@@ -222,13 +238,13 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         this.currentProgramsProgress.delete(streamId);
     }
 
-    isSelected(item: XtreamCategory): boolean {
+    isSelected(item: XtreamCategory | XtreamCategoryLike): boolean {
         const selectedCategory = this.xtreamStore.selectedCategoryId();
-        const itemId = Number((item as any).category_id || item.id);
+        const itemId = Number(item.category_id ?? item.id);
         return selectedCategory !== null && selectedCategory === itemId;
     }
 
-    toggleFavorite(event: Event, item: any) {
+    toggleFavorite(event: Event, item: XtreamChannelListItem) {
         event.stopPropagation();
         this.xtreamStore
             .toggleFavorite(

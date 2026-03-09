@@ -1,5 +1,6 @@
 import { InjectionToken } from '@angular/core';
-import { PlaylistType } from 'components';
+
+export type WorkspacePlaylistType = 'xtream' | 'url' | 'text' | 'file' | 'stalker';
 
 export interface WorkspaceAccountInfoData {
     vodStreamsCount: number;
@@ -8,7 +9,7 @@ export interface WorkspaceAccountInfoData {
 }
 
 export interface WorkspaceShellActions {
-    openAddPlaylistDialog(type: PlaylistType): void;
+    openAddPlaylistDialog(type: WorkspacePlaylistType): void;
     openGlobalSearch(initialQuery?: string): void;
     openGlobalRecent(): void;
     openAccountInfo(data: WorkspaceAccountInfoData): void;

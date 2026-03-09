@@ -16,13 +16,41 @@ import { Store } from '@ngrx/store';
 import { selectAllPlaylistsMeta } from 'm3u-state';
 import { firstValueFrom, map } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
-import { Channel, PlaylistMeta } from 'shared-interfaces';
+import {
+    Channel,
+    Playlist,
+    PlaylistMeta,
+    StalkerPortalItem,
+} from 'shared-interfaces';
 import {
     buildFavoriteUid,
     UnifiedFavoriteChannel,
 } from './unified-favorite-channel.interface';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
+
+interface XtreamGlobalFavoriteRow {
+    readonly added_at?: string | null;
+    readonly id: number;
+    readonly playlist_id: string;
+    readonly playlist_name: string;
+    readonly position?: number | null;
+    readonly poster_url?: string | null;
+    readonly title: string;
+    readonly xtream_id: number;
+}
+
+type PlaylistWithChannels = Playlist & {
+    readonly playlist?: {
+        readonly items?: Channel[];
+    };
+};
+
+function isStalkerFavoriteItem(
+    value: string | StalkerPortalItem
+): value is StalkerPortalItem {
+    return typeof value !== 'string';
+}
 
 @Injectable({ providedIn: 'root' })
 export class GlobalFavoritesService {
@@ -103,9 +131,14 @@ export class GlobalFavoritesService {
 
         // Persist xtream positions to DB
         const xtreamUpdates = channels
-            .filter((ch) => ch.sourceType === 'xtream' && ch.contentId != null)
+            .filter(
+                (
+                    ch
+                ): ch is UnifiedFavoriteChannel & { contentId: number } =>
+                    ch.sourceType === 'xtream' && ch.contentId != null
+            )
             .map((ch, index) => ({
-                content_id: ch.contentId!,
+                content_id: ch.contentId,
                 position: index,
             }));
 
@@ -138,16 +171,16 @@ export class GlobalFavoritesService {
             );
 
             // Load full playlist to access channel items
-            let playlist: any;
+            let playlist: PlaylistWithChannels | undefined;
             try {
-                playlist = await firstValueFrom(
+                playlist = (await firstValueFrom(
                     this.playlistsService.getPlaylistById(meta._id)
-                );
+                )) as PlaylistWithChannels | undefined;
             } catch {
                 continue;
             }
 
-            const items: Channel[] = playlist?.playlist?.items ?? [];
+            const items = playlist?.playlist?.items ?? [];
             for (const ch of items) {
                 if (favoriteIds.has(ch.id) || favoriteIds.has(ch.url)) {
                     const sourceItemId = ch.url || ch.id;
@@ -173,9 +206,10 @@ export class GlobalFavoritesService {
     private async getXtreamLiveFavorites(): Promise<UnifiedFavoriteChannel[]> {
         if (!window.electron) return [];
 
-        let items: any[] = [];
+        let items: XtreamGlobalFavoriteRow[] = [];
         try {
-            items = await this.dbService.getGlobalFavorites();
+            items =
+                (await this.dbService.getGlobalFavorites()) as XtreamGlobalFavoriteRow[];
         } catch {
             return [];
         }
@@ -211,17 +245,17 @@ export class GlobalFavoritesService {
             if (!meta.favorites?.length) continue;
 
             // Fetch full playlist to get credentials
-            let playlist: any;
+            let playlist: Playlist | undefined;
             try {
-                playlist = await firstValueFrom(
+                playlist = (await firstValueFrom(
                     this.playlistsService.getPlaylistById(meta._id)
-                );
+                )) as Playlist | undefined;
             } catch {
                 continue;
             }
 
             const favorites = Array.isArray(playlist?.favorites)
-                ? playlist.favorites
+                ? playlist.favorites.filter(isStalkerFavoriteItem)
                 : [];
 
             for (const fav of favorites) {
@@ -303,8 +337,9 @@ export class GlobalFavoritesService {
         const unordered: UnifiedFavoriteChannel[] = [];
 
         for (const ch of channels) {
-            if (orderMap.has(ch.uid)) {
-                ordered.push({ ...ch, position: orderMap.get(ch.uid)! });
+            const position = orderMap.get(ch.uid);
+            if (position != null) {
+                ordered.push({ ...ch, position });
             } else {
                 unordered.push(ch);
             }

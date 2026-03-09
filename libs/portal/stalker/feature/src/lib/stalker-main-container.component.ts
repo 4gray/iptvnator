@@ -63,13 +63,17 @@ export class StalkerMainContainerComponent {
         });
     }
 
-    categoryClicked(item: { category_name: string; category_id: string }) {
-        this.stalkerStore.setSelectedCategory(item.category_id || '*');
+    categoryClicked(item: {
+        category_name?: string;
+        category_id?: string | number;
+    }) {
+        const categoryId = String(item.category_id ?? '*');
+        this.stalkerStore.setSelectedCategory(categoryId);
         this.currentLayout = 'category_content';
         this.stalkerStore.setPage(0);
         this.stalkerStore.setSelectedItem(undefined);
 
-        this.router.navigate(['.', item.category_id], {
+        this.router.navigate(['.', categoryId], {
             relativeTo: this.route,
         });
     }

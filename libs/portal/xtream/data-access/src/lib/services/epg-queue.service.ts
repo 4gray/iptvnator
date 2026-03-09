@@ -84,7 +84,10 @@ export class EpgQueueService implements OnDestroy {
                 continue;
             }
 
-            const streamId = this.queue.shift()!;
+            const streamId = this.queue.shift();
+            if (streamId == null) {
+                continue;
+            }
 
             // Drop stale entries that are no longer visible
             if (!this.visibleSet.has(streamId)) continue;

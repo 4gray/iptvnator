@@ -227,7 +227,11 @@ export interface IXtreamDataSource {
      */
     saveContent(
         playlistId: string,
-        streams: any[],
+        streams:
+            | XtreamLiveStream[]
+            | XtreamVodStream[]
+            | XtreamSerieItem[]
+            | XtreamContentItem[],
         type: 'live' | 'movie' | 'series',
         onProgress?: ProgressCallback
     ): Promise<number>;

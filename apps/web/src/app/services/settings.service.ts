@@ -43,12 +43,12 @@ export class SettingsService {
         key: STORE_KEY,
         value: unknown,
         withCallback = false
-    ): Observable<unknown> | never {
+    ): Observable<unknown> | void {
         if (withCallback) {
             return this.storage.set(key, value);
-        } else {
-            this.storage.set(key, value).subscribe(() => {});
         }
+
+        this.storage.set(key, value).subscribe();
     }
 
     /**

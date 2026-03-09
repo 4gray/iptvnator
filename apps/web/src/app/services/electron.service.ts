@@ -20,6 +20,23 @@ import {
     logPortalDebugEvent,
 } from '@iptvnator/portal/shared/util';
 
+interface PlayerLaunchPayload {
+    readonly headers?: Record<string, string>;
+    readonly origin?: string;
+    readonly referer?: string;
+    readonly startTime?: number;
+    readonly thumbnail?: string;
+    readonly title?: string;
+    readonly url: string;
+    readonly ['user-agent']?: string;
+    readonly contentInfo?: unknown;
+}
+
+interface ErrorStatus {
+    readonly message?: string;
+    readonly status?: number;
+}
+
 @Injectable({
     providedIn: 'root',
 })
@@ -66,10 +83,15 @@ export class ElectronService extends DataService {
     }
 
     private setupPortalDebugListener() {
-        const onPortalDebugEvent = (window.electron as any)
-            ?.onPortalDebugEvent as
-            | ((callback: (event: unknown) => void) => void)
-            | undefined;
+        const onPortalDebugEvent = (
+            window.electron as {
+                onPortalDebugEvent?: (
+                    callback: (
+                        event: Parameters<typeof logPortalDebugEvent>[0]
+                    ) => void
+                ) => void;
+            }
+        ).onPortalDebugEvent;
 
         if (AppConfig.production || !onPortalDebugEvent) {
             return;
@@ -111,7 +133,7 @@ export class ElectronService extends DataService {
                 }
             );
         } else if (type === 'OPEN_MPV_PLAYER') {
-            const data = payload as any;
+            const data = payload as PlayerLaunchPayload;
             try {
                 return await window.electron.openInMpv(
                     data.url,
@@ -125,8 +147,9 @@ export class ElectronService extends DataService {
                     data.headers ?? undefined
                 );
                 /* thumbnail: data.thumbnail ?? '', */
-            } catch (error: any) {
-                const errorMessage = error?.message || String(error);
+            } catch (error: unknown) {
+                const errorMessage =
+                    this.getErrorDetails(error)?.message ?? String(error);
                 this.snackBar.open(
                     `Error launching MPV: ${errorMessage}`,
                     'Close',
@@ -138,7 +161,7 @@ export class ElectronService extends DataService {
                 throw error;
             }
         } else if (type === 'OPEN_VLC_PLAYER') {
-            const data = payload as any;
+            const data = payload as PlayerLaunchPayload;
             try {
                 return await window.electron.openInVlc(
                     data.url,
@@ -151,8 +174,9 @@ export class ElectronService extends DataService {
                     data.startTime,
                     data.headers ?? undefined
                 );
-            } catch (error: any) {
-                const errorMessage = error?.message || String(error);
+            } catch (error: unknown) {
+                const errorMessage =
+                    this.getErrorDetails(error)?.message ?? String(error);
                 this.snackBar.open(
                     `Error launching VLC: ${errorMessage}`,
                     'Close',
@@ -187,6 +211,7 @@ export class ElectronService extends DataService {
         url: string;
         macAddress: string;
         params: Record<string, string>;
+        requestId?: string;
         token?: string;
         serialNumber?: string;
     }) {
@@ -202,12 +227,13 @@ export class ElectronService extends DataService {
             const response = await window.electron.stalkerRequest({
                 ...payload,
                 requestId: context.requestId,
-            } as any);
+            });
             return response;
-        } catch (err) {
+        } catch (err: unknown) {
+            const errorInfo = this.getErrorDetails(err);
             console.error('Stalker request error:', err);
             this.snackBar.open(
-                `Error: ${err.message ?? ' Not found'}, status: ${err.status ?? 404}`,
+                `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
                 'Close',
                 {
                     duration: 5000,
@@ -329,6 +355,7 @@ export class ElectronService extends DataService {
     private async forwardXtreamRequest(payload: {
         url: string;
         params: Record<string, string>;
+        requestId?: string;
     }) {
         const context = createPortalDebugRequestContext({
             provider: 'xtream',
@@ -342,7 +369,7 @@ export class ElectronService extends DataService {
             const response = await window.electron.xtreamRequest({
                 ...payload,
                 requestId: context.requestId,
-            } as any);
+            });
 
             const result = {
                 type: XTREAM_RESPONSE,
@@ -351,12 +378,13 @@ export class ElectronService extends DataService {
             };
             window.postMessage(result);
             return result;
-        } catch (error: any) {
+        } catch (error: unknown) {
             const action = payload.params?.action;
             const isSilentAction = action
                 ? this.silentXtreamActions.has(action)
                 : false;
             const normalizedMessage = this.getReadableXtreamErrorMessage(error);
+            const errorInfo = this.getErrorDetails(error);
 
             // Log error to console
             if (isSilentAction) {
@@ -381,7 +409,7 @@ export class ElectronService extends DataService {
 
             return {
                 type: ERROR,
-                status: error.status ?? 500,
+                status: errorInfo?.status ?? 500,
                 message: normalizedMessage,
             };
         }
@@ -431,6 +459,13 @@ export class ElectronService extends DataService {
         return fallback;
     }
 
+    private getErrorDetails(error: unknown): ErrorStatus | null {
+        if (error && typeof error === 'object') {
+            return error as ErrorStatus;
+        }
+        return null;
+    }
+
     removeAllListeners(type: string): void {
         if (type === 'all') {
             // Unsubscribe from all event listeners
@@ -448,14 +483,16 @@ export class ElectronService extends DataService {
         window.removeEventListener('message', this.getListenerForCommand(type));
     }
 
-    private getListenerForCommand(command: string): any {
+    private getListenerForCommand(_command: string): EventListener {
+        void _command;
         // This is a placeholder. In a real implementation, you would need to
         // store the actual listener functions to be able to remove them
-        return () => {};
+        return () => undefined;
     }
 
-    listenOn(command: string, callback: (...args: any[]) => void): void {
+    listenOn(command: string, callback: (...args: unknown[]) => void): void {
         // For Electron, use window message events
+        void command;
         window.addEventListener('message', callback);
     }
 

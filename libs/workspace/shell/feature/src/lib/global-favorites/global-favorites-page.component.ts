@@ -32,6 +32,7 @@ import {
     Channel,
     EpgItem,
     EpgProgram,
+    Playlist,
     ResolvedPortalPlayback,
     STALKER_REQUEST,
     StalkerPortalActions,
@@ -40,6 +41,12 @@ import { EpgViewComponent } from 'shared-portals';
 import { GlobalFavoritesListComponent } from './global-favorites-list.component';
 import { GlobalFavoritesService } from './global-favorites.service';
 import { UnifiedFavoriteChannel } from './unified-favorite-channel.interface';
+
+interface StalkerCreateLinkResponse {
+    readonly js?: {
+        readonly cmd?: string;
+    };
+}
 
 @Component({
     selector: 'app-global-favorites-page',
@@ -248,12 +255,16 @@ export class GlobalFavoritesPageComponent implements OnInit {
         epgMap: Map<string, EpgProgram | null>,
         now: number
     ): Promise<void> {
-        let playlist: any;
+        let playlist: Playlist | undefined;
         try {
             playlist = await firstValueFrom(
                 this.playlistsService.getPlaylistById(playlistId)
             );
         } catch {
+            return;
+        }
+
+        if (!playlist?.serverUrl || !playlist.username || !playlist.password) {
             return;
         }
 
@@ -355,9 +366,16 @@ export class GlobalFavoritesPageComponent implements OnInit {
                 }));
             }
             if (ch.sourceType === 'xtream' && ch.xtreamId) {
-                const playlist = await firstValueFrom(
+                const playlist = (await firstValueFrom(
                     this.playlistsService.getPlaylistById(ch.playlistId)
-                );
+                )) as Playlist | undefined;
+                if (
+                    !playlist?.serverUrl ||
+                    !playlist.username ||
+                    !playlist.password
+                ) {
+                    return [];
+                }
                 return await this.xtreamApi.getShortEpg(
                     {
                         serverUrl: playlist.serverUrl,
@@ -387,18 +405,23 @@ export class GlobalFavoritesPageComponent implements OnInit {
     private async resolveXtreamPlayback(
         ch: UnifiedFavoriteChannel
     ): Promise<ResolvedPortalPlayback> {
-        const playlist = await firstValueFrom(
+        const playlist = (await firstValueFrom(
             this.playlistsService.getPlaylistById(ch.playlistId)
-        );
+        )) as Playlist | undefined;
+        if (
+            ch.xtreamId == null ||
+            !playlist?.serverUrl ||
+            !playlist.username ||
+            !playlist.password
+        ) {
+            throw new Error('Missing Xtream playback credentials');
+        }
         const credentials = {
             serverUrl: playlist.serverUrl,
             username: playlist.username,
             password: playlist.password,
         };
-        const streamUrl = this.xtreamUrl.constructLiveUrl(
-            credentials,
-            ch.xtreamId!
-        );
+        const streamUrl = this.xtreamUrl.constructLiveUrl(credentials, ch.xtreamId);
         return {
             streamUrl,
             title: ch.name,
@@ -409,13 +432,13 @@ export class GlobalFavoritesPageComponent implements OnInit {
     private async resolveStalkerPlayback(
         ch: UnifiedFavoriteChannel
     ): Promise<ResolvedPortalPlayback> {
-        const playlist = await firstValueFrom(
+        const playlist = (await firstValueFrom(
             this.playlistsService.getPlaylistById(ch.playlistId)
-        );
+        )) as Playlist | undefined;
 
         const portalUrl =
-            ch.stalkerPortalUrl ?? playlist.portalUrl ?? playlist.url;
-        const macAddress = ch.stalkerMacAddress ?? playlist.macAddress;
+            ch.stalkerPortalUrl ?? playlist?.portalUrl ?? playlist?.url ?? '';
+        const macAddress = ch.stalkerMacAddress ?? playlist?.macAddress ?? '';
         const cmd = ch.stalkerCmd ?? '';
 
         const params = {
@@ -427,8 +450,8 @@ export class GlobalFavoritesPageComponent implements OnInit {
             JsHttpRequest: '1-xml',
         };
 
-        let response: any;
-        if (playlist.isFullStalkerPortal) {
+        let response: StalkerCreateLinkResponse | undefined;
+        if (playlist?.isFullStalkerPortal && playlist) {
             response = await this.stalkerSession.makeAuthenticatedRequest(
                 playlist,
                 params

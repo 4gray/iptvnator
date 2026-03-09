@@ -65,6 +65,15 @@ const initialContentState: ContentState = {
  */
 export function withContent() {
     const logger = createLogger('withContent');
+    type ParentPortalStoreLike = {
+        currentPlaylist?: () => {
+            password: string;
+            serverUrl: string;
+            username: string;
+        } | null;
+        playlistId?: () => string | null;
+    };
+
     return signalStoreFeature(
         withState<ContentState>(initialContentState),
 
@@ -129,7 +138,7 @@ export function withContent() {
                 credentials: XtreamCredentials;
             } | null => {
                 // Access parent store state (currentPlaylist is from withPortal)
-                const storeAny = store as any;
+                const storeAny = store as ParentPortalStoreLike;
                 const playlist = storeAny.currentPlaylist?.();
                 const playlistId = storeAny.playlistId?.();
 

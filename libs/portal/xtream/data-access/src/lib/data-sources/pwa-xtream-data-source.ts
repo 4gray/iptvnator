@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import {
+    PlaybackPositionData,
     XtreamCategory,
     XtreamLiveStream,
     XtreamSerieItem,
@@ -31,6 +32,26 @@ const STORAGE_KEYS = {
     PLAYBACK_POSITIONS: 'xtream-playback-positions',
 };
 
+interface XtreamCachedContentItem {
+    readonly added?: string;
+    readonly category_id?: string | number;
+    readonly id?: number;
+    readonly name?: string;
+    readonly poster_url?: string;
+    readonly series_id?: number;
+    readonly stream_display_name?: string;
+    readonly stream_id?: number;
+    readonly stream_icon?: string;
+    readonly title?: string;
+    readonly type?: string;
+    readonly viewed_at?: string;
+}
+
+interface StoredRecentItem {
+    readonly id: number;
+    readonly viewedAt: string;
+}
+
 /**
  * PWA implementation of the Xtream data source.
  * Uses API-only strategy: always fetch from API, no database caching.
@@ -43,7 +64,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     // In-memory cache for the current session
     private categoryCache = new Map<string, XtreamCategory[]>();
-    private contentCache = new Map<string, any[]>();
+    private contentCache = new Map<string, XtreamCachedContentItem[]>();
 
     // =========================================================================
     // Playlist Operations (localStorage)
@@ -119,8 +140,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const cacheKey = `${playlistId}-${type}-categories`;
 
         // Check in-memory cache first
-        if (this.categoryCache.has(cacheKey)) {
-            return this.categoryCache.get(cacheKey)!;
+        const cachedCategories = this.categoryCache.get(cacheKey);
+        if (cachedCategories) {
+            return cachedCategories;
         }
 
         // Fetch from API
@@ -139,6 +161,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         type: DbCategoryType
     ): Promise<XtreamCategoryFromDb[]> {
+        void playlistId;
+        void type;
         // PWA doesn't track hidden categories - return empty
         return [];
     }
@@ -157,6 +181,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         categoryIds: number[],
         hidden: boolean
     ): Promise<void> {
+        void categoryIds;
+        void hidden;
         // Category visibility is not supported in PWA mode
         this.logger.warn('Category visibility not supported in PWA mode');
     }
@@ -183,8 +209,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const cacheKey = `${playlistId}-${type}-content`;
 
         // Check in-memory cache first
-        if (this.contentCache.has(cacheKey)) {
-            return this.contentCache.get(cacheKey)!;
+        const cachedContent = this.contentCache.get(cacheKey);
+        if (cachedContent) {
+            return cachedContent as
+                | XtreamLiveStream[]
+                | XtreamVodStream[]
+                | XtreamSerieItem[];
         }
 
         // Fetch from API
@@ -206,7 +236,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     async saveContent(
         playlistId: string,
-        streams: any[],
+        streams:
+            | XtreamLiveStream[]
+            | XtreamVodStream[]
+            | XtreamSerieItem[]
+            | XtreamContentItem[],
         type: 'live' | 'movie' | 'series',
         onProgress?: ProgressCallback
     ): Promise<number> {
@@ -229,16 +263,17 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         searchTerm: string,
         types: string[],
-        _excludeHidden?: boolean
+        excludeHidden?: boolean
     ): Promise<XtreamContentItem[]> {
-        const results: any[] = [];
+        void excludeHidden;
+        const results: XtreamCachedContentItem[] = [];
         const searchLower = searchTerm.toLowerCase();
 
         for (const type of types) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey) || [];
 
-            const filtered = content.filter((item: any) => {
+            const filtered = content.filter((item) => {
                 const title =
                     item.name || item.title || item.stream_display_name || '';
                 return title.toLowerCase().includes(searchLower);
@@ -259,12 +294,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const playlistFavorites = allFavorites[playlistId] || [];
 
         // Match favorites with cached content
-        const results: any[] = [];
+        const results: XtreamCachedContentItem[] = [];
         for (const type of ['live', 'movie', 'series']) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey) || [];
 
-            for (const item of content as any[]) {
+            for (const item of content) {
                 const itemId = item.stream_id || item.series_id || item.id;
                 if (playlistFavorites.includes(itemId)) {
                     results.push(item);
@@ -324,7 +359,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // Playback Position Operations (localStorage)
     // =========================================================================
 
-    async savePlaybackPosition(playlistId: string, data: any): Promise<void> {
+    async savePlaybackPosition(
+        playlistId: string,
+        data: PlaybackPositionData
+    ): Promise<void> {
         const allPositions = this.getPlaybackPositionsFromStorage();
         if (!allPositions[playlistId]) {
             allPositions[playlistId] = [];
@@ -332,7 +370,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
         // Remove existing entry if present
         allPositions[playlistId] = allPositions[playlistId].filter(
-            (p: any) =>
+            (p) =>
                 !(
                     p.contentXtreamId === data.contentXtreamId &&
                     p.contentType === data.contentType
@@ -352,13 +390,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         contentXtreamId: number,
         contentType: 'vod' | 'episode'
-    ): Promise<any | null> {
+    ): Promise<PlaybackPositionData | null> {
         const allPositions = this.getPlaybackPositionsFromStorage();
         const playlistPositions = allPositions[playlistId] || [];
 
         return (
             playlistPositions.find(
-                (p: any) =>
+                (p) =>
                     p.contentXtreamId === contentXtreamId &&
                     p.contentType === contentType
             ) || null
@@ -368,12 +406,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getSeriesPlaybackPositions(
         playlistId: string,
         seriesXtreamId: number
-    ): Promise<any[]> {
+    ): Promise<PlaybackPositionData[]> {
         const allPositions = this.getPlaybackPositionsFromStorage();
         const playlistPositions = allPositions[playlistId] || [];
 
         return playlistPositions.filter(
-            (p: any) =>
+            (p) =>
                 p.contentType === 'episode' &&
                 p.seriesXtreamId === seriesXtreamId
         );
@@ -382,13 +420,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getRecentPlaybackPositions(
         playlistId: string,
         limit?: number
-    ): Promise<any[]> {
+    ): Promise<PlaybackPositionData[]> {
         const allPositions = this.getPlaybackPositionsFromStorage();
         const playlistPositions = allPositions[playlistId] || [];
 
         // Sort by updatedAt descending
         playlistPositions.sort(
-            (a: any, b: any) =>
+            (a, b) =>
                 new Date(b.updatedAt).getTime() -
                 new Date(a.updatedAt).getTime()
         );
@@ -396,7 +434,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return limit ? playlistPositions.slice(0, limit) : playlistPositions;
     }
 
-    async getAllPlaybackPositions(playlistId: string): Promise<any[]> {
+    async getAllPlaybackPositions(
+        playlistId: string
+    ): Promise<PlaybackPositionData[]> {
         const allPositions = this.getPlaybackPositionsFromStorage();
         return allPositions[playlistId] || [];
     }
@@ -409,7 +449,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const allPositions = this.getPlaybackPositionsFromStorage();
         if (allPositions[playlistId]) {
             allPositions[playlistId] = allPositions[playlistId].filter(
-                (p: any) =>
+                (p) =>
                     !(
                         p.contentXtreamId === contentXtreamId &&
                         p.contentType === contentType
@@ -419,7 +459,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
     }
 
-    private getPlaybackPositionsFromStorage(): Record<string, any[]> {
+    private getPlaybackPositionsFromStorage(): Record<
+        string,
+        PlaybackPositionData[]
+    > {
         try {
             const data = localStorage.getItem(STORAGE_KEYS.PLAYBACK_POSITIONS);
             return data ? JSON.parse(data) : {};
@@ -429,7 +472,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     }
 
     private savePlaybackPositionsToStorage(
-        positions: Record<string, any[]>
+        positions: Record<string, PlaybackPositionData[]>
     ): void {
         localStorage.setItem(
             STORAGE_KEYS.PLAYBACK_POSITIONS,
@@ -452,15 +495,15 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const playlistRecent = allRecent[playlistId] || [];
 
         // Match recent items with cached content
-        const results: any[] = [];
+        const results: (XtreamCachedContentItem & { viewed_at: string })[] = [];
         for (const type of ['live', 'movie', 'series']) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey) || [];
 
-            for (const item of content as any[]) {
+            for (const item of content) {
                 const itemId = item.stream_id || item.series_id || item.id;
                 const recentEntry = playlistRecent.find(
-                    (r: any) => r.id === itemId
+                    (r) => r.id === itemId
                 );
                 if (recentEntry) {
                     results.push({
@@ -489,7 +532,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
         // Remove existing entry if present
         allRecent[playlistId] = allRecent[playlistId].filter(
-            (r: any) => r.id !== contentId
+            (r) => r.id !== contentId
         );
 
         // Add new entry at the beginning
@@ -511,7 +554,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const allRecent = this.getRecentItemsFromStorage();
         if (allRecent[playlistId]) {
             allRecent[playlistId] = allRecent[playlistId].filter(
-                (r: any) => r.id !== contentId
+                (r) => r.id !== contentId
             );
         }
         this.saveRecentItemsToStorage(allRecent);
@@ -523,7 +566,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     private getRecentItemsFromStorage(): Record<
         string,
-        { id: number; viewedAt: string }[]
+        StoredRecentItem[]
     > {
         try {
             const data = localStorage.getItem(STORAGE_KEYS.RECENT_ITEMS);
@@ -534,7 +577,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     }
 
     private saveRecentItemsToStorage(
-        recentItems: Record<string, { id: number; viewedAt: string }[]>
+        recentItems: Record<string, StoredRecentItem[]>
     ): void {
         localStorage.setItem(
             STORAGE_KEYS.RECENT_ITEMS,
@@ -560,7 +603,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey) || [];
 
-            const found = (content as any[]).find((item) => {
+            const found = content.find((item) => {
                 const itemXtreamId =
                     item.stream_id || item.series_id || item.id;
                 return itemXtreamId === xtreamId;
@@ -588,7 +631,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
         const favoritedXtreamIds = favorites[playlistId] || [];
         const recentlyViewedXtreamIds = (recentItems[playlistId] || []).map(
-            (r: any) => ({
+            (r) => ({
                 xtreamId: r.id,
                 viewedAt: r.viewedAt,
             })

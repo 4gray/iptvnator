@@ -14,16 +14,18 @@ import {
     PlaylistsService,
     SettingsStore,
 } from 'services';
-import { SettingsContextService } from '../workspace-context-panel/settings-context.service';
+import {
+    SettingsContextService,
+    WORKSPACE_SHELL_ACTIONS,
+} from '@iptvnator/workspace/shell/util';
 import { WorkspaceShellComponent } from './workspace-shell.component';
-import { WORKSPACE_SHELL_ACTIONS } from './workspace-shell-actions';
 
 class MockXtreamStore {
     readonly contentSortMode = signal<
         'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'
     >('date-desc');
     readonly getCategoryItemCounts = signal(new Map<number, number>());
-    readonly recentItems = signal<any[]>([]);
+    readonly recentItems = signal<unknown[]>([]);
 
     setContentSortMode = jest.fn();
     setSearchTerm = jest.fn();
@@ -33,7 +35,7 @@ class MockXtreamStore {
 
 describe('WorkspaceShellComponent action matrix', () => {
     beforeEach(() => {
-        (window as any).electron = { platform: 'darwin' };
+        window.electron = { platform: 'darwin' } as typeof window.electron;
 
         const selectSignal = jest
             .fn()

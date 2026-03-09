@@ -20,7 +20,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import groupBy from 'lodash/groupBy';
 import { firstValueFrom } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
-import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
+import { ContentCardComponent, FavoriteLayoutItem } from '@iptvnator/portal/shared/ui';
 import {
     PortalCollectionLiveShellComponent,
 } from '@iptvnator/portal/shared/ui';
@@ -63,6 +63,38 @@ const XTREAM_COLLECTION_LABELS = {
 type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 const XTREAM_RECENT_LIVE_SORT_STORAGE_KEY =
     'xtream-recent-live-channel-sort-mode';
+
+type XtreamRecentContentType = 'live' | 'movie' | 'series';
+
+interface XtreamRecentViewItem extends FavoriteLayoutItem {
+    readonly id: string | number;
+    readonly playlist_id: string;
+    readonly title: string;
+    readonly type: XtreamRecentContentType;
+    readonly xtream_id: string | number;
+}
+
+interface XtreamRecentLiveItem {
+    readonly id?: string | number;
+    readonly poster_url?: string;
+    readonly stream_icon?: string;
+    readonly title?: string;
+    readonly xtream_id: number;
+}
+
+function isXtreamRecentViewItem(
+    item: FavoriteLayoutItem
+): item is XtreamRecentViewItem {
+    return (
+        (typeof item.id === 'number' || typeof item.id === 'string') &&
+        typeof item.playlist_id === 'string' &&
+        typeof item.title === 'string' &&
+        typeof item.xtream_id !== 'undefined' &&
+        (item.type === 'live' ||
+            item.type === 'movie' ||
+            item.type === 'series')
+    );
+}
 
 @Component({
     selector: 'app-recently-viewed',
@@ -139,20 +171,16 @@ export class RecentlyViewedComponent {
         }
     })();
     readonly typeFilters = computed(() => this._typeFilters());
-    readonly recentItems = computed(() =>
-        this.isGlobal
+    readonly recentItems = computed<XtreamRecentViewItem[]>(() =>
+        (this.isGlobal
             ? this.xtreamStore.globalRecentItems()
-            : this.xtreamStore.recentItems()
+            : this.xtreamStore.recentItems()) as XtreamRecentViewItem[]
     );
     readonly categories = computed(() => {
         const items = this.recentItems();
-        const movies = items.filter(
-            (item: any) => item?.type === 'movie'
-        ).length;
-        const live = items.filter((item: any) => item?.type === 'live').length;
-        const series = items.filter(
-            (item: any) => item?.type === 'series'
-        ).length;
+        const movies = items.filter((item) => item.type === 'movie').length;
+        const live = items.filter((item) => item.type === 'live').length;
+        const series = items.filter((item) => item.type === 'series').length;
 
         return buildStandardCollectionCategories({
             labels: XTREAM_COLLECTION_LABELS,
@@ -170,7 +198,7 @@ export class RecentlyViewedComponent {
         categories: this.categories,
         enabled: () => !this.isGlobal,
     });
-    readonly selectedLiveItem = signal<any | null>(null);
+    readonly selectedLiveItem = signal<XtreamRecentLiveItem | null>(null);
     readonly liveStreamUrl = signal('');
     readonly nonGlobalMode = computed<PortalCollectionMode>(() =>
         this.isLiveCategory() ? 'live' : 'grid'
@@ -188,16 +216,16 @@ export class RecentlyViewedComponent {
                 ? this.workspaceSearchTerm()
                 : this.recentSearchTerm().trim().toLowerCase();
         const typeFilters = this.typeFilters();
-        const items = this.recentItems().filter((item: any) => {
-            if (item?.type === 'live') return typeFilters.live;
-            if (item?.type === 'movie') return typeFilters.movie;
-            if (item?.type === 'series') return typeFilters.series;
+        const items = this.recentItems().filter((item) => {
+            if (item.type === 'live') return typeFilters.live;
+            if (item.type === 'movie') return typeFilters.movie;
+            if (item.type === 'series') return typeFilters.series;
             return true;
         });
         if (!term) return items;
 
-        return items.filter((item: any) =>
-            `${item?.title ?? ''} ${item?.playlist_name ?? ''}`
+        return items.filter((item) =>
+            `${item.title} ${item.playlist_name ?? ''}`
                 .toLowerCase()
                 .includes(term)
         );
@@ -218,32 +246,39 @@ export class RecentlyViewedComponent {
             selectedCategoryId: this.selectedCategoryId(),
             allItems: items,
             buckets: {
-                movie: items.filter((item: any) => item?.type === 'movie'),
-                live: items.filter((item: any) => item?.type === 'live'),
-                series: items.filter((item: any) => item?.type === 'series'),
+                movie: items.filter((item) => item.type === 'movie'),
+                live: items.filter((item) => item.type === 'live'),
+                series: items.filter((item) => item.type === 'series'),
             },
-            textOf: (item: any) =>
-                `${item?.title ?? ''} ${item?.playlist_name ?? ''}`,
+            textOf: (item) => `${item.title} ${item.playlist_name ?? ''}`,
         });
     });
-    readonly liveItemsToShow = computed(() =>
-        this.visibleRecentItems().filter((item: any) => {
-            if (item?.type !== 'live') {
-                return false;
-            }
+    readonly liveItemsToShow = computed<XtreamRecentLiveItem[]>(() =>
+        this.visibleRecentItems()
+            .filter((item) => {
+                if (item.type !== 'live') {
+                    return false;
+                }
 
-            const term =
-                this.isWorkspaceLayout && !this.isGlobal
-                    ? this.workspaceSearchTerm()
-                    : this.recentSearchTerm().trim().toLowerCase();
-            if (!term) {
-                return true;
-            }
+                const term =
+                    this.isWorkspaceLayout && !this.isGlobal
+                        ? this.workspaceSearchTerm()
+                        : this.recentSearchTerm().trim().toLowerCase();
+                if (!term) {
+                    return true;
+                }
 
-            return `${item?.title ?? ''} ${item?.playlist_name ?? ''}`
-                .toLowerCase()
-                .includes(term);
-        })
+                return `${item.title} ${item.playlist_name ?? ''}`
+                    .toLowerCase()
+                    .includes(term);
+            })
+            .map((item) => ({
+                id: item.id,
+                poster_url: item.poster_url,
+                stream_icon: item.stream_icon,
+                title: item.title,
+                xtream_id: Number(item.xtream_id),
+            }))
     );
     readonly isLiveCategory = computed(() => this.selectedCategoryId() === 'live');
     readonly isEmbeddedPlayer = computed(() =>
@@ -333,7 +368,11 @@ export class RecentlyViewedComponent {
         }
     }
 
-    openItem(item: any) {
+    openItem(item: FavoriteLayoutItem) {
+        if (!isXtreamRecentViewItem(item)) {
+            return;
+        }
+
         const source = item.source ?? 'xtream';
 
         if (source === 'stalker' && this.isGlobal) {
@@ -365,7 +404,13 @@ export class RecentlyViewedComponent {
 
         if (!this.isGlobal && type === 'live') {
             this.setCategoryId('live');
-            this.selectLiveItem(item);
+            this.selectLiveItem({
+                id: item.id,
+                poster_url: item.poster_url,
+                stream_icon: item.stream_icon,
+                title: item.title,
+                xtream_id: Number(item.xtream_id),
+            });
             return;
         }
 
@@ -390,7 +435,11 @@ export class RecentlyViewedComponent {
         }
     }
 
-    async onRemoveItem(item: any) {
+    async onRemoveItem(item: FavoriteLayoutItem) {
+        if (!isXtreamRecentViewItem(item)) {
+            return;
+        }
+
         try {
             if (this.isGlobal) {
                 if (item.source === 'stalker') {
@@ -410,9 +459,14 @@ export class RecentlyViewedComponent {
                 return;
             }
 
+            const playlist = this.currentPlaylist();
+            if (!playlist) {
+                return;
+            }
+
             this.xtreamStore.removeRecentItem({
                 itemId: Number(item.id),
-                playlistId: this.currentPlaylist().id,
+                playlistId: playlist.id,
             });
         } catch (error) {
             this.logger.error('Error removing recent item', error);
@@ -454,7 +508,7 @@ export class RecentlyViewedComponent {
         this.collectionContext.setCategoryId(categoryId);
     }
 
-    selectLiveItem(item: any): void {
+    selectLiveItem(item: XtreamRecentLiveItem): void {
         this.xtreamStore.setSelectedContentType('live');
         this.selectedLiveItem.set(item);
         const streamUrl = this.xtreamStore.constructStreamUrl(item);

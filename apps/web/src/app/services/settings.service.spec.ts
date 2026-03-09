@@ -2,8 +2,7 @@ import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { inject, TestBed } from '@angular/core/testing';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { of } from 'rxjs';
-import { STORE_KEY } from '../../../../../libs/shared/interfaces/src/lib/store-keys.enum';
-import { Theme } from '../../../../../libs/shared/interfaces/src/lib/theme.enum';
+import { STORE_KEY, Theme } from 'shared-interfaces';
 import { SettingsService } from './settings.service';
 
 describe('Service: Settings', () => {
@@ -25,7 +24,7 @@ describe('Service: Settings', () => {
         [SettingsService, StorageMap],
         (service: SettingsService, storage: StorageMap) => {
             const version = '2.1.0';
-            jest.spyOn(storage, 'set').mockReturnValue(of([] as any));
+            jest.spyOn(storage, 'set').mockReturnValue(of(undefined));
             service.setValueToLocalStorage(STORE_KEY.Version, version);
             expect(storage.set).toHaveBeenCalledWith(
                 STORE_KEY.Version,

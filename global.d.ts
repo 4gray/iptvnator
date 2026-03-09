@@ -95,10 +95,12 @@ declare global {
                 params: Record<string, string>;
                 token?: string;
                 serialNumber?: string;
+                requestId?: string;
             }) => Promise<any>;
             xtreamRequest: (payload: {
                 url: string;
                 params: Record<string, string>;
+                requestId?: string;
             }) => Promise<{ payload: any; action: string }>;
             // Database operations
             dbCreatePlaylist: (playlist: any) => Promise<{ success: boolean }>;

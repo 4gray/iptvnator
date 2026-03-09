@@ -1,6 +1,13 @@
 import { inject, Injectable } from '@angular/core';
 import { DatabaseService, PlaybackPositionService } from 'services';
-import { XtreamCategory } from 'shared-interfaces';
+import {
+    PlaybackPositionData,
+    PlaylistMeta,
+    XtreamCategory,
+    XtreamLiveStream,
+    XtreamSerieItem,
+    XtreamVodStream,
+} from 'shared-interfaces';
 import {
     CategoryType,
     StreamType,
@@ -43,7 +50,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             serverUrl: playlist.serverUrl,
             username: playlist.username,
             password: playlist.password,
-        } as any);
+        } as unknown as PlaylistMeta);
     }
 
     async updatePlaylist(
@@ -132,10 +139,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         }
 
         try {
-            const restoreData = JSON.parse(restoreDataStr);
-            const hiddenCategories = restoreData.hiddenCategories as
-                | { xtreamId: number; type: string }[]
-                | undefined;
+            const restoreData = JSON.parse(restoreDataStr) as {
+                hiddenCategories?: { xtreamId: number; type: string }[];
+            };
+            const hiddenCategories = restoreData.hiddenCategories;
 
             if (!hiddenCategories || hiddenCategories.length === 0) {
                 return undefined;
@@ -209,7 +216,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             // Save to cache with progress tracking
             await this.dbService.saveXtreamContent(
                 playlistId,
-                remoteData as any[],
+                remoteData as
+                    | XtreamLiveStream[]
+                    | XtreamVodStream[]
+                    | XtreamSerieItem[],
                 type,
                 onProgress
             );
@@ -221,7 +231,11 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
 
     async saveContent(
         playlistId: string,
-        streams: any[],
+        streams:
+            | XtreamLiveStream[]
+            | XtreamVodStream[]
+            | XtreamSerieItem[]
+            | XtreamContentItem[],
         type: 'live' | 'movie' | 'series',
         onProgress?: ProgressCallback
     ): Promise<number> {
@@ -309,7 +323,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     // Playback Position Operations
     // =========================================================================
 
-    async savePlaybackPosition(playlistId: string, data: any): Promise<void> {
+    async savePlaybackPosition(
+        playlistId: string,
+        data: PlaybackPositionData
+    ): Promise<void> {
         await this.playbackService.savePlaybackPosition(playlistId, data);
     }
 
@@ -317,7 +334,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         contentXtreamId: number,
         contentType: 'vod' | 'episode'
-    ): Promise<any | null> {
+    ): Promise<PlaybackPositionData | null> {
         return this.playbackService.getPlaybackPosition(
             playlistId,
             contentXtreamId,
@@ -328,7 +345,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async getSeriesPlaybackPositions(
         playlistId: string,
         seriesXtreamId: number
-    ): Promise<any[]> {
+    ): Promise<PlaybackPositionData[]> {
         return this.playbackService.getSeriesPlaybackPositions(
             playlistId,
             seriesXtreamId
@@ -338,14 +355,16 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async getRecentPlaybackPositions(
         playlistId: string,
         limit?: number
-    ): Promise<any[]> {
+    ): Promise<PlaybackPositionData[]> {
         return this.playbackService.getRecentPlaybackPositions(
             playlistId,
             limit
         );
     }
 
-    async getAllPlaybackPositions(playlistId: string): Promise<any[]> {
+    async getAllPlaybackPositions(
+        playlistId: string
+    ): Promise<PlaybackPositionData[]> {
         return this.playbackService.getAllPlaybackPositions(playlistId);
     }
 
@@ -368,7 +387,8 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     /**
      * No-op for Electron: DB-backed storage has no in-memory session cache to clear.
      */
-    clearSessionCache(_playlistId: string): void {
+    clearSessionCache(playlistId: string): void {
+        void playlistId;
         // Electron uses the DB as its cache layer; no in-memory state to evict.
     }
 

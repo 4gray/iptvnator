@@ -11,7 +11,7 @@ import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspaceAccountInfoData,
     WorkspaceShellActions,
-} from '@iptvnator/workspace/shell/feature';
+} from '@iptvnator/workspace/shell/util';
 
 @Injectable({ providedIn: 'root' })
 export class AppWorkspaceShellActionsService implements WorkspaceShellActions {

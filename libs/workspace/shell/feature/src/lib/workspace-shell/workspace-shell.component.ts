@@ -49,19 +49,19 @@ import {
     SettingsStore,
 } from 'services';
 import {
+    SettingsContextService,
+    WorkspaceAccountInfoData,
+    WORKSPACE_SHELL_ACTIONS,
+} from '@iptvnator/workspace/shell/util';
+import {
     WorkspaceCommandItem,
     WorkspaceCommandPaletteComponent,
     WorkspaceCommandSelection,
 } from '../workspace-command-palette/workspace-command-palette.component';
-import { SettingsContextService } from '../workspace-context-panel/settings-context.service';
 import { WorkspaceContextPanelComponent } from '../workspace-context-panel/workspace-context-panel.component';
 import { WorkspaceFavoritesContextPanelComponent } from '../workspace-context-panel/workspace-favorites-context-panel.component';
 import { WorkspaceSettingsContextPanelComponent } from '../workspace-context-panel/workspace-settings-context-panel.component';
 import { WorkspaceSourcesFiltersPanelComponent } from '../workspace-sources-filters-panel/workspace-sources-filters-panel.component';
-import {
-    WorkspaceAccountInfoData,
-    WORKSPACE_SHELL_ACTIONS,
-} from './workspace-shell-actions';
 
 interface WorkspaceContext {
     provider: 'xtreams' | 'stalker' | 'playlists';

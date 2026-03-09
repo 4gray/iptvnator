@@ -29,7 +29,7 @@ import { FavoritesContextService } from '@iptvnator/portal/shared/util';
             <app-category-view
                 [items]="ctx.categories()"
                 [selectedCategoryId]="ctx.selectedCategoryId()"
-                (categoryClicked)="onCategoryClicked($any($event))"
+                (categoryClicked)="onCategoryClicked($event)"
             />
         </div>
     `,
@@ -42,22 +42,25 @@ export class WorkspaceFavoritesContextPanelComponent {
         const categories = this.ctx.categories();
         if (!categories.length) return 'Filter by type';
         const selected = categories.find(
-            (c: any) => c.category_id === this.ctx.selectedCategoryId()
-        ) as any;
+            (c) => c.category_id === this.ctx.selectedCategoryId()
+        );
         return selected?.category_name ?? 'Filter by type';
     });
 
     readonly countBadge = computed(() => {
         const categories = this.ctx.categories();
         const selected = categories.find(
-            (c: any) => c.category_id === this.ctx.selectedCategoryId()
-        ) as any;
+            (c) => c.category_id === this.ctx.selectedCategoryId()
+        );
         if (!selected || selected.count === undefined) return '';
         return `${selected.count} ${selected.count === 1 ? 'item' : 'items'}`;
     });
 
-    onCategoryClicked(item: { category_id?: string | number }): void {
-        const id = String(item.category_id ?? 'all');
+    onCategoryClicked(item: {
+        category_id?: string | number;
+        id?: string | number;
+    }): void {
+        const id = String(item.category_id ?? item.id ?? 'all');
         this.ctx.setCategoryId(id);
     }
 }

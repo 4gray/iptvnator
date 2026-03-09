@@ -58,6 +58,7 @@ import {
 import { DataService, PlaylistsService, SettingsStore } from 'services';
 import {
     Channel,
+    EpgProgram,
     PLAYLIST_PARSE_BY_URL,
     STORE_KEY,
     Settings,
@@ -301,6 +302,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 return;
             }
 
+            const currentEpgProgram = epgProgram as EpgProgram | null | undefined;
             const currentIndex = channels.findIndex(
                 (channel) => channel.url === activeChannel.url
             );
@@ -310,9 +312,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 isLiveView: true,
                 channelName: activeChannel.name ?? activeChannel.tvg?.name,
                 channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
-                epgTitle: (epgProgram as any)?.title,
-                epgStart: (epgProgram as any)?.start,
-                epgEnd: (epgProgram as any)?.end,
+                epgTitle: currentEpgProgram?.title,
+                epgStart: currentEpgProgram?.start,
+                epgEnd: currentEpgProgram?.stop,
                 supportsVolume: true,
                 volume: this.volume,
                 muted: this.volume === 0,

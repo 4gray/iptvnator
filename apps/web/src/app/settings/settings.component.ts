@@ -1,16 +1,13 @@
-/* eslint-disable @typescript-eslint/no-base-to-string */
 import { CommonModule } from '@angular/common';
 import {
     Component,
     ElementRef,
     effect,
     inject,
-    Inject,
     Injector,
     Input,
     OnDestroy,
     OnInit,
-    Optional,
     signal,
 } from '@angular/core';
 import {
@@ -49,7 +46,7 @@ import {
     Theme,
     VideoPlayer,
 } from 'shared-interfaces';
-import { SettingsContextService } from '@iptvnator/workspace/shell/feature';
+import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from './../services/settings.service';
 
@@ -98,8 +95,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
     private matDialog = inject(MatDialog);
     private readonly elementRef = inject(ElementRef<HTMLElement>);
     private readonly injector = inject(Injector);
+    private readonly dialogData = inject<{ isDialog: boolean } | null>(
+        MAT_DIALOG_DATA,
+        { optional: true }
+    );
 
-    @Input() isDialog = false;
+    @Input() isDialog = this.dialogData?.isDialog ?? false;
     /** List with available languages as enum */
     readonly languageEnum = Language;
 
@@ -229,11 +230,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         },
     ];
 
-    constructor(
-        @Optional() @Inject(MAT_DIALOG_DATA) data?: { isDialog: boolean }
-    ) {
-        this.isDialog = data?.isDialog ?? false;
-
+    constructor() {
         effect(
             () => {
                 const sectionId = this.settingsCtx.pendingScrollTarget();

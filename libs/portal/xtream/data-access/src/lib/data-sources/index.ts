@@ -1,4 +1,4 @@
-import { EnvironmentProviders, inject, Provider } from '@angular/core';
+import { inject, Provider } from '@angular/core';
 import { ElectronXtreamDataSource } from './electron-xtream-data-source';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
 import { IXtreamDataSource, XTREAM_DATA_SOURCE } from './xtream-data-source.interface';
@@ -15,7 +15,7 @@ export { PwaXtreamDataSource } from './pwa-xtream-data-source';
  */
 export function xtreamDataSourceFactory(): IXtreamDataSource {
     // Check if we're in Electron environment
-    if (typeof window !== 'undefined' && (window as any).electron) {
+    if (typeof window !== 'undefined' && window.electron) {
         return inject(ElectronXtreamDataSource);
     }
 

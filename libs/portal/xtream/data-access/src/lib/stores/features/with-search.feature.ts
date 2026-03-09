@@ -60,6 +60,10 @@ const initialSearchState: SearchState = {
  */
 export function withSearch() {
     const logger = createLogger('withSearch');
+    type ParentSearchStoreLike = {
+        playlistId?: () => string | null;
+    };
+
     return signalStoreFeature(
         withState<SearchState>(initialSearchState),
 
@@ -76,7 +80,7 @@ export function withSearch() {
                     excludeHidden?: boolean
                 ): Promise<XtreamContentItem[]> {
                     // Access parent store's playlistId (from withPortal)
-                    const storeAny = store as any;
+                    const storeAny = store as ParentSearchStoreLike;
                     const playlistId = storeAny.playlistId?.();
 
                     if (!playlistId || !searchTerm.trim()) {
@@ -115,7 +119,7 @@ export function withSearch() {
                  */
                 setGlobalSearchResults(results: GlobalSearchResult[]): void {
                     patchState(store, {
-                        searchResults: results as any,
+                        searchResults: results,
                         globalSearchResults: results,
                         isSearching: false,
                     });

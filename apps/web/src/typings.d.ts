@@ -4,7 +4,24 @@ interface NodeModule {
     id: string;
 }
 
-import { ExternalPlayerSession, PortalDebugEvent } from 'shared-interfaces';
+import {
+    EpgChannel,
+    EpgProgram,
+    ExternalPlayerSession,
+    PlaybackPositionData,
+    Playlist,
+    PortalDebugEvent,
+} from 'shared-interfaces';
+import {
+    GlobalFavoriteItem,
+    GlobalRecentItem,
+    GlobalSearchResult,
+    XCategoryFromDb,
+    XtreamContent,
+} from 'services';
+
+type JsonObject = Record<string, unknown>;
+type JsonArray = unknown[];
 
 declare global {
     interface Window {
@@ -14,12 +31,15 @@ declare global {
             ) => () => void;
             getAppVersion: () => Promise<string>;
             platform: string;
-            fetchPlaylistByUrl: (url: string, title?: string) => Promise<any>;
+            fetchPlaylistByUrl: (
+                url: string,
+                title?: string
+            ) => Promise<Playlist>;
             updatePlaylistFromFilePath: (
                 filePath: string,
                 title: string
-            ) => Promise<any>;
-            openPlaylistFromFile: () => Promise<any>;
+            ) => Promise<Playlist>;
+            openPlaylistFromFile: () => Promise<Playlist>;
             saveFileDialog: (
                 defaultPath: string,
                 filters?: { name: string; extensions: string[] }[]
@@ -36,7 +56,7 @@ declare global {
                 userAgent: string,
                 referer?: string,
                 origin?: string,
-                contentInfo?: any,
+                contentInfo?: unknown,
                 startTime?: number,
                 headers?: Record<string, string>
             ) => Promise<ExternalPlayerSession>;
@@ -47,11 +67,11 @@ declare global {
                 userAgent: string,
                 referer?: string,
                 origin?: string,
-                contentInfo?: any,
+                contentInfo?: unknown,
                 startTime?: number,
                 headers?: Record<string, string>
             ) => Promise<ExternalPlayerSession>;
-            autoUpdatePlaylists: (playlists: any[]) => Promise<any[]>;
+            autoUpdatePlaylists: (playlists: Playlist[]) => Promise<Playlist[]>;
             fetchEpg: (
                 urls: string[]
             ) => Promise<{
@@ -59,12 +79,12 @@ declare global {
                 message?: string;
                 skipped?: string[];
             }>;
-            getChannelPrograms: (channelId: string) => Promise<any>;
-            getEpgChannels: () => Promise<any>;
+            getChannelPrograms: (channelId: string) => Promise<EpgProgram[]>;
+            getEpgChannels: () => Promise<EpgChannel[]>;
             getEpgChannelsByRange: (
                 skip: number,
                 limit: number
-            ) => Promise<any>;
+            ) => Promise<EpgChannel[]>;
             forceFetchEpg: (
                 url: string
             ) => Promise<{ success: boolean; message?: string }>;
@@ -76,8 +96,8 @@ declare global {
             searchEpgPrograms: (
                 searchTerm: string,
                 limit?: number
-            ) => Promise<any[]>;
-            updateSettings: (settings: any) => Promise<void>;
+            ) => Promise<EpgProgram[]>;
+            updateSettings: (settings: JsonObject) => Promise<void>;
             getAiSettings: () => Promise<{
                 aiProvider: string;
                 aiModelName: string;
@@ -92,26 +112,28 @@ declare global {
                 token?: string;
                 serialNumber?: string;
                 requestId?: string;
-            }) => Promise<any>;
+            }) => Promise<JsonObject>;
             xtreamRequest: (payload: {
                 url: string;
                 params: Record<string, string>;
                 requestId?: string;
-            }) => Promise<{ payload: any; action: string }>;
+            }) => Promise<{ payload: unknown; action: string }>;
             // Database operations
-            dbCreatePlaylist: (playlist: any) => Promise<{ success: boolean }>;
-            dbGetPlaylist: (playlistId: string) => Promise<any>;
+            dbCreatePlaylist: (
+                playlist: Playlist
+            ) => Promise<{ success: boolean }>;
+            dbGetPlaylist: (playlistId: string) => Promise<Playlist | null>;
             dbUpsertAppPlaylist: (
-                playlist: any
+                playlist: Playlist
             ) => Promise<{ success: boolean }>;
             dbUpsertAppPlaylists: (
-                playlists: any[]
+                playlists: Playlist[]
             ) => Promise<{ success: boolean; count: number }>;
-            dbGetAppPlaylists: () => Promise<any[]>;
-            dbGetAppPlaylist: (playlistId: string) => Promise<any | null>;
+            dbGetAppPlaylists: () => Promise<Playlist[]>;
+            dbGetAppPlaylist: (playlistId: string) => Promise<Playlist | null>;
             dbUpdatePlaylist: (
                 playlistId: string,
-                updates: any
+                updates: Partial<Playlist>
             ) => Promise<{ success: boolean }>;
             dbDeletePlaylist: (
                 playlistId: string
@@ -143,17 +165,17 @@ declare global {
             dbGetCategories: (
                 playlistId: string,
                 type: string
-            ) => Promise<any[]>;
+            ) => Promise<XCategoryFromDb[]>;
             dbSaveCategories: (
                 playlistId: string,
-                categories: any[],
+                categories: XCategoryFromDb[],
                 type: string,
                 hiddenCategoryXtreamIds?: number[]
             ) => Promise<{ success: boolean }>;
             dbGetAllCategories: (
                 playlistId: string,
                 type: string
-            ) => Promise<any[]>;
+            ) => Promise<XCategoryFromDb[]>;
             dbUpdateCategoryVisibility: (
                 categoryIds: number[],
                 hidden: boolean
@@ -162,10 +184,13 @@ declare global {
                 playlistId: string,
                 type: string
             ) => Promise<boolean>;
-            dbGetContent: (playlistId: string, type: string) => Promise<any[]>;
+            dbGetContent: (
+                playlistId: string,
+                type: string
+            ) => Promise<XtreamContent[]>;
             dbSaveContent: (
                 playlistId: string,
-                streams: any[],
+                streams: JsonArray,
                 type: string
             ) => Promise<{ success: boolean; count: number }>;
             dbSearchContent: (
@@ -173,13 +198,13 @@ declare global {
                 searchTerm: string,
                 types: string[],
                 excludeHidden?: boolean
-            ) => Promise<any[]>;
+            ) => Promise<XtreamContent[]>;
             dbGlobalSearch: (
                 searchTerm: string,
                 types: string[],
                 excludeHidden?: boolean
-            ) => Promise<any[]>;
-            dbGetRecentlyViewed: () => Promise<any[]>;
+            ) => Promise<GlobalSearchResult[]>;
+            dbGetRecentlyViewed: () => Promise<GlobalRecentItem[]>;
             dbClearRecentlyViewed: () => Promise<{ success: boolean }>;
             // Favorites
             dbAddFavorite: (
@@ -194,13 +219,13 @@ declare global {
                 contentId: number,
                 playlistId: string
             ) => Promise<boolean>;
-            dbGetFavorites: (playlistId: string) => Promise<any[]>;
-            dbGetGlobalFavorites: () => Promise<any[]>;
+            dbGetFavorites: (playlistId: string) => Promise<XtreamContent[]>;
+            dbGetGlobalFavorites: () => Promise<GlobalFavoriteItem[]>;
             dbReorderGlobalFavorites: (
                 updates: { content_id: number; position: number }[]
             ) => Promise<{ success: boolean }>;
             // Recently viewed (playlist-specific)
-            dbGetRecentItems: (playlistId: string) => Promise<any[]>;
+            dbGetRecentItems: (playlistId: string) => Promise<XtreamContent[]>;
             dbAddRecentItem: (
                 contentId: number,
                 playlistId: string
@@ -215,7 +240,7 @@ declare global {
             dbGetContentByXtreamId: (
                 xtreamId: number,
                 playlistId: string
-            ) => Promise<any | null>;
+            ) => Promise<XtreamContent | null>;
             dbGetAppState: (key: string) => Promise<string | null>;
             dbSetAppState: (
                 key: string,
@@ -293,23 +318,25 @@ declare global {
                 playlistId: string,
                 contentXtreamId: number,
                 contentType: 'vod' | 'episode'
-            ) => Promise<any | null>;
+            ) => Promise<PlaybackPositionData | null>;
             dbGetSeriesPlaybackPositions: (
                 playlistId: string,
                 seriesXtreamId: number
-            ) => Promise<any[]>;
+            ) => Promise<PlaybackPositionData[]>;
             dbGetRecentPlaybackPositions: (
                 playlistId: string,
                 limit?: number
-            ) => Promise<any[]>;
-            dbGetAllPlaybackPositions: (playlistId: string) => Promise<any[]>;
+            ) => Promise<PlaybackPositionData[]>;
+            dbGetAllPlaybackPositions: (
+                playlistId: string
+            ) => Promise<PlaybackPositionData[]>;
             dbClearPlaybackPosition: (
                 playlistId: string,
                 contentXtreamId: number,
                 contentType: 'vod' | 'episode'
             ) => Promise<{ success: boolean }>;
             onPlaybackPositionUpdate: (
-                callback: (data: any) => void
+                callback: (data: PlaybackPositionData) => void
             ) => () => void;
             closeExternalPlayerSession: (
                 sessionId: string

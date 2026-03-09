@@ -17,6 +17,7 @@ import { selectActivePlaylist } from 'm3u-state';
 import { BehaviorSubject, switchMap } from 'rxjs';
 import { PortalCollectionLiveShellComponent } from '@iptvnator/portal/shared/ui';
 import {
+    FavoriteLayoutItem,
     PortalCollectionMode,
     PortalCollectionShellComponent,
     PortalCollectionShellLayout,
@@ -44,6 +45,35 @@ const XTREAM_COLLECTION_LABELS = {
 type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 const XTREAM_FAVORITES_LIVE_SORT_STORAGE_KEY =
     'xtream-favorites-live-channel-sort-mode';
+
+interface XtreamFavoriteLiveItem {
+    readonly poster_url?: string;
+    readonly stream_icon?: string;
+    readonly title?: string;
+    readonly xtream_id: number;
+}
+
+interface XtreamFavoriteRouteItem extends FavoriteLayoutItem {
+    readonly content_id: number;
+    readonly category_id: string | number;
+    readonly playlist_id: string;
+    readonly title: string;
+    readonly type: FavoriteItem['type'];
+    readonly xtream_id: number;
+}
+
+function isXtreamFavoriteRouteItem(
+    item: FavoriteLayoutItem
+): item is XtreamFavoriteRouteItem {
+    return (
+        typeof item.content_id === 'number' &&
+        item.category_id != null &&
+        typeof item.playlist_id === 'string' &&
+        typeof item.title === 'string' &&
+        typeof item.xtream_id === 'number' &&
+        typeof item.type === 'string'
+    );
+}
 
 @Component({
     selector: 'app-favorites',
@@ -105,7 +135,7 @@ export class FavoritesComponent implements OnInit {
         ctx: this.favoritesCtx,
         categories: this.categories,
     });
-    readonly selectedLiveItem = signal<FavoriteItem | null>(null);
+    readonly selectedLiveItem = signal<XtreamFavoriteLiveItem | null>(null);
     readonly liveStreamUrl = signal('');
     readonly mode = computed<PortalCollectionMode>(() =>
         this.isLiveCategory() ? 'live' : 'grid'
@@ -202,7 +232,9 @@ export class FavoritesComponent implements OnInit {
             .subscribe((items) => {
                 this.allItems.set(items);
                 this.movies.set(
-                    items.filter((item) => (item as any).type === 'movie')
+                    items.filter(
+                        (item) => item.type === 'movie' || item.type === 'vod'
+                    )
                 );
                 this.live.set(items.filter((item) => item.type === 'live'));
                 this.series.set(items.filter((item) => item.type === 'series'));
@@ -213,7 +245,11 @@ export class FavoritesComponent implements OnInit {
         this.collectionContext.setCategoryId(categoryId);
     }
 
-    async removeFromFavorites(item: any) {
+    async removeFromFavorites(item: FavoriteLayoutItem) {
+        if (!isXtreamFavoriteRouteItem(item)) {
+            return;
+        }
+
         await this.favoritesService.removeFromFavorites(
             item.content_id,
             item.playlist_id
@@ -221,7 +257,11 @@ export class FavoritesComponent implements OnInit {
         this.favoritesRefresh$.next();
     }
 
-    openItem(item: any) {
+    openItem(item: FavoriteLayoutItem) {
+        if (!isXtreamFavoriteRouteItem(item)) {
+            return;
+        }
+
         const type = item.type === 'movie' ? 'vod' : item.type;
         this.xtreamStore.setSelectedContentType(type);
         if (type === 'live') {
@@ -259,7 +299,7 @@ export class FavoritesComponent implements OnInit {
         }
     }
 
-    selectLiveItem(item: FavoriteItem) {
+    selectLiveItem(item: XtreamFavoriteLiveItem) {
         this.xtreamStore.setSelectedContentType('live');
         this.selectedLiveItem.set(item);
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
@@ -271,7 +311,7 @@ export class FavoritesComponent implements OnInit {
 
         this.xtreamStore.openPlayer(
             streamUrl,
-            item.title,
+            item.title ?? '',
             item.poster_url || item.stream_icon || null
         );
     }

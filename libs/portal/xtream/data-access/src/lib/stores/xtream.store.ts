@@ -77,7 +77,15 @@ export const XtreamStore = signalStore(
         const ngrxStore = inject(Store);
         const dataSource = inject(XTREAM_DATA_SOURCE);
         const logger = createLogger('XtreamStore');
-        const searchContent = (store as any).searchContent as (
+        const searchContent = (
+            store as {
+                searchContent: (
+                    term: string,
+                    types: string[],
+                    excludeHidden?: boolean
+                ) => Promise<unknown>;
+            }
+        ).searchContent as (
             term: string,
             types: string[],
             excludeHidden?: boolean

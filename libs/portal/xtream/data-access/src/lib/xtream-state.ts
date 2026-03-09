@@ -6,6 +6,10 @@ import {
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
+import {
+    XtreamContentItem,
+    XtreamPlaylistData,
+} from './data-sources/xtream-data-source.interface';
 
 export type ContentType = 'live' | 'vod' | 'series';
 
@@ -33,12 +37,12 @@ export interface XtreamState {
     page: number;
     limit: number;
     selectedCategoryId: number | null;
-    searchResults: any[];
+    searchResults: XtreamContentItem[];
     selectedContentType: ContentType;
-    selectedItem: any | null;
+    selectedItem: unknown | null;
     importCount: number;
     itemsToImport: number;
-    currentPlaylist: any | null;
+    currentPlaylist: XtreamPlaylistData | null;
     epgItems: EpgItem[];
     hideExternalInfoDialog: boolean;
     portalStatus: PortalStatusType;

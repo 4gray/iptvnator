@@ -27,6 +27,23 @@ const initialPlayerState: PlayerState = {
         localStorage.getItem('hideExternalInfoDialog') === 'true',
 };
 
+interface XtreamPlayableItem {
+    readonly xtream_id: number;
+}
+
+type XtreamPlaylistHeadersLike = XtreamCredentials & {
+    readonly origin?: string;
+    readonly referrer?: string;
+    readonly userAgent?: string;
+};
+
+type ParentPlayerStoreLike = {
+    currentPlaylist?: () => XtreamPlaylistHeadersLike | null;
+    loadEpg?: () => void;
+    selectedContentType?: () => 'live' | 'vod' | 'series' | undefined;
+    setSelectedItem?: (item: XtreamPlayableItem) => void;
+};
+
 /**
  * Player feature store for managing stream playback.
  * Handles:
@@ -46,7 +63,7 @@ export function withPlayer() {
              * Helper to get credentials from parent store
              */
             const getCredentialsFromStore = (): XtreamCredentials | null => {
-                const storeAny = store as any;
+                const storeAny = store as ParentPlayerStoreLike;
                 const playlist = storeAny.currentPlaylist?.();
 
                 if (!playlist) {
@@ -63,8 +80,8 @@ export function withPlayer() {
             /**
              * Helper to get playlist with headers from parent store
              */
-            const getPlaylistFromStore = () => {
-                const storeAny = store as any;
+            const getPlaylistFromStore = (): XtreamPlaylistHeadersLike | null => {
+                const storeAny = store as ParentPlayerStoreLike;
                 return storeAny.currentPlaylist?.();
             };
 
@@ -72,7 +89,7 @@ export function withPlayer() {
                 /**
                  * Construct and return live stream URL
                  */
-                constructStreamUrl(item: any): string {
+                constructStreamUrl(item: XtreamPlayableItem): string {
                     const credentials = getCredentialsFromStore();
                     if (!credentials) {
                         return '';
@@ -84,7 +101,7 @@ export function withPlayer() {
                     );
 
                     // Set selected item in parent store and load EPG
-                    const storeAny = store as any;
+                    const storeAny = store as ParentPlayerStoreLike;
                     if (storeAny.setSelectedItem) {
                         storeAny.setSelectedItem(item);
                     }
@@ -138,10 +155,10 @@ export function withPlayer() {
                     title: string,
                     thumbnail: string | null = null,
                     startTime?: number,
-                    contentInfo?: any
+                    contentInfo?: unknown
                 ): void {
                     const playlist = getPlaylistFromStore();
-                    const storeAny = store as any;
+                    const storeAny = store as ParentPlayerStoreLike;
                     const contentType =
                         storeAny.selectedContentType?.() || 'vod';
 

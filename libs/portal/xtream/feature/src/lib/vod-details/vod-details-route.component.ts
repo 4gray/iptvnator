@@ -62,7 +62,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly isElectron = this.downloadsService.isAvailable;
 
     readonly isFavorite = this.xtreamStore.isFavorite;
-    readonly selectedItem = this.xtreamStore.selectedItem;
+    readonly selectedItem = computed(
+        () =>
+            this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null
+    );
     readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
     readonly detailsError = this.xtreamStore.detailsError;
     private lastSaveTime = 0;

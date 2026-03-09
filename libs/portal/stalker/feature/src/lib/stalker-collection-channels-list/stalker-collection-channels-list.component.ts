@@ -29,8 +29,8 @@ export class StalkerCollectionChannelsListComponent {
     readonly selectedItemId = input<string | number | null>(null);
     readonly favoriteIds = input<Map<string | number, boolean>>(new Map());
 
-    readonly playClicked = output<any>();
-    readonly favoriteToggled = output<any>();
+    readonly playClicked = output<StalkerVodSource>();
+    readonly favoriteToggled = output<StalkerVodSource>();
 
     private readonly stalkerStore = inject(StalkerStore);
     protected readonly normalizeStalkerEntityId = normalizeStalkerEntityId;

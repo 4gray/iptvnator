@@ -9,8 +9,15 @@ import {
 } from '@angular/core';
 import { MatListModule } from '@angular/material/list';
 import { TranslatePipe } from '@ngx-translate/core';
-import { XtreamCategory } from 'shared-interfaces';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
+
+interface CategoryViewItem {
+    readonly category_id?: string | number;
+    readonly category_name?: string;
+    readonly count?: number;
+    readonly id?: string | number;
+    readonly name?: string;
+}
 
 @Component({
     selector: 'app-category-view',
@@ -20,13 +27,13 @@ import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-erro
     styleUrls: ['./category-view.component.scss'],
 })
 export class CategoryViewComponent {
-    readonly items = input([]);
+    readonly items = input<CategoryViewItem[]>([]);
     readonly selectedCategoryId = input<string | number | null | undefined>();
     readonly itemCounts = input<Map<number, number>>(new Map());
     readonly showCounts = input<boolean>(false);
     private readonly hostEl = inject(ElementRef<HTMLElement>);
 
-    readonly categoryClicked = output<XtreamCategory>();
+    readonly categoryClicked = output<CategoryViewItem>();
 
     constructor() {
         effect(() => {
@@ -50,18 +57,21 @@ export class CategoryViewComponent {
         });
     }
 
-    isSelected(item: XtreamCategory): boolean {
+    isSelected(item: CategoryViewItem): boolean {
         const selectedCategory = this.selectedCategoryId();
-        const itemId = (item as any).category_id ?? item.id;
+        const itemId = item.category_id ?? item.id;
 
         // Compare as strings to handle both numeric and string category IDs.
-        return selectedCategory != null && String(selectedCategory) === String(itemId);
+        return (
+            selectedCategory != null &&
+            String(selectedCategory) === String(itemId)
+        );
     }
 
-    getItemCount(item: XtreamCategory): number {
+    getItemCount(item: CategoryViewItem): number {
         // content.category_id references categories.id (internal DB id)
         // For DB format categories, use id; for API format, use category_id
-        const itemId = Number(item.id ?? (item as any).category_id);
+        const itemId = Number(item.id ?? item.category_id);
         return this.itemCounts().get(itemId) ?? 0;
     }
 }

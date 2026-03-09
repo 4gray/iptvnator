@@ -5,6 +5,21 @@ import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { ContentType } from '@iptvnator/portal/xtream/data-access';
 
+interface RecentlyAddedItem {
+    readonly added?: string;
+    readonly category_id: string | number;
+    readonly cover?: string;
+    readonly id?: number;
+    readonly last_modified?: string;
+    readonly name?: string;
+    readonly poster_url?: string;
+    readonly series_id?: number;
+    readonly stream_id?: number;
+    readonly stream_icon?: string;
+    readonly title?: string;
+    readonly xtream_id?: number;
+}
+
 @Component({
     selector: 'app-recently-added',
     templateUrl: './recently-added.component.html',
@@ -17,17 +32,27 @@ export class RecentlyAddedComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
 
     readonly recentlyAddedLive = computed(() =>
-        this.getRecentlyAdded(this.xtreamStore.liveStreams())
+        this.getRecentlyAdded(
+            this.xtreamStore.liveStreams() as RecentlyAddedItem[]
+        )
     );
     readonly recentlyAddedVod = computed(() =>
-        this.getRecentlyAdded(this.xtreamStore.vodStreams())
+        this.getRecentlyAdded(
+            this.xtreamStore.vodStreams() as RecentlyAddedItem[]
+        )
     );
     readonly recentlyAddedSeries = computed(() =>
-        this.getRecentlyAdded(this.xtreamStore.serialStreams(), true)
+        this.getRecentlyAdded(
+            this.xtreamStore.serialStreams() as RecentlyAddedItem[],
+            true
+        )
     );
     readonly selectedContentType = this.xtreamStore.selectedContentType;
 
-    private getRecentlyAdded(items: any[], isSeries = false) {
+    private getRecentlyAdded<T extends RecentlyAddedItem>(
+        items: T[],
+        isSeries = false
+    ): T[] {
         return [...items]
             .sort((a, b) => {
                 const dateA =
@@ -39,7 +64,7 @@ export class RecentlyAddedComponent {
             .slice(0, 20);
     }
 
-    getDate(item: any): number {
+    getDate(item: RecentlyAddedItem): number {
         const timestamp = item.added || item.last_modified;
         return parseInt(timestamp) * 1000;
     }
@@ -48,7 +73,7 @@ export class RecentlyAddedComponent {
         return this.selectedContentType() === type;
     }
 
-    openItem(item: any, type: ContentType) {
+    openItem(item: RecentlyAddedItem, type: ContentType) {
         this.xtreamStore.setSelectedContentType(type);
 
         if (type === 'live') {

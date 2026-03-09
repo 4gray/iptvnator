@@ -1,7 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Params } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -26,6 +25,28 @@ import {
     logPortalDebugEvent,
     logPortalDebugRequest,
 } from '@iptvnator/portal/shared/util';
+
+interface PwaXtreamResponse {
+    readonly payload?: unknown;
+    readonly status?: number;
+}
+
+interface PwaXtreamResult {
+    readonly action: string;
+    readonly payload: unknown;
+    readonly type: typeof XTREAM_RESPONSE;
+}
+
+interface PwaErrorResult {
+    readonly message: string;
+    readonly status: number;
+    readonly type: typeof ERROR;
+}
+
+interface ErrorStatus {
+    readonly message?: string;
+    readonly status?: number;
+}
 
 @Injectable({
     providedIn: 'root',
@@ -211,18 +232,18 @@ export class PwaService extends DataService {
         logPortalDebugRequest(context);
 
         try {
-            let result: any;
-            const response = await firstValueFrom(
-                this.http.get(`${this.corsProxyUrl}/xtream`, {
+            let result: PwaErrorResult | PwaXtreamResult;
+            const response = (await firstValueFrom(
+                this.http.get<PwaXtreamResponse>(`${this.corsProxyUrl}/xtream`, {
                     params: {
                         url: payload.url,
                         ...payload.params,
                     },
                     ...headers,
                 })
-            );
+            )) as PwaXtreamResponse;
 
-            if (!(response as any).payload) {
+            if (!response.payload) {
                 const action = payload.params.action;
                 const isSilentAction = this.silentXtreamActions.has(action);
                 const normalizedMessage = this.getReadableXtreamErrorMessage(
@@ -239,21 +260,21 @@ export class PwaService extends DataService {
                     );
                     return {
                         type: ERROR,
-                        status: (response as any).status ?? 500,
+                        status: response.status ?? 500,
                         message: normalizedMessage,
                     };
                 }
 
                 result = {
                     type: ERROR,
-                    status: (response as any).status,
+                    status: response.status ?? 500,
                     message: normalizedMessage,
                 };
                 window.postMessage(result);
             } else {
                 result = {
                     type: XTREAM_RESPONSE,
-                    payload: (response as any).payload,
+                    payload: response.payload,
                     action: payload.params.action,
                 };
                 logPortalDebugEvent(
@@ -262,11 +283,12 @@ export class PwaService extends DataService {
                 window.postMessage(result);
             }
             return result;
-        } catch (error: any) {
+        } catch (error: unknown) {
             logPortalDebugEvent(createPortalDebugErrorEvent(context, error));
             const action = payload.params.action;
             const isSilentAction = this.silentXtreamActions.has(action);
             const normalizedMessage = this.getReadableXtreamErrorMessage(error);
+            const errorInfo = this.getErrorDetails(error);
 
             // Log error to console
             if (isSilentAction) {
@@ -276,7 +298,7 @@ export class PwaService extends DataService {
                 );
                 return {
                     type: ERROR,
-                    status: error.status ?? 500,
+                    status: errorInfo?.status ?? 500,
                     message: normalizedMessage,
                 };
             }
@@ -291,7 +313,7 @@ export class PwaService extends DataService {
             );
             return {
                 type: ERROR,
-                status: error.status ?? 500,
+                status: errorInfo?.status ?? 500,
                 message: normalizedMessage,
             };
         }
@@ -339,6 +361,13 @@ export class PwaService extends DataService {
         return fallback;
     }
 
+    private getErrorDetails(error: unknown): ErrorStatus | null {
+        if (error && typeof error === 'object') {
+            return error as ErrorStatus;
+        }
+        return null;
+    }
+
     async forwardStalkerRequest(payload: {
         url: string;
         params: Record<string, string>;
@@ -382,12 +411,13 @@ export class PwaService extends DataService {
                 createPortalDebugSuccessEvent(context, responseBody)
             );
             return responseBody.payload;
-        } catch (err) {
+        } catch (err: unknown) {
+            const errorInfo = this.getErrorDetails(err);
             logPortalDebugEvent(createPortalDebugErrorEvent(context, err));
             console.error('Stalker request error:', err);
 
             this.snackBar.open(
-                `Error: ${err.message ?? ' Not found'}, status: ${err.status ?? 404}`,
+                `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
                 'Close',
                 {
                     duration: 5000,
@@ -407,7 +437,7 @@ export class PwaService extends DataService {
         // not implemented
     }
 
-    listenOn(_command: string, callback: (...args: any[]) => void): void {
+    listenOn(_command: string, callback: (...args: unknown[]) => void): void {
         window.addEventListener('message', callback);
     }
 

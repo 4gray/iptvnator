@@ -189,7 +189,7 @@ export class SearchResultsComponent implements AfterViewInit {
     executeSearch() {
         const filters = this.filters();
         const types = Object.entries(filters)
-            .filter(([_, enabled]) => enabled)
+            .filter(([, enabled]) => enabled)
             .map(([type]) => type);
         const excludeHidden = this.excludeHidden();
 

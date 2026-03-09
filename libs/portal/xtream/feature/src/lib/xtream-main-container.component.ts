@@ -10,7 +10,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent, ResizableDirective } from 'components';
-import { XtreamCategory } from 'shared-interfaces';
 import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
 import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
 import {
@@ -98,9 +97,8 @@ export class XtreamMainContainerComponent implements OnInit {
         }
     }
 
-    categoryClicked(category: XtreamCategory) {
-        const categoryData = category as XtreamCategoryLike;
-        const categoryId = categoryData.category_id ?? categoryData.id;
+    categoryClicked(category: XtreamCategoryLike) {
+        const categoryId = category.category_id ?? category.id;
 
         this.xtreamStore.setSelectedItem(null);
         this.xtreamStore.setSelectedCategory(Number(categoryId));

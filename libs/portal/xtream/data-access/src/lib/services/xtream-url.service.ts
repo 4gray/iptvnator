@@ -26,6 +26,10 @@ export interface LiveStreamItem {
     [key: string]: unknown;
 }
 
+type XtreamVodStreamLike = XtreamVodDetails & {
+    readonly stream_id?: number;
+};
+
 /**
  * Service for constructing Xtream stream URLs.
  * Handles URL construction for live streams, VOD, and series episodes.
@@ -56,8 +60,9 @@ export class XtreamUrlService {
         credentials: XtreamCredentials,
         vodItem: XtreamVodDetails
     ): string {
+        const vod = vodItem as XtreamVodStreamLike;
         const streamId =
-            vodItem.movie_data.stream_id ?? (vodItem as any).stream_id;
+            vod.movie_data.stream_id ?? vod.stream_id;
         const extension = vodItem.movie_data.container_extension;
         return `${credentials.serverUrl}/movie/${credentials.username}/${credentials.password}/${streamId}.${extension}`;
     }

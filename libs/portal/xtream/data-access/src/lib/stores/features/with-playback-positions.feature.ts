@@ -342,7 +342,7 @@ export function withPlaybackPositions() {
                 onInit() {
                     if (window.electron?.onPlaybackPositionUpdate) {
                         unsubscribe = window.electron.onPlaybackPositionUpdate(
-                            (data: any) => {
+                            (data: PlaybackPositionData) => {
                                 if (data.playlistId) {
                                     store.savePosition(data.playlistId, data);
                                 }

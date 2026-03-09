@@ -5,7 +5,7 @@ import { Store } from '@ngrx/store';
 import { PlaylistType, RecentPlaylistsComponent } from 'components';
 import { selectActiveTypeFilters, selectAllPlaylistsMeta } from 'm3u-state';
 import { map } from 'rxjs';
-import { WORKSPACE_SHELL_ACTIONS } from '../workspace-shell/workspace-shell-actions';
+import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 
 @Component({
     selector: 'app-workspace-sources',

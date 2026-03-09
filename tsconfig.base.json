@@ -48,6 +48,9 @@
             "@iptvnator/workspace/shell/feature": [
                 "libs/workspace/shell/feature/src/index.ts"
             ],
+            "@iptvnator/workspace/shell/util": [
+                "libs/workspace/shell/util/src/index.ts"
+            ],
             "@iptvnator/pipes": ["libs/ui/pipes/src/index.ts"],
             "@package": ["./package.json"],
             "components": ["libs/ui/components/src/index.ts"],
