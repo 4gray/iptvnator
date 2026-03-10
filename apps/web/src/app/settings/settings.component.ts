@@ -63,6 +63,12 @@ interface ObservedSettingsSection {
     element: HTMLElement;
 }
 
+interface ThemeOption {
+    value: Theme;
+    icon: string;
+    labelKey: string;
+}
+
 @Component({
     templateUrl: './settings.component.html',
     styleUrls: ['./settings.component.scss'],
@@ -153,8 +159,23 @@ export class SettingsComponent implements OnInit, OnDestroy {
     /** EPG availability flag */
     epgAvailable$ = this.store.select(selectIsEpgAvailable);
 
-    /** All available visual themes */
-    themeEnum = Theme;
+    readonly themeOptions: ThemeOption[] = [
+        {
+            value: Theme.LightTheme,
+            icon: 'light_mode',
+            labelKey: 'THEMES.LIGHT_THEME',
+        },
+        {
+            value: Theme.DarkTheme,
+            icon: 'dark_mode',
+            labelKey: 'THEMES.DARK_THEME',
+        },
+        {
+            value: Theme.SystemTheme,
+            icon: 'desktop_windows',
+            labelKey: 'THEMES.SYSTEM_THEME',
+        },
+    ];
 
     /** Settings form object */
     settingsForm = this.formBuilder.group({
@@ -164,7 +185,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         language: Language.ENGLISH,
         showCaptions: false,
         showExternalPlaybackBar: true,
-        theme: Theme.LightTheme,
+        theme: Theme.SystemTheme,
         mpvPlayerPath: '',
         mpvReuseInstance: false,
         vlcPlayerPath: '',
@@ -239,10 +260,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
                     return;
                 }
 
-                const scrollTargetId =
-                    sectionId === 'general' ? 'settings-intro' : sectionId;
                 document
-                    .getElementById(scrollTargetId)
+                    .getElementById(sectionId)
                     ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 this.settingsCtx.clearPendingScrollTarget();
             },
@@ -257,26 +276,23 @@ export class SettingsComponent implements OnInit, OnDestroy {
                         `#${activeSectionId}`
                     ) as HTMLElement | null;
 
-                if (!activeSectionElement || activeSectionId === 'general') {
+                if (!activeSectionElement) {
                     return;
                 }
 
                 const animation = activeSectionElement.animate(
                     [
                         {
-                            transform: 'translateY(0)',
                             boxShadow:
-                                'inset 0 0 0 1px var(--app-selection-border), 0 12px 20px -18px var(--app-selection-glow)',
+                                'inset 0 0 0 1px var(--settings-group-active-ring), 0 8px 18px -24px var(--settings-group-active-glow)',
                         },
                         {
-                            transform: 'translateY(-2px)',
                             boxShadow:
-                                'inset 0 0 0 1px var(--app-selection-border), 0 18px 28px -18px var(--app-selection-glow)',
+                                'inset 0 0 0 1px var(--settings-group-active-ring), 0 12px 22px -24px var(--settings-group-active-glow)',
                         },
                         {
-                            transform: 'translateY(0)',
                             boxShadow:
-                                'inset 0 0 0 1px var(--app-selection-border), 0 12px 20px -18px var(--app-selection-glow)',
+                                'inset 0 0 0 1px var(--settings-group-active-ring), 0 8px 18px -24px var(--settings-group-active-glow)',
                         },
                     ],
                     {
@@ -349,6 +365,16 @@ export class SettingsComponent implements OnInit, OnDestroy {
         if (this.isDesktop && currentSettings.epgUrl) {
             this.setEpgUrls(currentSettings.epgUrl);
         }
+    }
+
+    selectTheme(theme: Theme): void {
+        if (this.settingsForm.value.theme === theme) {
+            return;
+        }
+
+        this.settingsForm.patchValue({ theme });
+        this.settingsForm.get('theme')?.markAsDirty();
+        this.settingsForm.markAsDirty();
     }
 
     /**
@@ -465,7 +491,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
             }
         }
         this.translate.use(this.settingsForm.value.language);
-        this.settingsService.changeTheme(this.settingsForm.value.theme);
+        this.settingsService.changeTheme(
+            this.settingsForm.value.theme ?? Theme.SystemTheme
+        );
         this.snackBar.open(
             this.translate.instant('SETTINGS.SETTINGS_SAVED'),
             null,
@@ -624,23 +652,17 @@ export class SettingsComponent implements OnInit, OnDestroy {
         }
 
         const scrollRoot = this.getScrollRoot();
-        const introSection = this.elementRef.nativeElement.querySelector(
-            '#settings-intro'
-        ) as HTMLElement | null;
         const contentSections = Array.from(
             this.elementRef.nativeElement.querySelectorAll(
                 '.settings-group[id]'
             )
         ) as HTMLElement[];
-        const sections: ObservedSettingsSection[] = [
-            ...(introSection
-                ? [{ id: 'general', element: introSection }]
-                : []),
-            ...contentSections.map((section) => ({
+        const sections: ObservedSettingsSection[] = contentSections.map(
+            (section) => ({
                 id: section.id,
                 element: section,
-            })),
-        ];
+            })
+        );
 
         if (sections.length === 0) {
             return;

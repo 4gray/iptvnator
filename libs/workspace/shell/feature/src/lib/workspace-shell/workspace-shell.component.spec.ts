@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { TranslateService } from '@ngx-translate/core';
 import {
     FavoritesContextService,
     PORTAL_EXTERNAL_PLAYBACK,
@@ -142,19 +143,28 @@ describe('WorkspaceShellComponent action matrix', () => {
                         openAccountInfo: jest.fn(),
                     },
                 },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        onLangChange: of(null),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
             ],
         });
     });
 
-    it('shows manage categories action for xtream category sections', () => {
+    it('detects xtream category routes and shows the context panel', () => {
         const component = TestBed.runInInjectionContext(
             () => new WorkspaceShellComponent()
         );
 
         component.currentUrl.set('/workspace/xtreams/pl-1/vod');
 
-        expect(component.canManageCategories()).toBe(true);
-        expect(component.contextActionGroups().hasSectionActions).toBe(true);
+        expect(component.isCategoryContextRoute()).toBe(true);
+        expect(component.showContextPanel()).toBe(true);
     });
 
     it('shows cleanup action for recent sections', () => {
@@ -167,7 +177,7 @@ describe('WorkspaceShellComponent action matrix', () => {
         expect(component.headerBulkAction()).toEqual(
             expect.objectContaining({
                 icon: 'delete_sweep',
-                tooltip: 'Clear recently viewed',
+                tooltip: 'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION',
             })
         );
         expect(component.hasContextActions()).toBe(true);

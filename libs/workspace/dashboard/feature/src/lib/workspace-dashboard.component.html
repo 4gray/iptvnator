@@ -35,7 +35,9 @@
                 [matTooltip]="
                     'WORKSPACE.DASHBOARD.TOOLBAR_CUSTOMIZE' | translate
                 "
-                aria-label="Customize dashboard layout"
+                [attr.aria-label]="
+                    'WORKSPACE.DASHBOARD.CUSTOMIZE_LAYOUT' | translate
+                "
             >
                 <mat-icon>tune</mat-icon>
             </button>
@@ -78,7 +80,9 @@
                                     mat-icon-button
                                     class="drag-handle"
                                     cdkDragHandle
-                                    [attr.aria-label]="'Drag ' + widget.title"
+                                    [attr.aria-label]="
+                                        getDragWidgetLabel(widget)
+                                    "
                                 >
                                     <mat-icon>drag_indicator</mat-icon>
                                 </button>
@@ -89,7 +93,10 @@
                                         class="size-stepper__btn"
                                         [disabled]="isFirstSize(widget.size)"
                                         (click)="cycleWidgetSize(widget.id, -1)"
-                                        aria-label="Make widget narrower"
+                                        [attr.aria-label]="
+                                            'WORKSPACE.DASHBOARD.MAKE_WIDGET_NARROWER'
+                                                | translate
+                                        "
                                     >
                                         <mat-icon>chevron_left</mat-icon>
                                     </button>
@@ -102,7 +109,10 @@
                                         class="size-stepper__btn"
                                         [disabled]="isLastSize(widget.size)"
                                         (click)="cycleWidgetSize(widget.id, 1)"
-                                        aria-label="Make widget wider"
+                                        [attr.aria-label]="
+                                            'WORKSPACE.DASHBOARD.MAKE_WIDGET_WIDER'
+                                                | translate
+                                        "
                                     >
                                         <mat-icon>chevron_right</mat-icon>
                                     </button>
@@ -111,7 +121,9 @@
                                     type="button"
                                     mat-icon-button
                                     class="widget-inline-editor__hide"
-                                    [attr.aria-label]="'Hide ' + widget.title"
+                                    [attr.aria-label]="
+                                        getHideWidgetLabel(widget)
+                                    "
                                     (click)="hideWidget(widget.id)"
                                 >
                                     <mat-icon>visibility_off</mat-icon>
@@ -157,8 +169,8 @@
                         @for (widget of allWidgets(); track widget.id) {
                             <article class="editor-item">
                                 <div class="editor-item__meta">
-                                    <h3>{{ widget.title }}</h3>
-                                    <p>{{ widget.description }}</p>
+                                    <h3>{{ getWidgetTitle(widget) }}</h3>
+                                    <p>{{ getWidgetDescription(widget) }}</p>
                                 </div>
                                 <div class="editor-item__actions">
                                     <p class="editor-item__action-label">
@@ -184,13 +196,9 @@
                                                 'WORKSPACE.DASHBOARD.WIDGET_ADVANCED'
                                                     | translate
                                             }}</mat-panel-title>
-                                            <mat-panel-description>
-                                                Scope ({{
-                                                    getScopeProviderSummary(
-                                                        widget
-                                                    )
-                                                }})
-                                            </mat-panel-description>
+                                            <mat-panel-description>{{
+                                                getScopePanelDescription(widget)
+                                            }}</mat-panel-description>
                                         </mat-expansion-panel-header>
                                         <section class="scope-editor">
                                             <p class="scope-editor__title">

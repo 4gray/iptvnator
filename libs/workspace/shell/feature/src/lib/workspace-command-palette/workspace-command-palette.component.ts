@@ -14,6 +14,7 @@ import {
     MatDialogRef,
 } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslatePipe } from '@ngx-translate/core';
 
 export type WorkspaceCommandScope = 'global' | 'playlist' | 'section';
 
@@ -44,13 +45,12 @@ interface WorkspaceCommandPaletteData {
 
 interface WorkspaceCommandGroup {
     scope: WorkspaceCommandScope;
-    title: string;
     items: WorkspaceCommandItem[];
 }
 
 @Component({
     selector: 'app-workspace-command-palette',
-    imports: [MatDialogModule, MatIconModule],
+    imports: [MatDialogModule, MatIconModule, TranslatePipe],
     templateUrl: './workspace-command-palette.component.html',
     styleUrl: './workspace-command-palette.component.scss',
 })
@@ -88,20 +88,19 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
         const grouped: WorkspaceCommandGroup[] = [];
 
         const buildGroup = (
-            scope: WorkspaceCommandScope,
-            title: string
+            scope: WorkspaceCommandScope
         ): WorkspaceCommandGroup | null => {
             const items = commands.filter((command) => command.scope === scope);
             if (items.length === 0) {
                 return null;
             }
-            return { scope, title, items };
+            return { scope, items };
         };
 
         const groups = [
-            buildGroup('global', 'Global actions'),
-            buildGroup('playlist', 'This playlist'),
-            buildGroup('section', 'This section'),
+            buildGroup('global'),
+            buildGroup('playlist'),
+            buildGroup('section'),
         ].filter((group): group is WorkspaceCommandGroup => group !== null);
 
         grouped.push(...groups);
@@ -218,5 +217,15 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
         }
 
         this.onCommandClick(items[index]);
+    }
+
+    getScopeTitleKey(scope: WorkspaceCommandScope): string {
+        if (scope === 'global') {
+            return 'WORKSPACE.COMMAND_PALETTE.GROUP_GLOBAL';
+        }
+        if (scope === 'playlist') {
+            return 'WORKSPACE.COMMAND_PALETTE.GROUP_PLAYLIST';
+        }
+        return 'WORKSPACE.COMMAND_PALETTE.GROUP_SECTION';
     }
 }

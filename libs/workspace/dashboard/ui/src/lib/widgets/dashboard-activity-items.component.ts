@@ -25,14 +25,14 @@ export class DashboardActivityItemsComponent {
     @Output() readonly scrolledToEnd = new EventEmitter<void>();
 
     readonly items = input.required<DashboardActivityItemViewModel[]>();
-    readonly emptyLabel = input('No items to show.');
+    readonly emptyLabel = input('');
     readonly emptyIcon = input<string>();
     readonly emptyHint = input<string>();
     readonly emptyActionLabel = input<string>();
     readonly emptyActionLink = input<string[]>();
     readonly viewMode = input<DashboardActivityViewMode>('list');
     readonly showRemoveAction = input(false);
-    readonly removeActionLabel = input('Remove item');
+    readonly removeActionLabel = input('');
 
     @Output() readonly itemAction =
         new EventEmitter<DashboardActivityItemViewModel>();

@@ -4,7 +4,9 @@
         <input
             matInput
             type="search"
-            placeholder="Search favorites..."
+            [placeholder]="
+                'WORKSPACE.GLOBAL_FAVORITES.SEARCH_PLACEHOLDER' | translate
+            "
             [value]="searchTerm()"
             (input)="searchTerm.set($any($event.target).value)"
         />
@@ -16,13 +18,23 @@
         <div class="empty-state">
             <mat-icon class="empty-icon">star_border</mat-icon>
             @if (searchTerm()) {
-                <p class="empty-title">No results</p>
-                <p class="empty-hint">Try a different search term</p>
-            } @else {
-                <p class="empty-title">No live TV favorites yet</p>
+                <p class="empty-title">
+                    {{ 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate }}
+                </p>
                 <p class="empty-hint">
-                    Star live channels from M3U, Xtream, or Stalker playlists to
-                    see them here.
+                    {{
+                        'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS_HINT'
+                            | translate
+                    }}
+                </p>
+            } @else {
+                <p class="empty-title">
+                    {{
+                        'WORKSPACE.GLOBAL_FAVORITES.EMPTY_TITLE' | translate
+                    }}
+                </p>
+                <p class="empty-hint">
+                    {{ 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_HINT' | translate }}
                 </p>
             }
         </div>

@@ -6,8 +6,9 @@ import {
     PlaylistType,
     RecentPlaylistsComponent,
 } from '@iptvnator/playlist/shared/ui';
+import { TranslateService } from '@ngx-translate/core';
 import { selectActiveTypeFilters, selectAllPlaylistsMeta } from 'm3u-state';
-import { map } from 'rxjs';
+import { map, startWith } from 'rxjs';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 
 @Component({
@@ -20,6 +21,7 @@ export class WorkspaceSourcesComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly store = inject(Store);
     private readonly workspaceActions = inject(WORKSPACE_SHELL_ACTIONS);
+    private readonly translate = inject(TranslateService);
 
     private readonly activeTypeFilters = this.store.selectSignal(
         selectActiveTypeFilters
@@ -27,27 +29,35 @@ export class WorkspaceSourcesComponent {
     private readonly playlists = this.store.selectSignal(
         selectAllPlaylistsMeta
     );
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
 
     readonly searchQuery = toSignal(
         this.route.queryParamMap.pipe(map((params) => params.get('q') ?? '')),
         { initialValue: '' }
     );
     readonly title = computed(() => {
+        this.languageTick();
+
         const filters = this.activeTypeFilters();
 
         if (filters.length === 1) {
             if (filters[0] === 'm3u') {
-                return 'M3U Playlists';
+                return this.translateText('WORKSPACE.SOURCES.M3U_PLAYLISTS');
             }
             if (filters[0] === 'xtream') {
-                return 'Xtream Playlists';
+                return this.translateText('WORKSPACE.SOURCES.XTREAM_PLAYLISTS');
             }
             if (filters[0] === 'stalker') {
-                return 'Stalker Playlists';
+                return this.translateText(
+                    'WORKSPACE.SOURCES.STALKER_PLAYLISTS'
+                );
             }
         }
 
-        return 'All Playlists';
+        return this.translateText('WORKSPACE.SOURCES.ALL_PLAYLISTS');
     });
 
     readonly visibleSourcesCount = computed(() => {
@@ -78,11 +88,26 @@ export class WorkspaceSourcesComponent {
     });
 
     readonly subtitle = computed(() => {
+        this.languageTick();
+
         const count = this.visibleSourcesCount();
-        return `${count} ${count === 1 ? 'playlist' : 'playlists'}`;
+        if (count === 1) {
+            return this.translateText('WORKSPACE.SOURCES.PLAYLIST_COUNT_ONE');
+        }
+
+        return this.translateText('WORKSPACE.SOURCES.PLAYLIST_COUNT_OTHER', {
+            count,
+        });
     });
 
     onAddPlaylist(playlistType: PlaylistType): void {
         this.workspaceActions.openAddPlaylistDialog(playlistType);
+    }
+
+    private translateText(
+        key: string,
+        params?: Record<string, string | number>
+    ): string {
+        return this.translate.instant(key, params);
     }
 }

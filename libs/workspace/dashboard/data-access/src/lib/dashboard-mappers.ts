@@ -20,12 +20,10 @@ export function normalizeActivityType(value: string): PortalActivityType {
     return value === 'live' || value === 'series' ? value : 'movie';
 }
 
-export function getTypeLabel(
-    type: PortalActivityType
-): 'Live' | 'Movie' | 'Series' {
-    if (type === 'live') return 'Live';
-    if (type === 'series') return 'Series';
-    return 'Movie';
+export function getActivityTypeLabelKey(type: PortalActivityType): string {
+    if (type === 'live') return 'WORKSPACE.DASHBOARD.TYPE_LIVE';
+    if (type === 'series') return 'WORKSPACE.DASHBOARD.TYPE_SERIES';
+    return 'WORKSPACE.DASHBOARD.TYPE_MOVIE';
 }
 
 // ────── Xtream DB → ViewModel ──────
@@ -65,7 +63,8 @@ export function mapDbRecentToItem(item: DbGlobalRecentItem): PortalRecentItem {
 // ────── Stalker playlist → ViewModel ──────
 
 export function buildStalkerRecentItems(
-    playlists: PlaylistMeta[]
+    playlists: PlaylistMeta[],
+    defaultPlaylistName: string
 ): PortalRecentItem[] {
     return playlists
         .filter((playlist) => Boolean(playlist.macAddress))
@@ -86,7 +85,7 @@ export function buildStalkerRecentItems(
                     title: extractStalkerItemTitle(item),
                     type: extractStalkerItemType(item),
                     playlist_id: playlist._id,
-                    playlist_name: playlist.title || 'Stalker Portal',
+                    playlist_name: playlist.title || defaultPlaylistName,
                     viewed_at: normalizeStalkerDate(item['added_at']),
                     category_id: String(item['category_id'] ?? ''),
                     xtream_id: id,
@@ -102,7 +101,8 @@ export function buildStalkerRecentItems(
 }
 
 export function buildStalkerFavoriteItems(
-    playlists: PlaylistMeta[]
+    playlists: PlaylistMeta[],
+    defaultPlaylistName: string
 ): PortalFavoriteItem[] {
     return playlists
         .filter((playlist) => Boolean(playlist.macAddress))
@@ -120,7 +120,7 @@ export function buildStalkerFavoriteItems(
                     title: extractStalkerItemTitle(raw),
                     type: extractStalkerItemType(raw),
                     playlist_id: playlist._id,
-                    playlist_name: playlist.title || 'Stalker Portal',
+                    playlist_name: playlist.title || defaultPlaylistName,
                     added_at: normalizeStalkerDate(raw['added_at']),
                     category_id: String(raw['category_id'] ?? ''),
                     xtream_id: id,

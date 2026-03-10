@@ -10,25 +10,12 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util';
     styleUrls: ['./workspace-settings-context-panel.component.scss'],
     template: `
         <h2 class="panel-title">{{ 'SETTINGS.TITLE' | translate }}</h2>
-        <div class="nav-list" style="margin-top: 16px">
-            <button
-                type="button"
-                class="nav-item"
-                (click)="onBack()"
-                style="margin-bottom: 8px;"
-            >
-                <mat-icon>arrow_back</mat-icon>
-                <span>{{ 'SETTINGS.BACK_TO_HOME' | translate }}</span>
-            </button>
-
-            <p class="panel-header" style="padding-top: 8px;">
-                {{ 'SETTINGS.APP_PREFERENCES' | translate }}
-            </p>
-            <div class="nav-list">
+        <div class="settings-panel-body">
+            <div class="nav-list settings-sections-list">
                 @for (section of ctx.sections(); track section.id) {
                     <button
                         type="button"
-                        class="nav-item"
+                        class="nav-item settings-section-item"
                         [class.active]="ctx.activeSection() === section.id"
                         (click)="ctx.navigateToSection(section.id)"
                     >
@@ -37,6 +24,16 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util';
                     </button>
                 }
             </div>
+        </div>
+        <div class="settings-panel-footer">
+            <button
+                type="button"
+                class="nav-item settings-back-button"
+                (click)="onBack()"
+            >
+                <mat-icon>arrow_back</mat-icon>
+                <span>{{ 'SETTINGS.BACK_TO_HOME' | translate }}</span>
+            </button>
         </div>
     `,
 })

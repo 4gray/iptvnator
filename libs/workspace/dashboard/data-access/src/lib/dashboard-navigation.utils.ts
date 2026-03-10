@@ -154,7 +154,7 @@ export function buildStalkerStateItem(
         };
     }
 
-    const title = fallback.title || 'Unknown';
+    const title = fallback.title || '';
     return {
         id: String(fallback.id ?? ''),
         title,

@@ -1,8 +1,10 @@
 import { Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
 import {
     DashboardDataService,
     GlobalRecentItem,
@@ -23,6 +25,11 @@ import { DashboardWidgetShellComponent } from './dashboard-widget-shell.componen
 })
 export class ContinueWatchingWidgetComponent {
     readonly data = inject(DashboardDataService);
+    private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
 
     /** The most recently watched item across all sources. */
     readonly lastItem = computed<GlobalRecentItem | null>(
@@ -50,12 +57,32 @@ export class ContinueWatchingWidgetComponent {
     }
 
     relativeTime(dateStr: string): string {
-        const diffMs = Date.now() - new Date(dateStr).getTime();
-        const diffMin = Math.floor(diffMs / 60_000);
-        if (diffMin < 1) return 'Just now';
-        if (diffMin < 60) return `${diffMin}m ago`;
-        const diffH = Math.floor(diffMin / 60);
-        if (diffH < 24) return `${diffH}h ago`;
-        return `${Math.floor(diffH / 24)}d ago`;
+        this.languageTick();
+
+        const date = new Date(dateStr);
+        if (Number.isNaN(date.getTime())) {
+            return this.translate.instant('WORKSPACE.DASHBOARD.RECENTLY');
+        }
+
+        const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60_000);
+        if (diffMinutes < 1) {
+            return this.translate.instant('WORKSPACE.DASHBOARD.JUST_NOW');
+        }
+        if (diffMinutes < 60) {
+            return this.translate.instant('WORKSPACE.DASHBOARD.MINUTES_AGO', {
+                count: diffMinutes,
+            });
+        }
+
+        const diffHours = Math.floor(diffMinutes / 60);
+        if (diffHours < 24) {
+            return this.translate.instant('WORKSPACE.DASHBOARD.HOURS_AGO', {
+                count: diffHours,
+            });
+        }
+
+        return this.translate.instant('WORKSPACE.DASHBOARD.DAYS_AGO', {
+            count: Math.floor(diffHours / 24),
+        });
     }
 }

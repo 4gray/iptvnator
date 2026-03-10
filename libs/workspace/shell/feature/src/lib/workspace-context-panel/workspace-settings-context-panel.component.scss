@@ -15,12 +15,23 @@
     color: var(--mat-sys-on-surface);
 }
 
-.panel-header {
-    padding: 16px 16px 10px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    opacity: 0.6;
+.settings-panel-body {
+    flex: 1;
+    min-height: 0;
+    padding-top: 16px;
+}
+
+.settings-sections-list {
+    height: 100%;
+}
+
+.settings-panel-footer {
     flex-shrink: 0;
+    padding: 12px 8px 12px;
+    border-top: 1px solid var(--app-separator);
+}
+
+.settings-section-item:hover:not(.active):not(.selected),
+.settings-back-button:hover:not(.active):not(.selected) {
+    background: var(--app-selection-surface);
 }

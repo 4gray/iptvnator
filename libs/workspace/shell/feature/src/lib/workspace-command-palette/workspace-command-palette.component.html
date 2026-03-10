@@ -1,7 +1,7 @@
 <div class="palette-shell">
     <header class="palette-header">
-        <h2>Command palette</h2>
-        <p>Global and contextual actions</p>
+        <h2>{{ 'WORKSPACE.COMMAND_PALETTE.TITLE' | translate }}</h2>
+        <p>{{ 'WORKSPACE.COMMAND_PALETTE.SUBTITLE' | translate }}</p>
     </header>
 
     <label class="palette-search">
@@ -13,19 +13,25 @@
             [value]="query()"
             (input)="onQueryInput($event)"
             (keydown)="onInputKeydown($event)"
-            placeholder="Type to filter commands"
-            aria-label="Filter commands"
+            [placeholder]="
+                'WORKSPACE.COMMAND_PALETTE.SEARCH_PLACEHOLDER' | translate
+            "
+            [attr.aria-label]="
+                'WORKSPACE.COMMAND_PALETTE.SEARCH_LABEL' | translate
+            "
         />
         <span class="palette-search__hint">Ctrl/Cmd+K</span>
     </label>
 
     <div class="palette-results">
         @if (commandGroups().length === 0) {
-            <div class="palette-empty">No commands found</div>
+            <div class="palette-empty">
+                {{ 'WORKSPACE.COMMAND_PALETTE.EMPTY' | translate }}
+            </div>
         } @else {
             @for (group of commandGroups(); track group.scope) {
                 <section class="palette-group">
-                    <h3>{{ group.title }}</h3>
+                    <h3>{{ getScopeTitleKey(group.scope) | translate }}</h3>
                     <div class="palette-group__items">
                         @for (command of group.items; track command.id) {
                             <button

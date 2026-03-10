@@ -5,6 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
 import { PlaylistErrorViewComponent } from '@iptvnator/portal/shared/ui';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
@@ -30,6 +31,7 @@ interface XtreamCategoryLike {
         MatIconButton,
         MatIcon,
         MatTooltip,
+        TranslatePipe,
     ],
     templateUrl: './workspace-context-panel.component.html',
     styleUrl: './workspace-context-panel.component.scss',
@@ -76,26 +78,34 @@ export class WorkspaceContextPanelComponent {
 
     readonly title = computed(() => {
         if (this.isXtreamCategories()) {
-            if (this.section() === 'vod') return 'Movie Categories';
-            if (this.section() === 'series') return 'Series Categories';
-            return 'Live Categories';
+            if (this.section() === 'vod') {
+                return 'WORKSPACE.CONTEXT.MOVIE_CATEGORIES';
+            }
+            if (this.section() === 'series') {
+                return 'WORKSPACE.CONTEXT.SERIES_CATEGORIES';
+            }
+            return 'WORKSPACE.CONTEXT.LIVE_CATEGORIES';
         }
 
         if (this.isStalkerCategories()) {
-            if (this.section() === 'vod') return 'Movie Categories';
-            if (this.section() === 'series') return 'Series Categories';
-            return 'Live Categories';
+            if (this.section() === 'vod') {
+                return 'WORKSPACE.CONTEXT.MOVIE_CATEGORIES';
+            }
+            if (this.section() === 'series') {
+                return 'WORKSPACE.CONTEXT.SERIES_CATEGORIES';
+            }
+            return 'WORKSPACE.CONTEXT.LIVE_CATEGORIES';
         }
 
-        return 'Categories';
+        return 'WORKSPACE.CONTEXT.CATEGORIES';
     });
 
     readonly subtitle = computed(() => {
         if (this.isXtreamCategories()) {
-            return 'Xtream source';
+            return 'WORKSPACE.CONTEXT.XTREAM_SOURCE';
         }
         if (this.isStalkerCategories()) {
-            return 'Stalker portal';
+            return 'WORKSPACE.CONTEXT.STALKER_PORTAL';
         }
         return '';
     });

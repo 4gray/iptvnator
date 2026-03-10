@@ -123,18 +123,10 @@ export class AppComponent implements OnInit {
     }
 
     /**
-     * Detects if the operation system uses dark mode and changes the theme
+     * Applies the operating system color scheme when no explicit theme is set
      */
     detectDarkMode(): void {
-        if (
-            window.matchMedia &&
-            window.matchMedia('(prefers-color-scheme: dark)').matches
-        ) {
-            this.settingsService.changeTheme(Theme.DarkTheme);
-            this.settingsService.setValueToLocalStorage(STORE_KEY.Settings, {
-                theme: Theme.DarkTheme,
-            });
-        }
+        this.settingsService.changeTheme(Theme.SystemTheme);
     }
 
     /**

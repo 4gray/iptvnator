@@ -6,12 +6,14 @@ import {
     input,
     signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
 import {
     DashboardContentKind,
     DashboardDataService,
@@ -50,6 +52,11 @@ const PAGE_SIZE = 20;
 export class GlobalFavoritesWidgetComponent implements OnInit {
     readonly widget = input.required<DashboardWidgetConfig>();
     readonly data = inject(DashboardDataService);
+    private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
     readonly selectedKind = signal<DashboardContentKind>(
         this.readStoredKind() ?? 'all'
     );
@@ -208,16 +215,23 @@ export class GlobalFavoritesWidgetComponent implements OnInit {
     }
 
     private formatTimestamp(value: string): string {
+        this.languageTick();
+
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) {
-            return 'Recently';
+            return this.translate.instant('WORKSPACE.DASHBOARD.RECENTLY');
         }
 
-        return date.toLocaleString([], {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+        return date.toLocaleString(
+            this.translate.currentLang ||
+                this.translate.defaultLang ||
+                undefined,
+            {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            }
+        );
     }
 }

@@ -6,7 +6,9 @@
         <button
             mat-icon-button
             [matMenuTriggerFor]="filterMenu"
-            aria-label="Filter recently watched content"
+            [attr.aria-label]="
+                'WORKSPACE.DASHBOARD.FILTER_RECENTLY_WATCHED' | translate
+            "
             [matTooltip]="'WORKSPACE.DASHBOARD.FILTER_ITEMS' | translate"
         >
             <mat-icon>filter_list</mat-icon>
@@ -58,7 +60,9 @@
             class="view-toggle"
             [value]="viewMode()"
             hideSingleSelectionIndicator
-            aria-label="Select recently watched view mode"
+            [attr.aria-label]="
+                'WORKSPACE.DASHBOARD.RECENTLY_WATCHED_VIEW_MODE' | translate
+            "
             (change)="onViewModeChange($event.value)"
         >
             <mat-button-toggle
@@ -85,7 +89,9 @@
         [emptyActionLink]="['/workspace/sources']"
         [viewMode]="viewMode()"
         [showRemoveAction]="true"
-        [removeActionLabel]="'Remove from history'"
+        [removeActionLabel]="
+            'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY' | translate
+        "
         (itemAction)="onRemoveItem($event)"
         (scrolledToEnd)="onItemsScrolledToEnd()"
     />

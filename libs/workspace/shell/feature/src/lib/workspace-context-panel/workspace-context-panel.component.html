@@ -1,15 +1,17 @@
 <div class="context-column">
     <header class="context-header">
         <div class="context-header__top">
-            <h2>{{ title() }}</h2>
+            <h2>{{ title() | translate }}</h2>
             @if (isXtreamCategories()) {
                 <button
                     type="button"
                     mat-icon-button
                     class="context-header__action"
                     (click)="openManageCategories()"
-                    matTooltip="Manage categories"
-                    aria-label="Manage categories"
+                    [matTooltip]="'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate"
+                    [attr.aria-label]="
+                        'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate
+                    "
                 >
                     <mat-icon>tune</mat-icon>
                 </button>
@@ -46,8 +48,10 @@
             </div>
         } @else if (isStalkerCategoryFailed()) {
             <app-playlist-error-view
-                [title]="'Unable to load categories'"
-                [description]="'Please retry or verify portal settings.'"
+                [title]="'WORKSPACE.CONTEXT.LOAD_CATEGORIES_ERROR' | translate"
+                [description]="
+                    'WORKSPACE.CONTEXT.LOAD_CATEGORIES_ERROR_HINT' | translate
+                "
                 [showActionButtons]="false"
             />
         } @else {

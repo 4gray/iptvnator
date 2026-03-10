@@ -60,8 +60,8 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
     {
         id: 'source-stats',
         type: 'source-stats',
-        title: 'Source Statistics',
-        description: 'Current source mix and total connected libraries.',
+        title: 'WORKSPACE.DASHBOARD.SOURCE_STATS',
+        description: 'WORKSPACE.DASHBOARD.SOURCE_STATS_DESC',
         size: 'one-third',
         enabled: false,
         order: 1,
@@ -69,8 +69,8 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
     {
         id: 'continue',
         type: 'continue-watching',
-        title: 'Continue Watching',
-        description: 'Jump back into the last active source.',
+        title: 'WORKSPACE.DASHBOARD.CONTINUE_WATCHING',
+        description: 'WORKSPACE.DASHBOARD.CONTINUE_WATCHING_DESC',
         size: 'full',
         enabled: true,
         order: 2,
@@ -78,8 +78,8 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
     {
         id: 'recently-watched',
         type: 'recently-watched',
-        title: 'Recently Watched',
-        description: 'Global watch history across channels, VOD and series.',
+        title: 'WORKSPACE.DASHBOARD.RECENTLY_WATCHED',
+        description: 'WORKSPACE.DASHBOARD.RECENTLY_WATCHED_DESC',
         size: 'two-thirds',
         enabled: true,
         order: 4,
@@ -90,8 +90,8 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
     {
         id: 'global-favorites',
         type: 'global-favorites',
-        title: 'Global Favorites',
-        description: 'Pinned items across all connected providers.',
+        title: 'WORKSPACE.DASHBOARD.GLOBAL_FAVORITES',
+        description: 'WORKSPACE.DASHBOARD.GLOBAL_FAVORITES_DESC',
         size: 'one-third',
         enabled: true,
         order: 5,

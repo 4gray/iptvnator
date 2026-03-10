@@ -296,11 +296,17 @@ export class DashboardLayoutService {
         defaultWidget: DashboardWidgetConfig,
         loaded: DashboardWidgetConfig
     ): DashboardWidgetConfig {
-        return {
+        const merged = {
             ...defaultWidget,
             ...loaded,
             size: this.normalizeSize(loaded.size ?? defaultWidget.size),
             settings: this.mergeSettings(defaultWidget, loaded),
+        };
+
+        return {
+            ...merged,
+            title: defaultWidget.title,
+            description: defaultWidget.description,
         };
     }
 

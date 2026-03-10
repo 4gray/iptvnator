@@ -13,6 +13,7 @@
  */
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
+import { TranslateService } from '@ngx-translate/core';
 import { selectAllPlaylistsMeta } from 'm3u-state';
 import { firstValueFrom, map } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
@@ -57,6 +58,7 @@ export class GlobalFavoritesService {
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly translate = inject(TranslateService);
 
     /**
      * Fetch and merge live TV favorites from all source types.
@@ -272,12 +274,21 @@ export class GlobalFavoritesService {
                 const streamId = fav.stream_id ?? fav.id;
                 results.push({
                     uid: buildFavoriteUid('stalker', meta._id, streamId),
-                    name: fav.o_name || fav.name || 'Unknown',
+                    name:
+                        fav.o_name ||
+                        fav.name ||
+                        this.translate.instant(
+                            'WORKSPACE.GLOBAL_FAVORITES.UNKNOWN_CHANNEL'
+                        ),
                     logo: fav.logo ?? fav.cover ?? null,
                     sourceType: 'stalker' as const,
                     playlistId: meta._id,
                     playlistName:
-                        meta.title || meta.filename || 'Stalker Portal',
+                        meta.title ||
+                        meta.filename ||
+                        this.translate.instant(
+                            'WORKSPACE.DASHBOARD.STALKER_PORTAL'
+                        ),
                     stalkerCmd: fav.cmd,
                     stalkerPortalUrl: playlist.portalUrl ?? playlist.url,
                     stalkerMacAddress: playlist.macAddress,

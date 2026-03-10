@@ -3,17 +3,20 @@
         <a
             class="brand"
             routerLink="/workspace/dashboard"
-            matTooltip="Dashboard (all playlists)"
+            [matTooltip]="'WORKSPACE.SHELL.RAIL_DASHBOARD' | translate"
             [matTooltipPosition]="'right'"
-            aria-label="Open dashboard"
+            [attr.aria-label]="'WORKSPACE.SHELL.OPEN_DASHBOARD' | translate"
         >
-            <img src="./assets/icons/icon-tv-256.png" alt="IPTVnator logo" />
+            <img
+                src="./assets/icons/icon-tv-256.png"
+                [attr.alt]="'WORKSPACE.SHELL.BRAND_ALT' | translate"
+            />
         </a>
 
         <app-portal-rail-links
             variant="rail"
             activeClass="is-active"
-            [links]="workspaceLinks"
+            [links]="workspaceLinks()"
         />
 
         @if (primaryContextLinks().length > 0) {
@@ -41,9 +44,9 @@
                 class="rail-shortcut"
                 routerLink="/workspace/settings"
                 [class.is-active]="isSettingsRoute()"
-                matTooltip="Settings (global)"
+                [matTooltip]="'WORKSPACE.SHELL.RAIL_SETTINGS' | translate"
                 [matTooltipPosition]="'right'"
-                aria-label="Open settings"
+                [attr.aria-label]="'WORKSPACE.SHELL.OPEN_SETTINGS' | translate"
             >
                 <mat-icon>settings</mat-icon>
             </a>
@@ -66,16 +69,20 @@
                 (input)="onSearchInput($event)"
                 (keydown.enter)="onSearchEnter($event)"
                 [disabled]="!canUseSearch()"
-                [placeholder]="searchPlaceholder()"
-                aria-label="Search"
+                [placeholder]="searchPlaceholder() | translate"
+                [attr.aria-label]="'WORKSPACE.SHELL.SEARCH_LABEL' | translate"
             />
             <button
                 type="button"
                 class="command-trigger"
                 mat-icon-button
                 (click)="openCommandPalette()"
-                matTooltip="Command palette (Ctrl/Cmd+K)"
-                aria-label="Open command palette"
+                [matTooltip]="
+                    'WORKSPACE.SHELL.COMMAND_PALETTE_SHORTCUT' | translate
+                "
+                [attr.aria-label]="
+                    'WORKSPACE.SHELL.OPEN_COMMAND_PALETTE' | translate
+                "
             >
                 <mat-icon>keyboard_command_key</mat-icon>
             </button>
@@ -86,8 +93,8 @@
                 type="button"
                 mat-icon-button
                 [matMenuTriggerFor]="addPlaylistMenu().menu()"
-                matTooltip="Add playlist (all playlists)"
-                aria-label="Add playlist"
+                [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate"
+                [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
             >
                 <mat-icon>add</mat-icon>
             </button>
@@ -100,8 +107,12 @@
                 mat-icon-button
                 routerLink="/workspace/global-favorites"
                 [class.is-active]="isGlobalFavoritesRoute()"
-                matTooltip="Global favorites"
-                aria-label="Open global favorites"
+                [matTooltip]="
+                    'WORKSPACE.SHELL.OPEN_GLOBAL_FAVORITES' | translate
+                "
+                [attr.aria-label]="
+                    'WORKSPACE.SHELL.OPEN_GLOBAL_FAVORITES' | translate
+                "
             >
                 <mat-icon>star</mat-icon>
             </a>
@@ -112,8 +123,8 @@
                     mat-icon-button
                     [class.is-active]="isDownloadsView()"
                     (click)="openDownloadsShortcut()"
-                    matTooltip="Downloads"
-                    aria-label="Open downloads"
+                    [matTooltip]="'WORKSPACE.SHELL.RAIL_DOWNLOADS' | translate"
+                    [attr.aria-label]="'WORKSPACE.SHELL.OPEN_DOWNLOADS' | translate"
                 >
                     <mat-icon>download</mat-icon>
                 </button>
@@ -124,8 +135,12 @@
                     type="button"
                     mat-icon-button
                     [matMenuTriggerFor]="contextActionsMenu"
-                    matTooltip="Section actions"
-                    aria-label="Open context actions"
+                    [matTooltip]="
+                        'WORKSPACE.SHELL.RAIL_CONTEXT_ACTIONS' | translate
+                    "
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.OPEN_CONTEXT_ACTIONS' | translate
+                    "
                 >
                     <mat-icon>more_horiz</mat-icon>
                 </button>
@@ -135,20 +150,26 @@
         <mat-menu #contextActionsMenu="matMenu">
             @if (!hasContextActions()) {
                 <button mat-menu-item disabled>
-                    <span>No actions for this section</span>
+                    <span>{{
+                        'WORKSPACE.SHELL.NO_SECTION_ACTIONS' | translate
+                    }}</span>
                 </button>
             } @else {
                 @if (contextActionGroups().hasPlaylistActions) {
                     @if (canOpenPlaylistInfo()) {
                         <button mat-menu-item (click)="openPlaylistInfo()">
                             <mat-icon>playlist_play</mat-icon>
-                            <span>Playlist info (this playlist)</span>
+                            <span>{{
+                                'WORKSPACE.SHELL.PLAYLIST_INFO' | translate
+                            }}</span>
                         </button>
                     }
                     @if (canOpenAccountInfo()) {
                         <button mat-menu-item (click)="openAccountInfo()">
                             <mat-icon>person</mat-icon>
-                            <span>Account info (this playlist)</span>
+                            <span>{{
+                                'WORKSPACE.SHELL.ACCOUNT_INFO' | translate
+                            }}</span>
                         </button>
                     }
                 }

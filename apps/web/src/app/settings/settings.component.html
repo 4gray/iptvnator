@@ -13,19 +13,19 @@
         class="settings-layout"
         novalidate
     >
-        <section class="settings-intro" id="settings-intro">
-            <div class="settings-intro__content">
-                <div class="settings-intro__eyebrow">
-                    {{ 'SETTINGS.HERO_EYEBROW' | translate }}
+        @if (!isDialog) {
+            <header
+                class="settings-page-header"
+                data-test-id="settings-page-header"
+            >
+                <div class="settings-page-header__text">
+                    <h1 data-test-id="settings-page-title">
+                        {{ 'SETTINGS.TITLE' | translate }}
+                    </h1>
+                    <p>{{ 'SETTINGS.GENERAL_SUBTITLE' | translate }}</p>
                 </div>
-                <h1 class="settings-intro__title">
-                    {{ 'SETTINGS.HERO_TITLE' | translate }}
-                </h1>
-                <p class="settings-intro__lead">
-                    {{ 'SETTINGS.HERO_DESCRIPTION' | translate }}
-                </p>
-            </div>
-        </section>
+            </header>
+        }
 
         <div class="settings-content">
             <section
@@ -49,7 +49,10 @@
                         <p>{{ 'SETTINGS.LANGUAGE_DESCRIPTION' | translate }}</p>
                     </div>
                     <div class="setting-item__control">
-                        <mat-form-field appearance="outline">
+                        <mat-form-field
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
                             <mat-label>{{
                                 'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
                             }}</mat-label>
@@ -75,34 +78,46 @@
                     </div>
                 </div>
 
-                <div class="setting-item">
+                <div class="setting-item setting-item--full-control">
                     <div class="setting-item__meta">
                         <h4>{{ 'SETTINGS.THEME' | translate }}</h4>
                         <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
                     </div>
                     <div class="setting-item__control">
-                        <mat-form-field appearance="outline">
-                            <mat-label>{{
-                                'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-                            }}</mat-label>
-                            <mat-select
-                                formControlName="theme"
-                                data-test-id="select-theme"
-                            >
-                                @for (
-                                    theme of themeEnum | keyvalue;
-                                    track theme
-                                ) {
-                                    <mat-option
-                                        [value]="theme.value"
-                                        [attr.data-test-id]="theme.value"
-                                        >{{
-                                            'THEMES.' + theme.value | translate
-                                        }}</mat-option
-                                    >
-                                }
-                            </mat-select>
-                        </mat-form-field>
+                        <div
+                            class="theme-switcher"
+                            role="radiogroup"
+                            [attr.aria-label]="'SETTINGS.THEME' | translate"
+                            data-test-id="select-theme"
+                        >
+                            @for (
+                                themeOption of themeOptions;
+                                track themeOption.value
+                            ) {
+                                <button
+                                    type="button"
+                                    class="theme-switcher__option"
+                                    [class.theme-switcher__option--selected]="
+                                        settingsForm.value.theme ===
+                                        themeOption.value
+                                    "
+                                    [attr.aria-checked]="
+                                        settingsForm.value.theme ===
+                                        themeOption.value
+                                    "
+                                    [attr.data-test-id]="themeOption.value"
+                                    role="radio"
+                                    (click)="selectTheme(themeOption.value)"
+                                >
+                                    <mat-icon>{{
+                                        themeOption.icon
+                                    }}</mat-icon>
+                                    <span>{{
+                                        themeOption.labelKey | translate
+                                    }}</span>
+                                </button>
+                            }
+                        </div>
                     </div>
                 </div>
 
@@ -152,7 +167,10 @@
                         </p>
                     </div>
                     <div class="setting-item__control">
-                        <mat-form-field appearance="outline">
+                        <mat-form-field
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
                             <mat-label>{{
                                 'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
                             }}</mat-label>
@@ -182,7 +200,10 @@
                         </p>
                     </div>
                     <div class="setting-item__control">
-                        <mat-form-field appearance="outline">
+                        <mat-form-field
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
                             <mat-label>{{
                                 'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
                             }}</mat-label>
@@ -245,7 +266,10 @@
                             </p>
                         </div>
                         <div class="setting-item__control">
-                            <mat-form-field appearance="outline">
+                            <mat-form-field
+                                appearance="outline"
+                                subscriptSizing="dynamic"
+                            >
                                 <mat-label for="mpvPlayerPath">{{
                                     'SETTINGS.MPV_PLAYER_PATH' | translate
                                 }}</mat-label>
@@ -298,7 +322,10 @@
                             </p>
                         </div>
                         <div class="setting-item__control">
-                            <mat-form-field appearance="outline">
+                            <mat-form-field
+                                appearance="outline"
+                                subscriptSizing="dynamic"
+                            >
                                 <mat-label for="vlcPlayerPath">{{
                                     'SETTINGS.VLC_PLAYER_PATH' | translate
                                 }}</mat-label>
@@ -347,6 +374,7 @@
                                         <div class="epg-source-row">
                                             <mat-form-field
                                                 appearance="outline"
+                                                subscriptSizing="dynamic"
                                                 class="w-full"
                                             >
                                                 <mat-label>{{
@@ -480,7 +508,10 @@
                                 </p>
                             </div>
                             <div class="setting-item__control">
-                                <mat-form-field appearance="outline">
+                                <mat-form-field
+                                    appearance="outline"
+                                    subscriptSizing="dynamic"
+                                >
                                     <mat-label>{{
                                         'SETTINGS.PORT_RANGE_LABEL' | translate
                                     }}</mat-label>

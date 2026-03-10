@@ -1,7 +1,9 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
+import { TranslateService } from '@ngx-translate/core';
 import { selectAllPlaylistsMeta } from 'm3u-state';
+import { of } from 'rxjs';
 import { DatabaseService } from 'services';
 import { PlaylistMeta } from 'shared-interfaces';
 import { DashboardDataService } from './dashboard-data.service';
@@ -47,6 +49,15 @@ describe('DashboardDataService.matchesScope', () => {
                 DashboardDataService,
                 { provide: Store, useValue: storeMock },
                 { provide: DatabaseService, useValue: dbServiceMock },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        onLangChange: of(null),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
             ],
         });
         service = TestBed.inject(DashboardDataService);

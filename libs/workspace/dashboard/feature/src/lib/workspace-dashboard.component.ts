@@ -4,6 +4,7 @@ import {
     moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
@@ -12,8 +13,9 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { selectAllPlaylistsMeta } from 'm3u-state';
+import { startWith } from 'rxjs';
 import {
     DashboardLayoutService,
     DashboardWidgetConfig,
@@ -42,9 +44,14 @@ import { DashboardWidgetHostComponent } from 'workspace-dashboard-ui';
 })
 export class WorkspaceDashboardComponent {
     private readonly store = inject(Store);
+    private readonly translate = inject(TranslateService);
 
     readonly editMode = signal(false);
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
     readonly providerOptions: DashboardWidgetProvider[] = [
         'm3u',
         'xtream',
@@ -106,11 +113,13 @@ export class WorkspaceDashboardComponent {
     }
 
     getSizeLabel(size: DashboardWidgetSize): string {
+        this.languageTick();
+
         const labels: Record<DashboardWidgetSize, string> = {
             'one-third': '1/3',
             half: '1/2',
             'two-thirds': '2/3',
-            full: 'Full',
+            full: this.translateText('WORKSPACE.DASHBOARD.SIZE_FULL'),
         };
         return labels[size];
     }
@@ -132,13 +141,15 @@ export class WorkspaceDashboardComponent {
     }
 
     getProviderLabel(provider: DashboardWidgetProvider): string {
+        this.languageTick();
+
         if (provider === 'xtream') {
-            return 'Xtream';
+            return this.translateText('WORKSPACE.DASHBOARD.XTREAM');
         }
         if (provider === 'stalker') {
-            return 'Stalker';
+            return this.translateText('WORKSPACE.DASHBOARD.STALKER');
         }
-        return 'M3U';
+        return this.translateText('WORKSPACE.DASHBOARD.M3U');
     }
 
     getScopeProviderCount(widget: DashboardWidgetConfig): number {
@@ -147,8 +158,16 @@ export class WorkspaceDashboardComponent {
     }
 
     getScopeProviderSummary(widget: DashboardWidgetConfig): string {
+        this.languageTick();
+
         const count = this.getScopeProviderCount(widget);
-        return count === 0 ? 'All providers' : `${count} selected`;
+        if (count === 0) {
+            return this.translateText('WORKSPACE.DASHBOARD.ALL_PROVIDERS');
+        }
+
+        return this.translateText('WORKSPACE.DASHBOARD.SELECTED_COUNT', {
+            count,
+        });
     }
 
     isAllProvidersScope(widget: DashboardWidgetConfig): boolean {
@@ -201,13 +220,43 @@ export class WorkspaceDashboardComponent {
         url?: string;
         _id?: string;
     }): string {
+        this.languageTick();
+
         return (
             playlist.title ||
             playlist.filename ||
             playlist.url ||
             playlist._id ||
-            'Untitled playlist'
+            this.translateText('WORKSPACE.DASHBOARD.UNTITLED_SOURCE')
         );
+    }
+
+    getWidgetTitle(widget: DashboardWidgetConfig): string {
+        this.languageTick();
+        return this.translateText(widget.title);
+    }
+
+    getWidgetDescription(widget: DashboardWidgetConfig): string {
+        this.languageTick();
+        return this.translateText(widget.description);
+    }
+
+    getDragWidgetLabel(widget: DashboardWidgetConfig): string {
+        return this.translateText('WORKSPACE.DASHBOARD.DRAG_WIDGET', {
+            title: this.getWidgetTitle(widget),
+        });
+    }
+
+    getHideWidgetLabel(widget: DashboardWidgetConfig): string {
+        return this.translateText('WORKSPACE.DASHBOARD.HIDE_WIDGET', {
+            title: this.getWidgetTitle(widget),
+        });
+    }
+
+    getScopePanelDescription(widget: DashboardWidgetConfig): string {
+        return this.translateText('WORKSPACE.DASHBOARD.WIDGET_SCOPE_SUMMARY', {
+            summary: this.getScopeProviderSummary(widget),
+        });
     }
 
     private getPlaylistProviderType(playlist: {
@@ -221,5 +270,12 @@ export class WorkspaceDashboardComponent {
             return 'stalker';
         }
         return 'm3u';
+    }
+
+    private translateText(
+        key: string,
+        params?: Record<string, string | number>
+    ): string {
+        return this.translate.instant(key, params);
     }
 }

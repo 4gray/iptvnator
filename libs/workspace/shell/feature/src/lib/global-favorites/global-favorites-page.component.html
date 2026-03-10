@@ -23,10 +23,12 @@
                 storageKey="global-favorites-sidebar-width"
             >
                 <div class="sidebar-header">
-                    <span class="sidebar-title">Global Favorites</span>
-                    <span class="sidebar-subtitle"
-                        >Live TV from all playlists</span
-                    >
+                    <span class="sidebar-title">{{
+                        'WORKSPACE.GLOBAL_FAVORITES.TITLE' | translate
+                    }}</span>
+                    <span class="sidebar-subtitle">{{
+                        'WORKSPACE.GLOBAL_FAVORITES.SUBTITLE' | translate
+                    }}</span>
                 </div>
                 <app-global-favorites-list
                     [channels]="channels()"
@@ -109,7 +111,12 @@
             } @else {
                 <div class="no-channel-selected">
                     <mat-icon>live_tv</mat-icon>
-                    <p>Select a channel to start watching</p>
+                    <p>
+                        {{
+                            'WORKSPACE.GLOBAL_FAVORITES.EMPTY_PLAYER'
+                                | translate
+                        }}
+                    </p>
                 </div>
             }
         </div>

@@ -1,16 +1,18 @@
 <div class="context-column">
     <header class="context-header">
         <div class="context-header__top">
-            <h2>Sources</h2>
+            <h2>{{ 'WORKSPACE.SOURCES.TITLE' | translate }}</h2>
         </div>
-        <p>Filter and sort playlists</p>
+        <p>{{ 'WORKSPACE.SOURCES.SUBTITLE' | translate }}</p>
     </header>
 
     <div class="context-divider"></div>
 
     <section class="panel-section">
         <div class="nav-list option-list">
-            <h3 class="panel-section-title">Type</h3>
+            <h3 class="panel-section-title">
+                {{ 'WORKSPACE.SOURCES.TYPE' | translate }}
+            </h3>
             @for (option of typeOptions; track option.id) {
                 <a
                     href="#type-{{ option.id }}"

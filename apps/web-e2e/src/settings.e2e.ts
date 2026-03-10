@@ -43,8 +43,10 @@ test.describe('Settings', () => {
     test('Change app theme', async ({ page }) => {
         await page.getByTestId('pwa-menu').click();
         await page.getByTestId('pwa-open-settings').click();
-        await expect(page.locator('text="Light theme"')).toBeVisible();
-        await page.getByTestId('select-theme').click();
+        await expect(page.getByTestId('SYSTEM_THEME')).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
         await page.getByTestId('DARK_THEME').click();
 
         await page.getByTestId('save-settings').click();
@@ -53,7 +55,10 @@ test.describe('Settings', () => {
         await page.getByTestId('pwa-menu').click();
         await page.getByTestId('pwa-open-settings').click();
 
-        await expect(page.locator('text="Dark theme"')).toBeVisible();
+        await expect(page.getByTestId('DARK_THEME')).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
     });
 
     test('Change app language', async ({ page }) => {

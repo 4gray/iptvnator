@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: Settings = {
     language: Language.ENGLISH,
     showCaptions: false,
     showExternalPlaybackBar: true,
-    theme: Theme.LightTheme,
+    theme: Theme.SystemTheme,
     mpvPlayerPath: '',
     mpvReuseInstance: false,
     vlcPlayerPath: '',

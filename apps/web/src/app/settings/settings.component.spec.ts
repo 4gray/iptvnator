@@ -36,6 +36,7 @@ import { SETTINGS_UPDATE } from 'shared-interfaces';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
+import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 
 class MatSnackBarStub {
     open() {
@@ -55,7 +56,7 @@ const DEFAULT_SETTINGS = {
     language: Language.ENGLISH,
     showCaptions: false,
     showExternalPlaybackBar: true,
-    theme: Theme.LightTheme,
+    theme: Theme.SystemTheme,
     mpvPlayerPath: '',
     vlcPlayerPath: '',
     remoteControl: false,
@@ -145,6 +146,58 @@ describe('SettingsComponent', () => {
 
     it('should create and init component', () => {
         expect(component).toBeTruthy();
+    });
+
+    it('should render a compact page header outside dialog mode', () => {
+        const nativeElement = fixture.nativeElement as HTMLElement;
+
+        expect(
+            nativeElement.querySelector('[data-test-id="settings-page-header"]')
+        ).not.toBeNull();
+        expect(nativeElement.querySelector('.settings-intro')).toBeNull();
+    });
+
+    it('should not render the page header in dialog mode', () => {
+        component.isDialog = true;
+        fixture.detectChanges();
+
+        const nativeElement = fixture.nativeElement as HTMLElement;
+        expect(
+            nativeElement.querySelector('[data-test-id="settings-page-header"]')
+        ).toBeNull();
+        expect(
+            nativeElement.querySelector('h2[mat-dialog-title]')
+        ).not.toBeNull();
+    });
+
+    it('should scroll the general navigation target to the general section', async () => {
+        const settingsContext = TestBed.inject(SettingsContextService);
+        const scrollIntoView = jest.fn();
+        const originalGetElementById = document.getElementById.bind(document);
+
+        const getElementByIdSpy = jest
+            .spyOn(document, 'getElementById')
+            .mockImplementation((id: string) => {
+                if (id === 'general') {
+                    return {
+                        scrollIntoView,
+                    } as unknown as HTMLElement;
+                }
+
+                return originalGetElementById(id);
+            });
+
+        settingsContext.navigateToSection('general');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(getElementByIdSpy).toHaveBeenCalledWith('general');
+        expect(getElementByIdSpy).not.toHaveBeenCalledWith('settings-intro');
+        expect(scrollIntoView).toHaveBeenCalledWith({
+            behavior: 'smooth',
+            block: 'start',
+        });
+        expect(settingsContext.pendingScrollTarget()).toBeNull();
     });
 
     describe('Get and set settings on component init', () => {
@@ -237,6 +290,13 @@ describe('SettingsComponent', () => {
         jest.spyOn(router, 'navigateByUrl');
         component.backToHome();
         expect(router.navigateByUrl).toHaveBeenCalledWith('/');
+    });
+
+    it('should update the selected theme and mark the form dirty', () => {
+        component.selectTheme(Theme.DarkTheme);
+
+        expect(component.settingsForm.value.theme).toBe(Theme.DarkTheme);
+        expect(component.settingsForm.dirty).toBeTruthy();
     });
 
     it('should save settings on submit', async () => {

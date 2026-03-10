@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { TranslateService } from '@ngx-translate/core';
+import { of } from 'rxjs';
 import { WorkspaceCommandPaletteComponent } from './workspace-command-palette.component';
 
 describe('WorkspaceCommandPaletteComponent', () => {
@@ -39,6 +41,15 @@ describe('WorkspaceCommandPaletteComponent', () => {
                                 enabled: true,
                             },
                         ],
+                    },
+                },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        onLangChange: of(null),
+                        currentLang: 'en',
+                        defaultLang: 'en',
                     },
                 },
             ],

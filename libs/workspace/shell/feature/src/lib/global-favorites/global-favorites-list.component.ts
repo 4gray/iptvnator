@@ -14,6 +14,7 @@ import {
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ChannelListItemComponent } from 'components';
 import { EpgProgram } from 'shared-interfaces';
 import { UnifiedFavoriteChannel } from './unified-favorite-channel.interface';
@@ -34,6 +35,7 @@ export interface EnrichedUnifiedFavorite extends UnifiedFavoriteChannel {
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
+        TranslatePipe,
     ],
 })
 export class GlobalFavoritesListComponent {

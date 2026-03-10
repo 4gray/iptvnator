@@ -1,4 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
 import { FavoritesContextService } from '@iptvnator/portal/shared/util';
 
@@ -12,15 +13,29 @@ import { FavoritesContextService } from '@iptvnator/portal/shared/util';
  */
 @Component({
     selector: 'app-workspace-favorites-context-panel',
-    imports: [CategoryViewComponent],
+    imports: [CategoryViewComponent, TranslatePipe],
     template: `
         <div class="context-column">
             <header class="context-header">
                 <div class="context-header__top">
-                    <h2>{{ title() }}</h2>
+                    <h2>
+                        {{
+                            selectedCategory()?.category_name ||
+                                ('WORKSPACE.CONTEXT.FILTER_BY_TYPE' | translate)
+                        }}
+                    </h2>
                 </div>
-                @if (countBadge(); as text) {
-                    <span class="context-header__badge">{{ text }}</span>
+                @if (selectedCount() !== null) {
+                    <span class="context-header__badge">
+                        @if (selectedCount() === 1) {
+                            {{ 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE' | translate }}
+                        } @else {
+                            {{
+                                'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER'
+                                    | translate: { count: selectedCount() }
+                            }}
+                        }
+                    </span>
                 }
             </header>
 
@@ -38,23 +53,16 @@ import { FavoritesContextService } from '@iptvnator/portal/shared/util';
 export class WorkspaceFavoritesContextPanelComponent {
     readonly ctx = inject(FavoritesContextService);
 
-    readonly title = computed(() => {
+    readonly selectedCategory = computed(() => {
         const categories = this.ctx.categories();
-        if (!categories.length) return 'Filter by type';
-        const selected = categories.find(
+        return categories.find(
             (c) => c.category_id === this.ctx.selectedCategoryId()
         );
-        return selected?.category_name ?? 'Filter by type';
     });
 
-    readonly countBadge = computed(() => {
-        const categories = this.ctx.categories();
-        const selected = categories.find(
-            (c) => c.category_id === this.ctx.selectedCategoryId()
-        );
-        if (!selected || selected.count === undefined) return '';
-        return `${selected.count} ${selected.count === 1 ? 'item' : 'items'}`;
-    });
+    readonly selectedCount = computed(
+        () => this.selectedCategory()?.count ?? null
+    );
 
     onCategoryClicked(item: {
         category_id?: string | number;

@@ -6,7 +6,9 @@
         <button
             mat-icon-button
             [matMenuTriggerFor]="filterMenu"
-            aria-label="Filter global favorites content"
+            [attr.aria-label]="
+                'WORKSPACE.DASHBOARD.FILTER_GLOBAL_FAVORITES' | translate
+            "
             [matTooltip]="'WORKSPACE.DASHBOARD.FILTER_ITEMS' | translate"
         >
             <mat-icon>filter_list</mat-icon>
@@ -58,7 +60,9 @@
             class="view-toggle"
             [value]="viewMode()"
             hideSingleSelectionIndicator
-            aria-label="Select global favorites view mode"
+            [attr.aria-label]="
+                'WORKSPACE.DASHBOARD.GLOBAL_FAVORITES_VIEW_MODE' | translate
+            "
             (change)="onViewModeChange($event.value)"
         >
             <mat-button-toggle
@@ -83,7 +87,7 @@
         [emptyHint]="'WORKSPACE.DASHBOARD.NO_FAVORITES_HINT' | translate"
         [viewMode]="viewMode()"
         [showRemoveAction]="true"
-        [removeActionLabel]="'Remove favorite'"
+        [removeActionLabel]="'WORKSPACE.DASHBOARD.REMOVE_FAVORITE' | translate"
         (itemAction)="onRemoveItem($event)"
         (scrolledToEnd)="onItemsScrolledToEnd()"
     />

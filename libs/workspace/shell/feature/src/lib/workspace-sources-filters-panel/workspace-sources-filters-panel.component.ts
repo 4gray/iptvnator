@@ -16,7 +16,7 @@ type PlaylistFilterId = 'all' | 'm3u' | 'xtream' | 'stalker';
 interface PlaylistFilterOption {
     id: PlaylistFilterId;
     icon: string;
-    label: string;
+    label?: string;
     translationKey?: string;
 }
 
@@ -52,25 +52,22 @@ export class WorkspaceSourcesFiltersPanelComponent {
         {
             id: 'all',
             icon: 'layers',
-            label: 'All',
+            translationKey: 'WORKSPACE.SOURCES.ALL',
         },
         {
             id: 'm3u',
             icon: 'playlist_play',
             translationKey: 'HOME.PLAYLIST_TYPES.M3U',
-            label: 'M3U',
         },
         {
             id: 'xtream',
             icon: 'cloud',
             translationKey: 'HOME.PLAYLIST_TYPES.XTREAM',
-            label: 'Xtream',
         },
         {
             id: 'stalker',
             icon: 'router',
             translationKey: 'HOME.PLAYLIST_TYPES.STALKER',
-            label: 'Stalker',
         },
     ];
 
