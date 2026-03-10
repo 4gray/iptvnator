@@ -210,7 +210,8 @@
     },
     "THEMES": {
         "DARK_THEME": "Koyu tema",
-        "LIGHT_THEME": "Açık tema"
+        "LIGHT_THEME": "Açık tema",
+        "SYSTEM_THEME": "Sistem teması"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Kanal ara",

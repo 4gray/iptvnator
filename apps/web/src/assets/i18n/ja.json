@@ -146,7 +146,8 @@
     },
     "THEMES": {
         "DARK_THEME": "ダークテーマ",
-        "LIGHT_THEME": "ライトテーマ"
+        "LIGHT_THEME": "ライトテーマ",
+        "SYSTEM_THEME": "システムテーマ"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "チャンネルを検索",

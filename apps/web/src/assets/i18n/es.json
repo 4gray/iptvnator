@@ -185,7 +185,8 @@
     },
     "THEMES": {
         "DARK_THEME": "Tema oscuro",
-        "LIGHT_THEME": "Tema claro"
+        "LIGHT_THEME": "Tema claro",
+        "SYSTEM_THEME": "Tema del sistema"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Buscar canal",

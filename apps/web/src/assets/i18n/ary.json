@@ -158,7 +158,8 @@
     },
     "THEMES": {
         "DARK_THEME": "المظهر الداكن",
-        "LIGHT_THEME": "المظهر الفاتح"
+        "LIGHT_THEME": "المظهر الفاتح",
+        "SYSTEM_THEME": "مظهر النظام"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "قلب على قناة",

@@ -116,7 +116,8 @@
     },
     "THEMES": {
         "DARK_THEME": "어두운 테마",
-        "LIGHT_THEME": "밝은 테마"
+        "LIGHT_THEME": "밝은 테마",
+        "SYSTEM_THEME": "시스템 테마"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "검색 채널",

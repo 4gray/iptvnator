@@ -166,7 +166,8 @@
     },
     "THEMES": {
         "DARK_THEME": "السمة الداكنة",
-        "LIGHT_THEME": "السمة الفاتحة"
+        "LIGHT_THEME": "السمة الفاتحة",
+        "SYSTEM_THEME": "سمة النظام"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "البحث عن قناة",

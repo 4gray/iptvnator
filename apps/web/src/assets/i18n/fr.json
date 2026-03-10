@@ -179,7 +179,8 @@
     },
     "THEMES": {
         "DARK_THEME": "Thème foncé",
-        "LIGHT_THEME": "Thème clair"
+        "LIGHT_THEME": "Thème clair",
+        "SYSTEM_THEME": "Thème du système"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Rechercher une chaîne",

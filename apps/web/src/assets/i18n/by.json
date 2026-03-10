@@ -160,7 +160,8 @@
     },
     "THEMES": {
         "DARK_THEME": "Цёмная тэма",
-        "LIGHT_THEME": "Светлая тэма"
+        "LIGHT_THEME": "Светлая тэма",
+        "SYSTEM_THEME": "Сістэмная тэма"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Пошук каналаў",

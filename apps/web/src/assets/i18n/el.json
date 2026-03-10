@@ -209,7 +209,8 @@
     },
     "THEMES": {
         "DARK_THEME": "Σκούρο θέμα",
-        "LIGHT_THEME": "Ανοιχτόχρωμο θέμα"
+        "LIGHT_THEME": "Ανοιχτόχρωμο θέμα",
+        "SYSTEM_THEME": "Θέμα συστήματος"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "Αναζήτηση καναλιού",

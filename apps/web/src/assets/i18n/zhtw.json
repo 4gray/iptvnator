@@ -163,7 +163,8 @@
     },
     "THEMES": {
         "DARK_THEME": "深色主題",
-        "LIGHT_THEME": "亮色主題"
+        "LIGHT_THEME": "亮色主題",
+        "SYSTEM_THEME": "跟隨系統"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "搜尋頻道",

@@ -116,7 +116,8 @@
     },
     "THEMES": {
         "DARK_THEME": "暗黑模式",
-        "LIGHT_THEME": "明亮模式"
+        "LIGHT_THEME": "明亮模式",
+        "SYSTEM_THEME": "跟随系统"
     },
     "CHANNELS": {
         "SEARCH_CHANNEL": "搜索频道",
