@@ -313,27 +313,26 @@ export class ElectronService extends DataService {
         filePath?: string;
         title: string;
     }) {
-        let methodToCall = null;
-        if (data.url && !data.filePath) {
-            // fetch from url
-            methodToCall = window.electron.fetchPlaylistByUrl(
-                data.url,
-                data.title
-            );
-        } else if (data.filePath && !data.url) {
-            // update from file path
-            methodToCall = window.electron.updatePlaylistFromFilePath(
-                data.filePath,
-                data.title
-            );
-        } else {
-            console.error(
-                'Either url or filePath must be provided, but not both.'
-            );
-            return;
-        }
+        try {
+            let playlistObject: Playlist;
+            if (data.url && !data.filePath) {
+                playlistObject = await window.electron.fetchPlaylistByUrl(
+                    data.url,
+                    data.title
+                );
+            } else if (data.filePath && !data.url) {
+                playlistObject =
+                    await window.electron.updatePlaylistFromFilePath(
+                        data.filePath,
+                        data.title
+                    );
+            } else {
+                console.error(
+                    'Either url or filePath must be provided, but not both.'
+                );
+                return;
+            }
 
-        methodToCall.then((playlistObject) => {
             this.store.dispatch(
                 PlaylistActions.updatePlaylist({
                     playlist: {
@@ -351,7 +350,66 @@ export class ElectronService extends DataService {
                 null,
                 { duration: 2000 }
             );
-        });
+        } catch (error: unknown) {
+            console.error('Playlist refresh error:', error);
+            this.snackBar.open(
+                this.getPlaylistRefreshErrorMessage(error, data),
+                this.translateService.instant('CLOSE'),
+                { duration: 5000 }
+            );
+        }
+    }
+
+    private getPlaylistRefreshErrorMessage(
+        error: unknown,
+        data: { url?: string; filePath?: string }
+    ): string {
+        if (data.filePath) {
+            const errorMessage = String(
+                this.getErrorDetails(error)?.message ?? error ?? ''
+            );
+
+            if (
+                /(ENOENT|no such file or directory|not found)/i.test(
+                    errorMessage
+                )
+            ) {
+                return this.translateWithFallback(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND',
+                    'Playlist refresh failed. The local file is no longer available. Check the file path or re-import the playlist.'
+                );
+            }
+
+            if (/(EACCES|EPERM|permission denied)/i.test(errorMessage)) {
+                return this.translateWithFallback(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR',
+                    'Playlist refresh failed. The app can no longer access the local file.'
+                );
+            }
+
+            return this.translateService.instant(
+                'HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR'
+            );
+        }
+
+        const statusCode = this.extractHttpStatusCode(error);
+        if (statusCode === 404) {
+            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_404');
+        }
+        if (statusCode === 403) {
+            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_403');
+        }
+        if (statusCode === 401) {
+            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_401');
+        }
+        return this.translateService.instant(
+            'HOME.URL_UPLOAD.ERROR_FETCH_FAILED'
+        );
+    }
+
+    private translateWithFallback(key: string, fallback: string): string {
+        const translated = this.translateService.instant(key);
+        return translated === key ? fallback : translated;
     }
 
     /* private getErrorMessageByStatusCode(status: number) {

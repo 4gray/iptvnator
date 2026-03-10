@@ -131,10 +131,8 @@ export class PwaService extends DataService {
             .pipe(
                 catchError((error) => {
                     this.snackBar.open(
-                        `Error: ${error.message ?? 'Unknown error'}, status: ${
-                            error.status ?? 500
-                        }`,
-                        'Close',
+                        this.getPlaylistRefreshErrorMessage(error),
+                        this.translateService.instant('CLOSE'),
                         {
                             duration: 5000,
                         }
@@ -158,6 +156,25 @@ export class PwaService extends DataService {
                     { duration: 2000 }
                 );
             });
+    }
+
+    private getPlaylistRefreshErrorMessage(error: unknown): string {
+        const statusCode =
+            this.getErrorDetails(error)?.status ??
+            this.extractHttpStatusCode(error);
+
+        if (statusCode === 404) {
+            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_404');
+        }
+        if (statusCode === 403) {
+            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_403');
+        }
+        if (statusCode === 401) {
+            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_401');
+        }
+        return this.translateService.instant(
+            'HOME.URL_UPLOAD.ERROR_FETCH_FAILED'
+        );
     }
 
     /**
@@ -189,19 +206,38 @@ export class PwaService extends DataService {
     }
 
     getErrorMessageByStatusCode(status: number) {
-        let message = 'Something went wrong';
+        let messageKey = 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
         switch (status) {
-            case 0:
-                message = 'The backend is not reachable';
-                break;
             case 413:
-                message =
-                    'This file is too big. Use standalone or self-hosted version of the app.';
+                return 'This file is too big. Use standalone or self-hosted version of the app.';
+            case 403:
+                messageKey = 'HOME.URL_UPLOAD.ERROR_403';
+                break;
+            case 404:
+                messageKey = 'HOME.URL_UPLOAD.ERROR_404';
+                break;
+            case 401:
+                messageKey = 'HOME.URL_UPLOAD.ERROR_401';
                 break;
             default:
                 break;
         }
-        return message;
+        return this.translateService.instant(messageKey);
+    }
+
+    private extractHttpStatusCode(error: unknown): number | null {
+        if (
+            error &&
+            typeof error === 'object' &&
+            'status' in error &&
+            typeof error.status === 'number'
+        ) {
+            return error.status;
+        }
+
+        const msg = String((error as { message?: string })?.message ?? error);
+        const match = msg.match(/status code (\d{3})/);
+        return match ? parseInt(match[1], 10) : null;
     }
 
     async forwardXtreamRequest(payload: {
@@ -242,21 +278,23 @@ export class PwaService extends DataService {
         try {
             let result: PwaErrorResult | PwaXtreamResult;
             const response = (await firstValueFrom(
-                this.http.get<PwaXtreamResponse>(`${this.corsProxyUrl}/xtream`, {
-                    params: {
-                        url: payload.url,
-                        ...payload.params,
-                    },
-                    ...headers,
-                })
+                this.http.get<PwaXtreamResponse>(
+                    `${this.corsProxyUrl}/xtream`,
+                    {
+                        params: {
+                            url: payload.url,
+                            ...payload.params,
+                        },
+                        ...headers,
+                    }
+                )
             )) as PwaXtreamResponse;
 
             if (!response.payload) {
                 const action = payload.params.action;
                 const isSilentAction = this.silentXtreamActions.has(action);
-                const normalizedMessage = this.getReadableXtreamErrorMessage(
-                    response
-                );
+                const normalizedMessage =
+                    this.getReadableXtreamErrorMessage(response);
                 logPortalDebugEvent(
                     createPortalDebugErrorEvent(context, response)
                 );
@@ -347,9 +385,10 @@ export class PwaService extends DataService {
                 if (
                     maybeError.error &&
                     typeof maybeError.error === 'object' &&
-                    'message' in (maybeError.error as Record<string, unknown>) &&
-                    typeof (maybeError.error as Record<string, unknown>).message ===
-                        'string'
+                    'message' in
+                        (maybeError.error as Record<string, unknown>) &&
+                    typeof (maybeError.error as Record<string, unknown>)
+                        .message === 'string'
                 ) {
                     return (maybeError.error as Record<string, string>).message;
                 }

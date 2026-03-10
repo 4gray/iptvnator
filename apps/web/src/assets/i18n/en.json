@@ -77,6 +77,8 @@
             "MY_PLAYLISTS_SUBTITLE": "all available playlists",
             "PLAYLIST_UPDATE_SUCCESS": "Success! The playlist was successfully updated.",
             "PLAYLIST_UPDATE_ERROR": "Error updating playlist details.",
+            "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Playlist refresh failed. The local file is no longer available. Check the file path or re-import the playlist.",
+            "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Playlist refresh failed. The app can no longer access the local file.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Success! The playlists were successfully updated",
             "AUTO_REFRESH_ENABLED": "Auto-refresh enabled"
         },
