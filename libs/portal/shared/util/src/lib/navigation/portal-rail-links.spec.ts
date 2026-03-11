@@ -95,6 +95,13 @@ describe('buildPortalRailLinks', () => {
                 section: 'groups',
             },
             {
+                icon: 'history',
+                tooltip: 'Recently viewed (this playlist)',
+                path: ['/workspace', 'playlists', 'm3u-1', 'recent'],
+                exact: true,
+                section: 'recent',
+            },
+            {
                 icon: 'star',
                 tooltip: 'Favorites (this playlist)',
                 path: ['/workspace', 'playlists', 'm3u-1', 'favorites'],

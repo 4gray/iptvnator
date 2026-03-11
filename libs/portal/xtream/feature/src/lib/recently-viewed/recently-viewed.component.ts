@@ -414,6 +414,21 @@ export class RecentlyViewedComponent {
             return;
         }
 
+        if (source === 'm3u' && this.isGlobal) {
+            this.dialogRef?.close();
+            this.router.navigate(
+                ['/workspace', 'playlists', item.playlist_id, 'recent'],
+                {
+                    state: {
+                        openRecentChannelUrl: String(
+                            item.xtream_id ?? item.id ?? ''
+                        ),
+                    },
+                }
+            );
+            return;
+        }
+
         const type = item.type === 'movie' ? 'vod' : item.type;
         this.xtreamStore.setSelectedContentType(type);
 
@@ -462,6 +477,13 @@ export class RecentlyViewedComponent {
                         this.playlistsService.removeFromPortalRecentlyViewed(
                             item.playlist_id,
                             item.id
+                        )
+                    );
+                } else if (item.source === 'm3u') {
+                    await firstValueFrom(
+                        this.playlistsService.removeFromM3uRecentlyViewed(
+                            item.playlist_id,
+                            String(item.xtream_id ?? item.id)
                         )
                     );
                 } else {

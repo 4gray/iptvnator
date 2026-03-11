@@ -16,7 +16,7 @@ export interface PortalActivityItem {
     category_id: string | number;
     xtream_id: string | number;
     poster_url?: string;
-    source?: 'xtream' | 'stalker';
+    source?: 'xtream' | 'stalker' | 'm3u';
     /** Original stalker item for navigation state; undefined for xtream. */
     stalker_item?: StalkerPortalItem;
 }

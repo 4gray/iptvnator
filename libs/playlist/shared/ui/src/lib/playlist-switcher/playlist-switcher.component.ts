@@ -32,7 +32,7 @@ import { PortalStatus, PortalStatusService } from 'services';
 import { PlaylistMeta } from 'shared-interfaces';
 
 type PlaylistRouteProvider = 'playlists' | 'xtreams' | 'stalker';
-type PlaylistSectionProvider = Exclude<PlaylistRouteProvider, 'playlists'>;
+type PlaylistSectionProvider = PlaylistRouteProvider;
 type PlaylistFilterType = 'm3u' | 'stalker' | 'xtream';
 
 interface PlaylistRouteContext {
@@ -83,6 +83,7 @@ const STALKER_SECTIONS = [
     'search',
     'downloads',
 ] as const;
+const M3U_SECTIONS = ['all', 'groups', 'favorites', 'recent'] as const;
 
 @Component({
     selector: 'app-playlist-switcher',
@@ -292,11 +293,7 @@ export class PlaylistSwitcherComponent {
 
     private rememberSectionFromRoute(url: string): void {
         const routeContext = this.getRouteContext(url);
-        if (
-            !routeContext.provider ||
-            routeContext.provider === 'playlists' ||
-            !routeContext.section
-        ) {
+        if (!routeContext.provider || !routeContext.section) {
             return;
         }
 
@@ -502,7 +499,12 @@ export class PlaylistSwitcherComponent {
         }
 
         if (provider === 'playlists') {
-            return [...prefix, 'playlists', playlistId];
+            const section = this.resolveTargetSection(
+                provider,
+                routeContext.section,
+                playlistId
+            );
+            return [...prefix, 'playlists', playlistId, section];
         }
 
         if (!this.supportsSectionNavigation(provider)) {
@@ -551,6 +553,10 @@ export class PlaylistSwitcherComponent {
             return normalizedProviderSection;
         }
 
+        if (provider === 'playlists') {
+            return 'all';
+        }
+
         return 'vod';
     }
 
@@ -577,6 +583,14 @@ export class PlaylistSwitcherComponent {
             }
             return XTREAM_SECTIONS.includes(
                 section as (typeof XTREAM_SECTIONS)[number]
+            )
+                ? section
+                : null;
+        }
+
+        if (provider === 'playlists') {
+            return M3U_SECTIONS.includes(
+                section as (typeof M3U_SECTIONS)[number]
             )
                 ? section
                 : null;
@@ -620,6 +634,9 @@ export class PlaylistSwitcherComponent {
                 parsedProviders !== null
             ) {
                 const candidate = parsedProviders as Record<string, unknown>;
+                if (typeof candidate['playlists'] === 'string') {
+                    providers.playlists = candidate['playlists'];
+                }
                 if (typeof candidate['xtreams'] === 'string') {
                     providers.xtreams = candidate['xtreams'];
                 }
@@ -628,8 +645,11 @@ export class PlaylistSwitcherComponent {
                 }
             } else {
                 // Backward compatibility with previous format:
-                // { xtreams: "...", stalker: "..." }
+                // { playlists: "...", xtreams: "...", stalker: "..." }
                 const legacy = parsed as Record<string, unknown>;
+                if (typeof legacy['playlists'] === 'string') {
+                    providers.playlists = legacy['playlists'];
+                }
                 if (typeof legacy['xtreams'] === 'string') {
                     providers.xtreams = legacy['xtreams'];
                 }
@@ -657,7 +677,9 @@ export class PlaylistSwitcherComponent {
                     const section = row['section'];
                     const updatedAt = row['updatedAt'];
                     const isProviderValid =
-                        provider === 'xtreams' || provider === 'stalker';
+                        provider === 'playlists' ||
+                        provider === 'xtreams' ||
+                        provider === 'stalker';
                     if (!isProviderValid || typeof section !== 'string') {
                         return;
                     }

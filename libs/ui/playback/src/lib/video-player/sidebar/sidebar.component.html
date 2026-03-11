@@ -20,4 +20,5 @@
 <app-channel-list-container
     [channelList]="channels()"
     [activeView]="activeView()"
+    [recentItems]="activePlaylist()?.recentlyViewed ?? []"
 />

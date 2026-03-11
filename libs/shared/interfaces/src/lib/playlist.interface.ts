@@ -1,3 +1,4 @@
+import { PlaylistRecentlyViewedItem } from './playlist-recently-viewed.interface';
 import { StalkerPortalItem } from './stalker-portal-item.interface';
 
 /**
@@ -42,7 +43,7 @@ export interface Playlist {
     password?: string;
     macAddress?: string;
     portalUrl?: string;
-    recentlyViewed?: any[];
+    recentlyViewed?: PlaylistRecentlyViewedItem[];
     /** Indicates if this is a full stalker portal URL (e.g., /stalker_portal/c) requiring handshake authentication */
     isFullStalkerPortal?: boolean;
     /** Session token for full stalker portal authentication - persisted for session */

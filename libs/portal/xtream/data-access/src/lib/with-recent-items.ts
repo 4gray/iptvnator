@@ -9,11 +9,7 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
 import {
-    extractStalkerItemId,
-    extractStalkerItemPoster,
-    extractStalkerItemTitle,
-    extractStalkerItemType,
-    normalizeStalkerDate,
+    buildPlaylistRecentItems,
     Playlist,
     PortalRecentItem,
 } from 'shared-interfaces';
@@ -148,61 +144,14 @@ export const withRecentItems = function () {
                         const playlists = (await firstValueFrom(
                             playlistsService.getAllPlaylists()
                         )) as Playlist[];
-                        const stalkerItems: RecentlyViewedItem[] = playlists
-                            .filter((playlist) => Boolean(playlist.macAddress))
-                            .reduce(
-                                (acc: RecentlyViewedItem[], playlist) => {
-                                    const recent = Array.isArray(
-                                        playlist.recentlyViewed
-                                    )
-                                        ? playlist.recentlyViewed
-                                        : [];
-                                    const mapped = recent.map(
-                                        (rawItem, index: number) => {
-                                            const item = (rawItem ??
-                                                {}) as Record<string, unknown>;
-                                            const id = extractStalkerItemId(
-                                                item,
-                                                String(playlist._id),
-                                                index
-                                            );
-
-                                            return {
-                                                id,
-                                                title: extractStalkerItemTitle(
-                                                    item
-                                                ),
-                                                type: extractStalkerItemType(
-                                                    item
-                                                ),
-                                                poster_url:
-                                                    extractStalkerItemPoster(
-                                                        item
-                                                    ),
-                                                content_id: id,
-                                                playlist_id: String(
-                                                    playlist._id
-                                                ),
-                                                playlist_name:
-                                                    playlist.title ||
-                                                    'Stalker Portal',
-                                                viewed_at: normalizeStalkerDate(
-                                                    item['added_at']
-                                                ),
-                                                xtream_id: id,
-                                                category_id: String(
-                                                    item['category_id'] ?? ''
-                                                ),
-                                                source: 'stalker' as const,
-                                                stalker_item: rawItem,
-                                            };
-                                        }
-                                    );
-                                    acc.push(...mapped);
-                                    return acc;
-                                },
-                                []
-                            );
+                        const playlistBackedItems =
+                            buildPlaylistRecentItems(playlists, {
+                                stalker: 'Stalker Portal',
+                                m3u: 'M3U',
+                            }).map((item) => ({
+                                ...item,
+                                content_id: item.id,
+                            })) as RecentlyViewedItem[];
 
                         const normalizedXtream: RecentlyViewedItem[] = (
                             xtreamItems || []
@@ -222,7 +171,7 @@ export const withRecentItems = function () {
 
                         const items = [
                             ...normalizedXtream,
-                            ...stalkerItems,
+                            ...playlistBackedItems,
                         ].sort(
                             (a, b) =>
                                 new Date(b.viewed_at).getTime() -
@@ -247,12 +196,14 @@ export const withRecentItems = function () {
                         )) as Playlist[];
                         await Promise.all(
                             playlists
-                                .filter((playlist) =>
-                                    Boolean(playlist.macAddress)
+                                .filter(
+                                    (playlist) =>
+                                        Boolean(playlist.macAddress) ||
+                                        !playlist.serverUrl
                                 )
                                 .map((playlist) =>
                                     firstValueFrom(
-                                        playlistsService.clearPortalRecentlyViewed(
+                                        playlistsService.clearPlaylistRecentlyViewed(
                                             playlist._id
                                         )
                                     )

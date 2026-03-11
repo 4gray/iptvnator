@@ -36,6 +36,7 @@ import {
     PlaylistType,
 } from '@iptvnator/playlist/shared/ui';
 import {
+    PlaylistActions,
     selectActivePlaylist,
     selectAllPlaylistsMeta,
     selectPlaylistTitle,
@@ -55,6 +56,7 @@ import {
     PlaylistsService,
     SettingsStore,
 } from 'services';
+import { PlaylistMeta } from 'shared-interfaces';
 import {
     SettingsContextService,
     WorkspaceAccountInfoData,
@@ -481,6 +483,21 @@ export class WorkspaceShellComponent {
                 };
             }
 
+            if (context.provider === 'playlists' && section === 'recent') {
+                return {
+                    icon: 'delete_sweep',
+                    tooltip: this.translateText(
+                        'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION'
+                    ),
+                    ariaLabel: this.translateText(
+                        'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION_ARIA'
+                    ),
+                    disabled:
+                        (this.activePlaylist()?.recentlyViewed?.length ?? 0) ===
+                        0,
+                };
+            }
+
             return null;
         }
     );
@@ -707,10 +724,36 @@ export class WorkspaceShellComponent {
         }
 
         if (context.provider === 'stalker' && section === 'recent') {
-            await firstValueFrom(
+            const updatedPlaylist = await firstValueFrom(
                 this.playlistsService.clearPortalRecentlyViewed(
                     context.playlistId
                 )
+            );
+            this.store.dispatch(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: {
+                        _id: context.playlistId,
+                        recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
+                    } as PlaylistMeta,
+                }) as any
+            );
+            this.bumpRefreshQueryParam();
+            return;
+        }
+
+        if (context.provider === 'playlists' && section === 'recent') {
+            const updatedPlaylist = await firstValueFrom(
+                this.playlistsService.clearM3uRecentlyViewed(
+                    context.playlistId
+                )
+            );
+            this.store.dispatch(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: {
+                        _id: context.playlistId,
+                        recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
+                    } as PlaylistMeta,
+                }) as any
             );
             this.bumpRefreshQueryParam();
         }

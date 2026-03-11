@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
-import { selectPlaylistTitle } from 'm3u-state';
+import { selectActivePlaylist, selectPlaylistTitle } from 'm3u-state';
 import { Channel } from 'shared-interfaces';
 import { ChannelListContainerComponent } from 'components';
 
@@ -33,6 +33,7 @@ export class SidebarComponent {
     private readonly translate = inject(TranslateService);
 
     readonly playlistTitle = this.store.selectSignal(selectPlaylistTitle);
+    readonly activePlaylist = this.store.selectSignal(selectActivePlaylist);
 
     readonly subtitle = computed(() => {
         const count = this.channels()?.length ?? 0;

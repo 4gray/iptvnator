@@ -58,7 +58,8 @@
     </div>
     @if (
         (showProgramInfoButton() && showEpg() && epgProgram()) ||
-        showFavoriteButton()
+        showFavoriteButton() ||
+        showAuxActionButton()
     ) {
         <div class="action-buttons">
             @if (showProgramInfoButton() && showEpg() && epgProgram(); as program) {
@@ -88,6 +89,16 @@
                     <mat-icon>{{
                         isFavorite() ? 'star' : 'star_outline'
                     }}</mat-icon>
+                </button>
+            }
+            @if (showAuxActionButton()) {
+                <button
+                    mat-icon-button
+                    class="favorite-button"
+                    [matTooltip]="auxActionTooltip()"
+                    (click)="onAuxActionClick($event)"
+                >
+                    <mat-icon>{{ auxActionIcon() }}</mat-icon>
                 </button>
             }
         </div>

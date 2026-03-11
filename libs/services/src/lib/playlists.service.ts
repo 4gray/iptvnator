@@ -21,10 +21,15 @@ import {
 import {
     Channel,
     DbStores,
+    extractStalkerItemId,
+    isM3uRecentlyViewedItem,
+    M3uRecentlyViewedItem,
     Playlist,
     PlaylistMeta,
+    PlaylistRecentlyViewedItem,
     PlaylistUpdateState,
     StalkerPortalItem,
+    normalizeStalkerDate,
 } from 'shared-interfaces';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
@@ -33,11 +38,6 @@ type PortalFavoriteItem = StalkerPortalItem & {
     category_id?: string;
     raw?: string;
     [key: string]: unknown;
-};
-
-type PortalRecentlyViewedItem = StalkerPortalItem & {
-    id?: string | number;
-    title?: string;
 };
 
 type PlaylistRawItem = {
@@ -654,73 +654,102 @@ export class PlaylistsService {
             .pipe(map(() => undefined));
     }
 
-    getPortalRecentlyViewed(portalId: string) {
-        if (!portalId) {
-            throw new Error('Portal ID is required');
+    private normalizePortalRecentIdentity(value: unknown): string {
+        const raw = String(value ?? '').trim();
+        if (!raw) {
+            return '';
         }
-        return this.getPlaylistById(portalId).pipe(
+        return raw.includes(':') ? raw.split(':')[0] : raw;
+    }
+
+    private getPlaylistRecentIdentity(item: PlaylistRecentlyViewedItem): string {
+        if (isM3uRecentlyViewedItem(item)) {
+            return String(item.url ?? item.id ?? '').trim();
+        }
+
+        return this.normalizePortalRecentIdentity(
+            extractStalkerItemId(item ?? {})
+        );
+    }
+
+    private matchesPlaylistRecentIdentity(
+        item: PlaylistRecentlyViewedItem,
+        expectedIdentity: string | number
+    ): boolean {
+        const expectedRaw = String(expectedIdentity ?? '').trim();
+        if (!expectedRaw) {
+            return false;
+        }
+
+        if (isM3uRecentlyViewedItem(item)) {
+            return this.getPlaylistRecentIdentity(item) === expectedRaw;
+        }
+
+        return (
+            this.getPlaylistRecentIdentity(item) ===
+            this.normalizePortalRecentIdentity(expectedRaw)
+        );
+    }
+
+    private sortPlaylistRecentItems(
+        items: PlaylistRecentlyViewedItem[]
+    ): PlaylistRecentlyViewedItem[] {
+        return [...items].sort(
+            (a, b) =>
+                new Date(normalizeStalkerDate(b.added_at ?? '')).getTime() -
+                new Date(normalizeStalkerDate(a.added_at ?? '')).getTime()
+        );
+    }
+
+    getPlaylistRecentlyViewed(playlistId: string) {
+        if (!playlistId) {
+            throw new Error('Playlist ID is required');
+        }
+
+        return this.getPlaylistById(playlistId).pipe(
             map((item) => {
-                if (!item || !item.recentlyViewed) return [];
-                return item.recentlyViewed as PortalRecentlyViewedItem[];
+                if (!item || !Array.isArray(item.recentlyViewed)) {
+                    return [];
+                }
+                return item.recentlyViewed as PlaylistRecentlyViewedItem[];
             }),
-            map((items) =>
-                items.sort(
-                    (a, b) =>
-                        new Date(b.added_at ?? '').getTime() -
-                        new Date(a.added_at ?? '').getTime()
-                )
-            )
+            map((items) => this.sortPlaylistRecentItems(items))
         );
     }
 
-    addPortalRecentlyViewed(
-        portalId: string,
-        item: PortalRecentlyViewedItem & { id: string | number; title: string }
+    addPlaylistRecentlyViewed(
+        playlistId: string,
+        item: PlaylistRecentlyViewedItem
     ) {
-        if (!portalId) {
-            throw new Error('Portal ID is required');
+        if (!playlistId) {
+            throw new Error('Playlist ID is required');
         }
-        return this.getPlaylistById(portalId).pipe(
-            switchMap((portal) => {
+
+        return this.getPlaylistById(playlistId).pipe(
+            switchMap((playlist) => {
                 const nowIso = new Date().toISOString();
-                const recentItems =
-                    (portal.recentlyViewed as PortalRecentlyViewedItem[]) ?? [];
-                const existingIndex = recentItems.findIndex(
-                    (recentItem) => String(recentItem?.id) === String(item.id)
+                const recentItems = Array.isArray(playlist.recentlyViewed)
+                    ? (playlist.recentlyViewed as PlaylistRecentlyViewedItem[])
+                    : [];
+                const existingIndex = recentItems.findIndex((recentItem) =>
+                    this.matchesPlaylistRecentIdentity(
+                        recentItem,
+                        this.getPlaylistRecentIdentity(item)
+                    )
                 );
-
-                if (existingIndex >= 0) {
-                    const updatedRecentItems = [...recentItems];
-                    updatedRecentItems[existingIndex] = {
-                        ...updatedRecentItems[existingIndex],
-                        ...item,
-                        added_at: nowIso,
-                    };
-
-                    const nextPlaylist: Playlist = {
-                        ...portal,
-                        recentlyViewed: updatedRecentItems,
-                    };
-
-                    if (this.isElectronStorageAvailable) {
-                        return this.upsertSqlitePlaylist(nextPlaylist);
-                    }
-
-                    return this.dbService.update(
-                        DbStores.Playlists,
-                        nextPlaylist
-                    );
-                }
-
+                const existingItem =
+                    existingIndex >= 0 ? recentItems[existingIndex] : null;
+                const nextItem: PlaylistRecentlyViewedItem = {
+                    ...(existingItem ?? {}),
+                    ...item,
+                    added_at: nowIso,
+                };
+                const remainingItems = recentItems.filter(
+                    (_, index) => index !== existingIndex
+                );
                 const nextPlaylist: Playlist = {
-                    ...portal,
-                    recentlyViewed: [
-                        ...recentItems,
-                        {
-                            ...item,
-                            added_at: item.added_at ?? nowIso,
-                        },
-                    ],
+                    ...playlist,
+                    recentlyViewed: [nextItem, ...remainingItems],
                 };
 
                 if (this.isElectronStorageAvailable) {
@@ -732,49 +761,47 @@ export class PlaylistsService {
         );
     }
 
-    removeFromPortalRecentlyViewed(portalId: string, id: string | number) {
-        const normalizePortalItemId = (value: unknown): string => {
-            const raw = String(value ?? '').trim();
-            if (!raw) return '';
-            return raw.includes(':') ? raw.split(':')[0] : raw;
-        };
-
-        return this.getPlaylistById(portalId).pipe(
-            switchMap((portal) => {
-                const expectedId = String(id);
-                const expectedNormalized = normalizePortalItemId(id);
-
-                const nextPlaylist: Playlist = {
-                    ...portal,
-                    recentlyViewed: (
-                        portal.recentlyViewed as PortalRecentlyViewedItem[]
-                    )?.filter((item) => {
-                        const itemId = String(item?.id ?? '');
-                        const itemNormalized = normalizePortalItemId(itemId);
-                        return (
-                            itemId !== expectedId &&
-                            itemNormalized !== expectedNormalized
-                        );
-                    }),
-                };
-
-                if (this.isElectronStorageAvailable) {
-                    return this.upsertSqlitePlaylist(nextPlaylist);
-                }
-
-                return this.dbService.update(DbStores.Playlists, nextPlaylist);
-            })
-        );
-    }
-
-    clearPortalRecentlyViewed(portalId: string) {
-        if (!portalId) {
-            throw new Error('Portal ID is required');
+    removeFromPlaylistRecentlyViewed(
+        playlistId: string,
+        identity: string | number
+    ) {
+        if (!playlistId) {
+            throw new Error('Playlist ID is required');
         }
-        return this.getPlaylistById(portalId).pipe(
-            switchMap((portal) => {
+
+        return this.getPlaylistById(playlistId).pipe(
+            switchMap((playlist) => {
                 const nextPlaylist: Playlist = {
-                    ...portal,
+                    ...playlist,
+                    recentlyViewed: (
+                        playlist.recentlyViewed as PlaylistRecentlyViewedItem[]
+                    )?.filter(
+                        (item) =>
+                            !this.matchesPlaylistRecentIdentity(
+                                item,
+                                identity
+                            )
+                    ),
+                };
+
+                if (this.isElectronStorageAvailable) {
+                    return this.upsertSqlitePlaylist(nextPlaylist);
+                }
+
+                return this.dbService.update(DbStores.Playlists, nextPlaylist);
+            })
+        );
+    }
+
+    clearPlaylistRecentlyViewed(playlistId: string) {
+        if (!playlistId) {
+            throw new Error('Playlist ID is required');
+        }
+
+        return this.getPlaylistById(playlistId).pipe(
+            switchMap((playlist) => {
+                const nextPlaylist: Playlist = {
+                    ...playlist,
                     recentlyViewed: [],
                 };
 
@@ -785,5 +812,43 @@ export class PlaylistsService {
                 return this.dbService.update(DbStores.Playlists, nextPlaylist);
             })
         );
+    }
+
+    getPortalRecentlyViewed(portalId: string) {
+        return this.getPlaylistRecentlyViewed(portalId).pipe(
+            map((items) =>
+                items.filter(
+                    (item): item is StalkerPortalItem =>
+                        !isM3uRecentlyViewedItem(item)
+                )
+            )
+        );
+    }
+
+    addPortalRecentlyViewed(
+        portalId: string,
+        item: StalkerPortalItem & { id: string | number; title: string }
+    ) {
+        return this.addPlaylistRecentlyViewed(portalId, item);
+    }
+
+    addM3uRecentlyViewed(playlistId: string, item: M3uRecentlyViewedItem) {
+        return this.addPlaylistRecentlyViewed(playlistId, item);
+    }
+
+    removeFromPortalRecentlyViewed(portalId: string, id: string | number) {
+        return this.removeFromPlaylistRecentlyViewed(portalId, id);
+    }
+
+    removeFromM3uRecentlyViewed(playlistId: string, channelUrl: string) {
+        return this.removeFromPlaylistRecentlyViewed(playlistId, channelUrl);
+    }
+
+    clearPortalRecentlyViewed(portalId: string) {
+        return this.clearPlaylistRecentlyViewed(portalId);
+    }
+
+    clearM3uRecentlyViewed(playlistId: string) {
+        return this.clearPlaylistRecentlyViewed(playlistId);
     }
 }

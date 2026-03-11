@@ -25,6 +25,15 @@ export function getRecentItemNavigation(
         };
     }
 
+    if (item.source === 'm3u') {
+        return {
+            link: ['/workspace', 'playlists', item.playlist_id, 'recent'],
+            state: {
+                openRecentChannelUrl: String(item.xtream_id ?? item.id ?? ''),
+            },
+        };
+    }
+
     return buildXtreamNavigationTarget({
         playlistId: item.playlist_id,
         type: item.type,
@@ -49,6 +58,12 @@ export function getGlobalFavoriteNavigation(
                     item
                 ),
             },
+        };
+    }
+
+    if (item.source === 'm3u') {
+        return {
+            link: ['/workspace', 'playlists', item.playlist_id, 'favorites'],
         };
     }
 

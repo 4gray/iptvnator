@@ -188,6 +188,13 @@ export function buildPortalRailLinks(
                 section: 'groups',
             },
             {
+                icon: 'history',
+                tooltip: 'Recently viewed (this playlist)',
+                path: [...root, 'recent'],
+                exact: true,
+                section: 'recent',
+            },
+            {
                 icon: 'star',
                 tooltip: 'Favorites (this playlist)',
                 path: [...root, 'favorites'],

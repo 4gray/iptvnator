@@ -7,9 +7,12 @@ import {
     selectActivePlaylist,
     selectAllPlaylistsMeta,
 } from 'm3u-state';
-import { startWith } from 'rxjs';
-import { DatabaseService } from 'services';
+import { firstValueFrom, startWith } from 'rxjs';
+import { DatabaseService, PlaylistsService } from 'services';
 import {
+    buildPlaylistRecentItems,
+    Channel,
+    Playlist,
     PlaylistMeta,
     PortalActivityType,
     PortalFavoriteItem,
@@ -18,7 +21,6 @@ import {
 } from 'shared-interfaces';
 import {
     buildStalkerFavoriteItems,
-    buildStalkerRecentItems,
     getActivityTypeLabelKey,
     mapDbFavoriteToItem,
     mapDbRecentToItem,
@@ -46,6 +48,7 @@ export type DashboardFavoriteItem = PortalFavoriteItem;
 export class DashboardDataService {
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
+    private readonly playlistsService = inject(PlaylistsService);
     private readonly ngZone = inject(NgZone);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = toSignal(
@@ -57,19 +60,27 @@ export class DashboardDataService {
     private readonly xtreamGlobalFavorites = signal<DashboardFavoriteItem[]>(
         []
     );
+    private readonly m3uGlobalFavorites = signal<DashboardFavoriteItem[]>([]);
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
     readonly activePlaylist = this.store.selectSignal(selectActivePlaylist);
 
-    readonly stalkerGlobalRecentItems = computed<GlobalRecentItem[]>(() => {
+    readonly playlistBackedGlobalRecentItems = computed<GlobalRecentItem[]>(
+        () => {
         this.languageTick();
-        return buildStalkerRecentItems(
-            this.playlists(),
-            this.translateText('WORKSPACE.DASHBOARD.STALKER_PORTAL')
-        );
-    });
+            return buildPlaylistRecentItems(this.playlists(), {
+                stalker: this.translateText(
+                    'WORKSPACE.DASHBOARD.STALKER_PORTAL'
+                ),
+                m3u: this.translateText('WORKSPACE.DASHBOARD.M3U'),
+            });
+        }
+    );
 
     readonly globalRecentItems = computed<GlobalRecentItem[]>(() =>
-        [...this.xtreamGlobalRecentItems(), ...this.stalkerGlobalRecentItems()]
+        [
+            ...this.xtreamGlobalRecentItems(),
+            ...this.playlistBackedGlobalRecentItems(),
+        ]
             .sort(
                 (a, b) =>
                     toDateTimestamp(b.viewed_at) - toDateTimestamp(a.viewed_at)
@@ -86,15 +97,19 @@ export class DashboardDataService {
     });
 
     readonly globalFavoriteItems = computed(() =>
-        [...this.xtreamGlobalFavorites(), ...this.stalkerGlobalFavorites()]
+        [
+            ...this.xtreamGlobalFavorites(),
+            ...this.m3uGlobalFavorites(),
+            ...this.stalkerGlobalFavorites(),
+        ]
             .sort((a, b) => toTimestamp(b.added_at) - toTimestamp(a.added_at))
             .slice(0, 200)
     );
 
     constructor() {
+        void this.reloadGlobalFavorites();
         if (window.electron) {
             void this.reloadGlobalRecentItems();
-            void this.reloadGlobalFavorites();
         }
     }
 
@@ -142,6 +157,13 @@ export class DashboardDataService {
     }
 
     async reloadGlobalFavorites(): Promise<void> {
+        const xtreamReload = this.reloadXtreamGlobalFavorites();
+        const m3uReload = this.reloadM3uGlobalFavorites();
+
+        await Promise.all([xtreamReload, m3uReload]);
+    }
+
+    private async reloadXtreamGlobalFavorites(): Promise<void> {
         if (!window.electron) {
             this.xtreamGlobalFavorites.set([]);
             return;
@@ -160,6 +182,38 @@ export class DashboardDataService {
             );
             this.ngZone.run(() => this.xtreamGlobalFavorites.set([]));
         }
+    }
+
+    private async reloadM3uGlobalFavorites(): Promise<void> {
+        const m3uPlaylists = this.playlists().filter(
+            (playlist) =>
+                !playlist.serverUrl &&
+                !playlist.macAddress &&
+                Array.isArray(playlist.favorites) &&
+                playlist.favorites.some(
+                    (favorite): favorite is string =>
+                        typeof favorite === 'string' && favorite.trim().length > 0
+                )
+        );
+
+        if (m3uPlaylists.length === 0) {
+            this.ngZone.run(() => this.m3uGlobalFavorites.set([]));
+            return;
+        }
+
+        const favoriteItems = await Promise.all(
+            m3uPlaylists.map((playlist) =>
+                this.loadM3uPlaylistFavorites(playlist).catch(
+                    (): DashboardFavoriteItem[] => []
+                )
+            )
+        );
+        const flattenedFavorites = favoriteItems.reduce(
+            (acc, items) => [...acc, ...items],
+            [] as DashboardFavoriteItem[]
+        );
+
+        this.ngZone.run(() => this.m3uGlobalFavorites.set(flattenedFavorites));
     }
 
     isTypeInKind(
@@ -256,6 +310,9 @@ export class DashboardDataService {
         if (item.source === 'xtream') {
             return this.translateText('WORKSPACE.DASHBOARD.XTREAM');
         }
+        if (item.source === 'm3u') {
+            return this.translateText('WORKSPACE.DASHBOARD.M3U');
+        }
         return this.translateText('WORKSPACE.DASHBOARD.PROVIDER');
     }
 
@@ -285,36 +342,37 @@ export class DashboardDataService {
         }
 
         if (item.source === 'stalker') {
-            const playlist = this.playlists().find(
-                (p) => p._id === item.playlist_id
-            );
-            if (!playlist) return;
-
-            const currentRecent = Array.isArray(
-                (playlist as { recentlyViewed?: unknown[] }).recentlyViewed
-            )
-                ? [
-                      ...((playlist as { recentlyViewed?: unknown[] })
-                          .recentlyViewed ?? []),
-                  ]
-                : [];
-
-            const itemMatchStr = String(item.id);
-            const filteredRecent = currentRecent.filter(
-                (raw, index) =>
-                    !stalkerItemMatchesId(
-                        raw,
-                        itemMatchStr,
-                        playlist._id,
-                        index
-                    )
+            const updatedPlaylist = await firstValueFrom(
+                this.playlistsService.removeFromPortalRecentlyViewed(
+                    item.playlist_id,
+                    item.id
+                )
             );
 
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
                     playlist: {
                         _id: item.playlist_id,
-                        recentlyViewed: filteredRecent,
+                        recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
+                    } as unknown as PlaylistMeta,
+                }) as any
+            );
+            return;
+        }
+
+        if (item.source === 'm3u') {
+            const updatedPlaylist = await firstValueFrom(
+                this.playlistsService.removeFromM3uRecentlyViewed(
+                    item.playlist_id,
+                    String(item.xtream_id ?? item.id)
+                )
+            );
+
+            this.store.dispatch(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: {
+                        _id: item.playlist_id,
+                        recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
                     } as unknown as PlaylistMeta,
                 }) as any
             );
@@ -329,6 +387,9 @@ export class DashboardDataService {
         }
         if (item.source === 'xtream') {
             return this.translateText('WORKSPACE.DASHBOARD.XTREAM');
+        }
+        if (item.source === 'm3u') {
+            return this.translateText('WORKSPACE.DASHBOARD.M3U');
         }
         return this.translateText('WORKSPACE.DASHBOARD.PROVIDER');
     }
@@ -388,6 +449,29 @@ export class DashboardDataService {
                 }) as any
             );
         }
+
+        if (item.source === 'm3u') {
+            const playlist = await firstValueFrom(
+                this.playlistsService.getPlaylistById(item.playlist_id)
+            );
+            const currentFavorites = Array.isArray(playlist?.favorites)
+                ? playlist.favorites.filter(
+                      (favorite): favorite is string =>
+                          typeof favorite === 'string'
+                  )
+                : [];
+            const filteredFavorites = currentFavorites.filter(
+                (favorite) => favorite !== String(item.id)
+            );
+
+            await firstValueFrom(
+                this.playlistsService.setFavorites(
+                    item.playlist_id,
+                    filteredFavorites
+                )
+            );
+            await this.reloadGlobalFavorites();
+        }
     }
 
     formatTimestamp(value?: string | number): string {
@@ -420,6 +504,73 @@ export class DashboardDataService {
         }
 
         return fallback;
+    }
+
+    private async loadM3uPlaylistFavorites(
+        playlistMeta: PlaylistMeta
+    ): Promise<DashboardFavoriteItem[]> {
+        const playlist = (await firstValueFrom(
+            this.playlistsService.getPlaylistById(playlistMeta._id)
+        )) as Playlist & {
+            playlist?: {
+                items?: Channel[];
+            };
+        };
+        const favorites = Array.isArray(playlist?.favorites)
+            ? playlist.favorites.filter(
+                  (favorite): favorite is string =>
+                      typeof favorite === 'string' && favorite.trim().length > 0
+              )
+            : [];
+
+        if (favorites.length === 0) {
+            return [];
+        }
+
+        const items: Channel[] = Array.isArray(playlist?.playlist?.items)
+            ? (playlist.playlist.items as Channel[])
+            : [];
+        const fallbackTimestamp =
+            this.getM3uFavoriteTimestamp(playlistMeta) ??
+            new Date(0).toISOString();
+
+        return items.reduce<DashboardFavoriteItem[]>((acc, channel) => {
+            const channelId = String(channel.id ?? '').trim();
+            const channelUrl = String(channel.url ?? '').trim();
+            const matchedFavoriteId = favorites.find(
+                (favorite) =>
+                    favorite === channelId || favorite === channelUrl
+            );
+
+            if (!matchedFavoriteId) {
+                return acc;
+            }
+
+            acc.push({
+                id: matchedFavoriteId,
+                title: channel.name?.trim() || channel.tvg?.name || channelId,
+                type: 'live',
+                playlist_id: playlistMeta._id,
+                playlist_name:
+                    playlistMeta.title || playlistMeta.filename || 'M3U',
+                added_at: fallbackTimestamp,
+                category_id: 'live',
+                xtream_id: matchedFavoriteId,
+                poster_url: channel.tvg?.logo || undefined,
+                source: 'm3u',
+            });
+            return acc;
+        }, []);
+    }
+
+    private getM3uFavoriteTimestamp(playlist: PlaylistMeta): string | null {
+        if (playlist.updateDate) {
+            return new Date(playlist.updateDate).toISOString();
+        }
+
+        return typeof playlist.importDate === 'string'
+            ? playlist.importDate
+            : null;
     }
 
     private getRecentTimestamp(item: PlaylistMeta): number {

@@ -1,0 +1,33 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+#recent-list {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.channel-list {
+    overflow-x: hidden;
+}
+
+.empty-recent,
+.empty-recent-hint {
+    padding: 16px 24px;
+    text-align: center;
+}
+
+.empty-recent {
+    margin-top: 40px;
+    font-size: 1rem;
+}
+
+.empty-recent-hint {
+    opacity: 0.7;
+    font-size: 0.9rem;
+}

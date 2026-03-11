@@ -1,0 +1,37 @@
+<div class="channel-list" id="recent-list">
+    @if (enrichedRecentItems().length > 0) {
+        @for (
+            item of enrichedRecentItems();
+            track item.channel.url;
+            let i = $index
+        ) {
+            <app-channel-list-item
+                [name]="
+                    i +
+                    1 +
+                    '. ' +
+                    (item.channel?.name || 'CHANNELS.UNNAMED_CHANNEL' | translate)
+                "
+                [logo]="item.channel?.tvg?.logo"
+                [showEpg]="shouldShowEpg()"
+                [epgProgram]="item.epgProgram"
+                [progressPercentage]="item.progressPercentage"
+                [selected]="activeChannelUrl() === item.channel?.url"
+                [showAuxActionButton]="true"
+                [auxActionIcon]="'delete'"
+                [auxActionTooltip]="
+                    'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY' | translate
+                "
+                (clicked)="onChannelClick(item.channel)"
+                (auxActionClicked)="onRemoveRecent(item.channel, $event)"
+            />
+        }
+    } @else {
+        <div class="empty-recent">
+            <strong>{{ 'WORKSPACE.DASHBOARD.NO_HISTORY' | translate }}</strong>
+        </div>
+        <div class="empty-recent-hint">
+            {{ 'WORKSPACE.DASHBOARD.NO_HISTORY_HINT' | translate }}
+        </div>
+    }
+</div>

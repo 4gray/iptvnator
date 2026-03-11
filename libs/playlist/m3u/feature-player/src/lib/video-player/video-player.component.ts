@@ -32,10 +32,12 @@ import {
     FavoritesActions,
     PlaylistActions,
     selectActive,
+    selectActivePlaylistId,
     selectChannels,
     selectCurrentEpgProgram,
 } from 'm3u-state';
 import {
+    firstValueFrom,
     Observable,
     Subscription,
     combineLatest,
@@ -64,7 +66,9 @@ import { DataService, PlaylistsService, SettingsStore } from 'services';
 import {
     Channel,
     EpgProgram,
+    M3uRecentlyViewedItem,
     PLAYLIST_PARSE_BY_URL,
+    PlaylistMeta,
     STORE_KEY,
     Settings,
     SidebarView,
@@ -106,6 +110,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     /** Active selected channel */
     readonly activeChannel = this.store.selectSignal(selectActive);
+    readonly activePlaylistId = this.store.selectSignal(selectActivePlaylistId);
+    readonly channels = this.store.selectSignal(selectChannels);
 
     /** Channels list */
     readonly channels$: Observable<Channel[]> = this.store.select(
@@ -115,7 +121,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     /** Current epg program */
     readonly epgProgram = this.store.selectSignal(selectCurrentEpgProgram);
 
-    /** Active M3U view (all, groups, favorites) */
+    /** Active M3U view (all, groups, favorites, recent) */
     readonly activeView = toSignal(
         this.activatedRoute.params.pipe(
             map((params) => {
@@ -153,6 +159,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private statusSubscription?: Subscription;
     private routeSubscription?: Subscription;
     private lastKnownVolume = 1;
+    private lastRecordedRecentKey = '';
 
     /** Info overlay component reference for manual triggering */
     readonly infoOverlay = viewChild(InfoOverlayComponent);
@@ -177,6 +184,62 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 player: this.settingsStore.player(),
                 showCaptions: this.settingsStore.showCaptions(),
             };
+        });
+
+        effect(() => {
+            const playlistId = this.activePlaylistId();
+            const activeChannel = this.activeChannel();
+            const currentUrl = this.router.url;
+
+            if (
+                !playlistId ||
+                !activeChannel?.url ||
+                currentUrl.includes('/workspace/global-favorites')
+            ) {
+                return;
+            }
+
+            const nextKey = `${playlistId}::${activeChannel.url}`;
+            if (this.lastRecordedRecentKey === nextKey) {
+                return;
+            }
+
+            this.lastRecordedRecentKey = nextKey;
+            void this.persistRecentlyViewedChannel(playlistId, activeChannel);
+        });
+
+        effect(() => {
+            const currentView = this.activeView();
+            const channels = this.channels();
+            const activeChannel = this.activeChannel();
+            const state =
+                this.router.currentNavigation()?.extras?.state ??
+                window.history.state;
+            const targetUrl =
+                typeof state?.openRecentChannelUrl === 'string'
+                    ? state.openRecentChannelUrl.trim()
+                    : '';
+
+            if (currentView !== 'recent' || !targetUrl || channels.length === 0) {
+                return;
+            }
+
+            if (activeChannel?.url === targetUrl) {
+                this.clearConsumedRecentChannelState();
+                return;
+            }
+
+            const matchedChannel = channels.find(
+                (channel) => channel.url === targetUrl
+            );
+            if (!matchedChannel) {
+                return;
+            }
+
+            this.store.dispatch(
+                ChannelActions.setActiveChannel({ channel: matchedChannel })
+            );
+            this.clearConsumedRecentChannelState();
         });
     }
 
@@ -408,6 +471,59 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 };
             }
         });
+    }
+
+    private async persistRecentlyViewedChannel(
+        playlistId: string,
+        channel: Channel
+    ): Promise<void> {
+        const recentlyViewedItem: M3uRecentlyViewedItem = {
+            source: 'm3u',
+            id: channel.url,
+            url: channel.url,
+            title: channel.name?.trim() || channel.tvg?.name || channel.url,
+            channel_id: channel.id,
+            poster_url: channel.tvg?.logo || undefined,
+            tvg_id: channel.tvg?.id || undefined,
+            tvg_name: channel.tvg?.name || undefined,
+            group_title: channel.group?.title || undefined,
+            category_id: 'live',
+            added_at: new Date().toISOString(),
+        };
+
+        const updatedPlaylist = await firstValueFrom(
+            this.playlistsService.addM3uRecentlyViewed(
+                playlistId,
+                recentlyViewedItem
+            )
+        );
+
+        this.store.dispatch(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    _id: playlistId,
+                    recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
+                } as PlaylistMeta,
+            }) as any
+        );
+    }
+
+    private clearConsumedRecentChannelState(): void {
+        const historyState = (window.history.state ?? {}) as Record<
+            string,
+            unknown
+        >;
+        if (!historyState['openRecentChannelUrl']) {
+            return;
+        }
+
+        try {
+            const nextState = { ...historyState };
+            delete nextState['openRecentChannelUrl'];
+            window.history.replaceState(nextState, document.title);
+        } catch {
+            // no-op
+        }
     }
 
     /**

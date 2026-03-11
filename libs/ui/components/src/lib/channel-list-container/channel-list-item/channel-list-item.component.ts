@@ -39,6 +39,7 @@ export class ChannelListItemComponent {
     readonly logo = input<string | null | undefined>('');
     readonly name = input('');
     readonly showFavoriteButton = input(false);
+    readonly showAuxActionButton = input(false);
     readonly showProgramInfoButton = input(true);
     readonly isFavorite = input(false);
     readonly selected = input(false);
@@ -46,9 +47,12 @@ export class ChannelListItemComponent {
     readonly epgProgram = input<EpgProgram | null | undefined>();
     /** Progress percentage pre-computed by parent for performance */
     readonly progressPercentage = input(0);
+    readonly auxActionIcon = input('delete');
+    readonly auxActionTooltip = input('');
 
     readonly clicked = output<void>();
     readonly favoriteToggled = output<MouseEvent>();
+    readonly auxActionClicked = output<MouseEvent>();
 
     constructor() {
         effect(() => {
@@ -84,6 +88,11 @@ export class ChannelListItemComponent {
     onFavoriteClick(event: MouseEvent): void {
         event.stopPropagation();
         this.favoriteToggled.emit(event);
+    }
+
+    onAuxActionClick(event: MouseEvent): void {
+        event.stopPropagation();
+        this.auxActionClicked.emit(event);
     }
 
     showLogoFallback(): boolean {

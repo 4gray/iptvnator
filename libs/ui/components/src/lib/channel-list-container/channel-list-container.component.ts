@@ -11,6 +11,7 @@ import {
     signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -20,15 +21,37 @@ import { EpgService } from '@iptvnator/epg/data-access';
 import {
     ChannelActions,
     FavoritesActions,
+    PlaylistActions,
     selectActive,
     selectActivePlaylistId,
     selectFavorites,
 } from 'm3u-state';
-import { BehaviorSubject, combineLatest, filter, map, skipWhile } from 'rxjs';
-import { Channel, EpgProgram, Settings, STORE_KEY } from 'shared-interfaces';
+import {
+    BehaviorSubject,
+    combineLatest,
+    filter,
+    firstValueFrom,
+    map,
+    skipWhile,
+} from 'rxjs';
+import { PlaylistsService } from 'services';
+import {
+    Channel,
+    EpgProgram,
+    isM3uRecentlyViewedItem,
+    normalizeStalkerDate,
+    PlaylistMeta,
+    PlaylistRecentlyViewedItem,
+    Settings,
+    STORE_KEY,
+} from 'shared-interfaces';
 import { AllChannelsViewComponent } from './all-channels-view/all-channels-view.component';
 import { FavoritesViewComponent } from './favorites-view/favorites-view.component';
 import { GroupsViewComponent } from './groups-view/groups-view.component';
+import {
+    RecentViewComponent,
+    RecentViewItem,
+} from './recent-view/recent-view.component';
 
 function groupChannelsByTitle(channels: Channel[]): Record<string, Channel[]> {
     return channels.reduce<Record<string, Channel[]>>((groups, channel) => {
@@ -51,12 +74,15 @@ function groupChannelsByTitle(channels: Channel[]): Record<string, Channel[]> {
         CommonModule,
         FavoritesViewComponent,
         GroupsViewComponent,
+        MatButtonModule,
         MatIconModule,
+        RecentViewComponent,
         TranslatePipe,
     ],
 })
 export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly epgService = inject(EpgService);
+    private readonly playlistsService = inject(PlaylistsService);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly router = inject(Router);
@@ -79,8 +105,9 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     /** Item size for virtual scroll - compact when no EPG */
     readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 48));
 
-    /** Active view (all, groups, favorites) */
+    /** Active view (all, groups, favorites, recent) */
     readonly activeView = input<string>('all');
+    readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
 
     readonly currentUrl = toSignal(
         this.router.events.pipe(
@@ -95,6 +122,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         const url = this.currentUrl();
         if (view === 'all') return 'CHANNELS.ALL_CHANNELS';
         if (view === 'groups') return 'CHANNELS.GROUPS';
+        if (view === 'recent') return 'PORTALS.SIDEBAR.RECENT';
         if (view === 'favorites') {
             return url.includes('/workspace/global-favorites')
                 ? 'HOME.PLAYLISTS.GLOBAL_FAVORITES'
@@ -135,6 +163,49 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     readonly groupedChannels = computed(() =>
         groupChannelsByTitle(this.displayedChannels())
     );
+
+    readonly recentChannelItems = computed<RecentViewItem[]>(() => {
+        const channels = this.channelListSignal();
+        const recentItems = this.recentItems();
+        const channelsByUrl = new Map(
+            channels.map((channel) => [channel.url, channel] as const)
+        );
+        const channelsById = new Map(
+            channels.map((channel) => [channel.id, channel] as const)
+        );
+        const seenUrls = new Set<string>();
+
+        return [...recentItems]
+            .filter(isM3uRecentlyViewedItem)
+            .sort(
+                (a, b) =>
+                    new Date(normalizeStalkerDate(b.added_at)).getTime() -
+                    new Date(normalizeStalkerDate(a.added_at)).getTime()
+            )
+            .reduce<RecentViewItem[]>((acc, item) => {
+                const channelUrl = item.url?.trim();
+                if (!channelUrl || seenUrls.has(channelUrl)) {
+                    return acc;
+                }
+
+                const channel =
+                    channelsByUrl.get(channelUrl) ||
+                    (item.channel_id
+                        ? channelsById.get(item.channel_id)
+                        : undefined);
+
+                if (!channel) {
+                    return acc;
+                }
+
+                seenUrls.add(channel.url);
+                acc.push({
+                    channel,
+                    viewedAt: normalizeStalkerDate(item.added_at),
+                });
+                return acc;
+            }, []);
+    });
 
     /** Selected channel */
     readonly activeChannel = this.store.selectSignal(selectActive);
@@ -262,5 +333,48 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      */
     onFavoritesReordered(channelIds: string[]): void {
         this.store.dispatch(FavoritesActions.setFavorites({ channelIds }));
+    }
+
+    async removeRecentChannel(channelUrl: string): Promise<void> {
+        const playlistId = this.activePlaylistIdSignal();
+        if (!playlistId) {
+            return;
+        }
+
+        const updatedPlaylist = await firstValueFrom(
+            this.playlistsService.removeFromM3uRecentlyViewed(
+                playlistId,
+                channelUrl
+            )
+        );
+
+        this.store.dispatch(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    _id: playlistId,
+                    recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
+                } as PlaylistMeta,
+            }) as any
+        );
+    }
+
+    async clearRecentChannels(): Promise<void> {
+        const playlistId = this.activePlaylistIdSignal();
+        if (!playlistId) {
+            return;
+        }
+
+        const updatedPlaylist = await firstValueFrom(
+            this.playlistsService.clearM3uRecentlyViewed(playlistId)
+        );
+
+        this.store.dispatch(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    _id: playlistId,
+                    recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
+                } as PlaylistMeta,
+            }) as any
+        );
     }
 }
