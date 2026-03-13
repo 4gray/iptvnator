@@ -499,6 +499,7 @@ class StreamingEpgParser {
                         this.totalPrograms++;
 
                         if (this.programs.length >= PROGRAM_BATCH_SIZE) {
+                            this.flushChannels();
                             this.flushPrograms();
                         }
                         this.currentProgram = null;
