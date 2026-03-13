@@ -31,11 +31,11 @@
             "arch": ["x64", "arm64"]
         },
         "category": "public.app-category.video",
-        "identity": null,
         "gatekeeperAssess": false,
-        "hardenedRuntime": false,
-        "entitlements": null,
-        "entitlementsInherit": null,
+        "hardenedRuntime": true,
+        "entitlements": "apps/electron-backend/macos/entitlements.mac.plist",
+        "entitlementsInherit": "apps/electron-backend/macos/entitlements.mac.inherit.plist",
+        "notarize": true,
         "icon": "apps/web/src/assets/icons/favicon.icns"
     },
     "linux": {

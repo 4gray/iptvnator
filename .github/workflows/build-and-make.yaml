@@ -79,7 +79,84 @@ jobs:
                     fs.writeFileSync('electron-builder.json', JSON.stringify(pkg, null, 4));
                   "
 
+            - name: Validate macOS signing configuration
+              if: matrix.os == 'macos' && github.event_name != 'pull_request'
+              shell: bash
+              env:
+                  CSC_LINK: ${{ secrets.CSC_LINK }}
+                  CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+                  APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY }}
+                  APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+                  APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+                  APPLE_ID: ${{ secrets.APPLE_ID }}
+                  APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+                  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+              run: |
+                  if [ -z "${CSC_LINK}" ] || [ -z "${CSC_KEY_PASSWORD}" ]; then
+                      echo "::error::Missing CSC_LINK or CSC_KEY_PASSWORD secret for macOS code signing."
+                      exit 1
+                  fi
+
+                  has_api_key_credentials=false
+                  if [ -n "${APPLE_API_KEY_CONTENT}" ] || [ -n "${APPLE_API_KEY_ID}" ] || [ -n "${APPLE_API_ISSUER}" ]; then
+                      if [ -z "${APPLE_API_KEY_CONTENT}" ] || [ -z "${APPLE_API_KEY_ID}" ] || [ -z "${APPLE_API_ISSUER}" ]; then
+                          echo "::error::APPLE_API_KEY, APPLE_API_KEY_ID, and APPLE_API_ISSUER must all be set for App Store Connect API key notarization."
+                          exit 1
+                      fi
+                      has_api_key_credentials=true
+                  fi
+
+                  has_apple_id_credentials=false
+                  if [ -n "${APPLE_ID}" ] || [ -n "${APPLE_APP_SPECIFIC_PASSWORD}" ] || [ -n "${APPLE_TEAM_ID}" ]; then
+                      if [ -z "${APPLE_ID}" ] || [ -z "${APPLE_APP_SPECIFIC_PASSWORD}" ] || [ -z "${APPLE_TEAM_ID}" ]; then
+                          echo "::error::APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, and APPLE_TEAM_ID must all be set for Apple ID notarization."
+                          exit 1
+                      fi
+                      has_apple_id_credentials=true
+                  fi
+
+                  if [ "${has_api_key_credentials}" = false ] && [ "${has_apple_id_credentials}" = false ]; then
+                      echo "::error::Missing notarization credentials. Configure either APPLE_API_KEY + APPLE_API_KEY_ID + APPLE_API_ISSUER, or APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID."
+                      exit 1
+                  fi
+
+            - name: Prepare macOS notarization credentials
+              if: matrix.os == 'macos'
+              shell: bash
+              env:
+                  APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY }}
+                  APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+                  APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+                  APPLE_ID: ${{ secrets.APPLE_ID }}
+                  APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+                  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+              run: |
+                  if [ -n "${APPLE_API_KEY_CONTENT}" ]; then
+                      APPLE_API_KEY_PATH="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY_ID}.p8"
+                      printf '%s' "${APPLE_API_KEY_CONTENT}" > "${APPLE_API_KEY_PATH}"
+                      chmod 600 "${APPLE_API_KEY_PATH}"
+                      echo "APPLE_API_KEY=${APPLE_API_KEY_PATH}" >> "${GITHUB_ENV}"
+                      echo "APPLE_API_KEY_ID=${APPLE_API_KEY_ID}" >> "${GITHUB_ENV}"
+                      echo "APPLE_API_ISSUER=${APPLE_API_ISSUER}" >> "${GITHUB_ENV}"
+                      echo "APPLE_ID=" >> "${GITHUB_ENV}"
+                      echo "APPLE_APP_SPECIFIC_PASSWORD=" >> "${GITHUB_ENV}"
+                      echo "APPLE_TEAM_ID=" >> "${GITHUB_ENV}"
+                      exit 0
+                  fi
+
+                  if [ -n "${APPLE_ID}" ]; then
+                      echo "APPLE_API_KEY=" >> "${GITHUB_ENV}"
+                      echo "APPLE_API_KEY_ID=" >> "${GITHUB_ENV}"
+                      echo "APPLE_API_ISSUER=" >> "${GITHUB_ENV}"
+                      echo "APPLE_ID=${APPLE_ID}" >> "${GITHUB_ENV}"
+                      echo "APPLE_APP_SPECIFIC_PASSWORD=${APPLE_APP_SPECIFIC_PASSWORD}" >> "${GITHUB_ENV}"
+                      echo "APPLE_TEAM_ID=${APPLE_TEAM_ID}" >> "${GITHUB_ENV}"
+                  fi
+
             - name: Make Electron app
+              env:
+                  CSC_LINK: ${{ secrets.CSC_LINK }}
+                  CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
               run: pnpm run make:app
 
             - name: Upload artifacts (macOS)
