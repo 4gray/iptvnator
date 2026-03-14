@@ -22,7 +22,6 @@ export class ExternalPlaybackDockComponent {
     readonly compact = input(false);
 
     readonly closeClicked = output<void>();
-    readonly dismissClicked = output<void>();
 
     readonly playerLabel = computed(() => this.session().player.toUpperCase());
     readonly statusLabel = computed(() => {

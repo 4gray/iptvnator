@@ -10,7 +10,11 @@ export class ExternalPlaybackService {
 
     readonly visibleSession = computed(() => {
         const session = this.activeSession();
-        if (!session || session.status === 'closed') {
+        if (
+            !session ||
+            session.status === 'closed' ||
+            session.status === 'error'
+        ) {
             return null;
         }
 
@@ -43,11 +47,43 @@ export class ExternalPlaybackService {
     async closeSession(
         session: ExternalPlayerSession | null | undefined
     ): Promise<void> {
-        if (!session?.canClose || !window.electron?.closeExternalPlayerSession) {
+        if (!session) {
             return;
         }
 
-        await window.electron.closeExternalPlayerSession(session.id);
+        if (!session.canClose || !window.electron?.closeExternalPlayerSession) {
+            this.dismissedSessionId.set(session.id);
+            return;
+        }
+
+        const previousDismissedSessionId = this.dismissedSessionId();
+        this.dismissedSessionId.set(session.id);
+
+        try {
+            const updatedSession = await window.electron.closeExternalPlayerSession(
+                session.id
+            );
+            if (updatedSession) {
+                this.handleSessionUpdate(updatedSession);
+                return;
+            }
+
+            this.activeSession.update((current) =>
+                current?.id === session.id
+                    ? {
+                          ...current,
+                          status: 'closed',
+                          canClose: false,
+                          updatedAt: new Date().toISOString(),
+                      }
+                    : current
+            );
+        } catch (error) {
+            if (this.dismissedSessionId() === session.id) {
+                this.dismissedSessionId.set(previousDismissedSessionId);
+            }
+            throw error;
+        }
     }
 
     findMatchingSession(

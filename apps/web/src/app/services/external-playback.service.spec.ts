@@ -94,22 +94,57 @@ describe('ExternalPlaybackService', () => {
                 contentType: 'vod',
             })
         ).toBeNull();
+        expect(service.visibleSession()).toBeNull();
     });
 
     it('delegates close requests for closable sessions', async () => {
         const session = createSession({ status: 'opened' });
         listener?.(session);
 
+        closeExternalPlayerSession.mockResolvedValue(
+            createSession({
+                ...session,
+                status: 'closed',
+                canClose: false,
+                updatedAt: '2026-03-07T10:00:10.000Z',
+            })
+        );
+
         await service.closeActiveSession();
 
         expect(closeExternalPlayerSession).toHaveBeenCalledWith(session.id);
+        expect(service.visibleSession()).toBeNull();
     });
 
     it('can close a specific session directly', async () => {
         const session = createSession({ id: 'session-2', status: 'playing' });
 
+        closeExternalPlayerSession.mockResolvedValue(
+            createSession({
+                ...session,
+                status: 'closed',
+                canClose: false,
+                updatedAt: '2026-03-07T10:00:12.000Z',
+            })
+        );
+
         await service.closeSession(session);
 
         expect(closeExternalPlayerSession).toHaveBeenCalledWith('session-2');
+    });
+
+    it('hides terminal sessions from the dock', () => {
+        listener?.(createSession({ status: 'closed', canClose: false }));
+        expect(service.visibleSession()).toBeNull();
+
+        listener?.(
+            createSession({
+                id: 'session-3',
+                status: 'error',
+                error: 'Launch failed',
+                canClose: false,
+            })
+        );
+        expect(service.visibleSession()).toBeNull();
     });
 });

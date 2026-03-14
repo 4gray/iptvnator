@@ -150,10 +150,7 @@
 
 .external-playback-dock__button {
     border-radius: 999px;
-}
-
-.external-playback-dock__dismiss {
-    color: var(--mat-sys-on-surface-variant);
+    white-space: nowrap;
 }
 
 @media (max-width: 720px) {

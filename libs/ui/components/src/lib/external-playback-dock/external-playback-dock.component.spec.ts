@@ -36,17 +36,14 @@ describe('ExternalPlaybackDockComponent', () => {
         expect(text).toContain('Close player');
     });
 
-    it('emits close and dismiss actions', () => {
+    it('emits a single close action', () => {
         const closeSpy = jest.fn();
-        const dismissSpy = jest.fn();
         component.closeClicked.subscribe(closeSpy);
-        component.dismissClicked.subscribe(dismissSpy);
 
         const buttons = fixture.debugElement.queryAll(By.css('button'));
         buttons[0].nativeElement.click();
-        buttons[1].nativeElement.click();
 
         expect(closeSpy).toHaveBeenCalled();
-        expect(dismissSpy).toHaveBeenCalled();
+        expect(buttons).toHaveLength(1);
     });
 });

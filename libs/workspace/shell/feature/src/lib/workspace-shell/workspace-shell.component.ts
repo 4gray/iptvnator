@@ -312,10 +312,6 @@ export class WorkspaceShellComponent {
             this.externalPlayback.activeSession()
         );
     }
-
-    dismissActiveExternalSession(): void {
-        this.externalPlayback.dismissActiveSession();
-    }
     readonly searchPlaceholder = computed(() => {
         this.languageTick();
 
