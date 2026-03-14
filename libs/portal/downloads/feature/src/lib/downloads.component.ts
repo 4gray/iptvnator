@@ -4,15 +4,17 @@ import {
     computed,
     effect,
     inject,
+    signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
-import { ResizableDirective } from 'components';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { DialogService, ResizableDirective } from 'components';
 import { firstValueFrom, map } from 'rxjs';
 import {
     DatabaseService,
@@ -31,6 +33,7 @@ import {
     filterCollectionBucket,
 } from '@iptvnator/portal/shared/util';
 import { FavoritesContextService } from '@iptvnator/portal/shared/util';
+import { Playlist } from 'shared-interfaces';
 
 type PortalSource = 'xtream' | 'stalker';
 const DOWNLOAD_COLLECTION_LABELS = {
@@ -64,6 +67,9 @@ export class DownloadsComponent {
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly favoritesCtx = inject(FavoritesContextService);
+    private readonly dialogService = inject(DialogService);
+    private readonly translate = inject(TranslateService);
+    private readonly snackBar = inject(MatSnackBar);
     readonly downloadsService = inject(DownloadsService);
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
 
@@ -79,6 +85,9 @@ export class DownloadsComponent {
     readonly searchTerm = queryParamSignal(this.route, 'q', (value) =>
         (value ?? '').trim().toLowerCase()
     );
+    readonly playlists = toSignal(this.playlistsService.getAllPlaylists(), {
+        initialValue: [] as Playlist[],
+    });
 
     readonly scopedDownloads = computed(() => {
         const playlistId = this.playlistId();
@@ -111,6 +120,7 @@ export class DownloadsComponent {
         categories: this.categories,
     });
     readonly selectedCategoryId = this.collectionContext.selectedCategoryId;
+    readonly failedPosterKeys = signal<Record<string, true>>({});
 
     /** Filter downloads for current playlist and sort by newest first */
     readonly filteredDownloads = computed(() => {
@@ -136,6 +146,17 @@ export class DownloadsComponent {
             return dateB - dateA;
         });
     });
+    readonly hasClearableDownloads = computed(() =>
+        this.scopedDownloads().some(
+            (item) =>
+                item.status === 'completed' ||
+                item.status === 'failed' ||
+                item.status === 'canceled'
+        )
+    );
+    readonly availablePlaylistIds = computed(
+        () => new Set(this.playlists().map((playlist) => playlist._id))
+    );
 
     constructor() {
         effect(() => {
@@ -205,13 +226,21 @@ export class DownloadsComponent {
 
     async play(item: DownloadItem) {
         if (item.filePath) {
-            await this.downloadsService.playDownload(item.filePath);
+            const result = await this.downloadsService.playDownload(
+                item.filePath
+            );
+            if (!result.success) {
+                this.handleFileActionError(result.error);
+            }
         }
     }
 
     async reveal(item: DownloadItem) {
         if (item.filePath) {
-            await this.downloadsService.revealFile(item.filePath);
+            const result = await this.downloadsService.revealFile(item.filePath);
+            if (!result.success) {
+                this.handleFileActionError(result.error);
+            }
         }
     }
 
@@ -220,7 +249,18 @@ export class DownloadsComponent {
     }
 
     async clearCompleted() {
-        await this.downloadsService.clearCompleted(this.playlistId());
+        this.dialogService.openConfirmDialog({
+            title: this.translate.instant(
+                'DOWNLOADS.CLEAR_COMPLETED_DIALOG.TITLE'
+            ),
+            message: this.translate.instant(
+                'DOWNLOADS.CLEAR_COMPLETED_DIALOG.MESSAGE'
+            ),
+            confirmLabel: this.translate.instant('DOWNLOADS.CLEAR_COMPLETED'),
+            onConfirm: async (): Promise<void> => {
+                await this.downloadsService.clearCompleted(this.playlistId());
+            },
+        });
     }
 
     formatEpisodeLabel(item: DownloadItem): string {
@@ -230,8 +270,38 @@ export class DownloadsComponent {
         return `S${s}E${e}`;
     }
 
+    hasPoster(item: DownloadItem): boolean {
+        return !!item.posterUrl && !this.failedPosterKeys()[this.getPosterKey(item)];
+    }
+
+    markPosterFailed(item: DownloadItem): void {
+        const key = this.getPosterKey(item);
+        this.failedPosterKeys.update((state) => {
+            if (state[key]) {
+                return state;
+            }
+
+            return {
+                ...state,
+                [key]: true,
+            };
+        });
+    }
+
+    getPosterPlaceholderIcon(item: DownloadItem): string {
+        return item.contentType === 'episode' ? 'video_library' : 'movie';
+    }
+
+    hasSourcePlaylist(item: DownloadItem): boolean {
+        return this.availablePlaylistIds().has(item.playlistId);
+    }
+
     isItemNavigable(item: DownloadItem): boolean {
-        return !!item.playlistId && this.getTargetContentId(item) !== null;
+        return (
+            !!item.playlistId &&
+            this.hasSourcePlaylist(item) &&
+            this.getTargetContentId(item) !== null
+        );
     }
 
     onItemCardKeydown(event: KeyboardEvent, item: DownloadItem): void {
@@ -248,6 +318,15 @@ export class DownloadsComponent {
     }
 
     async openInLibrary(item: DownloadItem): Promise<void> {
+        if (!this.hasSourcePlaylist(item)) {
+            this.snackBar.open(
+                this.translate.instant('DOWNLOADS.SOURCE_PLAYLIST_MISSING'),
+                undefined,
+                { duration: 3000, horizontalPosition: 'start' }
+            );
+            return;
+        }
+
         if (!this.isItemNavigable(item)) {
             return;
         }
@@ -440,5 +519,21 @@ export class DownloadsComponent {
                 state: { openRecentItem },
             }
         );
+    }
+
+    private getPosterKey(item: DownloadItem): string {
+        return `${item.id}:${item.posterUrl ?? ''}`;
+    }
+
+    private handleFileActionError(error?: string): void {
+        const message =
+            error === 'File not found'
+                ? this.translate.instant('DOWNLOADS.FILE_NOT_FOUND')
+                : this.translate.instant('DOWNLOADS.FILE_ACTION_ERROR');
+
+        this.snackBar.open(message, undefined, {
+            duration: 3000,
+            horizontalPosition: 'start',
+        });
     }
 }

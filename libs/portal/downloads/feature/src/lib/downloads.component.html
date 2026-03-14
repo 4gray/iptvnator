@@ -54,16 +54,19 @@
                     <button mat-stroked-button (click)="changeFolder()">
                         {{ 'DOWNLOADS.CHANGE_FOLDER' | translate }}
                     </button>
-                }
-                @if (hasDownloads() && !isWorkspaceLayout) {
-                    <button
-                        mat-stroked-button
-                        (click)="clearCompleted()"
-                        [matTooltip]="'DOWNLOADS.CLEAR_COMPLETED' | translate"
-                    >
-                        <mat-icon>delete_sweep</mat-icon>
-                        {{ 'DOWNLOADS.CLEAR_COMPLETED' | translate }}
-                    </button>
+                    @if (hasClearableDownloads()) {
+                        <button
+                            mat-stroked-button
+                            (click)="clearCompleted()"
+                            [matTooltip]="'DOWNLOADS.CLEAR_COMPLETED' | translate"
+                            [attr.aria-label]="
+                                'DOWNLOADS.CLEAR_COMPLETED' | translate
+                            "
+                        >
+                            <mat-icon>delete_sweep</mat-icon>
+                            {{ 'DOWNLOADS.CLEAR_COMPLETED' | translate }}
+                        </button>
+                    }
                 }
             </div>
         </header>
@@ -96,22 +99,34 @@
                             [class.downloads__item--clickable]="
                                 isItemNavigable(item)
                             "
+                            [class.downloads__item--unavailable]="
+                                !hasSourcePlaylist(item)
+                            "
                             [attr.role]="
                                 isItemNavigable(item) ? 'button' : null
                             "
                             [attr.tabindex]="isItemNavigable(item) ? 0 : null"
+                            [matTooltip]="
+                                !hasSourcePlaylist(item)
+                                    ? ('DOWNLOADS.SOURCE_PLAYLIST_MISSING'
+                                      | translate)
+                                    : null
+                            "
                             (click)="openInLibrary(item)"
                             (keydown)="onItemCardKeydown($event, item)"
                         >
                             <div class="downloads__item-poster">
-                                @if (item.posterUrl) {
+                                @if (hasPoster(item)) {
                                     <img
                                         [src]="item.posterUrl"
                                         [alt]="item.title"
                                         loading="lazy"
+                                        (error)="markPosterFailed(item)"
                                     />
                                 } @else {
-                                    <mat-icon>movie</mat-icon>
+                                    <mat-icon>{{
+                                        getPosterPlaceholderIcon(item)
+                                    }}</mat-icon>
                                 }
                             </div>
 
