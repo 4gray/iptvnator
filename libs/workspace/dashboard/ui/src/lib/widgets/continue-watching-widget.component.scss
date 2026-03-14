@@ -26,17 +26,16 @@
     text-decoration: none;
     color: inherit;
     cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        background-color 0.18s ease,
+        color 0.18s ease;
     min-width: 0;
 
     &:hover {
-        background: var(--mat-sys-surface-container);
-        border-color: color-mix(in srgb, var(--mat-sys-outline) 60%, var(--app-eyebrow-color) 40%);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
+        background: var(--app-selection-surface);
 
         .hero__play mat-icon {
-            color: var(--mat-sys-primary);
+            color: var(--app-selection-color);
             transform: scale(1.1);
         }
     }
@@ -285,13 +284,12 @@
     text-decoration: none;
     color: inherit;
     min-width: 0;
-    transition: background 0.12s ease, border-color 0.12s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        background-color 0.18s ease,
+        color 0.18s ease;
 
     &:hover {
-        border-color: color-mix(in srgb, var(--mat-sys-outline) 60%, var(--app-eyebrow-color) 40%);
-        background: var(--mat-sys-surface-container-high);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
+        background: var(--app-selection-surface);
     }
 }
 

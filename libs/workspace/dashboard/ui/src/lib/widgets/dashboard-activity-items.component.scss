@@ -54,7 +54,9 @@
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
-    transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        background-color 0.18s ease,
+        color 0.18s ease;
 }
 
 .activity-item__action-btn {
@@ -89,14 +91,7 @@
 }
 
 .activity-item:hover {
-    transform: translateY(-2px);
-    border-color: color-mix(in srgb, var(--mat-sys-outline) 60%, var(--mat-sys-primary) 40%);
-    background: linear-gradient(
-        180deg,
-        var(--mat-sys-surface-container-high) 0%,
-        var(--mat-sys-surface-container-low) 100%
-    );
-    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
+    background: var(--app-selection-surface);
 }
 
 .activity-item__media {
@@ -218,17 +213,6 @@
     gap: 5px;
     padding: 5px;
     position: relative;
-
-    &:hover {
-        transform: translateY(-2px);
-        border-color: color-mix(in srgb, var(--mat-sys-outline) 60%, var(--mat-sys-primary) 40%);
-        background: linear-gradient(
-            180deg,
-            var(--mat-sys-surface-container-high) 0%,
-            var(--mat-sys-surface-container-low) 100%
-        );
-        box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
-    }
 }
 
 // In grid mode: float the remove button over the top-right corner

@@ -36,7 +36,7 @@
                             loading="lazy"
                             (error)="markImageAsFailed(item.id)"
                         />
-                    } @else if (viewMode() === 'grid') {
+                    } @else {
                         <mat-icon>{{ getFallbackIcon(item) }}</mat-icon>
                     }
                 </span>
