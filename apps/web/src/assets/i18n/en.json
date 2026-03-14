@@ -507,6 +507,13 @@
         "NO_FOLDER": "No download folder selected",
         "CHANGE_FOLDER": "Change Folder",
         "CLEAR_COMPLETED": "Clear Completed",
+        "CLEAR_COMPLETED_DIALOG": {
+            "TITLE": "Clear completed downloads",
+            "MESSAGE": "This removes completed, failed, and canceled entries from the current downloads view. It does not delete any files that were already downloaded to disk."
+        },
+        "SOURCE_PLAYLIST_MISSING": "This download can no longer open in the library because its source playlist was removed.",
+        "FILE_NOT_FOUND": "This downloaded file is no longer available on disk.",
+        "FILE_ACTION_ERROR": "The file action could not be completed.",
         "CANCEL": "Cancel",
         "RETRY": "Retry",
         "REMOVE": "Remove",

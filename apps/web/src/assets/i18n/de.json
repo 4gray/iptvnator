@@ -449,6 +449,13 @@
         "NO_FOLDER": "Kein Download-Ordner ausgewählt",
         "CHANGE_FOLDER": "Ordner ändern",
         "CLEAR_COMPLETED": "Abgeschlossene löschen",
+        "CLEAR_COMPLETED_DIALOG": {
+            "TITLE": "Abgeschlossene Downloads löschen",
+            "MESSAGE": "Dadurch werden abgeschlossene, fehlgeschlagene und abgebrochene Einträge aus der aktuellen Download-Ansicht entfernt. Bereits auf der Festplatte gespeicherte Dateien werden nicht gelöscht."
+        },
+        "SOURCE_PLAYLIST_MISSING": "Dieser Download kann nicht mehr in der Bibliothek geöffnet werden, weil die zugehörige Playlist entfernt wurde.",
+        "FILE_NOT_FOUND": "Diese heruntergeladene Datei ist auf der Festplatte nicht mehr verfügbar.",
+        "FILE_ACTION_ERROR": "Die Dateiaktion konnte nicht ausgeführt werden.",
         "CANCEL": "Abbrechen",
         "RETRY": "Wiederholen",
         "REMOVE": "Entfernen",
