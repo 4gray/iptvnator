@@ -52,6 +52,7 @@ import {
 import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
+    PORTAL_EXTERNAL_PLAYBACK,
 } from '@iptvnator/portal/shared/util';
 import {
     ArtPlayerComponent,
@@ -72,6 +73,7 @@ import {
     STORE_KEY,
     Settings,
     SidebarView,
+    ExternalPlayerSession,
     VideoPlayer,
 } from 'shared-interfaces';
 
@@ -107,6 +109,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
+    private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
 
     /** Active selected channel */
     readonly activeChannel = this.store.selectSignal(selectActive);
@@ -160,6 +163,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private routeSubscription?: Subscription;
     private lastKnownVolume = 1;
     private lastRecordedRecentKey = '';
+    private lastExternalSessionStateKey =
+        this.getExternalSessionStateKey(this.externalPlayback.activeSession());
 
     /** Info overlay component reference for manual triggering */
     readonly infoOverlay = viewChild(InfoOverlayComponent);
@@ -240,6 +245,29 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 ChannelActions.setActiveChannel({ channel: matchedChannel })
             );
             this.clearConsumedRecentChannelState();
+        });
+
+        effect(() => {
+            const player = this.settingsStore.player();
+            const session = this.externalPlayback.activeSession();
+            const activeChannel = this.activeChannel();
+            const sessionStateKey = this.getExternalSessionStateKey(session);
+
+            if (sessionStateKey === this.lastExternalSessionStateKey) {
+                return;
+            }
+
+            this.lastExternalSessionStateKey = sessionStateKey;
+
+            if (
+                !activeChannel ||
+                !this.isExternalPlayer(player) ||
+                !this.isTerminalExternalSession(session)
+            ) {
+                return;
+            }
+
+            this.store.dispatch(ChannelActions.resetActiveChannel());
         });
     }
 
@@ -738,5 +766,27 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 muted: this.volume === 0,
             });
         }
+    }
+
+    private getExternalSessionStateKey(
+        session: ExternalPlayerSession | null | undefined
+    ): string | null {
+        if (!session) {
+            return null;
+        }
+
+        return `${session.id}:${session.status}`;
+    }
+
+    private isExternalPlayer(
+        player: VideoPlayer | null | undefined
+    ): player is VideoPlayer.MPV | VideoPlayer.VLC {
+        return player === VideoPlayer.MPV || player === VideoPlayer.VLC;
+    }
+
+    private isTerminalExternalSession(
+        session: ExternalPlayerSession | null | undefined
+    ): boolean {
+        return session?.status === 'closed' || session?.status === 'error';
     }
 }
