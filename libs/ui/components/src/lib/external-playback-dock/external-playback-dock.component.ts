@@ -2,8 +2,10 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     input,
     output,
+    signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -22,8 +24,10 @@ export class ExternalPlaybackDockComponent {
     readonly compact = input(false);
 
     readonly closeClicked = output<void>();
+    private readonly artworkFailed = signal(false);
 
     readonly playerLabel = computed(() => this.session().player.toUpperCase());
+    readonly artworkUrl = computed(() => this.session().thumbnail?.trim() ?? '');
     readonly statusLabel = computed(() => {
         const session = this.session();
         const player = this.playerLabel();
@@ -45,7 +49,33 @@ export class ExternalPlaybackDockComponent {
     readonly showSpinner = computed(
         () => this.session().status === 'launching'
     );
+    readonly showArtwork = computed(
+        () => !!this.artworkUrl() && !this.artworkFailed()
+    );
+    readonly artworkPlaceholderIcon = computed(() => {
+        const contentType = this.session().contentInfo?.contentType;
+
+        switch (contentType) {
+            case 'vod':
+                return 'movie';
+            case 'episode':
+                return 'video_library';
+            default:
+                return 'live_tv';
+        }
+    });
     readonly showCloseButton = computed(
         () => this.session().canClose && this.session().status !== 'error'
     );
+
+    constructor() {
+        effect(() => {
+            this.artworkUrl();
+            this.artworkFailed.set(false);
+        });
+    }
+
+    onArtworkError(): void {
+        this.artworkFailed.set(true);
+    }
 }

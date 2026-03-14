@@ -46,4 +46,28 @@ describe('ExternalPlaybackDockComponent', () => {
         expect(closeSpy).toHaveBeenCalled();
         expect(buttons).toHaveLength(1);
     });
+
+    it('falls back to a placeholder icon when artwork fails to load', () => {
+        fixture.componentRef.setInput('session', {
+            ...session,
+            thumbnail: 'https://example.com/broken.png',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 42,
+                contentType: 'vod',
+            },
+        });
+        fixture.detectChanges();
+
+        const image = fixture.debugElement.query(By.css('img'));
+        image.triggerEventHandler('error');
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.css('img'))).toBeNull();
+        expect(
+            fixture.debugElement
+                .query(By.css('.external-playback-dock__placeholder mat-icon'))
+                .nativeElement.textContent.trim()
+        ).toBe('movie');
+    });
 });
