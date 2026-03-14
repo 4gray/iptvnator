@@ -59,13 +59,14 @@
         opacity: 0.7;
     }
 
-    &:hover {
-        background: var(--mat-sys-surface-container);
+    &:hover:not(.selected):not(.active):not(.is-active) {
+        background: var(--app-selection-surface);
         color: var(--mat-sys-on-surface);
     }
 
     &.selected,
-    &.active {
+    &.active,
+    &.is-active {
         background: linear-gradient(
             135deg,
             var(--app-selection-surface-strong),
