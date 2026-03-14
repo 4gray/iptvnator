@@ -269,7 +269,7 @@
     gap: var(--widget-grid-gap);
     align-items: stretch;
     position: relative;
-    padding: 12px;
+    //padding: 12px;
     min-width: 0;
     overflow-x: clip;
 }
@@ -318,7 +318,7 @@
 }
 
 .widget-slot:hover {
-    transform: translateY(-1px);
+    //transform: translateY(-1px);
     box-shadow:
         inset 0 0 0 1px color-mix(in srgb, var(--dashboard-frame-border) 52%, transparent),
         0 18px 28px -20px var(--dashboard-frame-glow);

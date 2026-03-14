@@ -1,3 +1,5 @@
+@use '../../nav-list.scss';
+
 :host {
     display: block;
     width: 100%;
@@ -146,6 +148,44 @@
 
 .rail-footer {
     margin-top: auto;
+
+    .rail-shortcut {
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        gap: 0;
+        border-radius: 14px;
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--mat-sys-on-surface-variant);
+        app-region: no-drag;
+
+        mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+        }
+
+        &:hover:not(.is-active) {
+            background: var(--app-selection-surface);
+            color: var(--mat-sys-on-surface);
+        }
+
+        &.is-active::after {
+            content: '';
+            position: absolute;
+            right: -4px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 20px;
+            border-radius: 999px;
+            background: var(--app-selection-color);
+            box-shadow: 0 0 10px var(--app-selection-glow);
+        }
+    }
 }
 
 // ─── Workspace Header ─────────────────────────────────────────────────────────

@@ -228,4 +228,23 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
         }
         return 'WORKSPACE.COMMAND_PALETTE.GROUP_SECTION';
     }
+
+    getCommandIcon(command: WorkspaceCommandItem): string | null {
+        if (command.scope !== 'global') {
+            return null;
+        }
+
+        switch (command.id) {
+            case 'global-search':
+                return 'search';
+            case 'open-global-favorites':
+                return 'star';
+            case 'open-downloads':
+                return 'download';
+            case 'open-global-recent':
+                return 'history';
+            default:
+                return 'bolt';
+        }
+    }
 }

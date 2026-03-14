@@ -52,7 +52,6 @@ import {
 import { PortalRailLinksComponent } from '@iptvnator/portal/shared/ui';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
-    DownloadsService,
     PlaylistsService,
     SettingsStore,
 } from 'services';
@@ -121,7 +120,6 @@ export class WorkspaceShellComponent {
     private readonly store = inject(Store);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly downloadsService = inject(DownloadsService);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly settingsStore = inject(SettingsStore);
     private readonly playlistsService = inject(PlaylistsService);
@@ -192,13 +190,14 @@ export class WorkspaceShellComponent {
             return routeContext;
         }
 
-        // On dashboard, sources, settings, and global favorites we still want provider-specific rail links
-        // for the currently active playlist selected in the switcher.
+        // On dashboard, sources, settings, global favorites, and global downloads we still want
+        // provider-specific rail links for the currently active playlist selected in the switcher.
         if (
             !this.isDashboardRoute() &&
             !this.isSourcesRoute() &&
             !this.isSettingsRoute() &&
-            !this.isGlobalFavoritesRoute()
+            !this.isGlobalFavoritesRoute() &&
+            !this.isGlobalDownloadsRoute()
         ) {
             return null;
         }
@@ -410,44 +409,6 @@ export class WorkspaceShellComponent {
 
             const context = this.currentContext();
             const section = this.currentSection();
-            const isGlobalDownloads = this.isGlobalDownloadsRoute();
-
-            if (
-                isGlobalDownloads ||
-                (context &&
-                    (context.provider === 'xtreams' ||
-                        context.provider === 'stalker') &&
-                    section === 'downloads')
-            ) {
-                const playlistId = context?.playlistId;
-                const hasClearable = this.downloadsService
-                    .downloads()
-                    .some(
-                        (item) =>
-                            (!playlistId || item.playlistId === playlistId) &&
-                            (item.status === 'completed' ||
-                                item.status === 'failed' ||
-                                item.status === 'canceled')
-                    );
-                return {
-                    icon: 'delete_sweep',
-                    tooltip: isGlobalDownloads
-                        ? this.translateText(
-                              'WORKSPACE.SHELL.CLEAR_COMPLETED_DOWNLOADS_ALL'
-                          )
-                        : this.translateText(
-                              'WORKSPACE.SHELL.CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST'
-                          ),
-                    ariaLabel: isGlobalDownloads
-                        ? this.translateText(
-                              'WORKSPACE.SHELL.CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA'
-                          )
-                        : this.translateText(
-                              'WORKSPACE.SHELL.CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA'
-                          ),
-                    disabled: !hasClearable,
-                };
-            }
 
             if (!context || !section) {
                 return null;
@@ -695,20 +656,6 @@ export class WorkspaceShellComponent {
     async runHeaderBulkAction(): Promise<void> {
         const context = this.currentContext();
         const section = this.currentSection();
-        const isGlobalDownloads = this.isGlobalDownloadsRoute();
-
-        if (
-            isGlobalDownloads ||
-            (context &&
-                (context.provider === 'xtreams' ||
-                    context.provider === 'stalker') &&
-                section === 'downloads')
-        ) {
-            const playlistId = context?.playlistId;
-            await this.downloadsService.clearCompleted(playlistId);
-            await this.downloadsService.loadDownloads(playlistId);
-            return;
-        }
 
         if (!context || !section) {
             return;

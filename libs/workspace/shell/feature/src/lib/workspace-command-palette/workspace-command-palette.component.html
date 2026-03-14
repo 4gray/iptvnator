@@ -4,24 +4,26 @@
         <p>{{ 'WORKSPACE.COMMAND_PALETTE.SUBTITLE' | translate }}</p>
     </header>
 
-    <label class="palette-search">
-        <mat-icon>search</mat-icon>
-        <input
-            #queryInput
-            type="search"
-            spellcheck="false"
-            [value]="query()"
-            (input)="onQueryInput($event)"
-            (keydown)="onInputKeydown($event)"
-            [placeholder]="
-                'WORKSPACE.COMMAND_PALETTE.SEARCH_PLACEHOLDER' | translate
-            "
-            [attr.aria-label]="
-                'WORKSPACE.COMMAND_PALETTE.SEARCH_LABEL' | translate
-            "
-        />
-        <span class="palette-search__hint">Ctrl/Cmd+K</span>
-    </label>
+    <div class="palette-search-panel">
+        <label class="palette-search">
+            <mat-icon>search</mat-icon>
+            <input
+                #queryInput
+                type="search"
+                spellcheck="false"
+                [value]="query()"
+                (input)="onQueryInput($event)"
+                (keydown)="onInputKeydown($event)"
+                [placeholder]="
+                    'WORKSPACE.COMMAND_PALETTE.SEARCH_PLACEHOLDER' | translate
+                "
+                [attr.aria-label]="
+                    'WORKSPACE.COMMAND_PALETTE.SEARCH_LABEL' | translate
+                "
+            />
+            <span class="palette-search__hint">Ctrl/Cmd+K</span>
+        </label>
+    </div>
 
     <div class="palette-results">
         @if (commandGroups().length === 0) {
@@ -37,17 +39,29 @@
                             <button
                                 type="button"
                                 class="palette-command"
+                                [class.palette-command--with-icon]="
+                                    !!getCommandIcon(command)
+                                "
                                 [class.is-selected]="isCommandSelected(command)"
                                 [disabled]="!command.enabled"
                                 (mouseenter)="onCommandHover(command)"
                                 (click)="onCommandClick(command)"
                             >
-                                <span class="palette-command__label">{{
-                                    command.label
-                                }}</span>
-                                <span class="palette-command__description">{{
-                                    command.description
-                                }}</span>
+                                @if (getCommandIcon(command); as icon) {
+                                    <span class="palette-command__icon">
+                                        <mat-icon>{{ icon }}</mat-icon>
+                                    </span>
+                                }
+                                <span class="palette-command__content">
+                                    <span class="palette-command__label">{{
+                                        command.label
+                                    }}</span>
+                                    <span
+                                        class="palette-command__description"
+                                    >
+                                        {{ command.description }}
+                                    </span>
+                                </span>
                             </button>
                         }
                     </div>
