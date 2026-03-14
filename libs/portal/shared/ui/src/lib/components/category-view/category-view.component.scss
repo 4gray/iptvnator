@@ -19,10 +19,6 @@
         font-size: 0.85em;
         margin-left: 4px;
     }
-
-    &:hover:not(.category-item--selected) {
-        background: var(--app-selection-surface);
-    }
 }
 
 .category-item--selected .item-count {

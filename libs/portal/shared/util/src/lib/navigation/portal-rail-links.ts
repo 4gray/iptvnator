@@ -174,7 +174,7 @@ export function buildPortalRailLinks(
     if (provider === 'playlists') {
         const primary: PortalRailLink[] = [
             {
-                icon: 'list',
+                icon: 'tv',
                 tooltip: 'All channels (this playlist)',
                 path: [...root, 'all'],
                 exact: true,

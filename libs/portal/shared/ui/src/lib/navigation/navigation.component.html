@@ -9,6 +9,7 @@
 <div class="nav-section">
     <mat-nav-list>
         <a
+            class="portal-nav-link nav-item"
             mat-list-item
             routerLink="/"
             routerLinkActive="active"
@@ -46,7 +47,7 @@
         @if (!isStalkerPlaylist()) {
             <a
                 mat-list-item
-                class="action-button"
+                class="portal-nav-link nav-item action-button"
                 (click)="openAccountInfo()"
                 [matTooltip]="'PORTALS.SIDEBAR.ACCOUNT_INFO' | translate"
                 matTooltipPosition="right"
@@ -55,6 +56,7 @@
             </a>
         }
         <a
+            class="portal-nav-link nav-item"
             mat-list-item
             (click)="openPlaylistInfo()"
             [matTooltip]="'PORTALS.SIDEBAR.PLAYLIST_INFO' | translate"
@@ -64,6 +66,7 @@
         </a>
         <mat-divider />
         <a
+            class="portal-nav-link nav-item"
             mat-list-item
             (click)="openSettings()"
             [matTooltip]="'MENU.SETTINGS' | translate"

@@ -2,7 +2,7 @@
     <mat-nav-list class="p-0 m-0">
         @for (link of links(); track link.path.join('/')) {
             <a
-                class="portal-rail-link"
+                class="portal-rail-link nav-item"
                 mat-list-item
                 [routerLink]="link.path"
                 [routerLinkActive]="activeClass()"
@@ -24,7 +24,7 @@
     <nav class="flex flex-col items-center gap-2 w-full">
         @for (link of links(); track link.path.join('/')) {
             <a
-                class="portal-rail-link"
+                class="portal-rail-link nav-item"
                 [routerLink]="link.path"
                 [routerLinkActive]="activeClass()"
                 [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
