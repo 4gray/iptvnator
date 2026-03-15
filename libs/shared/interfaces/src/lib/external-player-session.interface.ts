@@ -1,6 +1,6 @@
 import { PlayerContentInfo } from './portal-playback.interface';
 
-export type ExternalPlayerName = 'mpv' | 'vlc';
+export type ExternalPlayerName = 'mpv' | 'vlc' | 'potplayer';
 
 export type ExternalPlayerSessionStatus =
     | 'launching'

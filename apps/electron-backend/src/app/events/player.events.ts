@@ -8,6 +8,7 @@ import App from '../app';
 import {
     MPV_PLAYER_PATH,
     MPV_REUSE_INSTANCE,
+    POTPLAYER_PATH,
     store,
     VLC_PLAYER_PATH,
 } from '../services/store.service';
@@ -32,7 +33,10 @@ let positionPollingInterval: NodeJS.Timeout | null = null;
 
 function sendExternalPlayerSessionUpdate(session: ExternalPlayerSession) {
     if (App.mainWindow && !App.mainWindow.isDestroyed()) {
-        App.mainWindow.webContents.send(EXTERNAL_PLAYER_SESSION_UPDATE, session);
+        App.mainWindow.webContents.send(
+            EXTERNAL_PLAYER_SESSION_UPDATE,
+            session
+        );
     }
 }
 
@@ -41,7 +45,7 @@ const externalPlayerSessions = new ExternalPlayerSessionRegistry(
 );
 
 // Helper function to send error notifications to the renderer
-function sendPlayerErrorNotification(player: 'MPV' | 'VLC', error: string) {
+function sendPlayerErrorNotification(player: 'MPV' | 'VLC' | 'PotPlayer', error: string) {
     if (App.mainWindow && !App.mainWindow.isDestroyed()) {
         // Make error message more user-friendly
         let userMessage = error;
@@ -196,8 +200,10 @@ function isStalkerDirectStreamProfile(
     const icyMetaData = headers['Icy-MetaData'] ?? headers['icy-metadata'];
     const userAgent = headers['User-Agent'] ?? headers['user-agent'];
 
-    return String(icyMetaData).trim() === '1' &&
-        String(userAgent).trim().toLowerCase() === 'ksplayer';
+    return (
+        String(icyMetaData).trim() === '1' &&
+        String(userAgent).trim().toLowerCase() === 'ksplayer'
+    );
 }
 
 function startPositionPolling(
@@ -335,7 +341,10 @@ function startVlcPositionPolling(
 }
 
 // Helper function to send command to MPV via IPC
-function sendMpvCommand(command: string, args: Array<string | number>): Promise<void> {
+function sendMpvCommand(
+    command: string,
+    args: Array<string | number>
+): Promise<void> {
     return new Promise((resolve, reject) => {
         if (!mpvSocketPath) {
             reject(new Error('No MPV socket path available'));
@@ -472,15 +481,18 @@ ipcMain.handle(
                         'Successfully loaded new URL in existing MPV instance'
                     );
 
-                    externalPlayerSessions.attachCloser(session.id, async () => {
-                        try {
-                            await sendMpvCommand('quit', []);
-                        } catch {
-                            if (mpvProcess && !mpvProcess.killed) {
-                                mpvProcess.kill();
+                    externalPlayerSessions.attachCloser(
+                        session.id,
+                        async () => {
+                            try {
+                                await sendMpvCommand('quit', []);
+                            } catch {
+                                if (mpvProcess && !mpvProcess.killed) {
+                                    mpvProcess.kill();
+                                }
                             }
                         }
-                    });
+                    );
 
                     // Seek if startTime provided
                     if (startTime) {
@@ -861,15 +873,22 @@ ipcMain.handle(
                         stdio: 'ignore', // Use 'ignore' for detached to allow clean shutdown
                     });
 
-                    externalPlayerSessions.attachCloser(session.id, async () => {
-                        if (!proc.killed) {
-                            proc.kill();
+                    externalPlayerSessions.attachCloser(
+                        session.id,
+                        async () => {
+                            if (!proc.killed) {
+                                proc.kill();
+                            }
                         }
-                    });
+                    );
 
                     // Start polling if we have port and content info and NOT retrying (RC disabled on retry)
                     if (!isRetry && rcPort > 0 && contentInfo) {
-                        startVlcPositionPolling(rcPort, contentInfo, session.id);
+                        startVlcPositionPolling(
+                            rcPort,
+                            contentInfo,
+                            session.id
+                        );
                     }
 
                     // Capture stdout
@@ -979,6 +998,93 @@ ipcMain.handle('SET_VLC_PLAYER_PATH', (_event, vlcPlayerPath) => {
 });
 
 ipcMain.handle(
+    'OPEN_POTPLAYER',
+    async (
+        event,
+        url: string,
+        title: string,
+        thumbnail?: string,
+        userAgent?: string,
+        referer?: string,
+        origin?: string,
+        contentInfo?: any,
+        startTime?: number,
+        headers?: Record<string, string>
+    ) => {
+        const session = externalPlayerSessions.beginSession({
+            player: 'potplayer',
+            title,
+            thumbnail,
+            streamUrl: url,
+            contentInfo,
+        });
+
+        try {
+            const potPlayerPath = getPotPlayerPath();
+            console.log('Opening PotPlayer with path:', potPlayerPath);
+            console.log('URL:', url);
+
+            const args = [url];
+
+            const proc = spawn(potPlayerPath, args, {
+                shell: false,
+                detached: true,
+                stdio: 'ignore',
+            });
+
+            externalPlayerSessions.attachCloser(session.id, async () => {
+                if (!proc.killed) {
+                    proc.kill();
+                }
+            });
+
+            proc.on('error', (err) => {
+                console.error('Failed to start PotPlayer:', err);
+                externalPlayerSessions.markError(
+                    session.id,
+                    `Failed to start PotPlayer: ${err.message}`
+                );
+            });
+
+            proc.on('exit', (code) => {
+                console.log(`PotPlayer exited with code ${code}`);
+                if (code !== 0 && code !== null) {
+                    console.error(
+                        `[PotPlayer ERROR] PotPlayer exited with error code ${code}`
+                    );
+                    sendPlayerErrorNotification(
+                        'PotPlayer',
+                        `PotPlayer closed unexpectedly (exit code: ${code})`
+                    );
+                    externalPlayerSessions.markError(
+                        session.id,
+                        `PotPlayer closed unexpectedly (exit code: ${code})`
+                    );
+                    return;
+                }
+                externalPlayerSessions.markClosed(session.id);
+            });
+
+            proc.unref();
+
+            return externalPlayerSessions.markOpened(session.id) ?? session;
+        } catch (error) {
+            console.error('Error opening PotPlayer:', error);
+            externalPlayerSessions.markError(
+                session.id,
+                error instanceof Error ? error.message : String(error)
+            );
+            throw error;
+        }
+    }
+);
+
+ipcMain.handle('SET_POTPLAYER_PATH', (_event, potPlayerPath) => {
+    console.log('... setting PotPlayer path', potPlayerPath);
+    store.set(POTPLAYER_PATH, potPlayerPath);
+});
+
+ipcMain.handle(
     CLOSE_EXTERNAL_PLAYER_SESSION,
     async (_event, sessionId: string) => {
         return externalPlayerSessions.closeSession(sessionId);
@@ -1000,6 +1106,15 @@ function getVlcPath() {
         return customVlcPath;
     } else {
         return getDefaultVlcPath();
+    }
+}
+
+function getPotPlayerPath() {
+    const customPath = store.get(POTPLAYER_PATH);
+    if (customPath) {
+        return customPath;
+    } else {
+        return getDefaultPotPlayerPath();
     }
 }
 
@@ -1102,6 +1217,34 @@ function getDefaultVlcPath() {
         return 'vlc';
     }
     return 'vlc';
+}
+
+function getDefaultPotPlayerPath() {
+    if (process.platform === 'win32') {
+        const windowsPaths = [
+            path.join(
+                'C:',
+                'Program Files',
+                'DAUM',
+                'PotPlayer',
+                'PotPlayerMini64.exe'
+            ),
+            path.join(
+                'C:',
+                'Program Files (x86)',
+                'DAUM',
+                'PotPlayer',
+                'PotPlayerMini.exe'
+            ),
+        ];
+
+        for (const potPath of windowsPaths) {
+            if (existsSync(potPath)) {
+                return potPath;
+            }
+        }
+    }
+    return 'PotPlayerMini64.exe'; // Default to 64-bit version, fallback to PATH
 }
 
 function getFreePort(): Promise<number> {

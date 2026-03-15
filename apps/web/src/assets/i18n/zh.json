@@ -110,6 +110,9 @@
         "THEME_DESCRIPTION": "选择应用程序的视觉主题",
         "EPG_NOTE": "目前 EPG 仅在基于电子的 IPTVnator 版本中可用。",
         "VLC_PLAYER_PATH": "VLC播放器路径",
+        "POTPLAYER_PATH_LABEL": "PotPlayer路径",
+        "POTPLAYER_PATH_DESCRIPTION": "设置系统中 PotPlayer 的路径。\n它将使用提供的 PotPlayer 二进制文件路径，而不是我们系统的默认路径。",
+        "POTPLAYER_PATH": "PotPlayer播放器路径",
         "IMPORT_EXPORT_DATA_DESCRIPTION": "以应用程序中使用的 JSON 格式导出或导入播放列表。",
         "EPG_NOTE_URL_TEXT": "在这里检查一下",
         "MPV_PLAYER_PATH_LABEL": "多用途车路径"

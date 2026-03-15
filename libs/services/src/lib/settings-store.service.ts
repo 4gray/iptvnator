@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS: Settings = {
     mpvPlayerPath: '',
     mpvReuseInstance: false,
     vlcPlayerPath: '',
+    potPlayerPath: '',
     remoteControl: false,
     remoteControlPort: 8765,
     epgUrl: [],

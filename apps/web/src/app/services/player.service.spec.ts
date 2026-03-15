@@ -49,6 +49,7 @@ describe('PlayerService', () => {
         expect(service.isEmbeddedPlayer(VideoPlayer.ArtPlayer)).toBe(true);
         expect(service.isEmbeddedPlayer(VideoPlayer.MPV)).toBe(false);
         expect(service.isEmbeddedPlayer(VideoPlayer.VLC)).toBe(false);
+        expect(service.isEmbeddedPlayer(VideoPlayer.PotPlayer)).toBe(false);
     });
 
     it('uses the dialog fallback for embedded players', async () => {

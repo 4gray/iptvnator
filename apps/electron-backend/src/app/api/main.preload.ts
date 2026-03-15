@@ -160,6 +160,29 @@ contextBridge.exposeInMainWorld('electron', {
             startTime,
             headers
         ),
+    openInPotPlayer: (
+        url: string,
+        title: string,
+        thumbnail: string,
+        userAgent: string,
+        referer?: string,
+        origin?: string,
+        contentInfo?: any,
+        startTime?: number,
+        headers?: Record<string, string>
+    ): Promise<ExternalPlayerSession> =>
+        ipcRenderer.invoke(
+            'OPEN_POTPLAYER',
+            url,
+            title,
+            thumbnail,
+            userAgent,
+            referer,
+            origin,
+            contentInfo,
+            startTime,
+            headers
+    ),
     closeExternalPlayerSession: (sessionId: string) =>
         ipcRenderer.invoke('CLOSE_EXTERNAL_PLAYER_SESSION', sessionId),
     autoUpdatePlaylists: (playlists) =>
@@ -181,6 +204,8 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
     setVlcPlayerPath: (vlcPlayerPath: string) =>
         ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
+    setPotPlayerPath: (potPlayerPath: string) =>
+        ipcRenderer.invoke('SET_POTPLAYER_PATH', potPlayerPath),
     updateSettings: (settings: any) =>
         ipcRenderer.invoke('SETTINGS_UPDATE', settings),
     getAiSettings: () => ipcRenderer.invoke('GET_AI_SETTINGS'),

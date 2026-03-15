@@ -339,6 +339,40 @@
                         </div>
                     </div>
                 }
+
+                @if (settingsForm.value.player === 'potplayer') {
+                    <div class="setting-item">
+                        <div class="setting-item__meta">
+                            <h4>
+                                {{
+                                    'SETTINGS.POTPLAYER_PATH_LABEL' | translate
+                                }}
+                            </h4>
+                            <p>
+                                {{
+                                    'SETTINGS.POTPLAYER_PATH_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control">
+                            <mat-form-field
+                                appearance="outline"
+                                subscriptSizing="dynamic"
+                            >
+                                <mat-label for="potPlayerPath">{{
+                                        'SETTINGS.POTPLAYER_PATH' | translate
+                                    }}</mat-label>
+                                <input
+                                    matInput
+                                    type="text"
+                                    id="potPlayerPath"
+                                    formControlName="potPlayerPath"
+                                />
+                            </mat-form-field>
+                        </div>
+                    </div>
+                }
             </section>
 
             @if (isDesktop) {

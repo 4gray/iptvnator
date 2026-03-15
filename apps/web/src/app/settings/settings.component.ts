@@ -131,6 +131,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
             id: VideoPlayer.VLC,
             labelKey: 'SETTINGS.PLAYER_VLC',
         },
+        {
+            id: VideoPlayer.PotPlayer,
+            labelKey: 'SETTINGS.PLAYER_POTPLAYER',
+        },
     ];
 
     /** Player options */
@@ -189,6 +193,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         mpvPlayerPath: '',
         mpvReuseInstance: false,
         vlcPlayerPath: '',
+        potPlayerPath: '',
         remoteControl: false,
         remoteControlPort: [
             8765,

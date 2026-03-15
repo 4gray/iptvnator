@@ -53,6 +53,17 @@ declare global {
                 startTime?: number,
                 headers?: Record<string, string>
             ) => Promise<ExternalPlayerSession>;
+            openInPotPlayer: (
+                url: string,
+                title: string,
+                thumbnail: string,
+                userAgent: string,
+                referer?: string,
+                origin?: string,
+                contentInfo?: any,
+                startTime?: number,
+                headers?: Record<string, string>
+            ) => Promise<ExternalPlayerSession>;
             autoUpdatePlaylists: (playlists: Playlist[]) => Promise<Playlist[]>;
             fetchEpg: (
                 urls: string[]
@@ -83,6 +94,8 @@ declare global {
             }>;
             setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
             setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;
+            setPotPlayerPath: (potPlayerPath: string) => Promise<void>;
+
             onExternalPlayerSessionUpdate?: (
                 callback: (data: ExternalPlayerSession) => void
             ) => () => void;

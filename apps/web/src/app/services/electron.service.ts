@@ -203,6 +203,35 @@ export class ElectronService extends DataService {
             }
         }
 
+        if (type === 'OPEN_POTPLAYER') {
+            const data = payload as PlayerLaunchPayload;
+            try {
+                return (await window.electron.openInPotPlayer(
+                    data.url,
+                    data.title ?? '',
+                    data.thumbnail ?? '',
+                    data['user-agent'] ?? undefined,
+                    data.referer ?? undefined,
+                    data.origin ?? undefined,
+                    data.contentInfo,
+                    data.startTime,
+                    data.headers ?? undefined
+                )) as T;
+            } catch (error: unknown) {
+                const errorMessage =
+                    this.getErrorDetails(error)?.message ?? String(error);
+                this.snackBar.open(
+                    `Error launching PotPlayer: ${errorMessage}`,
+                    'Close',
+                    {
+                        duration: 5000,
+                    }
+                );
+                console.error('PotPlayer launch error:', error);
+                throw error;
+            }
+        }
+
         if (type === AUTO_UPDATE_PLAYLISTS) {
             const data = payload as Playlist[];
             const playlists = await window.electron.autoUpdatePlaylists(data);
