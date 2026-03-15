@@ -83,6 +83,7 @@ jobs:
               if: matrix.os == 'macos' && github.event_name != 'pull_request'
               shell: bash
               env:
+                  CSC_NAME: ${{ vars.CSC_NAME }}
                   CSC_LINK: ${{ secrets.CSC_LINK }}
                   CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
                   APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY }}
@@ -92,6 +93,11 @@ jobs:
                   APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
                   APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
               run: |
+                  if [ -z "${CSC_NAME}" ]; then
+                      echo "::error::Missing CSC_NAME repository variable for deterministic macOS code signing."
+                      exit 1
+                  fi
+
                   if [ -z "${CSC_LINK}" ] || [ -z "${CSC_KEY_PASSWORD}" ]; then
                       echo "::error::Missing CSC_LINK or CSC_KEY_PASSWORD secret for macOS code signing."
                       exit 1
@@ -121,7 +127,7 @@ jobs:
                   fi
 
             - name: Prepare macOS notarization credentials
-              if: matrix.os == 'macos'
+              if: matrix.os == 'macos' && github.event_name != 'pull_request'
               shell: bash
               env:
                   APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY }}
@@ -153,10 +159,66 @@ jobs:
                       echo "APPLE_TEAM_ID=${APPLE_TEAM_ID}" >> "${GITHUB_ENV}"
                   fi
 
-            - name: Make Electron app
+            - name: Make Electron app (macOS)
+              if: matrix.os == 'macos' && github.event_name != 'pull_request'
               env:
+                  CSC_NAME: ${{ vars.CSC_NAME }}
                   CSC_LINK: ${{ secrets.CSC_LINK }}
                   CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+                  DEBUG: electron-builder,electron-notarize*
+              run: pnpm run make:app
+
+            - name: Verify signed macOS app
+              if: matrix.os == 'macos' && github.event_name != 'pull_request'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  case "${{ matrix.arch }}" in
+                      x64)
+                          APP_PATH="dist/executables/mac/IPTVnator.app"
+                          ;;
+                      arm64)
+                          APP_PATH="dist/executables/mac-arm64/IPTVnator.app"
+                          ;;
+                      *)
+                          echo "::error::Unsupported macOS arch: ${{ matrix.arch }}"
+                          exit 1
+                          ;;
+                  esac
+
+                  print_debug_attrs() {
+                      echo "::group::Extended attributes"
+                      xattr -lr "${APP_PATH}" | sed -n '1,120p' || true
+                      echo "::endgroup::"
+                  }
+
+                  trap print_debug_attrs ERR
+
+                  if [ ! -d "${APP_PATH}" ]; then
+                      echo "::error::Expected app bundle not found at ${APP_PATH}"
+                      exit 1
+                  fi
+
+                  SIGNATURE_INFO="$(codesign -dv --verbose=4 "${APP_PATH}" 2>&1)"
+                  printf '%s\n' "${SIGNATURE_INFO}"
+
+                  if printf '%s\n' "${SIGNATURE_INFO}" | grep -q 'Signature=adhoc'; then
+                      echo "::error::macOS app is still ad-hoc signed."
+                      exit 1
+                  fi
+
+                  if printf '%s\n' "${SIGNATURE_INFO}" | grep -q 'TeamIdentifier=not set'; then
+                      echo "::error::macOS app is missing a TeamIdentifier."
+                      exit 1
+                  fi
+
+                  codesign --verify --deep --strict --verbose=4 "${APP_PATH}"
+                  spctl -a -vvv --type execute "${APP_PATH}"
+                  xcrun stapler validate "${APP_PATH}"
+
+            - name: Make Electron app
+              if: matrix.os != 'macos' || github.event_name == 'pull_request'
               run: pnpm run make:app
 
             - name: Upload artifacts (macOS)
