@@ -470,6 +470,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
                         this.settingsForm.value.vlcPlayerPath
                     );
                 }
+                if (this.settingsForm.value.potPlayerPath) {
+                    window.electron.setPotPlayerPath(
+                        this.settingsForm.value.potPlayerPath
+                    );
+                }
             }
         });
         if (this.isDialog) {
