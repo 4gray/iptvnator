@@ -131,6 +131,7 @@
         "PLAYER_ARTPLAYER": "ArtPlayer",
         "PLAYER_MPV": "Lettore MPV",
         "PLAYER_VLC": "VLC",
+        "PLAYER_POTPLAYER": "PotPlayer",
         "VIDEO_PLAYER_PLACEHOLDER": "Seleziona una opzione",
         "VERSION": "Versione",
         "SAVE_CHANGES": "Salva modifiche",

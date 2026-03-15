@@ -158,6 +158,7 @@
         "PLAYER_ARTPLAYER": "ArtPlayer",
         "PLAYER_MPV": "MPV-плеер",
         "PLAYER_VLC": "VLC",
+        "PLAYER_POTPLAYER": "PotPlayer",
         "VIDEO_PLAYER_PLACEHOLDER": "Выберите из списка",
         "VERSION": "Версия приложения",
         "SAVE_CHANGES": "Сохранить",

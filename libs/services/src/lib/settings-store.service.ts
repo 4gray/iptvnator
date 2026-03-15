@@ -80,6 +80,7 @@ export const SettingsStore = signalStore(
                 mpvPlayerPath: store.mpvPlayerPath(),
                 mpvReuseInstance: store.mpvReuseInstance(),
                 vlcPlayerPath: store.vlcPlayerPath(),
+                potPlayerPath: store.potPlayerPath(),
                 remoteControl: store.remoteControl(),
                 remoteControlPort: store.remoteControlPort(),
                 epgUrl: store.epgUrl(),

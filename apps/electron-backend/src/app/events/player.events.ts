@@ -1022,7 +1022,6 @@ ipcMain.handle(
         try {
             const potPlayerPath = getPotPlayerPath();
             console.log('Opening PotPlayer with path:', potPlayerPath);
-            console.log('URL:', url);
 
             const args = [url];
 
@@ -1243,8 +1242,11 @@ function getDefaultPotPlayerPath() {
                 return potPath;
             }
         }
+        return 'PotPlayerMini64.exe'; // Default to 64-bit version, fallback to PATH
     }
-    return 'PotPlayerMini64.exe'; // Default to 64-bit version, fallback to PATH
+
+    // PotPlayer is primarily for Windows, but if we wanted to support it on other platforms, we could add checks here
+    throw new Error('PotPlayer is only supported on Windows');
 }
 
 function getFreePort(): Promise<number> {

@@ -117,6 +117,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
     /** Flag that indicates whether the app runs in electron environment */
     readonly isDesktop = !!window.electron;
 
+    readonly isWindowsDesktop = !!window.electron && window.electron.platform === 'win32';
+
     isPwa = this.dataService.getAppEnvironment() === 'pwa';
 
     private readonly settingsCtx = inject(SettingsContextService);
@@ -131,10 +133,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
             id: VideoPlayer.VLC,
             labelKey: 'SETTINGS.PLAYER_VLC',
         },
-        {
-            id: VideoPlayer.PotPlayer,
-            labelKey: 'SETTINGS.PLAYER_POTPLAYER',
-        },
+        ...(this.isWindowsDesktop
+            ? [
+                  {
+                      id: VideoPlayer.PotPlayer,
+                      labelKey: 'SETTINGS.PLAYER_POTPLAYER',
+                  },
+              ]
+            : []),
     ];
 
     /** Player options */

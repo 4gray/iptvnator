@@ -226,6 +226,7 @@
         "PLAYER_ARTPLAYER": "ArtPlayer",
         "PLAYER_MPV": "MPV-Player",
         "PLAYER_VLC": "VLC",
+        "PLAYER_POTPLAYER": "PotPlayer",
         "VIDEO_PLAYER_PLACEHOLDER": "Option auswählen",
         "STREAM_FORMAT": "Stream-Format",
         "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!",
