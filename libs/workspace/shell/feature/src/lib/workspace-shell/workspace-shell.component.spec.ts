@@ -7,6 +7,7 @@ import { TranslateService } from '@ngx-translate/core';
 import {
     FavoritesContextService,
     PORTAL_EXTERNAL_PLAYBACK,
+    WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
 import { of } from 'rxjs';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -181,5 +182,52 @@ describe('WorkspaceShellComponent action matrix', () => {
             })
         );
         expect(component.hasContextActions()).toBe(true);
+    });
+
+    it('shows a registered header shortcut only on playlist routes', () => {
+        const component = TestBed.runInInjectionContext(
+            () => new WorkspaceShellComponent()
+        );
+        const headerContext = TestBed.inject(WorkspaceHeaderContextService);
+
+        headerContext.setAction({
+            id: 'multi-epg',
+            icon: 'view_list',
+            tooltipKey: 'TOP_MENU.OPEN_MULTI_EPG',
+            ariaLabelKey: 'TOP_MENU.OPEN_MULTI_EPG',
+            run: jest.fn(),
+        });
+
+        component.currentUrl.set('/workspace/playlists/pl-1/all');
+        expect(component.headerShortcut()).toEqual(
+            expect.objectContaining({
+                id: 'multi-epg',
+                icon: 'view_list',
+            })
+        );
+
+        component.currentUrl.set('/workspace/xtreams/pl-1/live');
+        expect(component.headerShortcut()).toBeNull();
+    });
+
+    it('runs the registered header shortcut callback', () => {
+        const component = TestBed.runInInjectionContext(
+            () => new WorkspaceShellComponent()
+        );
+        const headerContext = TestBed.inject(WorkspaceHeaderContextService);
+        const run = jest.fn();
+
+        headerContext.setAction({
+            id: 'multi-epg',
+            icon: 'view_list',
+            tooltipKey: 'TOP_MENU.OPEN_MULTI_EPG',
+            ariaLabelKey: 'TOP_MENU.OPEN_MULTI_EPG',
+            run,
+        });
+
+        component.currentUrl.set('/workspace/playlists/pl-1/all');
+        component.runHeaderShortcut();
+
+        expect(run).toHaveBeenCalledTimes(1);
     });
 });

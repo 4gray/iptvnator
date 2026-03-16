@@ -1,155 +1,87 @@
-<mat-drawer-container
-    class="main-container"
-    [class.main-container--workspace]="isWorkspaceLayout"
-    autosize
+<div
+    class="sidebar"
+    appResizable
+    [minWidth]="200"
+    [maxWidth]="600"
+    [defaultWidth]="350"
+    storageKey="sidebar-width"
 >
-    <!-- sidebar content -->
-    <mat-drawer
-        #drawer
-        mode="side"
-        opened
-        disableClose
-        class="mat-drawer"
-        appResizable
-        [minWidth]="200"
-        [maxWidth]="600"
-        [defaultWidth]="350"
-        storageKey="sidebar-width"
-        handlePosition="right"
-    >
-        @defer {
-            <app-sidebar
-                [channels]="(channels$ | async)!"
-                [showPlaylistHeader]="!isWorkspaceLayout"
-                [activeView]="activeView()"
-            />
-        } @loading {
-            <p>Loading...</p>
-        } @placeholder {
-            <p>Loading...</p>
-        }
-    </mat-drawer>
-    <mat-drawer-content class="drawer-content">
-        @if (activeChannel(); as activeChannel) {
-            <!-- toolbar with drawer icon -->
-            <app-toolbar
-                (toggleLeftDrawerClicked)="drawer.toggle()"
-                (toggleRightDrawerClicked)="drawerRight.toggle()"
-                (multiEpgClicked)="openMultiEpgView()"
-                (infoOverlayClicked)="toggleInfoOverlay()"
-                [activeChannel]="activeChannel"
-                [isLeftDrawerOpened]="drawer.opened"
-                (settingsClicked)="openSettings()"
-            />
-            @if (activeChannel.radio === 'true') {
-                <app-audio-player
-                    [url]="activeChannel.url"
-                    [icon]="activeChannel?.tvg?.logo!"
-                />
-            } @else {
-                <!-- video.js player -->
-                @if (playerSettings.player === 'videojs') {
-                    <app-vjs-player
-                        [options]="{
-                            sources: [
-                                {
-                                    src:
-                                        activeChannel.url +
-                                        activeChannel.epgParams,
-                                    type: 'application/x-mpegURL',
-                                },
-                            ],
-                        }"
-                        [volume]="volume"
-                        [class.hide-captions]="!playerSettings.showCaptions"
-                    />
-                }
-                <!-- default html player component -->
-                @if (playerSettings.player === 'html5') {
-                    <app-html-video-player
-                        [channel]="activeChannel"
-                        [volume]="volume"
-                        [showCaptions]="playerSettings.showCaptions!"
-                    />
-                }
-                <!-- Add ArtPlayer component -->
-                @if (playerSettings.player === 'artplayer') {
-                    <app-art-player
-                        [channel]="activeChannel"
-                        [volume]="volume"
-                        [showCaptions]="playerSettings.showCaptions!"
-                    />
-                }
-                @if (playerSettings.player === 'mpv') {
-                    <div class="custom-player">
-                        <img
-                            src="./assets/images/iptvnator-1-mascot.png"
-                            alt="external player"
-                        />
-                        <p>
-                            The channel is played in a separate window in the
-                            MPV player. (<a
-                                [routerLink]
-                                style="cursor: pointer"
-                                (click)="
-                                    openUrl(
-                                        'https://github.com/4gray/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F'
-                                    )
-                                "
-                                >Installation instructions</a
-                            >)
-                        </p>
-                    </div>
-                }
-                @if (playerSettings.player === 'vlc') {
-                    <div class="custom-player">
-                        <img
-                            src="./assets/images/iptvnator-1-mascot.png"
-                            alt="external player"
-                        />
-                        <p>
-                            The channel is played in a separate window in VLC
-                            player. Please make sure that this player is
-                            installed in your system and the correct path is
-                            defined in the app settings.
-                        </p>
-                    </div>
-                }
-                <!-- channel overlay -->
-                <app-info-overlay
-                    [channel]="activeChannel"
-                    [epgProgram]="epgProgram()"
-                />
+    @defer {
+        <app-sidebar
+            [channels]="(channels$ | async)!"
+            [showPlaylistHeader]="!isWorkspaceLayout"
+            [activeView]="activeView()"
+        />
+    } @loading {
+        <p>Loading...</p>
+    } @placeholder {
+        <p>Loading...</p>
+    }
+</div>
 
-                <!-- channel number overlay -->
-                @if (showChannelNumberOverlay) {
-                    <div class="channel-number-overlay">
-                        <div class="channel-number-display">
-                            {{ channelNumberInput }}
-                        </div>
-                    </div>
+<div class="content-container">
+    @if (activeChannel(); as activeChannel) {
+        @if (shouldShowInlinePlayer(activeChannel)) {
+            <div class="video-player">
+                @if (activeChannel.radio === 'true') {
+                    <app-audio-player
+                        [url]="activeChannel.url"
+                        [icon]="activeChannel?.tvg?.logo!"
+                    />
+                } @else {
+                    @if (playerSettings.player === 'videojs') {
+                        <app-vjs-player
+                            [options]="{
+                                sources: [
+                                    {
+                                        src:
+                                            activeChannel.url +
+                                            activeChannel.epgParams,
+                                        type: 'application/x-mpegURL',
+                                    },
+                                ],
+                            }"
+                            [volume]="volume"
+                            [class.hide-captions]="!playerSettings.showCaptions"
+                        />
+                    }
+                    @if (playerSettings.player === 'html5') {
+                        <app-html-video-player
+                            [channel]="activeChannel"
+                            [volume]="volume"
+                            [showCaptions]="playerSettings.showCaptions!"
+                        />
+                    }
+                    @if (playerSettings.player === 'artplayer') {
+                        <app-art-player
+                            [channel]="activeChannel"
+                            [volume]="volume"
+                            [showCaptions]="playerSettings.showCaptions!"
+                        />
+                    }
                 }
-            }
-        } @else {
-            <!-- Minimal toolbar when no channel is active so drawer works -->
-            <app-toolbar
-                (toggleLeftDrawerClicked)="drawer.toggle()"
-                (toggleRightDrawerClicked)="drawerRight.toggle()"
-                [isLeftDrawerOpened]="drawer.opened"
-                (settingsClicked)="openSettings()"
-            />
-            <div class="empty-state-container">
-                <mat-icon class="empty-state-icon">live_tv</mat-icon>
-                <h2 class="empty-state-title">
-                    {{ 'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate }}
-                </h2>
             </div>
         }
-    </mat-drawer-content>
-    <!-- right sidebar content -->
-    <mat-drawer position="end" #drawerRight mode="side" disableClose>
-        @if (isDesktop) {
-            <app-epg-list />
+
+        <div class="epg">
+            <div class="epg-content">
+                <app-epg-list />
+            </div>
+        </div>
+
+        @if (showChannelNumberOverlay) {
+            <div class="channel-number-overlay">
+                <div class="channel-number-display">
+                    {{ channelNumberInput }}
+                </div>
+            </div>
         }
-    </mat-drawer>
-</mat-drawer-container>
+    } @else {
+        <div class="empty-state-container">
+            <mat-icon class="empty-state-icon">live_tv</mat-icon>
+            <h2 class="empty-state-title">
+                {{ 'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate }}
+            </h2>
+        </div>
+    }
+</div>

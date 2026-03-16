@@ -48,6 +48,8 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PortalRailLink,
     PortalRailSection,
+    WorkspaceHeaderAction,
+    WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
 import { PortalRailLinksComponent } from '@iptvnator/portal/shared/ui';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -108,8 +110,8 @@ const SEARCH_INPUT_DEBOUNCE_MS = 350;
         WorkspaceFavoritesContextPanelComponent,
         WorkspaceSettingsContextPanelComponent,
         WorkspaceSourcesFiltersPanelComponent,
-    PortalRailLinksComponent,
-    ResizableDirective,
+        PortalRailLinksComponent,
+        ResizableDirective,
         TranslatePipe,
     ],
     templateUrl: './workspace-shell.component.html',
@@ -128,6 +130,7 @@ export class WorkspaceShellComponent {
     private readonly dialog = inject(MatDialog);
     readonly favoritesCtx = inject(FavoritesContextService);
     readonly settingsCtx = inject(SettingsContextService);
+    readonly headerContext = inject(WorkspaceHeaderContextService);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
@@ -397,6 +400,16 @@ export class WorkspaceShellComponent {
             this.currentSection() === 'downloads' ||
             this.isGlobalDownloadsRoute()
     );
+    readonly headerShortcut = computed<WorkspaceHeaderAction | null>(() => {
+        const context = this.currentContext();
+        const action = this.headerContext.action();
+
+        if (!action || context?.provider !== 'playlists') {
+            return null;
+        }
+
+        return action;
+    });
     readonly canOpenPlaylistInfo = computed(() =>
         Boolean(this.activePlaylist())
     );
@@ -704,6 +717,10 @@ export class WorkspaceShellComponent {
 
     openDownloadsShortcut(): void {
         this.router.navigate(['/workspace/downloads']);
+    }
+
+    runHeaderShortcut(): void {
+        this.headerShortcut()?.run();
     }
 
     openGlobalSearch(initialQuery = ''): void {

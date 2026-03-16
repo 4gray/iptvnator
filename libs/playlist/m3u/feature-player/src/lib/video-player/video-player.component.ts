@@ -9,19 +9,14 @@ import {
     OnInit,
     effect,
     inject,
-    viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
-import { MatSidenavModule } from '@angular/material/sidenav';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-    InfoOverlayComponent,
-    ResizableDirective,
-} from 'components';
+import { ResizableDirective } from 'components';
 import {
     COMPONENT_OVERLAY_REF,
     EpgListComponent,
@@ -53,29 +48,29 @@ import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
     PORTAL_EXTERNAL_PLAYBACK,
+    WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
 import {
     ArtPlayerComponent,
     AudioPlayerComponent,
     HtmlVideoPlayerComponent,
     SidebarComponent,
-    ToolbarComponent,
     VjsPlayerComponent,
 } from '@iptvnator/ui/playback';
-import { PLAYLIST_PLAYER_ACTIONS } from '@iptvnator/playlist/shared/util';
 import { DataService, PlaylistsService, SettingsStore } from 'services';
 import {
     Channel,
     EpgProgram,
-    M3uRecentlyViewedItem,
+    ExternalPlayerSession,
     PLAYLIST_PARSE_BY_URL,
+    M3uRecentlyViewedItem,
     PlaylistMeta,
     STORE_KEY,
     Settings,
-    SidebarView,
-    ExternalPlayerSession,
     VideoPlayer,
 } from 'shared-interfaces';
+
+const M3U_MULTI_EPG_HEADER_ACTION_ID = 'm3u-multi-epg';
 
 @Component({
     selector: 'app-video-player',
@@ -86,13 +81,9 @@ import {
         CommonModule,
         EpgListComponent,
         HtmlVideoPlayerComponent,
-        InfoOverlayComponent,
         MatIcon,
-        MatSidenavModule,
         ResizableDirective,
-        RouterLink,
         SidebarComponent,
-        ToolbarComponent,
         TranslatePipe,
         VjsPlayerComponent,
     ],
@@ -103,13 +94,15 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly dataService = inject(DataService);
     private readonly overlay = inject(Overlay);
-    private readonly playerActions = inject(PLAYLIST_PLAYER_ACTIONS);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly router = inject(Router);
     private readonly settingsStore = inject(SettingsStore);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly workspaceHeaderContext = inject(
+        WorkspaceHeaderContextService
+    );
 
     /** Active selected channel */
     readonly activeChannel = this.store.selectSignal(selectActive);
@@ -153,8 +146,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly isWorkspaceLayout =
         this.activatedRoute.snapshot.data['layout'] === 'workspace';
 
-    sidebarView: SidebarView = 'CHANNELS';
-
     /** EPG overlay reference */
     private overlayRef!: OverlayRef;
     private unsubscribeRemoteChannelChange?: () => void;
@@ -165,9 +156,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private lastRecordedRecentKey = '';
     private lastExternalSessionStateKey =
         this.getExternalSessionStateKey(this.externalPlayback.activeSession());
-
-    /** Info overlay component reference for manual triggering */
-    readonly infoOverlay = viewChild(InfoOverlayComponent);
 
     /** Channel number input state */
     channelNumberInput = '';
@@ -277,6 +265,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     ngOnInit(): void {
         this.applySettings();
         this.getPlaylistUrlAsParam();
+        this.registerHeaderShortcut();
 
         // Setup remote control channel change listener (Electron only)
         if (this.isDesktop && window.electron?.onChannelChange) {
@@ -463,6 +452,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.workspaceHeaderContext.clearAction(
+            M3U_MULTI_EPG_HEADER_ACTION_ID
+        );
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         this.statusSubscription?.unsubscribe();
@@ -603,35 +595,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         });
     }
 
-    openUrl(url: string) {
-        window.open(url, '_blank');
-    }
-
-    navigateHome() {
-        this.router.navigate(['/']);
-    }
-
-    openSettings() {
-        this.playerActions.openSettings();
-    }
-
-    /**
-     * Keyboard shortcut: Press 'I' to toggle EPG info overlay
-     */
-    @HostListener('document:keydown.i', ['$event'])
-    handleInfoKeyPress(event: Event): void {
-        // Don't trigger hotkeys when user is typing in input fields
-        if (this.isTypingInInput(event)) {
-            return;
-        }
-        // Prevent default behavior and show info overlay
-        event.preventDefault();
-        this.toggleInfoOverlay();
-    }
-
-    /**
-     * Handle digit key presses for channel number input
-     */
     @HostListener('document:keydown', ['$event'])
     handleKeyPress(event: KeyboardEvent): void {
         // Only handle digit keys (0-9)
@@ -642,17 +605,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             }
             event.preventDefault();
             this.handleChannelNumberInput(event.key);
-        }
-    }
-
-    /**
-     * Toggles the EPG info overlay visibility
-     * Called by 'I' keyboard shortcut or info button
-     */
-    toggleInfoOverlay(): void {
-        const overlay = this.infoOverlay();
-        if (overlay) {
-            overlay.showOverlay();
         }
     }
 
@@ -768,6 +720,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
     }
 
+    shouldShowInlinePlayer(channel: Channel | null | undefined): boolean {
+        if (!channel) {
+            return false;
+        }
+
+        return !this.isExternalPlayer(this.playerSettings.player);
+    }
+
     private getExternalSessionStateKey(
         session: ExternalPlayerSession | null | undefined
     ): string | null {
@@ -788,5 +748,19 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         session: ExternalPlayerSession | null | undefined
     ): boolean {
         return session?.status === 'closed' || session?.status === 'error';
+    }
+
+    private registerHeaderShortcut(): void {
+        if (!this.isWorkspaceLayout) {
+            return;
+        }
+
+        this.workspaceHeaderContext.setAction({
+            id: M3U_MULTI_EPG_HEADER_ACTION_ID,
+            icon: 'view_list',
+            tooltipKey: 'TOP_MENU.OPEN_MULTI_EPG',
+            ariaLabelKey: 'TOP_MENU.OPEN_MULTI_EPG',
+            run: () => this.openMultiEpgView(),
+        });
     }
 }

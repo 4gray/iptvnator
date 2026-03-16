@@ -9,5 +9,6 @@ export * from './lib/portal-navigation-actions';
 export * from './lib/portal-collection-context';
 export * from './lib/portal-collection-items';
 export * from './lib/remote-channel-navigation';
+export * from './lib/workspace-header-context.service';
 export * from './lib/navigation/portal-rail-links';
 export * from './lib/navigation/portal-route.utils';

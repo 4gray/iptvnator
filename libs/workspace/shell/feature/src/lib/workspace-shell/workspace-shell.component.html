@@ -116,6 +116,18 @@
             >
                 <mat-icon>star</mat-icon>
             </a>
+            @if (headerShortcut(); as action) {
+                <button
+                    type="button"
+                    class="header-shortcut"
+                    mat-icon-button
+                    (click)="runHeaderShortcut()"
+                    [matTooltip]="action.tooltipKey | translate"
+                    [attr.aria-label]="action.ariaLabelKey | translate"
+                >
+                    <mat-icon>{{ action.icon }}</mat-icon>
+                </button>
+            }
             @if (isElectron) {
                 <button
                     type="button"

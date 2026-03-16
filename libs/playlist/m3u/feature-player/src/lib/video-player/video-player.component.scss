@@ -1,101 +1,47 @@
+@use '../../../../../../ui/styles/portal-layout' as portal;
+
+@include portal.live-layout;
+
 :host {
-    display: block;
-    width: 100%;
-    height: 100%;
     min-height: 0;
+    background: var(--mat-sys-surface);
 }
 
-.main-container {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    overflow: hidden; // Prevent horizontal scrollbar from resize handle
+.sidebar {
+    app-sidebar {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
 }
 
-.main-container.main-container--workspace {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
+.content-container {
+    min-width: 0;
+    background: var(--mat-sys-surface);
 }
 
-.main-container.main-container--workspace .mat-drawer-content,
-.main-container.main-container--workspace .drawer-content {
-    height: 100%;
-    min-height: 0;
-}
-
-.mat-drawer-content {
+.video-player {
     background: #000;
-    color: #fff;
-    overflow: hidden;
-    border-radius: 20px 0 0 0;
-}
 
-.mat-drawer {
-    // Width is controlled by appResizable directive
-    // Default: 350px, min: 200px, max: 600px
-    overflow-x: hidden !important; // Hide horizontal scrollbar
-    border-radius: 0 !important;
-
-    .resize-handle--right {
-        right: 0;
-    }
-}
-
-// Ensure mat-drawer inner container fills the drawer width
-::ng-deep .mat-drawer-inner-container {
-    width: 100% !important;
-}
-
-.custom-player {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    margin: 50px auto 0;
-    padding: 10px 20px 24px;
-    text-align: center;
-
-    img {
+    > app-audio-player,
+    > app-vjs-player,
+    > app-html-video-player,
+    > app-art-player {
+        flex: 1;
+        min-height: 0;
         display: block;
-        width: min(100%, 460px);
-        filter: drop-shadow(0 18px 42px rgba(77, 220, 243, 0.16));
-    }
-
-    p {
-        max-width: 56ch;
-        margin: 0;
-        color: rgba(255, 255, 255, 0.88);
-    }
-
-    a {
-        color: inherit;
     }
 }
 
-@media only screen and (max-width: 599px) {
-    .main-container {
-        display: flex;
-        flex-direction: column-reverse;
-        top: unset;
-    }
+.epg {
+    border-top: 1px solid var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface);
+}
 
-    .mat-drawer {
-        height: 50vh;
-        width: 100%;
-        position: unset;
-    }
-
-    .drawer-content {
-        height: 50vh;
-        margin-left: 0 !important;
+.epg-content {
+    > app-epg-list {
+        flex: 1;
+        min-height: 0;
     }
 }
 
@@ -109,18 +55,18 @@
 }
 
 .channel-number-display {
+    min-width: 120px;
+    padding: 2rem 3rem;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
     background: rgba(0, 0, 0, 0.85);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     color: #fff;
+    font-family: 'DM Sans', sans-serif;
     font-size: 6rem;
     font-weight: 700;
-    font-family: 'DM Sans', sans-serif;
-    padding: 2rem 3rem;
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    min-width: 120px;
-    text-align: center;
     letter-spacing: 0.05em;
+    text-align: center;
     animation: scaleIn 0.15s ease-out;
 }
 
@@ -129,6 +75,7 @@
         opacity: 0;
         transform: scale(0.8);
     }
+
     to {
         opacity: 1;
         transform: scale(1);
@@ -137,26 +84,45 @@
 
 .empty-state-container {
     display: flex;
+    flex: 1;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: calc(100% - 64px); 
     text-align: center;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(15, 23, 42, 0.45);
 
     .empty-state-icon {
-        font-size: 72px;
         width: 72px;
         height: 72px;
         margin-bottom: 24px;
-        opacity: 0.2;
+        font-size: 72px;
+        opacity: 0.25;
     }
 
     .empty-state-title {
-        font-family: 'DM Sans', sans-serif;
-        font-weight: 500;
-        font-size: 1.25rem;
         margin: 0;
-        opacity: 0.5;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 500;
+        opacity: 0.7;
+    }
+}
+
+@media only screen and (max-width: 599px) {
+    :host {
+        flex-direction: column-reverse;
+    }
+
+    .sidebar {
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+        height: 50vh;
+        border-right: none;
+        border-top: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .content-container {
+        height: 50vh;
     }
 }
