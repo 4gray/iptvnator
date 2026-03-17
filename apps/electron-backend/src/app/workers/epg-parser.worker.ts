@@ -1,7 +1,7 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
+import { getDatabasePath } from 'database';
 import { createRequire } from 'module';
-import { homedir } from 'os';
 import { join } from 'path';
 import { SaxesParser, SaxesTagPlain } from 'saxes';
 import { Readable } from 'stream';
@@ -142,17 +142,6 @@ const loggerLabel = '[EPG Worker]';
 // Batch size for database inserts
 const CHANNEL_BATCH_SIZE = 100;
 const PROGRAM_BATCH_SIZE = 1000;
-
-/**
- * Get database file path (same as main app)
- */
-function getDatabasePath(): string {
-    const dbDir = join(homedir(), '.iptvnator', 'databases');
-    if (!existsSync(dbDir)) {
-        mkdirSync(dbDir, { recursive: true });
-    }
-    return join(dbDir, 'iptvnator.db');
-}
 
 /**
  * Database helper class for EPG operations

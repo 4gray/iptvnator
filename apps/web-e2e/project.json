@@ -1,9 +1,15 @@
 {
-  "name": "web-e2e",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "projectType": "application",
-  "sourceRoot": "apps/web-e2e/src",
-  "implicitDependencies": ["web"],
-  "// targets": "to see all targets run: nx show project web-e2e --web",
-  "targets": {}
+    "name": "web-e2e",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "projectType": "application",
+    "sourceRoot": "apps/web-e2e/src",
+    "implicitDependencies": [
+        "web",
+        "stalker-mock-server",
+        "xtream-mock-server"
+    ],
+    "// targets": "to see all targets run: nx show project web-e2e --web",
+    "targets": {
+        "e2e": {}
+    }
 }

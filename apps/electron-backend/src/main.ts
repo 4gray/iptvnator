@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from 'electron';
+import { getElectronUserDataPath } from 'database';
 import fixPath from 'fix-path';
 import App from './app/app';
 import { initDatabase } from './app/database/connection';
@@ -19,6 +20,12 @@ import StalkerEvents from './app/events/stalker.events';
 import XtreamEvents from './app/events/xtream.events';
 
 app.setName('iptvnator');
+
+const electronUserDataPath = getElectronUserDataPath();
+
+if (electronUserDataPath) {
+    app.setPath('userData', electronUserDataPath);
+}
 
 export default class Main {
     static initialize() {

@@ -6,3 +6,4 @@
 
 export * from './lib/schema';
 export * from './lib/connection';
+export * from './lib/path-utils';

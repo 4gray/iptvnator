@@ -1,7 +1,8 @@
 /**
  * Database connection and initialization for IPTVnator
  * Uses Drizzle ORM with better-sqlite3
- * Stores database file under ~/.iptvnator/databases/
+ * Stores database file under ~/.iptvnator/databases/ by default.
+ * E2E tests can override the root with IPTVNATOR_E2E_DATA_DIR.
  *
  * Provides two connection modes:
  * - Full access (for electron-backend): creates tables, read-write
@@ -11,10 +12,8 @@
 import Database from 'better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { existsSync, mkdirSync } from 'fs';
-import { homedir } from 'os';
-import { join } from 'path';
 import * as schema from './schema';
+import { getIptvnatorDatabasePath } from './path-utils';
 
 export type DatabaseInstance = BetterSQLite3Database<typeof schema>;
 
@@ -26,14 +25,7 @@ let initPromise: Promise<DatabaseInstance> | null = null;
  * Get the database file path
  */
 export function getDatabasePath(): string {
-    const dbDir = join(homedir(), '.iptvnator', 'databases');
-
-    // Ensure the directory exists
-    if (!existsSync(dbDir)) {
-        mkdirSync(dbDir, { recursive: true });
-    }
-
-    return join(dbDir, 'iptvnator.db');
+    return getIptvnatorDatabasePath();
 }
 
 /**

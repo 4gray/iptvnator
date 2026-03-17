@@ -54,15 +54,16 @@ async function addXtreamPortal(
         password = DEFAULT_PASSWORD,
     } = options;
 
-    await page.getByTestId('add-playlist').click();
+    await page.getByRole('button', { name: 'Add playlist' }).click();
     await page.getByText('Xtream').click();
+    const dialog = page.locator('mat-dialog-container');
 
-    await page.locator('#title').fill(name);
-    await page.locator('#serverUrl').fill(MOCK_SERVER);
-    await page.locator('#username').fill(username);
-    await page.locator('#password').fill(password);
+    await dialog.locator('#title').fill(name);
+    await dialog.locator('#serverUrl').fill(MOCK_SERVER);
+    await dialog.locator('#username').fill(username);
+    await dialog.locator('#password').fill(password);
 
-    await page.getByRole('button', { name: 'Add' }).click();
+    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
 }
 

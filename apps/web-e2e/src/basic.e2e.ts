@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { join } from 'path';
+
+const fixturePath = join(__dirname, 'fixtures/test.m3u');
 
 test('basic test', async ({ page }) => {
     await page.goto('/');
@@ -7,8 +10,12 @@ test('basic test', async ({ page }) => {
     expect(await page.title()).toBe('IPTVnator');
 
     // Upload playlist test
-    await page.getByTestId('add-playlist').click();
-    await page.click('"Add via file upload"');
-    await page.setInputFiles('input[type="file"]', './e2e/fixtures/test.m3u');
-    await expect(page.getByTestId('channel-item')).toHaveCount(4);
+    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.getByRole('menuitem', { name: 'Add via file upload' }).click();
+    await page.setInputFiles('input[type="file"]', fixturePath);
+    await page.waitForURL(/\/workspace\/playlists\/.+\/all$/);
+    await expect(page.getByText('test.m3u')).toBeVisible();
+    await expect(page.getByText('4 channels')).toBeVisible();
+    await expect(page.getByText('1. Channel 1')).toBeVisible();
+    await expect(page.getByText('4. HappyKids TV')).toBeVisible();
 });

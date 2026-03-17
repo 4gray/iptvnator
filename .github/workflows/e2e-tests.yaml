@@ -1,61 +1,98 @@
 name: 'Cross-Platform E2E Tests'
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+    push:
+        branches:
+            - master
+    pull_request:
+        branches:
+            - master
 
 jobs:
-  e2e-tests:
-    name: E2E on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    env:
-      NX_SKIP_NX_CACHE: true
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-            node-version: '22'
-            cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Backend
-        run: pnpm nx build electron-backend
-
-      - name: Install Playwright Browsers
-        run: pnpm exec playwright install --with-deps
-
-      - name: Run E2E Tests (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm nx run electron-backend-e2e:e2e
+    electron-e2e-tests:
+        name: Electron E2E on ${{ matrix.os }}
+        runs-on: ${{ matrix.os }}
         env:
-          CI: true
+            NX_SKIP_NX_CACHE: true
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, macos-latest, windows-latest]
 
-      - name: Run E2E Tests (Windows/Mac)
-        if: runner.os != 'Linux'
-        run: pnpm nx run electron-backend-e2e:e2e
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'pnpm'
+
+            - name: Install Dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Build Backend
+              run: pnpm nx build electron-backend
+
+            - name: Install Playwright Browsers
+              run: pnpm exec playwright install --with-deps
+
+            - name: Run Electron E2E Tests (Linux)
+              if: runner.os == 'Linux'
+              run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm nx run electron-backend-e2e:e2e
+              env:
+                  CI: true
+
+            - name: Run Electron E2E Tests (Windows/Mac)
+              if: runner.os != 'Linux'
+              run: pnpm nx run electron-backend-e2e:e2e
+              env:
+                  CI: true
+
+            - name: Upload Electron Test Results
+              if: failure()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-report-electron-${{ matrix.os }}
+                  path: dist/playwright-report/electron-backend-e2e/
+                  retention-days: 7
+
+    web-e2e-tests:
+        name: Web E2E on Ubuntu Chromium
+        runs-on: ubuntu-latest
         env:
-          CI: true
+            NX_SKIP_NX_CACHE: true
 
-      - name: Upload Test Results
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-${{ matrix.os }}
-          path: dist/playwright-report/electron-backend-e2e/
-          retention-days: 7
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'pnpm'
+
+            - name: Install Dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Install Chromium
+              run: pnpm exec playwright install --with-deps chromium
+
+            - name: Run Web E2E Tests
+              run: pnpm nx run web-e2e:e2e -- --project=chromium
+              env:
+                  CI: true
+
+            - name: Upload Web Test Results
+              if: failure()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-report-web-ubuntu
+                  path: dist/.playwright/apps/web-e2e/playwright-report/
+                  retention-days: 7

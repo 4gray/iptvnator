@@ -109,9 +109,7 @@
                                     role="radio"
                                     (click)="selectTheme(themeOption.value)"
                                 >
-                                    <mat-icon>{{
-                                        themeOption.icon
-                                    }}</mat-icon>
+                                    <mat-icon>{{ themeOption.icon }}</mat-icon>
                                     <span>{{
                                         themeOption.labelKey | translate
                                     }}</span>
@@ -487,6 +485,7 @@
                         <div class="setting-item__control setting-item__toggle">
                             <mat-checkbox
                                 formControlName="remoteControl"
+                                data-test-id="remote-control-enabled"
                             ></mat-checkbox>
                         </div>
                     </div>
@@ -519,6 +518,7 @@
                                         matInput
                                         type="number"
                                         id="remoteControlPort"
+                                        data-test-id="remote-control-port"
                                         formControlName="remoteControlPort"
                                         min="1"
                                         max="65535"

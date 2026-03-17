@@ -1,4 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, Page, test } from '@playwright/test';
+import { join } from 'path';
+
+async function openSettings(page: Page) {
+    await page.locator('a[href$="/workspace/settings"]').click();
+    await page.waitForURL(/\/workspace\/settings$/);
+    await expect(page.locator('.settings-container')).toBeVisible();
+    await expect(page.locator('.settings-back-button')).toBeVisible();
+}
 
 test.describe('Settings', () => {
     test.beforeEach(async ({ page }) => {
@@ -17,68 +25,62 @@ test.describe('Settings', () => {
     });
 
     test('Check settings page', async ({ page }) => {
-        await page.getByTestId('pwa-menu').click();
-        await page.getByTestId('pwa-open-settings').click();
-        await expect(page.getByTestId('settings-container')).toBeVisible();
-        await page.getByTestId('back-to-home').click();
+        await openSettings(page);
+        await page.locator('.settings-back-button').click();
     });
 
     test('Change video player', async ({ page }) => {
-        await page.getByTestId('pwa-menu').click();
-        await page.getByTestId('pwa-open-settings').click();
+        await openSettings(page);
 
-        await expect(page.locator('text="VideoJs Player"')).toBeVisible();
-        await page.getByTestId('select-video-player').click();
-        await page.getByTestId('html5').click();
+        await expect(page.getByText('Video.js player')).toBeVisible();
+        await page.getByRole('combobox').nth(1).click();
+        await page.getByRole('option', { name: 'HTML5 video player' }).click();
 
-        await page.getByTestId('save-settings').click();
-        await page.getByTestId('back-to-home').click();
+        await page.locator('button[type="submit"]').click();
+        await page.locator('.settings-back-button').click();
 
-        await page.getByTestId('pwa-menu').click();
-        await page.getByTestId('pwa-open-settings').click();
+        await openSettings(page);
 
-        await expect(page.locator('text="HTML5 Video Player"')).toBeVisible();
+        await expect(page.getByText('HTML5 video player')).toBeVisible();
     });
 
     test('Change app theme', async ({ page }) => {
-        await page.getByTestId('pwa-menu').click();
-        await page.getByTestId('pwa-open-settings').click();
-        await expect(page.getByTestId('SYSTEM_THEME')).toHaveAttribute(
-            'aria-checked',
-            'true'
-        );
-        await page.getByTestId('DARK_THEME').click();
+        await openSettings(page);
+        await expect(
+            page.getByRole('radio', { name: 'System theme' })
+        ).toHaveAttribute('aria-checked', 'true');
+        await page.getByRole('radio', { name: 'Dark theme' }).click();
 
-        await page.getByTestId('save-settings').click();
-        await page.getByTestId('back-to-home').click();
+        await page.locator('button[type="submit"]').click();
+        await page.locator('.settings-back-button').click();
 
-        await page.getByTestId('pwa-menu').click();
-        await page.getByTestId('pwa-open-settings').click();
+        await openSettings(page);
 
-        await expect(page.getByTestId('DARK_THEME')).toHaveAttribute(
-            'aria-checked',
-            'true'
-        );
+        await expect(
+            page.getByRole('radio', { name: 'Dark theme' })
+        ).toHaveAttribute('aria-checked', 'true');
     });
 
     test('Change app language', async ({ page }) => {
-        await page.getByTestId('pwa-menu').click();
-        await page.getByTestId('pwa-open-settings').click();
-        await expect(page.locator('text="English"')).toBeVisible();
-        await page.getByTestId('select-language').click();
-        await page.getByTestId('de').click();
+        await openSettings(page);
+        await expect(page.getByText('English')).toBeVisible();
+        await page.getByRole('combobox').first().click();
+        await page.getByRole('option', { name: 'Deutsch' }).click();
 
-        await page.getByTestId('save-settings').click();
-        await page.getByTestId('back-to-home').click();
-        await page.getByTestId('pwa-menu').click();
-        await page.getByTestId('pwa-open-settings').click();
+        await page.locator('button[type="submit"]').click();
+        await page.locator('.settings-back-button').click();
+        await openSettings(page);
 
-        await expect(page.locator('text="Deutsch"')).toBeVisible();
+        await expect(page.getByText('Deutsch')).toBeVisible();
     });
 
     test.afterEach(async ({ page }, testInfo) => {
         await page.screenshot({
-            path: `./e2e/screenshots/settings/${testInfo.title}.png`,
+            path: join(
+                process.cwd(),
+                'dist/.playwright/apps/web-e2e/screenshots/settings',
+                `${testInfo.title}.png`
+            ),
         });
     });
 });

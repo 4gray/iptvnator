@@ -59,14 +59,15 @@ async function addStalkerPortal(
 ): Promise<void> {
     const { name = 'Mock Stalker Portal', mac = DEFAULT_MAC } = options;
 
-    await page.getByTestId('add-playlist').click();
+    await page.getByRole('button', { name: 'Add playlist' }).click();
     await page.getByText('Stalker Portal').click();
+    const dialog = page.locator('mat-dialog-container');
 
-    await page.locator('#title').fill(name);
-    await page.locator('#portalUrl').fill(PORTAL_URL);
-    await page.locator('#macAddress').fill(mac);
+    await dialog.locator('#title').fill(name);
+    await dialog.locator('#portalUrl').fill(PORTAL_URL);
+    await dialog.locator('#macAddress').fill(mac);
 
-    await page.getByRole('button', { name: 'Add' }).click();
+    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
     // Wait for dialog to close
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
 }
@@ -133,7 +134,7 @@ test('@stalker VOD — categories load from mock server', async ({ page }) => {
     await page.waitForURL(/stalker.*vod/);
 
     // Default scenario has 8 VOD categories (+ 1 "All categories" prepended by the store)
-    const categoryItems = page.locator('mat-list-item, [class*="category"]');
+    const categoryItems = page.locator('.category-item, [class*="category"]');
     await expect(categoryItems.first()).toBeVisible({ timeout: 10_000 });
     const count = await categoryItems.count();
     expect(count).toBeGreaterThanOrEqual(8);
@@ -147,11 +148,13 @@ test('@stalker VOD — content list loads after selecting a category', async ({
     await page.waitForURL(/stalker.*vod/);
 
     // Click the first non-"All" category
-    const categories = page.locator('mat-list-item');
+    const categories = page.locator('.category-item');
     await categories.first().click();
 
     // Content grid / list should appear with items
-    const contentItems = page.locator('[class*="content-item"], mat-card');
+    const contentItems = page.locator(
+        '.content-card, [data-test-id="channel-item"], mat-card'
+    );
     await expect(contentItems.first()).toBeVisible({ timeout: 10_000 });
     const itemCount = await contentItems.count();
     expect(itemCount).toBeGreaterThan(0);
@@ -166,7 +169,7 @@ test('@stalker minimal scenario — correct item counts', async ({ page }) => {
     await page.waitForURL(/stalker.*vod/);
 
     // Minimal scenario: 2 categories (+ "All" = 3 visible)
-    const categories = page.locator('mat-list-item');
+    const categories = page.locator('.category-item');
     await expect(categories.first()).toBeVisible({ timeout: 10_000 });
     const count = await categories.count();
     // At least 2 real categories
@@ -183,7 +186,9 @@ test('@stalker EPG data loads for ITV channel', async ({ page }) => {
     await page.waitForURL(/stalker.*itv/);
 
     // Wait for channels to appear
-    const channels = page.locator('mat-list-item, [class*="channel"]');
+    const channels = page.locator(
+        '[data-test-id="channel-item"], [class*="channel"]'
+    );
     await expect(channels.first()).toBeVisible({ timeout: 10_000 });
 
     // Click a channel — EPG info should appear
