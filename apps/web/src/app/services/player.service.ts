@@ -6,6 +6,7 @@ import {
     ExternalPlayerSession,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
+    OPEN_POTPLAYER,
     PlayerContentInfo,
     ResolvedPortalPlayback,
     VideoPlayer,
@@ -111,6 +112,24 @@ export class PlayerService {
                 headers,
                 contentInfo,
                 startTime,
+                }
+            );
+        } else if (player === VideoPlayer.PotPlayer) {
+            if (!hideExternalInfoDialog) {
+                this.dialog.open(ExternalPlayerInfoDialogComponent);
+            }
+            return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
+                OPEN_POTPLAYER,
+                {
+                    url: streamUrl,
+                    title,
+                    thumbnail,
+                    'user-agent': userAgent,
+                    referer: referer,
+                    origin: origin,
+                    headers,
+                    contentInfo,
+                    startTime,
                 }
             );
         }

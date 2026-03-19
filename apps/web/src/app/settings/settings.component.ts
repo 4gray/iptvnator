@@ -117,6 +117,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
     /** Flag that indicates whether the app runs in electron environment */
     readonly isDesktop = !!window.electron;
 
+    readonly isWindowsDesktop = !!window.electron && window.electron.platform === 'win32';
+
     isPwa = this.dataService.getAppEnvironment() === 'pwa';
 
     private readonly settingsCtx = inject(SettingsContextService);
@@ -131,6 +133,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
             id: VideoPlayer.VLC,
             labelKey: 'SETTINGS.PLAYER_VLC',
         },
+        ...(this.isWindowsDesktop
+            ? [
+                  {
+                      id: VideoPlayer.PotPlayer,
+                      labelKey: 'SETTINGS.PLAYER_POTPLAYER',
+                  },
+              ]
+            : []),
     ];
 
     /** Player options */
@@ -189,6 +199,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         mpvPlayerPath: '',
         mpvReuseInstance: false,
         vlcPlayerPath: '',
+        potPlayerPath: '',
         remoteControl: false,
         remoteControlPort: [
             8765,
@@ -463,6 +474,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 if (this.settingsForm.value.vlcPlayerPath) {
                     window.electron.setVlcPlayerPath(
                         this.settingsForm.value.vlcPlayerPath
+                    );
+                }
+                if (this.settingsForm.value.potPlayerPath) {
+                    window.electron.setPotPlayerPath(
+                        this.settingsForm.value.potPlayerPath
                     );
                 }
             }

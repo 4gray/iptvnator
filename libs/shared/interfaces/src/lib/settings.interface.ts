@@ -11,6 +11,7 @@ export enum VideoPlayer {
     MPV = 'mpv',
     VLC = 'vlc',
     ArtPlayer = 'artplayer',
+    PotPlayer = 'potplayer'
 }
 
 /**
@@ -28,6 +29,7 @@ export interface Settings {
     mpvPlayerPath: string;
     mpvReuseInstance: boolean;
     vlcPlayerPath: string;
+    potPlayerPath: string;
     remoteControl: boolean;
     remoteControlPort: number;
     /** Custom download folder path (uses system Downloads folder if not set) */

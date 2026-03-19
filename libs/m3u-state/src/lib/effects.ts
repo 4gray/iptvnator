@@ -20,6 +20,7 @@ import { DataService, PlaylistsService } from 'services';
 import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
+    OPEN_POTPLAYER,
     Playlist,
     STORE_KEY,
     VideoPlayer,
@@ -130,6 +131,21 @@ export class PlaylistEffects {
                                     referer: activeChannel?.http?.referrer,
                                     origin: activeChannel?.http?.origin,
                                 });
+                            else if (
+                                settings &&
+                                Object.keys(settings).length > 0 &&
+                                settings.player === VideoPlayer.PotPlayer
+                            )
+                                this.dataService.sendIpcEvent(OPEN_POTPLAYER, {
+                                    url:
+                                        activeChannel?.url +
+                                        (activeChannel?.epgParams ?? ''),
+                                    title: activeChannel?.name ?? '',
+                                    'user-agent':
+                                        activeChannel?.http?.['user-agent'],
+                                    referer: activeChannel?.http?.referrer,
+                                    origin: activeChannel?.http?.origin,
+                                });
                         }
                     );
                 })
@@ -182,6 +198,19 @@ export class PlaylistEffects {
                             channel.radio !== 'true'
                         )
                             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
+                                url: channel.url,
+                                title: channel.name ?? '',
+                                'user-agent': channel.http['user-agent'],
+                                referer: channel.http.referrer,
+                                origin: channel.http.origin,
+                            });
+                        else if (
+                            settings &&
+                            Object.keys(settings).length > 0 &&
+                            settings.player === VideoPlayer.PotPlayer &&
+                            channel.radio !== 'true'
+                        )
+                            this.dataService.sendIpcEvent(OPEN_POTPLAYER, {
                                 url: channel.url,
                                 title: channel.name ?? '',
                                 'user-agent': channel.http['user-agent'],
