@@ -1,12 +1,13 @@
 {
   "cli_version": "0.4.2",
   "checkpoint_id": "0e4488af6c76",
+  "session_id": "72da01ff-064d-40bf-8443-254ceb0d5ab4",
   "strategy": "manual-commit",
+  "created_at": "2026-03-22T17:38:18.536562Z",
   "branch": "master",
-  "checkpoints_count": 6,
+  "checkpoints_count": 5,
   "files_touched": [
     ".plans/2026-03-22-navigation-ux-improvements.md",
-    ".plans/2026-03-22-ui-ux-audit.md",
     "apps/web/src/assets/i18n/en.json",
     "docs/architecture/navigation-ux-analysis.md",
     "docs/architecture/workspace-ui-refactor-summary.md",
@@ -19,27 +20,22 @@
     "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.scss",
     "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts"
   ],
-  "sessions": [
-    {
-      "metadata": "/0e/4488af6c76/0/metadata.json",
-      "transcript": "/0e/4488af6c76/0/full.jsonl",
-      "context": "/0e/4488af6c76/0/context.md",
-      "content_hash": "/0e/4488af6c76/0/content_hash.txt",
-      "prompt": "/0e/4488af6c76/0/prompt.txt"
-    },
-    {
-      "metadata": "/0e/4488af6c76/1/metadata.json",
-      "transcript": "/0e/4488af6c76/1/full.jsonl",
-      "context": "/0e/4488af6c76/1/context.md",
-      "content_hash": "/0e/4488af6c76/1/content_hash.txt",
-      "prompt": "/0e/4488af6c76/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "eee14c10-fbdd-47ba-abb8-08d4c20b7442",
   "token_usage": {
-    "input_tokens": 3979,
-    "cache_creation_tokens": 354105,
-    "cache_read_tokens": 12164318,
-    "output_tokens": 43043,
-    "api_call_count": 140
+    "input_tokens": 196,
+    "cache_creation_tokens": 282726,
+    "cache_read_tokens": 11823661,
+    "output_tokens": 34755,
+    "api_call_count": 130
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-22T17:38:18.397778Z",
+    "agent_lines": 149,
+    "human_added": 0,
+    "human_modified": 255,
+    "human_removed": 231,
+    "total_committed": 404,
+    "agent_percentage": 36.88118811881188
   }
 }
