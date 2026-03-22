@@ -137,6 +137,37 @@
     object-fit: contain;
 }
 
+// ─── Rail Context Label ──────────────────────────────────────────────────────
+.rail-context-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--mat-sys-on-surface-variant);
+    opacity: 0.55;
+    max-width: 44px;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 2px;
+    margin-bottom: 2px;
+    cursor: default;
+    app-region: no-drag;
+    animation: rail-label-enter 0.2s ease-out both;
+}
+
+@keyframes rail-label-enter {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 0.55;
+        transform: translateY(0);
+    }
+}
+
 // ─── Rail Divider ─────────────────────────────────────────────────────────────
 .rail-divider {
     width: 44px;
@@ -320,6 +351,24 @@
                 inset 0 0 0 1px var(--app-selection-border),
                 0 10px 20px -16px var(--app-selection-glow);
         }
+    }
+}
+
+.header-shortcut--global {
+    position: relative;
+
+    &::before {
+        content: '';
+        position: absolute;
+        bottom: 5px;
+        right: 5px;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--mat-sys-tertiary);
+        border: 1.5px solid
+            var(--app-header-bg, var(--mat-sys-surface-container-low));
+        z-index: 1;
     }
 }
 
@@ -531,6 +580,10 @@
         width: 1px;
         height: 24px;
         margin: 0 4px;
+    }
+
+    .rail-context-label {
+        display: none;
     }
 
     .rail-footer {

@@ -371,6 +371,40 @@
     }
 }
 
+.context-actions-section {
+    padding: 6px 8px 8px;
+
+    .context-action-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 8px 10px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--mat-sys-on-surface-variant);
+        font: inherit;
+        font-size: 0.86em;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+            background 0.15s ease,
+            color 0.15s ease;
+
+        &:hover {
+            background: var(--mat-sys-surface-container);
+            color: var(--mat-sys-on-surface);
+        }
+
+        mat-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+        }
+    }
+}
+
 @media only screen and (max-width: 480px) {
     .playlist-info {
         max-width: 140px;

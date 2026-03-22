@@ -21,6 +21,13 @@
 
         @if (primaryContextLinks().length > 0) {
             <div class="rail-divider"></div>
+            @if (railPlaylistLabel(); as label) {
+                <span
+                    class="rail-context-label"
+                    [matTooltip]="label"
+                    [matTooltipPosition]="'right'"
+                >{{ label }}</span>
+            }
             <app-portal-rail-links
                 variant="rail"
                 activeClass="is-active"
@@ -58,6 +65,10 @@
             class="playlist-switcher"
             [currentTitle]="playlistTitle()"
             [subtitle]="playlistSubtitle()"
+            [showPlaylistInfo]="canOpenPlaylistInfo()"
+            [showAccountInfo]="canOpenAccountInfo()"
+            (playlistInfoRequested)="openPlaylistInfo()"
+            (accountInfoRequested)="openAccountInfo()"
         />
 
         <label class="search-field">
@@ -103,7 +114,7 @@
             />
             <span class="header-actions-divider" aria-hidden="true"></span>
             <a
-                class="header-shortcut"
+                class="header-shortcut header-shortcut--global"
                 mat-icon-button
                 routerLink="/workspace/global-favorites"
                 [class.is-active]="isGlobalFavoritesRoute()"
@@ -141,71 +152,20 @@
                     <mat-icon>download</mat-icon>
                 </button>
             }
-            @if (hasContextActions()) {
+            @if (headerBulkAction(); as action) {
                 <span class="header-actions-divider" aria-hidden="true"></span>
                 <button
                     type="button"
                     mat-icon-button
-                    [matMenuTriggerFor]="contextActionsMenu"
-                    [matTooltip]="
-                        'WORKSPACE.SHELL.RAIL_CONTEXT_ACTIONS' | translate
-                    "
-                    [attr.aria-label]="
-                        'WORKSPACE.SHELL.OPEN_CONTEXT_ACTIONS' | translate
-                    "
+                    (click)="runHeaderBulkAction()"
+                    [disabled]="action.disabled"
+                    [matTooltip]="action.tooltip"
+                    [attr.aria-label]="action.ariaLabel"
                 >
-                    <mat-icon>more_horiz</mat-icon>
+                    <mat-icon>{{ action.icon }}</mat-icon>
                 </button>
             }
         </div>
-
-        <mat-menu #contextActionsMenu="matMenu">
-            @if (!hasContextActions()) {
-                <button mat-menu-item disabled>
-                    <span>{{
-                        'WORKSPACE.SHELL.NO_SECTION_ACTIONS' | translate
-                    }}</span>
-                </button>
-            } @else {
-                @if (contextActionGroups().hasPlaylistActions) {
-                    @if (canOpenPlaylistInfo()) {
-                        <button mat-menu-item (click)="openPlaylistInfo()">
-                            <mat-icon>playlist_play</mat-icon>
-                            <span>{{
-                                'WORKSPACE.SHELL.PLAYLIST_INFO' | translate
-                            }}</span>
-                        </button>
-                    }
-                    @if (canOpenAccountInfo()) {
-                        <button mat-menu-item (click)="openAccountInfo()">
-                            <mat-icon>person</mat-icon>
-                            <span>{{
-                                'WORKSPACE.SHELL.ACCOUNT_INFO' | translate
-                            }}</span>
-                        </button>
-                    }
-                }
-
-                @if (
-                    contextActionGroups().hasCleanupActions &&
-                    contextActionGroups().hasPlaylistActions
-                ) {
-                    <mat-divider />
-                }
-
-                @if (headerBulkAction(); as action) {
-                    <button
-                        mat-menu-item
-                        (click)="runHeaderBulkAction()"
-                        [disabled]="action.disabled"
-                        [attr.aria-label]="action.ariaLabel"
-                    >
-                        <mat-icon>{{ action.icon }}</mat-icon>
-                        <span>{{ action.tooltip }}</span>
-                    </button>
-                }
-            }
-        </mat-menu>
     </header>
 
     <div class="workspace-body" [class.single-pane]="!showContextPanel()">

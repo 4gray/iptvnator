@@ -13,7 +13,6 @@ import {
 } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatDividerModule } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -98,7 +97,6 @@ const SEARCH_INPUT_DEBOUNCE_MS = 350;
     imports: [
         MatIcon,
         MatIconButton,
-        MatDividerModule,
         MatMenuModule,
         MatTooltip,
         AddPlaylistMenuComponent,
@@ -364,6 +362,12 @@ export class WorkspaceShellComponent {
         }
 
         return 'WORKSPACE.SHELL.SEARCH_PLAYLIST_PLACEHOLDER';
+    });
+    readonly railPlaylistLabel = computed<string | null>(() => {
+        const context = this.railContext();
+        if (!context) return null;
+        const active = this.activePlaylist();
+        return active?.title || active?.filename || null;
     });
     readonly primaryContextLinks = computed<PortalRailLink[]>(() => {
         this.languageTick();

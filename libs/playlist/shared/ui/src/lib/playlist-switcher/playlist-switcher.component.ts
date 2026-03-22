@@ -15,6 +15,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatRippleModule } from '@angular/material/core';
+import { MatDivider } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenu, MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
@@ -92,6 +93,7 @@ const M3U_SECTIONS = ['all', 'groups', 'favorites', 'recent'] as const;
     imports: [
         DatePipe,
         FormsModule,
+        MatDivider,
         MatIcon,
         MatIconButton,
         MatInputModule,
@@ -112,8 +114,16 @@ export class PlaylistSwitcherComponent {
     readonly currentTitle = input.required<string>();
     /** Subtitle to display (e.g., "123 Channels" or "Xtream Code") */
     readonly subtitle = input<string>('');
+    /** Whether the "Playlist Info" action is available */
+    readonly showPlaylistInfo = input(false);
+    /** Whether the "Account Info" action is available */
+    readonly showAccountInfo = input(false);
     /** Emitted when a different playlist is selected */
     readonly playlistSelected = output<string>();
+    /** Emitted when user clicks "Playlist Info" */
+    readonly playlistInfoRequested = output<void>();
+    /** Emitted when user clicks "Account Info" */
+    readonly accountInfoRequested = output<void>();
 
     readonly menuTrigger = viewChild.required<MatMenuTrigger>('menuTrigger');
     readonly playlistMenu = viewChild.required<MatMenu>('playlistMenu');

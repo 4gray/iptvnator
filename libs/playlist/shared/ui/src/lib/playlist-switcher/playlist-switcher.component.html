@@ -137,4 +137,32 @@
             </div>
         }
     </div>
+
+    @if (showPlaylistInfo() || showAccountInfo()) {
+        <mat-divider />
+        <div class="context-actions-section">
+            @if (showPlaylistInfo()) {
+                <button
+                    class="context-action-item"
+                    (click)="playlistInfoRequested.emit()"
+                >
+                    <mat-icon>playlist_play</mat-icon>
+                    <span>{{
+                        'WORKSPACE.SHELL.PLAYLIST_INFO' | translate
+                    }}</span>
+                </button>
+            }
+            @if (showAccountInfo()) {
+                <button
+                    class="context-action-item"
+                    (click)="accountInfoRequested.emit()"
+                >
+                    <mat-icon>person</mat-icon>
+                    <span>{{
+                        'WORKSPACE.SHELL.ACCOUNT_INFO' | translate
+                    }}</span>
+                </button>
+            }
+        </div>
+    }
 </mat-menu>
