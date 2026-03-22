@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0e4488af6c76",
+  "session_id": "28b2938e-4a53-4363-908b-127a13b0f672",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-22T17:38:17.961752Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".plans/2026-03-22-ui-ux-audit.md",
+    "docs/architecture/workspace-ui-refactor-summary.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "ee9fd332-e158-4099-8871-d92fecbf625a",
+  "token_usage": {
+    "input_tokens": 3783,
+    "cache_creation_tokens": 71379,
+    "cache_read_tokens": 340657,
+    "output_tokens": 8288,
+    "api_call_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-22T17:38:17.899464Z",
+    "agent_lines": 0,
+    "human_added": 232,
+    "human_modified": 170,
+    "human_removed": 0,
+    "total_committed": 402,
+    "agent_percentage": 0
+  }
+}

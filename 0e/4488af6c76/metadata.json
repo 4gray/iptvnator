@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0e4488af6c76",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".plans/2026-03-22-ui-ux-audit.md",
+    "docs/architecture/workspace-ui-refactor-summary.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0e/4488af6c76/0/metadata.json",
+      "transcript": "/0e/4488af6c76/0/full.jsonl",
+      "context": "/0e/4488af6c76/0/context.md",
+      "content_hash": "/0e/4488af6c76/0/content_hash.txt",
+      "prompt": "/0e/4488af6c76/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3783,
+    "cache_creation_tokens": 71379,
+    "cache_read_tokens": 340657,
+    "output_tokens": 8288,
+    "api_call_count": 10
+  }
+}
