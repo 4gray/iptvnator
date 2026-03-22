@@ -3,7 +3,7 @@
   "checkpoint_id": "0e4488af6c76",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 6,
+  "checkpoints_count": 9,
   "files_touched": [
     ".plans/2026-03-22-navigation-ux-improvements.md",
     ".plans/2026-03-22-ui-ux-audit.md",
@@ -33,13 +33,20 @@
       "context": "/0e/4488af6c76/1/context.md",
       "content_hash": "/0e/4488af6c76/1/content_hash.txt",
       "prompt": "/0e/4488af6c76/1/prompt.txt"
+    },
+    {
+      "metadata": "/0e/4488af6c76/2/metadata.json",
+      "transcript": "/0e/4488af6c76/2/full.jsonl",
+      "context": "/0e/4488af6c76/2/context.md",
+      "content_hash": "/0e/4488af6c76/2/content_hash.txt",
+      "prompt": "/0e/4488af6c76/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3979,
-    "cache_creation_tokens": 354105,
-    "cache_read_tokens": 12164318,
-    "output_tokens": 43043,
-    "api_call_count": 140
+    "input_tokens": 3994,
+    "cache_creation_tokens": 411775,
+    "cache_read_tokens": 12543624,
+    "output_tokens": 45834,
+    "api_call_count": 149
   }
 }
