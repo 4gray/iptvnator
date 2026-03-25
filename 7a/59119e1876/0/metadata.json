@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7a59119e1876",
+  "session_id": "4f2f2cab-a227-46e8-a4c4-d8793ea5a92c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T20:29:35.234409Z",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/web/src/m3-theme.scss",
+    "docs/architecture/workspace-ui-refactor-summary.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "e651c19c-ecf5-4085-83c0-31d33b24bbc0",
+  "checkpoint_transcript_start": 956,
+  "transcript_lines_at_start": 956,
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 1326,
+    "cache_read_tokens": 365195,
+    "output_tokens": 532,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T20:29:35.005651Z",
+    "agent_lines": 0,
+    "human_added": 1819,
+    "human_modified": 536,
+    "human_removed": 0,
+    "total_committed": 1820,
+    "agent_percentage": 0
+  }
+}

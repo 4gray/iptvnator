@@ -1,0 +1,170 @@
+i want you to check the UI, colors, style, look and feel, design of all views for m3u, xtream, and stalker. in dark theme and light theme. please check the consistency of list layouts for modules if they are following the consistent pattern and how good they are from usability point of view, if the grids and list are same, if they are sharing css for states,colors etc. use frontend-design skill and also use electron skill and agent-browser cli to check and navigate in the app, create screenshots etc. the app is running now, so you can just attach to it
+
+---
+
+i have restarted and rebuild the app. what are next steps?
+
+---
+
+in the light theme the rail and the haeder they have different background color or? also i see a border-right for rail, what do you think about this? and there is a border-radius in top left corner for the main container and the b acktround of this corner has a different color than background, which looks strange, can ou see it? use frontend-design to fix issues and agent-browser to check
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested a comprehensive UI/UX audit of IPTVnator across all three modules (M3U, Xtream, Stalker) in both dark and light themes. They wanted to check consistency of list layouts, grid patterns, shared CSS for states/colors, and overall usability/design quality. They asked to use the frontend-design skill and agent-browser CLI to navigate and screenshot the running Electron app (CDP port 9222). After the audit plan was approved, the user asked to implement all fixes. After rebuilding, the user identified THREE additional light theme issues: (1) rail and header have different background colors, (2) visible border-right on the rail, and (3) a border-radius artifact in the top-left corner of the main content area where the background behind the rounded corner doesn't match.
+
+2. Key Technical Concepts:
+   - Angular Material M3 theming with `$light-theme` and `$dark-theme` via `mat.define-theme()`
+   - Custom CSS design tokens (`--app-*` variables) for both themes
+   - Shared SCSS mixins (`_content-grid.scss`, `_portal-layout.scss`, `_portal-sidebar.scss`)
+   - Workspace shell grid layout with rail, header, body, and content areas
+   - CDP (Chrome DevTools Protocol) debugging via `agent-browser --cdp 9222`
+   - Signal-based Angular components with `signal()`, `computed()`, `effect()`
+   - Nx monorepo with shared libs (`libs/ui/styles/`, `libs/portal/shared/ui/`, etc.)
+   - `color-mix()` CSS function for theme-aware color blending
+   - `::ng-deep` deprecation and removal
+
+3. Files and Code Sections:
+
+   - **`apps/web/src/m3-theme.scss`** — Master theme file defining light/dark CSS variables
+     - Changed `--app-rail-bg` from `#e8eaed` to `#f0f2f5` for better light theme icon contrast
+     - Key light theme tokens: `--app-shell-bg: #eef0f3`, `--app-rail-bg: #f0f2f5`, `--app-header-bg: #eef0f3`, `--app-content-bg: #f5f6f8`
+     - These mismatched values between rail-bg, header-bg, and shell-bg are the root cause of the user's latest complaint
+
+   - **`libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.scss`** — Workspace grid layout
+     - `.workspace-shell` uses `background: var(--app-shell-bg)`
+     - `.workspace-body` uses `background: var(--app-rail-bg)` — this is what shows behind the rounded corner
+     - `.workspace-content` has `border-radius: 16px 0 0 0` and `background: var(--app-content-bg)` — the rounded corner reveals the workspace-body background behind it
+     ```scss
+     .workspace-content {
+         min-width: 0;
+         min-height: 0;
+         overflow: auto;
+         background: var(--app-content-bg, var(--mat-sys-surface));
+         border-radius: 16px 0 0 0;
+         box-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
+     }
+     ```
+
+   - **`libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-rail/workspace-shell-rail.component.scss`** — Rail styles
+     - Has `border-right: 1px solid var(--app-rail-border)` and `background: var(--app-rail-bg)`
+     - The border-right and background mismatch with header are the issues user pointed out
+     ```scss
+     .app-rail {
+         border-right: 1px solid var(--app-rail-border, var(--mat-sys-outline-variant));
+         background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+     }
+     ```
+
+   - **`libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.scss`** — Was about to read this file when summary was requested
+
+   - **`libs/ui/styles/_content-grid.scss`** — Shared card/grid mixins
+     - Changed `border-radius` from `8px` to `10px` in both `content-card` and `thumbnail-wrapper` mixins
+
+   - **`libs/portal/shared/ui/src/lib/components/grid-list/grid-list.component.scss`** — Grid list card styles
+     - Reduced hover shadow from `0 8px 24px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)` to `0 6px 16px rgba(0,0,0,0.12)`
+
+   - **`libs/ui/styles/_portal-sidebar.scss`** — Shared sidebar styles
+     - Added `.category-heading`, `.category-title`, `.category-count` inside `.sidebar-header`
+     - Added `flex-shrink: 0` to `.sidebar-header`
+
+   - **`libs/portal/xtream/feature/src/lib/live-stream-layout/live-stream-layout.component.scss`**
+     - Removed duplicate `.sidebar-header`, `.category-heading`, `.category-title`, `.category-count` (now in shared `_portal-sidebar.scss`)
+
+   - **`libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.html`**
+     - Added `.category-heading`, `.category-title`, `.category-count` to sidebar-header to match Xtream pattern
+
+   - **`libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.scss`**
+     - Removed dead `.search-panel`, `.search-bar`, and `::ng-deep` CSS (not used in template)
+     - Removed `@use '@angular/material' as mat;` import (no longer needed)
+
+   - **`libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.html`**
+     - Changed `'BUTTONS.CLOSE' | translate` to `'CLOSE' | translate` (3 occurrences)
+
+   - **`apps/web/src/app/settings/settings.component.ts`**
+     - Added `this.settingsService.changeTheme(theme);` to `selectTheme()` method for instant theme preview
+
+4. Errors and fixes:
+   - **BUTTONS.CLOSE translation key not found**: The EPG progress panel referenced `BUTTONS.CLOSE` but the English translation file only has `CLOSE` at root level. Fixed by changing template references from `'BUTTONS.CLOSE'` to `'CLOSE'`.
+   - **Pre-existing test failures**: `nx test web` showed 4 failed test suites due to module resolution errors in spec files (e.g., `settings.component.spec.ts` can't find `@angular/material/snack-bar`). These are pre-existing and unrelated to changes.
+   - **User feedback on F5 (Stalker pagination)**: User explained that Stalker API doesn't support configurable page sizes, so the different pagination UI is intentional. Updated plan to mark F5 as "Not a bug."
+   - **User's latest feedback on light theme**: Rail and header have different background colors, rail has a visible border-right, and the top-left corner border-radius has a color artifact. This is the current pending task.
+
+5. Problem Solving:
+   - Identified 11 UI inconsistencies through visual screenshots + code analysis
+   - Successfully implemented 7 fixes (F1, F2, F3, F6, F7, F9, F11)
+   - Confirmed 3 items needed no changes (F4, F8, F10) and 1 was intentional (F5)
+   - Verified instant theme preview works both directions via CDP screenshots
+   - Now investigating new light theme issues identified by user (rail/header mismatch, border-right, corner artifact)
+
+6. All user messages:
+   - "/plan" — initiated plan mode
+   - "i want you to check the UI, colors, style, look and feel, design of all views for m3u, xtream, and stalker. in dark theme and light theme. please check the consistency of list layouts for modules if they are following the consistent pattern and how good they are from usability point of view, if the grids and list are same, if they are sharing css for states,colors etc. use frontend-design skill and also use electron skill and agent-browser cli to check and navigate in the app, create screenshots etc. the app is running now, so you can just attach to it"
+   - "for that one 'Stalker: Has Items per page label (14), Previous/Next but a different format (1-16 of 24751), no items-per-page dropdown visible' stalker api has no option to change items per page, thats why it was done like now. other than that do the plan and auto-accept edits."
+   - "i have restarted and rebuild the app. what are next steps?"
+   - "in the light theme the rail and the haeder they have different background color or? also i see a border-right for rail, what do you think about this? and there is a border-radius in top left corner for the main container and the b acktround of this corner has a different color than background, which looks strange, can ou see it? use frontend-design to fix issues and agent-browser to check"
+
+7. Pending Tasks:
+   - Fix the three light theme issues the user identified:
+     1. Rail and header background color mismatch (`--app-rail-bg: #f0f2f5` vs `--app-header-bg: #eef0f3`)
+     2. Visible `border-right` on the rail in light theme
+     3. Top-left corner border-radius artifact where `.workspace-content` has `border-radius: 16px 0 0 0` but the `.workspace-body` background behind it (`--app-rail-bg`) doesn't match `--app-content-bg`
+   - User asked to use "frontend-design" skill and "agent-browser" to check fixes
+
+8. Current Work:
+   I was investigating the three light theme issues the user pointed out. I had already:
+   - Taken a screenshot confirming the visual problems
+   - Read `workspace-shell.component.scss` (found `.workspace-body` bg = `var(--app-rail-bg)`, `.workspace-content` bg = `var(--app-content-bg)` with `border-radius: 16px 0 0 0`)
+   - Read `workspace-shell-rail.component.scss` (found `border-right: 1px solid var(--app-rail-border)`)
+   - Was about to read `workspace-shell-header.component.scss` to understand the header background
+   
+   The root cause is clear: in `m3-theme.scss`, the light theme has different values for `--app-rail-bg` (#f0f2f5), `--app-header-bg` (#eef0f3), `--app-shell-bg` (#eef0f3), and `--app-content-bg` (#f5f6f8). The workspace-body behind the rounded content corner uses `--app-rail-bg`, creating a visible color artifact at the `border-radius: 16px 0 0 0` corner.
+
+9. Optional Next Step:
+   Read `workspace-shell-header.component.scss` to confirm the header's background source, then fix the three issues by:
+   1. Aligning rail-bg and header-bg to the same value in light theme
+   2. Removing or making the rail border-right transparent in light theme
+   3. Making the workspace-body background match appropriately so the corner radius artifact disappears
+   
+   Then use agent-browser to verify the fixes visually, as the user explicitly requested: "use frontend-design to fix issues and agent-browser to check"
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/4gray/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+<task-notification>
+<task-id>btz25bxx1</task-id>
+<tool-use-id>toolu_01VVHNY1SUUQaJDYDY9xgcHJ</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>failed</status>
+<summary>Background command "Click settings to switch to dark theme for verification" failed with exit code 1</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+oh the settings icon in the rail is not visible anymore, can you check?
+
+---
+
+look at the screenshot, the icon is not visible in the bottom corner, maybe it's in the dom but outside of visible rail area? [Image #1]
+
+---
+
+[Image: source: /Users/4gray/.claude/image-cache/4f2f2cab-a227-46e8-a4c4-d8793ea5a92c/1.png]
+
+---
+
+perfect, are there any other issues left from our initial plan? what do you think about playlist-switcher @libs/playlist/shared/ui/src/lib/playlist-switcher/ component and consistency of it, use agent-browser to open it and check the layout style, items, etc
+
+---
+
+remember we have remove the rail border-right, or adapted the color in light theme, but i can still see it in dark theme. what do you think, should we keep it?
+
+---
+
+i like your recommendation, do it
