@@ -1,0 +1,1158 @@
+i have three issues with favorites where i'm not sure about: 1. global favorites on top references only tv streams without vods 2. favorites view, recently-viewed  on context level they have a nav column where user has to switch between tv/vod/series. the tv view is not perfect, since i would prefer to have it like in m3u module or global favorites with drag&drop. so mabye it makes sense to split tv and tv/series in those views (fav, recent) in different portals? 3. there are too many different views, what do you think about merging local and global views for favs and recently views, and add a toggle button on top (value woruld be persisted) to switch beteen playlist level items and global level? use sc-brainstom skill and frontend-design skill to analyse and suggest me options and check it from ui/usabiliry view. furthermore the app is running now, you can use electron skill with agent-browser to check the app and also create screenshots etc
+
+---
+
+Base directory for this skill: /Users/4gray/Code/iptvnator/.claude/skills/sc-brainstorm
+
+# Brainstorming & Requirements Discovery Skill
+
+Transform ambiguous ideas into concrete specifications through structured exploration.
+
+## Quick Start
+
+```bash
+# Basic brainstorm
+/sc:brainstorm [topic]
+
+# Deep systematic exploration
+/sc:brainstorm "AI project management tool" --strategy systematic --depth deep
+
+# Parallel exploration with multiple personas
+/sc:brainstorm "real-time collaboration" --strategy agile --parallel
+```
+
+## Behavioral Flow
+
+1. **Explore** - Transform ambiguous ideas through Socratic dialogue
+2. **Analyze** - Coordinate multiple personas for domain expertise
+3. **Validate** - Apply feasibility assessment across domains
+4. **Specify** - Generate concrete specifications
+5. **Handoff** - Create actionable briefs for implementation
+
+## Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--strategy` | string | systematic | systematic, agile, enterprise |
+| `--depth` | string | normal | shallow, normal, deep |
+| `--parallel` | bool | false | Enable parallel exploration paths |
+| `--validate` | bool | false | Include feasibility validation |
+
+## Personas Activated
+
+- **architect** - System design and technical feasibility
+- **analyzer** - Requirements analysis and complexity assessment
+- **frontend** - User experience and interface considerations
+- **backend** - API and data architecture
+- **security** - Security requirements and compliance
+- **devops** - Infrastructure and deployment considerations
+- **project-manager** - Timeline and resource planning
+
+## MCP Integration
+
+### PAL MCP (Collaborative Intelligence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__pal__consensus` | Conflicting priorities | Multi-model resolution of trade-offs |
+| `mcp__pal__chat` | Brainstorming | Collaborative idea exploration with external model |
+| `mcp__pal__thinkdeep` | Complex problems | Multi-stage deep analysis |
+| `mcp__pal__planner` | Solution design | Sequential planning with branching |
+| `mcp__pal__challenge` | Validate ideas | Force critical thinking on proposed solutions |
+
+### PAL Usage Patterns
+
+```bash
+# Consensus on conflicting priorities
+mcp__pal__consensus(
+    models=[
+        {"model": "gpt-5.2", "stance": "for", "stance_prompt": "Prioritize user experience"},
+        {"model": "gemini-3-pro", "stance": "against", "stance_prompt": "Prioritize technical simplicity"},
+        {"model": "deepseek", "stance": "neutral"}
+    ],
+    step="Evaluate: Should we use real-time sync or eventual consistency?"
+)
+
+# Deep exploration of complex idea
+mcp__pal__thinkdeep(
+    step="Exploring AI-powered analytics dashboard concept",
+    hypothesis="Users need predictive insights, not just historical data",
+    confidence="medium",
+    focus_areas=["user_needs", "technical_feasibility", "market_fit"]
+)
+
+# Collaborative brainstorming
+mcp__pal__chat(
+    prompt="Help me explore innovative approaches for real-time collaboration in document editing",
+    model="gpt-5.2",
+    thinking_mode="high"
+)
+
+# Challenge assumptions
+mcp__pal__challenge(
+    prompt="We assume users want AI-generated summaries. Is this assumption valid?"
+)
+
+# Plan solution architecture
+mcp__pal__planner(
+    step="Planning architecture for real-time notification system",
+    step_number=1,
+    total_steps=4,
+    is_branch_point=True,
+    branch_id="websocket-approach"
+)
+```
+
+### Rube MCP (Research & Persistence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__rube__RUBE_SEARCH_TOOLS` | Market research | Find web search, competitor analysis tools |
+| `mcp__rube__RUBE_MULTI_EXECUTE_TOOL` | Documentation | Save ideas to Notion, share in Slack |
+| `mcp__rube__RUBE_CREATE_UPDATE_RECIPE` | Workflows | Save brainstorming processes |
+| `mcp__rube__RUBE_REMOTE_WORKBENCH` | Data analysis | Analyze market data, user research |
+
+### Rube Usage Patterns
+
+```bash
+# Research market and competitors
+mcp__rube__RUBE_SEARCH_TOOLS(queries=[
+    {"use_case": "web search", "known_fields": "query:AI analytics dashboard competitors 2025"}
+])
+
+# Document brainstorming session
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "NOTION_CREATE_PAGE", "arguments": {
+        "title": "Brainstorm: AI Analytics Dashboard",
+        "content": "## Key Ideas\n- Predictive insights\n- Natural language queries\n\n## Decisions\n- Real-time sync chosen over eventual consistency"
+    }},
+    {"tool_slug": "SLACK_SEND_MESSAGE", "arguments": {
+        "channel": "#product",
+        "text": "New brainstorm session documented: AI Analytics Dashboard"
+    }}
+])
+
+# Create user research tasks
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "JIRA_CREATE_ISSUE", "arguments": {
+        "project": "PROD",
+        "summary": "User research: AI analytics preferences",
+        "issue_type": "Task",
+        "description": "Interview 10 users about analytics needs"
+    }},
+    {"tool_slug": "ASANA_CREATE_TASK", "arguments": {
+        "name": "Competitor analysis: analytics dashboards",
+        "project": "Research"
+    }}
+])
+
+# Analyze existing user feedback
+mcp__rube__RUBE_REMOTE_WORKBENCH(
+    thought="Analyze user feedback data for patterns",
+    code_to_execute='''
+import json
+# Load user feedback from file
+feedback_data = json.load(open("/tmp/user_feedback.json"))
+# Analyze with LLM
+analysis, error = invoke_llm(f"Analyze this user feedback for analytics feature requests: {feedback_data[:5000]}")
+output = {"analysis": analysis, "feedback_count": len(feedback_data)}
+output
+'''
+)
+```
+
+## Flags (Extended)
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--pal-consensus` | bool | false | Use PAL consensus for trade-offs |
+| `--pal-deep` | bool | false | Use PAL thinkdeep for complex exploration |
+| `--research` | bool | false | Use Rube for market/competitor research |
+| `--document` | string | - | Document to Rube (notion, confluence, google-docs) |
+| `--notify` | string | - | Notify via Rube (slack, teams, email) |
+
+## Evidence Requirements
+
+This skill does NOT require hard evidence. Focus on:
+- Documenting exploration paths and decisions
+- Recording stakeholder input and priorities
+- Capturing specifications and requirements
+
+## Exploration Strategies
+
+### Systematic (`--strategy systematic`)
+- Structured question-driven discovery
+- Comprehensive domain coverage
+- Documentation-heavy approach
+
+### Agile (`--strategy agile`)
+- Rapid iteration cycles
+- User story focused
+- Minimal viable specification
+
+### Enterprise (`--strategy enterprise`)
+- Compliance and governance focus
+- Stakeholder alignment
+- Risk assessment integration
+
+## Examples
+
+### Product Discovery
+```
+/sc:brainstorm "AI-powered analytics dashboard" --strategy systematic --depth deep
+# Multi-persona analysis with comprehensive feasibility
+```
+
+### Feature Exploration
+```
+/sc:brainstorm "real-time notifications" --strategy agile --parallel
+# Parallel paths: frontend UX, backend architecture, security implications
+```
+
+### Enterprise Solution
+```
+/sc:brainstorm "enterprise data platform" --strategy enterprise --validate
+# Compliance-aware exploration with security and devops input
+```
+
+## Tool Coordination
+
+- **Read/Write** - Requirements documentation
+- **TodoWrite** - Exploration progress tracking
+- **Task** - Parallel exploration delegation
+- **WebSearch** - Market research and technology validation
+
+
+ARGUMENTS: Analyze 3 UX issues with favorites/recently-viewed in IPTVnator IPTV player app:
+
+**Current State:**
+- App has 3 portal types: M3U (traditional playlists), Xtream Codes, Stalker
+- Each portal type has its own Favorites and Recently Viewed views
+- There's also a Global Favorites view that aggregates across all portals
+- Dashboard has widgets for Recently Watched (global) and Global Favorites
+
+**Issue 1: Global favorites only shows TV streams (no VODs)**
+- Global favorites page (`global-favorites-page.component.ts`) only loads live TV channels
+- It calls `getUnifiedLiveFavorites()` - explicitly "Live" only
+- Xtream/Stalker portals support favoriting Movies and Series too, but these don't appear in global favorites
+- The global view has drag-drop reordering and EPG integration (TV-specific features)
+
+**Issue 2: Portal-level favorites/recently-viewed have awkward navigation**
+- Xtream and Stalker favorites/recently-viewed views have a left category sidebar (All/Movies/Live TV/Series)
+- The TV view inside these shows a grid/card layout, NOT the nice list with drag-drop like M3U or global favorites
+- User prefers the M3U-style list with drag-drop for TV streams
+- Question: Should TV streams be split out from VOD/Series in these views?
+
+**Issue 3: Too many separate views - merge local + global?**
+- Currently: per-portal favorites + global favorites = 2 levels
+- Currently: per-portal recently viewed + dashboard recently watched widget = 2 levels  
+- User wants to merge local (per-playlist) and global views into single unified views
+- Add a toggle button (persisted) to switch between "this playlist" and "all playlists" scope
+- This would reduce navigation complexity
+
+**Constraints:**
+- TV streams need: EPG data, progress bars, drag-drop reorder, channel list format
+- VOD/Movies need: poster grid, ratings, detail panels
+- Series need: poster grid, season/episode navigation
+- M3U playlists only have TV streams (no VOD/Series concept)
+- The app already has the data layer for all of this (stores, services)
+
+Please analyze from UI/UX and usability perspective. Consider information architecture, cognitive load, navigation patterns, and consistency.
+
+---
+
+Base directory for this skill: /Users/4gray/.claude/plugins/cache/anthropic-agent-skills/example-skills/f23222824449/skills/frontend-design
+
+This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+
+The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
+
+## Design Thinking
+
+Before coding, understand the context and commit to a BOLD aesthetic direction:
+- **Purpose**: What problem does this interface solve? Who uses it?
+- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
+- **Constraints**: Technical requirements (framework, performance, accessibility).
+- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+
+**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+
+Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
+- Production-grade and functional
+- Visually striking and memorable
+- Cohesive with a clear aesthetic point-of-view
+- Meticulously refined in every detail
+
+## Frontend Aesthetics Guidelines
+
+Focus on:
+- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
+- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
+- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
+- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
+- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
+
+NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
+
+Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
+
+**IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
+
+Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+
+
+ARGUMENTS: Analyze and suggest UI patterns for merging favorites and recently-viewed views in an IPTV player app (Angular + Material). The app has 3 content types with very different display needs:
+
+1. **Live TV** - needs: channel list with EPG progress bars, drag-drop reorder, inline player, channel logos
+2. **VOD/Movies** - needs: poster grid with ratings, detail panels, thumbnails
+3. **Series** - needs: poster grid, season/episode drill-down
+
+Current problems:
+- Global favorites only shows Live TV (missing VOD/Series)
+- Per-portal favorites show ALL types in one view with a category sidebar (All/Movies/Live TV/Series) but the TV display is a card grid instead of a proper channel list
+- Too many separate views (per-portal + global for both favorites and recently-viewed)
+
+Proposed solution direction:
+- Merge per-portal and global favorites into ONE unified view with a scope toggle ("This playlist" / "All playlists")
+- Same for recently-viewed
+- Within the view, use content-type tabs (Live TV / Movies / Series) where each tab renders the appropriate UI:
+  - Live TV tab: channel list with drag-drop, EPG, progress bars (like M3U favorites)
+  - Movies tab: poster grid with detail panels
+  - Series tab: poster grid with season navigation
+
+Questions to analyze:
+1. Toggle button vs segmented control vs dropdown for scope switching?
+2. Tabs vs category sidebar for content types? (currently uses sidebar)
+3. How to handle M3U playlists that only have TV streams (no Movies/Series tabs needed)?
+4. Should the toggle state be persisted per-view or globally?
+5. Any better patterns for mixing list (TV) and grid (VOD) in one view?
+
+Consider Material Design patterns, responsive design, and cognitive load.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user has 3 issues with favorites/recently-viewed in IPTVnator:
+   - **Issue 1**: Global favorites only shows TV streams, excludes VOD/Series favorites from Xtream/Stalker
+   - **Issue 2**: Portal-level favorites/recently-viewed have awkward navigation - TV streams shown in card grid instead of preferred channel list with drag-drop/EPG (like M3U module)
+   - **Issue 3**: Too many separate views - wants to merge per-portal and global views into ONE unified view with a persisted scope toggle ("This playlist" / "All playlists")
+   
+   The user asked for UX analysis using `sc-brainstorm` and `frontend-design` skills, and also asked to check the running app via Electron CDP (screenshots were taken).
+
+2. Key Technical Concepts:
+   - Angular signal-based APIs (`signal()`, `computed()`, `input()`, `output()`)
+   - `@if`/`@for` control flow (modern Angular syntax)
+   - NgRx Signal Store with feature composition pattern
+   - `mat-button-toggle-group` for scope switching (segmented control)
+   - `mat-tab-group` for content-type tabs (Live TV / Movies / Series)
+   - Factory pattern for environment-specific services (Electron vs PWA)
+   - IPC communication via Electron preload script
+   - Drizzle ORM for database queries
+   - CDK drag-drop for channel list reordering
+   - TypeScript file size rule: <300 lines target, 350-400 hard max
+   - `UnifiedCollectionItem` interface extending the previous live-only `UnifiedFavoriteChannel`
+   - `CollectionScope` type: `'playlist' | 'all'`
+   - localStorage persistence for scope toggle state
+
+3. Files and Code Sections:
+
+   **NEW FILES CREATED:**
+
+   - `libs/portal/shared/util/src/lib/collection/unified-collection-item.interface.ts` (~81 lines)
+     - Core interface covering all content types (live, movie, series) from all sources (m3u, xtream, stalker)
+     - Includes `buildCollectionUid()` helper function
+     - Types: `CollectionSourceType`, `CollectionContentType`, `UnifiedCollectionItem`
+
+   - `libs/portal/shared/util/src/lib/collection/scope-toggle.service.ts` (~38 lines)
+     - Injectable service managing scope state per view key
+     - Persists to localStorage with key prefix `collection-scope-`
+     - Uses `signal<CollectionScope>()` internally
+
+   - `libs/portal/shared/util/src/lib/collection/collection-helpers.ts` (~35 lines)
+     - Extracted shared types/helpers: `XtreamFavoriteRow` interface, `isStalkerItem()`, `stalkerContentType()`, `xtreamContentType()`
+
+   - `libs/portal/shared/util/src/lib/collection/unified-favorites-data.service.ts` (~275 lines)
+     - Core aggregation service for favorites from all sources
+     - Methods: `getFavorites(scope, playlistId?, portalType?)`, `removeFavorite(item)`, `reorder(items)`
+     - Fetches M3U (from NgRx store + PlaylistsService), Xtream (from DatabaseService), Stalker (from playlist metadata)
+     - Uses new `getAllGlobalFavorites()` DB method (all content types, not just live)
+     - Handles order persistence via `app_state` table
+
+   - `libs/portal/shared/util/src/lib/collection/unified-recent-data.service.ts` (~205 lines)
+     - Aggregation service for recently-viewed items
+     - Methods: `getRecentItems(scope, playlistId?, portalType?)`, `removeRecentItem(item)`, `clearRecentItems(scope, playlistId?)`
+     - Uses `buildPlaylistRecentItems()` from shared-interfaces for M3U/Stalker data
+
+   - `libs/portal/shared/util/src/lib/collection/stream-resolver.service.ts` (~256 lines)
+     - Extracted from `GlobalFavoritesPageComponent` playback resolution logic
+     - Methods: `resolvePlayback(item)`, `loadEpgItems(item)`, `loadEpgForItems(items)`
+     - Handles M3U (direct URL), Xtream (credential-based), Stalker (authenticated createLink)
+
+   - `libs/portal/shared/util/src/lib/collection/index.ts` - barrel export
+
+   - `libs/portal/shared/ui/src/lib/components/unified-collection/unified-collection-page.component.ts` (~130 lines)
+     - Page shell: scope toggle + mat-tab-group
+     - Inputs: `mode`, `portalType`, `defaultScope`
+     - Computed signals: `liveItems`, `movieItems`, `seriesItems`, `showTabs`
+     - Uses `effect()` to reload data when scope changes
+     - Template: header with segmented control, dynamic tabs for Live TV/Movies/Series
+
+   - `libs/portal/shared/ui/src/lib/components/unified-collection/unified-collection-page.component.html`
+     - Scope toggle via `mat-button-toggle-group` with playlist/all options
+     - Conditional tab rendering based on content availability
+     - Empty state when no items
+
+   - `libs/portal/shared/ui/src/lib/components/unified-collection/unified-collection-page.component.scss`
+
+   - `libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab.component.ts` (~155 lines)
+     - Reuses `GlobalFavoritesListComponent` for channel list with drag-drop
+     - Maps `UnifiedCollectionItem[]` to `UnifiedFavoriteChannel[]` via `channelsForList` computed
+     - Embedded video player support (ArtPlayer/VjsPlayer/HtmlVideoPlayer)
+     - EPG loading via `StreamResolverService`
+
+   - `libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab.component.html`
+     - Resizable sidebar with channel list, video player area, EPG panel
+     - Same layout as global-favorites-page but using unified data
+
+   - `libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab.component.scss`
+     - Grid layouts: itv-container (with player), itv-container--external, itv-container-no-player
+
+   - `libs/portal/shared/ui/src/lib/components/unified-collection/unified-grid-tab.component.ts` (~80 lines)
+     - Poster grid for Movies/Series using `ContentCardComponent`
+     - Search filtering, click navigation to detail routes based on source type
+
+   - `libs/portal/shared/ui/src/lib/components/unified-collection/unified-grid-tab.component.html/scss`
+
+   **MODIFIED FILES:**
+
+   - `apps/electron-backend/src/app/events/database/favorites.events.ts`
+     - Added `DB_GET_ALL_GLOBAL_FAVORITES` IPC handler - same as `DB_GET_GLOBAL_FAVORITES` but WITHOUT `.where(eq(schema.content.type, 'live'))` filter, limit 500
+
+   - `apps/electron-backend/src/app/api/main.preload.ts`
+     - Added `dbGetAllGlobalFavorites` to contextBridge
+
+   - `global.d.ts` and `apps/web/src/typings.d.ts`
+     - Added `dbGetAllGlobalFavorites: () => Promise<...>` to window.electron type
+
+   - `libs/services/src/lib/database-electron.service.ts`
+     - Added `getAllGlobalFavorites()` method calling `window.electron.dbGetAllGlobalFavorites()`
+
+   - `libs/portal/shared/util/src/index.ts`
+     - Added `export * from './lib/collection'`
+
+   - `libs/portal/shared/ui/src/index.ts`
+     - Added export for `UnifiedCollectionPageComponent`
+
+   - `libs/workspace/shell/feature/src/index.ts`
+     - Added exports for `GlobalFavoritesListComponent` and `UnifiedFavoriteChannel` interface (needed for cross-library import)
+
+   - `apps/web/src/assets/i18n/en.json`
+     - Added i18n keys under PORTALS: FAVORITES, RECENTLY_VIEWED, THIS_PLAYLIST, ALL_PLAYLISTS, LIVE_TV, MOVIES, SERIES, SEARCH, NO_FAVORITES, NO_RECENT_ITEMS, REMOVE_FROM_RECENT
+
+   - `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts` (MOST RECENT EDIT)
+     - Replaced `loadFavoritesComponent` and `loadRecentlyViewedComponent` with single `loadUnifiedCollectionComponent`
+     - Updated route entries to use unified component with `data: { mode, portalType }`:
+     ```typescript
+     const loadUnifiedCollectionComponent: ComponentLoader = () =>
+         import('@iptvnator/portal/shared/ui').then(
+             (c) => c.UnifiedCollectionPageComponent
+         );
+     // ...
+     { path: 'favorites', loadComponent: loadUnifiedCollectionComponent, data: { mode: 'favorites', portalType: 'xtream' } },
+     { path: 'recent', loadComponent: loadUnifiedCollectionComponent, data: { mode: 'recent', portalType: 'xtream' } },
+     ```
+
+   **KEY FILES READ (not modified):**
+   - `libs/workspace/shell/feature/src/lib/global-favorites/global-favorites.service.ts` - Existing aggregation logic, pattern extended
+   - `libs/workspace/shell/feature/src/lib/global-favorites/unified-favorite-channel.interface.ts` - Original live-only interface
+   - `libs/workspace/shell/feature/src/lib/global-favorites/global-favorites-page.component.ts` - 495 lines, to be replaced
+   - `libs/workspace/shell/feature/src/lib/global-favorites/global-favorites-list.component.ts` - 107 lines, reused directly
+   - `libs/portal/xtream/data-access/src/lib/with-favorites.feature.ts` - Xtream favorites store feature
+   - `libs/portal/xtream/data-access/src/lib/with-recent-items.ts` - Xtream recent items store
+   - `libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-favorites.feature.ts` - Stalker favorites store
+   - `libs/shared/interfaces/src/lib/portal-activity-item.interface.ts` - PortalRecentItem, PortalFavoriteItem
+   - `libs/shared/interfaces/src/lib/playlist-recently-viewed.utils.ts` - buildPlaylistRecentItems()
+   - `libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts` - Navigation link generation
+
+4. Errors and fixes:
+   - **CollectionScope import error**: `unified-favorites-data.service.ts` and `unified-recent-data.service.ts` imported `CollectionScope` from `unified-collection-item.interface.ts` but it was defined in `scope-toggle.service.ts`. Fixed by changing imports to `import { CollectionScope } from './scope-toggle.service'`.
+   - **File size violation**: `unified-favorites-data.service.ts` was 385 lines (above 350 hard max). Fixed by extracting `XtreamFavoriteRow`, `isStalkerItem()`, `stalkerContentType()`, `xtreamContentType()` into `collection-helpers.ts`, bringing it down to 275 lines.
+   - **Deep relative import path**: `unified-live-tab.component.ts` used a fragile 9-level deep relative path to import `GlobalFavoritesListComponent`. Fixed by exporting it from `@iptvnator/workspace/shell/feature` (added to index.ts) and using the clean import path.
+
+5. Problem Solving:
+   - Identified that `DB_GET_GLOBAL_FAVORITES` backend handler filtered `.where(eq(schema.content.type, 'live'))` — root cause of Issue 1. Added new `DB_GET_ALL_GLOBAL_FAVORITES` handler without the filter.
+   - Designed a unified component architecture that reuses existing `GlobalFavoritesListComponent` for Live TV (drag-drop + EPG) and `ContentCardComponent` for VOD/Series poster grids.
+   - The `UnifiedCollectionPageComponent` reads `mode` and `portalType` from route data, and manages scope toggle persistence per-view.
+
+6. All user messages:
+   - "i have three issues with favorites where i'm not sure about: 1. global favorites on top references only tv streams without vods 2. favorites view, recently-viewed on context level they have a nav column where user has to switch between tv/vod/series. the tv view is not perfect, since i would prefer to have it like in m3u module or global favorites with drag&drop. so mabye it makes sense to split tv and tv/series in those views (fav, recent) in different portals? 3. there are too many different views, what do you think about merging local and global views for favs and recently views, and add a toggle button on top (value woruld be persisted) to switch beteen playlist level items and global level? use sc-brainstom skill and frontend-design skill to analyse and suggest me options and check it from ui/usabiliry view. furthermore the app is running now, you can use electron skill with agent-browser to check the app and also create screenshots etc"
+   - User answered clarifying questions: Segmented control, Keep M3U as-is, Horizontal tabs, Per-view persistence
+   - User approved the plan (via ExitPlanMode)
+
+7. Pending Tasks:
+   - **Phase 3 (in progress)**: Route integration
+     - ✅ Xtream routes updated
+     - ❌ Stalker routes need updating (`libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`)
+     - ❌ Global favorites route needs updating (`apps/web/src/app/app.routes.ts` line 64)
+     - ❌ Need to wire route `data` to component inputs (the component currently reads from `ActivatedRoute.snapshot.params` for playlistId, but `mode` and `portalType` come from route data - need to verify this works)
+   - **Phase 4**: Cleanup deprecated components (old Xtream/Stalker favorites/recent components, global favorites page)
+   - **Build verification**: Need to rebuild after route changes
+   - **Testing**: Manual testing of the unified views
+
+8. Current Work:
+   I was in the middle of **Phase 3: Route Integration**. I had just completed updating the Xtream routes file (`libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`) to use the unified component. The edit replaced the old `loadFavoritesComponent` and `loadRecentlyViewedComponent` loaders with a single `loadUnifiedCollectionComponent` that lazy-loads `UnifiedCollectionPageComponent` from `@iptvnator/portal/shared/ui`, passing `mode` and `portalType` via route `data`.
+
+   The Stalker routes file (`libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`) still needs the same treatment - lines 127-133 need updating:
+   ```typescript
+   // Current (needs changing):
+   { path: 'favorites', loadComponent: loadStalkerFavoritesComponent },
+   { path: 'recent', loadComponent: loadStalkerRecentlyViewedComponent },
+   ```
+
+   **Important note**: The `UnifiedCollectionPageComponent` reads `mode` and `portalType` from `input()` signals, but routes pass them via `data`. The component needs to read from `ActivatedRoute.snapshot.data` instead (or the routes need `bindToComponentInputs`). This may require a fix.
+
+9. Optional Next Step:
+   Continue Phase 3 route integration by updating the Stalker routes file. The last edit was to `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`. The immediate next step is to make the same change to `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts` (replace `loadStalkerFavoritesComponent` and `loadStalkerRecentlyViewedComponent` with `loadUnifiedCollectionComponent`), then update the global favorites route in `apps/web/src/app/app.routes.ts`, and verify that route `data` is correctly bound to component inputs. After routes, proceed to Phase 4 cleanup.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/4gray/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+continue, use electron skill with agent-browser to verify and test, the app is already running
+
+---
+
+on favs and recently viewed on local view, when you navigate over links sidebar in the rail, there is a sidebar for filter visible, which is always empty, can you double check that withe agent-browser
+
+---
+
+in the same views, the tabs are not taking full width? is that plan, also what do ou think, about moving the tabs to more on top, on same level like scope selection "this playlist/all playlists"? maybe the tabs could also be replaced by segmented toggle? use fronednt-design to decide
+
+---
+
+Base directory for this skill: /Users/4gray/.claude/plugins/cache/anthropic-agent-skills/example-skills/f23222824449/skills/frontend-design
+
+This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+
+The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
+
+## Design Thinking
+
+Before coding, understand the context and commit to a BOLD aesthetic direction:
+- **Purpose**: What problem does this interface solve? Who uses it?
+- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
+- **Constraints**: Technical requirements (framework, performance, accessibility).
+- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+
+**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+
+Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
+- Production-grade and functional
+- Visually striking and memorable
+- Cohesive with a clear aesthetic point-of-view
+- Meticulously refined in every detail
+
+## Frontend Aesthetics Guidelines
+
+Focus on:
+- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
+- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
+- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
+- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
+- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
+
+NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
+
+Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
+
+**IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
+
+Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+
+
+ARGUMENTS: Analyze the header layout of a unified favorites/recently-viewed page in an Angular Material dark-theme IPTV app. Current layout has two rows:
+
+Row 1: Title ("Favorites") on left, scope segmented control ("This playlist" / "All playlists") on right
+Row 2: Material tabs ("Live TV" / "Movies" / "Series") centered, not full width
+
+Issues to evaluate:
+1. The mat-tab-group doesn't stretch full width — tabs are centered with empty space on sides. Should they be full-width stretched or is centered fine?
+2. Should tabs move up to Row 1, same level as the scope toggle? This would save vertical space and create a single compact toolbar.
+3. Should tabs be replaced with a second segmented control (mat-button-toggle-group) to match the scope toggle style? This would create visual consistency — two segmented controls on the same row.
+
+Consider: The content below tabs changes dramatically — Live TV shows a channel list with drag-drop, Movies/Series show poster grids. The scope toggle has 2 options, content type has 2-3 options (tabs auto-hide when empty). Dark theme, dense UI, the app rail is on the left.
+
+Recommend the best approach for visual hierarchy, information density, and consistency.
+
+---
+
+as you can see from the currently viewed recently viewed view, the layout does not take all the avaiable width, can you check with agent-browser and fix that. also make sure that favorites view also looks good. another question is, the favorites view from header and favorites view from rail sidebar, is now forwarding to the same view or not? please double check that
+
+---
+
+i have the feeling that "this playlist/all playlist" switch i snot working properly and we always see just all favorites or all recently viewed items globally. can you check that and create a plan how to fix that
+
+---
+
+in some vies, maybe @libs/portal/shared/ui/src/lib/components/grid-list/ we use skeletons/ghosts when ites are loading, can you find it in project and reuse the same style, maybe extract the style if needed for favorites and recently-viewed view, to replace the mat-progress bar by skeletons, create a plan how to implement it
+
+---
+
+yes
+
+---
+
+as next, use frontend-design skill and analyse the code to decide: since we have refactored the favorites and recently-viewed view, which now contain toggle between global and local playlists, i'm not sure anymore if we should show the both links in the sidebar rail, or we should move it to the header and replace another favorites view. what do you thik, how would that fit to the mental model, or should the links stay in the rail sidebar and other favorites in the header? use sc-brainstorm and frontend-design skill to decide, just suggest me plan without implementation first
+
+---
+
+Base directory for this skill: /Users/4gray/Code/iptvnator/.claude/skills/sc-brainstorm
+
+# Brainstorming & Requirements Discovery Skill
+
+Transform ambiguous ideas into concrete specifications through structured exploration.
+
+## Quick Start
+
+```bash
+# Basic brainstorm
+/sc:brainstorm [topic]
+
+# Deep systematic exploration
+/sc:brainstorm "AI project management tool" --strategy systematic --depth deep
+
+# Parallel exploration with multiple personas
+/sc:brainstorm "real-time collaboration" --strategy agile --parallel
+```
+
+## Behavioral Flow
+
+1. **Explore** - Transform ambiguous ideas through Socratic dialogue
+2. **Analyze** - Coordinate multiple personas for domain expertise
+3. **Validate** - Apply feasibility assessment across domains
+4. **Specify** - Generate concrete specifications
+5. **Handoff** - Create actionable briefs for implementation
+
+## Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--strategy` | string | systematic | systematic, agile, enterprise |
+| `--depth` | string | normal | shallow, normal, deep |
+| `--parallel` | bool | false | Enable parallel exploration paths |
+| `--validate` | bool | false | Include feasibility validation |
+
+## Personas Activated
+
+- **architect** - System design and technical feasibility
+- **analyzer** - Requirements analysis and complexity assessment
+- **frontend** - User experience and interface considerations
+- **backend** - API and data architecture
+- **security** - Security requirements and compliance
+- **devops** - Infrastructure and deployment considerations
+- **project-manager** - Timeline and resource planning
+
+## MCP Integration
+
+### PAL MCP (Collaborative Intelligence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__pal__consensus` | Conflicting priorities | Multi-model resolution of trade-offs |
+| `mcp__pal__chat` | Brainstorming | Collaborative idea exploration with external model |
+| `mcp__pal__thinkdeep` | Complex problems | Multi-stage deep analysis |
+| `mcp__pal__planner` | Solution design | Sequential planning with branching |
+| `mcp__pal__challenge` | Validate ideas | Force critical thinking on proposed solutions |
+
+### PAL Usage Patterns
+
+```bash
+# Consensus on conflicting priorities
+mcp__pal__consensus(
+    models=[
+        {"model": "gpt-5.2", "stance": "for", "stance_prompt": "Prioritize user experience"},
+        {"model": "gemini-3-pro", "stance": "against", "stance_prompt": "Prioritize technical simplicity"},
+        {"model": "deepseek", "stance": "neutral"}
+    ],
+    step="Evaluate: Should we use real-time sync or eventual consistency?"
+)
+
+# Deep exploration of complex idea
+mcp__pal__thinkdeep(
+    step="Exploring AI-powered analytics dashboard concept",
+    hypothesis="Users need predictive insights, not just historical data",
+    confidence="medium",
+    focus_areas=["user_needs", "technical_feasibility", "market_fit"]
+)
+
+# Collaborative brainstorming
+mcp__pal__chat(
+    prompt="Help me explore innovative approaches for real-time collaboration in document editing",
+    model="gpt-5.2",
+    thinking_mode="high"
+)
+
+# Challenge assumptions
+mcp__pal__challenge(
+    prompt="We assume users want AI-generated summaries. Is this assumption valid?"
+)
+
+# Plan solution architecture
+mcp__pal__planner(
+    step="Planning architecture for real-time notification system",
+    step_number=1,
+    total_steps=4,
+    is_branch_point=True,
+    branch_id="websocket-approach"
+)
+```
+
+### Rube MCP (Research & Persistence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__rube__RUBE_SEARCH_TOOLS` | Market research | Find web search, competitor analysis tools |
+| `mcp__rube__RUBE_MULTI_EXECUTE_TOOL` | Documentation | Save ideas to Notion, share in Slack |
+| `mcp__rube__RUBE_CREATE_UPDATE_RECIPE` | Workflows | Save brainstorming processes |
+| `mcp__rube__RUBE_REMOTE_WORKBENCH` | Data analysis | Analyze market data, user research |
+
+### Rube Usage Patterns
+
+```bash
+# Research market and competitors
+mcp__rube__RUBE_SEARCH_TOOLS(queries=[
+    {"use_case": "web search", "known_fields": "query:AI analytics dashboard competitors 2025"}
+])
+
+# Document brainstorming session
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "NOTION_CREATE_PAGE", "arguments": {
+        "title": "Brainstorm: AI Analytics Dashboard",
+        "content": "## Key Ideas\n- Predictive insights\n- Natural language queries\n\n## Decisions\n- Real-time sync chosen over eventual consistency"
+    }},
+    {"tool_slug": "SLACK_SEND_MESSAGE", "arguments": {
+        "channel": "#product",
+        "text": "New brainstorm session documented: AI Analytics Dashboard"
+    }}
+])
+
+# Create user research tasks
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "JIRA_CREATE_ISSUE", "arguments": {
+        "project": "PROD",
+        "summary": "User research: AI analytics preferences",
+        "issue_type": "Task",
+        "description": "Interview 10 users about analytics needs"
+    }},
+    {"tool_slug": "ASANA_CREATE_TASK", "arguments": {
+        "name": "Competitor analysis: analytics dashboards",
+        "project": "Research"
+    }}
+])
+
+# Analyze existing user feedback
+mcp__rube__RUBE_REMOTE_WORKBENCH(
+    thought="Analyze user feedback data for patterns",
+    code_to_execute='''
+import json
+# Load user feedback from file
+feedback_data = json.load(open("/tmp/user_feedback.json"))
+# Analyze with LLM
+analysis, error = invoke_llm(f"Analyze this user feedback for analytics feature requests: {feedback_data[:5000]}")
+output = {"analysis": analysis, "feedback_count": len(feedback_data)}
+output
+'''
+)
+```
+
+## Flags (Extended)
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--pal-consensus` | bool | false | Use PAL consensus for trade-offs |
+| `--pal-deep` | bool | false | Use PAL thinkdeep for complex exploration |
+| `--research` | bool | false | Use Rube for market/competitor research |
+| `--document` | string | - | Document to Rube (notion, confluence, google-docs) |
+| `--notify` | string | - | Notify via Rube (slack, teams, email) |
+
+## Evidence Requirements
+
+This skill does NOT require hard evidence. Focus on:
+- Documenting exploration paths and decisions
+- Recording stakeholder input and priorities
+- Capturing specifications and requirements
+
+## Exploration Strategies
+
+### Systematic (`--strategy systematic`)
+- Structured question-driven discovery
+- Comprehensive domain coverage
+- Documentation-heavy approach
+
+### Agile (`--strategy agile`)
+- Rapid iteration cycles
+- User story focused
+- Minimal viable specification
+
+### Enterprise (`--strategy enterprise`)
+- Compliance and governance focus
+- Stakeholder alignment
+- Risk assessment integration
+
+## Examples
+
+### Product Discovery
+```
+/sc:brainstorm "AI-powered analytics dashboard" --strategy systematic --depth deep
+# Multi-persona analysis with comprehensive feasibility
+```
+
+### Feature Exploration
+```
+/sc:brainstorm "real-time notifications" --strategy agile --parallel
+# Parallel paths: frontend UX, backend architecture, security implications
+```
+
+### Enterprise Solution
+```
+/sc:brainstorm "enterprise data platform" --strategy enterprise --validate
+# Compliance-aware exploration with security and devops input
+```
+
+## Tool Coordination
+
+- **Read/Write** - Requirements documentation
+- **TodoWrite** - Exploration progress tracking
+- **Task** - Parallel exploration delegation
+- **WebSearch** - Market research and technology validation
+
+
+ARGUMENTS: Analyze navigation architecture for favorites/recently-viewed after unification refactor in IPTVnator IPTV player app.
+
+**Current state after refactor:**
+- Favorites and Recently Viewed now use a unified component with a scope toggle ("This playlist" / "All playlists")
+- The scope toggle persists per-view, so users can switch between local and global scope from either entry point
+
+**Current navigation has 3 entry points for favorites:**
+1. **Rail sidebar "Favorites" link** → `/workspace/xtreams/:id/favorites` (per-portal, defaults to persisted scope)
+2. **Rail sidebar "Recently viewed" link** → `/workspace/xtreams/:id/recent` (per-portal, defaults to persisted scope)
+3. **Header star icon "All favorites"** → `/workspace/global-favorites` (unified component with defaultScope='all')
+
+**The question:** Now that the unified view has a scope toggle built-in, is the header star icon redundant? Or should the rail sidebar links be removed instead? Or keep all three?
+
+**Mental model considerations:**
+- The rail sidebar shows portal-specific sections (Movies, Live TV, Series, Search, Recently added, Recently viewed, Favorites, Downloads)
+- The header is global workspace-level (search, add playlist, global favorites star, downloads)
+- Rail sidebar links are contextual to the current portal/playlist
+- Header links are cross-cutting / workspace-wide
+
+**Options to evaluate:**
+A. Keep all 3 links as-is (rail + header star) — users have two entry points that go to the same component with different default scopes
+B. Remove the header star icon — rail sidebar links are sufficient since they have the scope toggle built in
+C. Remove rail sidebar favorites/recent links — use header for favorites, keep recently-viewed somewhere else
+D. Consolidate: keep rail sidebar links for favorites+recent, change header star to go to same route as rail sidebar favorites but with scope='all'
+E. Replace header star with a dropdown/popover showing quick-access to favorites across all portals
+
+**Constraints:**
+- The app has 3 portal types: M3U, Xtream, Stalker — each has its own rail sidebar when active
+- M3U playlists don't use the unified view (they have their own channel-list-container with favorites tab)
+- The global-favorites route renders WITHOUT the portal rail sidebar (it's a workspace-level route)
+- When viewing global-favorites, there's no portal context, so "This playlist" toggle doesn't make sense there
+
+Analyze from information architecture, navigation consistency, and cognitive load perspectives.
+
+---
+
+Base directory for this skill: /Users/4gray/.claude/plugins/cache/anthropic-agent-skills/example-skills/f23222824449/skills/frontend-design
+
+This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+
+The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
+
+## Design Thinking
+
+Before coding, understand the context and commit to a BOLD aesthetic direction:
+- **Purpose**: What problem does this interface solve? Who uses it?
+- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
+- **Constraints**: Technical requirements (framework, performance, accessibility).
+- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+
+**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+
+Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
+- Production-grade and functional
+- Visually striking and memorable
+- Cohesive with a clear aesthetic point-of-view
+- Meticulously refined in every detail
+
+## Frontend Aesthetics Guidelines
+
+Focus on:
+- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
+- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
+- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
+- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
+- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
+
+NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
+
+Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
+
+**IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
+
+Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+
+
+ARGUMENTS: Analyze navigation patterns for a media player app that has a left icon rail (like VS Code's activity bar or Slack's workspace switcher) plus a top header bar. The question is about where to place "Favorites" and "Recently Viewed" entry points after a refactor that unified local (per-playlist) and global (all playlists) views into one component with a scope toggle.
+
+Current layout:
+- Left rail: contextual links for the active portal (Movies, Live TV, Series, Search, Recently added, Recently viewed, Favorites, Downloads)
+- Header bar: playlist switcher, search, add playlist, global favorites star icon, downloads icon
+
+The rail changes based on which portal/playlist is active. The header is persistent across all views.
+
+Analyze: Should favorites/recently-viewed live in the rail, header, or both? Consider how media apps (Plex, Jellyfin, Emby, Spotify, YouTube) handle this pattern. Focus on information architecture and reducing cognitive overhead.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user has been working on unifying favorites and recently-viewed views across portal types (M3U, Xtream, Stalker) in IPTVnator. The multi-phase project includes:
+   - Phase 3: Route integration (connecting unified components to routes)
+   - Phase 4: Cleanup (removing deprecated components)
+   - UI refinements: removing empty sidebar, replacing tabs with segmented controls, fixing width issues, fixing scope toggle bug, adding skeleton loading states
+   - Navigation architecture analysis: deciding whether to keep/remove/consolidate the rail sidebar favorites link vs header star icon after the unification refactor
+
+2. Key Technical Concepts:
+   - Angular `withComponentInputBinding()` for binding route data to component inputs
+   - Angular `ActivatedRoute` parent params resolution (child routes can't access parent route params directly)
+   - `mat-button-toggle-group` as segmented controls (replacing `mat-tab-group`)
+   - Signal-based state management (`signal()`, `computed()`, `input()`, `output()`)
+   - `@switch`/`@if`/`@for` control flow (modern Angular syntax)
+   - OnPush change detection strategy
+   - SCSS `@use` partials for shared styles (must be at top of file)
+   - CSS shimmer animation for skeleton loading states
+   - Electron CDP debugging via `agent-browser` tool
+   - Route `data` properties binding to component inputs
+   - Nx monorepo build system
+
+3. Files and Code Sections:
+
+   - **`apps/web/src/app/app.config.ts`**
+     - Added `withComponentInputBinding()` to `provideRouter()` to enable route data → component input binding
+     ```typescript
+     import { provideRouter, withComponentInputBinding } from '@angular/router';
+     // ...
+     provideRouter(routes, withComponentInputBinding()),
+     ```
+
+   - **`libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`**
+     - Replaced `loadStalkerFavoritesComponent` and `loadStalkerRecentlyViewedComponent` with `loadUnifiedCollectionComponent`
+     ```typescript
+     const loadUnifiedCollectionComponent: ComponentLoader = () =>
+         import('@iptvnator/portal/shared/ui').then(
+             (c) => c.UnifiedCollectionPageComponent
+         );
+     // Routes:
+     { path: 'favorites', loadComponent: loadUnifiedCollectionComponent, data: { mode: 'favorites', portalType: 'stalker' } },
+     { path: 'recent', loadComponent: loadUnifiedCollectionComponent, data: { mode: 'recent', portalType: 'stalker' } },
+     ```
+
+   - **`apps/web/src/app/app.routes.ts`** (lines 64-72)
+     - Updated global favorites route to use unified component
+     ```typescript
+     {
+         path: 'global-favorites',
+         data: { layout: 'workspace', mode: 'favorites', defaultScope: 'all' },
+         loadComponent: () =>
+             import('@iptvnator/portal/shared/ui').then(
+                 (c) => c.UnifiedCollectionPageComponent
+             ),
+     },
+     ```
+
+   - **`libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts`** (line 264)
+     - Fixed empty sidebar by removing 'favorites' and 'recent' from `isFavoritesContextRoute()`
+     ```typescript
+     readonly isFavoritesContextRoute = computed(() => {
+         const context = this.currentContext();
+         const section = this.currentSection();
+         if (!context) return false;
+         return (
+             (context.provider === 'xtreams' ||
+                 context.provider === 'stalker') &&
+             section === 'downloads'
+         );
+     });
+     ```
+
+   - **`libs/portal/shared/ui/src/lib/components/unified-collection/unified-collection-page.component.ts`**
+     - Major refactoring across the session:
+       - Replaced `MatTabsModule` with signal-based content type switching
+       - Added `selectedContentType` signal and `availableTypes` computed
+       - Removed `MatProgressSpinnerModule`, added skeleton arrays
+       - Fixed `playlistId` resolution to walk up route tree
+     ```typescript
+     readonly selectedContentType = signal<CollectionContentType>('live');
+     readonly skeletonRows = Array.from({ length: 12 }, (_, i) => i);
+     readonly skeletonCards = Array.from({ length: 8 }, (_, i) => i);
+
+     readonly playlistId = computed(() => {
+         let current = this.route.snapshot;
+         while (current) {
+             if (current.params['id']) {
+                 return current.params['id'] as string;
+             }
+             current = current.parent!;
+         }
+         return undefined;
+     });
+
+     readonly availableTypes = computed(() => {
+         const types: CollectionContentType[] = [];
+         if (this.hasLive()) types.push('live');
+         if (this.hasMovies()) types.push('movie');
+         if (this.hasSeries()) types.push('series');
+         return types;
+     });
+
+     readonly showContentToggle = computed(() => this.availableTypes().length > 1);
+
+     onContentTypeChange(value: CollectionContentType): void {
+         this.selectedContentType.set(value);
+     }
+
+     private autoSelectContentType(): void {
+         const types = this.availableTypes();
+         if (types.length > 0 && !types.includes(this.selectedContentType())) {
+             this.selectedContentType.set(types[0]);
+         }
+     }
+     ```
+
+   - **`libs/portal/shared/ui/src/lib/components/unified-collection/unified-collection-page.component.html`**
+     - Replaced mat-tab-group with second mat-button-toggle-group in single-row header
+     - Replaced `@if`/tab structure with `@switch (selectedContentType())`
+     - Replaced `<mat-spinner>` with context-aware skeleton templates (list for live, grid for movie/series)
+     ```html
+     <div class="collection-header">
+         <span class="collection-title">{{ title() | translate }}</span>
+         @if (showContentToggle()) {
+             <mat-button-toggle-group class="content-toggle"
+                 [value]="selectedContentType()"
+                 (change)="onContentTypeChange($event.value)"
+                 hideSingleSelectionIndicator>
+                 @if (hasLive()) { <mat-button-toggle value="live">{{ 'PORTALS.LIVE_TV' | translate }}</mat-button-toggle> }
+                 @if (hasMovies()) { <mat-button-toggle value="movie">{{ 'PORTALS.MOVIES' | translate }}</mat-button-toggle> }
+                 @if (hasSeries()) { <mat-button-toggle value="series">{{ 'PORTALS.SERIES' | translate }}</mat-button-toggle> }
+             </mat-button-toggle-group>
+         }
+         <mat-button-toggle-group class="scope-toggle" ...>...</mat-button-toggle-group>
+     </div>
+     ```
+
+   - **`libs/portal/shared/ui/src/lib/components/unified-collection/unified-collection-page.component.scss`**
+     - Added `@use '../../styles/skeleton'`
+     - Changed `.collection-title` to use `margin-right: auto` for flex spacing
+     - Replaced `.loading-state` and `.content-tabs` with `.skeleton-list` and `.skeleton-grid`
+
+   - **`libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab.component.html`**
+     - Restructured: when no player active, show full-width channel list (no sidebar layout)
+     - When player active, show sidebar+player grid layout
+     - Removed "Select a channel to start watching" placeholder in no-player state
+
+   - **`libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab.component.scss`**
+     - Replaced `.itv-container-no-player` grid with `.full-list` flexbox
+     - Removed `.no-channel-selected` styles
+
+   - **`libs/portal/shared/ui/src/lib/styles/_skeleton.scss`** (NEW)
+     - Shared skeleton styles extracted from grid-list + new list skeleton
+     - Grid skeleton: `.grid-skeleton-card`, `.grid-skeleton-thumb`, `.grid-skeleton-badge`, `.grid-skeleton-title`, `.grid-skeleton-line`
+     - List skeleton: `.list-skeleton-row`, `.list-skeleton-handle`, `.list-skeleton-avatar`, `.list-skeleton-text`, `.list-skeleton-star`
+     - Shared shimmer animation: `@keyframes skeleton-shimmer`
+
+   - **`libs/portal/shared/ui/src/lib/components/grid-list/grid-list.component.scss`**
+     - Added `@use '../../styles/skeleton'` at top
+     - Removed ~115 lines of inline skeleton styles (now in shared partial)
+
+   - **`libs/workspace/shell/feature/src/index.ts`**
+     - Removed `GlobalFavoritesPageComponent` export (file deleted)
+
+   - **`libs/portal/xtream/feature/src/index.ts`**
+     - Removed `export * from './lib/favorites/favorites.component'`
+
+   - **`libs/portal/stalker/feature/src/index.ts`**
+     - Removed exports for `stalker-favorites` and `recently-viewed` components
+
+   - **Deleted files (Phase 4 cleanup):**
+     - `libs/portal/xtream/feature/src/lib/favorites/` (3 files)
+     - `libs/portal/stalker/feature/src/lib/stalker-favorites/` (2 files)
+     - `libs/portal/stalker/feature/src/lib/recently-viewed/` (2 files)
+     - `libs/workspace/shell/feature/src/lib/global-favorites/global-favorites-page.*` (3 files)
+
+   - **`libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts`** (read for analysis)
+     - Defines rail sidebar links for each portal type
+     - Xtream secondary links include: recently-added, search, recent, favorites, downloads
+     - Stalker secondary links include: search, recent, favorites, downloads
+
+4. Errors and fixes:
+   - **`withComponentInputBinding` not enabled**: Route `data` wasn't binding to component inputs. Fixed by adding `withComponentInputBinding()` to `provideRouter()` in `app.config.ts`.
+   
+   - **Empty "Filter by type" sidebar**: The workspace shell showed an empty category sidebar on favorites/recent views. Root cause: `isFavoritesContextRoute()` matched 'favorites', 'recent', and 'downloads'. Fixed by removing 'favorites' and 'recent', keeping only 'downloads'.
+   
+   - **`playlistId` always `undefined`**: The `UnifiedCollectionPageComponent` read `this.route.snapshot.params['id']` but `:id` was on the parent route (`xtreams/:id`), not the child route (`favorites`). The child route's `ActivatedRoute` had empty params `{}`. Fixed by walking up the route tree: `while (current) { if (current.params['id']) return...; current = current.parent; }`. This caused the scope toggle to always show "All playlists" data regardless of toggle state.
+   
+   - **Barrel export errors after cleanup**: After deleting old component files, barrel `index.ts` files still referenced them. Build failed with "Could not resolve" errors. Fixed by removing the stale export lines from `libs/portal/xtream/feature/src/index.ts`, `libs/portal/stalker/feature/src/index.ts`, and `libs/workspace/shell/feature/src/index.ts`.
+   
+   - **`@use` SCSS placement**: Placed `@use '../../styles/skeleton'` in the middle of `grid-list.component.scss` after removing inline styles. SCSS requires `@use` at the top of the file. Got error: "@use rules must be written before any other rules". Fixed by moving `@use` to line 1 and removing the duplicate.
+
+5. Problem Solving:
+   - Solved the full-width layout issue by restructuring the live tab template: when no player is active, the channel list renders in a `full-list` container instead of a sidebar grid layout
+   - Solved scope toggle not working by debugging with `agent-browser` eval — confirmed `route.snapshot.params` was `{}` and `route.parent.snapshot.params` had the `id`
+   - Solved skeleton loading implementation by extracting shared SCSS partial and using context-aware skeleton templates (list vs grid based on `selectedContentType`)
+
+6. All user messages:
+   - "continue, use electron skill with agent-browser to verify and test, the app is already running"
+   - "in the same views, the tabs are not taking full width? is that plan, also what do ou think, about moving the tabs to more on top, on same level like scope selection 'this playlist/all playlists'? maybe the tabs could also be replaced by segmented toggle? use fronednt-design to decide"
+   - "as you can see from the currently viewed recently viewed view, the layout does not take all the avaiable width, can you check with agent-browser and fix that. also make sure that favorites view also looks good. another question is, the favorites view from header and favorites view from rail sidebar, is now forwarding to the same view or not? please double check that"
+   - "i have the feeling that 'this playlist/all playlist' switch is not working properly and we always see just all favorites or all recently viewed items globally. can you check that and create a plan how to fix that"
+   - "in some vies, maybe @libs/portal/shared/ui/src/lib/components/grid-list/ we use skeletons/ghosts when ites are loading, can you find it in project and reuse the same style, maybe extract the style if needed for favorites and recently-viewed view, to replace the mat-progress bar by skeletons, create a plan how to implement it"
+   - "yes" (approving skeleton implementation plan)
+   - "as next, use frontend-design skill and analyse the code to decide: since we have refactored the favorites and recently-viewed view, which now contain toggle between global and local playlists, i'm not sure anymore if we should show the both links in the sidebar rail, or we should move it to the header and replace another favorites view. what do you thik, how would that fit to the mental model, or should the links stay in the rail sidebar and other favorites in the header? use sc-brainstorm and frontend-design skill to decide, just suggest me plan without implementation first"
+
+7. Pending Tasks:
+   - Navigation architecture analysis: Decide whether to keep/remove/consolidate the rail sidebar favorites/recently-viewed links vs the header star icon. User explicitly asked for a plan without implementation.
+
+8. Current Work:
+   I was analyzing the navigation architecture using `sc-brainstorm` and `frontend-design` skills to recommend whether the rail sidebar favorites/recently-viewed links and the header star icon should be consolidated after the unification refactor. I had:
+   - Invoked both skills with detailed analysis prompts
+   - Read `portal-rail-links.ts` to understand how rail links are built per provider
+   - Read `workspace-shell.component.html` (lines 112-140) to see the header star icon implementation
+   - Taken a screenshot of the current app showing both navigation elements
+   - Was about to formulate the recommendation/plan
+
+   Key context for the analysis:
+   - Rail sidebar "Favorites" → `/workspace/xtreams/:id/favorites` (portal-scoped)
+   - Rail sidebar "Recently viewed" → `/workspace/xtreams/:id/recent` (portal-scoped)
+   - Header star → `/workspace/global-favorites` (workspace-level, no portal context, scope toggle "This playlist" doesn't make sense)
+   - Both entry points now use the same `UnifiedCollectionPageComponent`
+   - The global-favorites route renders WITHOUT the portal rail sidebar
+   - M3U playlists have their own separate favorites in channel-list-container
+
+9. Optional Next Step:
+   Complete the navigation architecture analysis and present the recommendation to the user. The user's exact request was: "since we have refactored the favorites and recently-viewed view, which now contain toggle between global and local playlists, i'm not sure anymore if we should show the both links in the sidebar rail, or we should move it to the header and replace another favorites view... just suggest me plan without implementation first"
+
+   I need to formulate a clear recommendation analyzing the options (keep all 3, remove header star, remove rail links, consolidate, etc.) considering information architecture, mental model consistency, and cognitive load — then present it as a plan for the user to approve before any implementation.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/4gray/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+yes
