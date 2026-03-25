@@ -1,6 +1,6 @@
 import { DestroyRef, Signal, effect, inject } from '@angular/core';
 import { XtreamCategory } from 'shared-interfaces';
-import { FavoritesContextService } from './favorites-context.service';
+import { PortalCollectionContextService } from './portal-collection-context.service';
 
 export interface PortalCollectionContextBridge {
     readonly selectedCategoryId: Signal<string>;
@@ -8,7 +8,7 @@ export interface PortalCollectionContextBridge {
 }
 
 interface CreatePortalCollectionContextOptions {
-    ctx: FavoritesContextService;
+    ctx: PortalCollectionContextService;
     categories: () => XtreamCategory[];
     enabled?: () => boolean;
 }

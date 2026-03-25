@@ -30,7 +30,8 @@ import {
 import {
     getGlobalFavoriteNavigation,
     getRecentItemNavigation,
-} from './dashboard-navigation.utils';
+    WorkspaceNavigationTarget,
+} from '@iptvnator/portal/shared/util';
 import {
     DashboardWidgetProvider,
     DashboardWidgetScopeSettings,
@@ -327,7 +328,7 @@ export class DashboardDataService {
 
     getRecentItemNavigationState(
         item: GlobalRecentItem
-    ): Record<string, unknown> | undefined {
+    ): WorkspaceNavigationTarget['state'] {
         return getRecentItemNavigation(item).state;
     }
 
@@ -405,7 +406,7 @@ export class DashboardDataService {
 
     getGlobalFavoriteNavigationState(
         item: DashboardFavoriteItem
-    ): Record<string, unknown> | undefined {
+    ): WorkspaceNavigationTarget['state'] {
         return getGlobalFavoriteNavigation(item).state;
     }
 

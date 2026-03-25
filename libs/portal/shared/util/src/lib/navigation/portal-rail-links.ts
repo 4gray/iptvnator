@@ -195,7 +195,7 @@ export function buildPortalRailLinks(
                 section: 'recent',
             },
             {
-                icon: 'star',
+                icon: 'favorite',
                 tooltip: 'Favorites (this playlist)',
                 path: [...root, 'favorites'],
                 exact: true,

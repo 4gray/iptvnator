@@ -20,6 +20,7 @@
         @case ('all') {
             <app-all-channels-view
                 [channels]="displayedChannels()"
+                [searchTerm]="workspaceSearchTerm()"
                 [channelEpgMap]="channelEpgMap()"
                 [progressTick]="progressTick()"
                 [shouldShowEpg]="shouldShowEpg()"
@@ -33,6 +34,7 @@
         @case ('groups') {
             <app-groups-view
                 [groupedChannels]="groupedChannels()"
+                [searchTerm]="workspaceSearchTerm()"
                 [channelEpgMap]="channelEpgMap()"
                 [progressTick]="progressTick()"
                 [shouldShowEpg]="shouldShowEpg()"
@@ -47,6 +49,7 @@
             @if (favorites) {
                 <app-favorites-view
                     [favorites]="favorites"
+                    [searchTerm]="workspaceSearchTerm()"
                     [channelEpgMap]="channelEpgMap()"
                     [progressTick]="progressTick()"
                     [shouldShowEpg]="shouldShowEpg()"
@@ -60,6 +63,7 @@
         @case ('recent') {
             <app-recent-view
                 [recentItems]="recentChannelItems()"
+                [searchTerm]="workspaceSearchTerm()"
                 [channelEpgMap]="channelEpgMap()"
                 [progressTick]="progressTick()"
                 [shouldShowEpg]="shouldShowEpg()"

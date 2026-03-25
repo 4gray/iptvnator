@@ -28,10 +28,20 @@
         }
     } @else {
         <div class="empty-recent">
-            <strong>{{ 'WORKSPACE.DASHBOARD.NO_HISTORY' | translate }}</strong>
+            <strong>
+                @if (searchTerm()) {
+                    {{ 'CHANNELS.NO_SEARCH_RESULTS' | translate }}
+                } @else {
+                    {{ 'WORKSPACE.DASHBOARD.NO_HISTORY' | translate }}
+                }
+            </strong>
         </div>
         <div class="empty-recent-hint">
-            {{ 'WORKSPACE.DASHBOARD.NO_HISTORY_HINT' | translate }}
+            @if (searchTerm()) {
+                {{ 'CHANNELS.TRY_DIFFERENT_SEARCH' | translate }}
+            } @else {
+                {{ 'WORKSPACE.DASHBOARD.NO_HISTORY_HINT' | translate }}
+            }
         </div>
     }
 </div>

@@ -25,6 +25,7 @@ import { ChannelListItemComponent } from '../channel-list-item/channel-list-item
 export class FavoritesViewComponent {
     /** Favorite channels */
     readonly favorites = input.required<Channel[]>();
+    readonly searchTerm = input('');
 
     /** EPG map for channel enrichment */
     readonly channelEpgMap = input.required<Map<string, EpgProgram | null>>();
@@ -50,11 +51,27 @@ export class FavoritesViewComponent {
     /** Emits when favorites order changes via drag-drop */
     readonly favoritesReordered = output<string[]>();
 
+    readonly hasSearchTerm = computed(() => this.searchTerm().trim().length > 0);
+    readonly filteredFavorites = computed(() => {
+        const favorites = this.favorites();
+        const term = this.searchTerm().trim().toLowerCase();
+
+        if (!term) {
+            return favorites;
+        }
+
+        return favorites.filter((channel) =>
+            `${channel.name ?? ''} ${channel.group?.title ?? ''}`
+                .toLowerCase()
+                .includes(term)
+        );
+    });
+
     /**
      * Computed signal for enriched favorites with EPG data
      */
     readonly enrichedFavorites = computed(() => {
-        const favorites = this.favorites();
+        const favorites = this.filteredFavorites();
         const epgMap = this.channelEpgMap();
         // Read progressTick to trigger recalculation
         this.progressTick();
@@ -103,6 +120,10 @@ export class FavoritesViewComponent {
     }
 
     onDrop(event: CdkDragDrop<Channel[]>): void {
+        if (this.hasSearchTerm()) {
+            return;
+        }
+
         const favorites = [...this.favorites()];
         moveItemInArray(favorites, event.previousIndex, event.currentIndex);
         this.favoritesReordered.emit(favorites.map((item) => item.url));

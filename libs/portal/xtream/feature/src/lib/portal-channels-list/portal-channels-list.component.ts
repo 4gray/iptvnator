@@ -12,13 +12,10 @@ import {
     input,
     OnDestroy,
     output,
-    signal,
     viewChild,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
-import { FilterPipe } from '@iptvnator/pipes';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
@@ -57,8 +54,6 @@ interface XtreamCategoryLike {
     styleUrls: ['./portal-channels-list.component.scss'],
     imports: [
         ChannelListItemComponent,
-        FilterPipe,
-        FormsModule,
         MatIcon,
         ScrollingModule,
         TranslatePipe,
@@ -68,6 +63,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     readonly playClicked = output<XtreamChannelListItem>();
     readonly sortMode = input<LiveChannelSortMode>('server');
     readonly channelsOverride = input<XtreamChannelListItem[] | null>(null);
+    readonly searchTermInput = input('');
 
     readonly xtreamStore = inject(XtreamStore);
     private readonly favoritesService = inject(FavoritesService);
@@ -101,9 +97,22 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return mode === 'name-asc' ? result : -result;
         });
     });
+    readonly filteredChannels = computed(() => {
+        const term = this.searchTermInput().trim().toLowerCase();
+        const channels = this.sortedChannels();
+
+        if (!term) {
+            return channels;
+        }
+
+        return channels.filter((item) =>
+            `${item.title ?? ''} ${item.name ?? ''}`
+                .toLowerCase()
+                .includes(term)
+        );
+    });
 
     favorites = new Map<number, boolean>();
-    searchString = signal<string>('');
     epgPrograms = new Map<number, EpgProgram>();
     currentProgramsProgress = new Map<number, number>();
 
@@ -169,7 +178,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 vp.renderedRangeStream
                     .pipe(debounceTime(300))
                     .subscribe((range) => {
-                        const visibleChannels = this.sortedChannels().slice(
+                        const visibleChannels = this.filteredChannels().slice(
                             range.start,
                             range.end
                         );

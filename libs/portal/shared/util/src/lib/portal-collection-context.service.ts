@@ -2,15 +2,15 @@ import { Injectable, signal } from '@angular/core';
 import { XtreamCategory } from 'shared-interfaces';
 
 /**
- * Lightweight service that bridges the favorites/recently-viewed routed
+ * Lightweight service that bridges collection-backed routed
  * components (inside the router-outlet) with the WorkspaceShellComponent
  * (the outer shell that renders the context panel aside).
  *
- * The routed component pushes its category list here via an effect;
+ * The active routed component pushes its category list here via an effect;
  * the workspace shell reads it to populate the context panel.
  */
 @Injectable({ providedIn: 'root' })
-export class FavoritesContextService {
+export class PortalCollectionContextService {
     /** Category list managed by the active routed component (Favorites / RecentlyViewed). */
     readonly categories = signal<XtreamCategory[]>([]);
 

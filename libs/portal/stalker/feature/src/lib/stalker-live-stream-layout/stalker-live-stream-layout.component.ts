@@ -12,21 +12,14 @@ import {
     viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { MatButton, MatIconButton } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIcon } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import { MatButton } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     ChannelListItemComponent,
     ResizableDirective,
 } from 'components';
-import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
-import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { PlaylistsService } from 'services';
 import { EpgItem, EpgProgram } from 'shared-interfaces';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
@@ -35,11 +28,8 @@ import {
     createLogger,
     getAdjacentChannelItem,
     getChannelItemByNumber,
-    isWorkspaceLayoutRoute,
 } from '@iptvnator/portal/shared/util';
 import {
-    CategoryViewComponent,
-    PlaylistErrorViewComponent,
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
@@ -54,19 +44,10 @@ import {
     templateUrl: './stalker-live-stream-layout.component.html',
     styleUrls: ['./stalker-live-stream-layout.component.scss'],
     imports: [
-        CategoryViewComponent,
         ChannelListItemComponent,
         EpgViewComponent,
-        FormsModule,
         MatButton,
-        MatFormFieldModule,
-        MatIcon,
-        MatIconButton,
-        MatInputModule,
         MatProgressSpinnerModule,
-        NgxSkeletonLoaderModule,
-        PlaylistErrorViewComponent,
-        PlaylistSwitcherComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
         TranslatePipe,
@@ -75,29 +56,36 @@ import {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StalkerLiveStreamLayoutComponent implements OnDestroy {
-    private readonly route = inject(ActivatedRoute);
     readonly stalkerStore = inject(StalkerStore);
     private readonly playlistService = inject(PlaylistsService);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
     private readonly logger = createLogger('StalkerLiveStream');
-
-    /** Categories */
-    readonly categories = this.stalkerStore.getCategoryResource;
-    readonly isCategoryLoading = this.stalkerStore.isCategoryResourceLoading;
-    readonly isCategoryFailed = this.stalkerStore.isCategoryResourceFailed;
     readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
-    readonly currentPlaylist = this.stalkerStore.currentPlaylist;
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
 
     /** Channels */
     readonly itvChannels = this.stalkerStore.itvChannels;
+    readonly searchTerm = computed(() =>
+        this.stalkerStore.searchPhrase().trim().toLowerCase()
+    );
+    readonly visibleChannels = computed(() => {
+        const channels = this.itvChannels();
+        const term = this.searchTerm();
+
+        if (!term) {
+            return channels;
+        }
+
+        return channels.filter((item) =>
+            `${item.o_name ?? ''} ${item.name ?? ''}`
+                .toLowerCase()
+                .includes(term)
+        );
+    });
     readonly hasMoreItems = this.stalkerStore.hasMoreChannels;
     readonly isLoadingMore = signal(false);
 
-    /** Search */
-    readonly searchString = signal('');
     readonly selectedChannelId = this.stalkerStore.selectedItvId;
     protected readonly normalizeStalkerEntityId = normalizeStalkerEntityId;
 
@@ -127,7 +115,6 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     /** Scroll */
     readonly scrollContainer = viewChild<ElementRef>('scrollContainer');
     private scrollListener: (() => void) | null = null;
-    private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
 
@@ -157,10 +144,12 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
         // Reset loading state when channels load + check viewport fill + load EPG previews
         effect(() => {
-            const channels = this.itvChannels();
+            const channels = this.visibleChannels();
             if (channels.length > 0) {
                 this.isLoadingMore.set(false);
-                setTimeout(() => this.checkIfNeedsMoreContent(), 100);
+                if (!this.searchTerm()) {
+                    setTimeout(() => this.checkIfNeedsMoreContent(), 100);
+                }
                 this.loadEpgPreviewsForChannels(channels);
             }
         });
@@ -173,17 +162,6 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             }
         });
 
-        // Debounced server-side search
-        effect(() => {
-            const search = this.searchString();
-            if (this.searchDebounceTimer)
-                clearTimeout(this.searchDebounceTimer);
-            this.searchDebounceTimer = setTimeout(() => {
-                this.stalkerStore.setItvChannels([]);
-                this.stalkerStore.setSearchPhrase(search);
-            }, 500);
-        });
-
         effect(() => {
             if (!window.electron?.updateRemoteControlStatus) {
                 return;
@@ -191,7 +169,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
             const selectedItem = this.stalkerStore.selectedItem();
             const selectedType = this.stalkerStore.selectedContentType();
-            const channels = this.itvChannels();
+            const channels = this.visibleChannels();
             const epgItems = this.epgItems();
 
             if (selectedType !== 'itv' || !selectedItem?.id) {
@@ -246,20 +224,6 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         this.removeScrollListener();
-        if (this.searchDebounceTimer) {
-            clearTimeout(this.searchDebounceTimer);
-        }
-    }
-
-    selectCategory(item: { category_id?: string | number }) {
-        this.stalkerStore.setSelectedCategory(String(item.category_id ?? '*'));
-        this.stalkerStore.setPage(0);
-    }
-
-    backToCategories() {
-        this.searchString.set('');
-        this.stalkerStore.setSearchPhrase('');
-        this.stalkerStore.setSelectedCategory(null);
     }
 
     isSelectedChannel(item: StalkerItvChannel): boolean {
@@ -475,7 +439,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             return;
         }
 
-        const channels = this.itvChannels();
+        const channels = this.visibleChannels();
         const nextItem = getAdjacentChannelItem(
             channels,
             activeItem.id,
@@ -503,7 +467,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         }
 
         const channel = getChannelItemByNumber(
-            this.itvChannels(),
+            this.visibleChannels(),
             command.number
         );
         if (!channel) {

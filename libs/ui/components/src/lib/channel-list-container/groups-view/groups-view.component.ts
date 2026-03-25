@@ -39,6 +39,7 @@ export class GroupsViewComponent implements AfterViewInit, OnDestroy {
 
     /** Grouped channels object */
     readonly groupedChannels = input.required<{ [key: string]: Channel[] }>();
+    readonly searchTerm = input('');
 
     /** EPG map for channel enrichment */
     readonly channelEpgMap = input.required<Map<string, EpgProgram | null>>();
@@ -179,8 +180,35 @@ export class GroupsViewComponent implements AfterViewInit, OnDestroy {
     /**
      * Computed signal that memoizes enriched channels for all groups
      */
-    private readonly enrichedGroupChannelsMap = computed(() => {
+    readonly filteredGroupedChannels = computed(() => {
         const grouped = this.groupedChannels();
+        const term = this.searchTerm().trim().toLowerCase();
+
+        if (!term) {
+            return grouped;
+        }
+
+        return Object.entries(grouped).reduce<Record<string, Channel[]>>(
+            (acc, [groupKey, channels]) => {
+                const groupMatches = groupKey.toLowerCase().includes(term);
+                const matchingChannels = groupMatches
+                    ? channels
+                    : channels.filter((channel) =>
+                          channel.name?.toLowerCase().includes(term)
+                      );
+
+                if (matchingChannels.length > 0) {
+                    acc[groupKey] = matchingChannels;
+                }
+
+                return acc;
+            },
+            {}
+        );
+    });
+
+    private readonly enrichedGroupChannelsMap = computed(() => {
+        const grouped = this.filteredGroupedChannels();
         const epgMap = this.channelEpgMap();
         // Read progressTick to create dependency for progress refresh
         this.progressTick();

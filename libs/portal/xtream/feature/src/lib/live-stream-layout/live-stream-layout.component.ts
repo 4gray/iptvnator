@@ -1,36 +1,26 @@
 import {
-    afterNextRender,
     ChangeDetectionStrategy,
     Component,
     computed,
     effect,
-    ElementRef,
     inject,
-    Injector,
     OnDestroy,
     OnInit,
     signal,
-    viewChild,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { ResizableDirective } from 'components';
-import { CategoryViewComponent, PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
+import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
     PORTAL_PLAYER,
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isWorkspaceLayoutRoute,
+    queryParamSignal,
 } from '@iptvnator/portal/shared/util';
 import {
     FavoriteItem,
@@ -39,21 +29,11 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { EpgItem } from 'shared-interfaces';
-import {
-    CategoryManagementDialogComponent,
-    CategoryManagementDialogData,
-} from '../category-management-dialog/category-management-dialog.component';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
+import { ActivatedRoute } from '@angular/router';
 
 type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
-
-interface XtreamCategoryLike {
-    readonly category_id?: string | number;
-    readonly category_name?: string;
-    readonly id?: string | number;
-    readonly name?: string;
-}
 
 interface XtreamLiveChannelItem {
     readonly name?: string;
@@ -68,18 +48,11 @@ interface XtreamLiveChannelItem {
     templateUrl: './live-stream-layout.component.html',
     styleUrls: ['./live-stream-layout.component.scss'],
     imports: [
-        CategoryViewComponent,
         EpgViewComponent,
-        FormsModule,
-        MatFormFieldModule,
         MatIcon,
         MatIconButton,
-        MatInputModule,
-        MatListModule,
         MatMenuModule,
         MatTooltipModule,
-        /* MpvPlayerBarComponent, */
-        PlaylistSwitcherComponent,
         PortalChannelsListComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
@@ -89,19 +62,25 @@ interface XtreamLiveChannelItem {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
+    private readonly route = inject(ActivatedRoute);
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
-    private readonly dialog = inject(MatDialog);
-    private readonly route = inject(ActivatedRoute);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
-    readonly currentPlaylist = this.xtreamStore.currentPlaylist;
     readonly epgItems = this.xtreamStore.epgItems;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     readonly liveChannelSortMode = signal<LiveChannelSortMode>('server');
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
+    private readonly routeSearchTerm = queryParamSignal(
+        this.route,
+        'q',
+        (value) => (value ?? '').trim()
+    );
+    readonly workspaceSearchTerm = computed(() =>
+        this.isWorkspaceLayout ? this.routeSearchTerm() : ''
+    );
     private readonly pendingAutoOpenLiveItemId = signal<number | null>(null);
     readonly liveChannelSortLabel = computed(() => {
         const mode = this.liveChannelSortMode();
@@ -126,11 +105,6 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         };
     });
 
-    private readonly injector = inject(Injector);
-    private readonly categoryView = viewChild(CategoryViewComponent, {
-        read: ElementRef,
-    });
-    private categoryScrollTop = 0;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
 
@@ -256,10 +230,6 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                     });
                 });
         }
-
-        const categoryId = this.route.firstChild?.snapshot.params['categoryId'];
-        if (categoryId)
-            this.xtreamStore.setSelectedCategory(Number(categoryId));
     }
 
     playLive(item: XtreamLiveChannelItem) {
@@ -273,56 +243,6 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             item.title ?? item.name ?? '',
             item.poster_url ?? item.stream_icon ?? null
         );
-    }
-
-    selectCategory(category: XtreamCategoryLike) {
-        const el = this.categoryView()?.nativeElement;
-        if (el) {
-            this.categoryScrollTop = el.scrollTop;
-        }
-        const categoryId = category.category_id ?? category.id;
-        if (categoryId == null) {
-            return;
-        }
-        this.xtreamStore.setSelectedCategory(Number(categoryId));
-    }
-
-    backToCategories() {
-        this.xtreamStore.setSelectedCategory(null);
-        afterNextRender(
-            () => {
-                const el = this.categoryView()?.nativeElement;
-                if (el) {
-                    el.scrollTop = this.categoryScrollTop;
-                }
-            },
-            { injector: this.injector }
-        );
-    }
-
-    openCategoryManagement(): void {
-        const playlistId = this.route.parent?.snapshot.params['id'];
-        const contentType = this.xtreamStore.selectedContentType();
-
-        const dialogRef = this.dialog.open<
-            CategoryManagementDialogComponent,
-            CategoryManagementDialogData,
-            boolean
-        >(CategoryManagementDialogComponent, {
-            data: {
-                playlistId,
-                contentType,
-                itemCounts: this.categoryItemCounts(),
-            },
-            width: '500px',
-            maxHeight: '80vh',
-        });
-
-        dialogRef.afterClosed().subscribe((result) => {
-            if (result) {
-                this.xtreamStore.reloadCategories();
-            }
-        });
     }
 
     setLiveChannelSortMode(mode: LiveChannelSortMode): void {

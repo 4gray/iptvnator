@@ -4,17 +4,10 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
-    ElementRef,
-    HostListener,
     input,
-    OnDestroy,
     output,
-    signal,
-    viewChild,
 } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Channel, EpgProgram } from 'shared-interfaces';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
@@ -32,16 +25,15 @@ export interface EnrichedChannel extends Channel {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         ChannelListItemComponent,
-        MatFormFieldModule,
         MatIconModule,
-        MatInputModule,
         ScrollingModule,
         TranslatePipe,
     ],
 })
-export class AllChannelsViewComponent implements OnDestroy {
+export class AllChannelsViewComponent {
     /** All channels (will be filtered by search) */
     readonly channels = input.required<Channel[]>();
+    readonly searchTerm = input('');
 
     /** EPG map for channel enrichment */
     readonly channelEpgMap = input.required<Map<string, EpgProgram | null>>();
@@ -70,28 +62,11 @@ export class AllChannelsViewComponent implements OnDestroy {
         event: MouseEvent;
     }>();
 
-    /** Search term signal for debounced filtering */
-    readonly searchTerm = signal('');
-
-    /** Debounce timeout for search */
-    private searchDebounceTimeout?: number;
-
-    /** Search field element */
-    readonly searchElement = viewChild<ElementRef<HTMLInputElement>>('search');
-
-    /** Register ctrl+f as keyboard hotkey to focus the search input field */
-    @HostListener('document:keypress', ['$event'])
-    handleKeyboardEvent(event: KeyboardEvent): void {
-        if (event.key === 'f' && event.ctrlKey) {
-            this.searchElement()?.nativeElement.focus();
-        }
-    }
-
     /**
      * Computed signal for filtered and enriched channels.
      */
     readonly enrichedChannels = computed(() => {
-        const term = this.searchTerm().toLowerCase();
+        const term = this.searchTerm().trim().toLowerCase();
         const channels = this.channels();
         const epgMap = this.channelEpgMap();
         // Read progressTick to create dependency for progress refresh
@@ -117,16 +92,6 @@ export class AllChannelsViewComponent implements OnDestroy {
             } as EnrichedChannel;
         });
     });
-
-    /**
-     * Handles debounced search input
-     */
-    onSearchInput(value: string): void {
-        clearTimeout(this.searchDebounceTimeout);
-        this.searchDebounceTimeout = window.setTimeout(() => {
-            this.searchTerm.set(value);
-        }, 300);
-    }
 
     /**
      * Calculates progress percentage for an EPG program
@@ -170,11 +135,5 @@ export class AllChannelsViewComponent implements OnDestroy {
 
     onFavoriteToggle(channel: Channel, event: MouseEvent): void {
         this.favoriteToggled.emit({ channel, event });
-    }
-
-    ngOnDestroy(): void {
-        if (this.searchDebounceTimeout) {
-            clearTimeout(this.searchDebounceTimeout);
-        }
     }
 }

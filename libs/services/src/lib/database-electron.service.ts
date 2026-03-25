@@ -346,6 +346,19 @@ export class DatabaseService {
     }
 
     /**
+     * Get global favorites across all playlists (all content types)
+     */
+    async getAllGlobalFavorites(): Promise<GlobalFavoriteItem[]> {
+        try {
+            const items = await window.electron.dbGetAllGlobalFavorites();
+            return items || [];
+        } catch (error) {
+            console.error('Error getting all global favorites:', error);
+            return [];
+        }
+    }
+
+    /**
      * Clear recently viewed items
      */
     async clearGlobalRecentlyViewed(): Promise<void> {

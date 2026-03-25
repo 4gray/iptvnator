@@ -4,18 +4,16 @@ import {
     PortalRecentItem,
     StalkerPortalItem,
 } from 'shared-interfaces';
+import { UnifiedCollectionItem } from '../collection/unified-collection-item.interface';
 
-/** Internal target produced by navigation helpers. */
-export interface DashboardNavigationTarget {
+export interface WorkspaceNavigationTarget {
     link: string[];
     state?: Record<string, unknown>;
 }
 
-// ────── Recent-item navigation ──────
-
 export function getRecentItemNavigation(
     item: PortalRecentItem
-): DashboardNavigationTarget {
+): WorkspaceNavigationTarget {
     if (item.source === 'stalker') {
         return {
             link: ['/workspace', 'stalker', item.playlist_id, 'recent'],
@@ -44,11 +42,9 @@ export function getRecentItemNavigation(
     });
 }
 
-// ────── Favorite-item navigation ──────
-
 export function getGlobalFavoriteNavigation(
     item: PortalFavoriteItem
-): DashboardNavigationTarget {
+): WorkspaceNavigationTarget {
     if (item.source === 'stalker') {
         return {
             link: ['/workspace', 'stalker', item.playlist_id, 'favorites'],
@@ -77,18 +73,17 @@ export function getGlobalFavoriteNavigation(
     });
 }
 
-// ────── Xtream link builders ──────
-
 export function buildXtreamNavigationTarget(params: {
     playlistId: string;
     type: PortalActivityType;
-    categoryId: string | number;
-    itemId: string | number;
+    categoryId?: string | number | null;
+    itemId?: string | number | null;
     title?: string;
-    imageUrl?: string;
-}): DashboardNavigationTarget {
+    imageUrl?: string | null;
+}): WorkspaceNavigationTarget {
     const link = buildXtreamItemLink(params);
     const routeType = toXtreamRouteType(params.type);
+
     if (routeType !== 'live') {
         return { link };
     }
@@ -111,17 +106,15 @@ export function buildXtreamNavigationTarget(params: {
 export function buildXtreamItemLink(params: {
     playlistId: string;
     type: PortalActivityType;
-    categoryId: string | number;
-    itemId: string | number;
+    categoryId?: string | number | null;
+    itemId?: string | number | null;
 }): string[] {
     const routeType = toXtreamRouteType(params.type);
     const categoryId = toPathSegment(params.categoryId);
     const itemId = toPathSegment(params.itemId);
 
     if (routeType === 'live') {
-        return categoryId
-            ? ['/workspace', 'xtreams', params.playlistId, 'live', categoryId]
-            : ['/workspace', 'xtreams', params.playlistId, 'live'];
+        return ['/workspace', 'xtreams', params.playlistId, 'live'];
     }
 
     if (categoryId && itemId) {
@@ -148,7 +141,32 @@ export function buildXtreamItemLink(params: {
     return ['/workspace', 'xtreams', params.playlistId, routeType];
 }
 
-// ────── Stalker state helpers ──────
+export function getUnifiedCollectionNavigation(
+    item: UnifiedCollectionItem
+): WorkspaceNavigationTarget | null {
+    if (item.sourceType === 'xtream') {
+        return buildXtreamNavigationTarget({
+            playlistId: item.playlistId,
+            type: item.contentType,
+            categoryId: item.categoryId,
+            itemId: item.xtreamId,
+            title: item.name,
+            imageUrl: item.posterUrl ?? item.logo ?? null,
+        });
+    }
+
+    if (item.sourceType === 'stalker') {
+        const section = item.contentType === 'movie' ? 'vod' : item.contentType;
+        const categoryId = toPathSegment(item.categoryId);
+        const link = categoryId
+            ? ['/workspace', 'stalker', item.playlistId, section, categoryId]
+            : ['/workspace', 'stalker', item.playlistId, section];
+
+        return { link };
+    }
+
+    return null;
+}
 
 export function buildStalkerStateItem(
     rawItem: StalkerPortalItem | undefined,
@@ -181,8 +199,6 @@ export function buildStalkerStateItem(
     };
 }
 
-// ────── Small helpers ──────
-
 export function toXtreamRouteType(
     type: PortalActivityType
 ): 'live' | 'vod' | 'series' {
@@ -196,6 +212,6 @@ export function toStalkerCategoryId(value: unknown): 'vod' | 'series' | 'itv' {
     return 'vod';
 }
 
-function toPathSegment(value: string | number): string {
+function toPathSegment(value: unknown): string {
     return String(value ?? '').trim();
 }

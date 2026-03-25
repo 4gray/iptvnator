@@ -13,21 +13,10 @@
     background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
     border-bottom: 1px solid var(--app-separator);
     gap: 4px;
-    app-region: drag;
     flex-shrink: 0;
 
     button {
         @include mat.form-field-density(-5);
-        app-region: no-drag;
-    }
-
-    .switcher {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .manage-categories-btn {
-        margin-left: auto;
     }
 }
 

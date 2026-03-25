@@ -26,7 +26,7 @@ import {
 import {
     buildFavoriteUid,
     UnifiedFavoriteChannel,
-} from './unified-favorite-channel.interface';
+} from '@iptvnator/portal/shared/util';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
 

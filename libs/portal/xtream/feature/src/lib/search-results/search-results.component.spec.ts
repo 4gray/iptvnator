@@ -139,13 +139,11 @@ describe('SearchResultsComponent initialQuery contract', () => {
             })
         );
 
-        expect(routerNavigateMock).toHaveBeenCalledWith([
-            '/workspace',
-            'xtreams',
-            'playlist-1',
-            'vod',
-            123,
-            456,
-        ]);
+        expect(routerNavigateMock).toHaveBeenCalledWith(
+            ['/workspace', 'xtreams', 'playlist-1', 'vod', '123', '456'],
+            {
+                state: undefined,
+            }
+        );
     });
 });

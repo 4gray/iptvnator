@@ -5,18 +5,18 @@ import {
     signal,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { FavoritesContextService } from './favorites-context.service';
 import { createPortalCollectionContext } from './portal-collection-context';
+import { PortalCollectionContextService } from './portal-collection-context.service';
 
 describe('portal-collection-context', () => {
-    it('syncs categories into the favorites context', () => {
+    it('syncs categories into the shared collection context', () => {
         TestBed.configureTestingModule({
-            providers: [FavoritesContextService],
+            providers: [PortalCollectionContextService],
         });
 
         const parentInjector = TestBed.inject(EnvironmentInjector);
         const childInjector = createEnvironmentInjector([], parentInjector);
-        const ctx = TestBed.inject(FavoritesContextService);
+        const ctx = TestBed.inject(PortalCollectionContextService);
         const categories = signal([
             {
                 id: 1,
@@ -45,12 +45,12 @@ describe('portal-collection-context', () => {
 
     it('does not mutate the shared context when disabled', () => {
         TestBed.configureTestingModule({
-            providers: [FavoritesContextService],
+            providers: [PortalCollectionContextService],
         });
 
         const parentInjector = TestBed.inject(EnvironmentInjector);
         const childInjector = createEnvironmentInjector([], parentInjector);
-        const ctx = TestBed.inject(FavoritesContextService);
+        const ctx = TestBed.inject(PortalCollectionContextService);
         const categories = signal([
             {
                 id: 1,
@@ -94,12 +94,12 @@ describe('portal-collection-context', () => {
 
     it('resets managed context state on destroy', () => {
         TestBed.configureTestingModule({
-            providers: [FavoritesContextService],
+            providers: [PortalCollectionContextService],
         });
 
         const parentInjector = TestBed.inject(EnvironmentInjector);
         const childInjector = createEnvironmentInjector([], parentInjector);
-        const ctx = TestBed.inject(FavoritesContextService);
+        const ctx = TestBed.inject(PortalCollectionContextService);
         const categories = signal([
             {
                 id: 1,

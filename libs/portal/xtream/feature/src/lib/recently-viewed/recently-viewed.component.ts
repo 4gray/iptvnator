@@ -29,6 +29,8 @@ import {
     PortalCollectionShellLayout,
 } from '@iptvnator/portal/shared/ui';
 import {
+    buildXtreamNavigationTarget,
+    getRecentItemNavigation,
     isWorkspaceLayoutRoute,
     queryParamSignal,
 } from '@iptvnator/portal/shared/util';
@@ -38,7 +40,7 @@ import {
     filterCollectionBucket,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { FavoritesContextService } from '@iptvnator/portal/shared/util';
+import { PortalCollectionContextService } from '@iptvnator/portal/shared/util';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -147,7 +149,7 @@ export class RecentlyViewedComponent {
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private dialogData = inject(MAT_DIALOG_DATA, { optional: true });
     private readonly logger = createLogger('XtreamRecentlyViewed');
-    private readonly favoritesCtx = inject(FavoritesContextService);
+    private readonly collectionCtx = inject(PortalCollectionContextService);
 
     readonly isGlobal = this.dialogData?.isGlobal ?? false;
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
@@ -209,7 +211,7 @@ export class RecentlyViewedComponent {
         });
     });
     readonly collectionContext = createPortalCollectionContext({
-        ctx: this.favoritesCtx,
+        ctx: this.collectionCtx,
         categories: this.categories,
         enabled: () => !this.isGlobal,
     });
@@ -390,42 +392,23 @@ export class RecentlyViewedComponent {
 
         const source = item.source ?? 'xtream';
 
-        if (source === 'stalker' && this.isGlobal) {
+        if ((source === 'stalker' || source === 'm3u') && this.isGlobal) {
             this.dialogRef?.close();
-            this.router.navigate(
-                ['/workspace', 'stalker', item.playlist_id, 'recent'],
-                {
-                    state: {
-                        openRecentItem: item.stalker_item ?? {
-                            id: item.id,
-                            title: item.title,
-                            name: item.title,
-                            category_id:
-                                item.type === 'movie'
-                                    ? 'vod'
-                                    : item.type === 'live'
-                                      ? 'itv'
-                                      : 'series',
-                            cover: item.poster_url,
-                        },
-                    },
-                }
-            );
-            return;
-        }
-
-        if (source === 'm3u' && this.isGlobal) {
-            this.dialogRef?.close();
-            this.router.navigate(
-                ['/workspace', 'playlists', item.playlist_id, 'recent'],
-                {
-                    state: {
-                        openRecentChannelUrl: String(
-                            item.xtream_id ?? item.id ?? ''
-                        ),
-                    },
-                }
-            );
+            const navigation = getRecentItemNavigation({
+                id: item.id,
+                title: item.title,
+                type: item.type,
+                playlist_id: item.playlist_id,
+                poster_url: item.poster_url ?? '',
+                xtream_id: item.xtream_id,
+                category_id: item.category_id ?? item.type,
+                source,
+                stalker_item: item.stalker_item,
+                viewed_at: item.viewed_at ?? '',
+            });
+            void this.router.navigate(navigation.link, {
+                state: navigation.state,
+            });
             return;
         }
 
@@ -446,22 +429,29 @@ export class RecentlyViewedComponent {
 
         if (this.isGlobal) {
             this.dialogRef?.close();
-
-            this.router.navigate([
-                '/workspace',
-                'xtreams',
-                item.playlist_id,
-                type,
-                item.category_id,
-                item.xtream_id,
-            ]);
+            const navigation = buildXtreamNavigationTarget({
+                playlistId: item.playlist_id,
+                type: item.type,
+                categoryId: item.category_id,
+                itemId: item.xtream_id,
+                title: item.title,
+                imageUrl: item.poster_url,
+            });
+            void this.router.navigate(navigation.link, {
+                state: navigation.state,
+            });
         } else {
-            this.router.navigate(
-                ['..', type, item.category_id, item.xtream_id],
-                {
-                    relativeTo: this.activatedRoute,
-                }
-            );
+            const navigation = buildXtreamNavigationTarget({
+                playlistId: item.playlist_id,
+                type: item.type,
+                categoryId: item.category_id,
+                itemId: item.xtream_id,
+                title: item.title,
+                imageUrl: item.poster_url,
+            });
+            void this.router.navigate(navigation.link, {
+                state: navigation.state,
+            });
         }
     }
 

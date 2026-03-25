@@ -386,6 +386,10 @@ export function withSelection() {
              * Set the content type (live, vod, series)
              */
             setSelectedContentType(type: ContentType): void {
+                if (store.selectedContentType() === type) {
+                    return;
+                }
+
                 patchState(store, {
                     selectedContentType: type,
                     selectedCategoryId: null,

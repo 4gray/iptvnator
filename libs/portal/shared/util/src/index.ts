@@ -1,4 +1,3 @@
-export * from './lib/favorites-context.service';
 export * from './lib/logger';
 export * from './lib/portal-catalog-detail';
 export * from './lib/portal-catalog-facade';
@@ -7,8 +6,11 @@ export * from './lib/portal-player';
 export * from './lib/portal-playback-positions';
 export * from './lib/portal-navigation-actions';
 export * from './lib/portal-collection-context';
+export * from './lib/portal-collection-context.service';
 export * from './lib/portal-collection-items';
 export * from './lib/remote-channel-navigation';
 export * from './lib/workspace-header-context.service';
 export * from './lib/navigation/portal-rail-links';
 export * from './lib/navigation/portal-route.utils';
+export * from './lib/navigation/workspace-portal-navigation';
+export * from './lib/collection';

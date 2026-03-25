@@ -13,11 +13,15 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { NavigationEnd, Router } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgService } from '@iptvnator/epg/data-access';
+import {
+    isWorkspaceLayoutRoute,
+    queryParamSignal,
+} from '@iptvnator/portal/shared/util';
 import {
     ChannelActions,
     FavoritesActions,
@@ -86,6 +90,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly router = inject(Router);
+    private readonly route = inject(ActivatedRoute);
 
     /** Map of channel ID to current EPG program */
     readonly channelEpgMap = signal(new Map<string, EpgProgram | null>());
@@ -108,6 +113,15 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     /** Active view (all, groups, favorites, recent) */
     readonly activeView = input<string>('all');
     readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
+    private readonly routeSearchTerm = queryParamSignal(
+        this.route,
+        'q',
+        (value) => (value ?? '').trim().toLowerCase()
+    );
+    readonly workspaceSearchTerm = computed(() =>
+        this.isWorkspaceLayout ? this.routeSearchTerm() : ''
+    );
 
     readonly currentUrl = toSignal(
         this.router.events.pipe(

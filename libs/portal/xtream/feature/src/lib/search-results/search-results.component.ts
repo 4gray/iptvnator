@@ -25,6 +25,7 @@ import { DatabaseService } from 'services';
 import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
 import {
+    buildXtreamNavigationTarget,
     isWorkspaceLayoutRoute,
     queryParamSignal,
 } from '@iptvnator/portal/shared/util';
@@ -271,30 +272,36 @@ export class SearchResultsComponent implements AfterViewInit {
     }
 
     selectItem(item: XtreamContentItem) {
-        if (this.isGlobalSearch && item.playlist_id) {
-            this.dialogRef?.close();
-            const type = item.type === 'movie' ? 'vod' : item.type;
-            this.router.navigate([
-                '/workspace',
-                'xtreams',
-                item.playlist_id,
-                type,
-                item.category_id,
-                item.xtream_id,
-            ]);
-        } else {
-            const type = (
-                item.type === 'movie' ? 'vod' : item.type
-            ) as ContentType;
-            this.xtreamStore.setSelectedContentType(type);
-
-            this.router.navigate(
-                item.type === 'live'
-                    ? ['..', type, item.category_id]
-                    : ['..', type, item.category_id, item.xtream_id],
-                { relativeTo: this.activatedRoute }
-            );
+        const playlistId = item.playlist_id ?? this.xtreamStore.playlistId();
+        if (!playlistId) {
+            return;
         }
+
+        const type = (item.type === 'movie' ? 'vod' : item.type) as ContentType;
+        const navigationType =
+            item.type === 'movie'
+                ? 'movie'
+                : item.type === 'series'
+                  ? 'series'
+                  : 'live';
+        this.xtreamStore.setSelectedContentType(type);
+
+        const navigation = buildXtreamNavigationTarget({
+            playlistId,
+            type: navigationType,
+            categoryId: item.category_id,
+            itemId: item.xtream_id,
+            title: item.title,
+            imageUrl: item.poster_url,
+        });
+
+        if (this.isGlobalSearch) {
+            this.dialogRef?.close();
+        }
+
+        void this.router.navigate(navigation.link, {
+            state: navigation.state,
+        });
     }
 
     onCloseDialog() {
