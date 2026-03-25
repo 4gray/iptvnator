@@ -46,10 +46,10 @@ html {
 
     // ── Light theme design tokens ─────────────────────────────────────────
     --app-shell-bg: #eef0f3;
-    --app-rail-bg: #e8eaed;
+    --app-rail-bg: #eef0f3;
     --app-header-bg: #eef0f3;
     --app-content-bg: #f5f6f8;
-    --app-rail-border: rgba(0, 0, 0, 0.08);
+    --app-rail-border: transparent;
     --app-search-bg: rgba(255, 255, 255, 0.7);
     --app-search-border: rgba(0, 0, 0, 0.1);
     --app-selection-color: #2f7bff;
@@ -74,6 +74,9 @@ html {
         var(--app-selection-color) 34%,
         transparent
     );
+
+    // Content area
+    --app-content-shadow: -2px 4px 12px rgba(0, 0, 0, 0.06);
 
     // Widget surfaces — no borders, layered backgrounds
     --app-widget-bg: #ffffff;
@@ -141,6 +144,9 @@ html {
             var(--app-selection-color) 44%,
             transparent
         );
+
+        // Content area
+        --app-content-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
 
         // Widget surfaces — NO border, surface contrast does the work
         // Widgets sit on content-bg (#161a22), so widget-bg is notably lighter

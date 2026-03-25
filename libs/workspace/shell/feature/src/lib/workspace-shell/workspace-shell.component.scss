@@ -60,7 +60,7 @@ app-workspace-shell-context-sidebar {
     overflow: auto;
     background: var(--app-content-bg, var(--mat-sys-surface));
     border-radius: 16px 0 0 0;
-    box-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
+    box-shadow: -4px 8px 20px var(--app-content-shadow, rgba(0, 0, 0, 0.18));
 }
 
 .workspace-loading-overlay {

@@ -10,7 +10,16 @@
         storageKey="sidebar-width"
     >
         <div class="sidebar-header">
-            <h2>{{ selectedCategoryTitle() }}</h2>
+            <div class="category-heading">
+                <h2 class="category-title">
+                    {{ selectedCategoryTitle() }}
+                </h2>
+                @if (visibleChannels().length > 0) {
+                    <span class="category-count">{{
+                        visibleChannels().length
+                    }}</span>
+                }
+            </div>
         </div>
 
         <div #scrollContainer class="channels-list">

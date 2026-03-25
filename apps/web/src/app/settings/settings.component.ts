@@ -375,6 +375,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settingsForm.patchValue({ theme });
         this.settingsForm.get('theme')?.markAsDirty();
         this.settingsForm.markAsDirty();
+        this.settingsService.changeTheme(theme);
     }
 
     /**

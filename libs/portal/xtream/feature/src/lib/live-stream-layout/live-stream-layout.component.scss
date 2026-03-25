@@ -4,50 +4,10 @@
 
 @include portal.live-layout;
 
-// ─── Sidebar-header ────────────────────────────────────────────────────────
-.sidebar-header {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding: 8px 12px;
-    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
-    border-bottom: 1px solid var(--app-separator);
-    gap: 4px;
-    flex-shrink: 0;
-
-    button {
-        @include mat.form-field-density(-5);
-    }
-}
-
-// ─── Category heading + count pill ─────────────────────────────────────────
-.category-heading {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    flex: 1;
-    min-width: 0;
-}
-
-.category-title {
-    margin: 0;
-    font-size: 0.94rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--mat-sys-on-surface);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.category-count {
-    flex-shrink: 0;
-    font-size: 0.72rem;
-    font-weight: 500;
-    color: var(--mat-sys-on-surface-variant);
-    background: var(--mat-sys-surface-container);
-    padding: 2px 8px;
-    border-radius: 999px;
+// ─── Sidebar-header overrides ──────────────────────────────────────────────
+// Base .sidebar-header styles come from portal-sidebar
+.sidebar-header button {
+    @include mat.form-field-density(-5);
 }
 
 // ─── Side-panel channel list ───────────────────────────────────────────────
