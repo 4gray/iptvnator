@@ -1,0 +1,1116 @@
+use electron skill with agent-bwoser to open the home screen and navigate through, i want to know how good is rail navigation on the left side and navigation on the top. if that would be understandable for    
+  users. the global actions in the header (execpt search) vs playlist (local) actions in the left rail sidebar. what do you think about that form ux/ui and understanding point of view? use sc-brainstorm skill   
+  additionally                                                                                                                                                                                                     
+─────────────────
+
+---
+
+Base directory for this skill: /Users/4gray/Code/iptvnator/.claude/skills/sc-brainstorm
+
+# Brainstorming & Requirements Discovery Skill
+
+Transform ambiguous ideas into concrete specifications through structured exploration.
+
+## Quick Start
+
+```bash
+# Basic brainstorm
+/sc:brainstorm [topic]
+
+# Deep systematic exploration
+/sc:brainstorm "AI project management tool" --strategy systematic --depth deep
+
+# Parallel exploration with multiple personas
+/sc:brainstorm "real-time collaboration" --strategy agile --parallel
+```
+
+## Behavioral Flow
+
+1. **Explore** - Transform ambiguous ideas through Socratic dialogue
+2. **Analyze** - Coordinate multiple personas for domain expertise
+3. **Validate** - Apply feasibility assessment across domains
+4. **Specify** - Generate concrete specifications
+5. **Handoff** - Create actionable briefs for implementation
+
+## Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--strategy` | string | systematic | systematic, agile, enterprise |
+| `--depth` | string | normal | shallow, normal, deep |
+| `--parallel` | bool | false | Enable parallel exploration paths |
+| `--validate` | bool | false | Include feasibility validation |
+
+## Personas Activated
+
+- **architect** - System design and technical feasibility
+- **analyzer** - Requirements analysis and complexity assessment
+- **frontend** - User experience and interface considerations
+- **backend** - API and data architecture
+- **security** - Security requirements and compliance
+- **devops** - Infrastructure and deployment considerations
+- **project-manager** - Timeline and resource planning
+
+## MCP Integration
+
+### PAL MCP (Collaborative Intelligence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__pal__consensus` | Conflicting priorities | Multi-model resolution of trade-offs |
+| `mcp__pal__chat` | Brainstorming | Collaborative idea exploration with external model |
+| `mcp__pal__thinkdeep` | Complex problems | Multi-stage deep analysis |
+| `mcp__pal__planner` | Solution design | Sequential planning with branching |
+| `mcp__pal__challenge` | Validate ideas | Force critical thinking on proposed solutions |
+
+### PAL Usage Patterns
+
+```bash
+# Consensus on conflicting priorities
+mcp__pal__consensus(
+    models=[
+        {"model": "gpt-5.2", "stance": "for", "stance_prompt": "Prioritize user experience"},
+        {"model": "gemini-3-pro", "stance": "against", "stance_prompt": "Prioritize technical simplicity"},
+        {"model": "deepseek", "stance": "neutral"}
+    ],
+    step="Evaluate: Should we use real-time sync or eventual consistency?"
+)
+
+# Deep exploration of complex idea
+mcp__pal__thinkdeep(
+    step="Exploring AI-powered analytics dashboard concept",
+    hypothesis="Users need predictive insights, not just historical data",
+    confidence="medium",
+    focus_areas=["user_needs", "technical_feasibility", "market_fit"]
+)
+
+# Collaborative brainstorming
+mcp__pal__chat(
+    prompt="Help me explore innovative approaches for real-time collaboration in document editing",
+    model="gpt-5.2",
+    thinking_mode="high"
+)
+
+# Challenge assumptions
+mcp__pal__challenge(
+    prompt="We assume users want AI-generated summaries. Is this assumption valid?"
+)
+
+# Plan solution architecture
+mcp__pal__planner(
+    step="Planning architecture for real-time notification system",
+    step_number=1,
+    total_steps=4,
+    is_branch_point=True,
+    branch_id="websocket-approach"
+)
+```
+
+### Rube MCP (Research & Persistence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__rube__RUBE_SEARCH_TOOLS` | Market research | Find web search, competitor analysis tools |
+| `mcp__rube__RUBE_MULTI_EXECUTE_TOOL` | Documentation | Save ideas to Notion, share in Slack |
+| `mcp__rube__RUBE_CREATE_UPDATE_RECIPE` | Workflows | Save brainstorming processes |
+| `mcp__rube__RUBE_REMOTE_WORKBENCH` | Data analysis | Analyze market data, user research |
+
+### Rube Usage Patterns
+
+```bash
+# Research market and competitors
+mcp__rube__RUBE_SEARCH_TOOLS(queries=[
+    {"use_case": "web search", "known_fields": "query:AI analytics dashboard competitors 2025"}
+])
+
+# Document brainstorming session
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "NOTION_CREATE_PAGE", "arguments": {
+        "title": "Brainstorm: AI Analytics Dashboard",
+        "content": "## Key Ideas\n- Predictive insights\n- Natural language queries\n\n## Decisions\n- Real-time sync chosen over eventual consistency"
+    }},
+    {"tool_slug": "SLACK_SEND_MESSAGE", "arguments": {
+        "channel": "#product",
+        "text": "New brainstorm session documented: AI Analytics Dashboard"
+    }}
+])
+
+# Create user research tasks
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "JIRA_CREATE_ISSUE", "arguments": {
+        "project": "PROD",
+        "summary": "User research: AI analytics preferences",
+        "issue_type": "Task",
+        "description": "Interview 10 users about analytics needs"
+    }},
+    {"tool_slug": "ASANA_CREATE_TASK", "arguments": {
+        "name": "Competitor analysis: analytics dashboards",
+        "project": "Research"
+    }}
+])
+
+# Analyze existing user feedback
+mcp__rube__RUBE_REMOTE_WORKBENCH(
+    thought="Analyze user feedback data for patterns",
+    code_to_execute='''
+import json
+# Load user feedback from file
+feedback_data = json.load(open("/tmp/user_feedback.json"))
+# Analyze with LLM
+analysis, error = invoke_llm(f"Analyze this user feedback for analytics feature requests: {feedback_data[:5000]}")
+output = {"analysis": analysis, "feedback_count": len(feedback_data)}
+output
+'''
+)
+```
+
+## Flags (Extended)
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--pal-consensus` | bool | false | Use PAL consensus for trade-offs |
+| `--pal-deep` | bool | false | Use PAL thinkdeep for complex exploration |
+| `--research` | bool | false | Use Rube for market/competitor research |
+| `--document` | string | - | Document to Rube (notion, confluence, google-docs) |
+| `--notify` | string | - | Notify via Rube (slack, teams, email) |
+
+## Evidence Requirements
+
+This skill does NOT require hard evidence. Focus on:
+- Documenting exploration paths and decisions
+- Recording stakeholder input and priorities
+- Capturing specifications and requirements
+
+## Exploration Strategies
+
+### Systematic (`--strategy systematic`)
+- Structured question-driven discovery
+- Comprehensive domain coverage
+- Documentation-heavy approach
+
+### Agile (`--strategy agile`)
+- Rapid iteration cycles
+- User story focused
+- Minimal viable specification
+
+### Enterprise (`--strategy enterprise`)
+- Compliance and governance focus
+- Stakeholder alignment
+- Risk assessment integration
+
+## Examples
+
+### Product Discovery
+```
+/sc:brainstorm "AI-powered analytics dashboard" --strategy systematic --depth deep
+# Multi-persona analysis with comprehensive feasibility
+```
+
+### Feature Exploration
+```
+/sc:brainstorm "real-time notifications" --strategy agile --parallel
+# Parallel paths: frontend UX, backend architecture, security implications
+```
+
+### Enterprise Solution
+```
+/sc:brainstorm "enterprise data platform" --strategy enterprise --validate
+# Compliance-aware exploration with security and devops input
+```
+
+## Tool Coordination
+
+- **Read/Write** - Requirements documentation
+- **TodoWrite** - Exploration progress tracking
+- **Task** - Parallel exploration delegation
+- **WebSearch** - Market research and technology validation
+
+
+ARGUMENTS: UX/UI evaluation of IPTVnator's navigation architecture: Header (global actions) vs Left Rail Sidebar (playlist-local actions). Is the separation between global and local scope clear to users? Key observations from live app inspection: 1) Header contains: playlist switcher dropdown, context-aware search bar, command palette (Ctrl+K), add playlist button, global favorites star, downloads button, context menu (three dots with mixed global+local actions). 2) Left rail contains: static Dashboard and Sources links at top, dynamic provider-specific links in middle (changes between M3U: All channels/Groups/Recently viewed/Favorites vs Xtream: Movies/Live TV/Series/Search/Recently viewed/Favorites vs Stalker: similar), Settings at bottom. 3) Command palette explicitly labels "GLOBAL ACTIONS" vs "THIS PLAYLIST" sections. 4) The rail links change dynamically when switching playlists but there's no visual indicator explaining this to users. 5) The header's three-dot menu contains playlist-specific actions (Playlist Info, Account Info) mixed into the "global" header area. Evaluate from a UX/UI and user understanding perspective.
+
+---
+
+can you save this analysis report to a md file for later reference. and after that create a plan how to continue with quick and medium efforts implementation, use frontend-design skill
+
+---
+
+Base directory for this skill: /Users/4gray/.claude/plugins/cache/anthropic-agent-skills/example-skills/f23222824449/skills/frontend-design
+
+This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+
+The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
+
+## Design Thinking
+
+Before coding, understand the context and commit to a BOLD aesthetic direction:
+- **Purpose**: What problem does this interface solve? Who uses it?
+- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
+- **Constraints**: Technical requirements (framework, performance, accessibility).
+- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+
+**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+
+Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
+- Production-grade and functional
+- Visually striking and memorable
+- Cohesive with a clear aesthetic point-of-view
+- Meticulously refined in every detail
+
+## Frontend Aesthetics Guidelines
+
+Focus on:
+- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
+- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
+- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
+- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
+- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
+
+NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
+
+Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
+
+**IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
+
+Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+
+
+ARGUMENTS: Create an implementation plan for IPTVnator navigation UX improvements based on docs/architecture/navigation-ux-analysis.md. The improvements are split into Quick Wins and Medium Effort:
+
+QUICK WINS:
+1. Add a playlist name label above the dynamic rail links in the left sidebar — small muted text showing the active playlist name (e.g., "clean.m3u" or "rucolor.tv") above the provider-specific navigation links. This goes between the rail-divider after Dashboard/Sources and before the dynamic provider links.
+2. Differentiate Global Favorites (header star icon, cross-playlist) from Local Favorites (rail link, playlist-specific) — use different icons, tooltip distinction, or a small globe badge.
+3. Add a scope label to the search bar showing what context the search applies to (e.g., "Searching in Live TV" or "Searching in clean.m3u").
+
+MEDIUM EFFORT:
+4. Move the three-dot context menu from the header into the context panel area, keeping header purely global.
+5. Animate the rail transition when switching playlists — subtle slide or fade to signal link changes.
+
+Key files:
+- Shell template: libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.html
+- Shell component: libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts
+- Rail links component: libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts
+- Rail links builder: libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts
+- Playlist switcher: libs/playlist/shared/ui/src/lib/playlist-switcher/playlist-switcher.component.ts
+
+The app uses Angular with Material, signal-based APIs, dark theme. The rail is a narrow icon sidebar. Follow the project's Angular coding standards (signals, @if/@for control flow, OnPush). Design should be production-grade and visually cohesive with the existing dark UI.
+
+---
+
+do it, for searh i think we need to analyse the functionality in more details further.
+
+---
+
+<task-notification>
+<task-id>bf3d5g2b0</task-id>
+<tool-use-id>toolu_01U6t81StcgHBNGXSwuh5ZJw</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Start Electron app for visual verification" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+hm, the title of the playlist is always shorten ince there is not so much space, what do you think about other options to highlight the scope belonging? maybe the playlist related items could be groupen into block with a background, or global actions? or maybe there are other options then putting a title which is trimmed? what do you thinkl, suggest me options by using frontend-design skill and sc-brainstorm. just suggest without starting to implement
+
+---
+
+Base directory for this skill: /Users/4gray/Code/iptvnator/.claude/skills/sc-brainstorm
+
+# Brainstorming & Requirements Discovery Skill
+
+Transform ambiguous ideas into concrete specifications through structured exploration.
+
+## Quick Start
+
+```bash
+# Basic brainstorm
+/sc:brainstorm [topic]
+
+# Deep systematic exploration
+/sc:brainstorm "AI project management tool" --strategy systematic --depth deep
+
+# Parallel exploration with multiple personas
+/sc:brainstorm "real-time collaboration" --strategy agile --parallel
+```
+
+## Behavioral Flow
+
+1. **Explore** - Transform ambiguous ideas through Socratic dialogue
+2. **Analyze** - Coordinate multiple personas for domain expertise
+3. **Validate** - Apply feasibility assessment across domains
+4. **Specify** - Generate concrete specifications
+5. **Handoff** - Create actionable briefs for implementation
+
+## Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--strategy` | string | systematic | systematic, agile, enterprise |
+| `--depth` | string | normal | shallow, normal, deep |
+| `--parallel` | bool | false | Enable parallel exploration paths |
+| `--validate` | bool | false | Include feasibility validation |
+
+## Personas Activated
+
+- **architect** - System design and technical feasibility
+- **analyzer** - Requirements analysis and complexity assessment
+- **frontend** - User experience and interface considerations
+- **backend** - API and data architecture
+- **security** - Security requirements and compliance
+- **devops** - Infrastructure and deployment considerations
+- **project-manager** - Timeline and resource planning
+
+## MCP Integration
+
+### PAL MCP (Collaborative Intelligence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__pal__consensus` | Conflicting priorities | Multi-model resolution of trade-offs |
+| `mcp__pal__chat` | Brainstorming | Collaborative idea exploration with external model |
+| `mcp__pal__thinkdeep` | Complex problems | Multi-stage deep analysis |
+| `mcp__pal__planner` | Solution design | Sequential planning with branching |
+| `mcp__pal__challenge` | Validate ideas | Force critical thinking on proposed solutions |
+
+### PAL Usage Patterns
+
+```bash
+# Consensus on conflicting priorities
+mcp__pal__consensus(
+    models=[
+        {"model": "gpt-5.2", "stance": "for", "stance_prompt": "Prioritize user experience"},
+        {"model": "gemini-3-pro", "stance": "against", "stance_prompt": "Prioritize technical simplicity"},
+        {"model": "deepseek", "stance": "neutral"}
+    ],
+    step="Evaluate: Should we use real-time sync or eventual consistency?"
+)
+
+# Deep exploration of complex idea
+mcp__pal__thinkdeep(
+    step="Exploring AI-powered analytics dashboard concept",
+    hypothesis="Users need predictive insights, not just historical data",
+    confidence="medium",
+    focus_areas=["user_needs", "technical_feasibility", "market_fit"]
+)
+
+# Collaborative brainstorming
+mcp__pal__chat(
+    prompt="Help me explore innovative approaches for real-time collaboration in document editing",
+    model="gpt-5.2",
+    thinking_mode="high"
+)
+
+# Challenge assumptions
+mcp__pal__challenge(
+    prompt="We assume users want AI-generated summaries. Is this assumption valid?"
+)
+
+# Plan solution architecture
+mcp__pal__planner(
+    step="Planning architecture for real-time notification system",
+    step_number=1,
+    total_steps=4,
+    is_branch_point=True,
+    branch_id="websocket-approach"
+)
+```
+
+### Rube MCP (Research & Persistence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__rube__RUBE_SEARCH_TOOLS` | Market research | Find web search, competitor analysis tools |
+| `mcp__rube__RUBE_MULTI_EXECUTE_TOOL` | Documentation | Save ideas to Notion, share in Slack |
+| `mcp__rube__RUBE_CREATE_UPDATE_RECIPE` | Workflows | Save brainstorming processes |
+| `mcp__rube__RUBE_REMOTE_WORKBENCH` | Data analysis | Analyze market data, user research |
+
+### Rube Usage Patterns
+
+```bash
+# Research market and competitors
+mcp__rube__RUBE_SEARCH_TOOLS(queries=[
+    {"use_case": "web search", "known_fields": "query:AI analytics dashboard competitors 2025"}
+])
+
+# Document brainstorming session
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "NOTION_CREATE_PAGE", "arguments": {
+        "title": "Brainstorm: AI Analytics Dashboard",
+        "content": "## Key Ideas\n- Predictive insights\n- Natural language queries\n\n## Decisions\n- Real-time sync chosen over eventual consistency"
+    }},
+    {"tool_slug": "SLACK_SEND_MESSAGE", "arguments": {
+        "channel": "#product",
+        "text": "New brainstorm session documented: AI Analytics Dashboard"
+    }}
+])
+
+# Create user research tasks
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "JIRA_CREATE_ISSUE", "arguments": {
+        "project": "PROD",
+        "summary": "User research: AI analytics preferences",
+        "issue_type": "Task",
+        "description": "Interview 10 users about analytics needs"
+    }},
+    {"tool_slug": "ASANA_CREATE_TASK", "arguments": {
+        "name": "Competitor analysis: analytics dashboards",
+        "project": "Research"
+    }}
+])
+
+# Analyze existing user feedback
+mcp__rube__RUBE_REMOTE_WORKBENCH(
+    thought="Analyze user feedback data for patterns",
+    code_to_execute='''
+import json
+# Load user feedback from file
+feedback_data = json.load(open("/tmp/user_feedback.json"))
+# Analyze with LLM
+analysis, error = invoke_llm(f"Analyze this user feedback for analytics feature requests: {feedback_data[:5000]}")
+output = {"analysis": analysis, "feedback_count": len(feedback_data)}
+output
+'''
+)
+```
+
+## Flags (Extended)
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--pal-consensus` | bool | false | Use PAL consensus for trade-offs |
+| `--pal-deep` | bool | false | Use PAL thinkdeep for complex exploration |
+| `--research` | bool | false | Use Rube for market/competitor research |
+| `--document` | string | - | Document to Rube (notion, confluence, google-docs) |
+| `--notify` | string | - | Notify via Rube (slack, teams, email) |
+
+## Evidence Requirements
+
+This skill does NOT require hard evidence. Focus on:
+- Documenting exploration paths and decisions
+- Recording stakeholder input and priorities
+- Capturing specifications and requirements
+
+## Exploration Strategies
+
+### Systematic (`--strategy systematic`)
+- Structured question-driven discovery
+- Comprehensive domain coverage
+- Documentation-heavy approach
+
+### Agile (`--strategy agile`)
+- Rapid iteration cycles
+- User story focused
+- Minimal viable specification
+
+### Enterprise (`--strategy enterprise`)
+- Compliance and governance focus
+- Stakeholder alignment
+- Risk assessment integration
+
+## Examples
+
+### Product Discovery
+```
+/sc:brainstorm "AI-powered analytics dashboard" --strategy systematic --depth deep
+# Multi-persona analysis with comprehensive feasibility
+```
+
+### Feature Exploration
+```
+/sc:brainstorm "real-time notifications" --strategy agile --parallel
+# Parallel paths: frontend UX, backend architecture, security implications
+```
+
+### Enterprise Solution
+```
+/sc:brainstorm "enterprise data platform" --strategy enterprise --validate
+# Compliance-aware exploration with security and devops input
+```
+
+## Tool Coordination
+
+- **Read/Write** - Requirements documentation
+- **TodoWrite** - Exploration progress tracking
+- **Task** - Parallel exploration delegation
+- **WebSearch** - Market research and technology validation
+
+
+ARGUMENTS: The IPTVnator left rail sidebar is 60px wide with icon-only navigation. We added a playlist name label above the dynamic links, but it's always truncated because 44px max-width can't fit playlist names like "http://troublesupport.my.to/..." or even "clean.m3u". We need ALTERNATIVE visual approaches to communicate "these rail links belong to the currently selected playlist" without relying on a text label. The rail has this structure:
+
+```
+[Logo]                    ← brand, static
+[Dashboard icon]          ← global, static
+[Sources icon]            ← global, static
+--- divider ---
+[truncated label]         ← THIS IS THE PROBLEM
+[Movies icon]             ← dynamic, playlist-specific
+[Live TV icon]            ← dynamic, playlist-specific  
+[Series icon]             ← dynamic, playlist-specific
+--- divider ---
+[Search icon]             ← dynamic, playlist-specific
+[Recently viewed icon]    ← dynamic, playlist-specific
+[Favorites icon]          ← dynamic, playlist-specific
+--- bottom ---
+[Settings icon]           ← global, static
+```
+
+Constraints:
+- Rail is 60px wide, icon-only (no room for text labels)
+- Dark theme, glass-morphism aesthetic
+- Already has dividers between sections
+- Icons are 44x44px with 14px border-radius
+- Active state uses glow/gradient selection indicator
+- Must work for M3U (4 links), Xtream (6+3 links), Stalker (3+3 links)
+
+Explore creative alternatives:
+1. Background grouping (tinted block behind playlist-specific icons)
+2. Visual connector/bracket linking dynamic icons
+3. Color-coding or accent differentiation
+4. Icon badge/overlay approach
+5. Vertical stripe or side indicator
+6. Subtle pattern/texture difference
+7. Any other creative approaches
+
+Evaluate each for: clarity, aesthetics, implementation simplicity, and whether it actually communicates "these belong together and to your current playlist" without text.
+
+---
+
+Base directory for this skill: /Users/4gray/.claude/skills/userinterface-wiki
+
+# User Interface Wiki
+
+Comprehensive UI/UX best practices guide for web interfaces. Contains 152 rules across 12 categories, prioritized by impact to guide automated code review and generation.
+
+## When to Apply
+
+Reference these guidelines when:
+- Implementing or reviewing animations (CSS transitions, Motion/Framer Motion)
+- Choosing between springs, easing curves, or no animation
+- Working with AnimatePresence and exit animations
+- Writing CSS with pseudo-elements or View Transitions API
+- Adding audio feedback or procedural sound to UI
+- Building morphing icon components
+- Animating container width/height with dynamic content
+- Designing UI that respects cognitive psychology (Fitts's, Hick's, Miller's laws)
+- Implementing predictive prefetching for perceived performance
+- Setting up typography, OpenType features, or numeric formatting
+
+## Rule Categories by Priority
+
+| Priority | Category | Impact | Prefixes |
+|----------|----------|--------|----------|
+| 1 | Animation Principles | CRITICAL | `timing-`, `physics-`, `staging-` |
+| 2 | Timing Functions | HIGH | `spring-`, `easing-`, `duration-`, `none-` |
+| 3 | Exit Animations | HIGH | `exit-`, `presence-`, `mode-`, `nested-` |
+| 4 | CSS Pseudo Elements | MEDIUM | `pseudo-`, `transition-`, `native-` |
+| 5 | Audio Feedback | MEDIUM | `a11y-`, `appropriate-`, `impl-`, `weight-` |
+| 6 | Sound Synthesis | MEDIUM | `context-`, `envelope-`, `design-`, `param-` |
+| 7 | Morphing Icons | LOW | `morphing-` |
+| 8 | Container Animation | MEDIUM | `container-` |
+| 9 | Laws of UX | HIGH | `ux-` |
+| 10 | Predictive Prefetching | MEDIUM | `prefetch-` |
+| 11 | Typography | MEDIUM | `type-` |
+| 12 | Visual Design | HIGH | `visual-` |
+
+## Quick Reference
+
+### 1. Animation Principles (CRITICAL)
+
+- `timing-under-300ms` - User animations must complete within 300ms
+- `timing-consistent` - Similar elements use identical timing values
+- `timing-no-entrance-context-menu` - Context menus: no entrance animation, exit only
+- `easing-natural-decay` - Use exponential ramps for natural decay, not linear
+- `easing-no-linear-motion` - Linear easing only for progress indicators
+- `physics-active-state` - Interactive elements need :active scale transform
+- `physics-subtle-deformation` - Squash/stretch in 0.95-1.05 range
+- `physics-spring-for-overshoot` - Springs for overshoot-and-settle, not easing
+- `physics-no-excessive-stagger` - Stagger delays under 50ms per item
+- `staging-one-focal-point` - One prominent animation at a time
+- `staging-dim-background` - Dim modal/dialog backgrounds
+- `staging-z-index-hierarchy` - Animated elements respect z-index layers
+
+### 2. Timing Functions (HIGH)
+
+- `spring-for-gestures` - Gesture-driven motion (drag, flick) must use springs
+- `spring-for-interruptible` - Interruptible motion must use springs
+- `spring-preserves-velocity` - Springs preserve input energy on release
+- `spring-params-balanced` - Avoid excessive oscillation in spring params
+- `easing-for-state-change` - System state changes use easing curves
+- `easing-entrance-ease-out` - Entrances use ease-out
+- `easing-exit-ease-in` - Exits use ease-in
+- `easing-transition-ease-in-out` - View transitions use ease-in-out
+- `easing-linear-only-progress` - Linear only for progress/time representation
+- `duration-press-hover` - Press/hover: 120-180ms
+- `duration-small-state` - Small state changes: 180-260ms
+- `duration-max-300ms` - User-initiated max 300ms
+- `duration-shorten-before-curve` - Fix slow feel with shorter duration, not curve
+- `none-high-frequency` - No animation for high-frequency interactions
+- `none-keyboard-navigation` - Keyboard navigation instant, no animation
+- `none-context-menu-entrance` - Context menus: no entrance, exit only
+
+### 3. Exit Animations (HIGH)
+
+- `exit-requires-wrapper` - Conditional motion elements need AnimatePresence wrapper
+- `exit-prop-required` - Elements in AnimatePresence need exit prop
+- `exit-key-required` - Dynamic lists need unique keys, not index
+- `exit-matches-initial` - Exit mirrors initial for symmetry
+- `presence-hook-in-child` - useIsPresent in child, not parent
+- `presence-safe-to-remove` - Call safeToRemove after async cleanup
+- `presence-disable-interactions` - Disable interactions on exiting elements
+- `mode-wait-doubles-duration` - Mode "wait" doubles duration; halve timing
+- `mode-sync-layout-conflict` - Mode "sync" causes layout conflicts
+- `mode-pop-layout-for-lists` - Use popLayout for list reordering
+- `nested-propagate-required` - Nested AnimatePresence needs propagate prop
+- `nested-consistent-timing` - Coordinate parent-child exit durations
+
+### 4. CSS Pseudo Elements (MEDIUM)
+
+- `pseudo-content-required` - ::before/::after need content property
+- `pseudo-over-dom-node` - Pseudo-elements over extra DOM nodes for decoration
+- `pseudo-position-relative-parent` - Parent needs position: relative
+- `pseudo-z-index-layering` - Z-index for correct pseudo-element layering
+- `pseudo-hit-target-expansion` - Negative inset for larger hit targets
+- `pseudo-marker-styling` - Use ::marker for custom list bullet styles
+- `pseudo-first-line-styling` - Use ::first-line for typographic treatments
+- `transition-name-required` - View transitions need view-transition-name
+- `transition-name-unique` - Each transition name unique during transition
+- `transition-name-cleanup` - Remove transition name after completion
+- `transition-over-js-library` - Prefer View Transitions API over JS libraries
+- `transition-style-pseudo-elements` - Style ::view-transition-group for custom animations
+- `native-backdrop-styling` - Use ::backdrop for dialog backgrounds
+- `native-placeholder-styling` - Use ::placeholder for input styling
+- `native-selection-styling` - Use ::selection for text selection styling
+
+### 5. Audio Feedback (MEDIUM)
+
+- `a11y-visual-equivalent` - Every sound must have a visual equivalent
+- `a11y-toggle-setting` - Provide toggle to disable sounds
+- `a11y-reduced-motion-check` - Respect prefers-reduced-motion for sound
+- `a11y-volume-control` - Allow independent volume adjustment
+- `appropriate-no-high-frequency` - No sound on typing or keyboard nav
+- `appropriate-confirmations-only` - Sound for payments, uploads, submissions
+- `appropriate-errors-warnings` - Sound for errors that can't be overlooked
+- `appropriate-no-decorative` - No sound on hover or decorative moments
+- `appropriate-no-punishing` - Inform, don't punish with harsh sounds
+- `impl-preload-audio` - Preload audio files to avoid delay
+- `impl-default-subtle` - Default volume subtle (0.3), not loud
+- `impl-reset-current-time` - Reset currentTime before replay
+- `weight-match-action` - Sound weight matches action importance
+- `weight-duration-matches-action` - Sound duration matches action duration
+
+### 6. Sound Synthesis (MEDIUM)
+
+- `context-reuse-single` - Reuse single AudioContext, don't create per sound
+- `context-resume-suspended` - Resume suspended AudioContext before playing
+- `context-cleanup-nodes` - Disconnect audio nodes after playback
+- `envelope-exponential-decay` - Exponential ramps for natural decay
+- `envelope-no-zero-target` - Exponential ramps target 0.001, not 0
+- `envelope-set-initial-value` - Set initial value before ramping
+- `design-noise-for-percussion` - Filtered noise for clicks/taps
+- `design-oscillator-for-tonal` - Oscillators with pitch sweep for tonal sounds
+- `design-filter-for-character` - Bandpass filter to shape percussive sounds
+- `param-click-duration` - Click sounds: 5-15ms duration
+- `param-filter-frequency-range` - Click filter: 3000-6000Hz
+- `param-reasonable-gain` - Gain under 1.0 to prevent clipping
+- `param-q-value-range` - Filter Q: 2-5 for focused but natural
+
+### 7. Morphing Icons (LOW)
+
+- `morphing-three-lines` - Every icon uses exactly 3 SVG lines
+- `morphing-use-collapsed` - Unused lines use collapsed constant
+- `morphing-consistent-viewbox` - All icons share same viewBox (14x14)
+- `morphing-group-variants` - Rotational variants share group and base lines
+- `morphing-spring-rotation` - Spring physics for grouped icon rotation
+- `morphing-reduced-motion` - Respect prefers-reduced-motion
+- `morphing-jump-non-grouped` - Instant rotation jump between non-grouped icons
+- `morphing-strokelinecap-round` - Round stroke line caps
+- `morphing-aria-hidden` - Icon SVGs are aria-hidden
+
+### 8. Container Animation (MEDIUM)
+
+- `container-two-div-pattern` - Outer animated div, inner measured div; never same element
+- `container-guard-initial-zero` - Guard bounds === 0 on initial render, fall back to "auto"
+- `container-use-resize-observer` - Use ResizeObserver for measurement, not getBoundingClientRect
+- `container-overflow-hidden` - Set overflow: hidden on animated container during transitions
+- `container-no-excessive-use` - Use sparingly: buttons, accordions, interactive elements
+- `container-callback-ref` - Use callback ref (not useRef) for measurement hooks
+- `container-transition-delay` - Add small delay for natural catching-up feel
+
+### 9. Laws of UX (HIGH)
+
+- `ux-fitts-target-size` - Size interactive targets for easy clicking (min 32px)
+- `ux-fitts-hit-area` - Expand hit areas with invisible padding or pseudo-elements
+- `ux-hicks-minimize-choices` - Minimize choices to reduce decision time
+- `ux-millers-chunking` - Chunk data into groups of 5-9 for scannability
+- `ux-doherty-under-400ms` - Respond within 400ms to feel instant
+- `ux-doherty-perceived-speed` - Fake speed with skeletons, optimistic UI, progress indicators
+- `ux-postels-accept-messy-input` - Accept messy input, output clean data
+- `ux-progressive-disclosure` - Show what matters now, reveal complexity later
+- `ux-jakobs-familiar-patterns` - Use familiar UI patterns users know from other sites
+- `ux-aesthetic-usability` - Visual polish increases perceived usability
+- `ux-proximity-grouping` - Group related elements spatially with tighter spacing
+- `ux-similarity-consistency` - Similar elements should look alike
+- `ux-common-region-boundaries` - Use boundaries to group related content
+- `ux-von-restorff-emphasis` - Make important elements visually distinct
+- `ux-serial-position` - Place key items first or last in sequences
+- `ux-peak-end-finish-strong` - End experiences with clear success states
+- `ux-teslers-complexity` - Move complexity to the system, not the user
+- `ux-goal-gradient-progress` - Show progress toward completion
+- `ux-zeigarnik-show-incomplete` - Show incomplete state to drive completion
+- `ux-pragnanz-simplify` - Simplify complex visuals into clear forms
+- `ux-pareto-prioritize-features` - Prioritize the critical 20% of features
+- `ux-cognitive-load-reduce` - Minimize extraneous cognitive load
+- `ux-uniform-connectedness` - Visually connect related elements with lines or frames
+
+### 10. Predictive Prefetching (MEDIUM)
+
+- `prefetch-trajectory-over-hover` - Trajectory prediction over hover; reclaims 100-200ms
+- `prefetch-not-everything` - Prefetch by intent, not viewport; avoid wasted bandwidth
+- `prefetch-hit-slop` - Use hitSlop to trigger predictions earlier
+- `prefetch-touch-fallback` - Fall back gracefully on touch devices (no cursor)
+- `prefetch-keyboard-tab` - Prefetch on keyboard navigation when focus approaches
+- `prefetch-use-selectively` - Use predictive prefetching where latency is noticeable
+
+### 11. Typography (MEDIUM)
+
+- `type-tabular-nums-for-data` - Tabular numbers for columns, dashboards, pricing
+- `type-oldstyle-nums-for-prose` - Oldstyle numbers blend into body text
+- `type-slashed-zero` - Slashed zero in code-adjacent UIs
+- `type-opentype-contextual-alternates` - Keep calt enabled for contextual glyph adjustment
+- `type-disambiguation-stylistic-set` - Enable ss02 to distinguish I/l/1 and 0/O
+- `type-optical-sizing-auto` - Leave font-optical-sizing auto for size-adaptive glyphs
+- `type-antialiased-on-retina` - Antialiased font smoothing on retina displays
+- `type-text-wrap-balance-headings` - text-wrap: balance on headings for even lines
+- `type-underline-offset` - Offset underlines below descenders
+- `type-no-font-synthesis` - Disable font-synthesis to prevent faux bold/italic
+- `type-font-display-swap` - Use font-display: swap to avoid invisible text during load
+- `type-variable-weight-continuous` - Use continuous weight values (100-900) with variable fonts
+- `type-text-wrap-pretty` - text-wrap: pretty for body text to reduce orphans
+- `type-justify-with-hyphens` - Pair text-align: justify with hyphens: auto
+- `type-letter-spacing-uppercase` - Add letter-spacing to uppercase and small-caps text
+- `type-proper-fractions` - Use diagonal-fractions for proper typographic fractions
+
+### 12. Visual Design (HIGH)
+
+- `visual-concentric-radius` - Inner radius = outer radius minus padding for nested elements
+- `visual-layered-shadows` - Layer multiple shadows for realistic depth
+- `visual-shadow-direction` - All shadows share same offset direction (single light source)
+- `visual-no-pure-black-shadow` - Use neutral colors, not pure black, for shadows
+- `visual-shadow-matches-elevation` - Shadow size indicates elevation in consistent scale
+- `visual-animate-shadow-pseudo` - Animate shadow via pseudo-element opacity for performance
+- `visual-consistent-spacing-scale` - Use a consistent spacing scale, not arbitrary values
+- `visual-border-alpha-colors` - Semi-transparent borders adapt to any background
+- `visual-button-shadow-anatomy` - Six-layer shadow anatomy for polished buttons
+
+## How to Use
+
+Read individual rule files for detailed explanations and code examples:
+
+```
+rules/timing-under-300ms.md
+rules/spring-for-gestures.md
+rules/ux-doherty-under-400ms.md
+rules/type-tabular-nums-for-data.md
+```
+
+Each rule file contains:
+- Brief explanation of why it matters
+- Incorrect code example with explanation
+- Correct code example with explanation
+
+## Full Compiled Document
+
+For the complete guide with all rules expanded: `AGENTS.md`
+
+
+ARGUMENTS: sidebar navigation scope indicators, narrow rail navigation grouping patterns, icon-only sidebar visual grouping UX patterns
+
+---
+
+like the recommendation, do it
+
+---
+
+<task-notification>
+<task-id>bceiuygzq</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Start Electron app" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+the background of the new context rail touches left and right side, which looks not so nice. check frontend-design skill to improve it, also remove the title of the playlist which is used in the matTooltip. also use electron skill with agent-browser to check
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested a comprehensive UX/UI evaluation of IPTVnator's navigation architecture — specifically the separation between global actions in the top header and playlist-local actions in the left rail sidebar. After analysis, they wanted implementation of improvements:
+   - Add visual scope indicators for playlist-specific rail links
+   - Differentiate global vs local favorites icons
+   - Animate rail transitions on playlist switch
+   - Move the three-dot context menu from header to playlist switcher
+   - Skip search scope improvements for further analysis later
+   
+   After initial implementation of a truncated text label, user feedback led to replacing it with a hybrid visual approach: background region panel with provider-colored accent (no text). User then requested fixing the region panel spacing (touching rail edges) and removing the tooltip.
+
+2. Key Technical Concepts:
+   - Angular signal-based APIs (`computed()`, `signal()`, `input()`, `output()`)
+   - Angular Material components (MatMenu, MatTooltip, MatDivider, MatIcon)
+   - NgRx store for playlist state management
+   - Workspace shell architecture with 4-region layout (rail, header, body, footer)
+   - Provider types: M3U (`playlists`), Xtream (`xtreams`), Stalker (`stalker`)
+   - CSS-only staggered animations with `@keyframes` and `animation-delay`
+   - Gestalt principles: Common Region, Uniform Connectedness, Proximity Grouping
+   - CDP (Chrome DevTools Protocol) for Electron app inspection via agent-browser
+   - `buildPortalRailLinks()` factory function generating provider-specific navigation
+
+3. Files and Code Sections:
+
+   - **`libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.html`**
+     - Shell template — the main persistent frame for the entire app
+     - Replaced truncated text label with `rail-context-region` div wrapping both primary and secondary context links
+     - Removed three-dot context menu and its `<mat-menu>` definition
+     - Added context action inputs/outputs to playlist switcher
+     - Added bulk action button directly in header (for Clear Recently Viewed)
+     - Current state of the rail section:
+     ```html
+     @if (primaryContextLinks().length > 0) {
+         <div
+             class="rail-context-region"
+             [class]="railProviderClass()"
+         >
+             <app-portal-rail-links
+                 variant="rail"
+                 activeClass="is-active"
+                 [selectedSection]="currentSection()"
+                 [links]="primaryContextLinks()"
+             />
+
+             @if (secondaryContextLinks().length > 0) {
+                 <div class="rail-divider"></div>
+                 <app-portal-rail-links
+                     variant="rail"
+                     activeClass="is-active"
+                     [selectedSection]="currentSection()"
+                     [links]="secondaryContextLinks()"
+                 />
+             }
+         </div>
+     }
+     ```
+     - Playlist switcher with context action bindings:
+     ```html
+     <app-playlist-switcher
+         class="playlist-switcher"
+         [currentTitle]="playlistTitle()"
+         [subtitle]="playlistSubtitle()"
+         [showPlaylistInfo]="canOpenPlaylistInfo()"
+         [showAccountInfo]="canOpenAccountInfo()"
+         (playlistInfoRequested)="openPlaylistInfo()"
+         (accountInfoRequested)="openAccountInfo()"
+     />
+     ```
+     - Global favorites link with `header-shortcut--global` class for globe badge:
+     ```html
+     <a class="header-shortcut header-shortcut--global" ...>
+         <mat-icon>star</mat-icon>
+     </a>
+     ```
+
+   - **`libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts`**
+     - Shell component with all signals and computed properties
+     - Added `railProviderClass` computed signal:
+     ```typescript
+     readonly railProviderClass = computed(() => {
+         const context = this.railContext();
+         if (!context) return 'rail-context-region';
+         return `rail-context-region rail-context-region--${context.provider}`;
+     });
+     ```
+     - Removed `railPlaylistLabel` (truncated text), `railContextTooltip`, and `MatDividerModule` import
+     - Kept `contextActionGroups`, `hasContextActions`, `headerBulkAction` computed signals (still used internally)
+
+   - **`libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.scss`**
+     - Shell styles — rail, header, context panel, responsive breakpoints
+     - Added `rail-context-region` styles with provider accent colors:
+     ```scss
+     .rail-context-region {
+         --region-accent: var(--mat-sys-outline-variant);
+         display: flex;
+         flex-direction: column;
+         align-items: center;
+         gap: 2px;
+         width: 100%;
+         max-width: 48px;
+         padding: 5px 2px;
+         margin: 4px 0;
+         border-radius: 14px;
+         background: rgba(255, 255, 255, 0.03);
+         border: 1px solid rgba(255, 255, 255, 0.04);
+         position: relative;
+         animation: region-enter 0.25s ease-out both;
+
+         &::before {
+             content: '';
+             position: absolute;
+             top: -1px;
+             left: 10px;
+             right: 10px;
+             height: 2px;
+             border-radius: 0 0 2px 2px;
+             background: var(--region-accent);
+             opacity: 0.5;
+         }
+
+         .rail-divider {
+             width: 24px;
+             margin: 3px 0;
+             opacity: 0.25;
+         }
+     }
+
+     .rail-context-region--xtreams { --region-accent: #7c8cf5; }
+     .rail-context-region--stalker { --region-accent: #4ecdc4; }
+     .rail-context-region--playlists { --region-accent: #f5a623; }
+     ```
+     - Added `header-shortcut--global` globe badge:
+     ```scss
+     .header-shortcut--global {
+         position: relative;
+         &::before {
+             content: '';
+             position: absolute;
+             bottom: 5px;
+             right: 5px;
+             width: 7px;
+             height: 7px;
+             border-radius: 50%;
+             background: var(--mat-sys-tertiary);
+             border: 1.5px solid var(--app-header-bg, var(--mat-sys-surface-container-low));
+             z-index: 1;
+         }
+     }
+     ```
+     - Responsive mobile layout for region panel (horizontal mode)
+
+   - **`libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts`**
+     - Rail link builder — generates provider-specific navigation links
+     - Changed M3U favorites icon from `star` to `favorite` (heart):
+     ```typescript
+     { icon: 'favorite', tooltip: 'Favorites (this playlist)', ... }
+     ```
+
+   - **`libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.scss`**
+     - Rail links styling
+     - Added staggered entry animation:
+     ```scss
+     nav.flex .portal-rail-link {
+         animation: rail-link-enter 0.2s ease-out both;
+     }
+     @for $i from 1 through 8 {
+         nav.flex .portal-rail-link:nth-child(#{$i}) {
+             animation-delay: #{($i - 1) * 30}ms;
+         }
+     }
+     @keyframes rail-link-enter {
+         from { opacity: 0; transform: translateY(-6px); }
+         to { opacity: 1; transform: translateY(0); }
+     }
+     ```
+
+   - **`libs/playlist/shared/ui/src/lib/playlist-switcher/playlist-switcher.component.ts`**
+     - Playlist switcher — dropdown for switching between playlists
+     - Added `MatDivider` import
+     - Added new inputs and outputs:
+     ```typescript
+     readonly showPlaylistInfo = input(false);
+     readonly showAccountInfo = input(false);
+     readonly playlistInfoRequested = output<void>();
+     readonly accountInfoRequested = output<void>();
+     ```
+
+   - **`libs/playlist/shared/ui/src/lib/playlist-switcher/playlist-switcher.component.html`**
+     - Added context actions section at bottom of dropdown menu:
+     ```html
+     @if (showPlaylistInfo() || showAccountInfo()) {
+         <mat-divider />
+         <div class="context-actions-section">
+             @if (showPlaylistInfo()) {
+                 <button class="context-action-item" (click)="playlistInfoRequested.emit()">
+                     <mat-icon>playlist_play</mat-icon>
+                     <span>{{ 'WORKSPACE.SHELL.PLAYLIST_INFO' | translate }}</span>
+                 </button>
+             }
+             @if (showAccountInfo()) {
+                 <button class="context-action-item" (click)="accountInfoRequested.emit()">
+                     <mat-icon>person</mat-icon>
+                     <span>{{ 'WORKSPACE.SHELL.ACCOUNT_INFO' | translate }}</span>
+                 </button>
+             }
+         </div>
+     }
+     ```
+
+   - **`libs/playlist/shared/ui/src/lib/playlist-switcher/playlist-switcher.component.scss`**
+     - Added `.context-actions-section` and `.context-action-item` styles
+
+   - **`apps/web/src/assets/i18n/en.json`**
+     - Updated global favorites tooltip: `"OPEN_GLOBAL_FAVORITES": "All favorites (all playlists)"`
+
+   - **`docs/architecture/navigation-ux-analysis.md`** (created)
+     - Full UX analysis report documenting strengths, confusion points, recommendations, and 7/10 score
+
+   - **`.plans/2026-03-22-navigation-ux-improvements.md`** (created)
+     - Implementation plan for 5 improvements (3 quick wins + 2 medium effort)
+
+4. Errors and Fixes:
+   - **Missing `</div>` for header-actions**: After removing the three-dot context menu and its `<mat-menu>`, the closing `</div>` for the `header-actions` div was accidentally removed. Build error: `NG5002: Unexpected closing tag "header"`. Fixed by adding back the `</div>` before `</header>`.
+   - **Truncated text label was unreadable**: User feedback that the playlist name label was always shortened due to 44px max-width constraint. Resolved by replacing text approach entirely with a visual background region panel (Option G hybrid approach).
+   - **Region panel touching rail edges**: User feedback that the `52px` wide region was touching the left and right edges of the `60px` rail. Fixed by changing to `width: 100%; max-width: 48px;` with reduced padding `5px 2px` and border-radius `14px`.
+   - **User requested tooltip removal**: User explicitly said to remove the playlist title tooltip from the region. Removed `[matTooltip]` and `[matTooltipPosition]` from HTML, and deleted `railContextTooltip` computed signal from TS.
+
+5. Problem Solving:
+   - Solved the core UX problem of distinguishing global vs local scope in a narrow icon rail through multiple iterations:
+     1. First attempt: truncated text label → user feedback: always unreadable
+     2. Brainstormed 7 alternatives (A-G) with comparison matrix
+     3. Implemented Option G (hybrid): background region + provider accent color + tooltip
+     4. Refined spacing after user feedback about edges touching
+     5. Removed tooltip per user request
+   - Solved favorites confusion by using different icons (star=global, heart=local) plus globe badge on header
+   - Solved context menu scope leak by moving playlist-specific actions into the playlist switcher dropdown
+
+6. All User Messages:
+   - "use electron skill with agent-browser to open the home screen and navigate through, i want to know how good is rail navigation on the left side and navigation on the top. if that would be understandable for users. the global actions in the header (except search) vs playlist (local) actions in the left rail sidebar. what do you think about that from ux/ui and understanding point of view? use sc-brainstorm skill additionally"
+   - "can you save this analysis report to a md file for later reference. and after that create a plan how to continue with quick and medium efforts implementation, use frontend-design skill"
+   - "do it, for search i think we need to analyse the functionality in more details further."
+   - "hm, the title of the playlist is always shorten since there is not so much space, what do you think about other options to highlight the scope belonging? maybe the playlist related items could be grouped into block with a background, or global actions? or maybe there are other options then putting a title which is trimmed? what do you think, suggest me options by using frontend-design skill and sc-brainstorm. just suggest without starting to implement"
+   - "like the recommendation, do it"
+   - "the background of the new context rail touches left and right side, which looks not so nice. check frontend-design skill to improve it, also remove the title of the playlist which is used in the matTooltip. also use electron skill with agent-browser to check"
+
+7. Pending Tasks:
+   - Search scope analysis (item 3 from the original plan) — user explicitly deferred this: "for search i think we need to analyse the functionality in more details further"
+
+8. Current Work:
+   The most recent work was fixing the rail context region panel per user feedback: "the background of the new context rail touches left and right side, which looks not so nice... also remove the title of the playlist which is used in the matTooltip. also use electron skill with agent-browser to check"
+   
+   Changes made:
+   - Fixed region width from `52px` to `max-width: 48px` with proper padding in `workspace-shell.component.scss`
+   - Removed `[matTooltip]` and `[matTooltipPosition]` from the region div in `workspace-shell.component.html`
+   - Removed `railContextTooltip` computed signal from `workspace-shell.component.ts`
+   - Build passed successfully
+   - Verified visually with agent-browser: took screenshots of Stalker view (teal accent, proper spacing) and M3U view (amber accent, proper spacing)
+   
+   The last screenshots confirmed the region panel looks clean with proper margins from the rail edges, and no tooltip appears on hover.
+
+9. Optional Next Step:
+   No explicit next step pending. The user's most recent request (fix spacing + remove tooltip) has been completed and visually verified. The only deferred item is the search scope analysis which the user explicitly postponed for later.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/4gray/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.

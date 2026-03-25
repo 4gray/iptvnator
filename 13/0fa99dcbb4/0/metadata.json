@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "130fa99dcbb4",
+  "session_id": "72da01ff-064d-40bf-8443-254ceb0d5ab4",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T18:14:53.771188Z",
+  "branch": "master",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/architecture/workspace-ui-refactor-summary.md",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.html",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "8a7a119e-ae3b-4e1c-ba60-4518b788b032",
+  "checkpoint_transcript_start": 623,
+  "transcript_lines_at_start": 623,
+  "token_usage": {
+    "input_tokens": 45,
+    "cache_creation_tokens": 48746,
+    "cache_read_tokens": 5722713,
+    "output_tokens": 7695,
+    "api_call_count": 37
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T18:14:53.57686Z",
+    "agent_lines": 0,
+    "human_added": 1950,
+    "human_modified": 2475,
+    "human_removed": 0,
+    "total_committed": 2070,
+    "agent_percentage": 0
+  }
+}
