@@ -1,11 +1,12 @@
 {
   "cli_version": "0.4.2",
   "checkpoint_id": "7a59119e1876",
+  "session_id": "f58c3ce4-3c8c-4348-82e2-e85a851517fb",
   "strategy": "manual-commit",
+  "created_at": "2026-03-25T21:03:22.013484Z",
   "branch": "master",
-  "checkpoints_count": 3,
+  "checkpoints_count": 1,
   "files_touched": [
-    "apps/web/src/m3-theme.scss",
     "docs/architecture/workspace-ui-refactor-summary.md",
     "libs/portal/shared/ui/src/lib/components/favorites-layout/favorites-layout.component.scss",
     "libs/portal/shared/ui/src/lib/components/portal-empty-state/portal-empty-state.component.scss",
@@ -25,27 +26,22 @@
     "libs/ui/components/src/lib/channel-list-container/recent-view/recent-view.component.scss",
     "libs/workspace/shell/feature/src/lib/global-favorites/global-favorites-list.component.scss"
   ],
-  "sessions": [
-    {
-      "metadata": "/7a/59119e1876/0/metadata.json",
-      "transcript": "/7a/59119e1876/0/full.jsonl",
-      "context": "/7a/59119e1876/0/context.md",
-      "content_hash": "/7a/59119e1876/0/content_hash.txt",
-      "prompt": "/7a/59119e1876/0/prompt.txt"
-    },
-    {
-      "metadata": "/7a/59119e1876/1/metadata.json",
-      "transcript": "/7a/59119e1876/1/full.jsonl",
-      "context": "/7a/59119e1876/1/context.md",
-      "content_hash": "/7a/59119e1876/1/content_hash.txt",
-      "prompt": "/7a/59119e1876/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "c20bc975-667a-4e2c-bb6b-b6c3e599e1fb",
   "token_usage": {
-    "input_tokens": 610,
-    "cache_creation_tokens": 151551,
-    "cache_read_tokens": 15940710,
-    "output_tokens": 32491,
-    "api_call_count": 167
+    "input_tokens": 602,
+    "cache_creation_tokens": 150225,
+    "cache_read_tokens": 15575515,
+    "output_tokens": 31959,
+    "api_call_count": 163
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T21:03:21.864129Z",
+    "agent_lines": 0,
+    "human_added": 252,
+    "human_modified": 77,
+    "human_removed": 0,
+    "total_committed": 329,
+    "agent_percentage": 0
   }
 }

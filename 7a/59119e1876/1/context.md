@@ -1,0 +1,8 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+please go through all the views for m3u, stalker, xtream modules in the navigation rail and check the typography of headers, titles, subtitles, and check whether it's good, consistent, or needs adaptation. use frontend-design skill for that, i want to have a typography of modern and professional iptv app. also use electron skill with agent-browser cli to click around, create screenshots etc. the app is running now. create a plan in plan mode first
+
