@@ -1,0 +1,39 @@
+@if (filteredItems().length === 0) {
+    <div class="empty-state">
+        <mat-icon class="empty-icon">{{
+            contentType() === 'movie' ? 'movie' : 'tv'
+        }}</mat-icon>
+        <p class="empty-title">
+            @if (searchTerm()) {
+                {{ 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate }}
+            } @else {
+                {{
+                    (mode() === 'favorites'
+                        ? 'PORTALS.NO_FAVORITES'
+                        : 'PORTALS.NO_RECENT_ITEMS'
+                    ) | translate
+                }}
+            }
+        </p>
+    </div>
+} @else {
+    <div class="grid-container">
+        @for (item of filteredItems(); track trackByUid($index, item)) {
+            <app-content-card
+                [posterUrl]="item.posterUrl ?? ''"
+                [title]="item.name"
+                [type]="item.contentType"
+                [date]="item.addedAt ?? item.viewedAt"
+                [showRemoveButton]="true"
+                [removeTooltip]="
+                    (mode() === 'favorites'
+                        ? 'PORTALS.REMOVE_FROM_FAVORITES'
+                        : 'PORTALS.REMOVE_FROM_RECENT'
+                    ) | translate
+                "
+                (cardClick)="onCardClick(item)"
+                (remove)="onRemove(item)"
+            />
+        }
+    </div>
+}

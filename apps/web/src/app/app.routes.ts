@@ -1,17 +1,4 @@
-import { Route, Routes } from '@angular/router';
-
-function withWorkspaceLayout(routes: Route[]): Route[] {
-    return routes.map((route) => ({
-        ...route,
-        data: {
-            ...(route.data || {}),
-            layout: 'workspace',
-        },
-        children: route.children
-            ? withWorkspaceLayout(route.children)
-            : undefined,
-    }));
-}
+import { Routes } from '@angular/router';
 
 export const routes: Routes = [
     {
@@ -21,6 +8,9 @@ export const routes: Routes = [
     },
     {
         path: 'workspace',
+        data: {
+            layout: 'workspace',
+        },
         loadComponent: () =>
             import('@iptvnator/workspace/shell/feature').then(
                 (c) => c.WorkspaceShellComponent
@@ -52,9 +42,6 @@ export const routes: Routes = [
             },
             {
                 path: 'playlists/:id/:view',
-                data: {
-                    layout: 'workspace',
-                },
                 loadComponent: () =>
                     import('@iptvnator/playlist/m3u/feature-player').then(
                         (c) => c.VideoPlayerComponent
@@ -63,16 +50,16 @@ export const routes: Routes = [
             {
                 path: 'global-favorites',
                 data: {
-                    layout: 'workspace',
+                    mode: 'favorites',
+                    defaultScope: 'all',
                 },
                 loadComponent: () =>
-                    import('@iptvnator/workspace/shell/feature').then(
-                        (c) => c.GlobalFavoritesPageComponent
+                    import('@iptvnator/portal/shared/ui').then(
+                        (c) => c.UnifiedCollectionPageComponent
                     ),
             },
             {
                 path: 'downloads',
-                data: { layout: 'workspace' },
                 loadComponent: () =>
                     import('@iptvnator/portal/downloads/feature').then(
                         (c) => c.DownloadsComponent
@@ -82,19 +69,18 @@ export const routes: Routes = [
                 path: '',
                 loadChildren: () =>
                     import('@iptvnator/portal/xtream/feature').then((m) =>
-                        withWorkspaceLayout(m.createXtreamRoutes())
+                        m.createXtreamRoutes()
                     ),
             },
             {
                 path: '',
                 loadChildren: () =>
                     import('@iptvnator/portal/stalker/feature').then((m) =>
-                        withWorkspaceLayout(m.createStalkerRoutes())
+                        m.createStalkerRoutes()
                     ),
             },
             {
                 path: 'settings',
-                data: { layout: 'workspace' },
                 loadComponent: () =>
                     import('./settings/settings.component').then(
                         (c) => c.SettingsComponent

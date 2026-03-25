@@ -1,0 +1,151 @@
+@if (isLoading()) {
+    <div class="collection-header">
+        <span class="collection-title">{{ title() | translate }}</span>
+    </div>
+    @if (selectedContentType() === 'live') {
+        <div class="skeleton-list">
+            @for (row of skeletonRows; track row) {
+                <div class="list-skeleton-row" aria-hidden="true">
+                    <span class="list-skeleton-handle"></span>
+                    <span class="list-skeleton-avatar"></span>
+                    <div class="list-skeleton-text">
+                        <span
+                            class="grid-skeleton-line grid-skeleton-line--primary"
+                        ></span>
+                        <span
+                            class="grid-skeleton-line grid-skeleton-line--secondary"
+                        ></span>
+                    </div>
+                    <span class="list-skeleton-star"></span>
+                </div>
+            }
+        </div>
+    } @else {
+        <div class="skeleton-grid">
+            @for (card of skeletonCards; track card) {
+                <div class="grid-skeleton-card" aria-hidden="true">
+                    <div class="grid-skeleton-thumb">
+                        <span class="grid-skeleton-badge"></span>
+                    </div>
+                    <div class="grid-skeleton-title">
+                        <span
+                            class="grid-skeleton-line grid-skeleton-line--primary"
+                        ></span>
+                        <span
+                            class="grid-skeleton-line grid-skeleton-line--secondary"
+                        ></span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+} @else {
+    <div class="collection-header">
+        <span class="collection-title">{{ title() | translate }}</span>
+
+        @if (showContentToggle()) {
+            <mat-button-toggle-group
+                class="content-toggle"
+                [value]="selectedContentType()"
+                (change)="onContentTypeChange($event.value)"
+                hideSingleSelectionIndicator
+            >
+                @if (hasLive()) {
+                    <mat-button-toggle value="live">
+                        {{ 'PORTALS.LIVE_TV' | translate }}
+                    </mat-button-toggle>
+                }
+                @if (hasMovies()) {
+                    <mat-button-toggle value="movie">
+                        {{ 'PORTALS.MOVIES' | translate }}
+                    </mat-button-toggle>
+                }
+                @if (hasSeries()) {
+                    <mat-button-toggle value="series">
+                        {{ 'PORTALS.SERIES' | translate }}
+                    </mat-button-toggle>
+                }
+            </mat-button-toggle-group>
+        }
+
+        <mat-button-toggle-group
+            class="scope-toggle"
+            [value]="scope()"
+            (change)="onScopeChange($event.value)"
+            hideSingleSelectionIndicator
+        >
+            <mat-button-toggle value="playlist">
+                <mat-icon>playlist_play</mat-icon>
+                <span class="toggle-label">{{
+                    'PORTALS.THIS_PLAYLIST' | translate
+                }}</span>
+            </mat-button-toggle>
+            <mat-button-toggle value="all">
+                <mat-icon>public</mat-icon>
+                <span class="toggle-label">{{
+                    'PORTALS.ALL_PLAYLISTS' | translate
+                }}</span>
+            </mat-button-toggle>
+        </mat-button-toggle-group>
+    </div>
+
+    @switch (selectedContentType()) {
+        @case ('live') {
+            @if (hasLive()) {
+                <app-unified-live-tab
+                    [items]="liveItems()"
+                    [mode]="mode()"
+                    [searchTerm]="workspaceSearchTerm()"
+                    (removeItem)="onRemoveItem($event)"
+                    (reorderItems)="onReorder($event)"
+                />
+            }
+        }
+        @case ('movie') {
+            @if (hasMovies()) {
+                <app-unified-grid-tab
+                    [items]="movieItems()"
+                    [mode]="mode()"
+                    [contentType]="'movie'"
+                    [searchTerm]="workspaceSearchTerm()"
+                    (removeItem)="onRemoveItem($event)"
+                />
+            }
+        }
+        @case ('series') {
+            @if (hasSeries()) {
+                <app-unified-grid-tab
+                    [items]="seriesItems()"
+                    [mode]="mode()"
+                    [contentType]="'series'"
+                    [searchTerm]="workspaceSearchTerm()"
+                    (removeItem)="onRemoveItem($event)"
+                />
+            }
+        }
+    }
+
+    @if (!hasLive() && !hasMovies() && !hasSeries()) {
+        <div class="empty-state">
+            <mat-icon class="empty-icon">{{
+                workspaceSearchTerm()
+                    ? 'search_off'
+                    : mode() === 'favorites'
+                      ? 'favorite_border'
+                      : 'history'
+            }}</mat-icon>
+            <p class="empty-title">
+                @if (workspaceSearchTerm()) {
+                    {{ 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate }}
+                } @else {
+                    {{
+                        (mode() === 'favorites'
+                            ? 'PORTALS.NO_FAVORITES'
+                            : 'PORTALS.NO_RECENT_ITEMS'
+                        ) | translate
+                    }}
+                }
+            </p>
+        </div>
+    }
+}

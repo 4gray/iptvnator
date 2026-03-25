@@ -47,6 +47,7 @@ import {
 import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
+    isWorkspaceLayoutRoute,
     PORTAL_EXTERNAL_PLAYBACK,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
@@ -143,8 +144,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     };
 
     readonly isDesktop = !!window['electron'];
-    readonly isWorkspaceLayout =
-        this.activatedRoute.snapshot.data['layout'] === 'workspace';
+    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
     /** EPG overlay reference */
     private overlayRef!: OverlayRef;

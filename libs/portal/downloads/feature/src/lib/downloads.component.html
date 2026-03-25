@@ -1,24 +1,4 @@
 <div class="downloads-layout">
-    @if (!isWorkspaceLayout) {
-        <div
-            class="sidebar"
-            appResizable
-            [minWidth]="250"
-            [maxWidth]="600"
-            [defaultWidth]="320"
-            storageKey="sidebar-width"
-        >
-            <div class="sidebar-header">
-                <h2>{{ 'DOWNLOADS.TITLE' | translate }}</h2>
-            </div>
-            <app-category-view
-                [items]="categories()"
-                [selectedCategoryId]="selectedCategoryId()"
-                (categoryClicked)="setCategoryId($any($event).category_id)"
-            />
-        </div>
-    }
-
     <div class="downloads">
         <header class="downloads__header">
             <div class="downloads__header-left">

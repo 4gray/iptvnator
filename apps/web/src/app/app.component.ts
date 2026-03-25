@@ -1,11 +1,11 @@
 import { Component, HostBinding, inject, OnInit } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { EpgService } from '@iptvnator/epg/data-access';
+import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { EpgProgressPanelComponent } from '@iptvnator/ui/epg';
 import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
 import { filter, take } from 'rxjs';
@@ -33,13 +33,13 @@ export class AppComponent implements OnInit {
     }
     private actions$ = inject(Actions);
     private dataService = inject(DataService);
-    private dialog = inject(MatDialog);
     private epgService = inject(EpgService);
     private snackBar = inject(MatSnackBar);
     private router = inject(Router);
     private store = inject(Store);
     private translate = inject(TranslateService);
     private settingsService = inject(SettingsService);
+    private readonly workspaceShellActions = inject(WORKSPACE_SHELL_ACTIONS);
 
     /** Default language as fallback */
     private readonly DEFAULT_LANG = Language.ENGLISH;
@@ -69,10 +69,10 @@ export class AppComponent implements OnInit {
                 if (event.ctrlKey || event.metaKey) {
                     if (event.key === 'f') {
                         event.preventDefault();
-                        this.openGlobalSearch();
+                        this.workspaceShellActions.openGlobalSearch();
                     } else if (event.key === 'r') {
                         event.preventDefault();
-                        this.openGlobalRecent();
+                        this.workspaceShellActions.openGlobalRecent();
                     }
                 }
             });
@@ -135,36 +135,6 @@ export class AppComponent implements OnInit {
      */
     navigateToRoute(route: string) {
         this.router.navigateByUrl(route);
-    }
-
-    openGlobalSearch(initialQuery = ''): void {
-        void import('@iptvnator/portal/xtream/feature').then(
-            ({ GlobalSearchResultsComponent }) => {
-                this.dialog.open(GlobalSearchResultsComponent, {
-                    width: '100%',
-                    height: '100%',
-                    maxWidth: '100%',
-                    panelClass: 'global-search-overlay',
-                    data: { isGlobalSearch: true, initialQuery },
-                });
-            }
-        );
-    }
-
-    openGlobalRecent(): void {
-        void import('@iptvnator/portal/xtream/feature').then(
-            ({ GlobalRecentlyViewedComponent }) => {
-                this.dialog.open(GlobalRecentlyViewedComponent, {
-                    width: '100%',
-                    height: '100%',
-                    maxWidth: '100%',
-                    panelClass: 'global-search-overlay',
-                    data: { isGlobal: true },
-                    hasBackdrop: true,
-                    disableClose: false,
-                });
-            }
-        );
     }
 
     /**

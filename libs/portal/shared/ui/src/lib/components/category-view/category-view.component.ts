@@ -48,10 +48,25 @@ export class CategoryViewComponent {
                 const selected = candidates.find(
                     (el) => el.dataset.categoryId === String(selectedCategory)
                 );
-                selected?.scrollIntoView({
+                if (!selected) {
+                    return;
+                }
+
+                const containerRect = container.getBoundingClientRect();
+                const selectedRect = selected.getBoundingClientRect();
+                const targetTop =
+                    container.scrollTop +
+                    (selectedRect.top - containerRect.top) -
+                    container.clientHeight / 2 +
+                    selectedRect.height / 2;
+                const maxScrollTop = Math.max(
+                    0,
+                    container.scrollHeight - container.clientHeight
+                );
+
+                container.scrollTo({
                     behavior: 'smooth',
-                    block: 'nearest',
-                    inline: 'nearest',
+                    top: Math.min(maxScrollTop, Math.max(0, targetTop)),
                 });
             });
         });

@@ -221,6 +221,7 @@ declare global {
             ) => Promise<boolean>;
             dbGetFavorites: (playlistId: string) => Promise<XtreamContent[]>;
             dbGetGlobalFavorites: () => Promise<GlobalFavoriteItem[]>;
+            dbGetAllGlobalFavorites: () => Promise<GlobalFavoriteItem[]>;
             dbReorderGlobalFavorites: (
                 updates: { content_id: number; position: number }[]
             ) => Promise<{ success: boolean }>;

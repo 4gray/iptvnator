@@ -1,0 +1,49 @@
+<div
+    class="nav-list"
+    cdkDropList
+    [cdkDropListDisabled]="hasSearchTerm()"
+    (cdkDropListDropped)="onDrop($event)"
+>
+    @if (enrichedChannels().length === 0) {
+        <div class="empty-state">
+            <mat-icon class="empty-icon">star_border</mat-icon>
+            @if (hasSearchTerm()) {
+                <p class="empty-title">
+                    {{ 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate }}
+                </p>
+                <p class="empty-hint">
+                    {{
+                        'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS_HINT'
+                            | translate
+                    }}
+                </p>
+            } @else {
+                <p class="empty-title">
+                    {{
+                        'WORKSPACE.GLOBAL_FAVORITES.EMPTY_TITLE' | translate
+                    }}
+                </p>
+                <p class="empty-hint">
+                    {{ 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_HINT' | translate }}
+                </p>
+            }
+        </div>
+    }
+
+    @for (ch of enrichedChannels(); track trackByUid($index, ch)) {
+        <app-channel-list-item
+            [isDraggable]="!hasSearchTerm()"
+            [logo]="ch.logo"
+            [name]="ch.name"
+            [selected]="activeUid() === ch.uid"
+            [showEpg]="true"
+            [epgProgram]="ch.currentEpgProgram"
+            [progressPercentage]="ch.progressPercentage"
+            [showFavoriteButton]="true"
+            [isFavorite]="true"
+            [showProgramInfoButton]="true"
+            (clicked)="onChannelClick(ch)"
+            (favoriteToggled)="onFavoriteToggled(ch)"
+        />
+    }
+</div>

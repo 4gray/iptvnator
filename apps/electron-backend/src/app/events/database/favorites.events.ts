@@ -157,6 +157,52 @@ ipcMain.handle('DB_GET_GLOBAL_FAVORITES', async () => {
 });
 
 /**
+ * Get global favorites across all playlists (all content types)
+ */
+ipcMain.handle('DB_GET_ALL_GLOBAL_FAVORITES', async () => {
+    try {
+        const db = await getDatabase();
+        const result = await db
+            .select({
+                id: schema.content.id,
+                category_id: schema.content.categoryId,
+                title: schema.content.title,
+                rating: schema.content.rating,
+                added: schema.content.added,
+                poster_url: schema.content.posterUrl,
+                xtream_id: schema.content.xtreamId,
+                type: schema.content.type,
+                playlist_id: schema.playlists.id,
+                playlist_name: schema.playlists.name,
+                added_at: schema.favorites.addedAt,
+                position: schema.favorites.position,
+            })
+            .from(schema.favorites)
+            .innerJoin(
+                schema.content,
+                eq(schema.favorites.contentId, schema.content.id)
+            )
+            .innerJoin(
+                schema.categories,
+                eq(schema.content.categoryId, schema.categories.id)
+            )
+            .innerJoin(
+                schema.playlists,
+                eq(schema.categories.playlistId, schema.playlists.id)
+            )
+            .orderBy(
+                asc(schema.favorites.position),
+                desc(schema.favorites.addedAt)
+            )
+            .limit(500);
+        return result;
+    } catch (error) {
+        console.error('Error getting all global favorites:', error);
+        throw error;
+    }
+});
+
+/**
  * Reorder global favorites by updating the position field on each Xtream favorite row.
  * Accepts an array of { content_id, position } pairs.
  */

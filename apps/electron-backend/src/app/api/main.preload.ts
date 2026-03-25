@@ -293,6 +293,7 @@ contextBridge.exposeInMainWorld('electron', {
     dbGetFavorites: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_FAVORITES', playlistId),
     dbGetGlobalFavorites: () => ipcRenderer.invoke('DB_GET_GLOBAL_FAVORITES'),
+    dbGetAllGlobalFavorites: () => ipcRenderer.invoke('DB_GET_ALL_GLOBAL_FAVORITES'),
     dbReorderGlobalFavorites: (
         updates: { content_id: number; position: number }[]
     ) => ipcRenderer.invoke('DB_REORDER_GLOBAL_FAVORITES', updates),

@@ -1,0 +1,105 @@
+@if (activePlayback()) {
+    <div
+        [class]="
+            isEmbeddedPlayer() ? 'itv-container' : 'itv-container--external'
+        "
+    >
+        <div
+            class="sidebar"
+            appResizable
+            [minWidth]="250"
+            [maxWidth]="600"
+            [defaultWidth]="360"
+            storageKey="unified-live-tab-sidebar-width"
+        >
+            <app-global-favorites-list
+                [channels]="channelsForList()"
+                [epgMap]="epgMap()"
+                [progressTick]="progressTick()"
+                [activeUid]="activeUid()"
+                [searchTermInput]="searchTerm()"
+                (channelSelected)="onChannelSelected($event)"
+                (channelsReordered)="onReorder($event)"
+                (favoriteToggled)="onFavoriteToggled($event)"
+            />
+        </div>
+
+        @if (isEmbeddedPlayer()) {
+            <div class="video-player">
+                <div class="player-toolbar">
+                    <span class="player-title">{{
+                        activePlayback()?.title
+                    }}</span>
+                    <button
+                        mat-icon-button
+                        (click)="onClose()"
+                        class="close-btn"
+                    >
+                        <mat-icon>close</mat-icon>
+                    </button>
+                </div>
+
+                @if (player() === 'videojs') {
+                    <app-vjs-player
+                        [options]="{
+                            sources: [
+                                {
+                                    src: currentStreamUrl(),
+                                    type: 'application/x-mpegURL',
+                                },
+                            ],
+                        }"
+                        [volume]="1"
+                    />
+                }
+                @if (player() === 'html5') {
+                    <app-html-video-player
+                        [channel]="activeChannelForOverlay()!"
+                        [volume]="1"
+                        [showCaptions]="false"
+                    />
+                }
+                @if (player() === 'artplayer') {
+                    <app-art-player
+                        [channel]="activeChannelForOverlay()!"
+                        [volume]="1"
+                        [showCaptions]="false"
+                    />
+                }
+            </div>
+        }
+
+        <div class="epg">
+            @if (!isEmbeddedPlayer()) {
+                <div class="player-toolbar">
+                    <span class="player-title">{{
+                        activePlayback()?.title
+                    }}</span>
+                    <button
+                        mat-icon-button
+                        (click)="onClose()"
+                        class="close-btn"
+                    >
+                        <mat-icon>close</mat-icon>
+                    </button>
+                </div>
+            }
+            <div class="epg-content">
+                <app-epg-view [epgItems]="currentEpgItems()" />
+            </div>
+        </div>
+    </div>
+} @else {
+    <div class="full-list">
+        <app-global-favorites-list
+            [channels]="channelsForList()"
+            [epgMap]="epgMap()"
+            [progressTick]="progressTick()"
+            [activeUid]="activeUid()"
+            [searchTermInput]="searchTerm()"
+            (channelSelected)="onChannelSelected($event)"
+            (channelsReordered)="onReorder($event)"
+            (favoriteToggled)="onFavoriteToggled($event)"
+        />
+    </div>
+}
