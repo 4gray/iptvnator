@@ -1,19 +1,19 @@
 import { Component, computed, inject } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
-import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
-import { FavoritesContextService } from '@iptvnator/portal/shared/util';
+import { PortalCollectionContextService } from '@iptvnator/portal/shared/util';
+import { WorkspaceContextCategoryViewComponent } from './components/workspace-context-category-view.component';
 
 /**
  * Context panel rendered in the workspace-shell aside for
- * favorites and recently-viewed sections.
+ * collection-backed workspace pages such as downloads.
  *
- * Reads categories from FavoritesContextService (populated by the
- * routed FavoritesComponent / RecentlyViewedComponent) and emits
+ * Reads categories from PortalCollectionContextService (populated by the
+ * active routed collection page) and emits
  * category selections back through the same service.
  */
 @Component({
-    selector: 'app-workspace-favorites-context-panel',
-    imports: [CategoryViewComponent, TranslatePipe],
+    selector: 'app-workspace-collection-context-panel',
+    imports: [TranslatePipe, WorkspaceContextCategoryViewComponent],
     template: `
         <div class="context-column">
             <header class="context-header">
@@ -41,7 +41,7 @@ import { FavoritesContextService } from '@iptvnator/portal/shared/util';
 
             <div class="context-divider"></div>
 
-            <app-category-view
+            <app-workspace-context-category-view
                 [items]="ctx.categories()"
                 [selectedCategoryId]="ctx.selectedCategoryId()"
                 (categoryClicked)="onCategoryClicked($event)"
@@ -50,8 +50,8 @@ import { FavoritesContextService } from '@iptvnator/portal/shared/util';
     `,
     styleUrl: './workspace-context-panel.component.scss',
 })
-export class WorkspaceFavoritesContextPanelComponent {
-    readonly ctx = inject(FavoritesContextService);
+export class WorkspaceCollectionContextPanelComponent {
+    readonly ctx = inject(PortalCollectionContextService);
 
     readonly selectedCategory = computed(() => {
         const categories = this.ctx.categories();

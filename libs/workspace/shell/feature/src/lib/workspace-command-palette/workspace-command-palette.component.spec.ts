@@ -24,7 +24,7 @@ describe('WorkspaceCommandPaletteComponent', () => {
                 {
                     provide: MAT_DIALOG_DATA,
                     useValue: {
-                        query: 'recent',
+                        query: 'search',
                         commands: [
                             {
                                 id: 'global-search',
@@ -47,7 +47,11 @@ describe('WorkspaceCommandPaletteComponent', () => {
                     provide: TranslateService,
                     useValue: {
                         instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
                         onLangChange: of(null),
+                        onTranslationChange: of(null),
+                        onDefaultLangChange: of(null),
                         currentLang: 'en',
                         defaultLang: 'en',
                     },
@@ -62,7 +66,7 @@ describe('WorkspaceCommandPaletteComponent', () => {
 
     it('creates and applies initial query', () => {
         expect(component).toBeTruthy();
-        expect(component.query()).toBe('recent');
+        expect(component.query()).toBe('search');
     });
 
     it('closes with selected command and query on click', () => {
@@ -71,7 +75,7 @@ describe('WorkspaceCommandPaletteComponent', () => {
 
         expect(dialogRef.close).toHaveBeenCalledWith({
             commandId: 'global-search',
-            query: 'recent',
+            query: 'search',
         });
     });
 });

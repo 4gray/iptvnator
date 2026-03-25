@@ -1,0 +1,52 @@
+@if (variant() === 'sources') {
+    <aside
+        class="context-panel context-panel--sources"
+        appResizable
+        [minWidth]="220"
+        [maxWidth]="440"
+        [defaultWidth]="290"
+        storageKey="sidebar-width"
+    >
+        <app-workspace-sources-filters-panel />
+    </aside>
+} @else if (variant() === 'category') {
+    @if (context(); as context) {
+        @if (section(); as section) {
+            <aside
+                class="context-panel context-panel--route"
+                appResizable
+                [minWidth]="240"
+                [maxWidth]="560"
+                [defaultWidth]="300"
+                storageKey="sidebar-width"
+            >
+                <app-workspace-context-panel
+                    [context]="context"
+                    [section]="section"
+                />
+            </aside>
+        }
+    }
+} @else if (variant() === 'settings') {
+    <aside
+        class="context-panel context-panel--settings"
+        appResizable
+        [minWidth]="200"
+        [maxWidth]="400"
+        [defaultWidth]="260"
+        storageKey="sidebar-width"
+    >
+        <app-workspace-settings-context-panel />
+    </aside>
+} @else if (variant() === 'collection') {
+    <aside
+        class="context-panel context-panel--route"
+        appResizable
+        [minWidth]="200"
+        [maxWidth]="400"
+        [defaultWidth]="260"
+        storageKey="sidebar-width"
+    >
+        <app-workspace-collection-context-panel />
+    </aside>
+}

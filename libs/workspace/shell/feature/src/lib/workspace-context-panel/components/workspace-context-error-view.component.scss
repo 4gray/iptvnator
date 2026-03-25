@@ -1,0 +1,103 @@
+:host {
+    display: block;
+    width: 100%;
+    min-height: 0;
+}
+
+.error-view {
+    --error-view-illustration-size: var(
+        --error-empty-illustration-size,
+        clamp(170px, 28vw, 260px)
+    );
+    --error-view-copy-width: var(--error-empty-max-width, 420px);
+    --error-view-copy-gap: var(--error-empty-copy-gap, 8px);
+    --error-view-title-size: var(--error-empty-title-size, 1.55rem);
+    --error-view-title-weight: var(--error-empty-title-weight, 640);
+    --error-view-title-spacing: var(--error-empty-title-spacing, -0.012em);
+    --error-view-description-size: var(--error-empty-description-size, 0.98rem);
+    --error-view-description-line-height: var(
+        --error-empty-description-line-height,
+        1.4
+    );
+    --error-view-description-opacity: var(
+        --error-empty-description-opacity,
+        0.88
+    );
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 100%;
+    padding: clamp(12px, 2.2vw, 26px);
+    gap: 14px;
+    text-align: center;
+    box-sizing: border-box;
+    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+
+    img {
+        width: min(100%, var(--error-view-illustration-size));
+        height: auto;
+        filter: invert(80%);
+    }
+}
+
+.icon {
+    font-size: 64px;
+    height: 64px;
+    width: 64px;
+}
+
+.error-view--empty-category .error-view__illustration {
+    margin-top: clamp(0px, 1vh, 8px);
+}
+
+.error-view--text-only {
+    gap: 6px;
+}
+
+.error-view__copy {
+    max-width: var(--error-view-copy-width);
+    display: grid;
+    gap: var(--error-view-copy-gap);
+}
+
+.error-view__title {
+    margin: 0;
+    font-size: var(--error-view-title-size);
+    font-weight: var(--error-view-title-weight);
+    line-height: 1.12;
+    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    letter-spacing: var(--error-view-title-spacing);
+    text-wrap: balance;
+}
+
+.error-view__description {
+    margin: 0;
+    font-size: var(--error-view-description-size);
+    line-height: var(--error-view-description-line-height);
+    color: inherit;
+    opacity: var(--error-view-description-opacity);
+    text-wrap: balance;
+}
+
+@media (max-width: 1024px) {
+    .error-view {
+        --error-view-title-size: var(--error-empty-title-size, 1.4rem);
+        --error-view-description-size: var(
+            --error-empty-description-size,
+            0.92rem
+        );
+    }
+}
+
+::ng-deep {
+    .dark-theme {
+        .error-view {
+            img {
+                filter: invert(10%) !important;
+            }
+        }
+    }
+}

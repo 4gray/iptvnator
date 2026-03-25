@@ -1,225 +1,77 @@
 <div class="workspace-shell">
-    <aside class="app-rail" [class.is-macos]="isMacOS">
-        <a
-            class="brand"
-            routerLink="/workspace/dashboard"
-            [matTooltip]="'WORKSPACE.SHELL.RAIL_DASHBOARD' | translate"
-            [matTooltipPosition]="'right'"
-            [attr.aria-label]="'WORKSPACE.SHELL.OPEN_DASHBOARD' | translate"
-        >
-            <img
-                src="./assets/icons/icon-tv-256.png"
-                [attr.alt]="'WORKSPACE.SHELL.BRAND_ALT' | translate"
-            />
-        </a>
-
-        <app-portal-rail-links
-            variant="rail"
-            activeClass="is-active"
-            [links]="workspaceLinks()"
-        />
-
-        @if (primaryContextLinks().length > 0) {
-            <div class="rail-divider"></div>
-            @if (railPlaylistLabel(); as label) {
-                <span
-                    class="rail-context-label"
-                    [matTooltip]="label"
-                    [matTooltipPosition]="'right'"
-                >{{ label }}</span>
-            }
-            <app-portal-rail-links
-                variant="rail"
-                activeClass="is-active"
-                [selectedSection]="currentSection()"
-                [links]="primaryContextLinks()"
-            />
-        }
-
-        @if (secondaryContextLinks().length > 0) {
-            <div class="rail-divider"></div>
-            <app-portal-rail-links
-                variant="rail"
-                activeClass="is-active"
-                [selectedSection]="currentSection()"
-                [links]="secondaryContextLinks()"
-            />
-        }
-
-        <div class="rail-footer">
-            <a
-                class="rail-shortcut nav-item"
-                routerLink="/workspace/settings"
-                [class.is-active]="isSettingsRoute()"
-                [matTooltip]="'WORKSPACE.SHELL.RAIL_SETTINGS' | translate"
-                [matTooltipPosition]="'right'"
-                [attr.aria-label]="'WORKSPACE.SHELL.OPEN_SETTINGS' | translate"
-            >
-                <mat-icon>settings</mat-icon>
-            </a>
-        </div>
-    </aside>
-
-    <header class="workspace-header">
-        <app-playlist-switcher
-            class="playlist-switcher"
-            [currentTitle]="playlistTitle()"
-            [subtitle]="playlistSubtitle()"
-            [showPlaylistInfo]="canOpenPlaylistInfo()"
-            [showAccountInfo]="canOpenAccountInfo()"
-            (playlistInfoRequested)="openPlaylistInfo()"
-            (accountInfoRequested)="openAccountInfo()"
-        />
-
-        <label class="search-field">
-            <mat-icon>search</mat-icon>
-            <input
-                type="search"
-                spellcheck="false"
-                [value]="searchQuery()"
-                (input)="onSearchInput($event)"
-                (keydown.enter)="onSearchEnter($event)"
-                [disabled]="!canUseSearch()"
-                [placeholder]="searchPlaceholder() | translate"
-                [attr.aria-label]="'WORKSPACE.SHELL.SEARCH_LABEL' | translate"
-            />
-            <button
-                type="button"
-                class="command-trigger"
-                mat-icon-button
-                (click)="openCommandPalette()"
-                [matTooltip]="
-                    'WORKSPACE.SHELL.COMMAND_PALETTE_SHORTCUT' | translate
-                "
-                [attr.aria-label]="
-                    'WORKSPACE.SHELL.OPEN_COMMAND_PALETTE' | translate
-                "
-            >
-                <mat-icon>keyboard_command_key</mat-icon>
-            </button>
-        </label>
-
-        <div class="header-actions">
-            <button
-                type="button"
-                mat-icon-button
-                [matMenuTriggerFor]="addPlaylistMenu().menu()"
-                [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate"
-                [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
-            >
-                <mat-icon>add</mat-icon>
-            </button>
-            <app-add-playlist-menu
-                (playlistTypeSelected)="openAddPlaylistDialog($event)"
-            />
-            <span class="header-actions-divider" aria-hidden="true"></span>
-            <a
-                class="header-shortcut header-shortcut--global"
-                mat-icon-button
-                routerLink="/workspace/global-favorites"
-                [class.is-active]="isGlobalFavoritesRoute()"
-                [matTooltip]="
-                    'WORKSPACE.SHELL.OPEN_GLOBAL_FAVORITES' | translate
-                "
-                [attr.aria-label]="
-                    'WORKSPACE.SHELL.OPEN_GLOBAL_FAVORITES' | translate
-                "
-            >
-                <mat-icon>star</mat-icon>
-            </a>
-            @if (headerShortcut(); as action) {
-                <button
-                    type="button"
-                    class="header-shortcut"
-                    mat-icon-button
-                    (click)="runHeaderShortcut()"
-                    [matTooltip]="action.tooltipKey | translate"
-                    [attr.aria-label]="action.ariaLabelKey | translate"
-                >
-                    <mat-icon>{{ action.icon }}</mat-icon>
-                </button>
-            }
-            @if (isElectron) {
-                <button
-                    type="button"
-                    class="header-shortcut"
-                    mat-icon-button
-                    [class.is-active]="isDownloadsView()"
-                    (click)="openDownloadsShortcut()"
-                    [matTooltip]="'WORKSPACE.SHELL.RAIL_DOWNLOADS' | translate"
-                    [attr.aria-label]="'WORKSPACE.SHELL.OPEN_DOWNLOADS' | translate"
-                >
-                    <mat-icon>download</mat-icon>
-                </button>
-            }
-            @if (headerBulkAction(); as action) {
-                <span class="header-actions-divider" aria-hidden="true"></span>
-                <button
-                    type="button"
-                    mat-icon-button
-                    (click)="runHeaderBulkAction()"
-                    [disabled]="action.disabled"
-                    [matTooltip]="action.tooltip"
-                    [attr.aria-label]="action.ariaLabel"
-                >
-                    <mat-icon>{{ action.icon }}</mat-icon>
-                </button>
-            }
-        </div>
-    </header>
-
-    <div class="workspace-body" [class.single-pane]="!showContextPanel()">
-        @if (isSourcesRoute()) {
-            <aside
-                class="context-panel context-panel--sources"
-                appResizable
-                [minWidth]="220"
-                [maxWidth]="440"
-                [defaultWidth]="290"
-                storageKey="sidebar-width"
-            >
-                <app-workspace-sources-filters-panel />
-            </aside>
-        } @else if (isCategoryContextRoute()) {
-            @if (currentContext(); as context) {
-                @if (currentSection(); as section) {
-                    <aside
-                        class="context-panel context-panel--route"
-                        appResizable
-                        [minWidth]="240"
-                        [maxWidth]="560"
-                        [defaultWidth]="300"
-                        storageKey="sidebar-width"
-                    >
-                        <app-workspace-context-panel
-                            [context]="context"
-                            [section]="section"
-                        />
-                    </aside>
+    @if (facade.showXtreamImportOverlay()) {
+        <div class="workspace-loading-overlay">
+            <div class="workspace-loading-overlay__card">
+                <h3>Loading playlist...</h3>
+                @if (
+                    facade.xtreamImportCount() !== 0 &&
+                    facade.xtreamItemsToImport() !== 0
+                ) {
+                    <mat-progress-bar
+                        mode="determinate"
+                        [value]="
+                            (facade.xtreamImportCount() /
+                                facade.xtreamItemsToImport()) *
+                            100
+                        "
+                    />
+                    <p>
+                        {{ facade.xtreamImportCount() }} /
+                        {{ facade.xtreamItemsToImport() }}
+                    </p>
+                } @else {
+                    <mat-progress-bar mode="indeterminate" />
                 }
-            }
-        } @else if (isSettingsRoute()) {
-            <aside
-                class="context-panel context-panel--settings"
-                appResizable
-                [minWidth]="200"
-                [maxWidth]="400"
-                [defaultWidth]="260"
-                storageKey="sidebar-width"
-            >
-                <app-workspace-settings-context-panel />
-            </aside>
-        } @else if (isFavoritesContextRoute()) {
-            <aside
-                class="context-panel context-panel--route"
-                appResizable
-                [minWidth]="200"
-                [maxWidth]="400"
-                [defaultWidth]="260"
-                storageKey="sidebar-width"
-            >
-                <app-workspace-favorites-context-panel />
-            </aside>
+            </div>
+        </div>
+    }
+
+    <app-workspace-shell-rail
+        [isMacOS]="facade.isMacOS"
+        [workspaceLinks]="facade.workspaceLinks()"
+        [primaryContextLinks]="facade.primaryContextLinks()"
+        [secondaryContextLinks]="facade.secondaryContextLinks()"
+        [selectedSection]="facade.currentSection()"
+        [railProviderClass]="facade.railProviderClass()"
+        [isSettingsRoute]="facade.isSettingsRoute()"
+    />
+
+    <app-workspace-shell-header
+        [playlistTitle]="facade.playlistTitle()"
+        [playlistSubtitle]="facade.playlistSubtitle()"
+        [canOpenPlaylistInfo]="facade.canOpenPlaylistInfo()"
+        [canOpenAccountInfo]="facade.canOpenAccountInfo()"
+        [searchQuery]="facade.searchQuery()"
+        [canUseSearch]="facade.canUseSearch()"
+        [searchPlaceholder]="facade.searchPlaceholder()"
+        [searchScopeLabel]="facade.searchScopeLabel()"
+        [searchStatusLabel]="facade.searchStatusLabel()"
+        [isGlobalFavoritesActive]="
+            facade.isGlobalFavoritesRoute() || facade.isPortalFavoritesAllScope()
+        "
+        [headerShortcut]="facade.headerShortcut()"
+        [isElectron]="facade.isElectron"
+        [isDownloadsView]="facade.isDownloadsView()"
+        [headerBulkAction]="facade.headerBulkAction()"
+        (searchChanged)="facade.onSearchInput($event)"
+        (searchSubmitted)="facade.onSearchEnter($event)"
+        (commandPaletteRequested)="facade.openCommandPalette()"
+        (addPlaylistRequested)="facade.openAddPlaylistDialog($event)"
+        (globalFavoritesRequested)="facade.navigateToGlobalFavorites()"
+        (headerShortcutRequested)="facade.runHeaderShortcut()"
+        (downloadsRequested)="facade.openDownloadsShortcut()"
+        (headerBulkActionRequested)="facade.runHeaderBulkAction()"
+        (playlistInfoRequested)="facade.openPlaylistInfo()"
+        (accountInfoRequested)="facade.openAccountInfo()"
+    />
+
+    <div class="workspace-body" [class.single-pane]="!facade.showContextPanel()">
+        @if (facade.showContextPanel()) {
+            <app-workspace-shell-context-sidebar
+                [variant]="facade.contextPanel()"
+                [context]="facade.currentContext()"
+                [section]="facade.currentSection()"
+            />
         }
 
         <main class="workspace-content">
@@ -227,12 +79,12 @@
         </main>
     </div>
 
-    @if (showExternalPlaybackBar()) {
-        @if (externalPlaybackSession(); as session) {
+    @if (facade.showExternalPlaybackBar()) {
+        @if (facade.externalPlaybackSession(); as session) {
             <footer class="workspace-now-playing">
                 <app-external-playback-dock
                     [session]="session"
-                    (closeClicked)="closeActiveExternalSession()"
+                    (closeClicked)="facade.closeActiveExternalSession()"
                 />
             </footer>
         }

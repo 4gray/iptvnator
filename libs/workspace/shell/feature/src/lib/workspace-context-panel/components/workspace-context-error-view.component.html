@@ -1,0 +1,29 @@
+<div
+    class="error-view"
+    [class.error-view--empty-category]="viewType() === 'EMPTY_CATEGORY'"
+    [class.error-view--text-only]="!showIllustration()"
+>
+    @if (showIllustration()) {
+        @if (viewType() === 'ERROR') {
+            <img
+                alt="Something went wrong"
+                src="./assets/images/broken-tv.svg"
+            />
+        } @else if (viewType() === 'EMPTY_CATEGORY') {
+            <img
+                alt="empty category"
+                class="error-view__illustration"
+                src="./assets/images/empty-category.svg"
+            />
+        } @else if (viewType() === 'NO_SEARCH_RESULTS') {
+            <mat-icon class="icon">search</mat-icon>
+        }
+    }
+
+    <div class="error-view__copy">
+        <h3 class="error-view__title">{{ title() }}</h3>
+        @if (description()) {
+            <p class="error-view__description">{{ description() }}</p>
+        }
+    </div>
+</div>

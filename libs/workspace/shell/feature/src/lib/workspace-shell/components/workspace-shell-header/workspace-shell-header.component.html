@@ -1,0 +1,118 @@
+<header class="workspace-header">
+    <app-playlist-switcher
+        class="playlist-switcher"
+        [currentTitle]="playlistTitle()"
+        [subtitle]="playlistSubtitle()"
+        [showPlaylistInfo]="canOpenPlaylistInfo()"
+        [showAccountInfo]="canOpenAccountInfo()"
+        (playlistInfoRequested)="onPlaylistInfoRequested()"
+        (accountInfoRequested)="onAccountInfoRequested()"
+    />
+
+    <label class="search-field">
+        <mat-icon>search</mat-icon>
+        @if (searchScopeLabel()) {
+            <span class="search-chip search-chip--scope">
+                {{ searchScopeLabel() }}
+            </span>
+        }
+        <input
+            type="search"
+            spellcheck="false"
+            [value]="searchQuery()"
+            (input)="onSearchInput($event)"
+            (keydown.enter)="onSearchEnter($event)"
+            [disabled]="!canUseSearch()"
+            [placeholder]="searchPlaceholder() | translate"
+            [attr.aria-label]="'WORKSPACE.SHELL.SEARCH_LABEL' | translate"
+        />
+        @if (searchStatusLabel()) {
+            <span class="search-chip search-chip--status">
+                {{ searchStatusLabel() }}
+            </span>
+        }
+        <button
+            type="button"
+            class="command-trigger"
+            mat-icon-button
+            (click)="onCommandPaletteRequested()"
+            [matTooltip]="
+                'WORKSPACE.SHELL.COMMAND_PALETTE_SHORTCUT' | translate
+            "
+            [attr.aria-label]="
+                'WORKSPACE.SHELL.OPEN_COMMAND_PALETTE' | translate
+            "
+        >
+            <mat-icon>keyboard_command_key</mat-icon>
+        </button>
+    </label>
+
+    <div class="header-actions">
+        <button
+            type="button"
+            mat-icon-button
+            [matMenuTriggerFor]="addPlaylistMenu().menu()"
+            [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate"
+            [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
+        >
+            <mat-icon>add</mat-icon>
+        </button>
+        <app-add-playlist-menu
+            (playlistTypeSelected)="onAddPlaylistRequested($event)"
+        />
+        <span class="header-actions-divider" aria-hidden="true"></span>
+        <button
+            type="button"
+            class="header-shortcut header-shortcut--global"
+            mat-icon-button
+            [class.is-active]="isGlobalFavoritesActive()"
+            (click)="onGlobalFavoritesRequested()"
+            [matTooltip]="
+                'WORKSPACE.SHELL.OPEN_GLOBAL_FAVORITES' | translate
+            "
+            [attr.aria-label]="
+                'WORKSPACE.SHELL.OPEN_GLOBAL_FAVORITES' | translate
+            "
+        >
+            <mat-icon>star</mat-icon>
+        </button>
+        @if (headerShortcut(); as action) {
+            <button
+                type="button"
+                class="header-shortcut"
+                mat-icon-button
+                (click)="onHeaderShortcutRequested()"
+                [matTooltip]="action.tooltipKey | translate"
+                [attr.aria-label]="action.ariaLabelKey | translate"
+            >
+                <mat-icon>{{ action.icon }}</mat-icon>
+            </button>
+        }
+        @if (isElectron()) {
+            <button
+                type="button"
+                class="header-shortcut"
+                mat-icon-button
+                [class.is-active]="isDownloadsView()"
+                (click)="onDownloadsRequested()"
+                [matTooltip]="'WORKSPACE.SHELL.RAIL_DOWNLOADS' | translate"
+                [attr.aria-label]="'WORKSPACE.SHELL.OPEN_DOWNLOADS' | translate"
+            >
+                <mat-icon>download</mat-icon>
+            </button>
+        }
+        @if (headerBulkAction(); as action) {
+            <span class="header-actions-divider" aria-hidden="true"></span>
+            <button
+                type="button"
+                mat-icon-button
+                (click)="onHeaderBulkActionRequested()"
+                [disabled]="action.disabled"
+                [matTooltip]="action.tooltip"
+                [attr.aria-label]="action.ariaLabel"
+            >
+                <mat-icon>{{ action.icon }}</mat-icon>
+            </button>
+        }
+    </div>
+</header>

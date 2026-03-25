@@ -6,10 +6,10 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
-import { PlaylistErrorViewComponent } from '@iptvnator/portal/shared/ui';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { WorkspaceContextCategoryViewComponent } from './components/workspace-context-category-view.component';
+import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
 
@@ -26,12 +26,12 @@ interface XtreamCategoryLike {
 @Component({
     selector: 'app-workspace-context-panel',
     imports: [
-        CategoryViewComponent,
-        PlaylistErrorViewComponent,
         MatIconButton,
         MatIcon,
         MatTooltip,
         TranslatePipe,
+        WorkspaceContextCategoryViewComponent,
+        WorkspaceContextErrorViewComponent,
     ],
     templateUrl: './workspace-context-panel.component.html',
     styleUrl: './workspace-context-panel.component.scss',

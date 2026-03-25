@@ -1,0 +1,51 @@
+<aside class="app-rail" [class.is-macos]="isMacOS()">
+    <a
+        class="brand"
+        routerLink="/workspace/dashboard"
+        [matTooltip]="'WORKSPACE.SHELL.RAIL_DASHBOARD' | translate"
+        [matTooltipPosition]="'right'"
+        [attr.aria-label]="'WORKSPACE.SHELL.OPEN_DASHBOARD' | translate"
+    >
+        <img
+            src="./assets/icons/icon-tv-256.png"
+            [attr.alt]="'WORKSPACE.SHELL.BRAND_ALT' | translate"
+        />
+    </a>
+
+    <app-workspace-shell-rail-links [links]="workspaceLinks()" />
+
+    @if (primaryContextLinks().length > 0) {
+        <div
+            class="rail-context-region"
+            [class]="railProviderClass()"
+        >
+            <app-workspace-shell-rail-links
+                activeClass="is-active"
+                [selectedSection]="selectedSection()"
+                [links]="primaryContextLinks()"
+            />
+
+            @if (secondaryContextLinks().length > 0) {
+                <div class="rail-divider"></div>
+                <app-workspace-shell-rail-links
+                    activeClass="is-active"
+                    [selectedSection]="selectedSection()"
+                    [links]="secondaryContextLinks()"
+                />
+            }
+        </div>
+    }
+
+    <div class="rail-footer">
+        <a
+            class="rail-shortcut nav-item"
+            routerLink="/workspace/settings"
+            [class.is-active]="isSettingsRoute()"
+            [matTooltip]="'WORKSPACE.SHELL.RAIL_SETTINGS' | translate"
+            [matTooltipPosition]="'right'"
+            [attr.aria-label]="'WORKSPACE.SHELL.OPEN_SETTINGS' | translate"
+        >
+            <mat-icon>settings</mat-icon>
+        </a>
+    </div>
+</aside>

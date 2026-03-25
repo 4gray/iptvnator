@@ -1,0 +1,43 @@
+:host {
+    display: block;
+    min-width: 0;
+    min-height: 0;
+}
+
+.context-panel {
+    border-right: 1px solid var(--mat-sys-outline-variant);
+    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 100%;
+    padding: 12px;
+    width: 300px;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.context-panel--route {
+    padding: 12px 10px 10px 12px;
+    overflow: visible;
+}
+
+.context-panel--sources {
+    padding: 12px 10px 10px 12px;
+    overflow: visible;
+}
+
+.context-panel--route app-workspace-context-panel {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.context-panel--sources app-workspace-sources-filters-panel {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
