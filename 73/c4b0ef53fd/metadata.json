@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "73c4b0ef53fd",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "apps/web/src/app/settings/settings.component.ts",
+    "apps/web/src/m3-theme.scss",
+    "docs/architecture/workspace-ui-refactor-summary.md",
+    "libs/playlist/shared/ui/src/lib/playlist-switcher/playlist-switcher.component.scss",
+    "libs/portal/shared/ui/src/lib/components/grid-list/grid-list.component.scss",
+    "libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.html",
+    "libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.scss",
+    "libs/portal/xtream/feature/src/lib/live-stream-layout/live-stream-layout.component.scss",
+    "libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.html",
+    "libs/ui/styles/_content-grid.scss",
+    "libs/ui/styles/_portal-sidebar.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-rail/workspace-shell-rail.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.scss"
+  ],
+  "sessions": [
+    {
+      "metadata": "/73/c4b0ef53fd/0/metadata.json",
+      "transcript": "/73/c4b0ef53fd/0/full.jsonl",
+      "context": "/73/c4b0ef53fd/0/context.md",
+      "content_hash": "/73/c4b0ef53fd/0/content_hash.txt",
+      "prompt": "/73/c4b0ef53fd/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 390,
+    "cache_creation_tokens": 253202,
+    "cache_read_tokens": 19370825,
+    "output_tokens": 44169,
+    "api_call_count": 221
+  }
+}

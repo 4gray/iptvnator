@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "73c4b0ef53fd",
+  "session_id": "4f2f2cab-a227-46e8-a4c4-d8793ea5a92c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T20:05:24.731979Z",
+  "branch": "master",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "apps/web/src/app/settings/settings.component.ts",
+    "apps/web/src/m3-theme.scss",
+    "docs/architecture/workspace-ui-refactor-summary.md",
+    "libs/playlist/shared/ui/src/lib/playlist-switcher/playlist-switcher.component.scss",
+    "libs/portal/shared/ui/src/lib/components/grid-list/grid-list.component.scss",
+    "libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.html",
+    "libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.scss",
+    "libs/portal/xtream/feature/src/lib/live-stream-layout/live-stream-layout.component.scss",
+    "libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.html",
+    "libs/ui/styles/_content-grid.scss",
+    "libs/ui/styles/_portal-sidebar.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-rail/workspace-shell-rail.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.scss"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "f13d54b5-2024-4f23-aabe-f926d97a91c7",
+  "token_usage": {
+    "input_tokens": 390,
+    "cache_creation_tokens": 253202,
+    "cache_read_tokens": 19370825,
+    "output_tokens": 44169,
+    "api_call_count": 221
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T20:05:24.521592Z",
+    "agent_lines": 0,
+    "human_added": 1789,
+    "human_modified": 557,
+    "human_removed": 0,
+    "total_committed": 1874,
+    "agent_percentage": 0
+  }
+}
