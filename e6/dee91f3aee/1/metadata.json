@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "e6dee91f3aee",
+  "session_id": "4f2f2cab-a227-46e8-a4c4-d8793ea5a92c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-26T07:15:03.966757Z",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/web/src/app/settings/settings.component.ts",
+    "apps/web/src/m3-theme.scss",
+    "docs/architecture/workspace-ui-refactor-summary.md",
+    "libs/playlist/shared/ui/src/lib/playlist-switcher/playlist-switcher.component.scss",
+    "libs/portal/shared/ui/src/lib/components/grid-list/grid-list.component.scss",
+    "libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.html",
+    "libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.scss",
+    "libs/portal/xtream/feature/src/lib/live-stream-layout/live-stream-layout.component.scss",
+    "libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.html",
+    "libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.scss",
+    "libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.ts",
+    "libs/ui/styles/_content-grid.scss",
+    "libs/ui/styles/_portal-sidebar.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-rail/workspace-shell-rail.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.scss"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "706d5a0d-8b47-40a6-86bd-ed31c498a1ef",
+  "checkpoint_transcript_start": 974,
+  "transcript_lines_at_start": 974,
+  "token_usage": {
+    "input_tokens": 2072,
+    "cache_creation_tokens": 193789,
+    "cache_read_tokens": 6215384,
+    "output_tokens": 21540,
+    "api_call_count": 70
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-26T07:15:03.667229Z",
+    "agent_lines": 20,
+    "human_added": 15,
+    "human_modified": 226,
+    "human_removed": 0,
+    "total_committed": 261,
+    "agent_percentage": 7.662835249042145
+  }
+}
