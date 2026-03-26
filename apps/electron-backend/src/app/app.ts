@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, screen, shell } from 'electron';
+import * as http from 'node:http';
 import { join } from 'path';
 import { rendererAppName, rendererAppPort } from './constants';
 import { store, WINDOW_BOUNDS } from './services/store.service';
@@ -19,6 +20,48 @@ export default class App {
         // Fall back to Electron's built-in app.isPackaged
         // This is the most reliable way to detect if the app is packaged
         return !app.isPackaged;
+    }
+
+    private static getDevServerUrl() {
+        return `http://localhost:${rendererAppPort}/workspace/dashboard`;
+    }
+
+    private static wait(ms: number) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    private static async isDevServerReachable(url: string): Promise<boolean> {
+        return await new Promise((resolve) => {
+            const req = http.get(url, (res) => {
+                res.resume();
+                resolve(true);
+            });
+
+            req.on('error', () => resolve(false));
+
+            req.setTimeout(1500, () => {
+                req.destroy();
+                resolve(false);
+            });
+        });
+    }
+
+    private static async waitForDevServer(
+        url: string,
+        maxAttempts = 30,
+        delayMs = 1000
+    ): Promise<boolean> {
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            const reachable = await App.isDevServerReachable(url);
+
+            if (reachable) {
+                return true;
+            }
+
+            await App.wait(delayMs);
+        }
+
+        return false;
     }
 
     private static onWindowAllClosed() {
@@ -42,13 +85,13 @@ export default class App {
         }
     }
 
-    private static onReady() {
+    private static async onReady() {
         // This method will be called when Electron has finished
         // initialization and is ready to create browser windows.
         // Some APIs can only be used after this event occurs.
         if (rendererAppName) {
             App.initMainWindow();
-            App.loadMainWindow();
+            await App.loadMainWindow();
         }
     }
 
@@ -56,7 +99,7 @@ export default class App {
         // On macOS it's common to re-create a window in the app when the
         // dock icon is clicked and there are no other windows open.
         if (App.mainWindow === null) {
-            App.onReady();
+            void App.onReady();
         }
     }
 
@@ -83,10 +126,10 @@ export default class App {
             minWidth: 900,
             ...(process.platform === 'darwin'
                 ? {
-                      titleBarStyle: 'hidden',
-                      titleBarOverlay: true,
-                      trafficLightPosition: { x: 16, y: 20 },
-                  }
+                    titleBarStyle: 'hidden',
+                    titleBarOverlay: true,
+                    trafficLightPosition: { x: 16, y: 20 },
+                }
                 : {}),
         });
         App.mainWindow.setMenu(null);
@@ -98,6 +141,24 @@ export default class App {
         App.mainWindow.once('ready-to-show', () => {
             App.mainWindow.show();
         });
+
+        // Retry dev page load if the renderer wasn't ready yet
+        App.mainWindow.webContents.on(
+            'did-fail-load',
+            async (_event, _errorCode, _errorDescription, validatedURL, isMainFrame) => {
+                if (
+                    App.isDevelopmentMode() &&
+                    isMainFrame &&
+                    validatedURL === App.getDevServerUrl()
+                ) {
+                    const reachable = await App.waitForDevServer(App.getDevServerUrl(), 10, 1000);
+
+                    if (reachable && App.mainWindow && !App.mainWindow.isDestroyed()) {
+                        await App.mainWindow.loadURL(App.getDevServerUrl());
+                    }
+                }
+            }
+        );
 
         // handle all external redirects in a new browser window
         // App.mainWindow.webContents.on('will-navigate', App.onRedirect);
@@ -157,13 +218,15 @@ export default class App {
         });
     }
 
-    private static loadMainWindow() {
+    private static async loadMainWindow() {
         // load the index.html of the app.
         if (App.isDevelopmentMode()) {
-            App.mainWindow.loadURL(`http://localhost:${rendererAppPort}`);
+            const devServerUrl = App.getDevServerUrl();
+            await App.waitForDevServer(devServerUrl);
+            await App.mainWindow.loadURL(devServerUrl);
             App.mainWindow.webContents.openDevTools();
         } else {
-            App.mainWindow.loadFile(
+            await App.mainWindow.loadFile(
                 join(__dirname, '..', rendererAppName, 'index.html')
             );
         }
@@ -179,7 +242,9 @@ export default class App {
         App.application = app;
 
         App.application.on('window-all-closed', App.onWindowAllClosed); // Quit when all windows are closed.
-        App.application.on('ready', App.onReady); // App is ready to load data
+        App.application.on('ready', () => {
+            void App.onReady();
+        }); // App is ready to load data
         App.application.on('activate', App.onActivate); // App is activated
         App.application.on('before-quit', () => {
             if (App.mainWindow)
