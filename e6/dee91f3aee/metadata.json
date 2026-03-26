@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "e6dee91f3aee",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "apps/web/src/nav-list.scss",
+    "docs/architecture/workspace-ui-refactor-summary.md",
+    "libs/portal/downloads/feature/src/lib/downloads.component.html",
+    "libs/portal/downloads/feature/src/lib/downloads.component.scss",
+    "libs/portal/shared/ui/src/lib/components/favorites-layout/favorites-layout.component.scss",
+    "libs/portal/shared/ui/src/lib/components/portal-empty-state/portal-empty-state.component.scss",
+    "libs/portal/shared/ui/src/lib/components/search-layout/search-layout.component.scss",
+    "libs/portal/shared/ui/src/lib/components/unified-collection/unified-collection-page.component.scss",
+    "libs/portal/stalker/feature/src/lib/stalker-collection-channels-list/stalker-collection-channels-list.component.scss",
+    "libs/portal/stalker/feature/src/lib/styles/detail-view.scss",
+    "libs/portal/xtream/feature/src/lib/account-info/account-info.component.scss",
+    "libs/portal/xtream/feature/src/lib/category-management-dialog/category-management-dialog.component.scss",
+    "libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.scss",
+    "libs/portal/xtream/feature/src/lib/recently-added/recently-added.component.scss",
+    "libs/portal/xtream/feature/src/lib/recently-viewed/recently-viewed.component.scss",
+    "libs/portal/xtream/feature/src/lib/search-results/search-results.component.scss",
+    "libs/ui/components/src/lib/channel-list-container/all-channels-view/all-channels-view.component.scss",
+    "libs/ui/components/src/lib/channel-list-container/channel-list-item/channel-list-item.component.scss",
+    "libs/ui/components/src/lib/channel-list-container/favorites-view/favorites-view.component.scss",
+    "libs/ui/components/src/lib/channel-list-container/recent-view/recent-view.component.scss",
+    "libs/workspace/dashboard/feature/src/lib/workspace-dashboard.component.scss",
+    "libs/workspace/shell/feature/src/lib/global-favorites/global-favorites-list.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-sources-filters-panel/workspace-sources-filters-panel.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-sources/workspace-sources.component.scss"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e6/dee91f3aee/0/metadata.json",
+      "transcript": "/e6/dee91f3aee/0/full.jsonl",
+      "context": "/e6/dee91f3aee/0/context.md",
+      "content_hash": "/e6/dee91f3aee/0/content_hash.txt",
+      "prompt": "/e6/dee91f3aee/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4659,
+    "cache_creation_tokens": 177033,
+    "cache_read_tokens": 5785478,
+    "output_tokens": 16095,
+    "api_call_count": 78
+  }
+}
