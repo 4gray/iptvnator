@@ -3,8 +3,8 @@ import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
-    ElementRef,
     effect,
+    ElementRef,
     inject,
     Injector,
     OnInit,
@@ -14,14 +14,11 @@ import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
+import { EpgService } from '@iptvnator/epg/data-access';
 import { MomentDatePipe } from '@iptvnator/pipes';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { EpgService } from '@iptvnator/epg/data-access';
-import {
-    selectActive,
-    EpgActions,
-} from 'm3u-state';
+import { EpgActions, selectActive } from 'm3u-state';
 import moment from 'moment';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { EpgChannel, EpgProgram } from 'shared-interfaces';
@@ -73,8 +70,6 @@ export class EpgListComponent implements OnInit {
     /** EPG selected program */
     playingNow: EpgProgram | undefined;
 
-    channelIconFailed = false;
-
     /** Selected date */
     selectedDate!: string;
 
@@ -96,7 +91,6 @@ export class EpgListComponent implements OnInit {
                 url: active?.url ? [active.url] : [],
                 icon: icons,
             };
-            this.channelIconFailed = false;
             return (
                 active?.tvg?.rec || active?.timeshift || active?.catchup?.days
             );
@@ -124,45 +118,6 @@ export class EpgListComponent implements OnInit {
                 .sort((a, b) => moment(a.start).diff(moment(b.start)))
         )
     );
-
-    /**
-     * Helper function to get channel display name
-     */
-    getChannelDisplayName(channel: EpgChannel): string {
-        if (
-            !channel ||
-            !channel.displayName ||
-            channel.displayName.length === 0
-        ) {
-            return '';
-        }
-        // Return first available display name
-        return channel.displayName[0]?.value || '';
-    }
-
-    /**
-     * Helper function to get channel icon
-     */
-    getChannelIcon(channel: EpgChannel): string {
-        if (!channel || !channel.icon || channel.icon.length === 0) {
-            return '';
-        }
-        // Return first available icon src
-        return channel.icon[0]?.src || '';
-    }
-
-    showChannelIconFallback(channel: EpgChannel): boolean {
-        return !this.getChannelIcon(channel) || this.channelIconFailed;
-    }
-
-    onChannelIconError(event: Event): void {
-        this.channelIconFailed = true;
-        (event.target as HTMLImageElement | null)?.style.setProperty(
-            'display',
-            'none'
-        );
-        this.cdr.markForCheck();
-    }
 
     /**
      * Subscribe for values from the store on component init

@@ -8,91 +8,6 @@
     background: transparent;
 }
 
-.header-divider {
-    height: 1px;
-    background: rgba(255, 255, 255, 0.08);
-}
-
-#channel-header {
-    display: flex;
-    flex-direction: column;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
-        rgba(127, 127, 127, 0.05);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-
-    .channel-info {
-        display: flex;
-        align-items: center;
-        padding: 14px 16px 12px;
-        gap: 14px;
-    }
-}
-
-.channel-icon-shell {
-    position: relative;
-    width: 52px;
-    height: 52px;
-    flex-shrink: 0;
-    border-radius: 12px;
-    overflow: hidden;
-    display: grid;
-    place-items: center;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
-        rgba(127, 127, 127, 0.12);
-    box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-        inset 0 1px 1px rgba(0, 0, 0, 0.15);
-
-    img {
-        position: relative;
-        z-index: 1;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        padding: 6px;
-        box-sizing: border-box;
-    }
-}
-
-.channel-icon-fallback {
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    width: 20px;
-    height: 20px;
-    font-size: 20px;
-    opacity: 0.46;
-}
-
-.channel-details {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.channel-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 1rem;
-    line-height: 1.2;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-}
-
-.program-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.84rem;
-    line-height: 1.2;
-    opacity: 0.82;
-}
-
 #date-navigator {
     display: flex;
     justify-content: space-between;
@@ -202,6 +117,16 @@
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.epg-item__description {
+    font-size: 0.82rem;
+    line-height: 1.4;
+    opacity: 0.74;
+    display: -webkit-box;
+    overflow: hidden;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
 }

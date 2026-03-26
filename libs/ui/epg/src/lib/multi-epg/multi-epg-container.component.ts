@@ -54,12 +54,12 @@ interface ProgramSearchResult extends EpgProgram {
 
 @Component({
     imports: [
-    MatButtonModule,
-    MatIcon,
-    MatTooltip,
-    MomentDatePipe,
-    TranslatePipe
-],
+        MatButtonModule,
+        MatIcon,
+        MatTooltip,
+        MomentDatePipe,
+        TranslatePipe,
+    ],
     selector: 'app-multi-epg-container',
     templateUrl: './multi-epg-container.component.html',
     styleUrls: ['./multi-epg-container.component.scss'],
@@ -117,7 +117,7 @@ export class MultiEpgContainerComponent
             return allChannels;
         }
 
-        return allChannels.filter(channel => {
+        return allChannels.filter((channel) => {
             const name = this.getChannelName(channel).toLowerCase();
             return name.includes(filter);
         });
@@ -151,7 +151,7 @@ export class MultiEpgContainerComponent
         this.interval = setInterval(() => {
             // Force recomputation by updating hourWidth to same value
             // This triggers the computed signal to recalculate
-            this.hourWidth.update(v => v);
+            this.hourWidth.update((v) => v);
         }, 60000);
     }
 
@@ -317,7 +317,10 @@ export class MultiEpgContainerComponent
         if (typeof channel.displayName === 'string') {
             return channel.displayName;
         }
-        if (Array.isArray(channel.displayName) && channel.displayName.length > 0) {
+        if (
+            Array.isArray(channel.displayName) &&
+            channel.displayName.length > 0
+        ) {
             return channel.displayName[0].value;
         }
         return '';
@@ -338,16 +341,16 @@ export class MultiEpgContainerComponent
 
     zoomIn(): void {
         if (this.hourWidth() >= 800) return;
-        this.hourWidth.update(v => v + 50);
+        this.hourWidth.update((v) => v + 50);
     }
 
     zoomOut(): void {
         if (this.hourWidth() <= 50) return;
-        this.hourWidth.update(v => v - 50);
+        this.hourWidth.update((v) => v - 50);
     }
 
     toggleSearch(): void {
-        this.isSearchExpanded.update(v => !v);
+        this.isSearchExpanded.update((v) => !v);
         if (!this.isSearchExpanded()) {
             this.channelFilter.set('');
         }
@@ -373,13 +376,14 @@ export class MultiEpgContainerComponent
 
     showDescription(program: EpgProgram): void {
         this.dialog.open(EpgItemDescriptionComponent, {
+            width: '600px',
             data: program,
         });
     }
 
     // Program search methods
     toggleProgramSearch(): void {
-        this.isProgramSearchOpen.update(v => !v);
+        this.isProgramSearchOpen.update((v) => !v);
         if (!this.isProgramSearchOpen()) {
             this.programSearchQuery.set('');
             this.programSearchResults.set([]);
@@ -406,7 +410,10 @@ export class MultiEpgContainerComponent
         this.searchDebounceTimer = setTimeout(async () => {
             this.isSearchingPrograms.set(true);
             try {
-                const results = await window.electron.searchEpgPrograms(query, 20);
+                const results = await window.electron.searchEpgPrograms(
+                    query,
+                    20
+                );
                 this.programSearchResults.set(
                     (results as ProgramSearchResult[]) || []
                 );
@@ -429,11 +436,12 @@ export class MultiEpgContainerComponent
         const channelId = program.channel_id || program.channel;
 
         // Find channel name
-        const channel = this.channels().find(ch => ch.id === channelId);
+        const channel = this.channels().find((ch) => ch.id === channelId);
         const channelName = channel ? this.getChannelName(channel) : null;
 
         // Open the program details dialog with channel name
         this.dialog.open(EpgItemDescriptionComponent, {
+            width: '800px',
             data: { ...program, channelName },
         });
     }

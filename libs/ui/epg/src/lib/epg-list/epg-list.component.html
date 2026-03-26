@@ -3,34 +3,6 @@
 
 <!-- channel info panel -->
 <div id="channel-header" color="primary">
-    <div class="channel-info">
-        <div class="channel-icon-shell" aria-hidden="true">
-            @if (showChannelIconFallback(channel)) {
-                <mat-icon class="channel-icon-fallback">live_tv</mat-icon>
-            }
-            @if (getChannelIcon(channel)) {
-                <img
-                    [src]="getChannelIcon(channel)"
-                    width="48"
-                    alt="icon"
-                    (error)="onChannelIconError($event)"
-                />
-            }
-        </div>
-        <div class="channel-details">
-            <div class="channel-name">
-                {{ getChannelDisplayName(channel) }}
-            </div>
-            <div class="program-name">
-                {{
-                    playingNow
-                        ? (playingNow.title || 'EPG.LIVE_STREAM' | translate)
-                        : ('EPG.LIVE_STREAM' | translate)
-                }}
-            </div>
-        </div>
-    </div>
-    <div class="header-divider"></div>
     <div id="date-navigator">
         <button
             class="previous-day"
@@ -76,12 +48,17 @@
                         <div class="program-title">
                             {{ program?.title }}
                         </div>
+                        <div class="epg-item__description">
+                            {{ program?.desc }}
+                        </div>
                         @if (isProgramPlaying(program)) {
                             <div class="program-progress">
                                 <div class="epg-progress-track">
                                     <div
                                         class="epg-progress-fill"
-                                        [style.width.%]="calculateProgress(program)"
+                                        [style.width.%]="
+                                            calculateProgress(program)
+                                        "
                                     ></div>
                                 </div>
                             </div>
@@ -119,7 +96,9 @@
                                 <div class="epg-progress-track">
                                     <div
                                         class="epg-progress-fill"
-                                        [style.width.%]="calculateProgress(program)"
+                                        [style.width.%]="
+                                            calculateProgress(program)
+                                        "
                                     ></div>
                                 </div>
                             </div>
