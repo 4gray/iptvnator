@@ -85,14 +85,15 @@
 }
 
 .no-results-title {
-    font-size: 1.1rem;
-    font-weight: 500;
+    font-size: 1.05rem;
+    font-weight: 520;
+    letter-spacing: -0.01em;
     margin-bottom: 8px;
 }
 
 .no-results-hint {
-    opacity: 0.7;
-    font-size: 0.9rem;
+    opacity: 0.65;
+    font-size: 0.85rem;
 }
 
 @media only screen and (max-width: 599px) {

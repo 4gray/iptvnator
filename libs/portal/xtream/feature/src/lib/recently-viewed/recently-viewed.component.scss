@@ -18,6 +18,13 @@
     align-items: center;
     margin-bottom: 20px;
 
+    h2 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+    }
+
     .header-actions {
         display: flex;
         align-items: center;
@@ -95,8 +102,9 @@
         padding: 8px;
         background: rgba(0, 0, 0, 0.05);
         border-radius: 4px;
-        font-size: 1.1rem;
-        font-weight: 500;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
 
         mat-icon {
             opacity: 0.7;
@@ -104,7 +112,7 @@
 
         .item-count {
             margin-left: auto;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             opacity: 0.7;
         }
     }

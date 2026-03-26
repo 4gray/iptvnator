@@ -53,6 +53,9 @@
         h2 {
             margin: 0;
             white-space: nowrap;
+            font-size: 1.2rem;
+            font-weight: 650;
+            letter-spacing: -0.02em;
         }
 
         .type-filters {
@@ -116,15 +119,16 @@
     .no-items-content {
         h3 {
             margin: 0 0 0.5rem;
-            font-size: 1.5rem;
-            font-weight: 500;
+            font-size: 1.05rem;
+            font-weight: 520;
+            letter-spacing: -0.01em;
             color: var(--text-color);
         }
 
         p {
-            font-size: 1.1rem;
+            font-size: 0.85rem;
             margin: 0;
-            opacity: 0.8;
+            opacity: 0.65;
         }
 
         .search-term-note {

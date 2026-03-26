@@ -19,9 +19,9 @@
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: none;
-    --rail-link-color: var(--mat-sys-on-surface-variant);
-    --rail-link-hover-color: var(--mat-sys-on-surface);
-    --rail-link-hover-bg: var(--mat-sys-surface-container);
+    --rail-link-color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
+    --rail-link-hover-color: var(--app-on-surface);
+    --rail-link-hover-bg: var(--app-hover-overlay);
     --rail-link-active-bg: var(--app-selection-surface);
     --rail-link-active-bg-strong: var(--app-selection-surface-strong);
     --rail-link-active-color: var(--app-selection-color);
@@ -127,8 +127,8 @@
     padding: 5px 2px;
     margin: 4px 0;
     border-radius: 14px;
-    background: color-mix(in srgb, var(--mat-sys-on-surface) 3%, transparent);
-    border: 1px solid color-mix(in srgb, var(--mat-sys-on-surface) 4%, transparent);
+    background: color-mix(in srgb, var(--app-on-surface) 3%, transparent);
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 4%, transparent);
     position: relative;
     animation: region-enter 0.25s ease-out both;
 
@@ -195,7 +195,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: var(--mat-sys-on-surface-variant);
+        color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
         app-region: no-drag;
 
         mat-icon {
@@ -205,8 +205,8 @@
         }
 
         &:hover:not(.is-active) {
-            background: var(--app-selection-surface);
-            color: var(--mat-sys-on-surface);
+            background: var(--app-hover-overlay);
+            color: var(--app-on-surface);
         }
 
         &.is-active::after {

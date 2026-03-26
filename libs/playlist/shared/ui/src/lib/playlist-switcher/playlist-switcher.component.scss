@@ -12,7 +12,7 @@
     &:hover {
         background: color-mix(
             in srgb,
-            var(--mat-sys-on-surface) 8%,
+            var(--app-on-surface) 8%,
             transparent
         );
     }
@@ -31,7 +31,7 @@
     justify-content: center;
     background: color-mix(
         in srgb,
-        var(--mat-sys-on-surface) 8%,
+        var(--app-on-surface) 8%,
         transparent
     );
     flex-shrink: 0;
@@ -133,7 +133,7 @@
     margin: 0 8px 4px;
     background: color-mix(
         in srgb,
-        var(--mat-sys-on-surface) 6%,
+        var(--app-on-surface) 6%,
         transparent
     );
     border-radius: 8px;
@@ -263,7 +263,11 @@
 }
 
 .playlist-item:hover:not(.selected) {
-    background: var(--mat-sys-surface-container);
+    background: color-mix(
+        in srgb,
+        var(--app-on-surface) 8%,
+        transparent
+    );
 }
 
 .playlist-icon-container {
@@ -276,7 +280,7 @@
     border-radius: 8px;
     background: color-mix(
         in srgb,
-        var(--mat-sys-on-surface) 6%,
+        var(--app-on-surface) 6%,
         transparent
     );
     flex-shrink: 0;

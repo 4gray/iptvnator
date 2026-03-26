@@ -50,6 +50,8 @@ html {
     --app-header-bg: #eef0f3;
     --app-content-bg: #f5f6f8;
     --app-rail-border: transparent;
+    --app-on-surface: #1d1b1e;
+    --app-hover-overlay: rgba(0, 0, 0, 0.06);
     --app-search-bg: rgba(255, 255, 255, 0.7);
     --app-search-border: rgba(0, 0, 0, 0.1);
     --app-selection-color: #2f7bff;
@@ -120,6 +122,8 @@ html {
         --app-header-bg: #111318;
         --app-content-bg: #161a22;
         --app-rail-border: transparent;
+        --app-on-surface: #e6e1e5;
+        --app-hover-overlay: rgba(255, 255, 255, 0.08);
         --app-search-bg: rgba(255, 255, 255, 0.05);
         --app-search-border: rgba(255, 255, 255, 0.09);
         --app-selection-color: #78adff;
