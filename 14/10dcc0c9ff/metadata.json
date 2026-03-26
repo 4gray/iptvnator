@@ -3,8 +3,10 @@
   "checkpoint_id": "1410dcc0c9ff",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
+    "libs/portal/shared/ui/src/lib/components/unified-collection/unified-collection-page.component.scss",
+    "libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab.component.html",
     "libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.html",
     "libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.scss"
   ],
@@ -15,13 +17,20 @@
       "context": "/14/10dcc0c9ff/0/context.md",
       "content_hash": "/14/10dcc0c9ff/0/content_hash.txt",
       "prompt": "/14/10dcc0c9ff/0/prompt.txt"
+    },
+    {
+      "metadata": "/14/10dcc0c9ff/1/metadata.json",
+      "transcript": "/14/10dcc0c9ff/1/full.jsonl",
+      "context": "/14/10dcc0c9ff/1/context.md",
+      "content_hash": "/14/10dcc0c9ff/1/content_hash.txt",
+      "prompt": "/14/10dcc0c9ff/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 35,
-    "cache_creation_tokens": 51686,
-    "cache_read_tokens": 3063301,
-    "output_tokens": 6244,
-    "api_call_count": 27
+    "input_tokens": 204,
+    "cache_creation_tokens": 275373,
+    "cache_read_tokens": 12277253,
+    "output_tokens": 27185,
+    "api_call_count": 121
   }
 }

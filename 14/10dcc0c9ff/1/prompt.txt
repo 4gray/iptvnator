@@ -1,0 +1,13 @@
+i want to improve some visual effect and posirtioning for favorites and recently viewed items. 1. first of all, the button to clear the elemenets in the list is positioned in the header of workspace shell @libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/  (where the global items are placed), that should be changed since this violates the mental model, i think the clear button should be somewhere in the view header. 2. when i open the views they have skeletons/loading spinners initially, when the page finishes the loading process the segmented toggle buttons are rendered and they take a bit more height in the header and that's wh the layout "jumps" a bit after loading gets finished. 3. in recently viewed list for lvie tv channels, the drag and drop buttons for channels are not needed, we need them only in favorites view. in recently viewed changes we need to use order in which the channels were watched recently (latest on top)
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+use electron skill and agent-browser cli to test the app, click around, create screenshots, the app  is running
+
+---
+
+for 2. a small jump is still there, probably the height still needs to be increased
