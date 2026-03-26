@@ -9,7 +9,9 @@ import {
     signal,
 } from '@angular/core';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -32,7 +34,9 @@ import { UnifiedGridTabComponent } from './unified-grid-tab.component';
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         MatButtonToggleModule,
+        MatIconButton,
         MatIconModule,
+        MatTooltip,
         TranslatePipe,
         UnifiedGridTabComponent,
         UnifiedLiveTabComponent,
@@ -149,6 +153,14 @@ export class UnifiedCollectionPageComponent implements OnInit {
         this.allItems.update((items) =>
             items.filter((i) => i.uid !== item.uid)
         );
+    }
+
+    async clearAllRecent(): Promise<void> {
+        await this.recentData.clearRecentItems(
+            this.scope(),
+            this.playlistId()
+        );
+        this.allItems.set([]);
     }
 
     async onReorder(items: UnifiedCollectionItem[]): Promise<void> {

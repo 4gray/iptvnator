@@ -39,6 +39,23 @@
     margin-right: auto;
 }
 
+.collection-header-toggles {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toggle-placeholder {
+    height: 43px;
+    width: 120px;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
+
+    &--scope {
+        width: 200px;
+    }
+}
+
 .content-toggle,
 .scope-toggle {
     .toggle-label {

@@ -52,7 +52,6 @@
         [headerShortcut]="facade.headerShortcut()"
         [isElectron]="facade.isElectron"
         [isDownloadsView]="facade.isDownloadsView()"
-        [headerBulkAction]="facade.headerBulkAction()"
         (searchChanged)="facade.onSearchInput($event)"
         (searchSubmitted)="facade.onSearchEnter($event)"
         (commandPaletteRequested)="facade.openCommandPalette()"
@@ -60,7 +59,6 @@
         (globalFavoritesRequested)="facade.navigateToGlobalFavorites()"
         (headerShortcutRequested)="facade.runHeaderShortcut()"
         (downloadsRequested)="facade.openDownloadsShortcut()"
-        (headerBulkActionRequested)="facade.runHeaderBulkAction()"
         (playlistInfoRequested)="facade.openPlaylistInfo()"
         (accountInfoRequested)="facade.openAccountInfo()"
     />

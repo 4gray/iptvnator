@@ -39,6 +39,7 @@ export class GlobalFavoritesListComponent {
     readonly progressTick = input<number>(0);
     readonly activeUid = input<string | null>(null);
     readonly searchTermInput = input('');
+    readonly draggable = input(true);
 
     readonly channelSelected = output<UnifiedFavoriteChannel>();
     readonly channelsReordered = output<UnifiedFavoriteChannel[]>();

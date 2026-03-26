@@ -1,6 +1,10 @@
 @if (isLoading()) {
     <div class="collection-header">
         <span class="collection-title">{{ title() | translate }}</span>
+        <div class="collection-header-toggles">
+            <span class="toggle-placeholder"></span>
+            <span class="toggle-placeholder toggle-placeholder--scope"></span>
+        </div>
     </div>
     @if (selectedContentType() === 'live') {
         <div class="skeleton-list">
@@ -43,50 +47,64 @@
     <div class="collection-header">
         <span class="collection-title">{{ title() | translate }}</span>
 
-        @if (showContentToggle()) {
+        <div class="collection-header-toggles">
+            @if (showContentToggle()) {
+                <mat-button-toggle-group
+                    class="content-toggle"
+                    [value]="selectedContentType()"
+                    (change)="onContentTypeChange($event.value)"
+                    hideSingleSelectionIndicator
+                >
+                    @if (hasLive()) {
+                        <mat-button-toggle value="live">
+                            {{ 'PORTALS.LIVE_TV' | translate }}
+                        </mat-button-toggle>
+                    }
+                    @if (hasMovies()) {
+                        <mat-button-toggle value="movie">
+                            {{ 'PORTALS.MOVIES' | translate }}
+                        </mat-button-toggle>
+                    }
+                    @if (hasSeries()) {
+                        <mat-button-toggle value="series">
+                            {{ 'PORTALS.SERIES' | translate }}
+                        </mat-button-toggle>
+                    }
+                </mat-button-toggle-group>
+            }
+
             <mat-button-toggle-group
-                class="content-toggle"
-                [value]="selectedContentType()"
-                (change)="onContentTypeChange($event.value)"
+                class="scope-toggle"
+                [value]="scope()"
+                (change)="onScopeChange($event.value)"
                 hideSingleSelectionIndicator
             >
-                @if (hasLive()) {
-                    <mat-button-toggle value="live">
-                        {{ 'PORTALS.LIVE_TV' | translate }}
-                    </mat-button-toggle>
-                }
-                @if (hasMovies()) {
-                    <mat-button-toggle value="movie">
-                        {{ 'PORTALS.MOVIES' | translate }}
-                    </mat-button-toggle>
-                }
-                @if (hasSeries()) {
-                    <mat-button-toggle value="series">
-                        {{ 'PORTALS.SERIES' | translate }}
-                    </mat-button-toggle>
-                }
+                <mat-button-toggle value="playlist">
+                    <mat-icon>playlist_play</mat-icon>
+                    <span class="toggle-label">{{
+                        'PORTALS.THIS_PLAYLIST' | translate
+                    }}</span>
+                </mat-button-toggle>
+                <mat-button-toggle value="all">
+                    <mat-icon>public</mat-icon>
+                    <span class="toggle-label">{{
+                        'PORTALS.ALL_PLAYLISTS' | translate
+                    }}</span>
+                </mat-button-toggle>
             </mat-button-toggle-group>
-        }
 
-        <mat-button-toggle-group
-            class="scope-toggle"
-            [value]="scope()"
-            (change)="onScopeChange($event.value)"
-            hideSingleSelectionIndicator
-        >
-            <mat-button-toggle value="playlist">
-                <mat-icon>playlist_play</mat-icon>
-                <span class="toggle-label">{{
-                    'PORTALS.THIS_PLAYLIST' | translate
-                }}</span>
-            </mat-button-toggle>
-            <mat-button-toggle value="all">
-                <mat-icon>public</mat-icon>
-                <span class="toggle-label">{{
-                    'PORTALS.ALL_PLAYLISTS' | translate
-                }}</span>
-            </mat-button-toggle>
-        </mat-button-toggle-group>
+            @if (mode() === 'recent' && allItems().length > 0) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    (click)="clearAllRecent()"
+                    [matTooltip]="'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION' | translate"
+                    [attr.aria-label]="'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION_ARIA' | translate"
+                >
+                    <mat-icon>delete_sweep</mat-icon>
+                </button>
+            }
+        </div>
     </div>
 
     @switch (selectedContentType()) {

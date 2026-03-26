@@ -16,7 +16,6 @@ import {
     PlaylistType,
 } from '@iptvnator/playlist/shared/ui';
 import { WorkspaceHeaderAction } from '@iptvnator/portal/shared/util';
-import { WorkspaceHeaderBulkAction } from '../../services/workspace-shell.facade';
 
 @Component({
     selector: 'app-workspace-shell-header',
@@ -49,7 +48,6 @@ export class WorkspaceShellHeaderComponent {
     readonly headerShortcut = input<WorkspaceHeaderAction | null>(null);
     readonly isElectron = input(false);
     readonly isDownloadsView = input(false);
-    readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
 
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
@@ -58,7 +56,6 @@ export class WorkspaceShellHeaderComponent {
     readonly globalFavoritesRequested = output<void>();
     readonly headerShortcutRequested = output<void>();
     readonly downloadsRequested = output<void>();
-    readonly headerBulkActionRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
 
@@ -100,7 +97,4 @@ export class WorkspaceShellHeaderComponent {
         this.downloadsRequested.emit();
     }
 
-    onHeaderBulkActionRequested(): void {
-        this.headerBulkActionRequested.emit();
-    }
 }
