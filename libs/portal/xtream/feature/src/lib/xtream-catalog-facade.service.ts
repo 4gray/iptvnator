@@ -16,6 +16,7 @@ export class XtreamCatalogFacadeService
         PortalCatalogFacade<Record<string, unknown>, Record<string, unknown>, unknown>
 {
     private readonly xtreamStore = inject(XtreamStore);
+    private savedPageBeforeDetail: number | null = null;
 
     readonly provider = 'xtream' as const;
     readonly pageSizeOptions = [10, 25, 50, 100] as const;
@@ -68,10 +69,14 @@ export class XtreamCatalogFacadeService
 
         if (categoryId) {
             this.xtreamStore.setSelectedCategory(Number(categoryId));
-            return;
+        } else {
+            this.xtreamStore.setSelectedCategory(null);
         }
 
-        this.xtreamStore.setSelectedCategory(null);
+        if (this.savedPageBeforeDetail !== null) {
+            this.xtreamStore.setPage(this.savedPageBeforeDetail);
+            this.savedPageBeforeDetail = null;
+        }
     }
 
     clearSelectedItem(): void {
@@ -92,6 +97,8 @@ export class XtreamCatalogFacadeService
     }
 
     selectItem(item: Record<string, unknown>): string[] | null {
+        this.savedPageBeforeDetail = this.xtreamStore.page();
+
         const xtreamId = item['xtream_id'];
         if (xtreamId === undefined || xtreamId === null) {
             return null;

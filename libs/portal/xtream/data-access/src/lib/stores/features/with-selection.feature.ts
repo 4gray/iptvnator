@@ -457,6 +457,9 @@ export function withSelection() {
              * Set category content sort mode
              */
             setContentSortMode(mode: XtreamCategorySortMode): void {
+                if (store.contentSortMode() === mode) {
+                    return;
+                }
                 patchState(store, {
                     contentSortMode: mode,
                     page: 0,
