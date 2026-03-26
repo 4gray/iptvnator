@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBar } from '@angular/material/progress-bar';
@@ -29,6 +29,15 @@ export class EpgProgressPanelComponent {
     readonly isVisible = this.epgProgress.isVisible;
     readonly queuedCount = this.epgProgress.queuedCount;
     readonly activeCount = this.epgProgress.activeCount;
+    readonly minimized = signal(false);
+
+    readonly loadingCount = computed(
+        () => this.imports().filter((i) => i.status === 'loading').length
+    );
+
+    toggleMinimize(): void {
+        this.minimized.update((v) => !v);
+    }
 
     get activeImports() {
         return this.imports().filter((item) => item.status !== 'queued');
