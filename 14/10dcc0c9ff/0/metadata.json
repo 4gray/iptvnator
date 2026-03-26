@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1410dcc0c9ff",
+  "session_id": "4f2f2cab-a227-46e8-a4c4-d8793ea5a92c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-26T15:02:04.79954Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.html",
+    "libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.scss"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "b65f3989-44e7-4e02-9e93-8687c08b30cc",
+  "checkpoint_transcript_start": 1423,
+  "transcript_lines_at_start": 1423,
+  "token_usage": {
+    "input_tokens": 35,
+    "cache_creation_tokens": 51686,
+    "cache_read_tokens": 3063301,
+    "output_tokens": 6244,
+    "api_call_count": 27
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-26T15:02:04.480547Z",
+    "agent_lines": 0,
+    "human_added": 1883,
+    "human_modified": 422,
+    "human_removed": 0,
+    "total_committed": 1916,
+    "agent_percentage": 0
+  }
+}
