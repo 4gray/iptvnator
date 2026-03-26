@@ -611,7 +611,7 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Abgeschlossene Downloads für alle Playlists löschen",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Abgeschlossene Downloads löschen (diese Playlist)",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "Abgeschlossene Downloads für diese Playlist löschen",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "Zuletzt angesehen löschen (dieser Abschnitt)",
+            "CLEAR_RECENTLY_VIEWED_SECTION": "Zuletzt angesehen löschen",
             "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "Zuletzt angesehen für diesen Abschnitt löschen",
             "XTREAM_CODE": "Xtream Code",
             "STALKER_PORTAL": "Stalker-Portal",
