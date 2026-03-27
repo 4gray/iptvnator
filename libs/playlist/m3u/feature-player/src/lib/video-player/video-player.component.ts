@@ -313,7 +313,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                                 map((playlist) => {
                                     this.store.dispatch(
                                         ChannelActions.setChannels({
-                                            channels: playlist.playlist.items,
+                                            channels:
+                                                this.extractPlaylistChannels(
+                                                    playlist
+                                                ),
                                         })
                                     );
 
@@ -353,7 +356,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
                                     this.store.dispatch(
                                         ChannelActions.setChannels({
-                                            channels: playlist.playlist.items,
+                                            channels:
+                                                this.extractPlaylistChannels(
+                                                    playlist
+                                                ),
                                         })
                                     );
 
@@ -491,6 +497,25 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 };
             }
         });
+    }
+
+    private extractPlaylistChannels(playlist: any): Channel[] {
+        if (Array.isArray(playlist?.playlist?.items)) {
+            return playlist.playlist.items as Channel[];
+        }
+
+        if (Array.isArray(playlist?.items)) {
+            return playlist.items as Channel[];
+        }
+
+        if (playlist?.isCustomPortal) {
+            console.warn(
+                '[VideoPlayer] Custom portal selected before content loader exists',
+                playlist
+            );
+        }
+
+        return [];
     }
 
     private async persistRecentlyViewedChannel(
@@ -676,10 +701,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     private handleRemoteControlCommand(command: {
         type:
-            | 'channel-select-number'
-            | 'volume-up'
-            | 'volume-down'
-            | 'volume-toggle-mute';
+        | 'channel-select-number'
+        | 'volume-up'
+        | 'volume-down'
+        | 'volume-toggle-mute';
         number?: number;
     }): void {
         if (command.type === 'channel-select-number' && command.number) {

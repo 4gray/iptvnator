@@ -109,6 +109,18 @@ export const playlistReducers = [
                         ...(p.portalUrl != null
                             ? { portalUrl: p.portalUrl }
                             : {}),
+                        ...(p.isCustomPortal != null
+                            ? { isCustomPortal: p.isCustomPortal }
+                            : {}),
+                        ...(p.customPortalKey != null
+                            ? { customPortalKey: p.customPortalKey }
+                            : {}),
+                        ...(p.customPortalOriginalUrl != null
+                            ? {
+                                customPortalOriginalUrl:
+                                    p.customPortalOriginalUrl,
+                            }
+                            : {}),
                         ...(p.favorites != null
                             ? { favorites: p.favorites }
                             : {}),

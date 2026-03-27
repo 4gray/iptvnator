@@ -78,7 +78,6 @@ export class RecentPlaylistsComponent {
     readonly ghostElements = new Array(10);
 
     constructor() {
-        // Update searchQuery when input changes
         effect(() => {
             this.searchQuery.next(this.searchQueryInput());
         });
@@ -93,14 +92,21 @@ export class RecentPlaylistsComponent {
         map(([playlists, searchQuery, filters, sortOptions]) => {
             const filteredPlaylists = playlists
                 .filter((item) => {
+                    const isCustomPortalStalker = item.isCustomPortal === true;
+
                     const isStalkerFilter =
-                        item.macAddress && filters.includes('stalker');
+                        (Boolean(item.macAddress) || isCustomPortalStalker) &&
+                        filters.includes('stalker');
+
                     const isXtreamFilter =
-                        item.username &&
-                        item.password &&
-                        item.serverUrl &&
+                        !isCustomPortalStalker &&
+                        Boolean(item.username) &&
+                        Boolean(item.password) &&
+                        Boolean(item.serverUrl) &&
                         filters.includes('xtream');
+
                     const isM3uFilter =
+                        !isCustomPortalStalker &&
                         !item.username &&
                         !item.password &&
                         !item.serverUrl &&
@@ -108,9 +114,7 @@ export class RecentPlaylistsComponent {
                         filters.includes('m3u');
 
                     return (
-                        (isStalkerFilter && filters.includes('stalker')) ||
-                        (isXtreamFilter && filters.includes('xtream')) ||
-                        (isM3uFilter && filters.includes('m3u'))
+                        isStalkerFilter || isXtreamFilter || isM3uFilter
                     );
                 })
                 .filter((item) =>
@@ -119,7 +123,6 @@ export class RecentPlaylistsComponent {
                         .includes(searchQuery.toLowerCase())
                 );
 
-            // Apply sorting using the SortService
             const sortedPlaylists = this.sortService.sortPlaylists(
                 filteredPlaylists,
                 sortOptions
@@ -132,20 +135,12 @@ export class RecentPlaylistsComponent {
         })
     );
 
-    /**
-     * Opens the details dialog with the information about the provided playlist
-     * @param data selected playlist
-     */
     openInfoDialog(data: PlaylistMeta): void {
         this.dialog.open(PlaylistInfoComponent, {
             data,
         });
     }
 
-    /**
-     * Drop event handler - applies the new sort order to the playlists array
-     * @param event drop event
-     */
     drop(event: CdkDragDrop<PlaylistMeta[]>, playlists: PlaylistMeta[]): void {
         moveItemInArray(playlists, event.previousIndex, event.currentIndex);
         this.store.dispatch(
@@ -163,20 +158,25 @@ export class RecentPlaylistsComponent {
     }
 
     getPlaylist(playlistMeta: PlaylistMeta): void {
+        if (playlistMeta.isCustomPortal || playlistMeta.macAddress) {
+            this.router.navigate([
+                '/workspace',
+                'stalker',
+                playlistMeta._id,
+                'vod',
+            ]);
+            return;
+        }
+
         if (playlistMeta.serverUrl) {
             this.router.navigate(['/workspace', 'xtreams', playlistMeta._id]);
-        } else if (playlistMeta.macAddress) {
-            this.router.navigate(['/workspace', 'stalker', playlistMeta._id]);
-        } else {
-            this.router.navigate(['/workspace', 'playlists', playlistMeta._id]);
-            this.playlistClicked.emit(playlistMeta._id);
+            return;
         }
+
+        this.router.navigate(['/workspace', 'playlists', playlistMeta._id]);
+        this.playlistClicked.emit(playlistMeta._id);
     }
 
-    /**
-     * Triggers on remove click
-     * @param playlistId playlist id to remove
-     */
     removeClicked(playlistId: string): void {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.TITLE'),
@@ -189,10 +189,6 @@ export class RecentPlaylistsComponent {
         });
     }
 
-    /**
-     * Removes the provided playlist from the database
-     * @param playlistId playlist id to remove
-     */
     async removePlaylist(playlistId: string) {
         const deleted = await this.databaseService.deletePlaylist(playlistId);
         if (deleted) {
@@ -207,16 +203,15 @@ export class RecentPlaylistsComponent {
         }
     }
 
-    /**
-     * Sends an IPC event with the playlist details to the main process to trigger the refresh operation
-     * @param item playlist to update
-     */
     refreshPlaylist(item: PlaylistMeta) {
+        if (item.isCustomPortal) {
+            this.router.navigate(['/workspace', 'stalker', item._id, 'vod']);
+            return;
+        }
+
         if (item.serverUrl) {
-            // For Xtream playlists, delete and re-import
             this.refreshXtreamPlaylist(item);
         } else {
-            // For M3U playlists, use existing refresh logic
             this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
                 id: item._id,
                 title: item.title,
@@ -225,10 +220,6 @@ export class RecentPlaylistsComponent {
         }
     }
 
-    /**
-     * Refresh Xtream playlist by deleting all data and re-importing from remote
-     * @param item Xtream playlist to refresh
-     */
     async refreshXtreamPlaylist(item: PlaylistMeta) {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant(
@@ -239,8 +230,6 @@ export class RecentPlaylistsComponent {
             ),
             onConfirm: async () => {
                 try {
-                    // Show immediate feedback — deletion can take several seconds
-                    // for large playlists.
                     this.snackBar.open(
                         this.translate.instant(
                             'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.STARTED'
@@ -249,33 +238,27 @@ export class RecentPlaylistsComponent {
                         { duration: 2000 }
                     );
 
-                    // Delete content/categories and update the timestamp in
-                    // parallel — both operations are fully independent.
                     const updateDate = Date.now();
-                    const [
-                        {
-                            favoritedXtreamIds,
-                            recentlyViewedXtreamIds,
-                            hiddenCategories,
-                        },
-                    ] = await Promise.all([
-                        this.databaseService.deleteXtreamPlaylistContent(
-                            item._id
-                        ),
-                        this.databaseService.updateXtreamPlaylistDetails({
-                            id: item._id,
-                            updateDate,
-                        }),
-                    ]);
+                    const [{ favoritedXtreamIds, recentlyViewedXtreamIds, hiddenCategories }] =
+                        await Promise.all([
+                            this.databaseService.deleteXtreamPlaylistContent(
+                                item._id
+                            ),
+                            this.databaseService.updateXtreamPlaylistDetails({
+                                id: item._id,
+                                updateDate,
+                            }),
+                        ]);
 
-                    // Update the timestamp in NgRx / IndexedDB
                     this.store.dispatch(
                         PlaylistActions.updatePlaylistMeta({
-                            playlist: { ...item, updateDate },
+                            playlist: {
+                                ...item,
+                                updateDate,
+                            },
                         })
                     );
 
-                    // Persist user data so it can be restored after re-import
                     const restoreKey = `xtream-restore-${item._id}`;
                     localStorage.setItem(
                         restoreKey,
@@ -286,7 +269,6 @@ export class RecentPlaylistsComponent {
                         })
                     );
 
-                    // Navigate to the playlist to trigger re-import
                     this.router.navigate(['/workspace', 'xtreams', item._id]);
                 } catch (error) {
                     console.error('Error refreshing Xtream playlist:', error);

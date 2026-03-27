@@ -21,6 +21,14 @@ import {
 import { Playlist } from 'shared-interfaces';
 import { v4 as uuid } from 'uuid';
 
+type ParsedPortalInput = {
+    originalInput: string;
+    normalizedPortalUrl: string;
+    isFullStalkerPortal: boolean;
+    isCustomPortal: boolean;
+    customPortalKey?: string;
+};
+
 @Component({
     imports: [
         FormsModule,
@@ -55,12 +63,17 @@ import { v4 as uuid } from 'uuid';
 })
 export class StalkerPortalImportComponent {
     readonly addClicked = output<void>();
-    readonly URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
+
+    readonly URL_REGEX =
+        /^(portal::\[key:[^\]]+\](http|https):\/\/[^ "]+|(http|https|file):\/\/[^ "]+)$/i;
+
+    readonly CUSTOM_PORTAL_REGEX =
+        /^portal::\[key:([^\]]+)\](https?:\/\/[^ "]+)$/i;
 
     readonly form = new FormGroup({
         _id: new FormControl(uuid()),
         title: new FormControl('', [Validators.required]),
-        macAddress: new FormControl('', [Validators.required]),
+        macAddress: new FormControl(''),
         serialNumber: new FormControl(''),
         deviceId1: new FormControl(''),
         deviceId2: new FormControl(''),
@@ -91,10 +104,33 @@ export class StalkerPortalImportComponent {
         this.isLoading.set(true);
 
         try {
-            const originalUrl = this.form.value.portalUrl;
-            const transformedUrl = this.transformPortalUrl(originalUrl);
-            const isFullStalkerPortal =
-                this.isFullStalkerPortalUrl(originalUrl);
+            const parsedPortal = this.parsePortalInput(this.form.value.portalUrl);
+
+            if (!parsedPortal) {
+                this.snackBar.open('Invalid portal URL format.', undefined, {
+                    duration: 4000,
+                });
+                return;
+            }
+
+            const {
+                originalInput,
+                normalizedPortalUrl,
+                isFullStalkerPortal,
+                isCustomPortal,
+                customPortalKey,
+            } = parsedPortal;
+
+            const macAddress = this.form.value.macAddress?.trim() || undefined;
+
+            if (!isCustomPortal && !macAddress) {
+                this.snackBar.open(
+                    'MAC address is required for stalker portals.',
+                    undefined,
+                    { duration: 5000 }
+                );
+                return;
+            }
 
             let stalkerToken: string | undefined;
             let stalkerAccountInfo: Playlist['stalkerAccountInfo'] | undefined;
@@ -104,14 +140,12 @@ export class StalkerPortalImportComponent {
             let stalkerSignature1: string | undefined;
             let stalkerSignature2: string | undefined;
 
-            // For full stalker portal URLs, perform handshake and get profile
-            if (isFullStalkerPortal) {
-                // Use provided serial number or generate a new one
+            // Authenticate only for real full stalker portals, not for custom VOD portals
+            if (isFullStalkerPortal && !isCustomPortal) {
                 stalkerSerialNumber =
                     this.form.value.serialNumber?.trim() ||
                     STALKER_SERIAL_NUMBER;
 
-                // Use provided device IDs if available (64 hex chars each)
                 stalkerDeviceId1 =
                     this.form.value.deviceId1?.trim() || undefined;
                 stalkerDeviceId2 =
@@ -124,8 +158,8 @@ export class StalkerPortalImportComponent {
                 try {
                     const authResult =
                         await this.stalkerSessionService.authenticate(
-                            transformedUrl,
-                            this.form.value.macAddress,
+                            normalizedPortalUrl,
+                            macAddress,
                             stalkerSerialNumber,
                             stalkerDeviceId1,
                             stalkerDeviceId2
@@ -143,14 +177,13 @@ export class StalkerPortalImportComponent {
                         };
                     }
 
-                    // Show success notification with account info if available
                     if (stalkerAccountInfo?.expireDate) {
                         const expireDate = new Date(
                             stalkerAccountInfo.expireDate * 1000
                         );
                         this.snackBar.open(
                             `Portal validated. Expires: ${expireDate.toLocaleDateString()}`,
-                            null,
+                            undefined,
                             { duration: 3000 }
                         );
                     }
@@ -161,18 +194,21 @@ export class StalkerPortalImportComponent {
                     );
                     this.snackBar.open(
                         'Failed to authenticate with portal. Please check URL and MAC address.',
-                        null,
+                        undefined,
                         { duration: 5000 }
                     );
-                    this.isLoading.set(false);
                     return;
                 }
             }
 
             const playlist: Playlist = {
                 ...this.form.value,
-                portalUrl: transformedUrl,
+                macAddress,
+                portalUrl: normalizedPortalUrl,
                 isFullStalkerPortal,
+                isCustomPortal,
+                customPortalKey,
+                customPortalOriginalUrl: originalInput,
                 stalkerToken,
                 stalkerAccountInfo,
                 stalkerSerialNumber,
@@ -189,6 +225,39 @@ export class StalkerPortalImportComponent {
         }
     }
 
+    parsePortalInput(value: string | null | undefined): ParsedPortalInput | null {
+        const input = value?.trim();
+
+        if (!input) {
+            return null;
+        }
+
+        const customMatch = input.match(this.CUSTOM_PORTAL_REGEX);
+
+        if (customMatch) {
+            const [, customPortalKey, customPortalUrl] = customMatch;
+
+            return {
+                originalInput: input,
+                normalizedPortalUrl: customPortalUrl,
+                isCustomPortal: true,
+                customPortalKey: customPortalKey.trim(),
+                isFullStalkerPortal: false,
+            };
+        }
+
+        if (!input.match(/^(http|https|file):\/\/[^ "]+$/i)) {
+            return null;
+        }
+
+        return {
+            originalInput: input,
+            normalizedPortalUrl: this.transformPortalUrl(input),
+            isCustomPortal: false,
+            isFullStalkerPortal: this.isFullStalkerPortalUrl(input),
+        };
+    }
+
     /**
      * Checks if the URL is a full stalker portal URL that requires handshake authentication
      * Pattern: example.com/stalker_portal/c or example.com/stalker_portal/...
@@ -203,33 +272,27 @@ export class StalkerPortalImportComponent {
      * - Full stalker portal (example.com/stalker_portal/c) -> example.com/stalker_portal/server/load.php
      */
     transformPortalUrl(url: string): string {
-        // Remove trailing slashes
         url = url.replace(/\/+$/, '');
 
-        // Case 1: Simple URL ending with /c -> convert to /portal.php
         if (url.endsWith('/c')) {
-            // Check if it's a full stalker portal URL
             if (url.includes('/stalker_portal')) {
-                // example.com/stalker_portal/c -> example.com/stalker_portal/server/load.php
                 return url.replace(
                     /\/stalker_portal\/c$/,
                     '/stalker_portal/server/load.php'
                 );
             }
-            // Simple URL: example.com/c -> example.com/portal.php
+
             return url.replace(/\/c$/, '/portal.php');
         }
 
-        // Case 2: Full stalker portal URL without /c at the end
         if (
             url.includes('/stalker_portal') &&
             !url.includes('/server/load.php')
         ) {
-            // example.com/stalker_portal -> example.com/stalker_portal/server/load.php
             if (url.endsWith('/stalker_portal')) {
                 return url + '/server/load.php';
             }
-            // If it has other path segments after /stalker_portal, append server/load.php
+
             if (!url.endsWith('/load.php')) {
                 return url.replace(
                     /\/stalker_portal(\/.*)?$/,
@@ -238,7 +301,6 @@ export class StalkerPortalImportComponent {
             }
         }
 
-        // Otherwise keep the provided url
         return url;
     }
 }

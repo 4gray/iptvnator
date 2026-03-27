@@ -48,11 +48,13 @@ const LAST_ACTIVE_PLAYLIST_STORAGE_KEY =
     'playlist-switcher:last-active-playlist-id';
 const SEARCH_QUERY_STORAGE_KEY = 'playlist-switcher:search-query';
 const PLAYLIST_TYPE_FILTER_STORAGE_KEY = 'playlist-switcher:type-filters';
+
 const DEFAULT_PLAYLIST_TYPE_FILTERS: Record<PlaylistFilterType, boolean> = {
     m3u: true,
     stalker: true,
     xtream: true,
 };
+
 interface PlaylistSectionMemory {
     providers: Partial<Record<PlaylistSectionProvider, string>>;
     playlists: Record<
@@ -64,6 +66,7 @@ interface PlaylistSectionMemory {
         }
     >;
 }
+
 const XTREAM_SECTIONS = [
     'live',
     'vod',
@@ -74,6 +77,7 @@ const XTREAM_SECTIONS = [
     'recently-added',
     'downloads',
 ] as const;
+
 const STALKER_SECTIONS = [
     'itv',
     'vod',
@@ -83,6 +87,7 @@ const STALKER_SECTIONS = [
     'search',
     'downloads',
 ] as const;
+
 const M3U_SECTIONS = ['all', 'groups', 'favorites', 'recent'] as const;
 
 @Component({
@@ -108,11 +113,8 @@ export class PlaylistSwitcherComponent {
     private readonly portalStatusService = inject(PortalStatusService);
     private focusSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    /** Current playlist title to display */
     readonly currentTitle = input.required<string>();
-    /** Subtitle to display (e.g., "123 Channels" or "Xtream Code") */
     readonly subtitle = input<string>('');
-    /** Emitted when a different playlist is selected */
     readonly playlistSelected = output<string>();
 
     readonly menuTrigger = viewChild.required<MatMenuTrigger>('menuTrigger');
@@ -122,34 +124,31 @@ export class PlaylistSwitcherComponent {
     readonly searchInput =
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
-    /** Signal for tracking menu open state */
     readonly isMenuOpen = signal(false);
-
-    /** Search query for filtering playlists */
     readonly searchQuery = signal(this.readPersistedSearchQuery());
     readonly playlistTypeFilters = signal(this.readPersistedTypeFilters());
 
-    /** All playlists from store */
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
     readonly allPlaylistsLoaded = this.store.selectSignal(
         selectPlaylistsLoadingFlag
     );
 
-    /** Filtered playlists based on search query, sorted by importDate (newest first) */
     readonly filteredPlaylists = computed(() => {
         const query = this.searchQuery().toLowerCase().trim();
         const filters = this.playlistTypeFilters();
         const allPlaylists = this.playlists();
+
         const filteredByType = allPlaylists.filter((playlist) => {
             const playlistType = this.getPlaylistFilterType(playlist);
             return filters[playlistType];
         });
+
         const filtered = query
             ? filteredByType.filter(
-                  (p) =>
-                      p.title?.toLowerCase().includes(query) ||
-                      p.filename?.toLowerCase().includes(query)
-              )
+                (p) =>
+                    p.title?.toLowerCase().includes(query) ||
+                    p.filename?.toLowerCase().includes(query)
+            )
             : filteredByType;
 
         return [...filtered].sort(
@@ -159,14 +158,15 @@ export class PlaylistSwitcherComponent {
         );
     });
 
-    /** Current active playlist ID from route */
     readonly routePlaylistId = signal<string | null>(null);
     readonly selectedPlaylistId = this.store.selectSignal(
         selectActivePlaylistId
     );
+
     readonly activePlaylistId = computed(() => {
         return this.routePlaylistId() ?? this.selectedPlaylistId() ?? null;
     });
+
     readonly activePlaylist = computed(() => {
         const playlistId = this.activePlaylistId();
         if (!playlistId) {
@@ -178,6 +178,7 @@ export class PlaylistSwitcherComponent {
             null
         );
     });
+
     readonly displayTitle = computed(() => {
         if (!this.activePlaylistId()) {
             return 'Select playlist';
@@ -193,59 +194,52 @@ export class PlaylistSwitcherComponent {
         );
     });
 
-    /** Portal statuses for Xtream playlists */
     readonly portalStatuses = signal<Map<string, PortalStatus>>(new Map());
 
     constructor() {
-        // Extract playlist ID from current route
         this.updateActivePlaylistFromRoute(this.router.url);
         this.rememberSectionFromRoute(this.router.url);
+
         effect(() => {
             if (!this.allPlaylistsLoaded()) {
                 return;
             }
-            const playlistIds = this.playlists().map(
-                (playlist) => playlist._id
-            );
+
+            const playlistIds = this.playlists().map((playlist) => playlist._id);
             this.removeDeletedPlaylistsFromSectionMemory(playlistIds);
         });
+
         effect(() => {
             const allPlaylistsLoaded = this.allPlaylistsLoaded();
-            const playlistIds = this.playlists().map(
-                (playlist) => playlist._id
-            );
+            const playlistIds = this.playlists().map((playlist) => playlist._id);
             const playlistIdSet = new Set(playlistIds);
             const selectedId = this.selectedPlaylistId();
             const routeId = this.routePlaylistId();
             const storedId = this.readPersistedActivePlaylistId();
 
-            // Before playlists are loaded, avoid stale cleanups.
-            // But still keep storage in sync with explicit runtime context.
             if (!allPlaylistsLoaded) {
                 if (routeId) {
                     this.writePersistedActivePlaylistId(routeId);
                     return;
                 }
+
                 if (selectedId) {
                     this.writePersistedActivePlaylistId(selectedId);
                 }
+
                 return;
             }
 
-            // If route provides playlist context, keep storage in sync with URL state.
             if (routeId && playlistIdSet.has(routeId)) {
                 this.writePersistedActivePlaylistId(routeId);
                 return;
             }
 
-            // Keep storage up-to-date with selected playlist state.
             if (selectedId && playlistIdSet.has(selectedId)) {
                 this.writePersistedActivePlaylistId(selectedId);
                 return;
             }
 
-            // On routes without playlist in URL (for example dashboard),
-            // restore last known active playlist when store has none.
             if (
                 !routeId &&
                 !selectedId &&
@@ -258,13 +252,11 @@ export class PlaylistSwitcherComponent {
                 return;
             }
 
-            // Remove stale value if playlist no longer exists.
             if (storedId && !playlistIdSet.has(storedId)) {
                 this.clearPersistedActivePlaylistId();
             }
         });
 
-        // Listen for route changes
         this.router.events
             .pipe(
                 filter((event) => event instanceof NavigationEnd),
@@ -282,8 +274,8 @@ export class PlaylistSwitcherComponent {
     }
 
     private updateActivePlaylistFromRoute(url: string) {
-        // Match routes like /playlists/:id, /xtreams/:id, /stalker/:id
         const match = url.match(/\/(playlists|xtreams|stalker)\/([^/?]+)/);
+
         if (match) {
             this.routePlaylistId.set(match[2]);
         } else {
@@ -293,6 +285,7 @@ export class PlaylistSwitcherComponent {
 
     private rememberSectionFromRoute(url: string): void {
         const routeContext = this.getRouteContext(url);
+
         if (!routeContext.provider || !routeContext.section) {
             return;
         }
@@ -301,12 +294,14 @@ export class PlaylistSwitcherComponent {
             routeContext.section,
             routeContext.provider
         );
+
         if (!normalized) {
             return;
         }
 
         const memory = this.readSectionMemory();
         memory.providers[routeContext.provider] = normalized;
+
         if (routeContext.playlistId) {
             memory.playlists[routeContext.playlistId] = {
                 provider: routeContext.provider,
@@ -314,6 +309,7 @@ export class PlaylistSwitcherComponent {
                 updatedAt: Date.now(),
             };
         }
+
         this.writeSectionMemory(memory);
     }
 
@@ -331,6 +327,7 @@ export class PlaylistSwitcherComponent {
                             playlist.username,
                             playlist.password
                         );
+
                     return { id: playlist._id, status };
                 } catch {
                     return {
@@ -365,6 +362,7 @@ export class PlaylistSwitcherComponent {
 
     togglePlaylistTypeFilter(type: PlaylistFilterType, event?: Event): void {
         event?.stopPropagation();
+
         const current = this.playlistTypeFilters();
         const next = {
             ...current,
@@ -387,6 +385,7 @@ export class PlaylistSwitcherComponent {
         const triggerWidth = Math.round(
             this.triggerElement().nativeElement.getBoundingClientRect().width
         );
+
         this.document.documentElement.style.setProperty(
             '--playlist-switcher-overlay-width',
             `${triggerWidth}px`
@@ -401,11 +400,13 @@ export class PlaylistSwitcherComponent {
 
     private focusSearchField() {
         this.clearSearchFocusTimeout();
+
         this.focusSearchTimeoutId = setTimeout(() => {
             const input = this.searchInput()?.nativeElement;
             if (!input) {
                 return;
             }
+
             input.focus();
             input.select();
             this.focusSearchTimeoutId = null;
@@ -428,8 +429,10 @@ export class PlaylistSwitcherComponent {
         const targetCommands = this.getTargetCommands(
             provider,
             playlist._id,
-            routeContext
+            routeContext,
+            playlist.isCustomPortal === true
         );
+
         if (targetCommands) {
             this.router.navigate(targetCommands);
         }
@@ -448,22 +451,34 @@ export class PlaylistSwitcherComponent {
     private getProviderForPlaylist(
         playlist: PlaylistMeta
     ): PlaylistRouteProvider {
+        if (playlist.isCustomPortal) {
+            return 'stalker';
+        }
+
         if (playlist.serverUrl) {
             return 'xtreams';
         }
+
         if (playlist.macAddress) {
             return 'stalker';
         }
+
         return 'playlists';
     }
 
     private getPlaylistFilterType(playlist: PlaylistMeta): PlaylistFilterType {
+        if (playlist.isCustomPortal) {
+            return 'stalker';
+        }
+
         if (playlist.macAddress) {
             return 'stalker';
         }
+
         if (playlist.serverUrl) {
             return 'xtream';
         }
+
         return 'm3u';
     }
 
@@ -471,6 +486,7 @@ export class PlaylistSwitcherComponent {
         const inWorkspace = this.isWorkspaceRoute(url);
         const isWorkspaceDashboard =
             /^\/workspace(?:\/dashboard)?(?:\/)?(?:\?.*)?$/.test(url);
+
         const match = url.match(
             /^\/(?:workspace\/)?(playlists|xtreams|stalker)\/([^/?]+)(?:\/([^/?]+))?/
         );
@@ -487,14 +503,16 @@ export class PlaylistSwitcherComponent {
     private getTargetCommands(
         provider: PlaylistRouteProvider,
         playlistId: string,
-        routeContext: PlaylistRouteContext
+        routeContext: PlaylistRouteContext,
+        forceVodForCustomPortal = false
     ): string[] | null {
         const prefix = routeContext.inWorkspace ? ['workspace'] : [];
 
-        // In workspace routes without explicit provider context (for example
-        // dashboard and sources), selecting a source should only change active
-        // context and must not trigger navigation.
-        if (routeContext.inWorkspace && !routeContext.provider) {
+        if (
+            routeContext.inWorkspace &&
+            !routeContext.provider &&
+            !routeContext.isWorkspaceDashboard
+        ) {
             return null;
         }
 
@@ -502,8 +520,10 @@ export class PlaylistSwitcherComponent {
             const section = this.resolveTargetSection(
                 provider,
                 routeContext.section,
-                playlistId
+                playlistId,
+                forceVodForCustomPortal
             );
+
             return [...prefix, 'playlists', playlistId, section];
         }
 
@@ -514,31 +534,41 @@ export class PlaylistSwitcherComponent {
         const section = this.resolveTargetSection(
             provider,
             routeContext.section,
-            playlistId
+            playlistId,
+            forceVodForCustomPortal
         );
+
         return [...prefix, provider, playlistId, section];
     }
 
     private resolveTargetSection(
         provider: PlaylistSectionProvider,
         currentSection: string | null,
-        targetPlaylistId: string
+        targetPlaylistId: string,
+        forceVodForCustomPortal = false
     ): string {
+        if (forceVodForCustomPortal && provider === 'stalker') {
+            return 'vod';
+        }
+
         const fromCurrent = this.normalizeSectionForProvider(
             currentSection,
             provider
         );
+
         if (fromCurrent) {
             return fromCurrent;
         }
 
         const memory = this.readSectionMemory();
         const playlistMemory = memory.playlists[targetPlaylistId];
+
         if (playlistMemory?.provider === provider) {
             const normalizedPlaylistSection = this.normalizeSectionForProvider(
                 playlistMemory.section,
                 provider
             );
+
             if (normalizedPlaylistSection) {
                 return normalizedPlaylistSection;
             }
@@ -549,6 +579,7 @@ export class PlaylistSwitcherComponent {
             providerMemory,
             provider
         );
+
         if (normalizedProviderSection) {
             return normalizedProviderSection;
         }
@@ -566,6 +597,7 @@ export class PlaylistSwitcherComponent {
         if (provider === 'xtreams') {
             return Boolean(window.electron);
         }
+
         return true;
     }
 
@@ -581,6 +613,7 @@ export class PlaylistSwitcherComponent {
             if (section === 'itv') {
                 return 'live';
             }
+
             return XTREAM_SECTIONS.includes(
                 section as (typeof XTREAM_SECTIONS)[number]
             )
@@ -599,9 +632,11 @@ export class PlaylistSwitcherComponent {
         if (section === 'live') {
             return 'itv';
         }
+
         if (section === 'recently-added') {
             return 'recent';
         }
+
         return STALKER_SECTIONS.includes(
             section as (typeof STALKER_SECTIONS)[number]
         )
@@ -614,10 +649,13 @@ export class PlaylistSwitcherComponent {
 
         try {
             const raw = localStorage.getItem(LAST_SECTION_STORAGE_KEY);
+
             if (!raw) {
                 return empty;
             }
+
             const parsed = JSON.parse(raw);
+
             if (typeof parsed !== 'object' || parsed === null) {
                 return empty;
             }
@@ -629,30 +667,35 @@ export class PlaylistSwitcherComponent {
             const parsedProviders = (parsed as Record<string, unknown>)[
                 'providers'
             ];
+
             if (
                 typeof parsedProviders === 'object' &&
                 parsedProviders !== null
             ) {
                 const candidate = parsedProviders as Record<string, unknown>;
+
                 if (typeof candidate['playlists'] === 'string') {
                     providers.playlists = candidate['playlists'];
                 }
+
                 if (typeof candidate['xtreams'] === 'string') {
                     providers.xtreams = candidate['xtreams'];
                 }
+
                 if (typeof candidate['stalker'] === 'string') {
                     providers.stalker = candidate['stalker'];
                 }
             } else {
-                // Backward compatibility with previous format:
-                // { playlists: "...", xtreams: "...", stalker: "..." }
                 const legacy = parsed as Record<string, unknown>;
+
                 if (typeof legacy['playlists'] === 'string') {
                     providers.playlists = legacy['playlists'];
                 }
+
                 if (typeof legacy['xtreams'] === 'string') {
                     providers.xtreams = legacy['xtreams'];
                 }
+
                 if (typeof legacy['stalker'] === 'string') {
                     providers.stalker = legacy['stalker'];
                 }
@@ -661,6 +704,7 @@ export class PlaylistSwitcherComponent {
             const parsedPlaylists = (parsed as Record<string, unknown>)[
                 'playlists'
             ];
+
             if (
                 typeof parsedPlaylists === 'object' &&
                 parsedPlaylists !== null
@@ -676,10 +720,12 @@ export class PlaylistSwitcherComponent {
                     const provider = row['provider'];
                     const section = row['section'];
                     const updatedAt = row['updatedAt'];
+
                     const isProviderValid =
                         provider === 'playlists' ||
                         provider === 'xtreams' ||
                         provider === 'stalker';
+
                     if (!isProviderValid || typeof section !== 'string') {
                         return;
                     }
@@ -708,7 +754,7 @@ export class PlaylistSwitcherComponent {
                 JSON.stringify(memory)
             );
         } catch {
-            // Ignore storage write failures (private mode/storage quota).
+            // ignore
         }
     }
 
@@ -717,6 +763,7 @@ export class PlaylistSwitcherComponent {
             const value = localStorage.getItem(
                 LAST_ACTIVE_PLAYLIST_STORAGE_KEY
             );
+
             return value && value.trim().length > 0 ? value : null;
         } catch {
             return null;
@@ -727,7 +774,7 @@ export class PlaylistSwitcherComponent {
         try {
             localStorage.setItem(LAST_ACTIVE_PLAYLIST_STORAGE_KEY, playlistId);
         } catch {
-            // Ignore storage write failures (private mode/storage quota).
+            // ignore
         }
     }
 
@@ -735,7 +782,7 @@ export class PlaylistSwitcherComponent {
         try {
             localStorage.removeItem(LAST_ACTIVE_PLAYLIST_STORAGE_KEY);
         } catch {
-            // Ignore storage write failures.
+            // ignore
         }
     }
 
@@ -751,13 +798,14 @@ export class PlaylistSwitcherComponent {
         try {
             localStorage.setItem(SEARCH_QUERY_STORAGE_KEY, value);
         } catch {
-            // Ignore storage write failures (private mode/storage quota).
+            // ignore
         }
     }
 
     private readPersistedTypeFilters(): Record<PlaylistFilterType, boolean> {
         try {
             const raw = localStorage.getItem(PLAYLIST_TYPE_FILTER_STORAGE_KEY);
+
             if (!raw) {
                 return { ...DEFAULT_PLAYLIST_TYPE_FILTERS };
             }
@@ -765,6 +813,7 @@ export class PlaylistSwitcherComponent {
             const parsed = JSON.parse(raw) as Partial<
                 Record<PlaylistFilterType, boolean>
             >;
+
             const next = {
                 m3u: parsed.m3u !== false,
                 stalker: parsed.stalker !== false,
@@ -790,7 +839,7 @@ export class PlaylistSwitcherComponent {
                 JSON.stringify(filters)
             );
         } catch {
-            // Ignore storage write failures (private mode/storage quota).
+            // ignore
         }
     }
 
@@ -800,6 +849,7 @@ export class PlaylistSwitcherComponent {
         const existingIdSet = new Set(existingIds);
         const memory = this.readSectionMemory();
         const currentEntries = Object.entries(memory.playlists);
+
         if (currentEntries.length === 0) {
             return;
         }
@@ -817,6 +867,7 @@ export class PlaylistSwitcherComponent {
                 entry.section,
                 entry.provider
             );
+
             if (!normalizedSection) {
                 hasChanges = true;
                 return;
@@ -839,25 +890,34 @@ export class PlaylistSwitcherComponent {
     }
 
     getPlaylistIcon(playlist: PlaylistMeta): string {
-        if (playlist.macAddress) {
+        if (playlist.isCustomPortal || playlist.macAddress) {
             return 'dashboard';
         }
+
         if (playlist.serverUrl) {
             return 'public';
         }
+
         if (playlist.url) {
             return 'cloud';
         }
+
         return 'folder';
     }
 
     getPlaylistTypeLabel(playlist: PlaylistMeta): string {
+        if (playlist.isCustomPortal) {
+            return 'Custom VOD Portal';
+        }
+
         if (playlist.macAddress) {
             return 'Stalker Portal';
         }
+
         if (playlist.serverUrl) {
             return 'Xtream Code';
         }
+
         return `${playlist.count} channels`;
     }
 

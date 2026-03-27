@@ -34,13 +34,13 @@ import {
     mapRegularSeriesSeasons,
     mapVodSeriesEpisodes,
     mapVodSeriesSeasonsToVm,
-    StalkerMappedEpisode,
-    StalkerSeriesSeasonVm,
-    VodSeriesSeasonVm,
     normalizeStalkerVodDetailsItem,
+    StalkerMappedEpisode,
     StalkerSelectedVodItem,
     StalkerStore,
+    StalkerSeriesSeasonVm,
     StalkerVodSource,
+    VodSeriesSeasonVm,
 } from '@iptvnator/portal/stalker/data-access';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { DownloadsService } from 'services';
@@ -119,10 +119,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly isSerialSeasonsLoading = this.stalkerStore.isSerialSeasonsLoading;
 
     constructor() {
-        // Effect to load VOD series seasons when a VOD series item is selected
         effect(() => {
             if (this.isVodSeries()) {
-                // Get seasons from the resource
                 const seasons = this.stalkerStore.getVodSeriesSeasonsResource();
                 this.vodSeriesSeasons.set(mapVodSeriesSeasonsToVm(seasons));
             } else {
@@ -130,20 +128,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
         });
 
-        // Effect to load playback positions for Stalker series
         effect(() => {
             const item = this.displayItem();
             const playlist = this.stalkerStore.currentPlaylist();
             if (item && playlist?._id) {
                 const normalizedSeriesId = this.toSeriesId(item.id);
-                this.logger.debug(
-                    'Loading positions for series',
-                    {
-                        id: item.id,
-                        seriesId: normalizedSeriesId,
-                        isSeries: item.is_series,
-                    }
-                );
+                this.logger.debug('Loading positions for series', {
+                    id: item.id,
+                    seriesId: normalizedSeriesId,
+                    isSeries: item.is_series,
+                });
                 if (!isNaN(normalizedSeriesId)) {
                     void this.loadSeriesPositions(
                         playlist._id,
@@ -273,7 +267,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * Loads episodes for a specific VOD season
      */
     async loadEpisodesForSeason(season: VodSeriesSeasonVm) {
-        // Set loading state in local signal
         const seasons = this.vodSeriesSeasons();
         const index = seasons.findIndex((s) => s.id === season.id);
         if (index === -1) return;
@@ -288,7 +281,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 season.id
             );
 
-            // Update with loaded episodes
             const newSeasons = [...this.vodSeriesSeasons()];
             const newIndex = newSeasons.findIndex((s) => s.id === season.id);
             if (newIndex !== -1) {
@@ -329,23 +321,32 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     onEpisodeClicked(episode: XtreamSerieEpisode) {
         const mappedEpisode = episode as StalkerMappedEpisode;
+        const playbackCmd = this.buildEpisodePlaybackCommand(episode);
+        const trackingId = this.getEpisodeTrackingId(episode);
+
+        if (!playbackCmd) {
+            this.snackBar.open(
+                this.translateService.instant('PORTALS.CONTENT_NOT_AVAILABLE'),
+                undefined,
+                {
+                    duration: 3000,
+                }
+            );
+            return;
+        }
 
         if (mappedEpisode.custom_sid === 'vod-series') {
-            // It's a VOD series episode (is_series=1 mode)
-            // Use originalId for playback URL, but use generated id for tracking
             this.playVodSeriesEpisode({
-                originalId: mappedEpisode.originalId, // For constructing playback URL
-                trackingId: episode.id, // The generated unique ID for position tracking
+                originalId: mappedEpisode.originalId,
+                trackingId,
                 name: episode.title,
                 series_number: episode.episode_num,
+                playbackCmd,
             });
         } else {
-            // Regular series or vclub mode (VOD with embedded series array)
-            // Use originalCmd for playback, episode.id for tracking
-            const trackingId = Number(episode.id);
             this.playEpisodeClicked(
                 episode.episode_num,
-                mappedEpisode.originalCmd,
+                playbackCmd,
                 trackingId
             );
         }
@@ -356,7 +357,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     playEpisodeClicked(episodeNum: number, cmd?: string, trackingId?: number) {
         const item = this.displayItem();
-        if (!item) return;
+        if (!item || !cmd) return;
+
         this.logger.debug('playEpisodeClicked', {
             episodeNum,
             cmd,
@@ -364,10 +366,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             seriesId: item.id,
         });
 
-        const position = trackingId
-            ? this.episodePlaybackPositions().get(trackingId)
-            : undefined;
+        const position =
+            trackingId !== undefined
+                ? this.episodePlaybackPositions().get(trackingId)
+                : undefined;
         const startTime = position?.positionSeconds;
+
         void this.startPlayback(
             cmd,
             item.info.name,
@@ -383,33 +387,33 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     playVodSeriesEpisode(episode: {
         originalId?: string;
-        trackingId: string;
+        trackingId: number;
         name: string;
         series_number: number;
+        playbackCmd: string;
     }) {
         const item = this.displayItem();
-        if (!item) return;
-        // Use originalId for playback URL (this is what the Stalker API expects)
-        const cmd = `/media/file_${episode.originalId ?? ''}.mpg`;
+        if (!item || !episode.playbackCmd) return;
+
         const episodeName = episode.name || `Episode ${episode.series_number}`;
-        // Use trackingId (generated unique ID) for playback position tracking
-        const trackingId = Number(episode.trackingId);
 
         this.logger.debug('playVodSeriesEpisode', {
             originalId: episode.originalId,
-            trackingId,
+            trackingId: episode.trackingId,
             seriesId: item.id,
             episodeName,
+            playbackCmd: episode.playbackCmd,
         });
 
-        const position = this.episodePlaybackPositions().get(trackingId);
+        const position = this.episodePlaybackPositions().get(episode.trackingId);
         const startTime = position?.positionSeconds;
+
         void this.startPlayback(
-            cmd,
+            episode.playbackCmd,
             `${item.info.name} - ${episodeName}`,
             item.info.movie_image,
             episode.series_number,
-            trackingId,
+            episode.trackingId,
             startTime
         );
     }
@@ -459,7 +463,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     showCopyNotification(): void {
         this.snackBar.open(
             this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            null,
+            undefined,
             {
                 duration: 2000,
             }
@@ -495,13 +499,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         } catch (error) {
             this.logger.error('Failed to start inline series playback', error);
             const errorMessage =
-                error instanceof Error &&
-                error.message === 'nothing_to_play'
+                error instanceof Error && error.message === 'nothing_to_play'
                     ? this.translateService.instant(
-                          'PORTALS.CONTENT_NOT_AVAILABLE'
-                      )
+                        'PORTALS.CONTENT_NOT_AVAILABLE'
+                    )
                     : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
-            this.snackBar.open(errorMessage, null, {
+
+            this.snackBar.open(errorMessage, undefined, {
                 duration: 3000,
             });
         }
@@ -544,11 +548,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             return;
         }
 
-        const customSid = (episode as { custom_sid?: string }).custom_sid;
-        const cmd =
-            customSid === 'vod-series'
-                ? `/media/file_${(episode as { originalId?: string }).originalId}.mpg`
-                : ((episode as { originalCmd?: string }).originalCmd ?? '');
+        const cmd = this.buildEpisodePlaybackCommand(episode);
+        if (!cmd) {
+            this.logger.error('Could not build episode playback command');
+            return;
+        }
 
         let url: string;
         try {
@@ -571,7 +575,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const posterUrl = episodeInfo?.movie_image;
         const seasonNum = Number(episode.season || 1);
         const episodeNum = episode.episode_num || 1;
-        const seriesTitle = item.info?.name || this.displayItem()?.info?.name || 'Series';
+        const seriesTitle =
+            item.info?.name || this.displayItem()?.info?.name || 'Series';
         const episodeTitle = `${seriesTitle} - S${String(seasonNum).padStart(
             2,
             '0'
@@ -635,6 +640,104 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         return episode.info as { movie_image?: string };
     }
 
+    private getEpisodeTrackingId(episode: XtreamSerieEpisode): number {
+        const mappedEpisode = episode as StalkerMappedEpisode & {
+            originalId?: string | number;
+            video_id?: string | number;
+            stream_id?: string | number;
+            movie_id?: string | number;
+        };
+
+        const numericCandidates: unknown[] = [
+            episode.id,
+            mappedEpisode.originalId,
+            mappedEpisode.video_id,
+            mappedEpisode.stream_id,
+            mappedEpisode.movie_id,
+        ];
+
+        for (const candidate of numericCandidates) {
+            const normalized = this.normalizeNumericId(candidate);
+            if (normalized !== null) {
+                return normalized;
+            }
+        }
+
+        return this.hashString(
+            `${episode.title ?? 'episode'}-${episode.episode_num ?? 0}`
+        );
+    }
+
+    private buildEpisodePlaybackCommand(episode: XtreamSerieEpisode): string {
+        const mappedEpisode = episode as StalkerMappedEpisode & {
+            cmd?: string;
+            originalCmd?: string;
+            originalId?: string | number;
+            video_id?: string | number;
+            stream_id?: string | number;
+            movie_id?: string | number;
+        };
+
+        const commandCandidates: unknown[] = [
+            mappedEpisode.originalCmd,
+            mappedEpisode.cmd,
+            (episode as { cmd?: string }).cmd,
+        ];
+
+        for (const candidate of commandCandidates) {
+            const normalized = this.normalizeCommand(candidate);
+            if (normalized) {
+                return normalized;
+            }
+        }
+
+        const numericCandidates: unknown[] = [
+            mappedEpisode.originalId,
+            mappedEpisode.video_id,
+            mappedEpisode.stream_id,
+            mappedEpisode.movie_id,
+        ];
+
+        for (const candidate of numericCandidates) {
+            const normalized = this.normalizeNumericId(candidate);
+            if (normalized !== null) {
+                return `/media/file_${normalized}.mpg`;
+            }
+        }
+
+        return '';
+    }
+
+    private normalizeCommand(value: unknown): string {
+        if (typeof value !== 'string') {
+            return '';
+        }
+
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return '';
+        }
+
+        if (trimmed.startsWith('ffmpeg ')) {
+            return trimmed.substring('ffmpeg '.length).trim();
+        }
+
+        if (trimmed.startsWith('ffrt ')) {
+            return trimmed.substring('ffrt '.length).trim();
+        }
+
+        return trimmed;
+    }
+
+    private normalizeNumericId(value: unknown): number | null {
+        if (value === null || value === undefined) {
+            return null;
+        }
+
+        const parsed = Number(String(value).trim());
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
     private getEpisodeDownloadId(episode: XtreamSerieEpisode): number {
         const customSid = (episode as { custom_sid?: string }).custom_sid;
 
@@ -647,7 +750,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 }
                 return this.hashString(cmd);
             }
-            return Number(episode.id);
+            return this.getEpisodeTrackingId(episode);
         }
 
         if (customSid === 'vod-series') {

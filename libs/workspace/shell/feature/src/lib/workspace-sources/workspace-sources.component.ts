@@ -5,17 +5,20 @@ import { Store } from '@ngrx/store';
 import {
     PlaylistType,
     RecentPlaylistsComponent,
-} from '@iptvnator/playlist/shared/ui';
+} from '../../../../../../playlist/shared/ui/src';
 import { TranslateService } from '@ngx-translate/core';
-import { selectActiveTypeFilters, selectAllPlaylistsMeta } from 'm3u-state';
+import {
+    selectActiveTypeFilters,
+    selectAllPlaylistsMeta,
+} from '../../../../../../m3u-state/src/lib/selectors';
 import { map, startWith } from 'rxjs';
-import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
+import { WORKSPACE_SHELL_ACTIONS } from '../../../../util/src';
 
 @Component({
     selector: 'app-workspace-sources',
     imports: [RecentPlaylistsComponent],
     templateUrl: './workspace-sources.component.html',
-    styleUrl: './workspace-sources.component.scss',
+    styleUrls: ['./workspace-sources.component.scss'],
 })
 export class WorkspaceSourcesComponent {
     private readonly route = inject(ActivatedRoute);
@@ -26,9 +29,11 @@ export class WorkspaceSourcesComponent {
     private readonly activeTypeFilters = this.store.selectSignal(
         selectActiveTypeFilters
     );
+
     private readonly playlists = this.store.selectSignal(
         selectAllPlaylistsMeta
     );
+
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
@@ -38,18 +43,21 @@ export class WorkspaceSourcesComponent {
         this.route.queryParamMap.pipe(map((params) => params.get('q') ?? '')),
         { initialValue: '' }
     );
+
     readonly title = computed(() => {
         this.languageTick();
 
-        const filters = this.activeTypeFilters();
+        const filters = this.activeTypeFilters() as string[];
 
         if (filters.length === 1) {
             if (filters[0] === 'm3u') {
                 return this.translateText('WORKSPACE.SOURCES.M3U_PLAYLISTS');
             }
+
             if (filters[0] === 'xtream') {
                 return this.translateText('WORKSPACE.SOURCES.XTREAM_PLAYLISTS');
             }
+
             if (filters[0] === 'stalker') {
                 return this.translateText(
                     'WORKSPACE.SOURCES.STALKER_PLAYLISTS'
@@ -62,19 +70,33 @@ export class WorkspaceSourcesComponent {
 
     readonly visibleSourcesCount = computed(() => {
         const query = this.searchQuery().trim().toLowerCase();
-        const filters = this.activeTypeFilters();
-        const allPlaylists = this.playlists();
+        const filters = this.activeTypeFilters() as string[];
+        const allPlaylists = this.playlists() as Array<{
+            title?: string;
+            username?: string;
+            password?: string;
+            serverUrl?: string;
+            macAddress?: string;
+            isCustomPortal?: boolean;
+        }>;
 
         return allPlaylists
             .filter((item) => {
+                const isCustomPortalStalker = item.isCustomPortal === true;
+
                 const isStalkerFilter =
-                    !!item.macAddress && filters.includes('stalker');
+                    (Boolean(item.macAddress) || isCustomPortalStalker) &&
+                    filters.includes('stalker');
+
                 const isXtreamFilter =
-                    !!item.username &&
-                    !!item.password &&
-                    !!item.serverUrl &&
+                    !isCustomPortalStalker &&
+                    Boolean(item.username) &&
+                    Boolean(item.password) &&
+                    Boolean(item.serverUrl) &&
                     filters.includes('xtream');
+
                 const isM3uFilter =
+                    !isCustomPortalStalker &&
                     !item.username &&
                     !item.password &&
                     !item.serverUrl &&
@@ -91,6 +113,7 @@ export class WorkspaceSourcesComponent {
         this.languageTick();
 
         const count = this.visibleSourcesCount();
+
         if (count === 1) {
             return this.translateText('WORKSPACE.SOURCES.PLAYLIST_COUNT_ONE');
         }

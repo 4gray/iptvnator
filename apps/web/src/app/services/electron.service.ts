@@ -37,6 +37,21 @@ interface ErrorStatus {
     readonly status?: number;
 }
 
+interface StalkerPayload {
+    url: string;
+    macAddress: string;
+    params: Record<string, string>;
+    requestId?: string;
+    token?: string;
+    serialNumber?: string;
+    customPortalKey?: string;
+}
+
+interface StalkerPayloadInput
+    extends Omit<StalkerPayload, 'params'> {
+    params: unknown;
+}
+
 @Injectable({
     providedIn: 'root',
 })
@@ -45,7 +60,8 @@ export class ElectronService extends DataService {
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translateService = inject(TranslateService);
-    private readonly silentXtreamActions = new Set<string>([
+
+    private readonly silentXtreamActions = new Set<XtreamCodeActions>([
         XtreamCodeActions.GetAccountInfo,
         XtreamCodeActions.GetLiveCategories,
         XtreamCodeActions.GetVodCategories,
@@ -60,7 +76,6 @@ export class ElectronService extends DataService {
     }
 
     private setupPlayerErrorListener() {
-        // Listen for player errors from the backend
         if (window.electron?.onPlayerError) {
             window.electron.onPlayerError(
                 (data: {
@@ -108,12 +123,9 @@ export class ElectronService extends DataService {
         return AppConfig.version;
     }
 
-    async sendIpcEvent<T = unknown>(
-        type: string,
-        payload?: unknown
-    ): Promise<T> {
+    async sendIpcEvent<T>(type: string, payload?: unknown): Promise<T> {
         if (type === PLAYLIST_PARSE_BY_URL) {
-            this.fetchM3uPlaylistFromUrl(payload);
+            this.fetchM3uPlaylistFromUrl(payload as Partial<Playlist>);
             return undefined as T;
         }
 
@@ -137,16 +149,13 @@ export class ElectronService extends DataService {
 
         if (type === 'STALKER_REQUEST') {
             return (await this.fetchStalkerData(
-                payload as {
-                    url: string;
-                    macAddress: string;
-                    params: Record<string, string>;
-                }
+                payload as StalkerPayloadInput
             )) as T;
         }
 
         if (type === 'OPEN_MPV_PLAYER') {
             const data = payload as PlayerLaunchPayload;
+
             try {
                 return (await window.electron.openInMpv(
                     data.url,
@@ -162,13 +171,11 @@ export class ElectronService extends DataService {
             } catch (error: unknown) {
                 const errorMessage =
                     this.getErrorDetails(error)?.message ?? String(error);
-                this.snackBar.open(
-                    `Error launching MPV: ${errorMessage}`,
-                    'Close',
-                    {
-                        duration: 5000,
-                    }
-                );
+
+                this.snackBar.open(`Error launching MPV: ${errorMessage}`, 'Close', {
+                    duration: 5000,
+                });
+
                 console.error('MPV launch error:', error);
                 throw error;
             }
@@ -176,6 +183,7 @@ export class ElectronService extends DataService {
 
         if (type === 'OPEN_VLC_PLAYER') {
             const data = payload as PlayerLaunchPayload;
+
             try {
                 return (await window.electron.openInVlc(
                     data.url,
@@ -191,13 +199,11 @@ export class ElectronService extends DataService {
             } catch (error: unknown) {
                 const errorMessage =
                     this.getErrorDetails(error)?.message ?? String(error);
-                this.snackBar.open(
-                    `Error launching VLC: ${errorMessage}`,
-                    'Close',
-                    {
-                        duration: 5000,
-                    }
-                );
+
+                this.snackBar.open(`Error launching VLC: ${errorMessage}`, 'Close', {
+                    duration: 5000,
+                });
+
                 console.error('VLC launch error:', error);
                 throw error;
             }
@@ -206,11 +212,13 @@ export class ElectronService extends DataService {
         if (type === AUTO_UPDATE_PLAYLISTS) {
             const data = payload as Playlist[];
             const playlists = await window.electron.autoUpdatePlaylists(data);
+
             this.store.dispatch(
                 PlaylistActions.updateManyPlaylists({
                     playlists,
                 })
             );
+
             this.snackBar.open(
                 this.translateService.instant(
                     'HOME.PLAYLISTS.AUTO_REFRESH_UPDATE_SUCCESS'
@@ -218,6 +226,7 @@ export class ElectronService extends DataService {
                 null,
                 { duration: 2000 }
             );
+
             return playlists as T;
         }
 
@@ -225,38 +234,134 @@ export class ElectronService extends DataService {
         return undefined as T;
     }
 
-    private async fetchStalkerData(payload: {
-        url: string;
-        macAddress: string;
-        params: Record<string, string>;
-        requestId?: string;
-        token?: string;
-        serialNumber?: string;
-    }) {
+    private isRecord(value: unknown): value is Record<string, unknown> {
+        return typeof value === 'object' && value !== null && !Array.isArray(value);
+    }
+
+    private normalizeParamsToPlainObject(
+        params: unknown
+    ): Record<string, string> {
+        const normalized: Record<string, string> = {};
+
+        if (!params) {
+            return normalized;
+        }
+
+        if (params instanceof URLSearchParams) {
+            params.forEach((value, key) => {
+                normalized[key] = value;
+            });
+            return normalized;
+        }
+
+        if (typeof params === 'string') {
+            const searchParams = new URLSearchParams(
+                params.startsWith('?') ? params.slice(1) : params
+            );
+
+            searchParams.forEach((value, key) => {
+                normalized[key] = value;
+            });
+
+            return normalized;
+        }
+
+        if (this.isRecord(params)) {
+            const maybeKeys = params as {
+                keys?: () => string[];
+                getAll?: (key: string) => string[] | null;
+                toString?: () => string;
+            };
+
+            if (
+                typeof maybeKeys.keys === 'function' &&
+                typeof maybeKeys.getAll === 'function'
+            ) {
+                for (const key of maybeKeys.keys()) {
+                    const values = maybeKeys.getAll(key);
+                    if (values && values.length > 0) {
+                        normalized[key] = values[values.length - 1] ?? '';
+                    }
+                }
+
+                if (Object.keys(normalized).length > 0) {
+                    return normalized;
+                }
+            }
+
+            if (
+                typeof maybeKeys.toString === 'function' &&
+                maybeKeys.toString !== Object.prototype.toString
+            ) {
+                const raw = maybeKeys.toString();
+                if (raw && raw !== '[object Object]') {
+                    const searchParams = new URLSearchParams(
+                        raw.startsWith('?') ? raw.slice(1) : raw
+                    );
+
+                    searchParams.forEach((value, key) => {
+                        normalized[key] = value;
+                    });
+
+                    if (Object.keys(normalized).length > 0) {
+                        return normalized;
+                    }
+                }
+            }
+
+            Object.entries(params).forEach(([key, value]) => {
+                if (value === undefined || value === null) {
+                    return;
+                }
+
+                if (
+                    typeof value === 'string' ||
+                    typeof value === 'number' ||
+                    typeof value === 'boolean'
+                ) {
+                    normalized[key] = String(value);
+                }
+            });
+        }
+
+        return normalized;
+    }
+
+    private async fetchStalkerData(payload: StalkerPayloadInput) {
+        const normalizedParams = this.normalizeParamsToPlainObject(payload.params);
+
+        const normalizedPayload: StalkerPayload = {
+            ...payload,
+            params: normalizedParams,
+        };
+
         const context = createPortalDebugRequestContext({
             provider: 'stalker',
-            operation: payload.params?.action ?? 'unknown',
+            operation: normalizedParams.action ?? 'unknown',
             transport: 'electron-renderer',
-            request: payload,
+            request: normalizedPayload,
         });
 
         try {
-            // Use Electron IPC to make the Stalker request
             const response = await window.electron.stalkerRequest({
-                ...payload,
+                ...normalizedPayload,
                 requestId: context.requestId,
             });
+
             return response;
         } catch (err: unknown) {
             const errorInfo = this.getErrorDetails(err);
             console.error('Stalker request error:', err);
+
             this.snackBar.open(
-                `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
+                `Error: ${errorInfo?.message ?? 'Not found'}, status: ${errorInfo?.status ?? 404
+                }`,
                 'Close',
                 {
                     duration: 5000,
                 }
             );
+
             throw err;
         }
     }
@@ -275,6 +380,7 @@ export class ElectronService extends DataService {
             .catch((error: unknown) => {
                 const statusCode = this.extractHttpStatusCode(error);
                 let messageKey = 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
+
                 if (statusCode === 403) {
                     messageKey = 'HOME.URL_UPLOAD.ERROR_403';
                 } else if (statusCode === 404) {
@@ -282,6 +388,7 @@ export class ElectronService extends DataService {
                 } else if (statusCode === 401) {
                     messageKey = 'HOME.URL_UPLOAD.ERROR_401';
                 }
+
                 this.snackBar.open(
                     this.translateService.instant(messageKey),
                     this.translateService.instant('CLOSE'),
@@ -301,9 +408,10 @@ export class ElectronService extends DataService {
         ) {
             return error.response.status as number;
         }
-        // Parse status from error message string (IPC serialization)
+
         const msg = String((error as { message?: string })?.message ?? error);
         const match = msg.match(/status code (\d{3})/);
+
         return match ? parseInt(match[1], 10) : null;
     }
 
@@ -315,17 +423,17 @@ export class ElectronService extends DataService {
     }) {
         try {
             let playlistObject: Playlist;
+
             if (data.url && !data.filePath) {
                 playlistObject = await window.electron.fetchPlaylistByUrl(
                     data.url,
                     data.title
                 );
             } else if (data.filePath && !data.url) {
-                playlistObject =
-                    await window.electron.updatePlaylistFromFilePath(
-                        data.filePath,
-                        data.title
-                    );
+                playlistObject = await window.electron.updatePlaylistFromFilePath(
+                    data.filePath,
+                    data.title
+                );
             } else {
                 console.error(
                     'Either url or filePath must be provided, but not both.'
@@ -369,11 +477,7 @@ export class ElectronService extends DataService {
                 this.getErrorDetails(error)?.message ?? error ?? ''
             );
 
-            if (
-                /(ENOENT|no such file or directory|not found)/i.test(
-                    errorMessage
-                )
-            ) {
+            if (/(ENOENT|no such file or directory|not found)/i.test(errorMessage)) {
                 return this.translateWithFallback(
                     'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND',
                     'Playlist refresh failed. The local file is no longer available. Check the file path or re-import the playlist.'
@@ -393,15 +497,19 @@ export class ElectronService extends DataService {
         }
 
         const statusCode = this.extractHttpStatusCode(error);
+
         if (statusCode === 404) {
             return this.translateService.instant('HOME.URL_UPLOAD.ERROR_404');
         }
+
         if (statusCode === 403) {
             return this.translateService.instant('HOME.URL_UPLOAD.ERROR_403');
         }
+
         if (statusCode === 401) {
             return this.translateService.instant('HOME.URL_UPLOAD.ERROR_401');
         }
+
         return this.translateService.instant(
             'HOME.URL_UPLOAD.ERROR_FETCH_FAILED'
         );
@@ -412,21 +520,11 @@ export class ElectronService extends DataService {
         return translated === key ? fallback : translated;
     }
 
-    /* private getErrorMessageByStatusCode(status: number) {
-        let message = 'Something went wrong';
-        switch (status) {
-            case 0:
-                message = 'The backend is not reachable';
-                break;
-            case 413:
-                message =
-                    'This file is too big. Use standalone or self-hosted version of the app.';
-                break;
-            default:
-                break;
-        }
-        return message;
-    } */
+    private isSilentXtreamAction(
+        action: string | undefined
+    ): action is XtreamCodeActions {
+        return !!action && this.silentXtreamActions.has(action as XtreamCodeActions);
+    }
 
     private async forwardXtreamRequest(payload: {
         url: string;
@@ -441,7 +539,6 @@ export class ElectronService extends DataService {
         });
 
         try {
-            // Use Electron IPC to make the Xtream request
             const response = await window.electron.xtreamRequest({
                 ...payload,
                 requestId: context.requestId,
@@ -452,17 +549,15 @@ export class ElectronService extends DataService {
                 payload: response.payload,
                 action: response.action,
             };
+
             window.postMessage(result);
             return result;
         } catch (error: unknown) {
             const action = payload.params?.action;
-            const isSilentAction = action
-                ? this.silentXtreamActions.has(action)
-                : false;
+            const isSilentAction = this.isSilentXtreamAction(action);
             const normalizedMessage = this.getReadableXtreamErrorMessage(error);
             const errorInfo = this.getErrorDetails(error);
 
-            // Log error to console
             if (isSilentAction) {
                 console.log(
                     `Background Xtream action failed (${action ?? 'unknown'}):`,
@@ -472,7 +567,6 @@ export class ElectronService extends DataService {
                 console.error('Xtream request error:', normalizedMessage);
             }
 
-            // Only show snackbar for user-triggered Xtream requests
             if (!isSilentAction) {
                 this.snackBar.open(
                     `Xtream request failed: ${normalizedMessage}`,
@@ -493,6 +587,7 @@ export class ElectronService extends DataService {
 
     private getReadableXtreamErrorMessage(error: unknown): string {
         const fallback = 'Failed to connect to Xtream server';
+
         if (!error) {
             return fallback;
         }
@@ -509,18 +604,20 @@ export class ElectronService extends DataService {
                 if (typeof maybeError.error === 'string') {
                     return maybeError.error;
                 }
+
                 if (
                     maybeError.error &&
                     typeof maybeError.error === 'object' &&
-                    'message' in
-                        (maybeError.error as Record<string, unknown>) &&
-                    typeof (maybeError.error as Record<string, unknown>)
-                        .message === 'string'
+                    'message' in (maybeError.error as Record<string, unknown>) &&
+                    typeof (maybeError.error as Record<string, unknown>).message ===
+                    'string'
                 ) {
                     return (maybeError.error as Record<string, string>).message;
                 }
+
                 return fallback;
             }
+
             return maybeError.message;
         }
 
@@ -539,37 +636,32 @@ export class ElectronService extends DataService {
         if (error && typeof error === 'object') {
             return error as ErrorStatus;
         }
+
         return null;
     }
 
     removeAllListeners(type: string): void {
         if (type === 'all') {
-            // Unsubscribe from all event listeners
             Object.values(this.eventListeners).forEach((unsubscribe) =>
                 unsubscribe()
             );
             this.eventListeners = {};
         } else if (this.eventListeners[type]) {
-            // Unsubscribe from a specific event
             this.eventListeners[type]();
             delete this.eventListeners[type];
         }
 
-        // Also remove any window message listeners
         window.removeEventListener('message', this.getListenerForCommand(type));
     }
 
     private getListenerForCommand(_command: string): EventListener {
         void _command;
-        // This is a placeholder. In a real implementation, you would need to
-        // store the actual listener functions to be able to remove them
         return () => undefined;
     }
 
     listenOn(command: string, callback: (...args: unknown[]) => void): void {
-        // For Electron, use window message events
         void command;
-        window.addEventListener('message', callback);
+        window.addEventListener('message', callback as EventListener);
     }
 
     getAppEnvironment(): string {

@@ -88,9 +88,9 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         const item = this.selectedItem();
         return Boolean(
             item &&
-                (this.contentType() === 'series' ||
-                    item.is_series === true ||
-                    String(item.is_series) === '1')
+            (this.contentType() === 'series' ||
+                item.is_series === true ||
+                String(item.is_series) === '1')
         );
     });
 
@@ -259,7 +259,13 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         }
 
         const playlist = this.catalog.playlist();
-        if (!playlist || !playlist.portalUrl || !playlist.macAddress) {
+        const hasDirectUrl = this.isDirectStreamUrl(item.cmd);
+
+        if (
+            !playlist ||
+            !playlist.portalUrl ||
+            (!playlist.macAddress && !hasDirectUrl)
+        ) {
             return;
         }
 
@@ -281,11 +287,22 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             }
         }
 
-        const url = await this.catalog.fetchLinkToPlay(
-            playlist.portalUrl,
-            playlist.macAddress,
-            cmdToUse
-        );
+        let url: string | undefined;
+
+        if (this.isDirectStreamUrl(cmdToUse)) {
+            url = cmdToUse;
+        } else {
+            if (!playlist.macAddress) {
+                return;
+            }
+
+            url = await this.catalog.fetchLinkToPlay(
+                playlist.portalUrl,
+                playlist.macAddress,
+                cmdToUse
+            );
+        }
+
         if (!url) {
             return;
         }
@@ -333,6 +350,10 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         this.selectedVodPosition.set(position ?? null);
     }
 
+    private isDirectStreamUrl(value?: string): boolean {
+        return typeof value === 'string' && /^https?:\/\//i.test(value);
+    }
+
     private async startStalkerVodPlayback(
         cmd?: string,
         title?: string,
@@ -360,8 +381,8 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             const errorMessage =
                 error instanceof Error && error.message === 'nothing_to_play'
                     ? this.translateService.instant(
-                          'PORTALS.CONTENT_NOT_AVAILABLE'
-                      )
+                        'PORTALS.CONTENT_NOT_AVAILABLE'
+                    )
                     : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
             this.snackBar.open(errorMessage, null, {
                 duration: 3000,

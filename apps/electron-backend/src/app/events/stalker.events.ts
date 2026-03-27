@@ -3,7 +3,7 @@
  * between the frontend and the electron backend.
  */
 
-import axios, { AxiosRequestConfig } from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { createHash } from 'crypto';
 import { ipcMain } from 'electron';
 import { PortalDebugEvent, STALKER_REQUEST } from 'shared-interfaces';
@@ -11,6 +11,12 @@ import { rememberStalkerPlaybackContext } from '../services/stalker-playback-con
 import { emitPortalDebugEvent } from './portal-debug.events';
 
 const LEGACY_DEFAULT_SERIAL = 'BEDACD4569BAF';
+const MAG250_USER_AGENT =
+    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 function deriveStalkerIdentity(
     macAddress: string,
@@ -23,13 +29,13 @@ function deriveStalkerIdentity(
     const normalizedProvided = String(providedSerial ?? '')
         .trim()
         .toUpperCase();
+
     const useProvidedSerial =
         normalizedProvided.length > 0 &&
         normalizedProvided !== LEGACY_DEFAULT_SERIAL;
 
     const serialNumber = useProvidedSerial ? normalizedProvided : derivedSerial;
 
-    // Keep serial and __cfduid coherent: serial as prefix + stable MAC hash tail.
     const serialPrefix = serialNumber.toLowerCase().replace(/[^a-f0-9]/g, '');
     const cfduid = `${serialPrefix}${md5.slice(serialPrefix.length)}`.slice(
         0,
@@ -37,6 +43,127 @@ function deriveStalkerIdentity(
     );
 
     return { serialNumber, cfduid };
+}
+
+function appendParamsFromUnknown(
+    target: Record<string, string>,
+    source: unknown
+): void {
+    if (!source) {
+        return;
+    }
+
+    if (source instanceof URLSearchParams) {
+        source.forEach((value, key) => {
+            target[key] = value;
+        });
+        return;
+    }
+
+    if (Array.isArray(source)) {
+        source.forEach((entry) => {
+            if (Array.isArray(entry) && entry.length >= 2) {
+                const [key, value] = entry;
+                if (value !== undefined && value !== null) {
+                    target[String(key)] = String(value);
+                }
+            }
+        });
+        return;
+    }
+
+    if (!isRecord(source)) {
+        return;
+    }
+
+    Object.entries(source).forEach(([key, value]) => {
+        if (value === undefined || value === null) {
+            return;
+        }
+
+        if (
+            typeof value === 'string' ||
+            typeof value === 'number' ||
+            typeof value === 'boolean'
+        ) {
+            target[key] = String(value);
+            return;
+        }
+
+        if (value instanceof URLSearchParams) {
+            value.forEach((nestedValue, nestedKey) => {
+                target[nestedKey] = nestedValue;
+            });
+            return;
+        }
+
+        if (Array.isArray(value) || isRecord(value)) {
+            target[key] = JSON.stringify(value);
+        }
+    });
+}
+
+function buildMergedRequestParams(
+    url: string,
+    payload: {
+        params?: unknown;
+        query?: unknown;
+        searchParams?: unknown;
+        data?: unknown;
+        request?: unknown;
+        requestParams?: unknown;
+        payload?: unknown;
+    }
+): Record<string, string> {
+    const requestParams: Record<string, string> = {};
+    const urlObject = new URL(url);
+
+    urlObject.searchParams.forEach((value, key) => {
+        requestParams[key] = value;
+    });
+
+    appendParamsFromUnknown(requestParams, payload.params);
+    appendParamsFromUnknown(requestParams, payload.query);
+    appendParamsFromUnknown(requestParams, payload.searchParams);
+    appendParamsFromUnknown(requestParams, payload.requestParams);
+
+    if (isRecord(payload.data)) {
+        appendParamsFromUnknown(requestParams, payload.data);
+        appendParamsFromUnknown(requestParams, payload.data.params);
+        appendParamsFromUnknown(requestParams, payload.data.query);
+    }
+
+    if (isRecord(payload.request)) {
+        appendParamsFromUnknown(requestParams, payload.request);
+        appendParamsFromUnknown(requestParams, payload.request.params);
+        appendParamsFromUnknown(requestParams, payload.request.query);
+    }
+
+    if (isRecord(payload.payload)) {
+        appendParamsFromUnknown(requestParams, payload.payload);
+        appendParamsFromUnknown(requestParams, payload.payload.params);
+        appendParamsFromUnknown(requestParams, payload.payload.query);
+    }
+
+    return requestParams;
+}
+
+function buildQueryParts(requestParams: Record<string, string>): string[] {
+    const queryParts: string[] = [];
+
+    Object.entries(requestParams).forEach(([key, value]) => {
+        if (key === 'cmd') {
+            queryParts.push(`${key}=${String(value)}`);
+        } else {
+            queryParts.push(`${key}=${encodeURIComponent(String(value))}`);
+        }
+    });
+
+    if (!requestParams['JsHttpRequest']) {
+        queryParts.push('JsHttpRequest=1-xml');
+    }
+
+    return queryParts;
 }
 
 export default class StalkerEvents {
@@ -55,7 +182,13 @@ ipcMain.handle(
         payload: {
             url: string;
             macAddress: string;
-            params: Record<string, string>;
+            params?: unknown;
+            query?: unknown;
+            searchParams?: unknown;
+            data?: unknown;
+            request?: unknown;
+            requestParams?: unknown;
+            payload?: unknown;
             token?: string;
             serialNumber?: string;
             requestId?: string;
@@ -63,14 +196,20 @@ ipcMain.handle(
     ) => {
         const startedAt = Date.now();
         let debugRequest: Record<string, unknown> | undefined;
+
         try {
-            const { url, macAddress, params, token, serialNumber, requestId } =
-                payload;
+            const {
+                url,
+                macAddress,
+                token,
+                serialNumber,
+                requestId,
+            } = payload;
+
             const identity = deriveStalkerIdentity(macAddress, serialNumber);
             const effectiveSerialNumber = identity.serialNumber;
-            const requestParams = { ...params };
+            const requestParams = buildMergedRequestParams(url, payload);
 
-            // Some providers validate sn/metrics strongly in get_profile.
             if (
                 requestParams.type === 'stb' &&
                 requestParams.action === 'get_profile'
@@ -90,100 +229,137 @@ ipcMain.handle(
                 }
             }
 
-            // Build URL with query parameters
-            // Note: For 'cmd' parameter, we need to use encodeURI (not encodeURIComponent)
-            // to preserve forward slashes, matching stalker-to-m3u implementation
-            const urlObject = new URL(url);
-            const queryParts: string[] = [];
-
-            Object.entries(requestParams).forEach(([key, value]) => {
-                if (key === 'cmd') {
-                    // Don't encode cmd - it's already a path like /media/12345.mpg
-                    // Encoding would break the path format expected by the server
-                    queryParts.push(`${key}=${String(value)}`);
-                } else {
-                    // Use encodeURIComponent for other params
-                    queryParts.push(
-                        `${key}=${encodeURIComponent(String(value))}`
-                    );
-                }
-            });
-
-            // Always add JsHttpRequest parameter if not present (required by Stalker API)
-            if (!requestParams['JsHttpRequest']) {
-                queryParts.push('JsHttpRequest=1-xml');
+            if (!requestParams.action || !requestParams.type) {
+                console.warn('[StalkerEvents] Missing normalized params', {
+                    payloadKeys: Object.keys(payload ?? {}),
+                    normalizedParams: requestParams,
+                    url,
+                });
             }
 
-            // Build final URL with manually constructed query string
-            const fullUrl = `${urlObject.origin}${urlObject.pathname}?${queryParts.join('&')}`;
+            const urlObject = new URL(url);
+            const queryParts = buildQueryParts(requestParams);
+            const endpointUrl = `${urlObject.origin}${urlObject.pathname}`;
+            const fullUrl =
+                queryParts.length > 0
+                    ? `${endpointUrl}?${queryParts.join('&')}`
+                    : endpointUrl;
+            const formBody = queryParts.join('&');
 
-            // Build cookie string matching the working curl example format
-            // Format: mac=XX:XX:XX:XX:XX:XX; stb_lang=de_DE; timezone=Europe/Berlin; __cfduid=...
-            // The __cfduid cookie uses the serial number lowercase + random suffix
             const cookieString = `mac=${macAddress}; stb_lang=en_US@rg=dezzzz; timezone=Europe/Berlin; __cfduid=${identity.cfduid}`;
 
-            // Build headers - using MAG250 User-Agent that stalker-to-m3u uses
             const headers: Record<string, string> = {
                 Cookie: cookieString,
-                // Use MAG250 User-Agent matching stalker-to-m3u implementation
-                'User-Agent':
-                    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250',
-                'X-User-Agent':
-                    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250',
+                'User-Agent': MAG250_USER_AGENT,
+                'X-User-Agent': MAG250_USER_AGENT,
                 Accept: '*/*',
                 Connection: 'keep-alive',
                 'Accept-Language': 'en-US,en;q=0.9',
             };
 
-            // Add SN (serial number) header if provided - required by some portals
             if (effectiveSerialNumber) {
                 headers['SN'] = effectiveSerialNumber;
             }
 
-            // Add Authorization header if token is provided
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            // Determine timeout based on action type
-            // create_link requests can take longer as server generates stream URL
             const isCreateLink = requestParams.action === 'create_link';
             const requestTimeout = isCreateLink ? 30000 : 15000;
+            const validateStatus = (status: number) => status < 500;
 
-            // Configure axios request
-            const config: AxiosRequestConfig = {
-                method: 'GET',
-                url: fullUrl,
-                headers,
-                timeout: requestTimeout,
-                validateStatus: (status) => status < 500, // Don't throw on 4xx errors
-            };
-            debugRequest = {
-                method: config.method ?? 'GET',
-                url: fullUrl,
-                headers,
-                timeout: requestTimeout,
-                params: requestParams,
+            const performRequest = async (
+                config: AxiosRequestConfig,
+                requestMeta: Record<string, unknown>
+            ): Promise<AxiosResponse<any>> => {
+                debugRequest = requestMeta;
+                return axios(config);
             };
 
-            const response = await axios(config);
+            let response = await performRequest(
+                {
+                    method: 'GET',
+                    url: fullUrl,
+                    headers,
+                    timeout: requestTimeout,
+                    validateStatus,
+                },
+                {
+                    method: 'GET',
+                    url: fullUrl,
+                    headers,
+                    timeout: requestTimeout,
+                    params: requestParams,
+                }
+            );
 
-            // Check if response is successful
+            if (response.status === 405) {
+                console.warn(
+                    '[StalkerEvents] GET returned 405, retrying as POST',
+                    {
+                        action: requestParams.action,
+                        type: requestParams.type,
+                    }
+                );
+
+                const postHeaders = {
+                    ...headers,
+                    'Content-Type':
+                        'application/x-www-form-urlencoded; charset=UTF-8',
+                };
+
+                response = await performRequest(
+                    {
+                        method: 'POST',
+                        url: endpointUrl,
+                        headers: postHeaders,
+                        data: formBody,
+                        timeout: requestTimeout,
+                        validateStatus,
+                    },
+                    {
+                        method: 'POST',
+                        url: endpointUrl,
+                        headers: postHeaders,
+                        timeout: requestTimeout,
+                        params: requestParams,
+                        data: formBody,
+                        fallbackFrom: 'GET',
+                        originalUrl: fullUrl,
+                    }
+                );
+
+                console.warn(
+                    '[StalkerEvents] POST retry status:',
+                    response.status,
+                    response.statusText,
+                    {
+                        action: requestParams.action,
+                        type: requestParams.type,
+                    }
+                );
+            }
+
             if (response.status >= 400) {
                 console.error(
                     '[StalkerEvents] HTTP Error:',
                     response.status,
-                    response.statusText
+                    response.statusText,
+                    {
+                        action: requestParams.action,
+                        type: requestParams.type,
+                    }
                 );
+
                 throw {
                     message: `HTTP Error: ${response.statusText}`,
                     status: response.status,
                 };
             }
 
-            // Return the response data
             if (
-                params.action === 'create_link' &&
+                requestParams.action === 'create_link' &&
                 response.data?.js?.cmd &&
                 typeof response.data.js.cmd === 'string'
             ) {
@@ -200,7 +376,7 @@ ipcMain.handle(
                 const debugEvent: PortalDebugEvent = {
                     requestId,
                     provider: 'stalker',
-                    operation: params.action ?? 'unknown',
+                    operation: requestParams.action ?? 'unknown',
                     transport: 'electron-main',
                     startedAt: new Date(startedAt).toISOString(),
                     durationMs: Date.now() - startedAt,
@@ -208,16 +384,22 @@ ipcMain.handle(
                     request: debugRequest,
                     response: response.data,
                 };
+
                 emitPortalDebugEvent(debugEvent);
             }
 
             return response.data;
         } catch (error) {
             if (payload.requestId) {
+                const fallbackParams = buildMergedRequestParams(
+                    payload.url,
+                    payload
+                );
+
                 const debugEvent: PortalDebugEvent = {
                     requestId: payload.requestId,
                     provider: 'stalker',
-                    operation: payload.params?.action ?? 'unknown',
+                    operation: fallbackParams.action ?? 'unknown',
                     transport: 'electron-main',
                     startedAt: new Date(startedAt).toISOString(),
                     durationMs: Date.now() - startedAt,
@@ -225,16 +407,16 @@ ipcMain.handle(
                     request: debugRequest ?? {
                         method: 'GET',
                         url: payload.url,
-                        params: payload.params,
+                        params: fallbackParams,
                     },
                     error,
                 };
+
                 emitPortalDebugEvent(debugEvent);
             }
 
             console.error('[StalkerEvents] Request error:', error);
 
-            // Format error response
             if (axios.isAxiosError(error)) {
                 const errorResponse = {
                     type: 'ERROR',
@@ -244,6 +426,7 @@ ipcMain.handle(
                         'Failed to fetch data from Stalker portal',
                     status: error.response?.status || 500,
                 };
+
                 throw errorResponse;
             } else if (
                 error &&

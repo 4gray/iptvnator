@@ -7,9 +7,13 @@ import {
     FilterActions,
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,
-} from 'm3u-state';
+} from '../../../../../../m3u-state/src';
 import { TranslatePipe } from '@ngx-translate/core';
-import { SortBy, SortOrder, SortService } from 'services';
+import {
+    SortBy,
+    SortOrder,
+    SortService,
+} from '../../../../../../services/src';
 
 type PlaylistFilterId = 'all' | 'm3u' | 'xtream' | 'stalker';
 
@@ -27,13 +31,17 @@ interface SortOption {
     translationKey: string;
 }
 
-const ALL_FILTERS = ['m3u', 'xtream', 'stalker'];
+const ALL_FILTERS: Array<'m3u' | 'xtream' | 'stalker'> = [
+    'm3u',
+    'xtream',
+    'stalker',
+];
 
 @Component({
     selector: 'app-workspace-sources-filters-panel',
     imports: [MatIcon, MatListModule, TranslatePipe],
     templateUrl: './workspace-sources-filters-panel.component.html',
-    styleUrl: './workspace-sources-filters-panel.component.scss',
+    styleUrls: ['./workspace-sources-filters-panel.component.scss'],
 })
 export class WorkspaceSourcesFiltersPanelComponent {
     private readonly store = inject(Store);
@@ -42,7 +50,10 @@ export class WorkspaceSourcesFiltersPanelComponent {
     private readonly activeTypeFilters = this.store.selectSignal(
         selectActiveTypeFilters
     );
-    private readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
+
+    private readonly playlists = this.store.selectSignal(
+        selectAllPlaylistsMeta
+    );
 
     readonly currentSortOptions = toSignal(this.sortService.getSortOptions(), {
         requireSync: true,
@@ -105,18 +116,35 @@ export class WorkspaceSourcesFiltersPanelComponent {
     ];
 
     readonly typeCounts = computed(() => {
-        const items = this.playlists();
+        const items = this.playlists() as Array<{
+            serverUrl?: string;
+            macAddress?: string;
+            isCustomPortal?: boolean;
+        }>;
+
         return {
             all: items.length,
-            m3u: items.filter((item) => !item.serverUrl && !item.macAddress)
-                .length,
-            xtream: items.filter((item) => !!item.serverUrl).length,
-            stalker: items.filter((item) => !!item.macAddress).length,
+            m3u: items.filter(
+                (item) =>
+                    !item.isCustomPortal &&
+                    !item.serverUrl &&
+                    !item.macAddress
+            ).length,
+            xtream: items.filter(
+                (item) =>
+                    !item.isCustomPortal &&
+                    !!item.serverUrl
+            ).length,
+            stalker: items.filter(
+                (item) =>
+                    !!item.macAddress || item.isCustomPortal === true
+            ).length,
         };
     });
 
     isTypeActive(filterId: PlaylistFilterId): boolean {
-        const selected = this.activeTypeFilters();
+        const selected = this.activeTypeFilters() as string[];
+
         if (filterId === 'all') {
             return (
                 selected.length === ALL_FILTERS.length &&
@@ -130,6 +158,7 @@ export class WorkspaceSourcesFiltersPanelComponent {
     selectType(filterId: PlaylistFilterId): void {
         const selectedFilters =
             filterId === 'all' ? ALL_FILTERS : [filterId];
+
         this.store.dispatch(
             FilterActions.setSelectedFilters({
                 selectedFilters,
@@ -139,14 +168,17 @@ export class WorkspaceSourcesFiltersPanelComponent {
 
     getTypeCount(filterId: PlaylistFilterId): number {
         const counts = this.typeCounts();
+
         if (filterId === 'all') {
             return counts.all;
         }
+
         return counts[filterId];
     }
 
     isSortActive(option: SortOption): boolean {
         const current = this.currentSortOptions();
+
         return current.by === option.by && current.order === option.order;
     }
 
