@@ -120,21 +120,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     /** Active M3U view (all, groups, favorites, recent) */
     readonly activeView = toSignal(
-        this.activatedRoute.params.pipe(
-            map((params) => {
-                if (this.router.url.includes('/workspace/global-favorites')) {
-                    return 'favorites';
-                }
-                return params['view'] || 'all';
-            })
-        ),
-        {
-            initialValue: this.router.url.includes(
-                '/workspace/global-favorites'
-            )
-                ? 'favorites'
-                : 'all',
-        }
+        this.activatedRoute.params.pipe(map((params) => params['view'] || 'all')),
+        { initialValue: 'all' }
     );
 
     /** Selected video player options */
@@ -182,13 +169,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         effect(() => {
             const playlistId = this.activePlaylistId();
             const activeChannel = this.activeChannel();
-            const currentUrl = this.router.url;
 
-            if (
-                !playlistId ||
-                !activeChannel?.url ||
-                currentUrl.includes('/workspace/global-favorites')
-            ) {
+            if (!playlistId || !activeChannel?.url) {
                 return;
             }
 
@@ -294,43 +276,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 distinctUntilChanged((prev, curr) => prev['id'] === curr['id']),
                 combineLatestWith(this.activatedRoute.queryParams),
                 switchMap(([params]) => {
-                    const isGlobalFavorites = this.router.url.includes(
-                        '/workspace/global-favorites'
-                    );
-
-                    if (isGlobalFavorites) {
-                        this.store.dispatch(
-                            ChannelActions.resetActiveChannel()
-                        );
-                        this.store.dispatch(
-                            PlaylistActions.setActivePlaylist({
-                                playlistId: '',
-                            })
-                        );
-                        return this.playlistsService
-                            .getPlaylistWithGlobalFavorites()
-                            .pipe(
-                                map((playlist) => {
-                                    this.store.dispatch(
-                                        ChannelActions.setChannels({
-                                            channels: playlist.playlist.items,
-                                        })
-                                    );
-
-                                    const stringFavs = (
-                                        playlist.favorites ?? []
-                                    ).filter(
-                                        (f): f is string =>
-                                            typeof f === 'string'
-                                    );
-                                    this.store.dispatch(
-                                        FavoritesActions.setFavorites({
-                                            channelIds: stringFavs,
-                                        })
-                                    );
-                                })
-                            );
-                    } else if (params['id']) {
+                    if (params['id']) {
                         this.store.dispatch(
                             ChannelActions.resetActiveChannel()
                         );
