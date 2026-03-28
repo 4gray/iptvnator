@@ -9,6 +9,18 @@ declare module 'video.js' {
 }
 
 declare global {
+    interface ElectronDbOperationEvent {
+        operationId?: string;
+        operation: string;
+        playlistId?: string;
+        status: 'started' | 'progress' | 'completed' | 'cancelled' | 'error';
+        phase?: string;
+        current?: number;
+        total?: number;
+        increment?: number;
+        error?: string;
+    }
+
     interface Window {
         electron: {
             getAppVersion: () => Promise<string>;
@@ -118,9 +130,13 @@ declare global {
                 updates: any
             ) => Promise<{ success: boolean }>;
             dbDeletePlaylist: (
-                playlistId: string
+                playlistId: string,
+                operationId?: string
             ) => Promise<{ success: boolean }>;
-            dbDeleteXtreamContent: (playlistId: string) => Promise<{
+            dbDeleteXtreamContent: (
+                playlistId: string,
+                operationId?: string
+            ) => Promise<{
                 success: boolean;
                 favoritedXtreamIds: number[];
                 recentlyViewedXtreamIds: {
@@ -138,7 +154,8 @@ declare global {
                 recentlyViewedXtreamIds: {
                     xtreamId: number;
                     viewedAt: string;
-                }[]
+                }[],
+                operationId?: string
             ) => Promise<{ success: boolean }>;
             dbHasCategories: (
                 playlistId: string,
@@ -170,7 +187,8 @@ declare global {
             dbSaveContent: (
                 playlistId: string,
                 streams: any[],
-                type: string
+                type: string,
+                operationId?: string
             ) => Promise<{ success: boolean; count: number }>;
             dbSearchContent: (
                 playlistId: string,
@@ -182,6 +200,10 @@ declare global {
                 searchTerm: string,
                 types: string[],
                 excludeHidden?: boolean
+            ) => Promise<any[]>;
+            dbGetGlobalRecentlyAdded: (
+                kind: 'all' | 'vod' | 'series',
+                limit?: number
             ) => Promise<any[]>;
             dbGetRecentlyViewed: () => Promise<any[]>;
             dbClearRecentlyViewed: () => Promise<{ success: boolean }>;
@@ -275,7 +297,15 @@ declare global {
                 callback: (count: number) => void
             ) => void;
             removeDbSaveContentProgress: () => void;
-            dbDeleteAllPlaylists: () => Promise<{ success: boolean }>;
+            onDbOperationEvent?: (
+                callback: (data: ElectronDbOperationEvent) => void
+            ) => () => void;
+            dbDeleteAllPlaylists: (
+                operationId?: string
+            ) => Promise<{ success: boolean }>;
+            dbCancelOperation: (
+                operationId: string
+            ) => Promise<{ success: boolean }>;
             // Playback positions
             dbSavePlaybackPosition: (
                 playlistId: string,
