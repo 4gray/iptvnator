@@ -55,7 +55,7 @@ async function addXtreamPortal(
     } = options;
 
     await page.getByRole('button', { name: 'Add playlist' }).click();
-    await page.getByText('Xtream').click();
+    await page.getByRole('menuitem', { name: /Add Xtreme Code/i }).click();
     const dialog = page.locator('mat-dialog-container');
 
     await dialog.locator('#title').fill(name);
@@ -65,6 +65,7 @@ async function addXtreamPortal(
 
     await dialog.getByRole('button', { name: 'Add', exact: true }).click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
+    await page.waitForURL(/xtreams.*vod/);
 }
 
 /**
@@ -117,7 +118,7 @@ test('@xtream get_account_info — active account returns correct fields', async
     const body = await response.json();
 
     expect(body.user_info.username).toBe(DEFAULT_USERNAME);
-    expect(body.user_info.status).toBe('active');
+    expect(body.user_info.status).toBe('Active');
     expect(body.server_info.url).toBeDefined();
     expect(Array.isArray(body.user_info.allowed_output_formats)).toBeTruthy();
 });

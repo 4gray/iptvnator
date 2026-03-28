@@ -1,7 +1,4 @@
-import {
-    APIRequestContext,
-    Page,
-} from '@playwright/test';
+import { APIRequestContext, Page } from '@playwright/test';
 import { readFileSync } from 'fs';
 import {
     addStalkerPortal,
@@ -22,7 +19,7 @@ import {
     waitForM3uCatalog,
     waitForPortalDebugEvent,
     waitForStalkerCatalog,
-    waitForXtreamImportToFinish,
+    waitForXtreamCatalog,
     xtreamMockServer,
 } from './electron-test-fixtures';
 
@@ -149,13 +146,16 @@ test.describe('Electron Workspace Search', () => {
             );
             await expectQueryParam(app.mainWindow, 'q', sample.groupTitle);
             await expectWorkspaceSearchScope(app.mainWindow, 'Groups');
-            await expect(groupPanelHeader(app.mainWindow, sample.groupTitle)).toHaveCount(
-                1
-            );
+            await expect(
+                groupPanelHeader(app.mainWindow, sample.groupTitle)
+            ).toHaveCount(1);
             await expect(
                 groupPanelHeader(app.mainWindow, sample.groupTitle).first()
-            ).toContainText(`${sample.groupTitle} (2)`);
-            await ensureGroupExpanded(app.mainWindow, sample.groupTitle);
+            ).toContainText(sample.groupTitle);
+            await expect(
+                groupPanelHeader(app.mainWindow, sample.groupTitle).first()
+            ).toContainText('2');
+            await ensureGroupSelected(app.mainWindow, sample.groupTitle);
             await expect(
                 channelItemByTitle(app.mainWindow, sample.targetTitle).first()
             ).toBeVisible();
@@ -171,8 +171,11 @@ test.describe('Electron Workspace Search', () => {
             await expectQueryParam(app.mainWindow, 'q', sample.targetTitle);
             await expect(
                 groupPanelHeader(app.mainWindow, sample.groupTitle).first()
-            ).toContainText(`${sample.groupTitle} (1)`);
-            await ensureGroupExpanded(app.mainWindow, sample.groupTitle);
+            ).toContainText(sample.groupTitle);
+            await expect(
+                groupPanelHeader(app.mainWindow, sample.groupTitle).first()
+            ).toContainText('1');
+            await ensureGroupSelected(app.mainWindow, sample.groupTitle);
             await expect(
                 channelItemByTitle(app.mainWindow, sample.targetTitle).first()
             ).toBeVisible();
@@ -237,7 +240,10 @@ test.describe('Electron Workspace Search', () => {
                 })
                 .click();
 
-            await expectPathname(app.mainWindow, /\/workspace\/global-favorites$/);
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/global-favorites$/
+            );
             await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
 
             await expectQueryParam(app.mainWindow, 'q', sample.targetTitle);
@@ -278,7 +284,9 @@ test.describe('Electron Workspace Search', () => {
 
             await clickCategoryByNameExact(app.mainWindow, sample.categoryName);
             await expect(
-                app.mainWindow.locator('.category-content-layout mat-card').first()
+                app.mainWindow
+                    .locator('.category-content-layout mat-card')
+                    .first()
             ).toBeVisible({
                 timeout: 20000,
             });
@@ -286,7 +294,10 @@ test.describe('Electron Workspace Search', () => {
                 app.mainWindow,
                 sample
             );
-            await fillWorkspaceSearch(app.mainWindow, resolvedTitles.targetTitle);
+            await fillWorkspaceSearch(
+                app.mainWindow,
+                resolvedTitles.targetTitle
+            );
 
             await expectPathname(
                 app.mainWindow,
@@ -351,6 +362,10 @@ test.describe('Electron Workspace Search', () => {
                     app.mainWindow,
                     /\/workspace\/xtreams\/[^/]+\/series$/
                 );
+                await clickCategoryByNameExact(
+                    app.mainWindow,
+                    sample.categoryName
+                );
                 await expect(
                     app.mainWindow
                         .locator('.category-content-layout mat-card')
@@ -363,7 +378,10 @@ test.describe('Electron Workspace Search', () => {
                 app.mainWindow,
                 sample
             );
-            await fillWorkspaceSearch(app.mainWindow, resolvedTitles.targetTitle);
+            await fillWorkspaceSearch(
+                app.mainWindow,
+                resolvedTitles.targetTitle
+            );
 
             await expectPathname(
                 app.mainWindow,
@@ -416,10 +434,7 @@ test.describe('Electron Workspace Search', () => {
                 app.mainWindow,
                 xtreamQueries
             );
-            await expectWorkspaceSearchScope(
-                app.mainWindow,
-                'Advanced search'
-            );
+            await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
             await expect(
                 app.mainWindow.locator('app-search-layout app-search-form')
             ).toHaveCount(0);
@@ -501,7 +516,9 @@ test.describe('Electron Workspace Search', () => {
 
             await clickCategoryByNameExact(app.mainWindow, sample.categoryName);
             await expect(
-                app.mainWindow.locator('.category-content-layout mat-card').first()
+                app.mainWindow
+                    .locator('.category-content-layout mat-card')
+                    .first()
             ).toBeVisible({ timeout: 20000 });
             const resolvedTitles = await resolveVisibleXtreamTitles(
                 app.mainWindow,
@@ -555,7 +572,10 @@ test.describe('Electron Workspace Search', () => {
                 ).first()
             ).toBeVisible({ timeout: 20000 });
 
-            await fillWorkspaceSearch(app.mainWindow, resolvedTitles.targetTitle);
+            await fillWorkspaceSearch(
+                app.mainWindow,
+                resolvedTitles.targetTitle
+            );
 
             await expectQueryParam(
                 app.mainWindow,
@@ -715,10 +735,7 @@ test.describe('Electron Workspace Search', () => {
                 app.mainWindow,
                 /\/workspace\/stalker\/[^/]+\/search$/
             );
-            await expectWorkspaceSearchScope(
-                app.mainWindow,
-                'Advanced search'
-            );
+            await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
             await expect(
                 app.mainWindow.locator('app-search-layout app-search-form')
             ).toHaveCount(0);
@@ -823,7 +840,10 @@ test.describe('Electron Workspace Search', () => {
             await app.mainWindow
                 .getByRole('link', { name: 'Live TV', exact: true })
                 .click();
-            await expectPathname(app.mainWindow, /\/workspace\/stalker\/[^/]+\/itv$/);
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/stalker\/[^/]+\/itv$/
+            );
 
             await clickCategoryById(app.mainWindow, sample.categoryId);
             await expect(
@@ -999,9 +1019,9 @@ async function fetchStalkerCategoryFixture(
     request: APIRequestContext,
     type: 'itv' | 'series' | 'vod'
 ): Promise<StalkerCategoryFixture> {
-    const categoriesResponse = await fetchJson<StalkerProxyPayload<
-        StalkerCategory[]
-    >>(
+    const categoriesResponse = await fetchJson<
+        StalkerProxyPayload<StalkerCategory[]>
+    >(
         request,
         buildStalkerProxyUrl('get_categories', {
             type,
@@ -1013,9 +1033,9 @@ async function fetchStalkerCategoryFixture(
         throw new Error(`Stalker mock server returned no ${type} categories.`);
     }
 
-    const itemsResponse = await fetchJson<StalkerProxyPayload<
-        StalkerOrderedList<StalkerContentItem>
-    >>(
+    const itemsResponse = await fetchJson<
+        StalkerProxyPayload<StalkerOrderedList<StalkerContentItem>>
+    >(
         request,
         buildStalkerProxyUrl('get_ordered_list', {
             category: category.id,
@@ -1069,7 +1089,8 @@ function loadM3uSearchFixture(): M3uSearchFixture {
     }, new Map<string, M3uFixtureItem[]>());
 
     const groupedSample = [...groups.entries()].find(
-        ([groupTitle, channels]) => groupTitle.length > 0 && channels.length >= 2
+        ([groupTitle, channels]) =>
+            groupTitle.length > 0 && channels.length >= 2
     );
 
     if (!groupedSample) {
@@ -1139,7 +1160,10 @@ function parseM3uFixture(filePath: string): M3uFixtureItem[] {
     return items.filter((item) => item.name.length > 0);
 }
 
-async function clickCategoryById(page: Page, categoryId: string): Promise<void> {
+async function clickCategoryById(
+    page: Page,
+    categoryId: string
+): Promise<void> {
     const category = page.locator(
         `app-workspace-context-panel .category-item[data-category-id="${categoryId}"]:visible`
     );
@@ -1170,20 +1194,16 @@ async function openWorkspaceSection(page: Page, label: string): Promise<void> {
 }
 
 async function waitForXtreamWorkspaceReady(page: Page): Promise<void> {
-    await expectPathname(page, /\/workspace\/xtreams\/[^/]+\/vod$/);
-    await expect(
-        page.locator('app-workspace-context-panel .category-item').first()
-    ).toBeVisible({ timeout: 20000 });
-    await waitForXtreamImportToFinish(page);
+    await waitForXtreamCatalog(page);
 }
 
 function groupPanelHeader(page: Page, groupTitle: string) {
-    return page.locator('mat-expansion-panel-header').filter({
+    return page.locator('.group-nav-item').filter({
         hasText: flexibleTextPattern(groupTitle),
     });
 }
 
-async function ensureGroupExpanded(
+async function ensureGroupSelected(
     page: Page,
     groupTitle: string
 ): Promise<void> {
@@ -1191,7 +1211,7 @@ async function ensureGroupExpanded(
 
     await expect(header).toBeVisible();
 
-    if ((await header.getAttribute('aria-expanded')) !== 'true') {
+    if ((await header.getAttribute('aria-current')) !== 'true') {
         await header.click();
     }
 }
@@ -1233,9 +1253,11 @@ async function resolveVisibleXtreamTitles(
     controlTitle: string;
     targetTitle: string;
 }> {
-    const visibleTitles = (await page
-        .locator('.category-content-layout mat-card .title')
-        .allTextContents())
+    const visibleTitles = (
+        await page
+            .locator('.category-content-layout mat-card .title')
+            .allTextContents()
+    )
         .map((title) => title.trim())
         .filter((title) => title.length > 0);
     const matchedTitles = fixture.candidateTitles
@@ -1282,7 +1304,9 @@ async function addCurrentDetailToFavorites(page: Page): Promise<void> {
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
-    const backButton = page.locator('app-content-hero .hero__back-button').first();
+    const backButton = page
+        .locator('app-content-hero .hero__back-button')
+        .first();
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     await backButton.click();
@@ -1301,9 +1325,11 @@ async function performXtreamPlaylistSearch(
             await expectQueryParam(page, 'q', query);
 
             try {
-                await expect(xtreamSearchResultCards(page).first()).toBeVisible({
-                    timeout: 5000,
-                });
+                await expect(xtreamSearchResultCards(page).first()).toBeVisible(
+                    {
+                        timeout: 5000,
+                    }
+                );
                 return query;
             } catch {
                 // Try the next candidate token.
@@ -1376,9 +1402,7 @@ function pickDistinctItems<T>(
 
     const control =
         preferredItems.find((item) => getTitle(item) !== getTitle(target)) ??
-        titledItems.find(
-        (item) => getTitle(item) !== getTitle(target)
-    );
+        titledItems.find((item) => getTitle(item) !== getTitle(target));
 
     if (!control) {
         throw new Error('Expected at least two items with distinct titles.');
@@ -1488,9 +1512,7 @@ function flexibleTextPattern(value: string): RegExp {
 }
 
 async function expectPathname(page: Page, pattern: RegExp): Promise<void> {
-    await expect
-        .poll(() => new URL(page.url()).pathname)
-        .toMatch(pattern);
+    await expect.poll(() => new URL(page.url()).pathname).toMatch(pattern);
 }
 
 async function expectQueryParam(
