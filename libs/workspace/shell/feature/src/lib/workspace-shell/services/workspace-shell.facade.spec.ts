@@ -325,4 +325,11 @@ describe('WorkspaceShellFacade', () => {
             'HOME.PLAYLISTS.GLOBAL_FAVORITES'
         );
     });
+
+    it('uses the translated recent scope label on the global recent route', () => {
+        facade.currentUrl.set('/workspace/global-recent?q=news');
+        (facade as { syncSearchFromRoute: () => void }).syncSearchFromRoute();
+
+        expect(facade.searchScopeLabel()).toBe('PORTALS.RECENTLY_VIEWED');
+    });
 });

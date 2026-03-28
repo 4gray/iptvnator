@@ -3,6 +3,9 @@
         <div class="workspace-loading-overlay">
             <div class="workspace-loading-overlay__card">
                 <h3>Loading playlist...</h3>
+                @if (facade.xtreamImportPhaseLabel()) {
+                    <p>{{ facade.xtreamImportPhaseLabel() }}</p>
+                }
                 @if (
                     facade.xtreamImportCount() !== 0 &&
                     facade.xtreamItemsToImport() !== 0
@@ -21,6 +24,21 @@
                     </p>
                 } @else {
                     <mat-progress-bar mode="indeterminate" />
+                }
+                @if (facade.canCancelXtreamImport()) {
+                    <button
+                        mat-stroked-button
+                        type="button"
+                        [disabled]="facade.isCancellingXtreamImport()"
+                        (click)="facade.cancelXtreamImport()"
+                    >
+                        {{
+                            (facade.isCancellingXtreamImport()
+                                ? 'WORKSPACE.SHELL.XTREAM_IMPORT_CANCELLING'
+                                : 'WORKSPACE.SHELL.XTREAM_IMPORT_CANCEL'
+                            ) | translate
+                        }}
+                    </button>
                 }
             </div>
         </div>

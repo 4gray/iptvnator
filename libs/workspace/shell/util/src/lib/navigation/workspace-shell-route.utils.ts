@@ -7,6 +7,7 @@ export type WorkspaceShellPageKind =
     | 'dashboard'
     | 'downloads'
     | 'global-favorites'
+    | 'global-recent'
     | 'portal'
     | 'settings'
     | 'sources'
@@ -184,7 +185,8 @@ function resolveRouteSearchMode(
     if (
         kind === 'sources' ||
         kind === 'downloads' ||
-        kind === 'global-favorites'
+        kind === 'global-favorites' ||
+        kind === 'global-recent'
     ) {
         return 'local-filter';
     }
@@ -281,6 +283,8 @@ export function parseWorkspaceShellRoute(url: string): WorkspaceShellRoute {
                 ? 'settings'
                 : page === 'global-favorites'
                   ? 'global-favorites'
+                  : page === 'global-recent'
+                    ? 'global-recent'
                   : page === 'downloads'
                     ? 'downloads'
                     : 'unknown';

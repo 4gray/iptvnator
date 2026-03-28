@@ -252,6 +252,7 @@ export class WorkspaceShellFacade {
             currentRoute.kind !== 'sources' &&
             currentRoute.kind !== 'settings' &&
             currentRoute.kind !== 'global-favorites' &&
+            currentRoute.kind !== 'global-recent' &&
             currentRoute.kind !== 'downloads'
         ) {
             return null;
@@ -291,6 +292,39 @@ export class WorkspaceShellFacade {
     );
     readonly xtreamImportCount = this.xtreamStore.getImportCount;
     readonly xtreamItemsToImport = this.xtreamStore.itemsToImport;
+    readonly xtreamImportPhase = this.xtreamStore.currentImportPhase;
+    readonly isCancellingXtreamImport = this.xtreamStore.isCancellingImport;
+    readonly canCancelXtreamImport = computed(
+        () =>
+            this.isElectron &&
+            this.xtreamStore.isImporting() &&
+            this.xtreamStore.activeImportOperationIds().length > 0 &&
+            !this.xtreamStore.isCancellingImport()
+    );
+    readonly xtreamImportPhaseLabel = computed(() => {
+        this.languageTick();
+
+        switch (this.xtreamStore.currentImportPhase()) {
+            case 'preparing-content':
+                return this.translateText(
+                    'WORKSPACE.SHELL.XTREAM_IMPORT_PREPARING'
+                );
+            case 'saving-content':
+                return this.translateText(
+                    'WORKSPACE.SHELL.XTREAM_IMPORT_SAVING'
+                );
+            case 'restoring-favorites':
+                return this.translateText(
+                    'WORKSPACE.SHELL.XTREAM_IMPORT_RESTORING_FAVORITES'
+                );
+            case 'restoring-recently-viewed':
+                return this.translateText(
+                    'WORKSPACE.SHELL.XTREAM_IMPORT_RESTORING_RECENT'
+                );
+            default:
+                return '';
+        }
+    });
     readonly showXtreamImportOverlay = computed(() => {
         const context = this.currentContext();
         const section = this.currentSection();
@@ -763,6 +797,10 @@ export class WorkspaceShellFacade {
         });
     }
 
+    cancelXtreamImport(): void {
+        void this.xtreamStore.cancelImport();
+    }
+
     openAccountInfo(): void {
         if (!this.canOpenAccountInfo()) {
             return;
@@ -1026,6 +1064,10 @@ export class WorkspaceShellFacade {
 
         if (kind === 'global-favorites') {
             return this.translateText('HOME.PLAYLISTS.GLOBAL_FAVORITES');
+        }
+
+        if (kind === 'global-recent') {
+            return this.translateText('PORTALS.RECENTLY_VIEWED');
         }
 
         if (kind === 'downloads') {

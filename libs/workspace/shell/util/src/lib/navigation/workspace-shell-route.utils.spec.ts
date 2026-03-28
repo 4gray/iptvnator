@@ -35,6 +35,13 @@ describe('workspace-shell-route.utils', () => {
                 kind: 'global-favorites',
             })
         );
+        expect(parseWorkspaceShellRoute('/workspace/global-recent')).toEqual(
+            expect.objectContaining({
+                kind: 'global-recent',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
         expect(parseWorkspaceShellRoute('/workspace/downloads')).toEqual(
             expect.objectContaining({
                 kind: 'downloads',
