@@ -1,8 +1,22 @@
-import { routes } from './app.routes';
-
 describe('app routes', () => {
-    const workspaceRoute = routes.find((route) => route.path === 'workspace');
-    const workspaceChildren = workspaceRoute?.children ?? [];
+    let workspaceChildren: Array<{
+        data?: Record<string, unknown>;
+        loadComponent?: unknown;
+        path?: string;
+    }> = [];
+
+    beforeAll(async () => {
+        jest.resetModules();
+        jest.unstable_mockModule('@iptvnator/playlist/m3u/feature-player', () => ({
+            M3uCollectionRouteComponent: class {},
+            VideoPlayerComponent: class {},
+            provideM3uWorkspaceRouteSession: () => [],
+        }));
+
+        const { routes } = await import('./app.routes');
+        const workspaceRoute = routes.find((route) => route.path === 'workspace');
+        workspaceChildren = workspaceRoute?.children ?? [];
+    });
 
     it('routes M3U favorites and recent pages through the shared collection wrapper', async () => {
         const favoritesRoute = workspaceChildren.find(
