@@ -1,12 +1,13 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateService } from '@ngx-translate/core';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PlaylistActions,
-    selectActivePlaylistId,
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
@@ -105,7 +106,6 @@ describe('RecentPlaylistsComponent busy state', () => {
                 provideMockStore({
                     selectors: [
                         { selector: selectPlaylistsLoadingFlag, value: true },
-                        { selector: selectActivePlaylistId, value: null },
                         {
                             selector: selectAllPlaylistsMeta,
                             value: [],
@@ -127,6 +127,12 @@ describe('RecentPlaylistsComponent busy state', () => {
                 {
                     provide: DataService,
                     useValue: dataService,
+                },
+                {
+                    provide: PlaylistContextFacade,
+                    useValue: {
+                        resolvedPlaylistId: signal<string | null>(null),
+                    },
                 },
                 {
                     provide: MatDialog,

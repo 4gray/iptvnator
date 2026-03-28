@@ -52,6 +52,22 @@ function createAbortError(): Error {
     return error;
 }
 
+async function waitForCondition(
+    predicate: () => boolean,
+    attempts = 20
+): Promise<void> {
+    for (let index = 0; index < attempts; index += 1) {
+        if (predicate()) {
+            return;
+        }
+
+        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    throw new Error('Timed out waiting for test condition');
+}
+
 describe('withContent import state', () => {
     let store: InstanceType<typeof TestContentStore>;
     let dataSource: {
@@ -99,6 +115,11 @@ describe('withContent import state', () => {
     });
 
     it('tracks aggregated import progress while content is loading', async () => {
+        const pendingCategories = {
+            live: createDeferred<any[]>(),
+            vod: createDeferred<any[]>(),
+            series: createDeferred<any[]>(),
+        };
         const pending = {
             live: createDeferred<any[]>(),
             movie: createDeferred<any[]>(),
@@ -114,6 +135,13 @@ describe('withContent import state', () => {
             series: 4,
         };
 
+        dataSource.getCategories.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                type: 'live' | 'vod' | 'series'
+            ) => pendingCategories[type].promise
+        );
         dataSource.getContent.mockImplementation(
             (
                 _playlistId: string,
@@ -148,6 +176,11 @@ describe('withContent import state', () => {
         const initialization = store.initializeContent();
         await Promise.resolve();
 
+        pendingCategories.live.resolve([]);
+        pendingCategories.vod.resolve([]);
+        pendingCategories.series.resolve([]);
+        await waitForCondition(() => store.importCount() === 3);
+
         expect(store.isImporting()).toBe(true);
         expect(store.importCount()).toBe(3);
         expect(store.itemsToImport()).toBe(9);
@@ -180,7 +213,43 @@ describe('withContent import state', () => {
         expect(store.itemsToImport()).toBe(0);
     });
 
+    it('loads categories before starting content import', async () => {
+        const pendingCategories = {
+            live: createDeferred<any[]>(),
+            vod: createDeferred<any[]>(),
+            series: createDeferred<any[]>(),
+        };
+
+        dataSource.getCategories.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                type: 'live' | 'vod' | 'series'
+            ) => pendingCategories[type].promise
+        );
+        dataSource.getContent.mockResolvedValue([]);
+
+        const initialization = store.initializeContent();
+        await Promise.resolve();
+
+        expect(dataSource.getCategories).toHaveBeenCalledTimes(3);
+        expect(dataSource.getContent).not.toHaveBeenCalled();
+
+        pendingCategories.live.resolve([]);
+        pendingCategories.vod.resolve([]);
+        pendingCategories.series.resolve([]);
+
+        await initialization;
+
+        expect(dataSource.getContent).toHaveBeenCalledTimes(3);
+    });
+
     it('cancels active imports and clears stale progress after worker aborts', async () => {
+        const pendingCategories = {
+            live: createDeferred<any[]>(),
+            vod: createDeferred<any[]>(),
+            series: createDeferred<any[]>(),
+        };
         const pending = {
             live: createDeferred<any[]>(),
             movie: createDeferred<any[]>(),
@@ -191,6 +260,13 @@ describe('withContent import state', () => {
             { onEvent?: (event: any) => void } | undefined
         >();
 
+        dataSource.getCategories.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                type: 'live' | 'vod' | 'series'
+            ) => pendingCategories[type].promise
+        );
         dataSource.getContent.mockImplementation(
             (
                 _playlistId: string,
@@ -225,13 +301,24 @@ describe('withContent import state', () => {
         const initialization = store.initializeContent();
         await Promise.resolve();
 
+        pendingCategories.live.resolve([]);
+        pendingCategories.vod.resolve([]);
+        pendingCategories.series.resolve([]);
+        await waitForCondition(
+            () => store.activeImportOperationIds().length === 3
+        );
+
         await store.cancelImport();
 
         expect(store.isCancellingImport()).toBe(true);
         expect(databaseService.cancelOperation).toHaveBeenCalledTimes(3);
         expect(databaseService.cancelOperation).toHaveBeenCalledWith('live-op');
-        expect(databaseService.cancelOperation).toHaveBeenCalledWith('movie-op');
-        expect(databaseService.cancelOperation).toHaveBeenCalledWith('series-op');
+        expect(databaseService.cancelOperation).toHaveBeenCalledWith(
+            'movie-op'
+        );
+        expect(databaseService.cancelOperation).toHaveBeenCalledWith(
+            'series-op'
+        );
 
         (['live', 'movie', 'series'] as ContentType[]).forEach((type) => {
             optionsByType.get(type)?.onEvent?.({

@@ -13,11 +13,7 @@ import {
     XtreamVodStream,
 } from 'shared-interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import {
-    DatabaseService,
-    DbOperationEvent,
-    isDbAbortError,
-} from 'services';
+import { DatabaseService, DbOperationEvent, isDbAbortError } from 'services';
 import {
     XTREAM_DATA_SOURCE,
     XtreamCategoryFromDb,
@@ -135,7 +131,6 @@ export function withContent() {
              * Current import phase label key source
              */
             currentImportPhase: computed(() => store.importPhase()),
-
         })),
 
         withMethods((store) => {
@@ -178,8 +173,8 @@ export function withContent() {
                         operationId == null
                             ? state.activeImportOperationIds
                             : event.status === 'completed' ||
-                              event.status === 'cancelled' ||
-                              event.status === 'error'
+                                event.status === 'cancelled' ||
+                                event.status === 'error'
                               ? state.activeImportOperationIds.filter(
                                     (id) => id !== operationId
                                 )
@@ -187,7 +182,10 @@ export function withContent() {
                                       operationId
                                   )
                                 ? state.activeImportOperationIds
-                                : [...state.activeImportOperationIds, operationId],
+                                : [
+                                      ...state.activeImportOperationIds,
+                                      operationId,
+                                  ],
                     isCancellingImport:
                         event.status === 'cancelled'
                             ? false
@@ -327,11 +325,11 @@ export function withContent() {
                     });
 
                     try {
-                        // Fetch categories and content in parallel for faster initial load
-                        await Promise.all([
-                            this.fetchAllCategories(),
-                            this.fetchAllContent(),
-                        ]);
+                        // Electron content persistence maps remote category IDs
+                        // to internal DB category rows, so categories must exist
+                        // before content import starts.
+                        await this.fetchAllCategories();
+                        await this.fetchAllContent();
 
                         // Restore user data if needed
                         const restoreKey = `xtream-restore-${ctx.playlistId}`;

@@ -17,6 +17,7 @@ import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from 'components';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     COMPONENT_OVERLAY_REF,
     EpgListComponent,
@@ -24,10 +25,8 @@ import {
 } from '@iptvnator/ui/epg';
 import {
     ChannelActions,
-    FavoritesActions,
     PlaylistActions,
     selectActive,
-    selectActivePlaylistId,
     selectChannels,
     selectCurrentEpgProgram,
 } from 'm3u-state';
@@ -96,6 +95,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly dataService = inject(DataService);
     private readonly overlay = inject(Overlay);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly router = inject(Router);
     private readonly settingsStore = inject(SettingsStore);
     private readonly storage = inject(StorageMap);
@@ -107,7 +107,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     /** Active selected channel */
     readonly activeChannel = this.store.selectSignal(selectActive);
-    readonly activePlaylistId = this.store.selectSignal(selectActivePlaylistId);
+    readonly activePlaylistId = this.playlistContext.resolvedPlaylistId;
     readonly channels = this.store.selectSignal(selectChannels);
 
     /** Channels list */
@@ -120,7 +120,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     /** Active M3U view (all, groups, favorites, recent) */
     readonly activeView = toSignal(
-        this.activatedRoute.params.pipe(map((params) => params['view'] || 'all')),
+        this.activatedRoute.params.pipe(
+            map((params) => params['view'] || 'all')
+        ),
         { initialValue: 'all' }
     );
 
@@ -138,11 +140,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
     private statusSubscription?: Subscription;
-    private routeSubscription?: Subscription;
     private lastKnownVolume = 1;
     private lastRecordedRecentKey = '';
-    private lastExternalSessionStateKey =
-        this.getExternalSessionStateKey(this.externalPlayback.activeSession());
+    private lastExternalSessionStateKey = this.getExternalSessionStateKey(
+        this.externalPlayback.activeSession()
+    );
 
     /** Channel number input state */
     channelNumberInput = '';
@@ -195,7 +197,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                     ? state.openRecentChannelUrl.trim()
                     : '';
 
-            if (currentView !== 'recent' || !targetUrl || channels.length === 0) {
+            if (
+                currentView !== 'recent' ||
+                !targetUrl ||
+                channels.length === 0
+            ) {
                 return;
             }
 
@@ -271,58 +277,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             }
         }
 
-        this.routeSubscription = this.activatedRoute.params
-            .pipe(
-                distinctUntilChanged((prev, curr) => prev['id'] === curr['id']),
-                combineLatestWith(this.activatedRoute.queryParams),
-                switchMap(([params]) => {
-                    if (params['id']) {
-                        this.store.dispatch(
-                            ChannelActions.resetActiveChannel()
-                        );
-                        this.store.dispatch(
-                            PlaylistActions.setActivePlaylist({
-                                playlistId: params['id'],
-                            })
-                        );
-                        return this.playlistsService
-                            .getPlaylist(params['id'])
-                            .pipe(
-                                map((playlist) => {
-                                    // Set user agent if specified on playlist level
-                                    if (playlist.userAgent) {
-                                        window.electron?.setUserAgent(
-                                            playlist.userAgent,
-                                            'localhost'
-                                        );
-                                    }
-
-                                    this.store.dispatch(
-                                        ChannelActions.setChannels({
-                                            channels: playlist.playlist.items,
-                                        })
-                                    );
-
-                                    // Load favorites from the playlist
-                                    const stringFavs = (
-                                        playlist.favorites ?? []
-                                    ).filter(
-                                        (f): f is string =>
-                                            typeof f === 'string'
-                                    );
-                                    this.store.dispatch(
-                                        FavoritesActions.setFavorites({
-                                            channelIds: stringFavs,
-                                        })
-                                    );
-                                })
-                            );
-                    }
-                    return [];
-                })
-            )
-            .subscribe();
-
         this.statusSubscription = combineLatest([
             this.channels$,
             this.store.select(selectActive),
@@ -332,7 +286,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 return;
             }
 
-            const currentEpgProgram = epgProgram as EpgProgram | null | undefined;
+            const currentEpgProgram = epgProgram as
+                | EpgProgram
+                | null
+                | undefined;
             const currentIndex = channels.findIndex(
                 (channel) => channel.url === activeChannel.url
             );
@@ -398,13 +355,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
-        this.workspaceHeaderContext.clearAction(
-            M3U_MULTI_EPG_HEADER_ACTION_ID
-        );
+        this.workspaceHeaderContext.clearAction(M3U_MULTI_EPG_HEADER_ACTION_ID);
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         this.statusSubscription?.unsubscribe();
-        this.routeSubscription?.unsubscribe();
     }
 
     /**

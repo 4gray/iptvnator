@@ -5,9 +5,6 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { Store } from '@ngrx/store';
-import { selectActivePlaylist } from 'm3u-state';
-import { Playlist } from 'shared-interfaces';
 import {
     XTREAM_DATA_SOURCE,
     XtreamPlaylistData,
@@ -52,7 +49,6 @@ export function withPortal() {
         withMethods((store) => {
             const apiService = inject(XtreamApiService);
             const dataSource = inject(XTREAM_DATA_SOURCE);
-            const ngrxStore = inject(Store);
 
             return {
                 /**
@@ -77,31 +73,26 @@ export function withPortal() {
 
                         if (playlist) {
                             patchState(store, { currentPlaylist: playlist });
-                        } else {
-                            // Fallback to NgRx store for M3U playlists that might not be in DB yet
-                            const activePlaylist = ngrxStore.selectSignal(
-                                selectActivePlaylist
-                            )() as Playlist;
-
-                            if (activePlaylist) {
-                                const newPlaylist: XtreamPlaylistData = {
-                                    id: activePlaylist._id,
-                                    name: activePlaylist.title,
-                                    serverUrl: activePlaylist.serverUrl,
-                                    username: activePlaylist.username,
-                                    password: activePlaylist.password,
-                                    type: 'xtream',
-                                };
-
-                                await dataSource.createPlaylist(newPlaylist);
-                                patchState(store, {
-                                    currentPlaylist: newPlaylist,
-                                });
-                            }
+                            return;
                         }
+
+                        const currentPlaylist = store.currentPlaylist();
+                        if (
+                            !currentPlaylist ||
+                            currentPlaylist.id !== playlistId
+                        ) {
+                            return;
+                        }
+
+                        await dataSource.createPlaylist(currentPlaylist);
+                        patchState(store, { currentPlaylist });
                     } catch (error) {
                         logger.error('Error fetching playlist', error);
                     }
+                },
+
+                setCurrentPlaylist(playlist: XtreamPlaylistData | null): void {
+                    patchState(store, { currentPlaylist: playlist });
                 },
 
                 /**

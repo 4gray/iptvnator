@@ -1,11 +1,16 @@
-import { Component, effect, inject, resource, signal } from '@angular/core';
+import {
+    Component,
+    computed,
+    effect,
+    inject,
+    resource,
+    signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { ActivatedRoute } from '@angular/router';
-import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
-import { selectPlaylistById } from 'm3u-state';
 import { DataService, PlaylistsService } from 'services';
 import {
     Playlist,
@@ -18,6 +23,7 @@ import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
 import { StalkerInlineDetailComponent } from '../stalker-inline-detail/stalker-inline-detail.component';
 import { StalkerContentTypes } from '@iptvnator/portal/stalker/data-access';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     isWorkspaceLayoutRoute,
     queryParamSignal,
@@ -69,10 +75,10 @@ interface StalkerSearchResponse {
 export class StalkerSearchComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly dataService = inject(DataService);
+    private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistService = inject(PlaylistsService);
     private readonly stalkerStore = inject(StalkerStore);
     private readonly stalkerSession = inject(StalkerSessionService);
-    private readonly store = inject(Store);
     private readonly logger = createLogger('StalkerSearch');
 
     readonly filters = signal({
@@ -101,9 +107,10 @@ export class StalkerSearchComponent {
         (value) => (value ?? '').trim()
     );
 
-    private readonly currentPlaylist = this.store.selectSignal(
-        selectPlaylistById(this.activatedRoute?.parent?.snapshot.params.id)
-    );
+    private readonly currentPlaylist = computed(() => {
+        const playlist = this.playlistContext.activePlaylist();
+        return playlist?.macAddress ? playlist : null;
+    });
 
     readonly selectedFilterType = signal('vod');
     private readonly favoritesRefresh = createRefreshTrigger();
@@ -149,17 +156,17 @@ export class StalkerSearchComponent {
                 await this.dataService.sendIpcEvent<StalkerSearchResponse>(
                     STALKER_REQUEST,
                     {
-                    url: portalUrl,
-                    macAddress,
-                    params: {
-                        action: StalkerContentTypes[params.contentType]
-                            .getContentAction,
-                        type: params.contentType,
-                        search: params.search,
-                        max_page_items: 100,
-                    },
-                    token,
-                    serialNumber,
+                        url: portalUrl,
+                        macAddress,
+                        params: {
+                            action: StalkerContentTypes[params.contentType]
+                                .getContentAction,
+                            type: params.contentType,
+                            search: params.search,
+                            max_page_items: 100,
+                        },
+                        token,
+                        serialNumber,
                     }
                 );
             if (response) {

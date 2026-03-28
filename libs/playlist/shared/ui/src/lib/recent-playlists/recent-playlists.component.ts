@@ -13,9 +13,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PlaylistActions,
-    selectActivePlaylistId,
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
@@ -70,6 +70,7 @@ export class RecentPlaylistsComponent {
     private readonly sortService = inject(SortService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
+    private readonly playlistContext = inject(PlaylistContextFacade);
 
     readonly sidebarMode = input(false);
     readonly searchQueryInput = input<string>('');
@@ -79,7 +80,7 @@ export class RecentPlaylistsComponent {
     readonly allPlaylistsLoaded = this.store.selectSignal(
         selectPlaylistsLoadingFlag
     );
-    readonly activePlaylistId = this.store.selectSignal(selectActivePlaylistId);
+    readonly activePlaylistId = this.playlistContext.resolvedPlaylistId;
 
     private readonly currentSortOptions = toSignal(
         this.sortService.getSortOptions(),

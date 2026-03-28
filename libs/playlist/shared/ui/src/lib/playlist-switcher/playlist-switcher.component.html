@@ -144,7 +144,7 @@
             @if (showPlaylistInfo()) {
                 <button
                     class="context-action-item"
-                    (click)="playlistInfoRequested.emit()"
+                    (click)="requestPlaylistInfo()"
                 >
                     <mat-icon>playlist_play</mat-icon>
                     <span>{{
@@ -155,7 +155,7 @@
             @if (showAccountInfo()) {
                 <button
                     class="context-action-item"
-                    (click)="accountInfoRequested.emit()"
+                    (click)="requestAccountInfo()"
                 >
                     <mat-icon>person</mat-icon>
                     <span>{{

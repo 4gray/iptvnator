@@ -18,6 +18,7 @@ import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgService } from '@iptvnator/epg/data-access';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     isWorkspaceLayoutRoute,
     queryParamSignal,
@@ -27,7 +28,6 @@ import {
     FavoritesActions,
     PlaylistActions,
     selectActive,
-    selectActivePlaylistId,
     selectFavorites,
 } from 'm3u-state';
 import {
@@ -36,7 +36,6 @@ import {
     filter,
     firstValueFrom,
     map,
-    skipWhile,
 } from 'rxjs';
 import { PlaylistsService } from 'services';
 import {
@@ -91,6 +90,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly store = inject(Store);
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
+    private readonly playlistContext = inject(PlaylistContextFacade);
 
     /** Map of channel ID to current EPG program */
     readonly channelEpgMap = signal(new Map<string, EpgProgram | null>());
@@ -163,10 +163,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         this.fetchEpgForChannels(safeValue);
     }
 
-    /** Active playlist ID as signal */
-    private readonly activePlaylistIdSignal = this.store.selectSignal(
-        selectActivePlaylistId
-    );
+    /** Route-aware playlist ID for recent-item mutations */
+    private readonly resolvedPlaylistId = this.playlistContext.resolvedPlaylistId;
 
     /** Displayed channels - filters out unfavorited channels in global favorites view */
     readonly displayedChannels = computed(() => {
@@ -226,15 +224,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Active channel URL for highlighting */
     readonly activeChannelUrl = computed(() => this.activeChannel()?.url);
-
-    /** ID of the current playlist */
-    playlistId$ = this.store
-        .select(selectActivePlaylistId)
-        .pipe(
-            skipWhile(
-                (playlistId) => playlistId === '' || playlistId === undefined
-            )
-        );
 
     /** Set of favorite channel URLs for quick lookup */
     private readonly _favorites = this.store.selectSignal(selectFavorites);
@@ -345,7 +334,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     async removeRecentChannel(channelUrl: string): Promise<void> {
-        const playlistId = this.activePlaylistIdSignal();
+        const playlistId = this.resolvedPlaylistId();
         if (!playlistId) {
             return;
         }
@@ -368,7 +357,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     async clearRecentChannels(): Promise<void> {
-        const playlistId = this.activePlaylistIdSignal();
+        const playlistId = this.resolvedPlaylistId();
         if (!playlistId) {
             return;
         }
