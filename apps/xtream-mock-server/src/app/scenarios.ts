@@ -41,6 +41,18 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         accountStatus: 'Active',
         expiryDate: '2099-12-31',
     },
+    'stress:stress': {
+        name: 'stress',
+        description:
+            'Stress catalog — deterministic CI-sized import/delete workload',
+        seed: 7777,
+        categoryCount: { live: 16, vod: 16, series: 16 },
+        itemsPerCategory: 120,
+        seasonsPerSeries: 4,
+        episodesPerSeason: 10,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+    },
     'series:series': {
         name: 'series-heavy',
         description: 'Series-heavy — 15 series categories, 6 seasons × 10 episodes',
