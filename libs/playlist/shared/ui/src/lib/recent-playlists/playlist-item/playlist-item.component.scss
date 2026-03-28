@@ -38,6 +38,10 @@ mat-list-item {
             );
         }
     }
+
+    &.is-busy {
+        cursor: progress;
+    }
 }
 
 // Light theme hover
@@ -55,6 +59,30 @@ mat-list-item {
     font-size: 12px !important;
     color: #666;
     margin-top: 2px !important;
+}
+
+.busy-state {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 11px !important;
+    color: var(--app-selection-border, #8aa4c8);
+    margin-top: 4px !important;
+}
+
+.busy-state__message {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.busy-state__value {
+    opacity: 0.8;
+}
+
+.busy-state__bar {
+    margin-top: 4px !important;
 }
 
 .cdk-drag-preview {
@@ -123,7 +151,16 @@ mat-list-item {
             opacity: 0.85;
             transition: opacity 0.3s ease;
         }
+
+        &:disabled {
+            transform: none;
+        }
     }
+}
+
+.action-spinner {
+    display: block;
+    margin: 0 auto;
 }
 
 // Light theme action buttons

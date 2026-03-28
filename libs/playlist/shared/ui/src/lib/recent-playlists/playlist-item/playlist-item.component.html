@@ -1,9 +1,10 @@
 <mat-list-item
     cdkDrag
-    [cdkDragDisabled]="!isDraggable()"
+    [cdkDragDisabled]="!isDraggable() || isBusy()"
     cdkDragPreviewContainer="parent"
     [class.selected]="isSelected()"
-    (click)="playlistClicked.emit(item._id)"
+    [class.is-busy]="isBusy()"
+    (click)="onPlaylistClick()"
 >
     @if (isDraggable()) {
         <mat-icon cdkDragHandle class="drag-icon" matListItemIcon
@@ -106,9 +107,44 @@
             }
         }
     </div>
+    @if (isBusy() && busyMessage()) {
+        <div matListItemLine class="busy-state">
+            <span class="busy-state__message">{{ busyMessage() }}</span>
+            @if (busyProgress() !== null) {
+                <span class="busy-state__value">{{ busyProgress() }}%</span>
+            }
+        </div>
+    }
+    @if (isBusy() && busyMessage() && busyProgress() !== null) {
+        <div matListItemLine class="busy-state__bar">
+            <mat-progress-bar
+                mode="determinate"
+                [value]="busyProgress() ?? 0"
+            />
+        </div>
+    }
+    @if (isBusy() && busyMessage() && busyProgress() === null) {
+        <div matListItemLine class="busy-state__bar">
+            <mat-progress-bar mode="indeterminate" />
+        </div>
+    }
 
     @if (showActions()) {
         <span matListItemMeta class="action-buttons">
+            @if (canCancelBusyAction()) {
+                <button
+                    mat-icon-button
+                    color="warn"
+                    class="cancel-btn"
+                    (click)="
+                        $event.stopPropagation();
+                        cancelBusyActionClicked.emit()
+                    "
+                    [matTooltip]="'WORKSPACE.SHELL.XTREAM_IMPORT_CANCEL' | translate"
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+            }
             @if (item.url || item.filePath) {
                 <button
                     mat-icon-button
@@ -117,9 +153,18 @@
                     (click)="
                         $event.stopPropagation(); refreshClicked.emit(item)
                     "
+                    [disabled]="isBusy()"
                     [matTooltip]="'HOME.PLAYLISTS.REFRESH' | translate"
                 >
-                    <mat-icon>sync</mat-icon>
+                    @if (isRefreshing()) {
+                        <mat-spinner
+                            class="action-spinner"
+                            diameter="18"
+                            strokeWidth="3"
+                        />
+                    } @else {
+                        <mat-icon>sync</mat-icon>
+                    }
                 </button>
             }
             @if (item.serverUrl && isElectron) {
@@ -130,9 +175,18 @@
                     (click)="
                         $event.stopPropagation(); refreshClicked.emit(item)
                     "
+                    [disabled]="isBusy()"
                     [matTooltip]="'HOME.PLAYLISTS.REFRESH_XTREAM' | translate"
                 >
-                    <mat-icon>sync</mat-icon>
+                    @if (isRefreshing()) {
+                        <mat-spinner
+                            class="action-spinner"
+                            diameter="18"
+                            strokeWidth="3"
+                        />
+                    } @else {
+                        <mat-icon>sync</mat-icon>
+                    }
                 </button>
             }
 
@@ -143,6 +197,7 @@
                 (click)="
                     $event.stopPropagation(); editPlaylistClicked.emit(item)
                 "
+                [disabled]="isBusy()"
                 [matTooltip]="'HOME.PLAYLISTS.SHOW_DETAILS' | translate"
             >
                 <mat-icon>edit</mat-icon>
@@ -153,9 +208,18 @@
                 color="accent"
                 class="delete-btn"
                 (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
+                [disabled]="isBusy()"
                 [matTooltip]="'HOME.PLAYLISTS.REMOVE' | translate"
             >
-                <mat-icon>delete</mat-icon>
+                @if (isDeleting()) {
+                    <mat-spinner
+                        class="action-spinner"
+                        diameter="18"
+                        strokeWidth="3"
+                    />
+                } @else {
+                    <mat-icon>delete</mat-icon>
+                }
             </button>
         </span>
     }

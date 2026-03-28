@@ -4,7 +4,7 @@ import {
     moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { AsyncPipe } from '@angular/common';
-import { Component, effect, inject, input, output } from '@angular/core';
+import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { MatInputModule } from '@angular/material/input';
@@ -23,12 +23,28 @@ import {
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { DialogService } from 'components';
-import { DatabaseService, DataService, SortBy, SortService } from 'services';
+import {
+    DatabaseService,
+    DataService,
+    DbOperationEvent,
+    isDbAbortError,
+    SortBy,
+    SortService,
+} from 'services';
 import { PLAYLIST_UPDATE, PlaylistMeta } from 'shared-interfaces';
 import { PlaylistType } from '../add-playlist-menu/add-playlist-menu.component';
 import { EmptyStateComponent } from './empty-state/empty-state.component';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
+
+type PlaylistBusyOperation = {
+    current?: number;
+    operation: string;
+    operationId?: string;
+    phase?: string;
+    status: DbOperationEvent['status'];
+    total?: number;
+};
 
 @Component({
     selector: 'app-recent-playlists',
@@ -74,6 +90,11 @@ export class RecentPlaylistsComponent {
         this.currentSortOptions().by === SortBy.CUSTOM;
 
     readonly searchQuery = new BehaviorSubject<string>('');
+    readonly pendingDeletionIds = signal<Set<string>>(new Set());
+    readonly pendingRefreshIds = signal<Set<string>>(new Set());
+    readonly busyOperations = signal<Map<string, PlaylistBusyOperation>>(
+        new Map()
+    );
 
     readonly ghostElements = new Array(10);
 
@@ -177,14 +198,21 @@ export class RecentPlaylistsComponent {
      * Triggers on remove click
      * @param playlistId playlist id to remove
      */
-    removeClicked(playlistId: string): void {
+    removeClicked(item: PlaylistMeta): void {
+        if (
+            this.isDeletePending(item._id) ||
+            this.isRefreshPending(item._id)
+        ) {
+            return;
+        }
+
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.TITLE'),
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
             onConfirm: () => {
-                this.removePlaylist(playlistId);
+                this.removePlaylist(item);
             },
         });
     }
@@ -193,17 +221,47 @@ export class RecentPlaylistsComponent {
      * Removes the provided playlist from the database
      * @param playlistId playlist id to remove
      */
-    async removePlaylist(playlistId: string) {
-        const deleted = await this.databaseService.deletePlaylist(playlistId);
-        if (deleted) {
-            this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
-            this.snackBar.open(
-                this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS'),
-                undefined,
-                {
-                    duration: 2000,
-                }
+    async removePlaylist(item: PlaylistMeta) {
+        if (
+            this.isDeletePending(item._id) ||
+            this.isRefreshPending(item._id)
+        ) {
+            return;
+        }
+
+        this.setPendingDeletion(item._id, true);
+        const operationId = item.serverUrl
+            ? this.databaseService.createOperationId('playlist-delete')
+            : undefined;
+
+        try {
+            const deleted = await this.databaseService.deletePlaylist(
+                item._id,
+                operationId
+                    ? {
+                          operationId,
+                          onEvent: (event) =>
+                              this.updateBusyOperation(item._id, event),
+                      }
+                    : undefined
             );
+            if (deleted) {
+                this.store.dispatch(
+                    PlaylistActions.removePlaylist({ playlistId: item._id })
+                );
+                this.snackBar.open(
+                    this.translate.instant(
+                        'HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS'
+                    ),
+                    undefined,
+                    {
+                        duration: 2000,
+                    }
+                );
+            }
+        } finally {
+            this.clearBusyOperation(item._id);
+            this.setPendingDeletion(item._id, false);
         }
     }
 
@@ -212,6 +270,13 @@ export class RecentPlaylistsComponent {
      * @param item playlist to update
      */
     refreshPlaylist(item: PlaylistMeta) {
+        if (
+            this.isDeletePending(item._id) ||
+            this.isRefreshPending(item._id)
+        ) {
+            return;
+        }
+
         if (item.serverUrl) {
             // For Xtream playlists, delete and re-import
             this.refreshXtreamPlaylist(item);
@@ -230,6 +295,13 @@ export class RecentPlaylistsComponent {
      * @param item Xtream playlist to refresh
      */
     async refreshXtreamPlaylist(item: PlaylistMeta) {
+        if (
+            this.isDeletePending(item._id) ||
+            this.isRefreshPending(item._id)
+        ) {
+            return;
+        }
+
         this.dialogService.openConfirmDialog({
             title: this.translate.instant(
                 'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.TITLE'
@@ -238,6 +310,18 @@ export class RecentPlaylistsComponent {
                 'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.MESSAGE'
             ),
             onConfirm: async () => {
+                if (
+                    this.isDeletePending(item._id) ||
+                    this.isRefreshPending(item._id)
+                ) {
+                    return;
+                }
+
+                this.setPendingRefresh(item._id, true);
+                const operationId = this.databaseService.createOperationId(
+                    'xtream-refresh'
+                );
+
                 try {
                     // Show immediate feedback — deletion can take several seconds
                     // for large playlists.
@@ -260,7 +344,15 @@ export class RecentPlaylistsComponent {
                         },
                     ] = await Promise.all([
                         this.databaseService.deleteXtreamPlaylistContent(
-                            item._id
+                            item._id,
+                            {
+                                operationId,
+                                onEvent: (workerEvent) =>
+                                    this.updateBusyOperation(
+                                        item._id,
+                                        workerEvent
+                                    ),
+                            }
                         ),
                         this.databaseService.updateXtreamPlaylistDetails({
                             id: item._id,
@@ -289,16 +381,194 @@ export class RecentPlaylistsComponent {
                     // Navigate to the playlist to trigger re-import
                     this.router.navigate(['/workspace', 'xtreams', item._id]);
                 } catch (error) {
-                    console.error('Error refreshing Xtream playlist:', error);
-                    this.snackBar.open(
-                        this.translate.instant(
-                            'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.ERROR'
-                        ),
-                        undefined,
-                        { duration: 3000 }
-                    );
+                    if (!isDbAbortError(error)) {
+                        console.error('Error refreshing Xtream playlist:', error);
+                        this.snackBar.open(
+                            this.translate.instant(
+                                'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.ERROR'
+                            ),
+                            undefined,
+                            { duration: 3000 }
+                        );
+                    }
+                } finally {
+                    this.clearBusyOperation(item._id);
+                    this.setPendingRefresh(item._id, false);
                 }
             },
         });
+    }
+
+    isDeletePending(playlistId: string): boolean {
+        return this.pendingDeletionIds().has(playlistId);
+    }
+
+    isRefreshPending(playlistId: string): boolean {
+        return this.pendingRefreshIds().has(playlistId);
+    }
+
+    getBusyMessage(item: PlaylistMeta): string {
+        const operation = this.busyOperations().get(item._id);
+        if (!operation) {
+            return '';
+        }
+
+        switch (operation.operation) {
+            case 'delete-playlist':
+                return this.translateDeletePhase(operation.phase);
+            case 'delete-xtream-content':
+                return this.translateRefreshPhase(operation.phase);
+            default:
+                return '';
+        }
+    }
+
+    getBusyProgress(playlistId: string): number | null {
+        const operation = this.busyOperations().get(playlistId);
+        if (
+            !operation ||
+            operation.current == null ||
+            operation.total == null ||
+            operation.total <= 0
+        ) {
+            return null;
+        }
+
+        return Math.min(
+            100,
+            Math.round((operation.current / operation.total) * 100)
+        );
+    }
+
+    canCancelBusyOperation(item: PlaylistMeta): boolean {
+        const operation = this.busyOperations().get(item._id);
+        return Boolean(item.serverUrl && operation?.operationId);
+    }
+
+    async cancelBusyOperation(item: PlaylistMeta): Promise<void> {
+        const operation = this.busyOperations().get(item._id);
+        if (!operation?.operationId) {
+            return;
+        }
+
+        await this.databaseService.cancelOperation(operation.operationId);
+    }
+
+    private setPendingDeletion(playlistId: string, isPending: boolean): void {
+        this.pendingDeletionIds.update((current) => {
+            const next = new Set(current);
+            if (isPending) {
+                next.add(playlistId);
+            } else {
+                next.delete(playlistId);
+            }
+            return next;
+        });
+    }
+
+    private setPendingRefresh(playlistId: string, isPending: boolean): void {
+        this.pendingRefreshIds.update((current) => {
+            const next = new Set(current);
+            if (isPending) {
+                next.add(playlistId);
+            } else {
+                next.delete(playlistId);
+            }
+            return next;
+        });
+    }
+
+    private updateBusyOperation(
+        playlistId: string,
+        event: DbOperationEvent
+    ): void {
+        this.busyOperations.update((current) => {
+            const next = new Map(current);
+
+            if (
+                event.status === 'completed' ||
+                event.status === 'cancelled' ||
+                event.status === 'error'
+            ) {
+                next.delete(playlistId);
+                return next;
+            }
+
+            next.set(playlistId, {
+                operation: event.operation,
+                operationId: event.operationId,
+                phase: event.phase,
+                current: event.current,
+                total: event.total,
+                status: event.status,
+            });
+            return next;
+        });
+    }
+
+    private clearBusyOperation(playlistId: string): void {
+        this.busyOperations.update((current) => {
+            const next = new Map(current);
+            next.delete(playlistId);
+            return next;
+        });
+    }
+
+    private translateDeletePhase(phase?: string): string {
+        switch (phase) {
+            case 'deleting-favorites':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REMOVE_DIALOG.DELETING_FAVORITES'
+                );
+            case 'deleting-recently-viewed':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REMOVE_DIALOG.DELETING_RECENT'
+                );
+            case 'deleting-playback-positions':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REMOVE_DIALOG.DELETING_PROGRESS'
+                );
+            case 'deleting-downloads':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REMOVE_DIALOG.DELETING_DOWNLOADS'
+                );
+            case 'deleting-content':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REMOVE_DIALOG.DELETING_CONTENT'
+                );
+            case 'deleting-categories':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REMOVE_DIALOG.DELETING_CATEGORIES'
+                );
+            case 'deleting-playlist':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REMOVE_DIALOG.DELETING_PLAYLIST'
+                );
+            default:
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REMOVE_DIALOG.IN_PROGRESS'
+                );
+        }
+    }
+
+    private translateRefreshPhase(phase?: string): string {
+        switch (phase) {
+            case 'collecting-user-data':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.COLLECTING_DATA'
+                );
+            case 'deleting-content':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.DELETING_CONTENT'
+                );
+            case 'deleting-categories':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.DELETING_CATEGORIES'
+                );
+            default:
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.IN_PROGRESS'
+                );
+        }
     }
 }
