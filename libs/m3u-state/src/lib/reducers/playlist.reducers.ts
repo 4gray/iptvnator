@@ -15,12 +15,19 @@ export const playlistReducers = [
         };
     }),
     on(PlaylistActions.removePlaylist, (state, action): PlaylistState => {
+        const playlists = playlistsAdapter.removeOne(
+            action.playlistId,
+            state.playlists
+        );
         return {
             ...state,
-            playlists: playlistsAdapter.removeOne(
-                action.playlistId,
-                state.playlists
-            ),
+            playlists: {
+                ...playlists,
+                selectedId:
+                    state.playlists.selectedId === action.playlistId
+                        ? ''
+                        : playlists.selectedId,
+            },
         };
     }),
     on(PlaylistActions.updatePlaylist, (state, action): PlaylistState => {
@@ -137,20 +144,15 @@ export const playlistReducers = [
         };
     }),
     on(PlaylistActions.removeAllPlaylists, (state): PlaylistState => {
+        const playlists = playlistsAdapter.removeAll(state.playlists);
         return {
             ...state,
-            playlists: playlistsAdapter.removeAll(state.playlists),
+            playlists: {
+                ...playlists,
+                selectedId: '',
+            },
         };
     }),
-    on(
-        PlaylistActions.setCurrentPlaylistId,
-        (state, { playlistId }): PlaylistState => {
-            return {
-                ...state,
-                currentPlaylistId: playlistId,
-            };
-        }
-    ),
     on(
         PlaylistActions.handleAddingPlaylistByUrl,
         (state, action): PlaylistState => {

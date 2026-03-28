@@ -23,7 +23,6 @@ export const PlaylistActions = createActionGroup({
             positionUpdates: { id: string; changes: { position: number } }[];
         }>(),
         'Remove All Playlists': emptyProps(),
-        'Set Current Playlist Id': props<{ playlistId: string | undefined }>(),
         'Handle Adding Playlist By Url': props<{
             isTemporary: boolean;
             playlist: Playlist;

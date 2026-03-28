@@ -268,30 +268,18 @@ export class PlaylistEffects {
                     PlaylistActions.addPlaylist,
                     PlaylistActions.handleAddingPlaylistByUrl
                 ),
+                tap((action) => {
+                    if ('isTemporary' in action && action.isTemporary) {
+                        return;
+                    }
+
+                    this.navigateToPlaylist(action.playlist);
+                }),
                 switchMap((action) => {
                     if ('isTemporary' in action && action.isTemporary) {
                         return EMPTY;
                     }
                     return this.playlistsService.addPlaylist(action.playlist);
-                }),
-                map((playlist: Playlist) => {
-                    if (playlist.serverUrl) {
-                        this.router.navigate([
-                            '/workspace/xtreams/',
-                            playlist._id,
-                        ]);
-                    } else if (playlist.macAddress) {
-                        this.router.navigate([
-                            '/workspace/stalker/',
-                            playlist._id,
-                        ]);
-                    } else {
-                        this.router.navigate([
-                            '/workspace/playlists/',
-                            playlist._id,
-                        ]);
-                    }
-                    return playlist;
                 })
             );
         },
@@ -375,4 +363,18 @@ export class PlaylistEffects {
             })
         );
     });
+
+    private navigateToPlaylist(playlist: Playlist): void {
+        if (playlist.serverUrl) {
+            void this.router.navigate(['/workspace', 'xtreams', playlist._id]);
+            return;
+        }
+
+        if (playlist.macAddress) {
+            void this.router.navigate(['/workspace', 'stalker', playlist._id]);
+            return;
+        }
+
+        void this.router.navigate(['/workspace', 'playlists', playlist._id]);
+    }
 }
