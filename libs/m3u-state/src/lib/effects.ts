@@ -348,25 +348,6 @@ export class PlaylistEffects {
         { dispatch: false }
     );
 
-    removeAll$ = createEffect(
-        () => {
-            return this.actions$.pipe(
-                ofType(PlaylistActions.removeAllPlaylists),
-                switchMap(async () => {
-                    await firstValueFrom(this.playlistsService.removeAll());
-                    this.snackBar.open(
-                        this.translate.instant('SETTINGS.PLAYLISTS_REMOVED'),
-                        undefined,
-                        {
-                            duration: 2000,
-                        }
-                    );
-                })
-            );
-        },
-        { dispatch: false }
-    );
-
     setAdjacentChannelAsActive$ = createEffect(() => {
         return this.actions$.pipe(
             ofType(ChannelActions.setAdjacentChannelAsActive),
