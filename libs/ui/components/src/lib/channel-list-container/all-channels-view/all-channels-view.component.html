@@ -1,17 +1,3 @@
-<div class="search-panel">
-    <mat-form-field class="search-bar">
-        <input
-            matInput
-            class="full-width"
-            type="search"
-            spellcheck="false"
-            autocomplete="off"
-            #search
-            [placeholder]="'CHANNELS.SEARCH_CHANNEL' | translate"
-            (input)="onSearchInput($any($event.target).value)"
-        />
-    </mat-form-field>
-</div>
 <div id="all-channels" class="channel-list">
     @if (enrichedChannels().length === 0 && searchTerm()) {
         <div class="no-results">

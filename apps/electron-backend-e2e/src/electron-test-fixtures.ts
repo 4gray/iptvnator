@@ -3,6 +3,7 @@ import {
     APIRequestContext,
     ElectronApplication,
     expect,
+    Locator,
     Page,
     test as base,
 } from '@playwright/test';
@@ -29,13 +30,17 @@ export const defaultXtreamUsername = 'user1';
 export const defaultXtreamPassword = 'pass1';
 export const defaultStalkerMacAddress = '00:1A:79:00:00:01';
 
-type PortalProvider = 'stalker' | 'xtream';
+export type PortalProvider = 'stalker' | 'xtream';
 
 type ElectronFixtures = {
     dataDir: string;
 };
 
-type PortalDebugEvent = {
+type LaunchElectronAppOptions = {
+    env?: Record<string, string | undefined>;
+};
+
+export type PortalDebugEvent = {
     durationMs: number;
     operation: string;
     provider: PortalProvider;
@@ -47,10 +52,26 @@ type PortalDebugEvent = {
     transport: 'electron-main' | 'electron-renderer' | 'pwa-http';
 };
 
+export type DbOperationEvent = {
+    operationId?: string;
+    operation: string;
+    playlistId?: string;
+    status: 'started' | 'progress' | 'completed' | 'cancelled' | 'error';
+    phase?: string;
+    current?: number;
+    total?: number;
+    increment?: number;
+    error?: string;
+};
+
 declare global {
     interface Window {
+        __dbOperationEvents?: DbOperationEvent[];
+        __dbOperationUnsubscribe?: (() => void) | undefined;
         __portalDebugEvents?: PortalDebugEvent[];
         __portalDebugUnsubscribe?: (() => void) | undefined;
+        __rendererFrameCount?: number;
+        __rendererFrameRequestId?: number;
     }
 }
 
@@ -72,7 +93,8 @@ export const test = base.extend<ElectronFixtures>({
 export { expect };
 
 export async function launchElectronApp(
-    dataDir: string
+    dataDir: string,
+    options: LaunchElectronAppOptions = {}
 ): Promise<LaunchedElectronApp> {
     if (!existsSync(electronMainPath)) {
         throw new Error(
@@ -90,6 +112,7 @@ export async function launchElectronApp(
         args,
         env: {
             ...process.env,
+            ...options.env,
             ELECTRON_IS_DEV: '0',
             IPTVNATOR_E2E_DATA_DIR: dataDir,
             NODE_ENV: 'test',
@@ -99,6 +122,8 @@ export async function launchElectronApp(
     const mainWindow = await findMainWindow(electronApp);
     await waitForAppReady(mainWindow);
     await startPortalDebugCapture(mainWindow);
+    await startDbOperationCapture(mainWindow);
+    await startRendererFrameCapture(mainWindow);
 
     return {
         electronApp,
@@ -197,12 +222,43 @@ export async function addXtreamPortal(
     await page.getByRole('menuitem', { name: 'Add Xtreme Code' }).click();
     const dialog = page.locator('mat-dialog-container');
 
-    await dialog.locator('#title').fill(name);
-    await dialog.locator('#serverUrl').fill(serverUrl);
-    await dialog.locator('#username').fill(username);
-    await dialog.locator('#password').fill(password);
-    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    await setInputValue(dialog.locator('#title'), name);
+    await setInputValue(dialog.locator('#serverUrl'), serverUrl);
+    await setInputValue(dialog.locator('#username'), username);
+    await setInputValue(dialog.locator('#password'), password);
+    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+
+    await expect(addButton).toBeEnabled({ timeout: 10000 });
+    await addButton.click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
+}
+
+async function setInputValue(input: Locator, value: string): Promise<void> {
+    await input.fill('');
+    await input.fill(value);
+
+    if ((await input.inputValue()) === value) {
+        return;
+    }
+
+    await input.click();
+    await input.press('Control+A');
+    await input.press('Backspace');
+    await input.type(value);
+
+    if ((await input.inputValue()) === value) {
+        return;
+    }
+
+    await input.evaluate((element, nextValue) => {
+        const inputElement = element as HTMLInputElement;
+        inputElement.value = nextValue;
+        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+        inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+        inputElement.dispatchEvent(new Event('blur', { bubbles: true }));
+    }, value);
+
+    await expect(input).toHaveValue(value);
 }
 
 export async function addStalkerPortal(
@@ -223,10 +279,13 @@ export async function addStalkerPortal(
     await page.getByRole('menuitem', { name: 'Add Stalker Portal' }).click();
     const dialog = page.locator('mat-dialog-container');
 
-    await dialog.locator('#title').fill(name);
-    await dialog.locator('#portalUrl').fill(portalUrl);
-    await dialog.locator('#macAddress').fill(macAddress);
-    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    await setInputValue(dialog.locator('input#title'), name);
+    await setInputValue(dialog.locator('input#portalUrl'), portalUrl);
+    await setInputValue(dialog.locator('input#macAddress'), macAddress);
+    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+
+    await expect(addButton).toBeEnabled({ timeout: 10000 });
+    await addButton.click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
 }
 
@@ -260,17 +319,63 @@ export async function goToDashboard(page: Page): Promise<void> {
     await page.waitForURL(/\/workspace\/dashboard$/);
 }
 
+export async function waitForM3uCatalog(page: Page): Promise<void> {
+    await page.waitForURL(/\/workspace\/playlists\/.+\/all$/);
+    await expect(page.getByTestId('channel-item').first()).toBeVisible({
+        timeout: 20000,
+    });
+}
+
 export async function waitForXtreamCatalog(page: Page): Promise<void> {
     await page.waitForURL(/\/workspace\/xtreams\/.+/);
+    await waitForXtreamImportToFinish(page);
+    await waitForXtreamCategoryCounts(page);
 
-    const categories = page.locator('.category-item');
+    const categories = page.locator(
+        'app-workspace-context-panel .category-item'
+    );
     await expect(categories.first()).toBeVisible({ timeout: 20000 });
-    await categories.first().click();
 
     const contentItems = page.locator(
         '.content-card, [data-test-id="channel-item"], mat-card'
     );
-    await expect(contentItems.first()).toBeVisible({ timeout: 20000 });
+
+    try {
+        await expect(contentItems.first()).toBeVisible({ timeout: 5000 });
+        return;
+    } catch {
+        await categories.first().click();
+        await expect(contentItems.first()).toBeVisible({ timeout: 20000 });
+    }
+}
+
+async function waitForXtreamCategoryCounts(page: Page): Promise<void> {
+    await expect
+        .poll(
+            async () => {
+                const texts = await page
+                    .locator(
+                        'app-workspace-context-panel .category-item .item-count'
+                    )
+                    .allInnerTexts();
+
+                return texts.some((text) => Number.parseInt(text, 10) > 0);
+            },
+            { timeout: 30000 }
+        )
+        .toBeTruthy();
+}
+
+export async function waitForXtreamImportToFinish(page: Page): Promise<void> {
+    const overlay = page.locator('.workspace-loading-overlay');
+
+    try {
+        await overlay.waitFor({ state: 'visible', timeout: 5000 });
+    } catch {
+        // The overlay may already be gone by the time the test reaches this point.
+    }
+
+    await expect(overlay).toHaveCount(0, { timeout: 30000 });
 }
 
 export async function waitForStalkerCatalog(page: Page): Promise<void> {
@@ -284,6 +389,43 @@ export async function waitForStalkerCatalog(page: Page): Promise<void> {
         '.content-card, [data-test-id="channel-item"], mat-card'
     );
     await expect(contentItems.first()).toBeVisible({ timeout: 20000 });
+}
+
+export async function fillWorkspaceSearch(
+    page: Page,
+    term: string,
+    options: {
+        submit?: boolean;
+    } = {}
+): Promise<void> {
+    const input = page.locator(
+        'app-workspace-shell-header .search-field input[type="search"]'
+    );
+
+    await expect(input).toBeEnabled();
+    await input.fill(term);
+
+    if (options.submit) {
+        await input.press('Enter');
+    }
+}
+
+export async function expectWorkspaceSearchScope(
+    page: Page,
+    expected: RegExp | string
+): Promise<void> {
+    await expect(
+        page.locator('app-workspace-shell-header .search-chip--scope')
+    ).toHaveText(expected);
+}
+
+export async function expectWorkspaceSearchStatus(
+    page: Page,
+    expected: RegExp | string
+): Promise<void> {
+    await expect(
+        page.locator('app-workspace-shell-header .search-chip--status')
+    ).toHaveText(expected);
 }
 
 async function startPortalDebugCapture(page: Page): Promise<void> {
@@ -309,6 +451,48 @@ async function startPortalDebugCapture(page: Page): Promise<void> {
     });
 }
 
+async function startDbOperationCapture(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        const electronApi = window.electron as typeof window.electron & {
+            onDbOperationEvent?: (
+                callback: (event: DbOperationEvent) => void
+            ) => (() => void) | undefined;
+        };
+
+        window.__dbOperationUnsubscribe?.();
+        window.__dbOperationEvents = [];
+
+        if (!electronApi.onDbOperationEvent) {
+            return;
+        }
+
+        window.__dbOperationUnsubscribe = electronApi.onDbOperationEvent(
+            (event: DbOperationEvent) => {
+                window.__dbOperationEvents?.push(event);
+            }
+        );
+    });
+}
+
+async function startRendererFrameCapture(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        if (window.__rendererFrameRequestId) {
+            window.cancelAnimationFrame(window.__rendererFrameRequestId);
+        }
+
+        window.__rendererFrameCount = 0;
+
+        const tick = () => {
+            window.__rendererFrameCount =
+                (window.__rendererFrameCount ?? 0) + 1;
+            window.__rendererFrameRequestId =
+                window.requestAnimationFrame(tick);
+        };
+
+        window.__rendererFrameRequestId = window.requestAnimationFrame(tick);
+    });
+}
+
 export async function expectPortalDebugSuccess(
     page: Page,
     provider: PortalProvider
@@ -330,6 +514,149 @@ export async function expectPortalDebugSuccess(
             { timeout: 20000 }
         )
         .toBeGreaterThan(0);
+}
+
+export async function waitForPortalDebugEvent(
+    page: Page,
+    options: {
+        operation: string;
+        predicate?: (event: PortalDebugEvent) => boolean;
+        provider: PortalProvider;
+        timeoutMs?: number;
+    }
+): Promise<PortalDebugEvent> {
+    const { operation, predicate, provider, timeoutMs = 20000 } = options;
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt <= timeoutMs) {
+        const events = await page.evaluate(
+            () => window.__portalDebugEvents ?? []
+        );
+        const match = events.find((event) => {
+            if (
+                event.provider !== provider ||
+                event.operation !== operation ||
+                event.status !== 'success' ||
+                event.transport !== 'electron-main'
+            ) {
+                return false;
+            }
+
+            return predicate ? predicate(event) : true;
+        });
+
+        if (match) {
+            return match;
+        }
+
+        await page.waitForTimeout(200);
+    }
+
+    const recentEvents = await page.evaluate(() =>
+        (window.__portalDebugEvents ?? []).slice(-10)
+    );
+
+    throw new Error(
+        `Timed out waiting for ${provider}:${operation}. Recent events: ${JSON.stringify(
+            recentEvents,
+            null,
+            2
+        )}`
+    );
+}
+
+export async function waitForDbOperationEvent(
+    page: Page,
+    options: {
+        operation: string;
+        operationId?: string;
+        phase?: string;
+        playlistId?: string;
+        predicate?: (event: DbOperationEvent) => boolean;
+        status?: DbOperationEvent['status'];
+        timeoutMs?: number;
+    }
+): Promise<DbOperationEvent> {
+    const {
+        operation,
+        operationId,
+        phase,
+        playlistId,
+        predicate,
+        status,
+        timeoutMs = 20000,
+    } = options;
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt <= timeoutMs) {
+        const events = await page.evaluate(
+            () => window.__dbOperationEvents ?? []
+        );
+        const match = events.find((event) => {
+            if (event.operation !== operation) {
+                return false;
+            }
+
+            if (operationId && event.operationId !== operationId) {
+                return false;
+            }
+
+            if (status && event.status !== status) {
+                return false;
+            }
+
+            if (phase && event.phase !== phase) {
+                return false;
+            }
+
+            if (playlistId && event.playlistId !== playlistId) {
+                return false;
+            }
+
+            return predicate ? predicate(event) : true;
+        });
+
+        if (match) {
+            return match;
+        }
+
+        await page.waitForTimeout(200);
+    }
+
+    const recentEvents = await page.evaluate(() =>
+        (window.__dbOperationEvents ?? []).slice(-20)
+    );
+
+    throw new Error(
+        `Timed out waiting for DB event ${operation}. Recent events: ${JSON.stringify(
+            recentEvents,
+            null,
+            2
+        )}`
+    );
+}
+
+export async function getRendererFrameCount(page: Page): Promise<number> {
+    return page.evaluate(() => window.__rendererFrameCount ?? 0);
+}
+
+export async function expectRendererFramesAdvance(
+    page: Page,
+    options: {
+        minimumDelta?: number;
+        sampleMs?: number;
+    } = {}
+): Promise<void> {
+    const { minimumDelta = 4, sampleMs = 300 } = options;
+    const startCount = await getRendererFrameCount(page);
+
+    await page.waitForTimeout(sampleMs);
+
+    await expect
+        .poll(async () => (await getRendererFrameCount(page)) - startCount, {
+            timeout: sampleMs + 1500,
+        })
+        .toBeGreaterThanOrEqual(minimumDelta);
 }
 
 export async function resetMockServers(

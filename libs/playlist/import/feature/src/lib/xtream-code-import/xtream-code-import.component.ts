@@ -110,9 +110,6 @@ export class XtreamCodeImportComponent {
                     this.form.value.username as string,
                     this.form.value.password as string
                 );
-        } catch (error) {
-            console.error('Error testing connection:', error);
-            this.connectionStatus = 'unavailable';
         } finally {
             this.isTestingConnection = false;
         }

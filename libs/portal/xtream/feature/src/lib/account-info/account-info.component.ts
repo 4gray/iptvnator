@@ -2,11 +2,12 @@ import { Component, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
-import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { selectActivePlaylist } from 'm3u-state';
-import { XtreamApiService } from '@iptvnator/portal/xtream/data-access';
-import { XtreamAccountInfo } from '@iptvnator/portal/xtream/data-access';
+import {
+    XtreamAccountInfo,
+    XtreamApiService,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
 
 @Component({
@@ -22,7 +23,7 @@ export class AccountInfoComponent {
         seriesCount: number;
     }>(MAT_DIALOG_DATA);
     private readonly xtreamApiService = inject(XtreamApiService);
-    private readonly store = inject(Store);
+    private readonly xtreamStore = inject(XtreamStore);
     private readonly logger = createLogger('XtreamAccountInfo');
 
     accountInfo: XtreamAccountInfo;
@@ -32,7 +33,7 @@ export class AccountInfoComponent {
     liveStreamsCount: number;
     seriesCount: number;
 
-    readonly currentPlaylist = this.store.selectSignal(selectActivePlaylist);
+    readonly currentPlaylist = this.xtreamStore.currentPlaylist;
 
     constructor() {
         this.setAccountInfo();

@@ -23,6 +23,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        flex-shrink: 0;
 
         h2 {
             margin: 0;
@@ -44,6 +45,35 @@
 
         .manage-categories-btn {
             margin-left: auto;
+        }
+
+        .category-heading {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .category-title {
+            margin: 0;
+            font-size: 0.94rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--mat-sys-on-surface);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .category-count {
+            flex-shrink: 0;
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+            background: var(--mat-sys-surface-container);
+            padding: 2px 8px;
+            border-radius: 999px;
         }
     }
 }

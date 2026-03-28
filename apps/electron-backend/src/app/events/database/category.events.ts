@@ -3,71 +3,27 @@
  * Operations for managing categories within playlists
  */
 
-import { and, eq, inArray, sql } from 'drizzle-orm';
-import { ipcMain } from 'electron';
-import { getDatabase } from '../../database/connection';
-import * as schema from '../../database/schema';
+import { handleWorkerRequest } from './worker-events.utils';
 
-/**
- * Check if categories exist for a playlist
- */
-ipcMain.handle(
+handleWorkerRequest(
     'DB_HAS_CATEGORIES',
-    async (event, playlistId: string, type: 'live' | 'movies' | 'series') => {
-        try {
-            const db = await getDatabase();
-            const result = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(schema.categories)
-                .where(
-                    and(
-                        eq(schema.categories.playlistId, playlistId),
-                        eq(schema.categories.type, type)
-                    )
-                );
-            return result[0].count > 0;
-        } catch (error) {
-            console.error('Error checking categories:', error);
-            throw error;
-        }
-    }
+    (playlistId: string, type: 'live' | 'movies' | 'series') => ({
+        playlistId,
+        type,
+    })
 );
 
-/**
- * Get categories for a playlist (excluding hidden)
- */
-ipcMain.handle(
+handleWorkerRequest(
     'DB_GET_CATEGORIES',
-    async (event, playlistId: string, type: 'live' | 'movies' | 'series') => {
-        try {
-            const db = await getDatabase();
-            const result = await db
-                .select()
-                .from(schema.categories)
-                .where(
-                    and(
-                        eq(schema.categories.playlistId, playlistId),
-                        eq(schema.categories.type, type),
-                        eq(schema.categories.hidden, false)
-                    )
-                )
-                .orderBy(sql`name COLLATE NOCASE`);
-            return result;
-        } catch (error) {
-            console.error('Error getting categories:', error);
-            throw error;
-        }
-    }
+    (playlistId: string, type: 'live' | 'movies' | 'series') => ({
+        playlistId,
+        type,
+    })
 );
 
-/**
- * Save categories in bulk
- * Optionally accepts hidden category data to restore visibility preferences
- */
-ipcMain.handle(
+handleWorkerRequest(
     'DB_SAVE_CATEGORIES',
-    async (
-        event,
+    (
         playlistId: string,
         categories: Array<{
             category_name: string;
@@ -75,81 +31,26 @@ ipcMain.handle(
         }>,
         type: 'live' | 'movies' | 'series',
         hiddenCategoryXtreamIds?: number[]
-    ) => {
-        try {
-            // Skip if no categories to save
-            if (!categories || categories.length === 0) {
-                return { success: true };
-            }
-
-            const db = await getDatabase();
-
-            // Create a Set of hidden xtreamIds for efficient lookup
-            const hiddenSet = new Set(hiddenCategoryXtreamIds || []);
-
-            const values = categories.map((cat) => ({
-                playlistId,
-                name: cat.category_name,
-                type,
-                xtreamId: cat.category_id,
-                // Restore hidden status if the category was previously hidden
-                hidden: hiddenSet.has(cat.category_id),
-            }));
-
-            await db.insert(schema.categories).values(values);
-            return { success: true };
-        } catch (error) {
-            console.error('Error saving categories:', error);
-            throw error;
-        }
-    }
+    ) => ({
+        playlistId,
+        categories,
+        type,
+        hiddenCategoryXtreamIds,
+    })
 );
 
-/**
- * Update category visibility (hidden status)
- */
-ipcMain.handle(
+handleWorkerRequest(
     'DB_UPDATE_CATEGORY_VISIBILITY',
-    async (event, categoryIds: number[], hidden: boolean) => {
-        try {
-            if (categoryIds.length === 0) {
-                return { success: true };
-            }
-            const db = await getDatabase();
-            await db
-                .update(schema.categories)
-                .set({ hidden })
-                .where(inArray(schema.categories.id, categoryIds));
-            return { success: true };
-        } catch (error) {
-            console.error('Error updating category visibility:', error);
-            throw error;
-        }
-    }
+    (categoryIds: number[], hidden: boolean) => ({
+        categoryIds,
+        hidden,
+    })
 );
 
-/**
- * Get all categories for a playlist (including hidden, for management dialog)
- */
-ipcMain.handle(
+handleWorkerRequest(
     'DB_GET_ALL_CATEGORIES',
-    async (event, playlistId: string, type: 'live' | 'movies' | 'series') => {
-        try {
-            const db = await getDatabase();
-            const result = await db
-                .select()
-                .from(schema.categories)
-                .where(
-                    and(
-                        eq(schema.categories.playlistId, playlistId),
-                        eq(schema.categories.type, type)
-                    )
-                )
-                .orderBy(sql`name COLLATE NOCASE`);
-            return result;
-        } catch (error) {
-            console.error('Error getting all categories:', error);
-            throw error;
-        }
-    }
+    (playlistId: string, type: 'live' | 'movies' | 'series') => ({
+        playlistId,
+        type,
+    })
 );

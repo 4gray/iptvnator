@@ -1,36 +1,8 @@
-@let items = filteredItems$ | async;
-@let timeshiftUntil = timeshiftUntil$ | async;
+@let items = filteredItems();
+@let timeshiftLimit = timeshiftUntil();
 
 <!-- channel info panel -->
 <div id="channel-header" color="primary">
-    <div class="channel-info">
-        <div class="channel-icon-shell" aria-hidden="true">
-            @if (showChannelIconFallback(channel)) {
-                <mat-icon class="channel-icon-fallback">live_tv</mat-icon>
-            }
-            @if (getChannelIcon(channel)) {
-                <img
-                    [src]="getChannelIcon(channel)"
-                    width="48"
-                    alt="icon"
-                    (error)="onChannelIconError($event)"
-                />
-            }
-        </div>
-        <div class="channel-details">
-            <div class="channel-name">
-                {{ getChannelDisplayName(channel) }}
-            </div>
-            <div class="program-name">
-                {{
-                    playingNow
-                        ? (playingNow.title || 'EPG.LIVE_STREAM' | translate)
-                        : ('EPG.LIVE_STREAM' | translate)
-                }}
-            </div>
-        </div>
-    </div>
-    <div class="header-divider"></div>
     <div id="date-navigator">
         <button
             class="previous-day"
@@ -41,7 +13,9 @@
             <mat-icon>chevron_left</mat-icon>
         </button>
         <span class="selected-date">
-            {{ dateToday | momentDate: 'MMMM Do, dddd' : 'YYYY-MM-DD' }}</span
+            {{
+                selectedDate() | momentDate: 'MMMM Do, dddd' : 'YYYY-MM-DD'
+            }}</span
         >
         <button
             class="next-day"
@@ -54,13 +28,13 @@
     </div>
 </div>
 
-@if (timeshiftUntil) {
+@if (timeshiftLimit) {
     <!-- program list -->
     <div id="program-list" #programList>
-        @if (items?.length > 0) {
+        @if (items.length > 0) {
             @for (program of items; track $index) {
                 @if (
-                    program.start < timeshiftUntil || program.start >= timeNow
+                    program.start < timeshiftLimit || program.start >= timeNow()
                 ) {
                     <div
                         class="program-item"
@@ -68,20 +42,25 @@
                     >
                         <div class="program-meta">
                             <app-epg-list-item
-                                [timeshiftUntil]="timeshiftUntil"
-                                [timeNow]="timeNow"
+                                [timeshiftUntil]="timeshiftLimit"
+                                [timeNow]="timeNow()"
                                 [item]="program"
                             />
                         </div>
                         <div class="program-title">
                             {{ program?.title }}
                         </div>
+                        <div class="epg-item__description">
+                            {{ program?.desc }}
+                        </div>
                         @if (isProgramPlaying(program)) {
                             <div class="program-progress">
                                 <div class="epg-progress-track">
                                     <div
                                         class="epg-progress-fill"
-                                        [style.width.%]="calculateProgress(program)"
+                                        [style.width.%]="
+                                            calculateProgress(program)
+                                        "
                                     ></div>
                                 </div>
                             </div>
@@ -92,21 +71,22 @@
                         class="program-item clickable"
                         [class.current-program]="isProgramPlaying(program)"
                         [class.active]="
-                            timeNow >= program.start && timeNow <= program.stop
+                            timeNow() >= program.start &&
+                            timeNow() <= program.stop
                         "
                         (click)="
                             setEpgProgram(
                                 program,
-                                timeNow >= program.start &&
-                                    timeNow <= program.stop,
-                                program.start > timeshiftUntil
+                                timeNow() >= program.start &&
+                                    timeNow() <= program.stop,
+                                program.start > timeshiftLimit
                             )
                         "
                     >
                         <div class="program-meta">
                             <app-epg-list-item
-                                [timeshiftUntil]="timeshiftUntil"
-                                [timeNow]="timeNow"
+                                [timeshiftUntil]="timeshiftLimit"
+                                [timeNow]="timeNow()"
                                 [item]="program"
                             />
                         </div>
@@ -119,7 +99,9 @@
                                 <div class="epg-progress-track">
                                     <div
                                         class="epg-progress-fill"
-                                        [style.width.%]="calculateProgress(program)"
+                                        [style.width.%]="
+                                            calculateProgress(program)
+                                        "
                                     ></div>
                                 </div>
                             </div>

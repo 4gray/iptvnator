@@ -1,0 +1,71 @@
+@use '@angular/material' as mat;
+
+:host {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.search-panel {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: -10px;
+    flex-shrink: 0;
+    padding: 0 16px;
+}
+
+.search-bar {
+    width: 100%;
+    max-width: 400px;
+    @include mat.form-field-density(-5);
+}
+
+::ng-deep {
+    .search-bar div {
+        border-radius: 20px;
+    }
+
+    div[matformfieldlineripple],
+    .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+    }
+}
+
+.grid-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+    padding: 16px;
+    align-content: start;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 24px;
+    flex: 1;
+    text-align: center;
+    color: var(--mat-sys-on-surface-variant);
+
+    .empty-icon {
+        font-size: 48px;
+        height: 48px;
+        width: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .empty-title {
+        font-size: 14px;
+        font-weight: 500;
+        margin: 0;
+    }
+}

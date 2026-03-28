@@ -6,6 +6,7 @@ import { pathToFileURL } from 'url';
 import { Worker } from 'worker_threads';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
+import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
 
 /**
  * EPG Events Handler
@@ -16,6 +17,29 @@ export default class EpgEvents {
     private static fetchedUrls: Set<string> = new Set();
     private static workers: Map<string, Worker> = new Map();
     private static readonly loggerLabel = '[EPG Events]';
+
+    private static createEpgWorker(): Worker {
+        const bootstrap = resolveWorkerRuntimeBootstrap({
+            isPackaged: app.isPackaged,
+            workerFilename: 'epg-parser.worker.js',
+            developmentWorkerDir: path.join(__dirname, 'workers'),
+            resourcesPath: (
+                process as NodeJS.Process & { resourcesPath?: string }
+            ).resourcesPath,
+            appPath: app.getAppPath(),
+        });
+
+        const workerURL = pathToFileURL(bootstrap.workerPath);
+        return new Worker(workerURL, {
+            resourceLimits: {
+                maxOldGenerationSizeMb: 4096,
+                maxYoungGenerationSizeMb: 512,
+            },
+            workerData: {
+                nativeModuleSearchPaths: bootstrap.nativeModuleSearchPaths,
+            },
+        });
+    }
 
     /**
      * Send EPG progress to all renderer windows
@@ -246,45 +270,9 @@ export default class EpgEvents {
         }
 
         return new Promise((resolve, reject) => {
-            let workerPath: string;
-
-            if (app.isPackaged) {
-                const resourcesPath = path.dirname(app.getAppPath());
-                workerPath = path.join(
-                    resourcesPath,
-                    'dist',
-                    'apps',
-                    'electron-backend',
-                    'workers',
-                    'epg-parser.worker.js'
-                );
-            } else {
-                workerPath = path.join(
-                    __dirname,
-                    'workers',
-                    'epg-parser.worker.js'
-                );
-            }
-
             let worker: Worker;
             try {
-                const workerURL = pathToFileURL(workerPath);
-                // In packaged app, native modules are in app.asar.unpacked/node_modules
-                // which is separate from the worker location in extraResources
-                const nativeModulesPath = app.isPackaged
-                    ? path.join(
-                          path.dirname(app.getAppPath()),
-                          'app.asar.unpacked',
-                          'node_modules'
-                      )
-                    : undefined;
-                worker = new Worker(workerURL, {
-                    resourceLimits: {
-                        maxOldGenerationSizeMb: 4096,
-                        maxYoungGenerationSizeMb: 512,
-                    },
-                    workerData: { nativeModulesPath },
-                });
+                worker = this.createEpgWorker();
             } catch (error) {
                 console.error(
                     this.loggerLabel,
@@ -430,12 +418,17 @@ export default class EpgEvents {
     ): Promise<EpgProgram[]> {
         try {
             const db = await getDatabase();
+            const trimmedChannelId = channelId.trim();
+
+            if (!trimmedChannelId) {
+                return [];
+            }
 
             // Try exact channel ID match first
             let results = await db
                 .select()
                 .from(schema.epgPrograms)
-                .where(eq(schema.epgPrograms.channelId, channelId))
+                .where(eq(schema.epgPrograms.channelId, trimmedChannelId))
                 .orderBy(schema.epgPrograms.start)
                 .limit(500);
 
@@ -443,14 +436,23 @@ export default class EpgEvents {
                 return results.map(this.transformDbRowToEpgProgram);
             }
 
-            // Try to find channel by display name
-            const channel = await db
+            // Try exact display name match before giving up. Using wildcard LIKE
+            // here can scan the whole table on the Electron main process.
+            let channel = await db
                 .select()
                 .from(schema.epgChannels)
-                .where(
-                    sql`LOWER(${schema.epgChannels.displayName}) LIKE LOWER(${'%' + channelId + '%'})`
-                )
+                .where(eq(schema.epgChannels.displayName, trimmedChannelId))
                 .limit(1);
+
+            if (channel.length === 0) {
+                channel = await db
+                    .select()
+                    .from(schema.epgChannels)
+                    .where(
+                        sql`${schema.epgChannels.displayName} = ${trimmedChannelId} COLLATE NOCASE`
+                    )
+                    .limit(1);
+            }
 
             if (channel.length > 0) {
                 results = await db
@@ -561,40 +563,9 @@ export default class EpgEvents {
      */
     static async clearEpgData(): Promise<void> {
         return new Promise((resolve, reject) => {
-            let workerPath: string;
-
-            if (app.isPackaged) {
-                const resourcesPath = path.dirname(app.getAppPath());
-                workerPath = path.join(
-                    resourcesPath,
-                    'dist',
-                    'apps',
-                    'electron-backend',
-                    'workers',
-                    'epg-parser.worker.js'
-                );
-            } else {
-                workerPath = path.join(
-                    __dirname,
-                    'workers',
-                    'epg-parser.worker.js'
-                );
-            }
-
             let worker: Worker;
             try {
-                const workerURL = pathToFileURL(workerPath);
-                // In packaged app, native modules are in app.asar.unpacked/node_modules
-                const nativeModulesPath = app.isPackaged
-                    ? path.join(
-                          path.dirname(app.getAppPath()),
-                          'app.asar.unpacked',
-                          'node_modules'
-                      )
-                    : undefined;
-                worker = new Worker(workerURL, {
-                    workerData: { nativeModulesPath },
-                });
+                worker = this.createEpgWorker();
             } catch (error) {
                 console.error(
                     this.loggerLabel,

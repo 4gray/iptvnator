@@ -14,7 +14,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { DialogService, ResizableDirective } from 'components';
+import { DialogService } from 'components';
 import { firstValueFrom, map } from 'rxjs';
 import {
     DatabaseService,
@@ -22,17 +22,13 @@ import {
     DownloadsService,
     PlaylistsService,
 } from 'services';
-import { CategoryViewComponent } from '@iptvnator/portal/shared/ui';
-import {
-    isWorkspaceLayoutRoute,
-    queryParamSignal,
-} from '@iptvnator/portal/shared/util';
+import { queryParamSignal } from '@iptvnator/portal/shared/util';
 import { createPortalCollectionContext } from '@iptvnator/portal/shared/util';
 import {
     buildStandardCollectionCategories,
     filterCollectionBucket,
 } from '@iptvnator/portal/shared/util';
-import { FavoritesContextService } from '@iptvnator/portal/shared/util';
+import { PortalCollectionContextService } from '@iptvnator/portal/shared/util';
 import { Playlist } from 'shared-interfaces';
 
 type PortalSource = 'xtream' | 'stalker';
@@ -52,12 +48,10 @@ const DOWNLOAD_COLLECTION_LABELS = {
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        CategoryViewComponent,
         MatButtonModule,
         MatIcon,
         MatProgressBarModule,
         MatTooltip,
-        ResizableDirective,
         TranslatePipe,
     ],
 })
@@ -66,12 +60,11 @@ export class DownloadsComponent {
     private readonly router = inject(Router);
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
-    private readonly favoritesCtx = inject(FavoritesContextService);
+    private readonly collectionCtx = inject(PortalCollectionContextService);
     private readonly dialogService = inject(DialogService);
     private readonly translate = inject(TranslateService);
     private readonly snackBar = inject(MatSnackBar);
     readonly downloadsService = inject(DownloadsService);
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
 
     readonly downloads = this.downloadsService.downloads;
     readonly downloadFolder = this.downloadsService.downloadFolder;
@@ -116,7 +109,7 @@ export class DownloadsComponent {
         });
     });
     readonly collectionContext = createPortalCollectionContext({
-        ctx: this.favoritesCtx,
+        ctx: this.collectionCtx,
         categories: this.categories,
     });
     readonly selectedCategoryId = this.collectionContext.selectedCategoryId;
@@ -164,10 +157,6 @@ export class DownloadsComponent {
             this.collectionContext.setCategoryId('all');
             void this.downloadsService.loadDownloads(playlistId || undefined);
         });
-    }
-
-    setCategoryId(categoryId: string) {
-        this.collectionContext.setCategoryId(categoryId);
     }
 
     getProgress(item: DownloadItem): number {
@@ -359,10 +348,7 @@ export class DownloadsComponent {
         segments: Array<string | number>
     ): Array<string | number> {
         const sourceSegment = source === 'stalker' ? 'stalker' : 'xtreams';
-        if (this.isWorkspaceLayout) {
-            return ['/workspace', sourceSegment, playlistId, ...segments];
-        }
-        return [`/${sourceSegment}`, playlistId, ...segments];
+        return ['/workspace', sourceSegment, playlistId, ...segments];
     }
 
     private async resolveSourceType(

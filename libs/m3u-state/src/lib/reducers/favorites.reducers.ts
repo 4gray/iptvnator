@@ -4,27 +4,28 @@ import { PlaylistState } from '../state';
 
 export const favoritesReducers = [
     on(FavoritesActions.updateFavorites, (state, action): PlaylistState => {
-        let favorites;
-        const { channel } = action;
-        const playlistFavorites =
-            state.playlists.entities[state.playlists.selectedId]?.favorites;
-        if (playlistFavorites?.includes(channel.url)) {
-            favorites = [
-                ...(playlistFavorites ?? []).filter(
-                    (url: string) => url !== channel.url
-                ),
-            ];
-        } else {
-            favorites = [...(playlistFavorites ?? []), channel.url];
+        const selectedId = state.playlists.selectedId;
+        const playlist = state.playlists.entities[selectedId];
+        if (!selectedId || !playlist) {
+            return state;
         }
+
+        const { channel } = action;
+        const playlistFavorites = (playlist.favorites ?? []).filter(
+            (favorite): favorite is string => typeof favorite === 'string'
+        );
+        const favorites = playlistFavorites.includes(channel.url)
+            ? playlistFavorites.filter((url) => url !== channel.url)
+            : [...playlistFavorites, channel.url];
+
         return {
             ...state,
             playlists: {
                 ...state.playlists,
                 entities: {
                     ...state.playlists.entities,
-                    [state.playlists.selectedId]: {
-                        ...state.playlists.entities[state.playlists.selectedId],
+                    [selectedId]: {
+                        ...playlist,
                         favorites,
                     },
                 },
@@ -32,6 +33,12 @@ export const favoritesReducers = [
         };
     }),
     on(FavoritesActions.setFavorites, (state, action): PlaylistState => {
+        const selectedId = state.playlists.selectedId;
+        const playlist = state.playlists.entities[selectedId];
+        if (!selectedId || !playlist) {
+            return state;
+        }
+
         const { channelIds } = action;
         return {
             ...state,
@@ -39,8 +46,8 @@ export const favoritesReducers = [
                 ...state.playlists,
                 entities: {
                     ...state.playlists.entities,
-                    [state.playlists.selectedId]: {
-                        ...state.playlists.entities[state.playlists.selectedId],
+                    [selectedId]: {
+                        ...playlist,
                         favorites: channelIds,
                     },
                 },

@@ -31,6 +31,7 @@ export class EpgListItemComponent {
      */
     showDescription(program: EpgProgram): void {
         this.dialog.open(EpgItemDescriptionComponent, {
+            width: '800px',
             data: program,
         });
     }

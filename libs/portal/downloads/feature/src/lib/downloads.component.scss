@@ -35,24 +35,6 @@
             align-items: center;
             gap: 16px;
 
-            .settings-group__header-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 48px;
-                height: 48px;
-                flex-shrink: 0;
-                border-radius: 14px;
-                background: var(--mat-sys-secondary-container);
-                color: var(--mat-sys-on-secondary-container);
-
-                mat-icon {
-                    font-size: 24px;
-                    width: 24px;
-                    height: 24px;
-                }
-            }
-
             .settings-group__header-text {
                 display: flex;
                 align-items: center;
@@ -60,8 +42,8 @@
 
                 h1 {
                     margin: 0;
-                    font-size: 1.25rem;
-                    font-weight: 800;
+                    font-size: 1.2rem;
+                    font-weight: 650;
                     letter-spacing: -0.02em;
                 }
             }
@@ -144,8 +126,9 @@
 
         p {
             margin: 0 0 0.5rem;
-            font-size: 1.25rem;
-            font-weight: 600;
+            font-size: 1.05rem;
+            font-weight: 520;
+            letter-spacing: -0.01em;
             color: var(--mat-sys-on-surface);
         }
 

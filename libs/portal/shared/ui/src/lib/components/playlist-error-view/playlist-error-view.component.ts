@@ -6,10 +6,9 @@ import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistInfoComponent } from '@iptvnator/playlist/shared/ui';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { DialogService } from 'components';
 import { PlaylistActions } from 'm3u-state';
-import { selectCurrentPlaylist } from 'm3u-state';
-import { Playlist } from 'shared-interfaces';
 
 @Component({
     selector: 'app-playlist-error-view',
@@ -20,13 +19,12 @@ import { Playlist } from 'shared-interfaces';
 export class PlaylistErrorViewComponent {
     private dialog = inject(MatDialog);
     private dialogService = inject(DialogService);
+    private readonly playlistContext = inject(PlaylistContextFacade);
     private router = inject(Router);
     private store = inject(Store);
     private translate = inject(TranslateService);
 
-    private readonly currentPlaylist = this.store.selectSignal(
-        selectCurrentPlaylist
-    );
+    private readonly currentPlaylist = this.playlistContext.activePlaylist;
 
     readonly description = input<string>(undefined);
     readonly showIllustration = input(true);
@@ -43,13 +41,17 @@ export class PlaylistErrorViewComponent {
     }
 
     removeClicked(): void {
+        const currentPlaylist = this.currentPlaylist();
+        if (!currentPlaylist?._id) {
+            return;
+        }
+
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.TITLE'),
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
-            onConfirm: (): void =>
-                this.removePlaylist((this.currentPlaylist() as Playlist)._id),
+            onConfirm: (): void => this.removePlaylist(currentPlaylist._id),
         });
     }
 

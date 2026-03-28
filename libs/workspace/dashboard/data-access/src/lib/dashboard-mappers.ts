@@ -1,8 +1,10 @@
 import {
     GlobalFavoriteItem as DbGlobalFavoriteItem,
+    GlobalRecentlyAddedItem as DbGlobalRecentlyAddedItem,
     GlobalRecentItem as DbGlobalRecentItem,
 } from 'services';
 import {
+    PortalAddedItem,
     PlaylistMeta,
     PortalActivityType,
     PortalFavoriteItem,
@@ -53,6 +55,23 @@ export function mapDbRecentToItem(item: DbGlobalRecentItem): PortalRecentItem {
         playlist_id: item.playlist_id,
         playlist_name: item.playlist_name,
         viewed_at: normalizeStalkerDate(item.viewed_at),
+        category_id: item.category_id,
+        xtream_id: item.xtream_id,
+        poster_url: item.poster_url,
+        source: 'xtream',
+    };
+}
+
+export function mapDbRecentlyAddedToItem(
+    item: DbGlobalRecentlyAddedItem
+): PortalAddedItem {
+    return {
+        id: item.id,
+        title: item.title,
+        type: normalizeActivityType(item.type),
+        playlist_id: item.playlist_id,
+        playlist_name: item.playlist_name,
+        added_at: normalizeStalkerDate(item.added_at),
         category_id: item.category_id,
         xtream_id: item.xtream_id,
         poster_url: item.poster_url,

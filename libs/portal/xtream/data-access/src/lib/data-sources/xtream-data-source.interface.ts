@@ -6,6 +6,7 @@ import {
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
+import type { DbOperationEvent } from 'services';
 import {
     CategoryType,
     StreamType,
@@ -116,6 +117,11 @@ export function mapStreamTypeToDbType(
  */
 export type ProgressCallback = (count: number) => void;
 
+export interface XtreamOperationOptions {
+    operationId?: string;
+    onEvent?: (event: DbOperationEvent) => void;
+}
+
 /**
  * Abstract interface for Xtream data source.
  * Allows different implementations for Electron (DB-first) and PWA (API-only).
@@ -214,7 +220,8 @@ export interface IXtreamDataSource {
         credentials: XtreamCredentials,
         type: StreamType,
         onProgress?: ProgressCallback,
-        onTotal?: (total: number) => void
+        onTotal?: (total: number) => void,
+        options?: XtreamOperationOptions
     ): Promise<
         | XtreamLiveStream[]
         | XtreamVodStream[]
@@ -233,7 +240,8 @@ export interface IXtreamDataSource {
             | XtreamSerieItem[]
             | XtreamContentItem[],
         type: 'live' | 'movie' | 'series',
-        onProgress?: ProgressCallback
+        onProgress?: ProgressCallback,
+        options?: XtreamOperationOptions
     ): Promise<number>;
 
     // =========================================================================
@@ -389,7 +397,8 @@ export interface IXtreamDataSource {
     restoreUserData(
         playlistId: string,
         favoritedXtreamIds: number[],
-        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[]
+        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[],
+        options?: XtreamOperationOptions
     ): Promise<void>;
 }
 

@@ -1,233 +1,180 @@
-import { signal } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    signal,
+} from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
-import { NavigationEnd, Router } from '@angular/router';
-import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
+import { RouterOutlet, provideRouter } from '@angular/router';
 import {
-    FavoritesContextService,
-    PORTAL_EXTERNAL_PLAYBACK,
-    WorkspaceHeaderContextService,
-} from '@iptvnator/portal/shared/util';
-import { of } from 'rxjs';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import {
-    DownloadsService,
-    PlaylistsService,
-    SettingsStore,
-} from 'services';
-import {
-    SettingsContextService,
-    WORKSPACE_SHELL_ACTIONS,
+    WorkspacePortalContext,
+    WorkspaceShellContextPanel,
 } from '@iptvnator/workspace/shell/util';
 import { WorkspaceShellComponent } from './workspace-shell.component';
+import {
+    WorkspaceHeaderBulkAction,
+    WorkspaceShellFacade,
+} from './services/workspace-shell.facade';
 
-class MockXtreamStore {
-    readonly contentSortMode = signal<
-        'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'
-    >('date-desc');
-    readonly getCategoryItemCounts = signal(new Map<number, number>());
-    readonly recentItems = signal<unknown[]>([]);
-
-    setContentSortMode = jest.fn();
-    setSearchTerm = jest.fn();
-    setCategorySearchTerm = jest.fn();
-    reloadCategories = jest.fn();
+@Component({
+    selector: 'app-workspace-shell-rail',
+    template: '',
+    standalone: true,
+})
+class MockWorkspaceShellRailComponent {
+    readonly isMacOS = input(false);
+    readonly workspaceLinks = input<unknown[]>([]);
+    readonly primaryContextLinks = input<unknown[]>([]);
+    readonly secondaryContextLinks = input<unknown[]>([]);
+    readonly selectedSection = input<string | null>(null);
+    readonly railProviderClass = input('');
+    readonly isSettingsRoute = input(false);
 }
 
-describe('WorkspaceShellComponent action matrix', () => {
-    beforeEach(() => {
-        window.electron = { platform: 'darwin' } as typeof window.electron;
+@Component({
+    selector: 'app-workspace-shell-header',
+    template: '',
+    standalone: true,
+})
+class MockWorkspaceShellHeaderComponent {
+    readonly playlistTitle = input('');
+    readonly playlistSubtitle = input('');
+    readonly canOpenPlaylistInfo = input(false);
+    readonly canOpenAccountInfo = input(false);
+    readonly searchQuery = input('');
+    readonly canUseSearch = input(false);
+    readonly searchPlaceholder = input('');
+    readonly searchScopeLabel = input('');
+    readonly searchStatusLabel = input('');
+    readonly isGlobalFavoritesActive = input(false);
+    readonly headerShortcut = input<unknown>(null);
+    readonly isElectron = input(false);
+    readonly isDownloadsView = input(false);
+    readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
+    readonly searchChanged = output<string>();
+    readonly searchSubmitted = output<string>();
+    readonly commandPaletteRequested = output<void>();
+    readonly addPlaylistRequested = output<string>();
+    readonly globalFavoritesRequested = output<void>();
+    readonly headerShortcutRequested = output<void>();
+    readonly downloadsRequested = output<void>();
+    readonly headerBulkActionRequested = output<void>();
+    readonly playlistInfoRequested = output<void>();
+    readonly accountInfoRequested = output<void>();
+}
 
-        const selectSignal = jest
-            .fn()
-            .mockReturnValueOnce(signal('Playlist A'))
-            .mockReturnValueOnce(
-                signal({
-                    _id: 'pl-1',
-                    serverUrl: 'http://example.com',
-                    title: 'Playlist A',
-                })
+@Component({
+    selector: 'app-workspace-shell-context-sidebar',
+    template: '',
+    standalone: true,
+})
+class MockWorkspaceShellContextSidebarComponent {
+    readonly variant = input<WorkspaceShellContextPanel>('none');
+    readonly context = input<WorkspacePortalContext | null>(null);
+    readonly section = input<string | null>(null);
+}
+
+@Component({
+    selector: 'app-external-playback-dock',
+    template: '',
+    standalone: true,
+})
+class MockExternalPlaybackDockComponent {
+    readonly session = input<unknown>(null);
+    readonly closeClicked = output<void>();
+}
+
+class MockWorkspaceShellFacade {
+    readonly workspaceLinks = signal([]);
+    readonly primaryContextLinks = signal([]);
+    readonly secondaryContextLinks = signal([]);
+    readonly currentSection = signal<string | null>(null);
+    readonly railProviderClass = signal('rail-context-region');
+    readonly isSettingsRoute = signal(false);
+    readonly playlistTitle = signal('Playlist A');
+    readonly playlistSubtitle = signal('Subtitle');
+    readonly canOpenPlaylistInfo = signal(true);
+    readonly canOpenAccountInfo = signal(true);
+    readonly searchQuery = signal('');
+    readonly canUseSearch = signal(true);
+    readonly searchPlaceholder = signal(
+        'WORKSPACE.SHELL.SEARCH_PLAYLIST_PLACEHOLDER'
+    );
+    readonly searchScopeLabel = signal('Movies / All Items');
+    readonly searchStatusLabel = signal('');
+    readonly isGlobalFavoritesRoute = signal(false);
+    readonly isPortalFavoritesAllScope = signal(false);
+    readonly headerShortcut = signal(null);
+    readonly isDownloadsView = signal(false);
+    readonly headerBulkAction = signal<WorkspaceHeaderBulkAction | null>(null);
+    readonly showContextPanel = signal(true);
+    readonly contextPanel = signal<WorkspaceShellContextPanel>('settings');
+    readonly currentContext = signal<WorkspacePortalContext | null>(null);
+    readonly showExternalPlaybackBar = signal(true);
+    readonly externalPlaybackSession = signal({ id: 'session-1' });
+    readonly showXtreamImportOverlay = signal(false);
+    readonly xtreamImportCount = signal(0);
+    readonly xtreamItemsToImport = signal(0);
+    readonly isMacOS = true;
+    readonly isElectron = true;
+
+    onSearchInput = jest.fn();
+    onSearchEnter = jest.fn();
+    openCommandPalette = jest.fn();
+    openAddPlaylistDialog = jest.fn();
+    navigateToGlobalFavorites = jest.fn();
+    runHeaderShortcut = jest.fn();
+    openDownloadsShortcut = jest.fn();
+    runHeaderBulkAction = jest.fn();
+    openPlaylistInfo = jest.fn();
+    openAccountInfo = jest.fn();
+    closeActiveExternalSession = jest.fn();
+}
+
+describe('WorkspaceShellComponent', () => {
+    it('creates and renders the shell composition with mocked children', async () => {
+        const facade = new MockWorkspaceShellFacade();
+
+        await TestBed.configureTestingModule({
+            imports: [WorkspaceShellComponent],
+            providers: [provideRouter([])],
+        })
+            .overrideComponent(WorkspaceShellComponent, {
+                set: {
+                    imports: [
+                        RouterOutlet,
+                        MockExternalPlaybackDockComponent,
+                        MockWorkspaceShellContextSidebarComponent,
+                        MockWorkspaceShellHeaderComponent,
+                        MockWorkspaceShellRailComponent,
+                    ],
+                    providers: [
+                        {
+                            provide: WorkspaceShellFacade,
+                            useValue: facade,
+                        },
+                    ],
+                },
+            })
+            .compileComponents();
+
+        const fixture = TestBed.createComponent(WorkspaceShellComponent);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance).toBeTruthy();
+        expect(
+            fixture.nativeElement.querySelector('app-workspace-shell-rail')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-workspace-shell-header')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                'app-workspace-shell-context-sidebar'
             )
-            .mockReturnValueOnce(
-                signal([
-                    { _id: 'pl-1', serverUrl: 'http://example.com' },
-                    { _id: 'pl-2', serverUrl: 'http://example.com' },
-                ])
-            );
-
-        TestBed.configureTestingModule({
-            providers: [
-                {
-                    provide: Router,
-                    useValue: {
-                        url: '/workspace/xtreams/pl-1/vod',
-                        events: of(
-                            new NavigationEnd(
-                                1,
-                                '/workspace/xtreams/pl-1/vod',
-                                '/workspace/xtreams/pl-1/vod'
-                            )
-                        ),
-                        navigate: jest.fn(),
-                        navigateByUrl: jest.fn(),
-                        parseUrl: jest
-                            .fn()
-                            .mockReturnValue({ queryParams: {} }),
-                        createUrlTree: jest.fn(),
-                        isActive: jest.fn(),
-                    },
-                },
-                {
-                    provide: Store,
-                    useValue: {
-                        selectSignal,
-                    },
-                },
-                {
-                    provide: XtreamStore,
-                    useClass: MockXtreamStore,
-                },
-                {
-                    provide: DownloadsService,
-                    useValue: {
-                        downloads: signal([]),
-                        clearCompleted: jest.fn().mockResolvedValue(undefined),
-                        loadDownloads: jest.fn().mockResolvedValue(undefined),
-                    },
-                },
-                {
-                    provide: PORTAL_EXTERNAL_PLAYBACK,
-                    useValue: {
-                        activeSession: signal(null),
-                        visibleSession: signal(null),
-                        dismissActiveSession: jest.fn(),
-                        closeSession: jest.fn(),
-                    },
-                },
-                {
-                    provide: SettingsStore,
-                    useValue: {
-                        showExternalPlaybackBar: signal(true),
-                    },
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: {
-                        clearPortalRecentlyViewed: jest
-                            .fn()
-                            .mockReturnValue(of(undefined)),
-                    },
-                },
-                {
-                    provide: MatDialog,
-                    useValue: {
-                        open: jest.fn().mockReturnValue({
-                            afterClosed: () => of(undefined),
-                        }),
-                    },
-                },
-                {
-                    provide: FavoritesContextService,
-                    useValue: {},
-                },
-                {
-                    provide: SettingsContextService,
-                    useValue: {},
-                },
-                {
-                    provide: WORKSPACE_SHELL_ACTIONS,
-                    useValue: {
-                        openAddPlaylistDialog: jest.fn(),
-                        openGlobalSearch: jest.fn(),
-                        openGlobalRecent: jest.fn(),
-                        openAccountInfo: jest.fn(),
-                    },
-                },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        instant: (key: string) => key,
-                        onLangChange: of(null),
-                        currentLang: 'en',
-                        defaultLang: 'en',
-                    },
-                },
-            ],
-        });
-    });
-
-    it('detects xtream category routes and shows the context panel', () => {
-        const component = TestBed.runInInjectionContext(
-            () => new WorkspaceShellComponent()
-        );
-
-        component.currentUrl.set('/workspace/xtreams/pl-1/vod');
-
-        expect(component.isCategoryContextRoute()).toBe(true);
-        expect(component.showContextPanel()).toBe(true);
-    });
-
-    it('shows cleanup action for recent sections', () => {
-        const component = TestBed.runInInjectionContext(
-            () => new WorkspaceShellComponent()
-        );
-
-        component.currentUrl.set('/workspace/stalker/pl-1/recent');
-
-        expect(component.headerBulkAction()).toEqual(
-            expect.objectContaining({
-                icon: 'delete_sweep',
-                tooltip: 'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION',
-            })
-        );
-        expect(component.hasContextActions()).toBe(true);
-    });
-
-    it('shows a registered header shortcut only on playlist routes', () => {
-        const component = TestBed.runInInjectionContext(
-            () => new WorkspaceShellComponent()
-        );
-        const headerContext = TestBed.inject(WorkspaceHeaderContextService);
-
-        headerContext.setAction({
-            id: 'multi-epg',
-            icon: 'view_list',
-            tooltipKey: 'TOP_MENU.OPEN_MULTI_EPG',
-            ariaLabelKey: 'TOP_MENU.OPEN_MULTI_EPG',
-            run: jest.fn(),
-        });
-
-        component.currentUrl.set('/workspace/playlists/pl-1/all');
-        expect(component.headerShortcut()).toEqual(
-            expect.objectContaining({
-                id: 'multi-epg',
-                icon: 'view_list',
-            })
-        );
-
-        component.currentUrl.set('/workspace/xtreams/pl-1/live');
-        expect(component.headerShortcut()).toBeNull();
-    });
-
-    it('runs the registered header shortcut callback', () => {
-        const component = TestBed.runInInjectionContext(
-            () => new WorkspaceShellComponent()
-        );
-        const headerContext = TestBed.inject(WorkspaceHeaderContextService);
-        const run = jest.fn();
-
-        headerContext.setAction({
-            id: 'multi-epg',
-            icon: 'view_list',
-            tooltipKey: 'TOP_MENU.OPEN_MULTI_EPG',
-            ariaLabelKey: 'TOP_MENU.OPEN_MULTI_EPG',
-            run,
-        });
-
-        component.currentUrl.set('/workspace/playlists/pl-1/all');
-        component.runHeaderShortcut();
-
-        expect(run).toHaveBeenCalledTimes(1);
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-external-playback-dock')
+        ).not.toBeNull();
     });
 });

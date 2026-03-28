@@ -23,6 +23,7 @@ export interface RecentViewItem {
 })
 export class RecentViewComponent {
     readonly recentItems = input.required<RecentViewItem[]>();
+    readonly searchTerm = input('');
     readonly channelEpgMap = input.required<Map<string, EpgProgram | null>>();
     readonly progressTick = input.required<number>();
     readonly shouldShowEpg = input.required<boolean>();
@@ -31,8 +32,23 @@ export class RecentViewComponent {
     readonly channelSelected = output<Channel>();
     readonly removeRecent = output<string>();
 
-    readonly enrichedRecentItems = computed(() => {
+    readonly filteredRecentItems = computed(() => {
         const recentItems = this.recentItems();
+        const term = this.searchTerm().trim().toLowerCase();
+
+        if (!term) {
+            return recentItems;
+        }
+
+        return recentItems.filter(({ channel }) =>
+            `${channel.name ?? ''} ${channel.group?.title ?? ''}`
+                .toLowerCase()
+                .includes(term)
+        );
+    });
+
+    readonly enrichedRecentItems = computed(() => {
+        const recentItems = this.filteredRecentItems();
         const epgMap = this.channelEpgMap();
         this.progressTick();
 

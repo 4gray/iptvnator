@@ -3,10 +3,9 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
-import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
-import { selectActivePlaylist, selectPlaylistTitle } from 'm3u-state';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { Channel } from 'shared-interfaces';
 import { ChannelListContainerComponent } from 'components';
 
@@ -29,11 +28,21 @@ export class SidebarComponent {
     readonly showPlaylistHeader = input(true);
     readonly activeView = input<string>('all');
 
-    private readonly store = inject(Store);
+    private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly translate = inject(TranslateService);
 
-    readonly playlistTitle = this.store.selectSignal(selectPlaylistTitle);
-    readonly activePlaylist = this.store.selectSignal(selectActivePlaylist);
+    readonly activePlaylist = this.playlistContext.activePlaylist;
+    readonly playlistTitle = computed(() => {
+        const playlist = this.activePlaylist();
+
+        return (
+            playlist?.title ||
+            playlist?.filename ||
+            playlist?.url ||
+            playlist?.portalUrl ||
+            'Untitled playlist'
+        );
+    });
 
     readonly subtitle = computed(() => {
         const count = this.channels()?.length ?? 0;

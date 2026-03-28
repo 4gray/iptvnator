@@ -1,7 +1,5 @@
 import { computed, inject } from '@angular/core';
 import { signalStore, withComputed, withMethods } from '@ngrx/signals';
-import { Store } from '@ngrx/store';
-import { selectActivePlaylist } from 'm3u-state';
 import { XtreamSerieDetails, XtreamVodDetails } from 'shared-interfaces';
 
 // Import existing features that are already separate
@@ -74,7 +72,6 @@ export const XtreamStore = signalStore(
     // Cross-feature methods & orchestration
     withMethods((store) => {
         const xtreamApiService = inject(XtreamApiService);
-        const ngrxStore = inject(Store);
         const dataSource = inject(XTREAM_DATA_SOURCE);
         const logger = createLogger('XtreamStore');
         const searchContent = (
@@ -143,7 +140,7 @@ export const XtreamStore = signalStore(
                 vodId: string;
                 categoryId: number;
             }): void {
-                const playlist = ngrxStore.selectSignal(selectActivePlaylist)();
+                const playlist = store.currentPlaylist();
                 if (!playlist) return;
 
                 store.setIsLoadingDetails(true);
@@ -185,7 +182,7 @@ export const XtreamStore = signalStore(
                 serialId: string;
                 categoryId: number;
             }): void {
-                const playlist = ngrxStore.selectSignal(selectActivePlaylist)();
+                const playlist = store.currentPlaylist();
                 if (!playlist) return;
 
                 store.setIsLoadingDetails(true);
@@ -217,46 +214,6 @@ export const XtreamStore = signalStore(
                     .finally(() => {
                         store.setIsLoadingDetails(false);
                     });
-            },
-
-            /**
-             * Legacy method stubs for backward compatibility
-             */
-            createLinkToPlayVod(): void {
-                // No-op, kept for compatibility
-            },
-
-            addToFavorites(item: unknown): void {
-                logger.debug('Legacy addToFavorites called', item);
-            },
-
-            removeFromFavorites(favoriteId: string): void {
-                logger.debug('Legacy removeFromFavorites called', favoriteId);
-            },
-
-            // Alias methods for backward compatibility
-            fetchLiveCategories(): void {
-                store.fetchAllCategories();
-            },
-
-            fetchVodCategories(): void {
-                store.fetchAllCategories();
-            },
-
-            fetchSerialCategories(): void {
-                store.fetchAllCategories();
-            },
-
-            fetchLiveStreams(): void {
-                store.fetchAllContent();
-            },
-
-            fetchVodStreams(): void {
-                store.fetchAllContent();
-            },
-
-            fetchSerialStreams(): void {
-                store.fetchAllContent();
             },
 
             /**

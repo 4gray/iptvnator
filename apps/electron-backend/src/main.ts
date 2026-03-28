@@ -17,6 +17,7 @@ import SettingsEvents from './app/events/settings.events';
 import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
+import { databaseWorkerClient } from './app/services/database-worker-client';
 import XtreamEvents from './app/events/xtream.events';
 
 app.setName('iptvnator');
@@ -78,4 +79,8 @@ Main.bootstrapApp();
 // Bootstrap app events after Electron app is ready
 app.whenReady().then(async () => {
     await Main.bootstrapAppEvents();
+});
+
+app.on('before-quit', () => {
+    void databaseWorkerClient.shutdown();
 });

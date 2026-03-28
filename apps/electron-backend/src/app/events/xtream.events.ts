@@ -62,6 +62,7 @@ ipcMain.handle(
             url: string;
             params: Record<string, string>;
             requestId?: string;
+            suppressErrorLog?: boolean;
         }
     ) => {
         const startedAt = Date.now();
@@ -156,10 +157,12 @@ ipcMain.handle(
                 emitPortalDebugEvent(debugEvent);
             }
 
-            console.error(
-                '[XTREAM_REQUEST] Failed',
-                formatXtreamError(error, payload.url, payload.params?.action)
-            );
+            if (!payload.suppressErrorLog) {
+                console.error(
+                    '[XTREAM_REQUEST] Failed',
+                    formatXtreamError(error, payload.url, payload.params?.action)
+                );
+            }
 
             // Format error response
             if (axios.isAxiosError(error)) {

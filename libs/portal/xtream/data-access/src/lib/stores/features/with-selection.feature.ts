@@ -386,6 +386,10 @@ export function withSelection() {
              * Set the content type (live, vod, series)
              */
             setSelectedContentType(type: ContentType): void {
+                if (store.selectedContentType() === type) {
+                    return;
+                }
+
                 patchState(store, {
                     selectedContentType: type,
                     selectedCategoryId: null,
@@ -453,6 +457,9 @@ export function withSelection() {
              * Set category content sort mode
              */
             setContentSortMode(mode: XtreamCategorySortMode): void {
+                if (store.contentSortMode() === mode) {
+                    return;
+                }
                 patchState(store, {
                     contentSortMode: mode,
                     page: 0,

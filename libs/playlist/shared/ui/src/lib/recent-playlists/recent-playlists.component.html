@@ -29,10 +29,20 @@
                             [isSelected]="activePlaylistId() === item._id"
                             [showActions]="!sidebarMode()"
                             [isDraggable]="isCustomSortActive()"
+                            [isRefreshing]="isRefreshPending(item._id)"
+                            [isDeleting]="isDeletePending(item._id)"
+                            [busyMessage]="getBusyMessage(item)"
+                            [busyProgress]="getBusyProgress(item._id)"
+                            [canCancelBusyAction]="
+                                canCancelBusyOperation(item)
+                            "
                             (editPlaylistClicked)="openInfoDialog($event)"
                             (playlistClicked)="getPlaylist(item)"
                             (refreshClicked)="refreshPlaylist($event)"
-                            (removeClicked)="removeClicked($event)"
+                            (removeClicked)="removeClicked(item)"
+                            (cancelBusyActionClicked)="
+                                cancelBusyOperation(item)
+                            "
                         />
                     }
                 </mat-nav-list>

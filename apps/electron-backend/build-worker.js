@@ -21,30 +21,72 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 async function buildWorker() {
     try {
-        console.log(`Building EPG parser worker with esbuild (${isProduction ? 'production' : 'development'})...`);
-
-        await esbuild.build({
-            entryPoints: [path.join(__dirname, 'src/app/workers/epg-parser.worker.ts')],
-            bundle: true,
-            platform: 'node',
-            target: 'node18',
-            format: 'cjs',
-            outfile: path.join(__dirname, '../../dist/apps/electron-backend/workers/epg-parser.worker.js'),
-            external: [
-                ...nodeBuiltins.map(m => `node:${m}`),
-                ...nodeBuiltins,
-                ...nativeModules,
-            ],
-            sourcemap: !isProduction,
-            minify: isProduction,
-            // Resolve workspace libraries from tsconfig paths
-            alias: {
-                'shared-interfaces': path.join(__dirname, '../../libs/shared/interfaces/src/index.ts'),
-                'database': path.join(__dirname, '../../libs/shared/database/src/index.ts'),
+        const workers = [
+            {
+                label: 'EPG parser worker',
+                entry: path.join(
+                    __dirname,
+                    'src/app/workers/epg-parser.worker.ts'
+                ),
+                outfile: path.join(
+                    __dirname,
+                    '../../dist/apps/electron-backend/workers/epg-parser.worker.js'
+                ),
             },
-        });
+            {
+                label: 'database worker',
+                entry: path.join(
+                    __dirname,
+                    'src/app/workers/database.worker.ts'
+                ),
+                outfile: path.join(
+                    __dirname,
+                    '../../dist/apps/electron-backend/workers/database.worker.js'
+                ),
+            },
+        ];
 
-        console.log('✅ Worker built successfully!');
+        for (const worker of workers) {
+            console.log(
+                `Building ${worker.label} with esbuild (${isProduction ? 'production' : 'development'})...`
+            );
+
+            await esbuild.build({
+                entryPoints: [worker.entry],
+                bundle: true,
+                platform: 'node',
+                target: 'node18',
+                format: 'cjs',
+                outfile: worker.outfile,
+                external: [
+                    ...nodeBuiltins.map((m) => `node:${m}`),
+                    ...nodeBuiltins,
+                    ...nativeModules,
+                ],
+                sourcemap: !isProduction,
+                minify: isProduction,
+                alias: {
+                    'shared-interfaces': path.join(
+                        __dirname,
+                        '../../libs/shared/interfaces/src/index.ts'
+                    ),
+                    'database': path.join(
+                        __dirname,
+                        '../../libs/shared/database/src/index.ts'
+                    ),
+                    'database-schema': path.join(
+                        __dirname,
+                        '../../libs/shared/database/src/lib/schema.ts'
+                    ),
+                    'database-path-utils': path.join(
+                        __dirname,
+                        '../../libs/shared/database/src/lib/path-utils.ts'
+                    ),
+                },
+            });
+        }
+
+        console.log('✅ Workers built successfully!');
     } catch (error) {
         console.error('❌ Worker build failed:', error);
         process.exit(1);

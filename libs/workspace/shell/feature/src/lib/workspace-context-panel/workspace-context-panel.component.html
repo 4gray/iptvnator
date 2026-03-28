@@ -25,7 +25,7 @@
     <div class="context-divider"></div>
 
     @if (isXtreamCategories()) {
-        <app-category-view
+        <app-workspace-context-category-view
             [items]="xtreamCategories()"
             [selectedCategoryId]="xtreamSelectedCategoryId()"
             [itemCounts]="xtreamCategoryItemCounts()"
@@ -47,7 +47,7 @@
                 }
             </div>
         } @else if (isStalkerCategoryFailed()) {
-            <app-playlist-error-view
+            <app-workspace-context-error-view
                 [title]="'WORKSPACE.CONTEXT.LOAD_CATEGORIES_ERROR' | translate"
                 [description]="
                     'WORKSPACE.CONTEXT.LOAD_CATEGORIES_ERROR_HINT' | translate
@@ -55,7 +55,7 @@
                 [showActionButtons]="false"
             />
         } @else {
-            <app-category-view
+            <app-workspace-context-category-view
                 [items]="stalkerCategories()"
                 [selectedCategoryId]="$any(stalkerSelectedCategoryId())"
                 (categoryClicked)="onStalkerCategoryClicked($any($event))"

@@ -7,9 +7,11 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import {
+    extractPortalPlaylistId,
     extractPortalSection,
     isWorkspaceLayoutRoute,
     queryParamSignal,
+    resolveCurrentPortalPlaylistId,
     resolveCurrentPortalSection,
 } from './portal-route.utils';
 
@@ -24,6 +26,36 @@ describe('portal-route.utils', () => {
         } as unknown as ActivatedRoute;
 
         expect(isWorkspaceLayoutRoute(route)).toBe(true);
+    });
+
+    it('detects workspace layout from ancestor route data', () => {
+        const parentRoute = {
+            snapshot: {
+                data: {
+                    layout: 'workspace',
+                },
+            },
+        } as ActivatedRoute;
+        const childRoute = {
+            snapshot: {
+                data: {},
+            },
+            pathFromRoot: [
+                {
+                    snapshot: {
+                        data: {},
+                    },
+                },
+                parentRoute,
+                {
+                    snapshot: {
+                        data: {},
+                    },
+                },
+            ],
+        } as unknown as ActivatedRoute;
+
+        expect(isWorkspaceLayoutRoute(childRoute)).toBe(true);
     });
 
     it('extracts Xtream sections from workspace and local URLs', () => {
@@ -44,21 +76,47 @@ describe('portal-route.utils', () => {
         ).toBe('favorites');
     });
 
-    it('prefers the child snapshot section and falls back to URL parsing', () => {
-        const routeWithChild = {
+    it('extracts playlist ids from workspace and local URLs', () => {
+        expect(
+            extractPortalPlaylistId('/workspace/xtreams/123/search', 'xtreams')
+        ).toBe('123');
+        expect(extractPortalPlaylistId('/stalker/321/series', 'stalker')).toBe(
+            '321'
+        );
+    });
+
+    it('resolves portal sections from the active descendant chain and falls back to URL parsing', () => {
+        const routeWithDescendants = {
+            snapshot: {
+                url: [],
+            },
             firstChild: {
                 snapshot: {
-                    url: [{ path: 'vod' }],
+                    url: [{ path: 'workspace' }],
+                },
+                firstChild: {
+                    snapshot: {
+                        url: [{ path: 'stalker' }],
+                    },
+                    firstChild: {
+                        snapshot: {
+                            url: [{ path: 'vod' }],
+                        },
+                        firstChild: null,
+                    },
                 },
             },
         } as unknown as ActivatedRoute;
         const routeWithoutChild = {
+            snapshot: {
+                url: [],
+            },
             firstChild: null,
         } as unknown as ActivatedRoute;
 
         expect(
             resolveCurrentPortalSection(
-                routeWithChild,
+                routeWithDescendants,
                 '/workspace/stalker/123/search',
                 'stalker'
             )
@@ -70,6 +128,56 @@ describe('portal-route.utils', () => {
                 'stalker'
             )
         ).toBe('search');
+    });
+
+    it('resolves playlist ids from ancestors and falls back to URL parsing', () => {
+        const routeWithParent = {
+            pathFromRoot: [
+                {
+                    snapshot: {
+                        params: {},
+                        paramMap: convertToParamMap({}),
+                    },
+                },
+                {
+                    snapshot: {
+                        params: { id: 'playlist-1' },
+                        paramMap: convertToParamMap({ id: 'playlist-1' }),
+                    },
+                },
+                {
+                    snapshot: {
+                        params: {},
+                        paramMap: convertToParamMap({}),
+                    },
+                },
+            ],
+        } as unknown as ActivatedRoute;
+        const routeWithoutParent = {
+            pathFromRoot: [
+                {
+                    snapshot: {
+                        params: {},
+                        paramMap: convertToParamMap({}),
+                    },
+                },
+            ],
+        } as unknown as ActivatedRoute;
+
+        expect(
+            resolveCurrentPortalPlaylistId(
+                routeWithParent,
+                '/workspace/xtreams/ignored/vod',
+                'xtreams'
+            )
+        ).toBe('playlist-1');
+        expect(
+            resolveCurrentPortalPlaylistId(
+                routeWithoutParent,
+                '/workspace/stalker/playlist-2/vod',
+                'stalker'
+            )
+        ).toBe('playlist-2');
     });
 
     it('creates normalized query-param signals', () => {

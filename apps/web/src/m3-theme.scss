@@ -6,8 +6,11 @@
 @include mat.app-background();
 
 // ─── Typography ─────────────────────────────────────────────────────────────
+$app-font-stack:
+    "'DM Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+
 $my-typography: mat.m2-define-typography-config(
-    $font-family: "'DM Sans', 'Inter', sans-serif",
+    $font-family: $app-font-stack,
 );
 @include mat.typography-hierarchy($my-typography);
 
@@ -20,8 +23,8 @@ $light-theme: mat.define-theme(
             tertiary: mat.$cyan-palette,
         ),
         typography: (
-            plain-family: "'DM Sans', 'Inter', sans-serif",
-            brand-family: "'DM Sans', 'Inter', sans-serif",
+            plain-family: $app-font-stack,
+            brand-family: $app-font-stack,
         ),
     )
 );
@@ -34,8 +37,8 @@ $dark-theme: mat.define-theme(
             tertiary: mat.$cyan-palette,
         ),
         typography: (
-            plain-family: "'DM Sans', 'Inter', sans-serif",
-            brand-family: "'DM Sans', 'Inter', sans-serif",
+            plain-family: $app-font-stack,
+            brand-family: $app-font-stack,
         ),
     )
 );
@@ -46,10 +49,12 @@ html {
 
     // ── Light theme design tokens ─────────────────────────────────────────
     --app-shell-bg: #eef0f3;
-    --app-rail-bg: #e8eaed;
+    --app-rail-bg: #eef0f3;
     --app-header-bg: #eef0f3;
     --app-content-bg: #f5f6f8;
-    --app-rail-border: rgba(0, 0, 0, 0.08);
+    --app-rail-border: transparent;
+    --app-on-surface: #1d1b1e;
+    --app-hover-overlay: rgba(0, 0, 0, 0.06);
     --app-search-bg: rgba(255, 255, 255, 0.7);
     --app-search-border: rgba(0, 0, 0, 0.1);
     --app-selection-color: #2f7bff;
@@ -74,6 +79,9 @@ html {
         var(--app-selection-color) 34%,
         transparent
     );
+
+    // Content area
+    --app-content-shadow: -2px 4px 12px rgba(0, 0, 0, 0.06);
 
     // Widget surfaces — no borders, layered backgrounds
     --app-widget-bg: #ffffff;
@@ -116,7 +124,9 @@ html {
         --app-rail-bg: #111318;
         --app-header-bg: #111318;
         --app-content-bg: #161a22;
-        --app-rail-border: rgba(255, 255, 255, 0.05);
+        --app-rail-border: transparent;
+        --app-on-surface: #e6e1e5;
+        --app-hover-overlay: rgba(255, 255, 255, 0.08);
         --app-search-bg: rgba(255, 255, 255, 0.05);
         --app-search-border: rgba(255, 255, 255, 0.09);
         --app-selection-color: #78adff;
@@ -141,6 +151,9 @@ html {
             var(--app-selection-color) 44%,
             transparent
         );
+
+        // Content area
+        --app-content-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
 
         // Widget surfaces — NO border, surface contrast does the work
         // Widgets sit on content-bg (#161a22), so widget-bg is notably lighter

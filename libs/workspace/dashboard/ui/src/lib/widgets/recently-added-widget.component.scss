@@ -1,0 +1,82 @@
+:host {
+    // Recently added / discovery tint — fresh emerald
+    --app-eyebrow-color: oklch(68% 0.17 155);
+    --app-widget-border: color-mix(in srgb, oklch(68% 0.17 155) 22%, var(--mat-sys-outline-variant) 78%);
+}
+
+.view-toggle {
+    border-radius: 8px;
+    height: 32px;
+    align-items: center;
+    border: 1px solid var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface-container-high);
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
+    }
+}
+
+::ng-deep .view-toggle {
+    .mat-button-toggle-label-content {
+        line-height: 30px !important;
+        padding: 0 8px !important;
+    }
+
+    .mat-button-toggle-checked .mat-button-toggle-button {
+        background-color: var(--mat-sys-secondary-container) !important;
+    }
+
+    .mat-button-toggle-checked mat-icon {
+        color: var(--mat-sys-on-secondary-container) !important;
+    }
+}
+
+.active-filter {
+    font-weight: 600;
+    color: var(--mat-sys-primary);
+}
+
+.feedback-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px 16px;
+    gap: 8px;
+    border: 1px dashed var(--mat-sys-outline-variant);
+    border-radius: 12px;
+    margin: 8px 0;
+    background: radial-gradient(
+        ellipse at 50% 0%,
+        color-mix(in srgb, var(--mat-sys-primary) 6%, transparent),
+        transparent 72%
+    );
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.feedback-state__icon {
+    font-size: 34px;
+    width: 34px;
+    height: 34px;
+    color: var(--mat-sys-primary);
+    opacity: 0.6;
+}
+
+.feedback-state__title {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface);
+}
+
+.feedback-state__hint {
+    margin: 0;
+    max-width: 280px;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}

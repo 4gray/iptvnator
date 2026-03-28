@@ -385,8 +385,9 @@
     box-sizing: border-box;
 
     &__title {
-        font-size: 1.375rem;
-        font-weight: 600;
+        font-size: 1.2rem;
+        font-weight: 650;
+        letter-spacing: -0.02em;
         margin: 0 0 20px 0;
         color: var(--text-primary);
     }
@@ -479,8 +480,9 @@
     width: 100%;
 
     h3 {
-        font-size: 1.125rem;
+        font-size: 1rem;
         font-weight: 600;
+        letter-spacing: -0.01em;
         margin: 0 0 12px 0;
         color: var(--text-primary);
     }

@@ -2,22 +2,13 @@ import { Route } from '@angular/router';
 import { PORTAL_CATALOG_DETAIL_COMPONENT } from '@iptvnator/portal/shared/util';
 import { StalkerCatalogDetailComponent } from './stalker-catalog-detail/stalker-catalog-detail.component';
 import { provideStalkerCatalogFacade } from './stalker-catalog-facade.service';
+import { provideStalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
 
 type ComponentLoader = NonNullable<Route['loadComponent']>;
 
 const loadDownloadsComponent: ComponentLoader = () =>
     import('@iptvnator/portal/downloads/feature').then(
         (c) => c.DownloadsComponent
-    );
-
-const loadStalkerShellComponent: ComponentLoader = () =>
-    import('./stalker-shell/stalker-shell.component').then(
-        (c) => c.StalkerShellComponent
-    );
-
-const loadStalkerMainContainerComponent: ComponentLoader = () =>
-    import('./stalker-main-container.component').then(
-        (c) => c.StalkerMainContainerComponent
     );
 
 const loadStalkerLiveStreamLayoutComponent: ComponentLoader = () =>
@@ -30,14 +21,9 @@ const loadCategoryContentViewComponent: ComponentLoader = () =>
         (c) => c.CategoryContentViewComponent
     );
 
-const loadStalkerFavoritesComponent: ComponentLoader = () =>
-    import('./stalker-favorites/stalker-favorites.component').then(
-        (c) => c.StalkerFavoritesComponent
-    );
-
-const loadStalkerRecentlyViewedComponent: ComponentLoader = () =>
-    import('./recently-viewed/recently-viewed.component').then(
-        (c) => c.RecentlyViewedComponent
+const loadStalkerCollectionRouteComponent: ComponentLoader = () =>
+    import('./stalker-collection-route.component').then(
+        (c) => c.StalkerCollectionRouteComponent
     );
 
 const loadStalkerSearchComponent: ComponentLoader = () =>
@@ -49,7 +35,7 @@ export function createStalkerRoutes(): Route[] {
     return [
         {
             path: 'stalker/:id',
-            loadComponent: loadStalkerShellComponent,
+            providers: provideStalkerWorkspaceRouteSession(),
             children: [
                 {
                     path: '',
@@ -65,7 +51,6 @@ export function createStalkerRoutes(): Route[] {
                             useValue: StalkerCatalogDetailComponent,
                         },
                     ],
-                    loadComponent: loadStalkerMainContainerComponent,
                     children: [
                         {
                             path: '',
@@ -86,11 +71,6 @@ export function createStalkerRoutes(): Route[] {
                     ],
                 },
                 {
-                    path: '',
-                    redirectTo: 'vod',
-                    pathMatch: 'full',
-                },
-                {
                     path: 'itv',
                     loadComponent: loadStalkerLiveStreamLayoutComponent,
                 },
@@ -103,7 +83,6 @@ export function createStalkerRoutes(): Route[] {
                             useValue: StalkerCatalogDetailComponent,
                         },
                     ],
-                    loadComponent: loadStalkerMainContainerComponent,
                     children: [
                         {
                             path: '',
@@ -125,11 +104,13 @@ export function createStalkerRoutes(): Route[] {
                 },
                 {
                     path: 'favorites',
-                    loadComponent: loadStalkerFavoritesComponent,
+                    loadComponent: loadStalkerCollectionRouteComponent,
+                    data: { mode: 'favorites', portalType: 'stalker' },
                 },
                 {
                     path: 'recent',
-                    loadComponent: loadStalkerRecentlyViewedComponent,
+                    loadComponent: loadStalkerCollectionRouteComponent,
+                    data: { mode: 'recent', portalType: 'stalker' },
                 },
                 {
                     path: 'search',

@@ -1,32 +1,7 @@
-@use '@angular/material' as mat;
 @use '../../../../../../ui/styles/portal-layout' as portal;
 @use '../../../../../../ui/styles/portal-sidebar';
 
 @include portal.live-layout;
-
-.search-panel {
-    padding: 8px 12px;
-    flex-shrink: 0;
-    height: 56px;
-    box-sizing: border-box;
-}
-
-.search-bar {
-    width: 100%;
-    @include mat.form-field-density(-5);
-}
-
-::ng-deep {
-    .search-bar {
-        div {
-            border-radius: 20px;
-        }
-    }
-
-    div[matformfieldlineripple] {
-        display: none;
-    }
-}
 
 .channels-list {
     flex: 1;

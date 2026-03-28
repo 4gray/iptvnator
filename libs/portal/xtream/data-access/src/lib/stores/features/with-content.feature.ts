@@ -13,6 +13,7 @@ import {
     XtreamVodStream,
 } from 'shared-interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { DatabaseService, DbOperationEvent, isDbAbortError } from 'services';
 import {
     XTREAM_DATA_SOURCE,
     XtreamCategoryFromDb,
@@ -33,8 +34,11 @@ export interface ContentState {
     isLoadingCategories: boolean;
     isLoadingContent: boolean;
     isImporting: boolean;
+    isCancellingImport: boolean;
     importCount: number;
+    importPhase: string | null;
     itemsToImport: number;
+    activeImportOperationIds: string[];
     isContentInitialized: boolean;
 }
 
@@ -51,8 +55,11 @@ const initialContentState: ContentState = {
     isLoadingCategories: false,
     isLoadingContent: false,
     isImporting: false,
+    isCancellingImport: false,
     importCount: 0,
+    importPhase: null,
     itemsToImport: 0,
+    activeImportOperationIds: [],
     isContentInitialized: false,
 };
 
@@ -121,13 +128,14 @@ export function withContent() {
             isContentImporting: computed(() => store.isImporting()),
 
             /**
-             * Check if content is already initialized
+             * Current import phase label key source
              */
-            isContentInitialized: computed(() => store.isContentInitialized()),
+            currentImportPhase: computed(() => store.importPhase()),
         })),
 
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
+            const databaseService = inject(DatabaseService);
 
             /**
              * Helper to get credentials from parent store
@@ -154,6 +162,35 @@ export function withContent() {
                         password: playlist.password,
                     },
                 };
+            };
+
+            const trackImportEvent = (event: DbOperationEvent): void => {
+                const operationId = event.operationId;
+
+                patchState(store, (state) => ({
+                    importPhase: event.phase ?? state.importPhase,
+                    activeImportOperationIds:
+                        operationId == null
+                            ? state.activeImportOperationIds
+                            : event.status === 'completed' ||
+                                event.status === 'cancelled' ||
+                                event.status === 'error'
+                              ? state.activeImportOperationIds.filter(
+                                    (id) => id !== operationId
+                                )
+                              : state.activeImportOperationIds.includes(
+                                      operationId
+                                  )
+                                ? state.activeImportOperationIds
+                                : [
+                                      ...state.activeImportOperationIds,
+                                      operationId,
+                                  ],
+                    isCancellingImport:
+                        event.status === 'cancelled'
+                            ? false
+                            : state.isCancellingImport,
+                }));
             };
 
             return {
@@ -192,8 +229,11 @@ export function withContent() {
                             isLoadingCategories: false,
                         });
                     } catch (error) {
-                        logger.error('Error fetching categories', error);
+                        if (!isDbAbortError(error)) {
+                            logger.error('Error fetching categories', error);
+                        }
                         patchState(store, { isLoadingCategories: false });
+                        throw error;
                     }
                 },
 
@@ -227,21 +267,24 @@ export function withContent() {
                                 ctx.credentials,
                                 'live',
                                 onProgress,
-                                onTotal
+                                onTotal,
+                                { onEvent: trackImportEvent }
                             ),
                             dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
                                 'movie',
                                 onProgress,
-                                onTotal
+                                onTotal,
+                                { onEvent: trackImportEvent }
                             ),
                             dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
                                 'series',
                                 onProgress,
-                                onTotal
+                                onTotal,
+                                { onEvent: trackImportEvent }
                             ),
                         ]);
 
@@ -252,8 +295,11 @@ export function withContent() {
                             isLoadingContent: false,
                         });
                     } catch (error) {
-                        logger.error('Error fetching content', error);
+                        if (!isDbAbortError(error)) {
+                            logger.error('Error fetching content', error);
+                        }
                         patchState(store, { isLoadingContent: false });
+                        throw error;
                     }
                 },
 
@@ -271,16 +317,19 @@ export function withContent() {
 
                     patchState(store, {
                         isImporting: true,
+                        isCancellingImport: false,
                         importCount: 0,
+                        importPhase: null,
                         itemsToImport: 0,
+                        activeImportOperationIds: [],
                     });
 
                     try {
-                        // Fetch categories and content in parallel for faster initial load
-                        await Promise.all([
-                            this.fetchAllCategories(),
-                            this.fetchAllContent(),
-                        ]);
+                        // Electron content persistence maps remote category IDs
+                        // to internal DB category rows, so categories must exist
+                        // before content import starts.
+                        await this.fetchAllCategories();
+                        await this.fetchAllContent();
 
                         // Restore user data if needed
                         const restoreKey = `xtream-restore-${ctx.playlistId}`;
@@ -294,19 +343,56 @@ export function withContent() {
                                 await dataSource.restoreUserData(
                                     ctx.playlistId,
                                     favoritedXtreamIds,
-                                    recentlyViewedXtreamIds
+                                    recentlyViewedXtreamIds,
+                                    { onEvent: trackImportEvent }
                                 );
                                 localStorage.removeItem(restoreKey);
                             } catch (err) {
-                                logger.error('Error restoring user data', err);
+                                if (!isDbAbortError(err)) {
+                                    logger.error(
+                                        'Error restoring user data',
+                                        err
+                                    );
+                                }
                             }
                         }
 
                         // Mark as initialized so next routings won't re-trigger it
                         patchState(store, { isContentInitialized: true });
+                    } catch (error) {
+                        if (!isDbAbortError(error)) {
+                            logger.error('Error initializing content', error);
+                        }
                     } finally {
-                        patchState(store, { isImporting: false });
+                        patchState(store, {
+                            isImporting: false,
+                            isCancellingImport: false,
+                            importCount: 0,
+                            importPhase: null,
+                            itemsToImport: 0,
+                            activeImportOperationIds: [],
+                        });
                     }
+                },
+
+                async cancelImport(): Promise<void> {
+                    if (
+                        !databaseService.supportsDbOperationCancellation() ||
+                        store.activeImportOperationIds().length === 0 ||
+                        store.isCancellingImport()
+                    ) {
+                        return;
+                    }
+
+                    patchState(store, { isCancellingImport: true });
+
+                    await Promise.all(
+                        store
+                            .activeImportOperationIds()
+                            .map((operationId) =>
+                                databaseService.cancelOperation(operationId)
+                            )
+                    );
                 },
 
                 /**

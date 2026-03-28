@@ -1,21 +1,12 @@
 import { Route } from '@angular/router';
 import { provideXtreamCatalogFacade } from './xtream-catalog-facade.service';
+import { provideXtreamWorkspaceRouteSession } from './xtream-workspace-route-session.service';
 
 type ComponentLoader = NonNullable<Route['loadComponent']>;
 
 const loadDownloadsComponent: ComponentLoader = () =>
     import('@iptvnator/portal/downloads/feature').then(
         (c) => c.DownloadsComponent
-    );
-
-const loadXtreamShellComponent: ComponentLoader = () =>
-    import('./xtream-shell/xtream-shell.component').then(
-        (c) => c.XtreamShellComponent
-    );
-
-const loadXtreamMainContainerComponent: ComponentLoader = () =>
-    import('./xtream-main-container.component').then(
-        (c) => c.XtreamMainContainerComponent
     );
 
 const loadLiveStreamLayoutComponent: ComponentLoader = () =>
@@ -28,12 +19,9 @@ const loadCategoryContentViewComponent: ComponentLoader = () =>
         (c) => c.CategoryContentViewComponent
     );
 
-const loadFavoritesComponent: ComponentLoader = () =>
-    import('./favorites/favorites.component').then((c) => c.FavoritesComponent);
-
-const loadRecentlyViewedComponent: ComponentLoader = () =>
-    import('./recently-viewed/recently-viewed.component').then(
-        (c) => c.RecentlyViewedComponent
+const loadXtreamCollectionRouteComponent: ComponentLoader = () =>
+    import('./xtream-collection-route.component').then(
+        (c) => c.XtreamCollectionRouteComponent
     );
 
 const loadSearchResultsComponent: ComponentLoader = () =>
@@ -60,7 +48,7 @@ export function createXtreamRoutes(): Route[] {
     return [
         {
             path: 'xtreams/:id',
-            loadComponent: loadXtreamShellComponent,
+            providers: provideXtreamWorkspaceRouteSession(),
             children: [
                 {
                     path: '',
@@ -70,17 +58,14 @@ export function createXtreamRoutes(): Route[] {
                 {
                     path: 'live',
                     loadComponent: loadLiveStreamLayoutComponent,
-                    children: [
-                        {
-                            path: ':categoryId',
-                            loadComponent: loadLiveStreamLayoutComponent,
-                        },
-                    ],
+                },
+                {
+                    path: 'live/:categoryId',
+                    loadComponent: loadLiveStreamLayoutComponent,
                 },
                 {
                     path: 'vod',
                     providers: provideXtreamCatalogFacade(),
-                    loadComponent: loadXtreamMainContainerComponent,
                     children: [
                         {
                             path: '',
@@ -99,7 +84,6 @@ export function createXtreamRoutes(): Route[] {
                 {
                     path: 'series',
                     providers: provideXtreamCatalogFacade(),
-                    loadComponent: loadXtreamMainContainerComponent,
                     children: [
                         {
                             path: '',
@@ -117,11 +101,13 @@ export function createXtreamRoutes(): Route[] {
                 },
                 {
                     path: 'favorites',
-                    loadComponent: loadFavoritesComponent,
+                    loadComponent: loadXtreamCollectionRouteComponent,
+                    data: { mode: 'favorites', portalType: 'xtream' },
                 },
                 {
                     path: 'recent',
-                    loadComponent: loadRecentlyViewedComponent,
+                    loadComponent: loadXtreamCollectionRouteComponent,
+                    data: { mode: 'recent', portalType: 'xtream' },
                 },
                 {
                     path: 'search',

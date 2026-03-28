@@ -1,0 +1,3 @@
+{
+    "extends": "./apps/web/tsconfig.spec.json"
+}

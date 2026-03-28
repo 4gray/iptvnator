@@ -1,5 +1,6 @@
 import { inject, Injectable, Provider } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
+import { Router } from '@angular/router';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import {
     WORKSPACE_SHELL_ACTIONS,
@@ -10,6 +11,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
     private readonly dialog = inject(MatDialog);
+    private readonly router = inject(Router);
 
     openAddPlaylistDialog(type: PlaylistType): void {
         void import('@iptvnator/playlist/import/feature').then(
@@ -40,19 +42,7 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
     }
 
     openGlobalRecent(): void {
-        void import('@iptvnator/portal/xtream/feature').then(
-            ({ GlobalRecentlyViewedComponent }) => {
-                this.dialog.open(GlobalRecentlyViewedComponent, {
-                    width: '100%',
-                    height: '100%',
-                    maxWidth: '100%',
-                    panelClass: 'global-search-overlay',
-                    data: { isGlobal: true },
-                    hasBackdrop: true,
-                    disableClose: false,
-                });
-            }
-        );
+        void this.router.navigate(['/workspace/global-recent']);
     }
 
     openAccountInfo(data: WorkspaceAccountInfoData): void {

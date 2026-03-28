@@ -9,7 +9,6 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     FavoritesActions,
-    selectActivePlaylistId,
     selectFavorites,
     selectIsEpgAvailable,
 } from 'm3u-state';
@@ -43,7 +42,6 @@ export class ToolbarComponent {
 
     readonly favorites$ = this.store.select(selectFavorites);
     readonly isEpgAvailable$ = this.store.select(selectIsEpgAvailable);
-    readonly playlistId$ = this.store.select(selectActivePlaylistId);
 
     updateFavoriteStatus(channel: Channel) {
         this.store.dispatch(FavoritesActions.updateFavorites({ channel }));

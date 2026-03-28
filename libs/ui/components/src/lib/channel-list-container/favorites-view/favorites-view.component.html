@@ -1,6 +1,7 @@
 <div
     class="channel-list"
     cdkDropList
+    [cdkDropListDisabled]="hasSearchTerm()"
     (cdkDropListDropped)="onDrop($event)"
     id="favorites-list"
 >
@@ -17,7 +18,7 @@
                     '. ' +
                     (channel?.name || 'CHANNELS.UNNAMED_CHANNEL' | translate)
                 "
-                [isDraggable]="true"
+                [isDraggable]="!hasSearchTerm()"
                 [logo]="channel?.tvg?.logo"
                 [showEpg]="shouldShowEpg()"
                 [epgProgram]="channel.epgProgram"
@@ -31,10 +32,20 @@
         }
     } @else {
         <div class="empty-favorites">
-            <strong>{{ 'CHANNELS.NO_FAVORITES' | translate }}</strong>
+            <strong>
+                @if (hasSearchTerm()) {
+                    {{ 'CHANNELS.NO_SEARCH_RESULTS' | translate }}
+                } @else {
+                    {{ 'CHANNELS.NO_FAVORITES' | translate }}
+                }
+            </strong>
         </div>
         <div class="empty-favorites-hint">
-            {{ 'CHANNELS.USE_STAR_TO_FAVORITE' | translate }}
+            @if (hasSearchTerm()) {
+                {{ 'CHANNELS.TRY_DIFFERENT_SEARCH' | translate }}
+            } @else {
+                {{ 'CHANNELS.USE_STAR_TO_FAVORITE' | translate }}
+            }
         </div>
     }
 </div>

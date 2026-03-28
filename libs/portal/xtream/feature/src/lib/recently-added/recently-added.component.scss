@@ -9,7 +9,10 @@
 }
 
 h2 {
-    margin-bottom: 24px;
+    margin: 0 0 24px;
+    font-size: 1.2rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
 }
 
 .section {
@@ -27,6 +30,9 @@ h2 {
         align-items: center;
         gap: 8px;
         margin-bottom: 16px;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
         opacity: 0.8;
     }
 }

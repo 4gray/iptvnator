@@ -18,7 +18,6 @@ import {
     DashboardContentKind,
     DashboardDataService,
     DashboardWidgetConfig,
-    createDefaultWidgetScope,
 } from 'workspace-dashboard-data-access';
 import {
     DashboardActivityItemViewModel,
@@ -64,9 +63,6 @@ export class GlobalFavoritesWidgetComponent implements OnInit {
         this.readStoredViewMode() ?? 'list'
     );
     readonly visibleItemLimit = signal(INITIAL_PAGE_SIZE);
-    readonly scope = computed(
-        () => this.widget().settings?.scope ?? createDefaultWidgetScope()
-    );
 
     readonly counts = computed(() => {
         const items = this.data.globalFavoriteItems();
@@ -83,13 +79,6 @@ export class GlobalFavoritesWidgetComponent implements OnInit {
             .globalFavoriteItems()
             .filter((item) =>
                 this.data.isTypeInKind(item.type, this.selectedKind())
-            )
-            .filter((item) =>
-                this.data.matchesScope(
-                    item.playlist_id,
-                    item.source,
-                    this.scope()
-                )
             )
     );
 

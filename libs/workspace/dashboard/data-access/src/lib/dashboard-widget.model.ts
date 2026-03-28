@@ -2,19 +2,10 @@ export type DashboardWidgetType =
     | 'source-stats'
     | 'continue-watching'
     | 'recently-watched'
+    | 'recently-added'
     | 'global-favorites';
 
 export type DashboardWidgetSize = 'one-third' | 'half' | 'two-thirds' | 'full';
-export type DashboardWidgetProvider = 'm3u' | 'xtream' | 'stalker';
-
-export interface DashboardWidgetScopeSettings {
-    providers: DashboardWidgetProvider[];
-    playlistIds: string[];
-}
-
-export interface DashboardWidgetSettings {
-    scope?: DashboardWidgetScopeSettings;
-}
 
 export interface DashboardWidgetConfig {
     id: string;
@@ -24,7 +15,6 @@ export interface DashboardWidgetConfig {
     size: DashboardWidgetSize;
     enabled: boolean;
     order: number;
-    settings?: DashboardWidgetSettings;
 }
 
 export interface DashboardLayoutState {
@@ -32,29 +22,13 @@ export interface DashboardLayoutState {
     widgets: DashboardWidgetConfig[];
 }
 
-export const DASHBOARD_LAYOUT_VERSION = 12;
+export const DASHBOARD_LAYOUT_VERSION = 14;
 export const DASHBOARD_WIDGET_SIZE_OPTIONS: DashboardWidgetSize[] = [
     'one-third',
     'half',
     'two-thirds',
     'full',
 ];
-export const ALL_DASHBOARD_WIDGET_PROVIDERS: DashboardWidgetProvider[] = [
-    'm3u',
-    'xtream',
-    'stalker',
-];
-export const DEFAULT_WIDGET_SCOPE: DashboardWidgetScopeSettings = {
-    providers: [...ALL_DASHBOARD_WIDGET_PROVIDERS],
-    playlistIds: [],
-};
-
-export function createDefaultWidgetScope(): DashboardWidgetScopeSettings {
-    return {
-        providers: [...ALL_DASHBOARD_WIDGET_PROVIDERS],
-        playlistIds: [],
-    };
-}
 
 export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
     {
@@ -83,9 +57,15 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
         size: 'two-thirds',
         enabled: true,
         order: 4,
-        settings: {
-            scope: createDefaultWidgetScope(),
-        },
+    },
+    {
+        id: 'recently-added',
+        type: 'recently-added',
+        title: 'WORKSPACE.DASHBOARD.RECENTLY_ADDED',
+        description: 'WORKSPACE.DASHBOARD.RECENTLY_ADDED_DESC',
+        size: 'half',
+        enabled: false,
+        order: 5,
     },
     {
         id: 'global-favorites',
@@ -94,9 +74,6 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
         description: 'WORKSPACE.DASHBOARD.GLOBAL_FAVORITES_DESC',
         size: 'one-third',
         enabled: true,
-        order: 5,
-        settings: {
-            scope: createDefaultWidgetScope(),
-        },
+        order: 6,
     },
 ];

@@ -10,10 +10,10 @@ import { BehaviorSubject, of } from 'rxjs';
 import {
     ChannelActions,
     selectActive,
-    selectActivePlaylistId,
     selectChannels,
     selectCurrentEpgProgram,
 } from 'm3u-state';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     WorkspaceHeaderContextService,
@@ -66,8 +66,6 @@ describe('VideoPlayerComponent', () => {
             switch (selector) {
                 case selectActive:
                     return activeChannel;
-                case selectActivePlaylistId:
-                    return playlistId;
                 case selectChannels:
                     return channels;
                 case selectCurrentEpgProgram:
@@ -187,6 +185,12 @@ describe('VideoPlayerComponent', () => {
                 {
                     provide: PlaylistsService,
                     useValue: playlistsServiceMock,
+                },
+                {
+                    provide: PlaylistContextFacade,
+                    useValue: {
+                        resolvedPlaylistId: playlistId,
+                    },
                 },
                 {
                     provide: SettingsStore,

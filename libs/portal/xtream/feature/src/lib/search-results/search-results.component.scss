@@ -107,8 +107,9 @@
         padding: 8px;
         background: rgba(0, 0, 0, 0.05);
         border-radius: 4px;
-        font-size: 1.1rem;
-        font-weight: 500;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
 
         mat-icon {
             opacity: 0.7;
@@ -116,7 +117,7 @@
 
         .item-count {
             margin-left: auto;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             opacity: 0.7;
         }
     }
@@ -150,9 +151,10 @@
 .playlist-section {
     .section-title {
         margin: 0 0 1.5rem;
-        font-size: 1.2rem;
-        font-weight: normal;
-        color: var(--text-color-secondary);
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--mat-sys-on-surface);
         padding: 0 8px;
     }
 }

@@ -49,9 +49,13 @@ export function withStalkerSelection() {
                 patchState(store, { selectedContentType: type });
             },
             setSelectedCategory(id: string | number | null) {
+                const newId =
+                    id !== null && id !== undefined ? String(id) : null;
+                if (store.selectedCategoryId() === newId) {
+                    return;
+                }
                 patchState(store, {
-                    selectedCategoryId:
-                        id !== null && id !== undefined ? String(id) : null,
+                    selectedCategoryId: newId,
                     page: 0,
                 });
             },

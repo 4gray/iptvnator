@@ -1,4 +1,4 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 
 /**
  * Stalker Portal E2E Tests
@@ -47,6 +47,21 @@ async function interceptStalkerRequests(page: Page): Promise<void> {
     });
 }
 
+async function setInputValue(input: Locator, value: string): Promise<void> {
+    await input.fill('');
+    await input.fill(value);
+
+    if ((await input.inputValue()) === value) {
+        return;
+    }
+
+    await input.click();
+    await input.press('ControlOrMeta+A');
+    await input.press('Backspace');
+    await input.type(value);
+    await expect(input).toHaveValue(value);
+}
+
 /**
  * Add a Stalker portal via the UI:
  * 1. Click the "add playlist" button
@@ -60,16 +75,19 @@ async function addStalkerPortal(
     const { name = 'Mock Stalker Portal', mac = DEFAULT_MAC } = options;
 
     await page.getByRole('button', { name: 'Add playlist' }).click();
-    await page.getByText('Stalker Portal').click();
+    await page.getByRole('menuitem', { name: /Add Stalker Portal/i }).click();
     const dialog = page.locator('mat-dialog-container');
 
-    await dialog.locator('#title').fill(name);
-    await dialog.locator('#portalUrl').fill(PORTAL_URL);
-    await dialog.locator('#macAddress').fill(mac);
+    await setInputValue(dialog.locator('input#title'), name);
+    await setInputValue(dialog.locator('input#portalUrl'), PORTAL_URL);
+    await setInputValue(dialog.locator('input#macAddress'), mac);
 
-    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+    await expect(addButton).toBeEnabled({ timeout: 10_000 });
+    await addButton.click();
     // Wait for dialog to close
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
+    await page.waitForURL(/stalker.*vod/);
 }
 
 /**
@@ -127,29 +145,21 @@ test('@stalker add a Stalker portal and see it in the playlist list', async ({
 test('@stalker VOD — categories load from mock server', async ({ page }) => {
     await addStalkerPortal(page);
 
-    // Navigate into the portal — click the portal card
-    await page.getByText('Mock Stalker Portal').click();
-
-    // Wait for VOD route to load
-    await page.waitForURL(/stalker.*vod/);
-
     // Default scenario has 8 VOD categories (+ 1 "All categories" prepended by the store)
-    const categoryItems = page.locator('.category-item, [class*="category"]');
+    const categoryItems = page.locator('.category-item');
     await expect(categoryItems.first()).toBeVisible({ timeout: 10_000 });
     const count = await categoryItems.count();
-    expect(count).toBeGreaterThanOrEqual(8);
+    expect(count).toBeGreaterThanOrEqual(9);
 });
 
 test('@stalker VOD — content list loads after selecting a category', async ({
     page,
 }) => {
     await addStalkerPortal(page);
-    await page.getByText('Mock Stalker Portal').click();
-    await page.waitForURL(/stalker.*vod/);
 
     // Click the first non-"All" category
     const categories = page.locator('.category-item');
-    await categories.first().click();
+    await categories.nth(1).click();
 
     // Content grid / list should appear with items
     const contentItems = page.locator(
@@ -165,8 +175,6 @@ test('@stalker minimal scenario — correct item counts', async ({ page }) => {
         name: 'Minimal Portal',
         mac: MINIMAL_MAC,
     });
-    await page.getByText('Minimal Portal').click();
-    await page.waitForURL(/stalker.*vod/);
 
     // Minimal scenario: 2 categories (+ "All" = 3 visible)
     const categories = page.locator('.category-item');
@@ -178,23 +186,24 @@ test('@stalker minimal scenario — correct item counts', async ({ page }) => {
 
 test('@stalker EPG data loads for ITV channel', async ({ page }) => {
     await addStalkerPortal(page);
-    await page.getByText('Mock Stalker Portal').click();
-    await page.waitForURL(/stalker.*vod/);
 
     // Navigate to ITV tab
     await page.getByRole('link', { name: /live|itv/i }).click();
     await page.waitForURL(/stalker.*itv/);
 
+    // ITV view requires an explicit category selection before channels render
+    const categories = page.locator('.category-item');
+    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+
     // Wait for channels to appear
-    const channels = page.locator(
-        '[data-test-id="channel-item"], [class*="channel"]'
-    );
+    const channels = page.locator('[data-test-id="channel-item"]');
     await expect(channels.first()).toBeVisible({ timeout: 10_000 });
 
     // Click a channel — EPG info should appear
     await channels.first().click();
-    // EPG view should become visible
-    await expect(page.locator('[class*="epg"], app-epg-view')).toBeVisible({
+    await expect(channels.first()).toHaveClass(/active/, { timeout: 10_000 });
+    await expect(page.locator('main app-epg-view')).toBeVisible({
         timeout: 10_000,
     });
 });

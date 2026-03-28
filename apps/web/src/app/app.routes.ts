@@ -1,17 +1,5 @@
-import { Route, Routes } from '@angular/router';
-
-function withWorkspaceLayout(routes: Route[]): Route[] {
-    return routes.map((route) => ({
-        ...route,
-        data: {
-            ...(route.data || {}),
-            layout: 'workspace',
-        },
-        children: route.children
-            ? withWorkspaceLayout(route.children)
-            : undefined,
-    }));
-}
+import { Routes } from '@angular/router';
+import { provideM3uWorkspaceRouteSession } from '@iptvnator/playlist/m3u/feature-player';
 
 export const routes: Routes = [
     {
@@ -21,6 +9,9 @@ export const routes: Routes = [
     },
     {
         path: 'workspace',
+        data: {
+            layout: 'workspace',
+        },
         loadComponent: () =>
             import('@iptvnator/workspace/shell/feature').then(
                 (c) => c.WorkspaceShellComponent
@@ -51,10 +42,32 @@ export const routes: Routes = [
                 redirectTo: 'playlists/:id/all',
             },
             {
-                path: 'playlists/:id/:view',
+                path: 'playlists/:id/favorites',
+                providers: provideM3uWorkspaceRouteSession(),
+                loadComponent: () =>
+                    import('@iptvnator/playlist/m3u/feature-player').then(
+                        (c) => c.M3uCollectionRouteComponent
+                    ),
                 data: {
-                    layout: 'workspace',
+                    mode: 'favorites',
+                    portalType: 'm3u',
                 },
+            },
+            {
+                path: 'playlists/:id/recent',
+                providers: provideM3uWorkspaceRouteSession(),
+                loadComponent: () =>
+                    import('@iptvnator/playlist/m3u/feature-player').then(
+                        (c) => c.M3uCollectionRouteComponent
+                    ),
+                data: {
+                    mode: 'recent',
+                    portalType: 'm3u',
+                },
+            },
+            {
+                path: 'playlists/:id/:view',
+                providers: provideM3uWorkspaceRouteSession(),
                 loadComponent: () =>
                     import('@iptvnator/playlist/m3u/feature-player').then(
                         (c) => c.VideoPlayerComponent
@@ -63,16 +76,27 @@ export const routes: Routes = [
             {
                 path: 'global-favorites',
                 data: {
-                    layout: 'workspace',
+                    mode: 'favorites',
+                    defaultScope: 'all',
                 },
                 loadComponent: () =>
-                    import('@iptvnator/workspace/shell/feature').then(
-                        (c) => c.GlobalFavoritesPageComponent
+                    import('@iptvnator/portal/shared/ui').then(
+                        (c) => c.UnifiedCollectionPageComponent
+                    ),
+            },
+            {
+                path: 'global-recent',
+                data: {
+                    mode: 'recent',
+                    defaultScope: 'all',
+                },
+                loadComponent: () =>
+                    import('@iptvnator/portal/shared/ui').then(
+                        (c) => c.UnifiedCollectionPageComponent
                     ),
             },
             {
                 path: 'downloads',
-                data: { layout: 'workspace' },
                 loadComponent: () =>
                     import('@iptvnator/portal/downloads/feature').then(
                         (c) => c.DownloadsComponent
@@ -82,19 +106,18 @@ export const routes: Routes = [
                 path: '',
                 loadChildren: () =>
                     import('@iptvnator/portal/xtream/feature').then((m) =>
-                        withWorkspaceLayout(m.createXtreamRoutes())
+                        m.createXtreamRoutes()
                     ),
             },
             {
                 path: '',
                 loadChildren: () =>
                     import('@iptvnator/portal/stalker/feature').then((m) =>
-                        withWorkspaceLayout(m.createStalkerRoutes())
+                        m.createStalkerRoutes()
                     ),
             },
             {
                 path: 'settings',
-                data: { layout: 'workspace' },
                 loadComponent: () =>
                     import('./settings/settings.component').then(
                         (c) => c.SettingsComponent

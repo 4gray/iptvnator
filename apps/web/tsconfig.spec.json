@@ -2,10 +2,11 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "outDir": "../../dist/out-tsc",
-        "module": "commonjs",
-        "target": "es2016",
+        "module": "ESNext",
+        "target": "ESNext",
+        "esModuleInterop": true,
         "types": ["jest", "node"],
-        "moduleResolution": "node10"
+        "moduleResolution": "bundler"
     },
     "files": ["src/test-setup.ts", "../../global.d.ts"],
     "include": [
@@ -13,8 +14,14 @@
         "src/**/*.test.ts",
         "src/**/*.spec.ts",
         "src/**/*.d.ts",
-        "../../libs/services/src/lib/epg.service.spec.ts",
-        "../../libs/ui/components/src/lib/confirm-dialog/dialog.service.spec.ts",
-        "../../libs/ui/pipes/src/lib/moment-date.pipe.spec.ts"
+        "../../libs/services/src/**/*.test.ts",
+        "../../libs/services/src/**/*.spec.ts",
+        "../../libs/services/src/**/*.d.ts",
+        "../../libs/ui/components/src/**/*.test.ts",
+        "../../libs/ui/components/src/**/*.spec.ts",
+        "../../libs/ui/components/src/**/*.d.ts",
+        "../../libs/ui/pipes/src/**/*.test.ts",
+        "../../libs/ui/pipes/src/**/*.spec.ts",
+        "../../libs/ui/pipes/src/**/*.d.ts"
     ]
 }

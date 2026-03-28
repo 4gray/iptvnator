@@ -81,7 +81,7 @@ describe('buildPortalRailLinks', () => {
 
         expect(links.primary).toEqual([
             {
-                icon: 'list',
+                icon: 'tv',
                 tooltip: 'All channels (this playlist)',
                 path: ['/workspace', 'playlists', 'm3u-1', 'all'],
                 exact: true,
@@ -102,7 +102,7 @@ describe('buildPortalRailLinks', () => {
                 section: 'recent',
             },
             {
-                icon: 'star',
+                icon: 'favorite',
                 tooltip: 'Favorites (this playlist)',
                 path: ['/workspace', 'playlists', 'm3u-1', 'favorites'],
                 exact: true,

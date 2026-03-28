@@ -19,7 +19,9 @@
 .info-section h3 {
     margin-bottom: 16px;
     padding-left: 16px;
-    font-size: 1.1em;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
     border-bottom: 1px solid var(--mat-sys-outline-variant);
     padding-bottom: 8px;
 }

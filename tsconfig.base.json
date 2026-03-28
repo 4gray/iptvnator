@@ -37,6 +37,12 @@
                 "libs/playlist/shared/util/src/index.ts"
             ],
             "@iptvnator/ui/epg": ["libs/ui/epg/src/index.ts"],
+            "@iptvnator/ui/epg/progress-panel": [
+                "libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.ts"
+            ],
+            "@iptvnator/ui/playback/external-player-info-dialog": [
+                "libs/ui/playback/src/lib/external-player-info-dialog/external-player-info-dialog.component.ts"
+            ],
             "@iptvnator/ui/playback": ["libs/ui/playback/src/index.ts"],
             "@iptvnator/playlist/import/feature": [
                 "libs/playlist/import/feature/src/index.ts"
@@ -72,6 +78,12 @@
             "shared-portals": ["libs/ui/shared-portals/src/index.ts"],
             "remote-control": ["libs/ui/remote-control/src/index.ts"],
             "database": ["libs/shared/database/src/index.ts"],
+            "database-schema": [
+                "libs/shared/database/src/lib/schema.ts"
+            ],
+            "database-path-utils": [
+                "libs/shared/database/src/lib/path-utils.ts"
+            ],
             "workspace-dashboard-feature": [
                 "libs/workspace/dashboard/feature/src/index.ts"
             ],

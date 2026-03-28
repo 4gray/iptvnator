@@ -52,6 +52,24 @@ nav.flex .portal-rail-link {
     justify-content: center;
     color: var(--rail-link-color);
     app-region: no-drag;
+    animation: rail-link-enter 0.2s ease-out both;
+}
+
+@for $i from 1 through 8 {
+    nav.flex .portal-rail-link:nth-child(#{$i}) {
+        animation-delay: #{($i - 1) * 30}ms;
+    }
+}
+
+@keyframes rail-link-enter {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 nav.flex .portal-rail-link.is-active,
