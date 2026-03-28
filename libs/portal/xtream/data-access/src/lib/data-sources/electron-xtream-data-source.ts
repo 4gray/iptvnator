@@ -19,6 +19,7 @@ import {
     IXtreamDataSource,
     mapCategoryTypeToDbType,
     ProgressCallback,
+    XtreamOperationOptions,
     XtreamCategoryFromDb,
     XtreamContentItem,
     XtreamPlaylistData,
@@ -195,7 +196,8 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         credentials: XtreamCredentials,
         type: StreamType,
         onProgress?: (count: number) => void,
-        onTotal?: (total: number) => void
+        onTotal?: (total: number) => void,
+        options?: XtreamOperationOptions
     ): Promise<XtreamContentItem[]> {
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
@@ -221,7 +223,8 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
                     | XtreamVodStream[]
                     | XtreamSerieItem[],
                 type,
-                onProgress
+                onProgress,
+                options
             );
         }
 
@@ -237,13 +240,15 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             | XtreamSerieItem[]
             | XtreamContentItem[],
         type: 'live' | 'movie' | 'series',
-        onProgress?: ProgressCallback
+        onProgress?: ProgressCallback,
+        options?: XtreamOperationOptions
     ): Promise<number> {
         return this.dbService.saveXtreamContent(
             playlistId,
             streams,
             type,
-            onProgress
+            onProgress,
+            options
         );
     }
 
@@ -407,12 +412,14 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async restoreUserData(
         playlistId: string,
         favoritedXtreamIds: number[],
-        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[]
+        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[],
+        options?: XtreamOperationOptions
     ): Promise<void> {
         await this.dbService.restoreXtreamUserData(
             playlistId,
             favoritedXtreamIds,
-            recentlyViewedXtreamIds
+            recentlyViewedXtreamIds,
+            options
         );
     }
 }

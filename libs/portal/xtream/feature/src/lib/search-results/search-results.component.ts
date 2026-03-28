@@ -92,6 +92,7 @@ export class SearchResultsComponent implements AfterViewInit {
 
     /** Search filters from store */
     readonly filters = this.xtreamStore.searchFilters;
+    private globalSearchRequestVersion = 0;
 
     private static readonly GROUP_BY_STORAGE_KEY =
         'global-search-group-by-playlist';
@@ -249,10 +250,13 @@ export class SearchResultsComponent implements AfterViewInit {
      * Clear only the results, not the search term/filters
      */
     private clearResultsOnly() {
+        this.globalSearchRequestVersion++;
+        this.xtreamStore.setIsSearching(false);
         this.xtreamStore.setGlobalSearchResults([]);
     }
 
     async searchGlobal(term: string, types: string[], excludeHidden?: boolean) {
+        const requestVersion = ++this.globalSearchRequestVersion;
         this.xtreamStore.setIsSearching(true);
         try {
             const results = await this.databaseService.globalSearchContent(
@@ -260,12 +264,21 @@ export class SearchResultsComponent implements AfterViewInit {
                 types,
                 excludeHidden
             );
+
+            if (requestVersion !== this.globalSearchRequestVersion) {
+                return;
+            }
+
             if (results && Array.isArray(results)) {
                 this.xtreamStore.setGlobalSearchResults(results);
             } else {
                 this.xtreamStore.setIsSearching(false);
             }
         } catch (error) {
+            if (requestVersion !== this.globalSearchRequestVersion) {
+                return;
+            }
+
             this.logger.error('Error in global search', error);
             this.xtreamStore.resetSearchResults();
         }

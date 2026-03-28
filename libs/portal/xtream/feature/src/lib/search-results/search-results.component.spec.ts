@@ -10,6 +10,11 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 
+jest.mock('@iptvnator/portal/shared/ui', () => ({
+    ContentCardComponent: class {},
+    SearchLayoutComponent: class {},
+}));
+
 const DEFAULT_SEARCH_FILTERS: SearchFilters = {
     live: true,
     movie: true,
@@ -30,6 +35,17 @@ function createSearchItem(
         type: 'movie',
         ...overrides,
     };
+}
+
+function createDeferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return { promise, resolve, reject };
 }
 
 class MockXtreamStore {
@@ -79,6 +95,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
                     useValue: {
                         snapshot: {
                             data: {},
+                            queryParamMap: convertToParamMap({ q: '' }),
                         },
                         queryParamMap: of(convertToParamMap({ q: '' })),
                     },
@@ -100,7 +117,8 @@ describe('SearchResultsComponent initialQuery contract', () => {
                     {
                         isGlobalSearch: true,
                         initialQuery: 'matrix',
-                    }
+                    },
+                    undefined
                 )
         );
 
@@ -115,7 +133,8 @@ describe('SearchResultsComponent initialQuery contract', () => {
                 new SearchResultsComponent(
                     {
                         isGlobalSearch: true,
-                    }
+                    },
+                    undefined
                 )
         );
 
@@ -129,7 +148,8 @@ describe('SearchResultsComponent initialQuery contract', () => {
                 new SearchResultsComponent(
                     {
                         isGlobalSearch: true,
-                    }
+                    },
+                    undefined
                 )
         );
 
@@ -145,5 +165,39 @@ describe('SearchResultsComponent initialQuery contract', () => {
                 state: undefined,
             }
         );
+    });
+
+    it('ignores stale global search responses once a newer search has completed', async () => {
+        const staleSearch = createDeferred<XtreamContentItem[]>();
+        const freshResults = [
+            createSearchItem({ xtream_id: 777, title: 'Fresh result' }),
+        ];
+        const databaseService = TestBed.inject(DatabaseService) as {
+            globalSearchContent: jest.Mock;
+        };
+        databaseService.globalSearchContent
+            .mockReturnValueOnce(staleSearch.promise)
+            .mockResolvedValueOnce(freshResults);
+
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent({
+                    isGlobalSearch: true,
+                }, undefined)
+        );
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+
+        const stalePromise = component.searchGlobal('mat', ['movie']);
+        const freshPromise = component.searchGlobal('matrix', ['movie']);
+
+        await freshPromise;
+        expect(store.searchResults()).toEqual(freshResults);
+
+        staleSearch.resolve([
+            createSearchItem({ xtream_id: 1, title: 'Stale result' }),
+        ]);
+        await stalePromise;
+
+        expect(store.searchResults()).toEqual(freshResults);
     });
 });

@@ -130,8 +130,13 @@ export function withPortal() {
                         }
 
                         if (response.user_info.status === 'Active') {
+                            if (!response.user_info.exp_date) {
+                                patchState(store, { portalStatus: 'active' });
+                                return;
+                            }
+
                             const expDate = new Date(
-                                parseInt(response.user_info.exp_date) * 1000
+                                parseInt(response.user_info.exp_date, 10) * 1000
                             );
                             if (expDate < new Date()) {
                                 patchState(store, { portalStatus: 'expired' });

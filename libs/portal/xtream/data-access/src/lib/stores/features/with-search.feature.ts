@@ -69,6 +69,7 @@ export function withSearch() {
 
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
+            let searchRequestVersion = 0;
 
             return {
                 /**
@@ -82,9 +83,13 @@ export function withSearch() {
                     // Access parent store's playlistId (from withPortal)
                     const storeAny = store as ParentSearchStoreLike;
                     const playlistId = storeAny.playlistId?.();
+                    const requestVersion = ++searchRequestVersion;
 
                     if (!playlistId || !searchTerm.trim()) {
-                        patchState(store, { searchResults: [] });
+                        patchState(store, {
+                            searchResults: [],
+                            isSearching: false,
+                        });
                         return [];
                     }
 
@@ -98,6 +103,10 @@ export function withSearch() {
                             excludeHidden
                         );
 
+                        if (requestVersion !== searchRequestVersion) {
+                            return results;
+                        }
+
                         patchState(store, {
                             searchResults: results,
                             isSearching: false,
@@ -106,6 +115,11 @@ export function withSearch() {
                         return results;
                     } catch (error) {
                         logger.error('Error searching content', error);
+
+                        if (requestVersion !== searchRequestVersion) {
+                            return [];
+                        }
+
                         patchState(store, {
                             searchResults: [],
                             isSearching: false,
@@ -165,6 +179,7 @@ export function withSearch() {
                  * Clear search results
                  */
                 resetSearchResults(): void {
+                    searchRequestVersion++;
                     patchState(store, initialSearchState);
                 },
             };

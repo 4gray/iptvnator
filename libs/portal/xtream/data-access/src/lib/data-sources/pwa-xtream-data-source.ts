@@ -17,6 +17,7 @@ import {
     DbCategoryType,
     IXtreamDataSource,
     ProgressCallback,
+    XtreamOperationOptions,
     XtreamCategoryFromDb,
     XtreamContentItem,
     XtreamPlaylistData,
@@ -204,8 +205,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         credentials: XtreamCredentials,
         type: StreamType,
         onProgress?: (count: number) => void,
-        onTotal?: (total: number) => void
+        onTotal?: (total: number) => void,
+        options?: XtreamOperationOptions
     ): Promise<XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[]> {
+        void options;
         const cacheKey = `${playlistId}-${type}-content`;
 
         // Check in-memory cache first
@@ -242,8 +245,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             | XtreamSerieItem[]
             | XtreamContentItem[],
         type: 'live' | 'movie' | 'series',
-        onProgress?: ProgressCallback
+        onProgress?: ProgressCallback,
+        options?: XtreamOperationOptions
     ): Promise<number> {
+        void options;
         // In PWA mode, we just cache in memory
         const cacheKey = `${playlistId}-${type}-content`;
         this.contentCache.set(cacheKey, streams);
@@ -646,8 +651,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async restoreUserData(
         playlistId: string,
         favoritedXtreamIds: number[],
-        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[]
+        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[],
+        options?: XtreamOperationOptions
     ): Promise<void> {
+        void options;
         // Restore favorites
         const favorites = this.getFavoritesFromStorage();
         favorites[playlistId] = favoritedXtreamIds;
