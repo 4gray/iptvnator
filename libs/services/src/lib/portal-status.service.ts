@@ -47,6 +47,7 @@ export class PortalStatusService {
                             username,
                             action: 'get_account_info',
                         },
+                        suppressErrorLog: true,
                     }
                 );
             const payload = response?.payload;
@@ -56,15 +57,18 @@ export class PortalStatusService {
             }
 
             if (payload.user_info.status === 'Active') {
+                if (!payload.user_info.exp_date) {
+                    return 'active';
+                }
+
                 const expDate = new Date(
-                    parseInt(payload.user_info.exp_date) * 1000
+                    parseInt(payload.user_info.exp_date, 10) * 1000
                 );
                 return expDate < new Date() ? 'expired' : 'active';
             } else {
                 return 'inactive';
             }
         } catch (error) {
-            console.error('Error checking portal status:', error);
             return 'unavailable';
         }
     }
