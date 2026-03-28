@@ -279,10 +279,13 @@ export async function addStalkerPortal(
     await page.getByRole('menuitem', { name: 'Add Stalker Portal' }).click();
     const dialog = page.locator('mat-dialog-container');
 
-    await dialog.locator('#title').fill(name);
-    await dialog.locator('#portalUrl').fill(portalUrl);
-    await dialog.locator('#macAddress').fill(macAddress);
-    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    await setInputValue(dialog.locator('input#title'), name);
+    await setInputValue(dialog.locator('input#portalUrl'), portalUrl);
+    await setInputValue(dialog.locator('input#macAddress'), macAddress);
+    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+
+    await expect(addButton).toBeEnabled({ timeout: 10000 });
+    await addButton.click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
 }
 
@@ -326,6 +329,7 @@ export async function waitForM3uCatalog(page: Page): Promise<void> {
 export async function waitForXtreamCatalog(page: Page): Promise<void> {
     await page.waitForURL(/\/workspace\/xtreams\/.+/);
     await waitForXtreamImportToFinish(page);
+    await waitForXtreamCategoryCounts(page);
 
     const categories = page.locator(
         'app-workspace-context-panel .category-item'
@@ -343,6 +347,23 @@ export async function waitForXtreamCatalog(page: Page): Promise<void> {
         await categories.first().click();
         await expect(contentItems.first()).toBeVisible({ timeout: 20000 });
     }
+}
+
+async function waitForXtreamCategoryCounts(page: Page): Promise<void> {
+    await expect
+        .poll(
+            async () => {
+                const texts = await page
+                    .locator(
+                        'app-workspace-context-panel .category-item .item-count'
+                    )
+                    .allInnerTexts();
+
+                return texts.some((text) => Number.parseInt(text, 10) > 0);
+            },
+            { timeout: 30000 }
+        )
+        .toBeTruthy();
 }
 
 export async function waitForXtreamImportToFinish(page: Page): Promise<void> {
@@ -464,9 +485,8 @@ async function startRendererFrameCapture(page: Page): Promise<void> {
         const tick = () => {
             window.__rendererFrameCount =
                 (window.__rendererFrameCount ?? 0) + 1;
-            window.__rendererFrameRequestId = window.requestAnimationFrame(
-                tick
-            );
+            window.__rendererFrameRequestId =
+                window.requestAnimationFrame(tick);
         };
 
         window.__rendererFrameRequestId = window.requestAnimationFrame(tick);
@@ -505,16 +525,13 @@ export async function waitForPortalDebugEvent(
         timeoutMs?: number;
     }
 ): Promise<PortalDebugEvent> {
-    const {
-        operation,
-        predicate,
-        provider,
-        timeoutMs = 20000,
-    } = options;
+    const { operation, predicate, provider, timeoutMs = 20000 } = options;
     const startedAt = Date.now();
 
     while (Date.now() - startedAt <= timeoutMs) {
-        const events = await page.evaluate(() => window.__portalDebugEvents ?? []);
+        const events = await page.evaluate(
+            () => window.__portalDebugEvents ?? []
+        );
         const match = events.find((event) => {
             if (
                 event.provider !== provider ||
@@ -572,7 +589,9 @@ export async function waitForDbOperationEvent(
     const startedAt = Date.now();
 
     while (Date.now() - startedAt <= timeoutMs) {
-        const events = await page.evaluate(() => window.__dbOperationEvents ?? []);
+        const events = await page.evaluate(
+            () => window.__dbOperationEvents ?? []
+        );
         const match = events.find((event) => {
             if (event.operation !== operation) {
                 return false;
@@ -628,10 +647,7 @@ export async function expectRendererFramesAdvance(
         sampleMs?: number;
     } = {}
 ): Promise<void> {
-    const {
-        minimumDelta = 4,
-        sampleMs = 300,
-    } = options;
+    const { minimumDelta = 4, sampleMs = 300 } = options;
     const startCount = await getRendererFrameCount(page);
 
     await page.waitForTimeout(sampleMs);

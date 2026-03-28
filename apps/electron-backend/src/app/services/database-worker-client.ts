@@ -8,6 +8,7 @@ import type {
     DbWorkerMessage,
     DbWorkerOperation,
 } from '../workers/database-worker.types';
+import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
 
 type PendingRequest = {
     resolve: (value: unknown) => void;
@@ -108,24 +109,33 @@ export class DatabaseWorkerClient {
     }
 
     private createWorker(): void {
-        const workerPath = this.resolveWorkerPath();
-        const workerURL = pathToFileURL(workerPath);
-        const nativeModulesPath = app.isPackaged
-            ? path.join(
-                  path.dirname(app.getAppPath()),
-                  'app.asar.unpacked',
-                  'node_modules'
-              )
-            : undefined;
+        const bootstrap = resolveWorkerRuntimeBootstrap({
+            isPackaged: app.isPackaged,
+            workerFilename: 'database.worker.js',
+            developmentWorkerDir: path.join(__dirname, 'workers'),
+            resourcesPath: (
+                process as NodeJS.Process & { resourcesPath?: string }
+            ).resourcesPath,
+            appPath: app.getAppPath(),
+        });
 
         this.readyPromise = new Promise<void>((resolve, reject) => {
             this.readyResolve = resolve;
             this.readyReject = reject;
         });
 
-        this.worker = new Worker(workerURL, {
-            workerData: { nativeModulesPath },
-        });
+        try {
+            const workerURL = pathToFileURL(bootstrap.workerPath);
+            this.worker = new Worker(workerURL, {
+                workerData: {
+                    nativeModuleSearchPaths: bootstrap.nativeModuleSearchPaths,
+                },
+            });
+        } catch (error) {
+            this.readyReject?.(error);
+            this.resetWorkerState();
+            throw error;
+        }
 
         this.worker.on('message', (message: DbWorkerMessage) => {
             this.handleMessage(message);
@@ -136,22 +146,6 @@ export class DatabaseWorkerClient {
         this.worker.on('exit', (code) => {
             this.handleWorkerExit(code);
         });
-    }
-
-    private resolveWorkerPath(): string {
-        if (app.isPackaged) {
-            const resourcesPath = path.dirname(app.getAppPath());
-            return path.join(
-                resourcesPath,
-                'dist',
-                'apps',
-                'electron-backend',
-                'workers',
-                'database.worker.js'
-            );
-        }
-
-        return path.join(__dirname, 'workers', 'database.worker.js');
     }
 
     private handleMessage(message: DbWorkerMessage): void {

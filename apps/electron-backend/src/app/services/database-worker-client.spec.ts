@@ -1,6 +1,7 @@
 import type { DatabaseWorkerClient as DatabaseWorkerClientType } from './database-worker-client';
 
 const mockWorkerInstances: any[] = [];
+const resolveWorkerRuntimeBootstrap = jest.fn();
 
 jest.mock('electron', () => ({
     app: {
@@ -26,6 +27,11 @@ jest.mock('worker_threads', () => {
     };
 });
 
+jest.mock('../workers/worker-runtime-paths', () => ({
+    resolveWorkerRuntimeBootstrap: (...args: unknown[]) =>
+        resolveWorkerRuntimeBootstrap(...args),
+}));
+
 describe('DatabaseWorkerClient', () => {
     let DatabaseWorkerClient: typeof DatabaseWorkerClientType;
     let clients: DatabaseWorkerClientType[];
@@ -33,6 +39,14 @@ describe('DatabaseWorkerClient', () => {
     beforeEach(async () => {
         jest.resetModules();
         mockWorkerInstances.length = 0;
+        resolveWorkerRuntimeBootstrap.mockReset();
+        resolveWorkerRuntimeBootstrap.mockReturnValue({
+            workerPath: '/mock/workers/database.worker.js',
+            workerPathCandidates: ['/mock/workers/database.worker.js'],
+            nativeModuleSearchPaths: [
+                '/mock/resources/app.asar.unpacked/node_modules',
+            ],
+        });
         clients = [];
         ({ DatabaseWorkerClient } = await import('./database-worker-client'));
     });
@@ -59,6 +73,21 @@ describe('DatabaseWorkerClient', () => {
             searchTerm: 'matrix',
         });
         const worker = mockWorkerInstances[0];
+        const { Worker } = jest.requireMock('worker_threads');
+
+        expect(resolveWorkerRuntimeBootstrap).toHaveBeenCalledWith(
+            expect.objectContaining({
+                workerFilename: 'database.worker.js',
+                developmentWorkerDir: expect.stringContaining('workers'),
+            })
+        );
+        expect(Worker).toHaveBeenCalledWith(expect.any(URL), {
+            workerData: {
+                nativeModuleSearchPaths: [
+                    '/mock/resources/app.asar.unpacked/node_modules',
+                ],
+            },
+        });
 
         worker.emit('message', { type: 'ready' });
         await flushPromises();
@@ -242,5 +271,23 @@ describe('DatabaseWorkerClient', () => {
         });
 
         await expect(secondRequest).resolves.toEqual([]);
+    });
+
+    it('rejects requests with actionable worker path errors', async () => {
+        const client = createClient();
+        resolveWorkerRuntimeBootstrap.mockImplementation(() => {
+            const error = new Error(
+                'Unable to resolve worker "database.worker.js".\nTried:\n- /missing/database.worker.js'
+            );
+            error.name = 'WorkerPathResolutionError';
+            throw error;
+        });
+
+        await expect(
+            client.request('DB_GLOBAL_SEARCH', { searchTerm: 'matrix' })
+        ).rejects.toMatchObject({
+            name: 'WorkerPathResolutionError',
+            message: expect.stringContaining('database.worker.js'),
+        });
     });
 });

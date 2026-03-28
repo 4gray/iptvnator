@@ -1,63 +1,55 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import * as schema from 'database-schema';
 import { getIptvnatorDatabasePath } from 'database-path-utils';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { existsSync } from 'fs';
-import { createRequire } from 'module';
-import { join } from 'path';
 import { workerData } from 'worker_threads';
 import type { AppDatabase } from '../database/database.types';
+import {
+    getNativeModuleSearchPaths,
+    getWorkerDataNativeModuleSearchPaths,
+    loadNativeModuleFromSearchPaths,
+    registerNativeModuleSearchPaths,
+} from './worker-runtime-paths';
 
 let Database: typeof BetterSqlite3;
+let drizzleFactory:
+    | (typeof import('drizzle-orm/better-sqlite3'))['drizzle']
+    | undefined;
+
+const nativeModuleSearchPaths = [
+    ...getWorkerDataNativeModuleSearchPaths(workerData),
+    ...getNativeModuleSearchPaths({
+        resourcesPath: (
+            process as NodeJS.Process & { resourcesPath?: string }
+        ).resourcesPath,
+    }),
+];
+
+registerNativeModuleSearchPaths(nativeModuleSearchPaths);
 
 function loadBetterSqlite3(): typeof BetterSqlite3 {
-    if (
-        workerData &&
-        typeof workerData === 'object' &&
-        'nativeModulesPath' in workerData &&
-        typeof workerData.nativeModulesPath === 'string' &&
-        existsSync(workerData.nativeModulesPath)
-    ) {
-        try {
-            const nativeRequire = createRequire(
-                join(workerData.nativeModulesPath, 'index.js')
-            );
-            return nativeRequire('better-sqlite3');
-        } catch (error) {
-            console.error(
-                '[DB Worker] Failed to load better-sqlite3 from workerData path:',
-                error
-            );
-        }
+    return loadNativeModuleFromSearchPaths({
+        moduleName: 'better-sqlite3',
+        loggerLabel: '[DB Worker]',
+        searchPaths: nativeModuleSearchPaths,
+        fallbackRequire: () =>
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            require('better-sqlite3') as typeof BetterSqlite3,
+    });
+}
+
+function getDrizzleFactory(): (typeof import('drizzle-orm/better-sqlite3'))['drizzle'] {
+    if (drizzleFactory) {
+        return drizzleFactory;
     }
 
-    if (
-        (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath
-    ) {
-        const resourcesPath = (
-            process as NodeJS.Process & { resourcesPath?: string }
-        ).resourcesPath!;
-        const unpackedPath = join(
-            resourcesPath,
-            'app.asar.unpacked',
-            'node_modules'
-        );
-
-        if (existsSync(unpackedPath)) {
-            try {
-                const nativeRequire = createRequire(join(unpackedPath, 'index.js'));
-                return nativeRequire('better-sqlite3');
-            } catch (error) {
-                console.error(
-                    '[DB Worker] Failed to load better-sqlite3 from resourcesPath:',
-                    error
-                );
-            }
-        }
-    }
-
+    // Require drizzle only after native lookup paths have been registered.
+    // Its better-sqlite3 driver resolves the native package at module load time.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('better-sqlite3');
+    drizzleFactory = require('drizzle-orm/better-sqlite3').drizzle as (
+        typeof import('drizzle-orm/better-sqlite3')
+    )['drizzle'];
+
+    return drizzleFactory;
 }
 
 Database = loadBetterSqlite3();
@@ -76,7 +68,7 @@ export async function getWorkerDatabase(): Promise<AppDatabase> {
     sqlite.pragma('journal_mode = WAL');
     sqlite.pragma('busy_timeout = 5000');
 
-    db = drizzle(sqlite, { schema });
+    db = getDrizzleFactory()(sqlite, { schema });
     return db;
 }
 

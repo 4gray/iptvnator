@@ -1,66 +1,39 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
-import { getDatabasePath } from 'database';
-import { createRequire } from 'module';
-import { join } from 'path';
+import { getIptvnatorDatabasePath } from 'database-path-utils';
 import { SaxesParser, SaxesTagPlain } from 'saxes';
 import { Readable } from 'stream';
 import { parentPort, workerData } from 'worker_threads';
 import { createGunzip } from 'zlib';
+import {
+    getNativeModuleSearchPaths,
+    getWorkerDataNativeModuleSearchPaths,
+    loadNativeModuleFromSearchPaths,
+    registerNativeModuleSearchPaths,
+} from './worker-runtime-paths';
 
-// In packaged app, native modules are in app.asar.unpacked/node_modules
-// which is separate from the worker location in extraResources
 let Database: typeof BetterSqlite3;
 
-function loadBetterSqlite3(): typeof BetterSqlite3 {
-    // Try workerData path first (passed from main process)
-    if (
-        workerData?.nativeModulesPath &&
-        existsSync(workerData.nativeModulesPath)
-    ) {
-        try {
-            const nativeRequire = createRequire(
-                join(workerData.nativeModulesPath, 'index.js')
-            );
-            return nativeRequire('better-sqlite3');
-        } catch (e) {
-            console.error(
-                '[EPG Worker] Failed to load from workerData path:',
-                e
-            );
-        }
-    }
-
-    // Try process.resourcesPath (available in packaged Electron apps)
-    if (
-        (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath
-    ) {
-        const resourcesPath = (
+const nativeModuleSearchPaths = [
+    ...getWorkerDataNativeModuleSearchPaths(workerData),
+    ...getNativeModuleSearchPaths({
+        resourcesPath: (
             process as NodeJS.Process & { resourcesPath?: string }
-        ).resourcesPath!;
-        const unpackedPath = join(
-            resourcesPath,
-            'app.asar.unpacked',
-            'node_modules'
-        );
-        if (existsSync(unpackedPath)) {
-            try {
-                const nativeRequire = createRequire(
-                    join(unpackedPath, 'index.js')
-                );
-                return nativeRequire('better-sqlite3');
-            } catch (e) {
-                console.error(
-                    '[EPG Worker] Failed to load from resourcesPath:',
-                    e
-                );
-            }
-        }
-    }
+        ).resourcesPath,
+    }),
+];
 
-    // Fallback to regular require (development mode)
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('better-sqlite3');
+registerNativeModuleSearchPaths(nativeModuleSearchPaths);
+
+function loadBetterSqlite3(): typeof BetterSqlite3 {
+    return loadNativeModuleFromSearchPaths({
+        moduleName: 'better-sqlite3',
+        loggerLabel: '[EPG Worker]',
+        searchPaths: nativeModuleSearchPaths,
+        fallbackRequire: () =>
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            require('better-sqlite3') as typeof BetterSqlite3,
+    });
 }
 
 Database = loadBetterSqlite3();
@@ -157,7 +130,7 @@ class EpgDatabase {
     private deleteChannelsStmt: BetterSqlite3.Statement;
 
     constructor() {
-        const dbPath = getDatabasePath();
+        const dbPath = getIptvnatorDatabasePath();
         this.db = new Database(dbPath);
         this.db.pragma('foreign_keys = ON');
         this.db.pragma('journal_mode = WAL'); // Better concurrent write performance
@@ -658,7 +631,7 @@ async function fetchAndParseEpgStreaming(url: string): Promise<void> {
  * Runs in worker thread to avoid blocking main thread
  */
 function clearAllEpgData(): void {
-    const dbPath = getDatabasePath();
+    const dbPath = getIptvnatorDatabasePath();
     const db = new Database(dbPath);
 
     try {
