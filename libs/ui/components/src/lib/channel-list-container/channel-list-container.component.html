@@ -1,5 +1,5 @@
 @if (displayedChannels().length) {
-    @if (viewTitle()) {
+    @if (viewTitle() && activeView() !== 'groups') {
         <header class="context-header">
             <div class="context-header__top">
                 <h2>{{ viewTitle() | translate }}</h2>

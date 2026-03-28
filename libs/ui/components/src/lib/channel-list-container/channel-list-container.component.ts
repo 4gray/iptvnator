@@ -325,11 +325,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      */
     onChannelSelected(channel: Channel): void {
         this.store.dispatch(ChannelActions.setActiveChannel({ channel }));
-
-        const epgChannelId = channel?.tvg?.id?.trim() || channel?.name.trim();
-        if (epgChannelId) {
-            this.epgService.getChannelPrograms(epgChannelId);
-        }
     }
 
     /**
