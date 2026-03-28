@@ -1,21 +1,41 @@
+import { nxPreset } from '@nx/jest/preset';
+import { createEsmPreset } from 'jest-preset-angular/presets';
+
+const angularEsmPreset = createEsmPreset({
+  diagnostics: false,
+  tsconfig: '<rootDir>/tsconfig.spec.json',
+});
+
 export default {
+  ...nxPreset,
+  ...angularEsmPreset,
   displayName: 'web',
-  preset: '../../jest.preset.js',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   coverageDirectory: '../../coverage/apps/web',
-  transform: {
-    '^.+\\.(ts|mjs|js|html)$': [
-      'jest-preset-angular',
-      {
-        tsconfig: '<rootDir>/tsconfig.spec.json',
-        stringifyContentPathRegex: '\\.(html|svg)$',
-      },
-    ],
+  resolver: nxPreset.resolver,
+  moduleFileExtensions: Array.from(
+    new Set([
+      ...(nxPreset.moduleFileExtensions ?? []),
+      ...(angularEsmPreset.moduleFileExtensions ?? []),
+    ])
+  ),
+  testMatch: nxPreset.testMatch,
+  testEnvironmentOptions: {},
+  snapshotSerializers: angularEsmPreset.snapshotSerializers,
+  moduleNameMapper: {
+    ...(angularEsmPreset.moduleNameMapper ?? {}),
+    '^@iptvnator/portal/xtream/feature$':
+      '<rootDir>/src/test-stubs/xtream-feature.stub.ts',
+    tslib: 'tslib/tslib.es6.js',
+    '^iptv-playlist-parser$':
+      '<rootDir>/src/test-stubs/iptv-playlist-parser.mjs',
+    '^rxjs': '<rootDir>/../../node_modules/rxjs/dist/bundles/rxjs.umd.js',
+    '^uuid$': '<rootDir>/../../node_modules/uuid/wrapper.mjs',
   },
-  transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$)'],
-  snapshotSerializers: [
-    'jest-preset-angular/build/serializers/no-ng-attributes',
-    'jest-preset-angular/build/serializers/ng-snapshot',
-    'jest-preset-angular/build/serializers/html-comment',
+  transform: angularEsmPreset.transform,
+  transformIgnorePatterns: [],
+  extensionsToTreatAsEsm: angularEsmPreset.extensionsToTreatAsEsm,
+  coverageReporters: [
+    ...(nxPreset.coverageReporters ?? []),
   ],
 };

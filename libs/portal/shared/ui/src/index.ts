@@ -12,5 +12,6 @@ export * from './lib/components/search-form/search-form.component';
 export * from './lib/components/search-layout/search-layout.component';
 export { WatchedBadgeComponent } from 'components';
 export * from './lib/components/unified-collection/unified-collection-page.component';
+export * from './lib/components/unified-collection/unified-live-tab.component';
 export * from './lib/navigation/navigation.component';
 export * from './lib/navigation/portal-rail-links.component';
