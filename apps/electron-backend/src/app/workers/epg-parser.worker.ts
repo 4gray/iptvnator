@@ -161,6 +161,7 @@ class EpgDatabase {
         this.db = new Database(dbPath);
         this.db.pragma('foreign_keys = ON');
         this.db.pragma('journal_mode = WAL'); // Better concurrent write performance
+        this.db.pragma('busy_timeout = 5000');
 
         // Prepare statements
         // Use INSERT OR REPLACE to update existing channels and refresh updated_at

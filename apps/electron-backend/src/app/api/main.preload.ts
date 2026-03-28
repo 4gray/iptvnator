@@ -3,6 +3,7 @@ import type { ExternalPlayerSession } from 'shared-interfaces';
 
 const PORTAL_DEBUG_EVENT = 'PORTAL_DEBUG_EVENT';
 const EXTERNAL_PLAYER_SESSION_UPDATE = 'EXTERNAL_PLAYER_SESSION_UPDATE';
+const DB_OPERATION_EVENT = 'DB_OPERATION_EVENT';
 
 type PortalDebugEvent = {
     requestId: string;
@@ -16,6 +17,22 @@ type PortalDebugEvent = {
     response?: unknown;
     error?: unknown;
 };
+
+type DbOperationEvent = {
+    operationId?: string;
+    operation: string;
+    playlistId?: string;
+    status: 'started' | 'progress' | 'completed' | 'cancelled' | 'error';
+    phase?: string;
+    current?: number;
+    total?: number;
+    increment?: number;
+    error?: string;
+};
+
+const dbSaveContentProgressListeners = new Set<
+    (event: Electron.IpcRendererEvent, data: DbOperationEvent) => void
+>();
 
 contextBridge.exposeInMainWorld('electron', {
     // Remote control channel change listener
@@ -89,15 +106,37 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on(EXTERNAL_PLAYER_SESSION_UPDATE, handler);
         return () => ipcRenderer.off(EXTERNAL_PLAYER_SESSION_UPDATE, handler);
     },
+    onDbOperationEvent: (callback: (data: DbOperationEvent) => void) => {
+        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
+            callback(data as DbOperationEvent);
+        ipcRenderer.on(DB_OPERATION_EVENT, handler);
+        return () => ipcRenderer.off(DB_OPERATION_EVENT, handler);
+    },
     // DB save content progress listener
     onDbSaveContentProgress: (callback: (count: number) => void) => {
-        ipcRenderer.on('DB_SAVE_CONTENT_PROGRESS', (_event, count) =>
-            callback(count)
-        );
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            data: DbOperationEvent
+        ) => {
+            if (
+                data.operation !== 'save-content' ||
+                data.status !== 'progress'
+            ) {
+                return;
+            }
+
+            callback(data.increment ?? data.current ?? 0);
+        };
+
+        dbSaveContentProgressListeners.add(handler);
+        ipcRenderer.on(DB_OPERATION_EVENT, handler);
     },
     // Remove DB save content progress listener
     removeDbSaveContentProgress: () => {
-        ipcRenderer.removeAllListeners('DB_SAVE_CONTENT_PROGRESS');
+        dbSaveContentProgressListeners.forEach((handler) => {
+            ipcRenderer.off(DB_OPERATION_EVENT, handler);
+        });
+        dbSaveContentProgressListeners.clear();
     },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     platform: process.platform,
@@ -196,6 +235,7 @@ contextBridge.exposeInMainWorld('electron', {
         url: string;
         params: Record<string, string>;
         requestId?: string;
+        suppressErrorLog?: boolean;
     }) => ipcRenderer.invoke('XTREAM_REQUEST', payload),
     // Database operations
     dbCreatePlaylist: (playlist: any) =>
@@ -211,20 +251,26 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST', playlistId),
     dbUpdatePlaylist: (playlistId: string, updates: any) =>
         ipcRenderer.invoke('DB_UPDATE_PLAYLIST', playlistId, updates),
-    dbDeletePlaylist: (playlistId: string) =>
-        ipcRenderer.invoke('DB_DELETE_PLAYLIST', playlistId),
-    dbDeleteXtreamContent: (playlistId: string) =>
-        ipcRenderer.invoke('DB_DELETE_XTREAM_CONTENT', playlistId),
+    dbDeletePlaylist: (playlistId: string, operationId?: string) =>
+        ipcRenderer.invoke('DB_DELETE_PLAYLIST', playlistId, operationId),
+    dbDeleteXtreamContent: (playlistId: string, operationId?: string) =>
+        ipcRenderer.invoke(
+            'DB_DELETE_XTREAM_CONTENT',
+            playlistId,
+            operationId
+        ),
     dbRestoreXtreamUserData: (
         playlistId: string,
         favoritedXtreamIds: number[],
-        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[]
+        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[],
+        operationId?: string
     ) =>
         ipcRenderer.invoke(
             'DB_RESTORE_XTREAM_USER_DATA',
             playlistId,
             favoritedXtreamIds,
-            recentlyViewedXtreamIds
+            recentlyViewedXtreamIds,
+            operationId
         ),
     dbHasCategories: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_HAS_CATEGORIES', playlistId, type),
@@ -255,8 +301,19 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('DB_HAS_CONTENT', playlistId, type),
     dbGetContent: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_GET_CONTENT', playlistId, type),
-    dbSaveContent: (playlistId: string, streams: any[], type: string) =>
-        ipcRenderer.invoke('DB_SAVE_CONTENT', playlistId, streams, type),
+    dbSaveContent: (
+        playlistId: string,
+        streams: any[],
+        type: string,
+        operationId?: string
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SAVE_CONTENT',
+            playlistId,
+            streams,
+            type,
+            operationId
+        ),
     dbSearchContent: (
         playlistId: string,
         searchTerm: string,
@@ -281,6 +338,10 @@ contextBridge.exposeInMainWorld('electron', {
             types,
             excludeHidden
         ),
+    dbGetGlobalRecentlyAdded: (
+        kind: 'all' | 'vod' | 'series',
+        limit?: number
+    ) => ipcRenderer.invoke('DB_GET_GLOBAL_RECENTLY_ADDED', kind, limit),
     dbGetRecentlyViewed: () => ipcRenderer.invoke('DB_GET_RECENTLY_VIEWED'),
     dbClearRecentlyViewed: () => ipcRenderer.invoke('DB_CLEAR_RECENTLY_VIEWED'),
     // Favorites
@@ -308,7 +369,10 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('DB_REMOVE_RECENT_ITEM', contentId, playlistId),
     dbGetContentByXtreamId: (xtreamId: number, playlistId: string) =>
         ipcRenderer.invoke('DB_GET_CONTENT_BY_XTREAM_ID', xtreamId, playlistId),
-    dbDeleteAllPlaylists: () => ipcRenderer.invoke('DB_DELETE_ALL_PLAYLISTS'),
+    dbDeleteAllPlaylists: (operationId?: string) =>
+        ipcRenderer.invoke('DB_DELETE_ALL_PLAYLISTS', operationId),
+    dbCancelOperation: (operationId: string) =>
+        ipcRenderer.invoke('DB_CANCEL_OPERATION', operationId),
     dbGetAppState: (key: string) => ipcRenderer.invoke('DB_GET_APP_STATE', key),
     dbSetAppState: (key: string, value: string) =>
         ipcRenderer.invoke('DB_SET_APP_STATE', key, value),

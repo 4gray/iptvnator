@@ -36,6 +36,10 @@ type ElectronFixtures = {
     dataDir: string;
 };
 
+type LaunchElectronAppOptions = {
+    env?: Record<string, string | undefined>;
+};
+
 export type PortalDebugEvent = {
     durationMs: number;
     operation: string;
@@ -48,10 +52,26 @@ export type PortalDebugEvent = {
     transport: 'electron-main' | 'electron-renderer' | 'pwa-http';
 };
 
+export type DbOperationEvent = {
+    operationId?: string;
+    operation: string;
+    playlistId?: string;
+    status: 'started' | 'progress' | 'completed' | 'cancelled' | 'error';
+    phase?: string;
+    current?: number;
+    total?: number;
+    increment?: number;
+    error?: string;
+};
+
 declare global {
     interface Window {
+        __dbOperationEvents?: DbOperationEvent[];
+        __dbOperationUnsubscribe?: (() => void) | undefined;
         __portalDebugEvents?: PortalDebugEvent[];
         __portalDebugUnsubscribe?: (() => void) | undefined;
+        __rendererFrameCount?: number;
+        __rendererFrameRequestId?: number;
     }
 }
 
@@ -73,7 +93,8 @@ export const test = base.extend<ElectronFixtures>({
 export { expect };
 
 export async function launchElectronApp(
-    dataDir: string
+    dataDir: string,
+    options: LaunchElectronAppOptions = {}
 ): Promise<LaunchedElectronApp> {
     if (!existsSync(electronMainPath)) {
         throw new Error(
@@ -91,6 +112,7 @@ export async function launchElectronApp(
         args,
         env: {
             ...process.env,
+            ...options.env,
             ELECTRON_IS_DEV: '0',
             IPTVNATOR_E2E_DATA_DIR: dataDir,
             NODE_ENV: 'test',
@@ -100,6 +122,8 @@ export async function launchElectronApp(
     const mainWindow = await findMainWindow(electronApp);
     await waitForAppReady(mainWindow);
     await startPortalDebugCapture(mainWindow);
+    await startDbOperationCapture(mainWindow);
+    await startRendererFrameCapture(mainWindow);
 
     return {
         electronApp,
@@ -406,6 +430,49 @@ async function startPortalDebugCapture(page: Page): Promise<void> {
     });
 }
 
+async function startDbOperationCapture(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        const electronApi = window.electron as typeof window.electron & {
+            onDbOperationEvent?: (
+                callback: (event: DbOperationEvent) => void
+            ) => (() => void) | undefined;
+        };
+
+        window.__dbOperationUnsubscribe?.();
+        window.__dbOperationEvents = [];
+
+        if (!electronApi.onDbOperationEvent) {
+            return;
+        }
+
+        window.__dbOperationUnsubscribe = electronApi.onDbOperationEvent(
+            (event: DbOperationEvent) => {
+                window.__dbOperationEvents?.push(event);
+            }
+        );
+    });
+}
+
+async function startRendererFrameCapture(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        if (window.__rendererFrameRequestId) {
+            window.cancelAnimationFrame(window.__rendererFrameRequestId);
+        }
+
+        window.__rendererFrameCount = 0;
+
+        const tick = () => {
+            window.__rendererFrameCount =
+                (window.__rendererFrameCount ?? 0) + 1;
+            window.__rendererFrameRequestId = window.requestAnimationFrame(
+                tick
+            );
+        };
+
+        window.__rendererFrameRequestId = window.requestAnimationFrame(tick);
+    });
+}
+
 export async function expectPortalDebugSuccess(
     page: Page,
     provider: PortalProvider
@@ -479,6 +546,101 @@ export async function waitForPortalDebugEvent(
             2
         )}`
     );
+}
+
+export async function waitForDbOperationEvent(
+    page: Page,
+    options: {
+        operation: string;
+        operationId?: string;
+        phase?: string;
+        playlistId?: string;
+        predicate?: (event: DbOperationEvent) => boolean;
+        status?: DbOperationEvent['status'];
+        timeoutMs?: number;
+    }
+): Promise<DbOperationEvent> {
+    const {
+        operation,
+        operationId,
+        phase,
+        playlistId,
+        predicate,
+        status,
+        timeoutMs = 20000,
+    } = options;
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt <= timeoutMs) {
+        const events = await page.evaluate(() => window.__dbOperationEvents ?? []);
+        const match = events.find((event) => {
+            if (event.operation !== operation) {
+                return false;
+            }
+
+            if (operationId && event.operationId !== operationId) {
+                return false;
+            }
+
+            if (status && event.status !== status) {
+                return false;
+            }
+
+            if (phase && event.phase !== phase) {
+                return false;
+            }
+
+            if (playlistId && event.playlistId !== playlistId) {
+                return false;
+            }
+
+            return predicate ? predicate(event) : true;
+        });
+
+        if (match) {
+            return match;
+        }
+
+        await page.waitForTimeout(200);
+    }
+
+    const recentEvents = await page.evaluate(() =>
+        (window.__dbOperationEvents ?? []).slice(-20)
+    );
+
+    throw new Error(
+        `Timed out waiting for DB event ${operation}. Recent events: ${JSON.stringify(
+            recentEvents,
+            null,
+            2
+        )}`
+    );
+}
+
+export async function getRendererFrameCount(page: Page): Promise<number> {
+    return page.evaluate(() => window.__rendererFrameCount ?? 0);
+}
+
+export async function expectRendererFramesAdvance(
+    page: Page,
+    options: {
+        minimumDelta?: number;
+        sampleMs?: number;
+    } = {}
+): Promise<void> {
+    const {
+        minimumDelta = 4,
+        sampleMs = 300,
+    } = options;
+    const startCount = await getRendererFrameCount(page);
+
+    await page.waitForTimeout(sampleMs);
+
+    await expect
+        .poll(async () => (await getRendererFrameCount(page)) - startCount, {
+            timeout: sampleMs + 1500,
+        })
+        .toBeGreaterThanOrEqual(minimumDelta);
 }
 
 export async function resetMockServers(

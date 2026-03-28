@@ -430,12 +430,17 @@ export default class EpgEvents {
     ): Promise<EpgProgram[]> {
         try {
             const db = await getDatabase();
+            const trimmedChannelId = channelId.trim();
+
+            if (!trimmedChannelId) {
+                return [];
+            }
 
             // Try exact channel ID match first
             let results = await db
                 .select()
                 .from(schema.epgPrograms)
-                .where(eq(schema.epgPrograms.channelId, channelId))
+                .where(eq(schema.epgPrograms.channelId, trimmedChannelId))
                 .orderBy(schema.epgPrograms.start)
                 .limit(500);
 
@@ -443,14 +448,23 @@ export default class EpgEvents {
                 return results.map(this.transformDbRowToEpgProgram);
             }
 
-            // Try to find channel by display name
-            const channel = await db
+            // Try exact display name match before giving up. Using wildcard LIKE
+            // here can scan the whole table on the Electron main process.
+            let channel = await db
                 .select()
                 .from(schema.epgChannels)
-                .where(
-                    sql`LOWER(${schema.epgChannels.displayName}) LIKE LOWER(${'%' + channelId + '%'})`
-                )
+                .where(eq(schema.epgChannels.displayName, trimmedChannelId))
                 .limit(1);
+
+            if (channel.length === 0) {
+                channel = await db
+                    .select()
+                    .from(schema.epgChannels)
+                    .where(
+                        sql`${schema.epgChannels.displayName} = ${trimmedChannelId} COLLATE NOCASE`
+                    )
+                    .limit(1);
+            }
 
             if (channel.length > 0) {
                 results = await db
