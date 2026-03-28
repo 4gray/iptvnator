@@ -1,15 +1,11 @@
 import { effect, Injectable, signal } from '@angular/core';
 import {
-    ALL_DASHBOARD_WIDGET_PROVIDERS,
     DASHBOARD_LAYOUT_VERSION,
     DashboardLayoutState,
     DashboardWidgetConfig,
-    DashboardWidgetProvider,
-    DashboardWidgetScopeSettings,
     DashboardWidgetSize,
     DASHBOARD_WIDGET_SIZE_OPTIONS,
     DEFAULT_DASHBOARD_WIDGETS,
-    createDefaultWidgetScope,
 } from './dashboard-widget.model';
 
 const DASHBOARD_LAYOUT_STORAGE_KEY = 'workspace-dashboard-layout-v3';
@@ -33,47 +29,6 @@ export class DashboardLayoutService {
 
     getWidget(widgetId: string): DashboardWidgetConfig | undefined {
         return this.state().widgets.find((widget) => widget.id === widgetId);
-    }
-
-    setWidgetScope(widgetId: string, scope: DashboardWidgetScopeSettings): void {
-        this.updateWidget(widgetId, (widget) => ({
-            ...widget,
-            settings: {
-                ...widget.settings,
-                scope: this.normalizeScope(scope),
-            },
-        }));
-    }
-
-    toggleWidgetScopeProvider(
-        widgetId: string,
-        provider: DashboardWidgetProvider
-    ): void {
-        const widget = this.getWidget(widgetId);
-        const currentScope = this.normalizeScope(widget?.settings?.scope);
-        const hasProvider = currentScope.providers.includes(provider);
-        const providers = hasProvider
-            ? currentScope.providers.filter((item) => item !== provider)
-            : [...currentScope.providers, provider];
-
-        this.setWidgetScope(widgetId, {
-            ...currentScope,
-            providers,
-        });
-    }
-
-    toggleWidgetScopePlaylist(widgetId: string, playlistId: string): void {
-        const widget = this.getWidget(widgetId);
-        const currentScope = this.normalizeScope(widget?.settings?.scope);
-        const hasPlaylist = currentScope.playlistIds.includes(playlistId);
-        const playlistIds = hasPlaylist
-            ? currentScope.playlistIds.filter((id) => id !== playlistId)
-            : [...currentScope.playlistIds, playlistId];
-
-        this.setWidgetScope(widgetId, {
-            ...currentScope,
-            playlistIds,
-        });
     }
 
     setWidgetSize(widgetId: string, size: DashboardWidgetSize): void {
@@ -280,15 +235,13 @@ export class DashboardLayoutService {
 
     private cloneWidget(widget: DashboardWidgetConfig): DashboardWidgetConfig {
         return {
-            ...widget,
-            settings: widget.settings
-                ? {
-                      ...widget.settings,
-                      scope: widget.settings.scope
-                          ? this.normalizeScope(widget.settings.scope)
-                          : undefined,
-                  }
-                : undefined,
+            id: widget.id,
+            type: widget.type,
+            title: widget.title,
+            description: widget.description,
+            size: this.normalizeSize(widget.size),
+            enabled: widget.enabled,
+            order: widget.order,
         };
     }
 
@@ -296,58 +249,20 @@ export class DashboardLayoutService {
         defaultWidget: DashboardWidgetConfig,
         loaded: DashboardWidgetConfig
     ): DashboardWidgetConfig {
-        const merged = {
-            ...defaultWidget,
-            ...loaded,
-            size: this.normalizeSize(loaded.size ?? defaultWidget.size),
-            settings: this.mergeSettings(defaultWidget, loaded),
-        };
-
         return {
-            ...merged,
+            id: defaultWidget.id,
+            type: defaultWidget.type,
             title: defaultWidget.title,
             description: defaultWidget.description,
-        };
-    }
-
-    private mergeSettings(
-        defaultWidget: DashboardWidgetConfig,
-        loaded: DashboardWidgetConfig
-    ) {
-        if (!defaultWidget.settings && !loaded.settings) {
-            return undefined;
-        }
-
-        return {
-            ...defaultWidget.settings,
-            ...loaded.settings,
-            scope:
-                loaded.settings?.scope || defaultWidget.settings?.scope
-                    ? this.normalizeScope(
-                          loaded.settings?.scope ?? defaultWidget.settings?.scope
-                      )
-                    : undefined,
-        };
-    }
-
-    private normalizeScope(
-        scope?: DashboardWidgetScopeSettings
-    ): DashboardWidgetScopeSettings {
-        const defaultScope = createDefaultWidgetScope();
-        const rawProviders = Array.isArray(scope?.providers)
-            ? scope.providers
-            : defaultScope.providers;
-        const providers = [...new Set(rawProviders)].filter(
-            (provider): provider is DashboardWidgetProvider =>
-                ALL_DASHBOARD_WIDGET_PROVIDERS.includes(
-                    provider as DashboardWidgetProvider
-                )
-        );
-        const playlistIds = [...new Set(scope?.playlistIds ?? [])].filter(Boolean);
-
-        return {
-            providers,
-            playlistIds,
+            size: this.normalizeSize(loaded.size ?? defaultWidget.size),
+            enabled:
+                typeof loaded.enabled === 'boolean'
+                    ? loaded.enabled
+                    : defaultWidget.enabled,
+            order:
+                typeof loaded.order === 'number'
+                    ? loaded.order
+                    : defaultWidget.order,
         };
     }
 

@@ -56,6 +56,7 @@ describe('DashboardDataService', () => {
     };
 
     const dbServiceMock = {
+        getGlobalRecentlyAdded: jest.fn().mockResolvedValue([]),
         getGlobalRecentlyViewed: jest.fn().mockResolvedValue([]),
         getGlobalFavorites: jest.fn().mockResolvedValue([]),
         removeFromFavorites: jest.fn().mockResolvedValue(undefined),
@@ -108,6 +109,10 @@ describe('DashboardDataService', () => {
     };
 
     beforeEach(() => {
+        Object.defineProperty(window, 'electron', {
+            value: {} as Window['electron'],
+            configurable: true,
+        });
         playlistsServiceMock.getPlaylistById.mockClear();
         playlistsServiceMock.getPlaylistById.mockReturnValue(of(playlistMock));
         playlistsServiceMock.setFavorites.mockClear();
@@ -121,6 +126,8 @@ describe('DashboardDataService', () => {
         );
         dbServiceMock.getGlobalFavorites.mockClear();
         dbServiceMock.getGlobalFavorites.mockResolvedValue([]);
+        dbServiceMock.getGlobalRecentlyAdded.mockClear();
+        dbServiceMock.getGlobalRecentlyAdded.mockResolvedValue([]);
         dbServiceMock.getGlobalRecentlyViewed.mockClear();
         dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([]);
         dbServiceMock.removeFromFavorites.mockClear();
@@ -152,42 +159,6 @@ describe('DashboardDataService', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
-    });
-
-    it('treats an empty provider scope as all providers', () => {
-        const result = service.matchesScope('xtream-1', 'xtream', {
-            providers: [],
-            playlistIds: [],
-        });
-
-        expect(result).toBe(true);
-    });
-
-    it('filters out items when provider is excluded', () => {
-        const result = service.matchesScope('xtream-1', 'xtream', {
-            providers: ['stalker'],
-            playlistIds: [],
-        });
-
-        expect(result).toBe(false);
-    });
-
-    it('filters out items when playlist is not selected', () => {
-        const result = service.matchesScope('xtream-1', 'xtream', {
-            providers: ['xtream'],
-            playlistIds: ['m3u-1'],
-        });
-
-        expect(result).toBe(false);
-    });
-
-    it('uses playlist metadata as provider fallback when source is missing', () => {
-        const result = service.matchesScope('xtream-1', undefined, {
-            providers: ['xtream'],
-            playlistIds: [],
-        });
-
-        expect(result).toBe(true);
     });
 
     it('includes M3U favorites in global favorite items', async () => {
@@ -246,15 +217,6 @@ describe('DashboardDataService', () => {
         );
     });
 
-    it('matches M3U provider scope', () => {
-        const result = service.matchesScope('m3u-1', 'm3u', {
-            providers: ['m3u'],
-            playlistIds: [],
-        });
-
-        expect(result).toBe(true);
-    });
-
     it('includes M3U recently viewed items in global recent items', () => {
         expect(service.globalRecentItems()).toEqual(
             expect.arrayContaining([
@@ -268,6 +230,66 @@ describe('DashboardDataService', () => {
                 }),
             ])
         );
+    });
+
+    it('maps recently added Xtream rows for the widget', async () => {
+        dbServiceMock.getGlobalRecentlyAdded.mockResolvedValue([
+            {
+                id: 11,
+                category_id: 77,
+                title: 'Fresh Movie',
+                rating: '8.1',
+                added: '1774298340',
+                added_at: '1774298340',
+                poster_url: 'https://example.com/poster.png',
+                xtream_id: 501,
+                type: 'movie',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+            },
+        ]);
+
+        await expect(
+            service.getGlobalRecentlyAddedItems('all', 25)
+        ).resolves.toEqual([
+            expect.objectContaining({
+                id: 11,
+                title: 'Fresh Movie',
+                type: 'movie',
+                playlist_id: 'xtream-1',
+                source: 'xtream',
+                added_at: expect.any(String),
+            }),
+        ]);
+        expect(dbServiceMock.getGlobalRecentlyAdded).toHaveBeenCalledWith(
+            'all',
+            25
+        );
+    });
+
+    it('builds the Xtream recently added route', () => {
+        const item = {
+            id: 11,
+            title: 'Fresh Series',
+            type: 'series',
+            playlist_id: 'xtream-1',
+            playlist_name: 'Xtream Playlist',
+            added_at: '2026-03-27T14:39:00.000Z',
+            category_id: 77,
+            xtream_id: 501,
+            poster_url: 'https://example.com/poster.png',
+            source: 'xtream',
+        } as const;
+
+        expect(service.getRecentlyAddedLink(item)).toEqual([
+            '/workspace',
+            'xtreams',
+            'xtream-1',
+            'series',
+            '77',
+            '501',
+        ]);
+        expect(service.getRecentlyAddedNavigationState(item)).toBeUndefined();
     });
 
     it('builds the M3U recent route with navigation state', () => {

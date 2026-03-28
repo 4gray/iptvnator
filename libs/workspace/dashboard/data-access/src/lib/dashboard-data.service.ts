@@ -8,11 +8,17 @@ import {
     selectAllPlaylistsMeta,
 } from 'm3u-state';
 import { firstValueFrom, startWith } from 'rxjs';
-import { DatabaseService, PlaylistsService } from 'services';
+import {
+    DatabaseService,
+    GlobalRecentlyAddedKind,
+    PlaylistsService,
+} from 'services';
 import {
     buildPlaylistRecentItems,
     Channel,
     Playlist,
+    PortalAddedItem,
+    PortalActivityItem,
     PlaylistMeta,
     PortalActivityType,
     PortalFavoriteItem,
@@ -23,6 +29,7 @@ import {
     buildStalkerFavoriteItems,
     getActivityTypeLabelKey,
     mapDbFavoriteToItem,
+    mapDbRecentlyAddedToItem,
     mapDbRecentToItem,
     toDateTimestamp,
     toTimestamp,
@@ -32,11 +39,6 @@ import {
     getRecentItemNavigation,
     WorkspaceNavigationTarget,
 } from '@iptvnator/portal/shared/util';
-import {
-    DashboardWidgetProvider,
-    DashboardWidgetScopeSettings,
-    createDefaultWidgetScope,
-} from './dashboard-widget.model';
 
 export type DashboardContentKind = 'all' | 'channels' | 'vod' | 'series';
 
@@ -44,6 +46,9 @@ export type DashboardContentKind = 'all' | 'channels' | 'vod' | 'series';
 export type GlobalRecentItem = PortalRecentItem;
 /** @deprecated Use {@link PortalFavoriteItem} from `shared-interfaces` instead. */
 export type DashboardFavoriteItem = PortalFavoriteItem;
+/** @deprecated Use {@link PortalAddedItem} from `shared-interfaces` instead. */
+export type DashboardRecentlyAddedItem = PortalAddedItem;
+export type DashboardRecentlyAddedFilterKind = GlobalRecentlyAddedKind;
 
 @Injectable({ providedIn: 'root' })
 export class DashboardDataService {
@@ -67,7 +72,7 @@ export class DashboardDataService {
 
     readonly playlistBackedGlobalRecentItems = computed<GlobalRecentItem[]>(
         () => {
-        this.languageTick();
+            this.languageTick();
             return buildPlaylistRecentItems(this.playlists(), {
                 stalker: this.translateText(
                     'WORKSPACE.DASHBOARD.STALKER_PORTAL'
@@ -164,6 +169,20 @@ export class DashboardDataService {
         await Promise.all([xtreamReload, m3uReload]);
     }
 
+    async getGlobalRecentlyAddedItems(
+        kind: DashboardRecentlyAddedFilterKind,
+        limit = 200
+    ): Promise<DashboardRecentlyAddedItem[]> {
+        if (!window.electron) {
+            return [];
+        }
+
+        const items = await this.dbService.getGlobalRecentlyAdded(kind, limit);
+        return items
+            .map((item) => mapDbRecentlyAddedToItem(item))
+            .sort((a, b) => toTimestamp(b.added_at) - toTimestamp(a.added_at));
+    }
+
     private async reloadXtreamGlobalFavorites(): Promise<void> {
         if (!window.electron) {
             this.xtreamGlobalFavorites.set([]);
@@ -231,49 +250,6 @@ export class DashboardDataService {
             return type === 'movie';
         }
         return type === 'series';
-    }
-
-    matchesScope(
-        playlistId: string,
-        source: 'xtream' | 'stalker' | 'm3u' | undefined,
-        scope?: DashboardWidgetScopeSettings
-    ): boolean {
-        const normalizedScope = this.normalizeScope(scope);
-        const provider = this.getProviderFromSource(
-            source,
-            this.getPlaylistProviderType(playlistId)
-        );
-        const providerAllowed =
-            normalizedScope.providers.length === 0 ||
-            normalizedScope.providers.includes(provider);
-        if (!providerAllowed) {
-            return false;
-        }
-
-        if (normalizedScope.playlistIds.length === 0) {
-            return true;
-        }
-
-        return normalizedScope.playlistIds.includes(playlistId);
-    }
-
-    getPlaylistProviderType(playlistId: string): DashboardWidgetProvider {
-        const playlist = this.playlists().find(
-            (item) => item._id === playlistId
-        );
-        if (!playlist) {
-            return 'm3u';
-        }
-
-        if (playlist.serverUrl) {
-            return 'xtream';
-        }
-
-        if (playlist.macAddress) {
-            return 'stalker';
-        }
-
-        return 'm3u';
     }
 
     getPlaylistLink(playlist: PlaylistMeta): string[] {
@@ -381,6 +357,18 @@ export class DashboardDataService {
     }
 
     getFavoriteItemProviderLabel(item: DashboardFavoriteItem): string {
+        return this.getActivityItemProviderLabel(item);
+    }
+
+    getRecentlyAddedItemProviderLabel(
+        item: DashboardRecentlyAddedItem
+    ): string {
+        return this.getActivityItemProviderLabel(item);
+    }
+
+    private getActivityItemProviderLabel(
+        item: Pick<PortalActivityItem, 'source'>
+    ): string {
         this.languageTick();
 
         if (item.source === 'stalker') {
@@ -396,6 +384,18 @@ export class DashboardDataService {
     }
 
     getFavoriteItemTypeLabel(item: DashboardFavoriteItem): string {
+        return this.getActivityItemTypeLabel(item);
+    }
+
+    getRecentlyAddedItemTypeLabel(
+        item: DashboardRecentlyAddedItem
+    ): string {
+        return this.getActivityItemTypeLabel(item);
+    }
+
+    private getActivityItemTypeLabel(
+        item: Pick<PortalActivityItem, 'type'>
+    ): string {
         this.languageTick();
         return this.translateText(getActivityTypeLabelKey(item.type));
     }
@@ -406,6 +406,16 @@ export class DashboardDataService {
 
     getGlobalFavoriteNavigationState(
         item: DashboardFavoriteItem
+    ): WorkspaceNavigationTarget['state'] {
+        return getGlobalFavoriteNavigation(item).state;
+    }
+
+    getRecentlyAddedLink(item: DashboardRecentlyAddedItem): string[] {
+        return getGlobalFavoriteNavigation(item).link;
+    }
+
+    getRecentlyAddedNavigationState(
+        item: DashboardRecentlyAddedItem
     ): WorkspaceNavigationTarget['state'] {
         return getGlobalFavoriteNavigation(item).state;
     }
@@ -484,27 +494,6 @@ export class DashboardDataService {
         }
 
         return new Date(timestamp).toLocaleString(this.getLocale());
-    }
-
-    private normalizeScope(
-        scope?: DashboardWidgetScopeSettings
-    ): DashboardWidgetScopeSettings {
-        const fallback = createDefaultWidgetScope();
-        return {
-            providers: [...(scope?.providers ?? fallback.providers)],
-            playlistIds: [...(scope?.playlistIds ?? fallback.playlistIds)],
-        };
-    }
-
-    private getProviderFromSource(
-        source: 'xtream' | 'stalker' | 'm3u' | undefined,
-        fallback: DashboardWidgetProvider
-    ): DashboardWidgetProvider {
-        if (source === 'xtream' || source === 'stalker' || source === 'm3u') {
-            return source;
-        }
-
-        return fallback;
     }
 
     private async loadM3uPlaylistFavorites(
