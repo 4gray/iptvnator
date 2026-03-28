@@ -36,8 +36,11 @@ export interface UnifiedCollectionItem {
     /** Direct stream URL (M3U channels only) */
     streamUrl?: string;
 
-    /** TVG id for EPG lookup (M3U / Xtream live) */
+    /** Stable live-source EPG lookup key */
     tvgId?: string;
+
+    /** M3U playlist channel id used to rehydrate the full channel object */
+    channelId?: string;
 
     /** Xtream numeric stream ID */
     xtreamId?: number;
@@ -46,6 +49,7 @@ export interface UnifiedCollectionItem {
     contentId?: number;
 
     /** Stalker cmd for stream resolution */
+    stalkerId?: string | number;
     stalkerCmd?: string;
     stalkerPortalUrl?: string;
     stalkerMacAddress?: string;

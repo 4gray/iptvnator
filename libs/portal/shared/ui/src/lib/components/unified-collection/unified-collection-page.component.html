@@ -3,7 +3,9 @@
         <span class="collection-title">{{ title() | translate }}</span>
         <div class="collection-header-toggles">
             <span class="toggle-placeholder"></span>
-            <span class="toggle-placeholder toggle-placeholder--scope"></span>
+            @if (showScopeToggle()) {
+                <span class="toggle-placeholder toggle-placeholder--scope"></span>
+            }
         </div>
     </div>
     @if (selectedContentType() === 'live') {
@@ -73,25 +75,27 @@
                 </mat-button-toggle-group>
             }
 
-            <mat-button-toggle-group
-                class="scope-toggle"
-                [value]="scope()"
-                (change)="onScopeChange($event.value)"
-                hideSingleSelectionIndicator
-            >
-                <mat-button-toggle value="playlist">
-                    <mat-icon>playlist_play</mat-icon>
-                    <span class="toggle-label">{{
-                        'PORTALS.THIS_PLAYLIST' | translate
-                    }}</span>
-                </mat-button-toggle>
-                <mat-button-toggle value="all">
-                    <mat-icon>public</mat-icon>
-                    <span class="toggle-label">{{
-                        'PORTALS.ALL_PLAYLISTS' | translate
-                    }}</span>
-                </mat-button-toggle>
-            </mat-button-toggle-group>
+            @if (showScopeToggle()) {
+                <mat-button-toggle-group
+                    class="scope-toggle"
+                    [value]="scope()"
+                    (change)="onScopeChange($event.value)"
+                    hideSingleSelectionIndicator
+                >
+                    <mat-button-toggle value="playlist">
+                        <mat-icon>playlist_play</mat-icon>
+                        <span class="toggle-label">{{
+                            'PORTALS.THIS_PLAYLIST' | translate
+                        }}</span>
+                    </mat-button-toggle>
+                    <mat-button-toggle value="all">
+                        <mat-icon>public</mat-icon>
+                        <span class="toggle-label">{{
+                            'PORTALS.ALL_PLAYLISTS' | translate
+                        }}</span>
+                    </mat-button-toggle>
+                </mat-button-toggle-group>
+            }
 
             @if (mode() === 'recent' && allItems().length > 0) {
                 <button
@@ -116,6 +120,7 @@
                     [searchTerm]="workspaceSearchTerm()"
                     (removeItem)="onRemoveItem($event)"
                     (reorderItems)="onReorder($event)"
+                    (itemPlayed)="onItemPlayed($event)"
                 />
             }
         }

@@ -4,7 +4,17 @@ import { TranslateService } from '@ngx-translate/core';
 import { selectAllPlaylistsMeta } from 'm3u-state';
 import { firstValueFrom, map } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
-import { Channel, Playlist, PlaylistMeta } from 'shared-interfaces';
+import {
+    Channel,
+    extractStalkerItemId,
+    extractStalkerItemPoster,
+    extractStalkerItemTitle,
+    extractStalkerItemType,
+    normalizeStalkerDate,
+    Playlist,
+    PlaylistMeta,
+    StalkerPortalItem,
+} from 'shared-interfaces';
 import {
     buildCollectionUid,
     UnifiedCollectionItem,
@@ -12,7 +22,6 @@ import {
 import { CollectionScope } from './scope-toggle.service';
 import {
     isStalkerItem,
-    stalkerContentType,
     xtreamContentType,
     XtreamFavoriteRow,
 } from './collection-helpers';
@@ -48,7 +57,11 @@ export class UnifiedFavoritesDataService {
                     this.playlistsService.getPlaylistById(item.playlistId)
                 );
                 const filtered = ((playlist.favorites as string[]) ?? [])
-                    .filter((f) => f !== item.streamUrl);
+                    .filter(
+                        (favoriteId) =>
+                            favoriteId !== item.streamUrl &&
+                            favoriteId !== item.channelId
+                    );
                 await firstValueFrom(
                     this.playlistsService.setFavorites(item.playlistId, filtered)
                 );
@@ -69,16 +82,83 @@ export class UnifiedFavoritesDataService {
         }
     }
 
-    async reorder(items: UnifiedCollectionItem[]): Promise<void> {
-        const uidOrder = items.map((i) => i.uid);
-        const xtreamUpdates = items
-            .filter((i) => i.sourceType === 'xtream' && i.contentId != null)
-            .map((i, idx) => ({ content_id: i.contentId!, position: idx }));
+    async reorder(
+        items: UnifiedCollectionItem[],
+        options?: {
+            scope: CollectionScope;
+            playlistId?: string;
+            portalType?: string;
+        }
+    ): Promise<void> {
+        if (
+            options?.scope === 'playlist' &&
+            options.playlistId &&
+            options.portalType === 'm3u'
+        ) {
+            await firstValueFrom(
+                this.playlistsService.setFavorites(
+                    options.playlistId,
+                    items
+                        .map((item) => item.streamUrl ?? item.channelId ?? '')
+                        .filter((value) => value.length > 0)
+                )
+            );
+            return;
+        }
+
+        if (
+            options?.scope === 'playlist' &&
+            options.playlistId &&
+            options.portalType === 'stalker'
+        ) {
+            const playlist = (await firstValueFrom(
+                this.playlistsService.getPlaylistById(options.playlistId)
+            )) as Playlist | undefined;
+            const currentFavorites = Array.isArray(playlist?.favorites)
+                ? playlist.favorites.filter(isStalkerItem)
+                : [];
+            const favoritesById = new Map(
+                currentFavorites.map((favorite) => [
+                    this.getStalkerFavoriteId(favorite),
+                    favorite,
+                ])
+            );
+            const reorderedFavorites = items
+                .map(
+                    (item) =>
+                        favoritesById.get(this.getStalkerFavoriteId(item)) ?? null
+                )
+                .filter(
+                    (favorite): favorite is StalkerPortalItem =>
+                        favorite !== null
+                );
+            await firstValueFrom(
+                this.playlistsService.setPortalFavorites(
+                    options.playlistId,
+                    reorderedFavorites
+                )
+            );
+            return;
+        }
+
+        const xtreamUpdates = this.buildXtreamPositionUpdates(items);
+
+        if (
+            options?.scope === 'playlist' &&
+            options.playlistId &&
+            options.portalType === 'xtream'
+        ) {
+            if (xtreamUpdates.length > 0 && window.electron) {
+                await window.electron.dbReorderGlobalFavorites(xtreamUpdates);
+            }
+            return;
+        }
+
         await Promise.all([
             xtreamUpdates.length > 0 && window.electron
                 ? window.electron.dbReorderGlobalFavorites(xtreamUpdates)
                 : Promise.resolve(),
-            this.saveOrder(uidOrder),
+            this.saveOrder(items.map((item) => item.uid)),
         ]);
     }
 
@@ -117,28 +197,53 @@ export class UnifiedFavoritesDataService {
 
     private async extractM3uFavorites(meta: PlaylistMeta): Promise<UnifiedCollectionItem[]> {
         if (!meta.favorites?.length) return [];
-        const favIds = new Set((meta.favorites as string[]).map(String));
+        const favoriteIds = (meta.favorites as string[]).map(String);
         let playlist: PlaylistWithChannels | undefined;
         try {
             playlist = (await firstValueFrom(
                 this.playlistsService.getPlaylistById(meta._id)
             )) as PlaylistWithChannels | undefined;
         } catch { return []; }
-        return (playlist?.playlist?.items ?? [])
-            .filter((ch) => favIds.has(ch.id) || favIds.has(ch.url))
-            .map((ch) => ({
-                uid: buildCollectionUid('m3u', meta._id, ch.url || ch.id),
-                name: ch.name,
-                contentType: 'live' as const,
-                sourceType: 'm3u' as const,
-                playlistId: meta._id,
-                playlistName: meta.title || meta.filename || 'M3U',
-                logo: ch.tvg?.logo ?? null,
-                streamUrl: ch.url,
-                tvgId: ch.tvg?.id || ch.tvg?.name || ch.name,
-                addedAt: new Date(0).toISOString(),
-                position: 0,
-            }));
+        const channels = playlist?.playlist?.items ?? [];
+        const channelsByFavoriteId = new Map<string, Channel>();
+        channels.forEach((channel) => {
+            if (channel.url?.trim()) {
+                channelsByFavoriteId.set(channel.url.trim(), channel);
+            }
+            if (channel.id?.trim()) {
+                channelsByFavoriteId.set(channel.id.trim(), channel);
+            }
+        });
+
+        const seenUrls = new Set<string>();
+        return favoriteIds
+            .map((favoriteId, index) => {
+                const channel = channelsByFavoriteId.get(favoriteId.trim());
+                if (!channel?.url || seenUrls.has(channel.url)) {
+                    return null;
+                }
+                seenUrls.add(channel.url);
+                const sourceItemId = channel.url?.trim() || channel.id?.trim();
+                if (!sourceItemId) {
+                    return null;
+                }
+
+                return {
+                    uid: buildCollectionUid('m3u', meta._id, sourceItemId),
+                    name: channel.name,
+                    contentType: 'live' as const,
+                    sourceType: 'm3u' as const,
+                    playlistId: meta._id,
+                    playlistName: meta.title || meta.filename || 'M3U',
+                    logo: channel.tvg?.logo ?? null,
+                    streamUrl: channel.url,
+                    channelId: channel.id,
+                    tvgId: channel.tvg?.id || channel.tvg?.name || channel.name,
+                    addedAt: new Date(0).toISOString(),
+                    position: index,
+                } satisfies UnifiedCollectionItem;
+            })
+            .filter((channel) => channel !== null) as UnifiedCollectionItem[];
     }
 
     private async getXtreamAllFavorites(): Promise<UnifiedCollectionItem[]> {
@@ -206,25 +311,42 @@ export class UnifiedFavoritesDataService {
             )) as Playlist | undefined;
         } catch { return []; }
         const favs = Array.isArray(playlist?.favorites)
-            ? playlist.favorites.filter(isStalkerItem) : [];
-        return favs.map((fav) => {
-            const ct = stalkerContentType(fav);
+            ? playlist.favorites.filter(isStalkerItem)
+            : [];
+
+        return favs.map((fav, index) => {
+            const ct = extractStalkerItemType(fav);
+            const stalkerId = extractStalkerItemId(fav, meta._id, index);
+            const poster = extractStalkerItemPoster(fav) || null;
             return {
-                uid: buildCollectionUid('stalker', meta._id, fav.stream_id ?? fav.id),
-                name: fav.o_name || fav.name || this.translate.instant('WORKSPACE.GLOBAL_FAVORITES.UNKNOWN_CHANNEL'),
+                uid: buildCollectionUid('stalker', meta._id, stalkerId),
+                name:
+                    extractStalkerItemTitle(fav) ||
+                    this.translate.instant(
+                        'WORKSPACE.GLOBAL_FAVORITES.UNKNOWN_CHANNEL'
+                    ),
                 contentType: ct,
                 sourceType: 'stalker' as const,
                 playlistId: meta._id,
-                playlistName: meta.title || meta.filename || this.translate.instant('WORKSPACE.DASHBOARD.STALKER_PORTAL'),
-                logo: ct === 'live' ? (fav.logo ?? fav.cover ?? null) : null,
-                posterUrl: ct !== 'live' ? (fav.logo ?? fav.cover ?? null) : null,
+                playlistName:
+                    meta.title ||
+                    meta.filename ||
+                    this.translate.instant(
+                        'WORKSPACE.DASHBOARD.STALKER_PORTAL'
+                    ),
+                logo: ct === 'live' ? poster : null,
+                posterUrl: ct !== 'live' ? poster : null,
+                tvgId: ct === 'live' ? stalkerId : undefined,
+                stalkerId,
                 stalkerCmd: fav.cmd,
                 stalkerPortalUrl: playlist?.portalUrl ?? playlist?.url,
                 stalkerMacAddress: playlist?.macAddress,
                 categoryId: fav.category_id,
                 stalkerItem: fav,
-                addedAt: fav.added_at ? new Date(fav.added_at).toISOString() : new Date(0).toISOString(),
-                position: 0,
+                addedAt:
+                    normalizeStalkerDate(fav.added_at) ||
+                    new Date(0).toISOString(),
+                position: index,
             };
         });
     }
@@ -257,7 +379,8 @@ export class UnifiedFavoritesDataService {
     private applyOrder(items: UnifiedCollectionItem[], savedOrder: string[]): UnifiedCollectionItem[] {
         if (!savedOrder.length) {
             return items.slice().sort((a, b) => {
-                const pa = a.position ?? 0, pb = b.position ?? 0;
+                const pa = a.position ?? 0;
+                const pb = b.position ?? 0;
                 if (pa !== pb) return pa - pb;
                 return new Date(b.addedAt ?? 0).getTime() - new Date(a.addedAt ?? 0).getTime();
             });
@@ -272,5 +395,26 @@ export class UnifiedFavoritesDataService {
         ordered.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         unordered.sort((a, b) => new Date(b.addedAt ?? 0).getTime() - new Date(a.addedAt ?? 0).getTime());
         return [...ordered, ...unordered];
+    }
+
+    private buildXtreamPositionUpdates(items: UnifiedCollectionItem[]) {
+        return items
+            .filter((item) => item.sourceType === 'xtream' && item.contentId != null)
+            .map((item, index) => ({
+                content_id: item.contentId!,
+                position: index,
+            }));
+    }
+
+    private getStalkerFavoriteId(
+        favorite: Pick<UnifiedCollectionItem, 'stalkerId' | 'uid'> | StalkerPortalItem
+    ): string {
+        if ('uid' in favorite) {
+            return String(
+                favorite.stalkerId ?? favorite.uid.split('::')[2] ?? ''
+            ).trim();
+        }
+
+        return extractStalkerItemId(favorite);
     }
 }

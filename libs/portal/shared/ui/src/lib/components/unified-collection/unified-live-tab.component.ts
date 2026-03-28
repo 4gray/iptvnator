@@ -3,9 +3,9 @@ import {
     Component,
     computed,
     DestroyRef,
+    effect,
     inject,
     input,
-    OnInit,
     output,
     signal,
 } from '@angular/core';
@@ -13,11 +13,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
+    PORTAL_PLAYER,
+    ResolvedLiveCollectionDetail,
     StreamResolverService,
     UnifiedCollectionItem,
     UnifiedFavoriteChannel,
+    UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/util';
-import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
+import { EpgListComponent } from '@iptvnator/ui/epg';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
 import {
     ArtPlayerComponent,
@@ -26,7 +29,7 @@ import {
 } from '@iptvnator/ui/playback';
 import { ResizableDirective } from 'components';
 import { SettingsStore } from 'services';
-import { Channel, EpgItem, EpgProgram, ResolvedPortalPlayback } from 'shared-interfaces';
+import { Channel, EpgProgram } from 'shared-interfaces';
 import { EpgViewComponent } from 'shared-portals';
 
 @Component({
@@ -36,6 +39,7 @@ import { EpgViewComponent } from 'shared-portals';
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         ArtPlayerComponent,
+        EpgListComponent,
         EpgViewComponent,
         GlobalFavoritesListComponent,
         HtmlVideoPlayerComponent,
@@ -46,122 +50,241 @@ import { EpgViewComponent } from 'shared-portals';
         VjsPlayerComponent,
     ],
 })
-export class UnifiedLiveTabComponent implements OnInit {
+export class UnifiedLiveTabComponent {
     readonly items = input.required<UnifiedCollectionItem[]>();
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly searchTerm = input('');
 
     readonly removeItem = output<UnifiedCollectionItem>();
     readonly reorderItems = output<UnifiedCollectionItem[]>();
+    readonly itemPlayed = output<UnifiedCollectionItem>();
 
     private readonly streamResolver = inject(StreamResolverService);
+    private readonly recentData = inject(UnifiedRecentDataService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly destroyRef = inject(DestroyRef);
 
     readonly player = this.settingsStore.player;
-    readonly isEmbeddedPlayer = computed(() => this.portalPlayer.isEmbeddedPlayer());
+    readonly isEmbeddedPlayer = computed(() =>
+        this.portalPlayer.isEmbeddedPlayer()
+    );
 
-    readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
+    readonly activeDetail = signal<ResolvedLiveCollectionDetail | null>(null);
     readonly activeUid = signal<string | null>(null);
+    readonly isSelecting = signal(false);
     readonly epgMap = signal<Map<string, EpgProgram | null>>(new Map());
     readonly progressTick = signal(0);
-    readonly currentEpgItems = signal<EpgItem[]>([]);
-    readonly currentStreamUrl = computed(() => this.activePlayback()?.streamUrl ?? '');
+    readonly currentStreamUrl = computed(
+        () => this.activeDetail()?.playback.streamUrl ?? ''
+    );
+    readonly isM3uSelection = computed(
+        () => this.activeDetail()?.epgMode === 'm3u'
+    );
+    readonly currentPortalEpgItems = computed(
+        () => this.activeDetail()?.epgItems ?? []
+    );
+    readonly currentM3uPrograms = computed(() => {
+        const detail = this.activeDetail();
+        if (detail?.epgMode !== 'm3u') {
+            return [];
+        }
+
+        return detail.epgPrograms ?? [];
+    });
+    readonly currentM3uChannel = computed(() => {
+        const detail = this.activeDetail();
+        if (detail?.epgMode !== 'm3u') {
+            return null;
+        }
+
+        return detail.channel ?? null;
+    });
 
     readonly activeChannelForOverlay = computed((): Channel | undefined => {
-        const p = this.activePlayback();
-        if (!p) return undefined;
+        const detail = this.activeDetail();
+        if (!detail) {
+            return undefined;
+        }
+
+        if (detail.channel) {
+            return detail.channel;
+        }
+
         return {
             id: this.activeUid() ?? '',
-            name: p.title ?? '',
-            url: this.currentStreamUrl(),
-            tvg: { logo: p.thumbnail ?? '', id: '', name: '', rec: '', url: '' },
+            name: detail.playback.title ?? '',
+            url: detail.playback.streamUrl,
+            tvg: {
+                logo: detail.playback.thumbnail ?? '',
+                id: '',
+                name: '',
+                rec: '',
+                url: '',
+            },
             group: { title: '' },
-            http: { referrer: '', 'user-agent': '', origin: '' },
+            http: {
+                referrer: detail.playback.referer ?? '',
+                'user-agent': detail.playback.userAgent ?? '',
+                origin: detail.playback.origin ?? '',
+            },
             radio: 'false',
             epgParams: '',
-        } as Channel;
+        } satisfies Channel;
     });
 
-    /** Map UnifiedCollectionItem[] to UnifiedFavoriteChannel[] for the list component */
-    readonly channelsForList = computed((): UnifiedFavoriteChannel[] => {
-        return this.items().map((i) => ({
-            uid: i.uid,
-            name: i.name,
-            logo: i.logo ?? null,
-            sourceType: i.sourceType,
-            playlistId: i.playlistId,
-            playlistName: i.playlistName,
-            streamUrl: i.streamUrl,
-            xtreamId: i.xtreamId,
-            tvgId: i.tvgId,
-            stalkerCmd: i.stalkerCmd,
-            stalkerPortalUrl: i.stalkerPortalUrl,
-            stalkerMacAddress: i.stalkerMacAddress,
-            addedAt: i.addedAt ?? new Date(0).toISOString(),
-            position: i.position ?? 0,
-            contentId: i.contentId,
-        }));
-    });
+    readonly channelsForList = computed((): UnifiedFavoriteChannel[] =>
+        this.items().map((item) => ({
+            uid: item.uid,
+            name: item.name,
+            logo: item.logo ?? null,
+            sourceType: item.sourceType,
+            playlistId: item.playlistId,
+            playlistName: item.playlistName,
+            streamUrl: item.streamUrl,
+            xtreamId: item.xtreamId,
+            tvgId: item.tvgId,
+            stalkerCmd: item.stalkerCmd,
+            stalkerPortalUrl: item.stalkerPortalUrl,
+            stalkerMacAddress: item.stalkerMacAddress,
+            addedAt: item.addedAt ?? new Date(0).toISOString(),
+            position: item.position ?? 0,
+            contentId: item.contentId,
+        }))
+    );
 
-    private tickInterval: ReturnType<typeof setInterval> | null = null;
+    private selectionRequestId = 0;
 
-    ngOnInit(): void {
-        this.loadEpg();
-        this.tickInterval = setInterval(() => this.progressTick.update((t) => t + 1), 30_000);
-        this.destroyRef.onDestroy(() => {
-            if (this.tickInterval) clearInterval(this.tickInterval);
+    constructor() {
+        effect(() => {
+            const items = this.items();
+            void this.loadEpgMap(items);
+
+            const activeUid = this.activeUid();
+            if (activeUid && !items.some((item) => item.uid === activeUid)) {
+                this.onClose();
+            }
         });
+
+        const tickInterval = setInterval(
+            () => this.progressTick.update((tick) => tick + 1),
+            30_000
+        );
+        this.destroyRef.onDestroy(() => clearInterval(tickInterval));
     }
 
     async onChannelSelected(channel: UnifiedFavoriteChannel): Promise<void> {
-        const item = this.items().find((i) => i.uid === channel.uid);
-        if (!item) return;
-
-        if (this.activeUid() === item.uid) {
-            this.activeUid.set(null);
-            this.activePlayback.set(null);
-            this.currentEpgItems.set([]);
+        const item = this.items().find((candidate) => candidate.uid === channel.uid);
+        if (!item) {
             return;
         }
+
+        if (this.activeUid() === item.uid) {
+            this.onClose();
+            return;
+        }
+
+        const requestId = ++this.selectionRequestId;
         this.activeUid.set(item.uid);
-        this.currentEpgItems.set([]);
+        this.activeDetail.set(null);
+        this.isSelecting.set(true);
+
         try {
-            const playback = await this.streamResolver.resolvePlayback(item);
-            this.activePlayback.set(playback);
-            if (!this.portalPlayer.isEmbeddedPlayer()) {
-                void this.portalPlayer.openResolvedPlayback(playback);
+            const detail =
+                item.sourceType === 'm3u'
+                    ? await this.streamResolver.resolveM3uPlaybackDetail(item)
+                    : await this.streamResolver.resolveLiveDetail(item);
+            if (requestId !== this.selectionRequestId) {
+                return;
             }
-            this.streamResolver.loadEpgItems(item).then((epgItems) => {
-                this.currentEpgItems.set(epgItems);
-            });
+
+            this.activeDetail.set(detail);
+
+            if (detail.epgMode === 'm3u') {
+                void this.hydrateSelectedM3uPrograms(item, detail, requestId);
+            }
+
+            if (!this.portalPlayer.isEmbeddedPlayer()) {
+                void this.portalPlayer.openResolvedPlayback(detail.playback);
+            }
+
+            try {
+                const updatedItem =
+                    await this.recentData.recordLivePlayback(item);
+                if (requestId === this.selectionRequestId) {
+                    this.itemPlayed.emit(updatedItem);
+                }
+            } catch {
+                // Keep playback/EPG visible even if history persistence fails.
+            }
         } catch {
-            this.activePlayback.set(null);
-            this.activeUid.set(null);
+            if (requestId === this.selectionRequestId) {
+                this.activeDetail.set(null);
+                this.activeUid.set(null);
+            }
+        } finally {
+            if (requestId === this.selectionRequestId) {
+                this.isSelecting.set(false);
+            }
         }
     }
 
     onFavoriteToggled(channel: UnifiedFavoriteChannel): void {
-        const item = this.items().find((i) => i.uid === channel.uid);
-        if (item) this.removeItem.emit(item);
+        const item = this.items().find((candidate) => candidate.uid === channel.uid);
+        if (item) {
+            this.removeItem.emit(item);
+        }
     }
 
     onReorder(channels: UnifiedFavoriteChannel[]): void {
         const reordered = channels
-            .map((ch) => this.items().find((i) => i.uid === ch.uid))
+            .map((channel) =>
+                this.items().find((candidate) => candidate.uid === channel.uid)
+            )
             .filter(Boolean) as UnifiedCollectionItem[];
         this.reorderItems.emit(reordered);
     }
 
     onClose(): void {
-        this.activePlayback.set(null);
+        this.selectionRequestId += 1;
+        this.isSelecting.set(false);
+        this.activeDetail.set(null);
         this.activeUid.set(null);
-        this.currentEpgItems.set([]);
     }
 
-    private async loadEpg(): Promise<void> {
-        const map = await this.streamResolver.loadEpgForItems(this.items());
-        this.epgMap.set(map);
+    private async loadEpgMap(
+        items: UnifiedCollectionItem[]
+    ): Promise<void> {
+        const epgMap = await this.streamResolver.loadEpgForItems(items);
+        this.epgMap.set(epgMap);
+    }
+
+    private async hydrateSelectedM3uPrograms(
+        item: UnifiedCollectionItem,
+        detail: ResolvedLiveCollectionDetail,
+        requestId: number
+    ): Promise<void> {
+        if (detail.epgMode !== 'm3u') {
+            return;
+        }
+
+        const epgPrograms = await this.streamResolver.loadM3uProgramsForItem(
+            item,
+            detail.channel
+        );
+        if (requestId !== this.selectionRequestId) {
+            return;
+        }
+
+        this.activeDetail.update((currentDetail) => {
+            if (!currentDetail || currentDetail.epgMode !== 'm3u') {
+                return currentDetail;
+            }
+
+            return {
+                ...currentDetail,
+                epgPrograms,
+            };
+        });
     }
 }

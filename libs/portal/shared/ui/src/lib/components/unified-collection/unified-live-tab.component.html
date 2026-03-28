@@ -1,4 +1,4 @@
-@if (activePlayback()) {
+@if (activeDetail()) {
     <div
         [class]="
             isEmbeddedPlayer() ? 'itv-container' : 'itv-container--external'
@@ -29,7 +29,7 @@
             <div class="video-player">
                 <div class="player-toolbar">
                     <span class="player-title">{{
-                        activePlayback()?.title
+                        activeDetail()?.playback?.title
                     }}</span>
                     <button
                         mat-icon-button
@@ -74,7 +74,7 @@
             @if (!isEmbeddedPlayer()) {
                 <div class="player-toolbar">
                     <span class="player-title">{{
-                        activePlayback()?.title
+                        activeDetail()?.playback?.title
                     }}</span>
                     <button
                         mat-icon-button
@@ -86,7 +86,14 @@
                 </div>
             }
             <div class="epg-content">
-                <app-epg-view [epgItems]="currentEpgItems()" />
+                @if (isM3uSelection()) {
+                    <app-epg-list
+                        [controlledChannel]="currentM3uChannel()"
+                        [controlledPrograms]="currentM3uPrograms()"
+                    />
+                } @else {
+                    <app-epg-view [epgItems]="currentPortalEpgItems()" />
+                }
             </div>
         </div>
     </div>

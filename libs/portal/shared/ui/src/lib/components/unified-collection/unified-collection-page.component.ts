@@ -81,6 +81,10 @@ export class UnifiedCollectionPageComponent implements OnInit {
 
     readonly scopeKey = computed(() => this.mode());
     readonly scope = signal<CollectionScope>('playlist');
+    readonly showScopeToggle = computed(() => Boolean(this.playlistId()));
+    readonly effectiveScope = computed<CollectionScope>(() =>
+        this.showScopeToggle() ? this.scope() : 'all'
+    );
 
     readonly liveItems = computed(() =>
         this.allItems().filter((i) => i.contentType === 'live')
@@ -116,8 +120,11 @@ export class UnifiedCollectionPageComponent implements OnInit {
 
     constructor() {
         effect(() => {
-            this.scope();
-            this.loadData();
+            this.mode();
+            this.portalType();
+            this.playlistId();
+            this.effectiveScope();
+            void this.loadData();
         });
     }
 
@@ -125,7 +132,10 @@ export class UnifiedCollectionPageComponent implements OnInit {
         const queryScope = this.route.snapshot.queryParams['scope'] as
             | CollectionScope
             | undefined;
-        if (queryScope === 'all' || queryScope === 'playlist') {
+        if (
+            this.showScopeToggle() &&
+            (queryScope === 'all' || queryScope === 'playlist')
+        ) {
             this.scope.set(queryScope);
         } else if (this.defaultScope()) {
             this.scope.set(this.defaultScope()!);
@@ -136,6 +146,10 @@ export class UnifiedCollectionPageComponent implements OnInit {
     }
 
     onScopeChange(value: CollectionScope): void {
+        if (!this.showScopeToggle()) {
+            return;
+        }
+
         this.scope.set(value);
         this.scopeService.setScope(this.scopeKey(), value);
     }
@@ -157,7 +171,7 @@ export class UnifiedCollectionPageComponent implements OnInit {
 
     async clearAllRecent(): Promise<void> {
         await this.recentData.clearRecentItems(
-            this.scope(),
+            this.effectiveScope(),
             this.playlistId()
         );
         this.allItems.set([]);
@@ -168,13 +182,32 @@ export class UnifiedCollectionPageComponent implements OnInit {
             (i) => i.contentType !== 'live'
         );
         this.allItems.set([...items, ...nonLive]);
-        await this.favoritesData.reorder(items);
+        await this.favoritesData.reorder(items, {
+            scope: this.effectiveScope(),
+            playlistId: this.playlistId(),
+            portalType: this.portalType(),
+        });
+    }
+
+    onItemPlayed(item: UnifiedCollectionItem): void {
+        if (this.mode() !== 'recent') {
+            return;
+        }
+
+        this.allItems.update((items) => {
+            const nextItems = [item, ...items.filter((candidate) => candidate.uid !== item.uid)];
+            return nextItems.sort(
+                (a, b) =>
+                    new Date(b.viewedAt ?? 0).getTime() -
+                    new Date(a.viewedAt ?? 0).getTime()
+            );
+        });
     }
 
     private async loadData(): Promise<void> {
         this.isLoading.set(true);
         try {
-            const s = this.scope();
+            const s = this.effectiveScope();
             const pid = this.playlistId();
             const pt = this.portalType();
             const items =
