@@ -7,7 +7,14 @@ import {
     Page,
     test as base,
 } from '@playwright/test';
-import { existsSync, mkdtempSync, rmSync } from 'fs';
+import { createServer, Server } from 'http';
+import {
+    existsSync,
+    mkdtempSync,
+    readFileSync,
+    rmSync,
+    writeFileSync,
+} from 'fs';
 import { tmpdir } from 'os';
 import { join, resolve } from 'path';
 
@@ -31,6 +38,22 @@ export const defaultXtreamPassword = 'pass1';
 export const defaultStalkerMacAddress = '00:1A:79:00:00:01';
 
 export type PortalProvider = 'stalker' | 'xtream';
+
+export type M3uTestChannel = {
+    groupTitle?: string;
+    logo?: string;
+    name: string;
+    tvgId?: string;
+    tvgName?: string;
+    url: string;
+};
+
+export type MutableTextServer = {
+    close: () => Promise<void>;
+    origin: string;
+    resourceUrl: string;
+    setBody: (body: string) => void;
+};
 
 type ElectronFixtures = {
     dataDir: string;
@@ -290,7 +313,7 @@ export async function addStalkerPortal(
 }
 
 export async function openSettings(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Open settings' }).click();
+    await page.locator('a[href$="/workspace/settings"]').click();
     await expect(page.getByTestId('settings-container')).toBeVisible();
 }
 
@@ -308,15 +331,531 @@ export async function enableRemoteControl(
 }
 
 export async function saveSettings(page: Page): Promise<void> {
-    await page.getByTestId('save-settings').click();
-    await expect(
-        page.getByText('Success! Configuration was saved.')
-    ).toBeVisible();
+    const saveButton = page.getByTestId('save-settings');
+
+    await saveButton.click();
+    await expect(saveButton).toBeDisabled();
+    await page.waitForTimeout(300);
 }
 
 export async function goToDashboard(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+    await page.locator('a[href$="/workspace/dashboard"]').click();
     await page.waitForURL(/\/workspace\/dashboard$/);
+}
+
+export async function openSources(page: Page): Promise<void> {
+    await page.getByRole('link', { name: 'Sources', exact: true }).click();
+    await page.waitForURL(/\/workspace\/sources(?:\?.*)?$/);
+}
+
+export async function restartElectronApp(
+    app: LaunchedElectronApp,
+    dataDir: string,
+    options: LaunchElectronAppOptions = {}
+): Promise<LaunchedElectronApp> {
+    await closeElectronApp(app);
+    return launchElectronApp(dataDir, options);
+}
+
+export async function importM3uPlaylistFromUrl(
+    page: Page,
+    playlistUrl: string
+): Promise<void> {
+    await openAddPlaylistMenu(page);
+    await page.getByRole('menuitem', { name: 'Add via URL' }).click();
+    const dialog = page.locator('mat-dialog-container');
+
+    await setInputValue(
+        dialog.locator('input[formcontrolname="playlistUrl"]'),
+        playlistUrl
+    );
+    await dialog.getByRole('button', { name: /Add playlist/i }).click();
+    await page.waitForSelector('mat-dialog-container', { state: 'detached' });
+}
+
+export function buildM3uContent(channels: M3uTestChannel[]): string {
+    const lines = ['#EXTM3U'];
+
+    for (const channel of channels) {
+        const attributes = [
+            channel.tvgId ? `tvg-id="${channel.tvgId}"` : '',
+            channel.tvgName ? `tvg-name="${channel.tvgName}"` : '',
+            channel.logo ? `tvg-logo="${channel.logo}"` : '',
+            channel.groupTitle ? `group-title="${channel.groupTitle}"` : '',
+        ]
+            .filter(Boolean)
+            .join(' ');
+
+        lines.push(
+            `#EXTINF:-1${attributes ? ` ${attributes}` : ''},${channel.name}`
+        );
+        lines.push(channel.url);
+    }
+
+    return `${lines.join('\n')}\n`;
+}
+
+export function writeTemporaryM3uFile(
+    dataDir: string,
+    fileName: string,
+    channels: M3uTestChannel[]
+): string {
+    const filePath = join(dataDir, fileName);
+    writeFileSync(filePath, buildM3uContent(channels), 'utf8');
+    return filePath;
+}
+
+export function parseM3uFixture(filePath: string): M3uTestChannel[] {
+    const content = readFileSync(filePath, 'utf8');
+    const items: M3uTestChannel[] = [];
+    const lines = content.split(/\r?\n/);
+    let pending:
+        | {
+              groupTitle?: string;
+              logo?: string;
+              name: string;
+              tvgId?: string;
+              tvgName?: string;
+          }
+        | undefined;
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) {
+            continue;
+        }
+
+        if (line.startsWith('#EXTINF:')) {
+            pending = {
+                groupTitle:
+                    line.match(/group-title="([^"]*)"/)?.[1]?.trim() ?? '',
+                logo: line.match(/tvg-logo="([^"]*)"/)?.[1]?.trim() ?? '',
+                name: line.split(',').at(-1)?.trim() ?? '',
+                tvgId: line.match(/tvg-id="([^"]*)"/)?.[1]?.trim() ?? '',
+                tvgName:
+                    line.match(/tvg-name="([^"]*)"/)?.[1]?.trim() ?? '',
+            };
+            continue;
+        }
+
+        if (!pending || line.startsWith('#')) {
+            continue;
+        }
+
+        items.push({
+            ...pending,
+            url: line,
+        });
+        pending = undefined;
+    }
+
+    return items.filter((item) => item.name.length > 0);
+}
+
+export async function createMutableTextServer(
+    initialBody: string,
+    options: {
+        contentType?: string;
+        resourcePath?: string;
+    } = {}
+): Promise<MutableTextServer> {
+    const {
+        contentType = 'text/plain; charset=utf-8',
+        resourcePath = '/resource.txt',
+    } = options;
+    let body = initialBody;
+
+    const server = createServer((req, res) => {
+        const pathname = (req.url ?? '').split('?')[0];
+
+        if (pathname !== resourcePath) {
+            res.writeHead(404, {
+                'Content-Type': 'application/json; charset=utf-8',
+            });
+            res.end(JSON.stringify({ error: 'Not found' }));
+            return;
+        }
+
+        res.writeHead(200, { 'Content-Type': contentType });
+        res.end(body);
+    });
+
+    await listenOnRandomPort(server);
+    const address = server.address();
+
+    if (!address || typeof address === 'string') {
+        throw new Error('Failed to resolve the temporary HTTP server address.');
+    }
+
+    const origin = `http://127.0.0.1:${address.port}`;
+
+    return {
+        close: () => closeServer(server),
+        origin,
+        resourceUrl: `${origin}${resourcePath}`,
+        setBody(nextBody: string) {
+            body = nextBody;
+        },
+    };
+}
+
+export async function openWorkspaceSection(
+    page: Page,
+    label: string
+): Promise<void> {
+    await page.getByRole('link', { name: label, exact: true }).click();
+}
+
+export async function openPlaylistFavorites(page: Page): Promise<void> {
+    await openWorkspaceSection(page, 'Favorites');
+    await expect
+        .poll(() => new URL(page.url()).pathname)
+        .toMatch(/\/favorites$/);
+}
+
+export async function openPlaylistRecent(page: Page): Promise<void> {
+    await openWorkspaceSection(page, 'Recently viewed');
+    await expect
+        .poll(() => new URL(page.url()).pathname)
+        .toMatch(/\/recent$/);
+}
+
+export async function openGlobalFavorites(page: Page): Promise<void> {
+    await page
+        .getByRole('button', {
+            name: 'All favorites (all playlists)',
+            exact: true,
+        })
+        .click();
+    await page.waitForURL(/\/workspace\/global-favorites(?:\?.*)?$/);
+}
+
+export async function openGlobalRecent(page: Page): Promise<void> {
+    const dialog = await openCommandPalette(page);
+
+    await dialog.locator('input[type="search"]').fill('recent');
+    await dialog
+        .getByRole('button', { name: /Open recently viewed/i })
+        .click();
+    await page.waitForURL(/\/workspace\/global-recent(?:\?.*)?$/);
+}
+
+export async function switchUnifiedCollectionScope(
+    page: Page,
+    scopeLabel: 'This playlist' | 'All playlists'
+): Promise<void> {
+    const toggle = page
+        .locator('.scope-toggle')
+        .getByRole('button', { name: scopeLabel, exact: true });
+
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+}
+
+export async function switchUnifiedCollectionContent(
+    page: Page,
+    contentLabel: 'Live TV' | 'Movies' | 'Series'
+): Promise<void> {
+    const toggle = page
+        .locator('.content-toggle')
+        .getByRole('button', { name: contentLabel, exact: true });
+
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+}
+
+export function channelItemByTitle(page: Page, title: string): Locator {
+    return page.getByTestId('channel-item').filter({
+        has: page.locator('.channel-name', {
+            hasText: flexibleTextPattern(title),
+        }),
+    });
+}
+
+export function contentCardByTitle(page: Page, title: string): Locator {
+    return page.locator('app-content-card').filter({
+        has: page.locator('h3', {
+            hasText: flexibleTextPattern(title),
+        }),
+    });
+}
+
+export function gridListCardByTitle(page: Page, title: string): Locator {
+    return page.locator('.category-content-layout mat-card').filter({
+        has: page.locator('.title', {
+            hasText: flexibleTextPattern(title),
+        }),
+    });
+}
+
+export async function clickGridListCardByTitle(
+    page: Page,
+    title: string
+): Promise<void> {
+    const card = gridListCardByTitle(page, title).first();
+
+    await expect(card).toBeVisible({ timeout: 20000 });
+    await card.click();
+}
+
+export async function clickCategoryById(
+    page: Page,
+    categoryId: string
+): Promise<void> {
+    const category = page.locator(
+        `app-workspace-context-panel .category-item[data-category-id="${categoryId}"]:visible`
+    );
+
+    await expect(category.first()).toBeVisible();
+    await category.first().click();
+}
+
+export async function clickCategoryByNameExact(
+    page: Page,
+    categoryName: string
+): Promise<void> {
+    const category = page
+        .locator('app-workspace-context-panel .category-item:visible')
+        .filter({
+            has: page.locator('.nav-item-label', {
+                hasText: new RegExp(`^\\s*${escapeRegex(categoryName)}\\s*$`),
+            }),
+        })
+        .first();
+
+    await expect(category).toBeVisible();
+    await category.click();
+}
+
+export function sourceRowByTitle(page: Page, title: string): Locator {
+    return page.locator('app-playlist-item').filter({
+        hasText: flexibleTextPattern(title),
+    });
+}
+
+export async function getVisibleSourceTitles(page: Page): Promise<string[]> {
+    return page.locator('app-playlist-item').evaluateAll((elements) =>
+        elements
+            .map((element) => {
+                const titleElement = element.querySelector(
+                    '[matlistitemtitle], [matListItemTitle], .mdc-list-item__primary-text'
+                );
+                return titleElement?.textContent?.trim() ?? '';
+            })
+            .filter((title) => title.length > 0)
+    );
+}
+
+export async function selectSourceTypeFilter(
+    page: Page,
+    typeLabel: 'All' | 'M3U' | 'Xtream' | 'Stalker'
+): Promise<void> {
+    await selectSourcesFilterOption(page, typeLabel);
+}
+
+export async function selectSourceSort(
+    page: Page,
+    sortLabel:
+        | 'Date added (Newest first)'
+        | 'Date added (Oldest first)'
+        | 'Name (A-Z)'
+        | 'Name (Z-A)'
+        | 'Custom order'
+): Promise<void> {
+    await selectSourcesFilterOption(page, sortLabel);
+}
+
+export async function dragSourceBefore(
+    page: Page,
+    sourceTitle: string,
+    targetTitle: string
+): Promise<void> {
+    const source = sourceRowByTitle(page, sourceTitle).locator('.drag-icon');
+    const target = sourceRowByTitle(page, targetTitle).locator('mat-list-item');
+
+    await expect(source.first()).toBeVisible();
+    await expect(target.first()).toBeVisible();
+
+    const sourceBox = await source.first().boundingBox();
+    const targetBox = await target.first().boundingBox();
+
+    if (!sourceBox || !targetBox) {
+        throw new Error('Could not resolve source or target bounds for drag.');
+    }
+
+    await page.mouse.move(
+        sourceBox.x + sourceBox.width / 2,
+        sourceBox.y + sourceBox.height / 2
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+        targetBox.x + targetBox.width / 2,
+        targetBox.y + targetBox.height / 3,
+        {
+            steps: 15,
+        }
+    );
+    await page.mouse.up();
+}
+
+export async function openSourceEditor(
+    page: Page,
+    title: string
+): Promise<Locator> {
+    const row = sourceRowByTitle(page, title).first();
+
+    await expect(row).toBeVisible();
+    await row.locator('.edit-btn').click();
+    const dialog = page.locator('mat-dialog-container').last();
+
+    await expect(dialog).toBeVisible();
+    return dialog;
+}
+
+export async function updateSourceDialog(
+    dialog: Locator,
+    updates: Partial<
+        Record<
+            | 'macAddress'
+            | 'password'
+            | 'portalUrl'
+            | 'serverUrl'
+            | 'stalkerDeviceId1'
+            | 'stalkerDeviceId2'
+            | 'stalkerSerialNumber'
+            | 'stalkerSignature1'
+            | 'stalkerSignature2'
+            | 'title'
+            | 'url'
+            | 'userAgent'
+            | 'username',
+            string
+        > & {
+            autoRefresh: boolean;
+        }
+    >
+): Promise<void> {
+    for (const [field, value] of Object.entries(updates)) {
+        if (field === 'autoRefresh' || value == null) {
+            continue;
+        }
+
+        await setInputValue(
+            dialog.locator(`input[formcontrolname="${field}"]`),
+            value as string
+        );
+    }
+
+    if (typeof updates.autoRefresh === 'boolean') {
+        const checkbox = dialog.locator(
+            'mat-checkbox[formcontrolname="autoRefresh"] input[type="checkbox"]'
+        );
+
+        if (updates.autoRefresh) {
+            await checkbox.check();
+        } else {
+            await checkbox.uncheck();
+        }
+    }
+}
+
+export async function saveSourceDialog(
+    page: Page,
+    dialog: Locator
+): Promise<void> {
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.waitForSelector('mat-dialog-container', { state: 'detached' });
+    await expectPlaylistUpdatedToast(page);
+}
+
+export async function expectSourceDialogValues(
+    dialog: Locator,
+    expected: Partial<
+        Record<
+            | 'macAddress'
+            | 'password'
+            | 'portalUrl'
+            | 'serverUrl'
+            | 'stalkerDeviceId1'
+            | 'stalkerDeviceId2'
+            | 'stalkerSerialNumber'
+            | 'stalkerSignature1'
+            | 'stalkerSignature2'
+            | 'title'
+            | 'url'
+            | 'userAgent'
+            | 'username',
+            string
+        > & {
+            autoRefresh: boolean;
+        }
+    >
+): Promise<void> {
+    for (const [field, value] of Object.entries(expected)) {
+        if (field === 'autoRefresh' || value == null) {
+            continue;
+        }
+
+        await expect(
+            dialog.locator(`input[formcontrolname="${field}"]`)
+        ).toHaveValue(value as string);
+    }
+
+    if (typeof expected.autoRefresh === 'boolean') {
+        const checkbox = dialog.locator(
+            'mat-checkbox[formcontrolname="autoRefresh"] input[type="checkbox"]'
+        );
+
+        if (expected.autoRefresh) {
+            await expect(checkbox).toBeChecked();
+        } else {
+            await expect(checkbox).not.toBeChecked();
+        }
+    }
+}
+
+export async function deleteSource(
+    page: Page,
+    title: string
+): Promise<void> {
+    const row = sourceRowByTitle(page, title).first();
+
+    await expect(row).toBeVisible();
+    await row.locator('.delete-btn').click();
+    await confirmDialog(page);
+}
+
+export async function refreshSource(
+    page: Page,
+    title: string,
+    options: {
+        confirm?: boolean;
+    } = {}
+): Promise<void> {
+    const { confirm = false } = options;
+    const row = sourceRowByTitle(page, title).first();
+
+    await expect(row).toBeVisible();
+    await row.locator('.refresh-btn').click();
+
+    if (confirm) {
+        await confirmDialog(page);
+    }
+}
+
+export async function waitForSourceRowIdle(
+    page: Page,
+    title: string
+): Promise<void> {
+    const row = sourceRowByTitle(page, title).first();
+
+    await expect(row).toBeVisible();
+    await expect(row.locator('.busy-state__message')).toHaveCount(0, {
+        timeout: 60000,
+    });
+    await expect(row.locator('.action-spinner')).toHaveCount(0, {
+        timeout: 60000,
+    });
 }
 
 export async function waitForM3uCatalog(page: Page): Promise<void> {
@@ -347,6 +886,20 @@ export async function waitForXtreamCatalog(page: Page): Promise<void> {
         await categories.first().click();
         await expect(contentItems.first()).toBeVisible({ timeout: 20000 });
     }
+}
+
+export async function waitForXtreamWorkspaceReady(page: Page): Promise<void> {
+    await waitForXtreamCatalog(page);
+}
+
+export async function expectPlaylistUpdatedToast(page: Page): Promise<void> {
+    await expect(
+        page.locator('.mat-mdc-snack-bar-label').filter({
+            hasText: 'Success! The playlist was successfully updated.',
+        }).last()
+    ).toBeVisible({
+        timeout: 20000,
+    });
 }
 
 async function waitForXtreamCategoryCounts(page: Page): Promise<void> {
@@ -669,4 +1222,77 @@ export async function resetMockServers(
         const response = await request.post(`${server}/reset`);
         expect(response.ok()).toBeTruthy();
     }
+}
+
+async function openCommandPalette(page: Page): Promise<Locator> {
+    await page.locator('app-workspace-shell-header .command-trigger').click();
+    const dialog = page.locator(
+        'mat-dialog-container app-workspace-command-palette'
+    );
+
+    await expect(dialog).toBeVisible();
+    return dialog;
+}
+
+async function confirmDialog(page: Page, buttonLabel = 'Yes'): Promise<void> {
+    const dialog = page.locator('mat-dialog-container');
+
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: buttonLabel, exact: true }).click();
+    await page.waitForSelector('mat-dialog-container', { state: 'detached' });
+}
+
+async function selectSourcesFilterOption(
+    page: Page,
+    label: string
+): Promise<void> {
+    const option = page
+        .locator('app-workspace-sources-filters-panel .option-row')
+        .filter({
+            has: page.locator('.option-label', {
+                hasText: flexibleTextPattern(label),
+            }),
+        })
+        .first();
+
+    await expect(option).toBeVisible();
+    await option.click();
+}
+
+async function listenOnRandomPort(server: Server): Promise<void> {
+    await new Promise<void>((resolvePromise, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', () => {
+            server.off('error', reject);
+            resolvePromise();
+        });
+    });
+}
+
+async function closeServer(server: Server): Promise<void> {
+    await new Promise<void>((resolvePromise, reject) => {
+        server.close((error) => {
+            if (error) {
+                reject(error);
+                return;
+            }
+
+            resolvePromise();
+        });
+    });
+}
+
+function escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function flexibleTextPattern(value: string): RegExp {
+    return new RegExp(
+        value
+            .trim()
+            .split(/\s+/)
+            .map((part) => escapeRegex(part))
+            .join('\\s+'),
+        'i'
+    );
 }

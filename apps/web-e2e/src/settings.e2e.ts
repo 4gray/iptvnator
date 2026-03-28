@@ -8,6 +8,13 @@ async function openSettings(page: Page) {
     await expect(page.locator('.settings-back-button')).toBeVisible();
 }
 
+async function saveSettings(page: Page) {
+    const saveButton = page.locator('[data-test-id="save-settings"]');
+
+    await saveButton.click();
+    await expect(saveButton).toBeDisabled();
+}
+
 test.describe('Settings', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
@@ -32,16 +39,21 @@ test.describe('Settings', () => {
     test('Change video player', async ({ page }) => {
         await openSettings(page);
 
-        await expect(page.getByText('Video.js player')).toBeVisible();
-        await page.getByRole('combobox').nth(1).click();
-        await page.getByRole('option', { name: 'HTML5 video player' }).click();
+        const playerSelect = page.locator('[data-test-id="select-video-player"]');
 
-        await page.locator('button[type="submit"]').click();
-        await page.locator('.settings-back-button').click();
+        await expect(playerSelect).toContainText(
+            /Video\.js/i
+        );
+        await playerSelect.click();
+        await page.locator('mat-option[data-test-id="html5"]').click();
 
+        await saveSettings(page);
+        await page.reload();
         await openSettings(page);
 
-        await expect(page.getByText('HTML5 video player')).toBeVisible();
+        await expect(playerSelect).toContainText(
+            /HTML5/i
+        );
     });
 
     test('Change app theme', async ({ page }) => {
@@ -51,9 +63,8 @@ test.describe('Settings', () => {
         ).toHaveAttribute('aria-checked', 'true');
         await page.getByRole('radio', { name: 'Dark theme' }).click();
 
-        await page.locator('button[type="submit"]').click();
-        await page.locator('.settings-back-button').click();
-
+        await saveSettings(page);
+        await page.reload();
         await openSettings(page);
 
         await expect(
@@ -63,15 +74,21 @@ test.describe('Settings', () => {
 
     test('Change app language', async ({ page }) => {
         await openSettings(page);
-        await expect(page.getByText('English')).toBeVisible();
-        await page.getByRole('combobox').first().click();
-        await page.getByRole('option', { name: 'Deutsch' }).click();
+        const languageSelect = page.locator('[data-test-id="select-language"]');
 
-        await page.locator('button[type="submit"]').click();
-        await page.locator('.settings-back-button').click();
+        await expect(languageSelect).toContainText(
+            'English'
+        );
+        await languageSelect.click();
+        await page.locator('mat-option[data-test-id="de"]').click();
+
+        await saveSettings(page);
+        await page.reload();
         await openSettings(page);
 
-        await expect(page.getByText('Deutsch')).toBeVisible();
+        await expect(languageSelect).toContainText(
+            'Deutsch'
+        );
     });
 
     test.afterEach(async ({ page }, testInfo) => {
