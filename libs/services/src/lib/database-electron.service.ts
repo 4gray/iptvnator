@@ -82,19 +82,148 @@ export interface GlobalFavoriteItem extends XtreamContent {
     added_at: string;
 }
 
+export interface DbOperationEvent {
+    operationId?: string;
+    operation: string;
+    playlistId?: string;
+    status: 'started' | 'progress' | 'completed' | 'cancelled' | 'error';
+    phase?: string;
+    current?: number;
+    total?: number;
+    increment?: number;
+    error?: string;
+}
+
+export interface DbOperationOptions {
+    operationId?: string;
+    onEvent?: (event: DbOperationEvent) => void;
+}
+
+export function isDbAbortError(error: unknown): boolean {
+    return error instanceof Error && error.name === 'AbortError';
+}
+
+export type GlobalRecentlyAddedKind = 'all' | 'vod' | 'series';
+
+export interface GlobalRecentlyAddedItem extends XtreamContent {
+    playlist_id: string;
+    playlist_name: string;
+    added_at: string;
+}
+
 @Injectable({
     providedIn: 'root',
 })
 export class DatabaseService {
+    createOperationId(prefix = 'db-op'): string {
+        return (
+            globalThis.crypto?.randomUUID?.() ??
+            `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+        );
+    }
+
+    supportsDbOperationEvents(): boolean {
+        return typeof window.electron.onDbOperationEvent === 'function';
+    }
+
+    supportsDbOperationCancellation(): boolean {
+        return typeof window.electron.dbCancelOperation === 'function';
+    }
+
+    async cancelOperation(operationId: string): Promise<boolean> {
+        if (!operationId || !this.supportsDbOperationCancellation()) {
+            return false;
+        }
+
+        try {
+            const result = await window.electron.dbCancelOperation(operationId);
+            return result.success;
+        } catch (error) {
+            console.error('Error cancelling DB operation:', error);
+            return false;
+        }
+    }
+
+    private subscribeToOperation(
+        operationId: string,
+        operation: string,
+        onEvent?: (event: DbOperationEvent) => void,
+        onProgress?: (count: number) => void
+    ): (() => void) | undefined {
+        if (!onEvent && !onProgress) {
+            return undefined;
+        }
+
+        if (window.electron.onDbOperationEvent) {
+            return window.electron.onDbOperationEvent(
+                (event: DbOperationEvent) => {
+                    if (
+                        event.operationId !== operationId ||
+                        event.operation !== operation
+                    ) {
+                        return;
+                    }
+
+                    onEvent?.(event);
+
+                    if (event.status === 'progress') {
+                        onProgress?.(event.increment ?? event.current ?? 0);
+                    }
+                }
+            );
+        }
+
+        if (onProgress && operation === 'save-content') {
+            window.electron.onDbSaveContentProgress(onProgress);
+            return () => window.electron.removeDbSaveContentProgress();
+        }
+
+        return undefined;
+    }
+
+    private async runWithOperationEvents<TResult>(
+        prefix: string,
+        operation: string,
+        execute: (operationId: string) => Promise<TResult>,
+        options?: DbOperationOptions,
+        onProgress?: (count: number) => void
+    ): Promise<TResult> {
+        const operationId =
+            options?.operationId ?? this.createOperationId(prefix);
+        const unsubscribe = this.subscribeToOperation(
+            operationId,
+            operation,
+            options?.onEvent,
+            onProgress
+        );
+
+        try {
+            return await execute(operationId);
+        } finally {
+            unsubscribe?.();
+        }
+    }
+
     /**
      * Delete a playlist and all its related data
      */
-    async deletePlaylist(playlistId: string): Promise<boolean> {
+    async deletePlaylist(
+        playlistId: string,
+        options?: DbOperationOptions
+    ): Promise<boolean> {
         try {
-            await window.electron.dbDeletePlaylist(playlistId);
+            await this.runWithOperationEvents(
+                'db-delete-playlist',
+                'delete-playlist',
+                (operationId) =>
+                    window.electron.dbDeletePlaylist(playlistId, operationId),
+                options
+            );
             return true;
         } catch (error) {
-            console.error('Error deleting playlist:', error);
+            if (!isDbAbortError(error)) {
+                console.error('Error deleting playlist:', error);
+            }
             return false;
         }
     }
@@ -104,13 +233,22 @@ export class DatabaseService {
      * Keeps the playlist entry but removes all imported data
      * Returns saved favorites, recently viewed xtreamIds, and hidden categories for restoration
      */
-    async deleteXtreamPlaylistContent(playlistId: string): Promise<{
+    async deleteXtreamPlaylistContent(
+        playlistId: string,
+        options?: DbOperationOptions
+    ): Promise<{
         success: boolean;
         favoritedXtreamIds: number[];
         recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[];
         hiddenCategories: { xtreamId: number; type: string }[];
     }> {
-        return await window.electron.dbDeleteXtreamContent(playlistId);
+        return this.runWithOperationEvents(
+            'db-delete-xtream-content',
+            'delete-xtream-content',
+            (operationId) =>
+                window.electron.dbDeleteXtreamContent(playlistId, operationId),
+            options
+        );
     }
 
     /**
@@ -119,13 +257,39 @@ export class DatabaseService {
     async restoreXtreamUserData(
         playlistId: string,
         favoritedXtreamIds: number[],
-        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[]
+        recentlyViewedXtreamIds: { xtreamId: number; viewedAt: string }[],
+        options?: DbOperationOptions
     ): Promise<void> {
-        await window.electron.dbRestoreXtreamUserData(
-            playlistId,
-            favoritedXtreamIds,
-            recentlyViewedXtreamIds
+        await this.runWithOperationEvents(
+            'db-restore-xtream-user-data',
+            'restore-xtream-user-data',
+            (operationId) =>
+                window.electron.dbRestoreXtreamUserData(
+                    playlistId,
+                    favoritedXtreamIds,
+                    recentlyViewedXtreamIds,
+                    operationId
+                ),
+            options
         );
+    }
+
+    async deleteAllPlaylists(options?: DbOperationOptions): Promise<boolean> {
+        try {
+            await this.runWithOperationEvents(
+                'db-delete-all-playlists',
+                'delete-all-playlists',
+                (operationId) =>
+                    window.electron.dbDeleteAllPlaylists(operationId),
+                options
+            );
+            return true;
+        } catch (error) {
+            if (!isDbAbortError(error)) {
+                console.error('Error deleting all playlists:', error);
+            }
+            return false;
+        }
     }
 
     /**
@@ -269,25 +433,29 @@ export class DatabaseService {
         playlistId: string,
         streams: XtreamContentStream[],
         type: 'live' | 'movie' | 'series',
-        onProgress?: (count: number) => void
+        onProgress?: (count: number) => void,
+        options?: DbOperationOptions
     ): Promise<number> {
-        // Setup progress listener if callback provided
-        if (onProgress) {
-            window.electron.onDbSaveContentProgress(onProgress);
-        }
-
         try {
-            const result = await window.electron.dbSaveContent(
-                playlistId,
-                streams,
-                type
+            const result = await this.runWithOperationEvents(
+                'db-save-content',
+                'save-content',
+                (operationId) =>
+                    window.electron.dbSaveContent(
+                        playlistId,
+                        streams,
+                        type,
+                        operationId
+                    ),
+                options,
+                onProgress
             );
             return result.count;
-        } finally {
-            // Clean up the listener
-            if (onProgress) {
-                window.electron.removeDbSaveContentProgress();
+        } catch (error) {
+            if (!isDbAbortError(error)) {
+                console.error('Error saving Xtream content:', error);
             }
+            throw error;
         }
     }
 
@@ -317,6 +485,25 @@ export class DatabaseService {
         excludeHidden?: boolean
     ): Promise<GlobalSearchResult[]> {
         return await window.electron.dbGlobalSearch(searchTerm, types, excludeHidden);
+    }
+
+    /**
+     * Get recently added VOD and series items across all Xtream playlists.
+     */
+    async getGlobalRecentlyAdded(
+        kind: GlobalRecentlyAddedKind,
+        limit = 200
+    ): Promise<GlobalRecentlyAddedItem[]> {
+        try {
+            const items = await window.electron.dbGetGlobalRecentlyAdded(
+                kind,
+                limit
+            );
+            return items || [];
+        } catch (error) {
+            console.error('Error getting global recently added items:', error);
+            return [];
+        }
     }
 
     /**

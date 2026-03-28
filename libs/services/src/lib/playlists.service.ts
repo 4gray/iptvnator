@@ -453,6 +453,27 @@ export class PlaylistsService {
         );
     }
 
+    setPortalFavorites(portalId: string, favorites: StalkerPortalItem[]) {
+        if (!portalId) {
+            throw new Error('Portal ID is required');
+        }
+
+        return this.getPlaylistById(portalId).pipe(
+            switchMap((portal) => {
+                const nextPlaylist: Playlist = {
+                    ...portal,
+                    favorites,
+                };
+
+                if (this.isElectronStorageAvailable) {
+                    return this.upsertSqlitePlaylist(nextPlaylist);
+                }
+
+                return this.dbService.update(DbStores.Playlists, nextPlaylist);
+            })
+        );
+    }
+
     removeFromPortalFavorites(portalId: string, favoriteId: number | string) {
         if (!portalId) {
             throw new Error('Portal ID is required');
