@@ -30,3 +30,8 @@ export interface PortalRecentItem extends PortalActivityItem {
 export interface PortalFavoriteItem extends PortalActivityItem {
     added_at: string;
 }
+
+/** A recently-added catalog item with an `added_at` timestamp. */
+export interface PortalAddedItem extends PortalActivityItem {
+    added_at: string;
+}
