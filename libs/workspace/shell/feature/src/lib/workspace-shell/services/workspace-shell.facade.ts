@@ -11,15 +11,12 @@ import { MatDialog } from '@angular/material/dialog';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import {
-    filter,
-    firstValueFrom,
-    startWith,
-} from 'rxjs';
+import { filter, firstValueFrom, startWith } from 'rxjs';
 import {
     PlaylistInfoComponent,
     PlaylistType,
 } from '@iptvnator/playlist/shared/ui';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     buildPortalRailLinks,
     PORTAL_EXTERNAL_PLAYBACK,
@@ -36,16 +33,8 @@ import {
     WorkspaceShellPageKind,
     WorkspaceSearchCapability,
 } from '@iptvnator/workspace/shell/util';
-import {
-    PlaylistsService,
-    SettingsStore,
-} from 'services';
-import {
-    PlaylistActions,
-    selectActivePlaylist,
-    selectAllPlaylistsMeta,
-    selectPlaylistTitle,
-} from 'm3u-state';
+import { PlaylistsService, SettingsStore } from 'services';
+import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
 import { PlaylistMeta } from 'shared-interfaces';
 import {
     WorkspaceAccountInfoData,
@@ -84,14 +73,10 @@ interface WorkspaceCommandDefinition {
 const SEARCH_INPUT_DEBOUNCE_MS = 350;
 const SEARCH_PLAYLIST_PLACEHOLDER =
     'WORKSPACE.SHELL.SEARCH_PLAYLIST_PLACEHOLDER';
-const SEARCH_SECTION_PLACEHOLDER =
-    'WORKSPACE.SHELL.SEARCH_SECTION_PLACEHOLDER';
-const FILTER_SECTION_PLACEHOLDER =
-    'WORKSPACE.SHELL.FILTER_SECTION_PLACEHOLDER';
-const SEARCH_SOURCES_PLACEHOLDER =
-    'WORKSPACE.SHELL.SEARCH_SOURCES_PLACEHOLDER';
-const SEARCH_LOADED_ONLY_STATUS =
-    'WORKSPACE.SHELL.SEARCH_STATUS_LOADED_ONLY';
+const SEARCH_SECTION_PLACEHOLDER = 'WORKSPACE.SHELL.SEARCH_SECTION_PLACEHOLDER';
+const FILTER_SECTION_PLACEHOLDER = 'WORKSPACE.SHELL.FILTER_SECTION_PLACEHOLDER';
+const SEARCH_SOURCES_PLACEHOLDER = 'WORKSPACE.SHELL.SEARCH_SOURCES_PLACEHOLDER';
+const SEARCH_LOADED_ONLY_STATUS = 'WORKSPACE.SHELL.SEARCH_STATUS_LOADED_ONLY';
 const CLEAR_RECENTLY_VIEWED_TOOLTIP =
     'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION';
 const CLEAR_RECENTLY_VIEWED_ARIA =
@@ -128,9 +113,9 @@ const WORKSPACE_COMMAND_DEFINITIONS: readonly WorkspaceCommandDefinition[] = [
         isEnabled: (state) =>
             Boolean(
                 state.dashboardXtreamContext ||
-                    (state.context &&
-                        (state.context.provider === 'xtreams' ||
-                            state.context.provider === 'stalker'))
+                (state.context &&
+                    (state.context.provider === 'xtreams' ||
+                        state.context.provider === 'stalker'))
             ),
     },
     {
@@ -171,6 +156,7 @@ export class WorkspaceShellFacade {
     private readonly workspaceActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly translate = inject(TranslateService);
     private readonly dialog = inject(MatDialog);
+    private readonly playlistContext = inject(PlaylistContextFacade);
     readonly headerContext = inject(WorkspaceHeaderContextService);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -190,9 +176,18 @@ export class WorkspaceShellFacade {
         }
     };
 
-    readonly playlistTitle = this.store.selectSignal(selectPlaylistTitle);
-    private readonly activePlaylist =
-        this.store.selectSignal(selectActivePlaylist);
+    readonly playlistTitle = computed(() => {
+        const playlist = this.playlistContext.activePlaylist();
+
+        return (
+            playlist?.title ||
+            playlist?.filename ||
+            playlist?.url ||
+            playlist?.portalUrl ||
+            'Untitled playlist'
+        );
+    });
+    private readonly activePlaylist = this.playlistContext.activePlaylist;
     private readonly playlists = this.store.selectSignal(
         selectAllPlaylistsMeta
     );
@@ -227,7 +222,9 @@ export class WorkspaceShellFacade {
     readonly isDashboardRoute = computed(
         () => this.currentRoute().kind === 'dashboard'
     );
-    readonly isSourcesRoute = computed(() => this.currentRoute().kind === 'sources');
+    readonly isSourcesRoute = computed(
+        () => this.currentRoute().kind === 'sources'
+    );
     readonly isSettingsRoute = computed(
         () => this.currentRoute().kind === 'settings'
     );
@@ -621,9 +618,7 @@ export class WorkspaceShellFacade {
             if (
                 context?.provider !== 'stalker' ||
                 !section ||
-                (section !== 'vod' &&
-                    section !== 'series' &&
-                    section !== 'itv')
+                (section !== 'vod' && section !== 'series' && section !== 'itv')
             ) {
                 return;
             }
@@ -656,7 +651,8 @@ export class WorkspaceShellFacade {
         this.searchQuery.set(trimmedValue);
 
         if (this.searchCapability().behavior === 'advanced-only') {
-            const advancedRouteTarget = this.searchCapability().advancedRouteTarget;
+            const advancedRouteTarget =
+                this.searchCapability().advancedRouteTarget;
             if (!advancedRouteTarget) {
                 this.applySearchQuery(trimmedValue);
                 return;
@@ -738,9 +734,7 @@ export class WorkspaceShellFacade {
 
         if (context.provider === 'playlists') {
             const updatedPlaylist = await firstValueFrom(
-                this.playlistsService.clearM3uRecentlyViewed(
-                    context.playlistId
-                )
+                this.playlistsService.clearM3uRecentlyViewed(context.playlistId)
             );
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
@@ -761,7 +755,12 @@ export class WorkspaceShellFacade {
             (context.provider === 'xtreams' || context.provider === 'stalker')
         ) {
             void this.router.navigate(
-                ['/workspace', context.provider, context.playlistId, 'favorites'],
+                [
+                    '/workspace',
+                    context.provider,
+                    context.playlistId,
+                    'favorites',
+                ],
                 { queryParams: { scope: 'all' } }
             );
             return;

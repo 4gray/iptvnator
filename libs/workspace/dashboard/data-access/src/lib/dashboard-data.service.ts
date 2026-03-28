@@ -4,7 +4,6 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
     PlaylistActions,
-    selectActivePlaylist,
     selectAllPlaylistsMeta,
 } from 'm3u-state';
 import { firstValueFrom, startWith } from 'rxjs';
@@ -68,7 +67,6 @@ export class DashboardDataService {
     );
     private readonly m3uGlobalFavorites = signal<DashboardFavoriteItem[]>([]);
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
-    readonly activePlaylist = this.store.selectSignal(selectActivePlaylist);
 
     readonly playlistBackedGlobalRecentItems = computed<GlobalRecentItem[]>(
         () => {
