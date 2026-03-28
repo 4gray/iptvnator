@@ -92,6 +92,10 @@ export const content = sqliteTable(
         categoryIdx: index('idx_content_category').on(table.categoryId),
         titleIdx: index('idx_content_title').on(table.title),
         xtreamIdx: index('idx_content_xtream').on(table.xtreamId),
+        typeAddedIdx: index('idx_content_type_added').on(
+            table.type,
+            table.added
+        ),
     })
 );
 

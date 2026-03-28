@@ -104,6 +104,7 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS idx_categories_playlist ON categories(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS idx_content_title ON content(title)`,
     `CREATE INDEX IF NOT EXISTS idx_content_xtream ON content(xtream_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_content_type_added ON content(type, added)`,
     `CREATE INDEX IF NOT EXISTS idx_categories_type ON categories(type)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS favorites_content_playlist_unique ON favorites(content_id, playlist_id)`,
     `CREATE INDEX IF NOT EXISTS favorites_playlist_idx ON favorites(playlist_id)`,
@@ -300,6 +301,11 @@ export async function initDatabase(
 
         // Enable foreign keys
         sqlite.pragma('foreign_keys = ON');
+        sqlite.pragma('busy_timeout = 5000');
+
+        if (!readonly) {
+            sqlite.pragma('journal_mode = WAL');
+        }
 
         // Create tables only for read-write connections
         if (!readonly && !skipTableCreation) {
