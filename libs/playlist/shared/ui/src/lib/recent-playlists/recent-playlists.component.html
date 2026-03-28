@@ -1,73 +1,44 @@
-@if (allPlaylistsLoaded()) {
-    @defer {
-        @if (playlistsData$ | async; as data) {
-            @if (data.playlists.length === 0) {
-                @if (data.totalCount === 0) {
-                    <!-- Welcome state: no playlists at all -->
-                    <app-empty-state
-                        [type]="'welcome'"
-                        (addPlaylistClicked)="onAddPlaylist($event)"
-                    />
-                } @else {
-                    <!-- No results state: search/filter returned nothing -->
-                    <app-empty-state [type]="'no-results'" />
-                }
-            } @else {
-                <mat-nav-list
-                    class="playlists-list"
-                    cdkDropList
-                    [cdkDropListDisabled]="!isCustomSortActive()"
-                    (cdkDropListDropped)="drop($event, data.playlists)"
-                >
-                    @for (
-                        item of data.playlists;
-                        track item._id;
-                        let last = $last
-                    ) {
-                        <app-playlist-item
-                            [item]="item"
-                            [isSelected]="activePlaylistId() === item._id"
-                            [showActions]="!sidebarMode()"
-                            [isDraggable]="isCustomSortActive()"
-                            [isRefreshing]="isRefreshPending(item._id)"
-                            [isDeleting]="isDeletePending(item._id)"
-                            [busyMessage]="getBusyMessage(item)"
-                            [busyProgress]="getBusyProgress(item._id)"
-                            [canCancelBusyAction]="
-                                canCancelBusyOperation(item)
-                            "
-                            (editPlaylistClicked)="openInfoDialog($event)"
-                            (playlistClicked)="getPlaylist(item)"
-                            (refreshClicked)="refreshPlaylist($event)"
-                            (removeClicked)="removeClicked(item)"
-                            (cancelBusyActionClicked)="
-                                cancelBusyOperation(item)
-                            "
-                        />
-                    }
-                </mat-nav-list>
-            }
+@if (playlistsData(); as data) {
+    @if (data.playlists.length === 0) {
+        @if (data.totalCount === 0) {
+            <!-- Welcome state: no playlists at all -->
+            <app-empty-state
+                [type]="'welcome'"
+                (addPlaylistClicked)="onAddPlaylist($event)"
+            />
+        } @else {
+            <!-- No results state: search/filter returned nothing -->
+            <app-empty-state [type]="'no-results'" />
         }
-    } @placeholder {
-        <div id="skeleton-container">
-            @for (a of ghostElements; track $index) {
-                <div class="skeleton-item">
-                    <ngx-skeleton-loader count="1" appearance="circle" />
-                    <div class="text">
-                        <ngx-skeleton-loader
-                            count="1"
-                            [theme]="{ width: '30%', height: '20px' }"
-                        />
-                        <ngx-skeleton-loader
-                            count="1"
-                            [theme]="{ width: '50%', height: '10px' }"
-                        />
-                    </div>
-                    <div class="actions">
-                        <ngx-skeleton-loader count="2" appearance="circle" />
-                    </div>
-                </div>
+    } @else {
+        <mat-nav-list
+            class="playlists-list"
+            cdkDropList
+            [cdkDropListDisabled]="!isCustomSortActive()"
+            (cdkDropListDropped)="drop($event, data.playlists)"
+        >
+            @for (
+                item of data.playlists;
+                track item._id;
+                let last = $last
+            ) {
+                <app-playlist-item
+                    [item]="item"
+                    [isSelected]="activePlaylistId() === item._id"
+                    [showActions]="!sidebarMode()"
+                    [isDraggable]="isCustomSortActive()"
+                    [isRefreshing]="isRefreshPending(item._id)"
+                    [isDeleting]="isDeletePending(item._id)"
+                    [busyMessage]="getBusyMessage(item)"
+                    [busyProgress]="getBusyProgress(item._id)"
+                    [canCancelBusyAction]="canCancelBusyOperation(item)"
+                    (editPlaylistClicked)="openInfoDialog($event)"
+                    (playlistClicked)="getPlaylist(item)"
+                    (refreshClicked)="refreshPlaylist($event)"
+                    (removeClicked)="removeClicked(item)"
+                    (cancelBusyActionClicked)="cancelBusyOperation(item)"
+                />
             }
-        </div>
+        </mat-nav-list>
     }
 }
