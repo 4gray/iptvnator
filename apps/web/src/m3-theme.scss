@@ -6,8 +6,11 @@
 @include mat.app-background();
 
 // ─── Typography ─────────────────────────────────────────────────────────────
+$app-font-stack:
+    "'DM Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+
 $my-typography: mat.m2-define-typography-config(
-    $font-family: "'DM Sans', 'Inter', sans-serif",
+    $font-family: $app-font-stack,
 );
 @include mat.typography-hierarchy($my-typography);
 
@@ -20,8 +23,8 @@ $light-theme: mat.define-theme(
             tertiary: mat.$cyan-palette,
         ),
         typography: (
-            plain-family: "'DM Sans', 'Inter', sans-serif",
-            brand-family: "'DM Sans', 'Inter', sans-serif",
+            plain-family: $app-font-stack,
+            brand-family: $app-font-stack,
         ),
     )
 );
@@ -34,8 +37,8 @@ $dark-theme: mat.define-theme(
             tertiary: mat.$cyan-palette,
         ),
         typography: (
-            plain-family: "'DM Sans', 'Inter', sans-serif",
-            brand-family: "'DM Sans', 'Inter', sans-serif",
+            plain-family: $app-font-stack,
+            brand-family: $app-font-stack,
         ),
     )
 );

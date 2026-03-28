@@ -9,9 +9,20 @@
 
 // ─── Third-party ─────────────────────────────────────────────────────────────
 @import '@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
+@import 'material-design-icons-iconfont/dist/material-design-icons.css';
 
-// ─── Google Fonts ─────────────────────────────────────────────────────────────
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+// ─── Bundled Fonts ────────────────────────────────────────────────────────────
+@import '@fontsource/dm-sans/400.css';
+@import '@fontsource/dm-sans/500.css';
+@import '@fontsource/dm-sans/600.css';
+@import '@fontsource/roboto/300.css';
+@import '@fontsource/roboto/400.css';
+@import '@fontsource/roboto/500.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/crimson-pro/400.css';
+@import '@fontsource/crimson-pro/600.css';
+@import '@fontsource/crimson-pro/700.css';
 
 // ─── Shared Components ────────────────────────────────────────────────────────
 
@@ -31,9 +42,13 @@ html {
     padding: 0;
     height: 100%;
     font-family:
-        'Inter',
+        'DM Sans',
         'Roboto',
+        -apple-system,
+        BlinkMacSystemFont,
+        'Segoe UI',
         'Helvetica Neue',
+        Arial,
         sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
