@@ -41,6 +41,28 @@ export const routes: Routes = [
                 redirectTo: 'playlists/:id/all',
             },
             {
+                path: 'playlists/:id/favorites',
+                loadComponent: () =>
+                    import('@iptvnator/playlist/m3u/feature-player').then(
+                        (c) => c.M3uCollectionRouteComponent
+                    ),
+                data: {
+                    mode: 'favorites',
+                    portalType: 'm3u',
+                },
+            },
+            {
+                path: 'playlists/:id/recent',
+                loadComponent: () =>
+                    import('@iptvnator/playlist/m3u/feature-player').then(
+                        (c) => c.M3uCollectionRouteComponent
+                    ),
+                data: {
+                    mode: 'recent',
+                    portalType: 'm3u',
+                },
+            },
+            {
                 path: 'playlists/:id/:view',
                 loadComponent: () =>
                     import('@iptvnator/playlist/m3u/feature-player').then(
@@ -51,6 +73,17 @@ export const routes: Routes = [
                 path: 'global-favorites',
                 data: {
                     mode: 'favorites',
+                    defaultScope: 'all',
+                },
+                loadComponent: () =>
+                    import('@iptvnator/portal/shared/ui').then(
+                        (c) => c.UnifiedCollectionPageComponent
+                    ),
+            },
+            {
+                path: 'global-recent',
+                data: {
+                    mode: 'recent',
                     defaultScope: 'all',
                 },
                 loadComponent: () =>

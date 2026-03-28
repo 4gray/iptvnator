@@ -6,7 +6,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
-import { EpgProgressPanelComponent } from '@iptvnator/ui/epg';
+import { EpgProgressPanelComponent } from '@iptvnator/ui/epg/progress-panel';
 import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
 import { filter, take } from 'rxjs';
 import { DataService } from 'services';

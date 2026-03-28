@@ -16,32 +16,35 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { Store } from '@ngrx/store';
 import { provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     MockModule,
     MockProvider,
-    MockProviders,
 } from 'ng-mocks';
 import { DialogService } from 'components';
 import { DataService, PlaylistsService } from 'services';
-import { Language, StreamFormat, Theme, VideoPlayer } from 'shared-interfaces';
+import {
+    Language,
+    StreamFormat,
+    Theme,
+    VideoPlayer,
+} from 'shared-interfaces';
 import { SettingsComponent } from './settings.component';
 
 import { signal } from '@angular/core';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { of } from 'rxjs';
-import { SETTINGS_UPDATE } from 'shared-interfaces';
+import { from, of, Subject } from 'rxjs';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
+import { PlaylistActions } from 'm3u-state';
 
 class MatSnackBarStub {
-    open() {
-        return undefined;
-    }
+    open = jest.fn();
 }
 
 export class MockRouter {
@@ -58,15 +61,17 @@ const DEFAULT_SETTINGS = {
     showExternalPlaybackBar: true,
     theme: Theme.SystemTheme,
     mpvPlayerPath: '',
+    mpvReuseInstance: false,
     vlcPlayerPath: '',
     remoteControl: false,
-    remoteControlPort: 3000,
+    remoteControlPort: 8765,
+    epgUrl: [],
 };
 
 class MockSettingsStore {
     private _settings = signal(DEFAULT_SETTINGS);
 
-    getSettings = () => this._settings;
+    getSettings = () => this._settings();
 
     loadSettings = jest.fn().mockResolvedValue(undefined);
 
@@ -82,8 +87,18 @@ class MockSettingsStore {
 }
 
 class MockSettingsService {
-    getAppVersion = jest.fn().mockReturnValue(of('1.0.0'));
+    getAppVersion = jest
+        .fn()
+        .mockReturnValue(from(Promise.resolve('1.0.0')));
     changeTheme = jest.fn();
+    isVersionOutdated = jest
+        .fn()
+        .mockImplementation((currentVersion: string, latestVersion: string) =>
+            currentVersion.localeCompare(latestVersion, undefined, {
+                numeric: true,
+                sensitivity: 'base',
+            }) < 0
+        );
 }
 
 describe('SettingsComponent', () => {
@@ -91,17 +106,26 @@ describe('SettingsComponent', () => {
     let fixture: ComponentFixture<SettingsComponent>;
     let electronService: DataService;
     let router: Router;
-    let settingsStore: MockSettingsStore;
+    let settingsStore: unknown;
     let translate: TranslateService;
     let epgService: EpgService;
+    let dialogService: DialogService;
+    let playlistsService: PlaylistsService;
+    let store: Store;
+    let snackBar: MatSnackBarStub;
+    const originalElectron = window.electron;
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
             providers: [
                 UntypedFormBuilder,
                 { provide: SettingsStore, useClass: MockSettingsStore },
-                MockProvider(EpgService),
-                MockProvider(DialogService),
+                MockProvider(EpgService, {
+                    fetchEpg: jest.fn(),
+                }),
+                MockProvider(DialogService, {
+                    openConfirmDialog: jest.fn(),
+                }),
                 { provide: SettingsService, useClass: MockSettingsService },
                 { provide: MatSnackBar, useClass: MatSnackBarStub },
                 { provide: DataService, useClass: ElectronServiceStub },
@@ -110,7 +134,14 @@ describe('SettingsComponent', () => {
                     useClass: MockRouter,
                 },
                 provideMockStore(),
-                MockProviders(NgxIndexedDBService, PlaylistsService),
+                {
+                    provide: NgxIndexedDBService,
+                    useValue: {},
+                },
+                MockProvider(PlaylistsService, {
+                    getAllData: jest.fn().mockReturnValue(of([])),
+                    removeAll: jest.fn(),
+                }),
             ],
             imports: [
                 SettingsComponent,
@@ -132,16 +163,37 @@ describe('SettingsComponent', () => {
     }));
 
     beforeEach(() => {
+        window.electron = {
+            checkEpgFreshness: jest.fn().mockResolvedValue({
+                freshUrls: [],
+                staleUrls: [],
+            }),
+            clearEpgData: jest.fn().mockResolvedValue({ success: true }),
+            getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
+            getLocalIpAddresses: jest.fn().mockResolvedValue([]),
+            platform: 'linux',
+            setMpvPlayerPath: jest.fn().mockResolvedValue(undefined),
+            setVlcPlayerPath: jest.fn().mockResolvedValue(undefined),
+            updateSettings: jest.fn().mockResolvedValue(undefined),
+        } as unknown as typeof window.electron;
+
         fixture = TestBed.createComponent(SettingsComponent);
         electronService = TestBed.inject(DataService);
         settingsStore = TestBed.inject(SettingsStore);
         router = TestBed.inject(Router);
         translate = TestBed.inject(TranslateService);
         epgService = TestBed.inject(EpgService);
+        dialogService = TestBed.inject(DialogService);
+        playlistsService = TestBed.inject(PlaylistsService);
+        store = TestBed.inject(Store);
+        snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
 
         component = fixture.componentInstance;
-        component.setSettings = jest.fn();
         fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        window.electron = originalElectron;
     });
 
     it('should create and init component', () => {
@@ -158,10 +210,19 @@ describe('SettingsComponent', () => {
     });
 
     it('should not render the page header in dialog mode', () => {
-        component.isDialog = true;
-        fixture.detectChanges();
+        fixture.destroy();
 
-        const nativeElement = fixture.nativeElement as HTMLElement;
+        const dialogFixture = TestBed.createComponent(SettingsComponent);
+        const dialogComponent = dialogFixture.componentInstance;
+
+        dialogComponent.checkAppVersion = jest.fn();
+        dialogComponent.fetchLocalIpAddresses = jest
+            .fn()
+            .mockResolvedValue(undefined);
+        dialogComponent.isDialog = true;
+        dialogFixture.detectChanges();
+
+        const nativeElement = dialogFixture.nativeElement as HTMLElement;
         expect(
             nativeElement.querySelector('[data-test-id="settings-page-header"]')
         ).toBeNull();
@@ -171,9 +232,19 @@ describe('SettingsComponent', () => {
     });
 
     it('should scroll the general navigation target to the general section', async () => {
+        fixture.destroy();
+
+        const scrollFixture = TestBed.createComponent(SettingsComponent);
+        const scrollComponent = scrollFixture.componentInstance;
         const settingsContext = TestBed.inject(SettingsContextService);
         const scrollIntoView = jest.fn();
         const originalGetElementById = document.getElementById.bind(document);
+
+        scrollComponent.checkAppVersion = jest.fn();
+        scrollComponent.fetchLocalIpAddresses = jest
+            .fn()
+            .mockResolvedValue(undefined);
+        scrollFixture.detectChanges();
 
         const getElementByIdSpy = jest
             .spyOn(document, 'getElementById')
@@ -187,9 +258,11 @@ describe('SettingsComponent', () => {
                 return originalGetElementById(id);
             });
 
+        await scrollFixture.whenStable();
+        scrollFixture.detectChanges();
         settingsContext.navigateToSection('general');
-        fixture.detectChanges();
-        await fixture.whenStable();
+        scrollFixture.detectChanges();
+        await scrollFixture.whenStable();
 
         expect(getElementByIdSpy).toHaveBeenCalledWith('general');
         expect(getElementByIdSpy).not.toHaveBeenCalledWith('settings-intro');
@@ -202,7 +275,9 @@ describe('SettingsComponent', () => {
 
     describe('Get and set settings on component init', () => {
         const settings = {
-            player: VideoPlayer.VideoJs,
+            language: Language.GERMAN,
+            player: VideoPlayer.Html5Player,
+            theme: Theme.DarkTheme,
         };
 
         it('should init default settings if previous config was not saved', async () => {
@@ -218,11 +293,7 @@ describe('SettingsComponent', () => {
                 ...settings,
             });
 
-            component.ngOnInit();
-
-            // Force change detection
-            fixture.detectChanges();
-            await fixture.whenStable();
+            component.setSettings();
 
             //expect(settingsStore.loadSettings).toHaveBeenCalled();
             expect(component.settingsForm.value).toEqual({
@@ -269,7 +340,6 @@ describe('SettingsComponent', () => {
                 currentVersion
             );
             component.showVersionInformation(latestVersion);
-            fixture.detectChanges();
             expect(translate.instant).toHaveBeenCalledWith(
                 'SETTINGS.NEW_VERSION_AVAILABLE'
             );
@@ -277,6 +347,42 @@ describe('SettingsComponent', () => {
                 'New version available: 1.0.0'
             );
         });
+    });
+
+    it('removes all playlists with a busy state and dispatches store cleanup after success', async () => {
+        const removal$ = new Subject<void>();
+        const dispatchSpy = jest.spyOn(store, 'dispatch');
+
+        (dialogService.openConfirmDialog as jest.Mock).mockImplementation(
+            ({ onConfirm }: { onConfirm: () => Promise<void> }) => {
+                void onConfirm();
+            }
+        );
+        (playlistsService.removeAll as jest.Mock).mockReturnValue(
+            removal$.asObservable()
+        );
+        jest.spyOn(translate, 'instant').mockImplementation((key) => key);
+
+        component.removeAll();
+
+        expect(component.isRemovingAllPlaylists()).toBe(true);
+        expect(playlistsService.removeAll).toHaveBeenCalled();
+
+        removal$.next();
+        removal$.complete();
+        await fixture.whenStable();
+
+        expect(component.isRemovingAllPlaylists()).toBe(false);
+        expect(dispatchSpy).toHaveBeenCalledWith(
+            PlaylistActions.removeAllPlaylists()
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'SETTINGS.PLAYLISTS_REMOVED',
+            undefined,
+            {
+                duration: 2000,
+            }
+        );
     });
 
     it('should send epg refresh command', () => {
@@ -302,15 +408,15 @@ describe('SettingsComponent', () => {
     it('should save settings on submit', async () => {
         const mockStore = settingsStore as unknown as MockSettingsStore;
         mockStore.updateSettings.mockResolvedValue(undefined);
+        const updateSettings = jest.spyOn(window.electron, 'updateSettings');
 
-        jest.spyOn(electronService, 'sendIpcEvent');
-        await component.onSubmit();
+        component.onSubmit();
+        await fixture.whenStable();
 
         expect(mockStore.updateSettings).toHaveBeenCalledWith(
             component.settingsForm.value
         );
-        expect(electronService.sendIpcEvent).toHaveBeenCalledWith(
-            SETTINGS_UPDATE,
+        expect(updateSettings).toHaveBeenCalledWith(
             component.settingsForm.value
         );
     });

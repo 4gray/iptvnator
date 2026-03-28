@@ -673,6 +673,7 @@
                     <div class="setting-item__control inline-actions">
                         <button
                             mat-button
+                            [disabled]="isRemovingAllPlaylists()"
                             (click)="
                                 $event.preventDefault();
                                 $event.stopPropagation();
@@ -711,7 +712,11 @@
                             "
                             color="warn"
                         >
-                            {{ 'SETTINGS.REMOVE_ALL_BUTTON' | translate }}
+                            @if (isRemovingAllPlaylists()) {
+                                <mat-spinner diameter="18" strokeWidth="3" />
+                            } @else {
+                                {{ 'SETTINGS.REMOVE_ALL_BUTTON' | translate }}
+                            }
                         </button>
                     </div>
                 </div>

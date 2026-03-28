@@ -1,20 +1,23 @@
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import {
-    ComponentFixture,
-    inject,
-    TestBed,
-    waitForAsync,
-} from '@angular/core/testing';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { RouterTestingModule } from '@angular/router/testing';
-import { provideMockStore } from '@ngrx/store/testing';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { MockComponent, MockModule, MockPipe, MockProviders } from 'ng-mocks';
-import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { of } from 'rxjs';
-import { DataService, PlaylistsService } from 'services';
-import { Language, STORE_KEY, Theme } from 'shared-interfaces';
+import { Actions } from '@ngrx/effects';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
+import { TranslateService } from '@ngx-translate/core';
+import { EpgService } from '@iptvnator/epg/data-access';
+import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
+import { MockProvider } from 'ng-mocks';
+import { EMPTY, of } from 'rxjs';
+import { DataService } from 'services';
+import {
+    Language,
+    Settings,
+    STORE_KEY,
+    StreamFormat,
+    Theme,
+    VideoPlayer,
+} from 'shared-interfaces';
+import { PlaylistActions } from 'm3u-state';
 import { AppComponent } from './app.component';
 import { ElectronServiceStub } from './services/electron.service.stub';
 import { SettingsService } from './services/settings.service';
@@ -23,175 +26,182 @@ jest.spyOn(global.console, 'error').mockImplementation(() => {
     // suppress console.error output during tests
 });
 
+class MockSettingsService {
+    getValueFromLocalStorage = jest.fn().mockReturnValue(of(undefined));
+    changeTheme = jest.fn();
+}
+
+const DEFAULT_SETTINGS: Settings = {
+    player: VideoPlayer.VideoJs,
+    epgUrl: [],
+    streamFormat: StreamFormat.M3u8StreamFormat,
+    language: Language.ENGLISH,
+    showCaptions: false,
+    showExternalPlaybackBar: true,
+    theme: Theme.SystemTheme,
+    mpvPlayerPath: '',
+    mpvReuseInstance: false,
+    vlcPlayerPath: '',
+    remoteControl: false,
+    remoteControlPort: 8765,
+    downloadFolder: '',
+};
+
 describe('AppComponent', () => {
     let component: AppComponent;
-    let electronService: DataService;
     let fixture: ComponentFixture<AppComponent>;
-    let settingsService: SettingsService;
+    let epgService: EpgService;
+    let router: Router;
+    let settingsService: MockSettingsService;
+    let snackBar: MatSnackBar;
+    let store: MockStore;
     let translateService: TranslateService;
-    const defaultLanguage = 'en';
+    const originalElectron = window.electron;
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
-            declarations: [AppComponent, MockPipe(TranslatePipe)],
+            imports: [AppComponent],
             providers: [
-                MockProviders(
-                    TranslateService,
-                    PlaylistsService,
-                    NgxIndexedDBService,
-                    MatSnackBar
-                ),
-                SettingsService,
+                provideMockStore(),
+                {
+                    provide: Actions,
+                    useValue: new Actions(EMPTY),
+                },
                 {
                     provide: DataService,
                     useClass: ElectronServiceStub,
                 },
-                provideMockStore(),
+                {
+                    provide: SettingsService,
+                    useClass: MockSettingsService,
+                },
+                MockProvider(EpgService, {
+                    fetchEpg: jest.fn(),
+                }),
+                MockProvider(Router, {
+                    navigateByUrl: jest.fn(),
+                }),
+                MockProvider(MatSnackBar, {
+                    open: jest.fn(),
+                }),
+                MockProvider(TranslateService, {
+                    instant: jest.fn((key: string) => key),
+                    setDefaultLang: jest.fn(),
+                    use: jest.fn(),
+                }),
+                {
+                    provide: WORKSPACE_SHELL_ACTIONS,
+                    useValue: {
+                        openAddPlaylistDialog: jest.fn(),
+                        openGlobalRecent: jest.fn(),
+                        openGlobalSearch: jest.fn(),
+                        openAccountInfo: jest.fn(),
+                    },
+                },
             ],
-            imports: [
-                MockModule(MatSnackBarModule),
-                MockComponent(NgxWhatsNewComponent),
-                RouterTestingModule,
-                HttpClientTestingModule,
-            ],
-        }).compileComponents();
+        })
+            .overrideComponent(AppComponent, {
+                set: {
+                    template: '',
+                },
+            })
+            .compileComponents();
     }));
 
     beforeEach(() => {
-        electronService = TestBed.inject(DataService);
+        window.electron = {
+            checkEpgFreshness: jest.fn().mockResolvedValue({
+                freshUrls: [],
+                staleUrls: [],
+            }),
+        } as unknown as typeof window.electron;
+
         fixture = TestBed.createComponent(AppComponent);
-        settingsService = TestBed.inject(SettingsService);
+        epgService = TestBed.inject(EpgService);
+        router = TestBed.inject(Router);
+        settingsService = TestBed.inject(
+            SettingsService
+        ) as unknown as MockSettingsService;
+        snackBar = TestBed.inject(MatSnackBar);
+        store = TestBed.inject(MockStore);
         translateService = TestBed.inject(TranslateService);
         component = fixture.componentInstance;
-
-        // TODO: investigate in detail
-        component.triggerAutoUpdateMechanism = jest.fn();
-        component.modals = [];
-        component.checkForUpdates = jest.fn();
-        fixture.detectChanges();
     });
 
-    it('should create the component and set default language', () => {
-        jest.spyOn(translateService, 'setDefaultLang');
-        jest.spyOn(component, 'setRendererListeners');
-        const fixture = TestBed.createComponent(AppComponent);
-        const app = fixture.debugElement.componentInstance;
-        expect(app).toBeTruthy();
-        expect(component.DEFAULT_LANG).toEqual(Language.ENGLISH);
+    afterEach(() => {
+        window.electron = originalElectron;
+    });
+
+    it('should create the component', () => {
+        expect(component).toBeTruthy();
     });
 
     it('should init component', () => {
+        const storeDispatchSpy = jest.spyOn(store, 'dispatch');
         jest.spyOn(translateService, 'setDefaultLang');
-        jest.spyOn(component, 'setRendererListeners');
         jest.spyOn(component, 'initSettings');
-        jest.spyOn(component, 'handleWhatsNewDialog');
+
         component.ngOnInit();
-        expect(translateService.setDefaultLang).toHaveBeenCalledWith(
-            defaultLanguage
+        expect(storeDispatchSpy).toHaveBeenCalledWith(
+            PlaylistActions.loadPlaylists()
         );
-        expect(component.setRendererListeners).toHaveBeenCalledTimes(1);
+        expect(translateService.setDefaultLang).toHaveBeenCalledWith(
+            Language.ENGLISH
+        );
         expect(component.initSettings).toHaveBeenCalledTimes(1);
-        expect(component.handleWhatsNewDialog).toHaveBeenCalledTimes(1);
     });
 
-    describe('Test ipc listeners and commands', () => {
-        it('should set IPC listeners', () => {
-            jest.spyOn(electronService, 'listenOn');
-            component.setRendererListeners();
-            expect(electronService.listenOn).toHaveBeenCalledTimes(
-                component.commandsList.length
-            );
-        });
+    it('should navigate to the provided route', () => {
+        const route = '/add-playlists';
+        jest.spyOn(router, 'navigateByUrl');
 
-        it('should remove all ipc listeners on destroy', () => {
-            jest.spyOn(electronService, 'removeAllListeners');
-            component.ngOnDestroy();
-            expect(electronService.removeAllListeners).toHaveBeenCalledTimes(
-                component.commandsList.length
-            );
-        });
+        component.navigateToRoute(route);
 
-        it('should navigate to the provided route', inject(
-            [Router],
-            (router: Router) => {
-                const route = '/add-playlists';
-                jest.spyOn(router, 'navigateByUrl');
-                component.navigateToRoute(route);
-                expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
-                expect(router.navigateByUrl).toHaveBeenCalledWith(route);
-            }
-        ));
+        expect(router.navigateByUrl).toHaveBeenCalledWith(route);
     });
 
-    describe('Test version handling', () => {
-        it('should get actual app version which is outdated and show updates dialog', () => {
-            const currentAppVersion = '0.0.1';
-            const spyOnSettingsGet = jest
-                .spyOn(settingsService, 'getValueFromLocalStorage')
-                .mockReturnValue(of(currentAppVersion));
+    it('should apply system theme when no settings are stored', () => {
+        jest.spyOn(settingsService, 'changeTheme');
 
-            expect(spyOnSettingsGet).toHaveBeenCalled();
-        });
+        component.initSettings();
 
-        it('should get actual app version which is not outdated and do not shop updates dialog', () => {
-            const currentAppVersion = '1.0.0';
-            const spyOnSettingsGet = jest
-                .spyOn(settingsService, 'getValueFromLocalStorage')
-                .mockReturnValue(of(currentAppVersion));
-
-            expect(spyOnSettingsGet).toHaveBeenCalled();
-        });
+        expect(settingsService.getValueFromLocalStorage).toHaveBeenCalledWith(
+            STORE_KEY.Settings
+        );
+        expect(settingsService.changeTheme).toHaveBeenCalledWith(
+            Theme.SystemTheme
+        );
     });
 
-    describe('Set initial settings', () => {
-        const theme = Theme.DarkTheme;
-        const language = 'es';
-        const epgUrl = ['http://localhost/epg.xml'];
-
-        beforeEach(() => {
-            jest.spyOn(electronService, 'sendIpcEvent');
-            jest.spyOn(settingsService, 'changeTheme');
-            jest.spyOn(component, 'handleWhatsNewDialog');
-            jest.spyOn(translateService, 'use');
+    it('should apply saved settings and fetch stale epg data only', async () => {
+        const settings: Settings = {
+            ...DEFAULT_SETTINGS,
+            epgUrl: ['https://example.com/epg.xml'],
+            language: Language.SPANISH,
+            theme: Theme.DarkTheme,
+        };
+        const checkEpgFreshness = jest.fn().mockResolvedValue({
+            freshUrls: [],
+            staleUrls: settings.epgUrl,
         });
 
-        it('should get and init settings (all settings are defined)', () => {
-            const spyOnSettingsGet = jest
-                .spyOn(settingsService, 'getValueFromLocalStorage')
-                .mockReturnValue(of({ theme, epgUrl, language }));
+        window.electron = {
+            ...window.electron,
+            checkEpgFreshness,
+        } as unknown as typeof window.electron;
+        settingsService.getValueFromLocalStorage.mockReturnValue(of(settings));
+        jest.spyOn(settingsService, 'changeTheme');
+        jest.spyOn(translateService, 'use');
 
-            component.initSettings();
+        component.initSettings();
+        await fixture.whenStable();
 
-            expect(spyOnSettingsGet).toHaveBeenCalledWith(STORE_KEY.Settings);
-            expect(settingsService.changeTheme).toHaveBeenCalledWith(theme);
-            expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
-            expect(translateService.use).toHaveBeenCalledWith(language);
-        });
-
-        it('should get and init settings (nothing is defined)', () => {
-            const spyOnSettingsGet = jest
-                .spyOn(settingsService, 'getValueFromLocalStorage')
-                .mockReturnValue(of());
-
-            component.initSettings();
-
-            expect(spyOnSettingsGet).toHaveBeenCalledWith(STORE_KEY.Settings);
-            expect(settingsService.changeTheme).toHaveBeenCalledTimes(0);
-            expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(0);
-            expect(translateService.use).toHaveBeenCalledTimes(0);
-        });
-
-        it('should get and init settings (only theme is defined)', () => {
-            const spyOnSettingsGet = jest
-                .spyOn(settingsService, 'getValueFromLocalStorage')
-                .mockReturnValue(of({ theme }));
-
-            component.initSettings();
-
-            expect(spyOnSettingsGet).toHaveBeenCalledWith(STORE_KEY.Settings);
-            expect(settingsService.changeTheme).toHaveBeenCalledWith(theme);
-            expect(electronService.sendIpcEvent).toHaveBeenCalledTimes(1);
-            expect(translateService.use).toHaveBeenCalledWith(defaultLanguage);
-        });
+        expect(translateService.use).toHaveBeenCalledWith(Language.SPANISH);
+        expect(settingsService.changeTheme).toHaveBeenCalledWith(
+            Theme.DarkTheme
+        );
+        expect(checkEpgFreshness).toHaveBeenCalledWith(settings.epgUrl, 12);
+        expect(epgService.fetchEpg).toHaveBeenCalledWith(settings.epgUrl);
+        expect(snackBar.open).not.toHaveBeenCalled();
     });
 });

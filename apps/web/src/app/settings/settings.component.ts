@@ -28,6 +28,7 @@ import {
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -38,7 +39,7 @@ import { EpgService } from '@iptvnator/epg/data-access';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { DialogService } from 'components';
 import { PlaylistActions, selectIsEpgAvailable } from 'm3u-state';
-import { take } from 'rxjs';
+import { firstValueFrom, take } from 'rxjs';
 import { DataService, PlaylistsService } from 'services';
 import {
     Language,
@@ -80,6 +81,7 @@ interface ThemeOption {
         MatDividerModule,
         MatIconModule,
         MatInputModule,
+        MatProgressSpinnerModule,
         MatSelectModule,
         MatTooltipModule,
         ReactiveFormsModule,
@@ -209,6 +211,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     /** Currently visible QR code IP (null = none visible) */
     visibleQrCodeIp = signal<string | null>(null);
+    readonly isRemovingAllPlaylists = signal(false);
 
     private settingsStore = inject(SettingsStore);
     private sectionObserver?: IntersectionObserver;
@@ -642,8 +645,36 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('SETTINGS.REMOVE_DIALOG.TITLE'),
             message: this.translate.instant('SETTINGS.REMOVE_DIALOG.MESSAGE'),
-            onConfirm: (): void =>
-                this.store.dispatch(PlaylistActions.removeAllPlaylists()),
+            onConfirm: async (): Promise<void> => {
+                if (this.isRemovingAllPlaylists()) {
+                    return;
+                }
+
+                this.isRemovingAllPlaylists.set(true);
+
+                try {
+                    await firstValueFrom(this.playlistsService.removeAll());
+                    this.store.dispatch(PlaylistActions.removeAllPlaylists());
+                    this.snackBar.open(
+                        this.translate.instant('SETTINGS.PLAYLISTS_REMOVED'),
+                        undefined,
+                        {
+                            duration: 2000,
+                        }
+                    );
+                } catch (error) {
+                    console.error('Error removing playlists:', error);
+                    this.snackBar.open(
+                        this.translate.instant('SETTINGS.IMPORT_ERROR'),
+                        undefined,
+                        {
+                            duration: 2000,
+                        }
+                    );
+                } finally {
+                    this.isRemovingAllPlaylists.set(false);
+                }
+            },
         });
     }
 

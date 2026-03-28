@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { ExternalPlayerInfoDialogComponent } from '@iptvnator/ui/playback';
+import { ExternalPlayerInfoDialogComponent } from '@iptvnator/ui/playback/external-player-info-dialog';
 import { DataService } from 'services';
 import {
     ExternalPlayerSession,
@@ -115,7 +115,7 @@ export class PlayerService {
             );
         }
 
-        void import('@iptvnator/portal/xtream/feature').then(
+        return import('@iptvnator/portal/xtream/feature').then(
             ({ PlayerDialogComponent }) => {
                 this.dialog.open(PlayerDialogComponent, {
                     data: { streamUrl, title, contentInfo, startTime },
