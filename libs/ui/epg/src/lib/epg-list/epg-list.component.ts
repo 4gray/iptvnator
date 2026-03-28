@@ -1,15 +1,15 @@
-import { AsyncPipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
-    ChangeDetectorRef,
     Component,
+    computed,
     effect,
     ElementRef,
     inject,
-    Injector,
-    OnInit,
+    input,
+    signal,
     viewChild,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -20,20 +20,13 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgActions, selectActive } from 'm3u-state';
 import moment from 'moment';
-import { BehaviorSubject, combineLatest, map } from 'rxjs';
-import { EpgChannel, EpgProgram } from 'shared-interfaces';
+import { Channel, EpgChannel, EpgProgram } from 'shared-interfaces';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
-
-export interface EpgData {
-    channel: EpgChannel;
-    items: EpgProgram[];
-}
 
 const DATE_FORMAT = 'YYYY-MM-DD';
 
 @Component({
     imports: [
-        AsyncPipe,
         EpgListItemComponent,
         FormsModule,
         MatIcon,
@@ -47,250 +40,186 @@ const DATE_FORMAT = 'YYYY-MM-DD';
     styleUrls: ['./epg-list.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EpgListComponent implements OnInit {
+export class EpgListComponent {
+    readonly controlledChannel = input<Channel | null>(null);
+    readonly controlledPrograms = input<EpgProgram[] | null>(null);
+
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
-    private readonly cdr = inject(ChangeDetectorRef);
-    private readonly injector = inject(Injector);
 
-    /** Channel info in EPG format */
-    channel!: EpgChannel;
-
-    /** Today as formatted date string */
-    dateToday!: string;
-
-    /** Array with EPG programs */
-    items$ = this.epgService.currentEpgPrograms$;
-
-    /** Object with epg programs for the active channel */
-    programs!: {
-        payload: EpgData;
-    };
-
-    /** EPG selected program */
-    playingNow: EpgProgram | undefined;
-
-    /** Selected date */
-    selectedDate!: string;
-
-    /** Current time as formatted string */
-    timeNow!: string;
-
-    /** Timeshift availability date, based on tvg-rec value from the channel */
-    readonly timeshiftUntil$ = this.store.select(selectActive).pipe(
-        map((active) => {
-            // Create EpgChannel with proper structure
-            const displayNames = active?.name
-                ? [{ lang: '', value: active.name }]
-                : [];
-            const icons = active?.tvg?.logo ? [{ src: active.tvg.logo }] : [];
-
-            this.channel = {
-                id: active?.tvg?.id || '',
-                displayName: displayNames,
-                url: active?.url ? [active.url] : [],
-                icon: icons,
-            };
-            return (
-                active?.tvg?.rec || active?.timeshift || active?.catchup?.days
-            );
-        }),
-        map((value) => {
-            const days = Number(value ?? 0) || 0;
-            return moment().subtract(days, 'days').toISOString();
-        })
+    private readonly activeChannel = toSignal(
+        this.store.select(selectActive),
+        { initialValue: null }
+    );
+    private readonly servicePrograms = toSignal(
+        this.epgService.currentEpgPrograms$,
+        { initialValue: [] as EpgProgram[] }
     );
 
-    private readonly selectedDate$ = new BehaviorSubject<string>(
-        moment().format(DATE_FORMAT)
-    );
     readonly programList = viewChild<ElementRef<HTMLElement>>('programList');
-    private scrollScheduled = false;
+    readonly selectedDate = signal(moment().format(DATE_FORMAT));
+    readonly timeNow = signal(new Date().toISOString());
+    readonly todayDate = signal(moment().format(DATE_FORMAT));
 
-    /** Filtered EPG programs based on selected date */
-    filteredItems$ = combineLatest([this.items$, this.selectedDate$]).pipe(
-        map(([items, selectedDate]) =>
-            items
-                .filter(
-                    (item) =>
-                        moment(item.start).format('YYYY-MM-DD') === selectedDate
-                )
-                .sort((a, b) => moment(a.start).diff(moment(b.start)))
-        )
+    readonly isControlled = computed(
+        () =>
+            this.controlledChannel() !== null ||
+            this.controlledPrograms() !== null
     );
-
-    /**
-     * Subscribe for values from the store on component init
-     */
-    ngOnInit(): void {
-        effect(
-            (onCleanup) => {
-                const programList = this.programList()?.nativeElement;
-                if (!programList || typeof ResizeObserver === 'undefined') {
-                    return;
-                }
-
-                const resizeObserver = new ResizeObserver((entries) => {
-                    const [entry] = entries;
-                    if (
-                        entry &&
-                        entry.contentRect.height > 0 &&
-                        entry.contentRect.width > 0
-                    ) {
-                        this.scheduleScrollToCurrentProgram();
-                    }
-                });
-
-                resizeObserver.observe(programList);
-                onCleanup(() => resizeObserver.disconnect());
-            },
-            { injector: this.injector }
-        );
-
-        this.items$.subscribe((programs) => this.handleEpgData(programs));
-        this.dateToday = moment().format(DATE_FORMAT);
-        this.selectedDate$.next(this.dateToday);
-    }
-
-    /**
-     * Handles incoming epg programs for the active channel from the main process
-     * @param programs
-     */
-    handleEpgData(programs: EpgProgram[]): void {
-        this.timeNow = new Date().toISOString();
-        this.dateToday = moment().format(DATE_FORMAT);
-
-        // Dispatch EPG availability flag
-        this.store.dispatch(
-            EpgActions.setEpgAvailableFlag({ value: programs.length > 0 })
-        );
-
-        if (programs.length > 0) {
-            this.setPlayingNow();
-        } else {
-            this.channel = {} as EpgChannel;
-            // Clear the current EPG program when no programs available
-            this.store.dispatch(EpgActions.resetActiveEpgProgram());
+    readonly displayChannel = computed(
+        () => this.controlledChannel() ?? this.activeChannel()
+    );
+    readonly channel = computed<EpgChannel | null>(() => {
+        const channel = this.displayChannel();
+        if (!channel) {
+            return null;
         }
 
-        // Trigger change detection for OnPush strategy
-        this.cdr.markForCheck();
-        this.scheduleScrollToCurrentProgram();
-    }
-
-    /**
-     * Selects the program based on the active date
-     */
-    selectPrograms(programs: { payload: EpgData }): EpgProgram[] {
-        const selectedDate = moment(this.dateToday).format('YYYY-MM-DD');
-        return programs.payload?.items
+        return {
+            id: channel.tvg?.id || '',
+            displayName: channel.name ? [{ lang: '', value: channel.name }] : [],
+            url: channel.url ? [channel.url] : [],
+            icon: channel.tvg?.logo ? [{ src: channel.tvg.logo }] : [],
+        };
+    });
+    readonly items = computed(
+        () => this.controlledPrograms() ?? this.servicePrograms() ?? []
+    );
+    readonly timeshiftUntil = computed(() => {
+        const channel = this.displayChannel();
+        const value =
+            channel?.tvg?.rec || channel?.timeshift || channel?.catchup?.days;
+        const days = Number(value ?? 0) || 0;
+        return moment().subtract(days, 'days').toISOString();
+    });
+    readonly filteredItems = computed(() =>
+        [...this.items()]
             .filter(
                 (item) =>
-                    moment(item.start).format('YYYY-MM-DD') === selectedDate
+                    moment(item.start).format(DATE_FORMAT) === this.selectedDate()
             )
-            .map((program) => ({
-                ...program,
-                start: program.start, // Keep ISO format
-                stop: program.stop, // Keep ISO format
-            }))
-            .sort((a, b) => moment(a.start).diff(moment(b.start)));
-    }
+            .sort((a, b) => moment(a.start).diff(moment(b.start)))
+    );
 
-    /**
-     * Changes the date to update the epg list with programs
-     * @param direction direction to switch
-     */
-    changeDate(direction: 'next' | 'prev'): void {
-        const newDate = moment(this.selectedDate$.value)
-            [direction === 'next' ? 'add' : 'subtract'](1, 'days')
-            .format(DATE_FORMAT);
+    private scrollScheduled = false;
 
-        this.dateToday = newDate;
-        this.selectedDate$.next(newDate);
-        this.scheduleScrollToCurrentProgram();
-    }
+    constructor() {
+        effect((onCleanup) => {
+            const programList = this.programList()?.nativeElement;
+            if (!programList || typeof ResizeObserver === 'undefined') {
+                return;
+            }
 
-    /**
-     * Sets the playing now variable based on the current time
-     */
-    setPlayingNow(): void {
-        this.items$
-            .pipe(
-                map((items) =>
-                    items.find((item) => {
-                        const now = new Date().toISOString();
-                        const start = new Date(item.start).toISOString();
-                        const stop = new Date(item.stop).toISOString();
-                        return now >= start && now <= stop;
+            const resizeObserver = new ResizeObserver((entries) => {
+                const [entry] = entries;
+                if (
+                    entry &&
+                    entry.contentRect.height > 0 &&
+                    entry.contentRect.width > 0
+                ) {
+                    this.scheduleScrollToCurrentProgram();
+                }
+            });
+
+            resizeObserver.observe(programList);
+            onCleanup(() => resizeObserver.disconnect());
+        });
+
+        effect(() => {
+            const programs = this.items();
+            const channel = this.displayChannel();
+
+            this.timeNow.set(new Date().toISOString());
+            this.todayDate.set(moment().format(DATE_FORMAT));
+
+            if (!this.isControlled()) {
+                this.store.dispatch(
+                    EpgActions.setEpgAvailableFlag({
+                        value: programs.length > 0,
                     })
-                )
-            )
-            .subscribe((playingNow) => {
-                this.playingNow = playingNow;
+                );
 
-                if (playingNow) {
-                    this.store.dispatch(
-                        EpgActions.setCurrentEpgProgram({ program: playingNow })
-                    );
+                if (programs.length > 0) {
+                    const currentProgram = this.findCurrentProgram(programs);
+                    if (currentProgram) {
+                        this.store.dispatch(
+                            EpgActions.setCurrentEpgProgram({
+                                program: currentProgram,
+                            })
+                        );
+                    } else {
+                        this.store.dispatch(
+                            EpgActions.resetActiveEpgProgram()
+                        );
+                    }
                 } else {
                     this.store.dispatch(EpgActions.resetActiveEpgProgram());
                 }
+            }
 
-                // Trigger change detection for OnPush strategy
-                this.cdr.markForCheck();
-            });
+            if (!channel && !this.isControlled()) {
+                this.store.dispatch(EpgActions.resetActiveEpgProgram());
+            }
+
+            this.scheduleScrollToCurrentProgram();
+        });
     }
 
-    /**
-     * Sets the provided epg program as active and starts to play
-     * @param program epg program to set
-     * @param isLive live stream flag
-     * @param timeshift timeshift flag
-     */
+    changeDate(direction: 'next' | 'prev'): void {
+        this.selectedDate.set(
+            moment(this.selectedDate())
+                [direction === 'next' ? 'add' : 'subtract'](1, 'days')
+                .format(DATE_FORMAT)
+        );
+        this.scheduleScrollToCurrentProgram();
+    }
+
     setEpgProgram(
         program: EpgProgram,
         isLive?: boolean,
         timeshift?: boolean
     ): void {
-        if (isLive) {
-            this.store.dispatch(EpgActions.resetActiveEpgProgram());
-        } else {
-            if (!timeshift) return;
-            this.store.dispatch(EpgActions.setActiveEpgProgram({ program }));
+        if (!this.isControlled()) {
+            if (isLive) {
+                this.store.dispatch(EpgActions.resetActiveEpgProgram());
+            } else if (timeshift) {
+                this.store.dispatch(
+                    EpgActions.setActiveEpgProgram({ program })
+                );
+            } else {
+                return;
+            }
         }
-        this.playingNow = program;
-        // Trigger change detection for OnPush strategy
-        this.cdr.markForCheck();
+
+        this.timeNow.set(new Date().toISOString());
     }
 
-    /**
-     * Calculates the progress percentage for the EPG program
-     */
     calculateProgress(program: EpgProgram): number {
         const now = new Date().getTime();
         const start = new Date(program.start).getTime();
         const stop = new Date(program.stop).getTime();
-
         const total = stop - start;
         const elapsed = now - start;
 
-        const progress = Math.min(100, Math.max(0, (elapsed / total) * 100));
-
-        return progress;
+        return Math.min(100, Math.max(0, (elapsed / total) * 100));
     }
 
-    /**
-     * Check if program is currently playing
-     */
     isProgramPlaying(program: EpgProgram): boolean {
-        const isPlaying =
-            this.timeNow >= program.start && this.timeNow <= program.stop;
+        const currentTime = this.timeNow();
+        return currentTime >= program.start && currentTime <= program.stop;
+    }
 
-        return isPlaying;
+    private findCurrentProgram(programs: EpgProgram[]): EpgProgram | undefined {
+        const now = new Date().toISOString();
+        return programs.find((item) => {
+            const start = new Date(item.start).toISOString();
+            const stop = new Date(item.stop).toISOString();
+            return now >= start && now <= stop;
+        });
     }
 
     private scheduleScrollToCurrentProgram(): void {
-        if (this.selectedDate$.value !== moment().format(DATE_FORMAT)) {
+        if (this.selectedDate() !== moment().format(DATE_FORMAT)) {
             return;
         }
 
@@ -319,16 +248,21 @@ export class EpgListComponent implements OnInit {
 
         const viewTop = container.scrollTop;
         const viewBottom = viewTop + container.clientHeight;
-        const itemTop = currentProgram.offsetTop;
-        const itemBottom = itemTop + currentProgram.offsetHeight;
+        const elementTop = currentProgram.offsetTop;
+        const elementBottom = elementTop + currentProgram.offsetHeight;
 
-        if (itemTop >= viewTop && itemBottom <= viewBottom) {
+        if (elementTop < viewTop) {
+            container.scrollTo({ top: Math.max(elementTop - 16, 0) });
             return;
         }
 
-        currentProgram.scrollIntoView({
-            block: 'center',
-            inline: 'nearest',
-        });
+        if (elementBottom > viewBottom) {
+            container.scrollTo({
+                top:
+                    elementBottom -
+                    container.clientHeight +
+                    16,
+            });
+        }
     }
 }

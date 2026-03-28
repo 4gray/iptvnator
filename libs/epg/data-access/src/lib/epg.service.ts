@@ -68,6 +68,7 @@ export class EpgService {
 
         from(window.electron.getChannelPrograms(channelId))
             .pipe(
+                timeout(3000),
                 map((programs: EpgProgram[]) =>
                     programs.map((program) => ({
                         ...program,
