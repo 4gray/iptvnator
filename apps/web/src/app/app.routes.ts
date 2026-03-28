@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { provideM3uWorkspaceRouteSession } from '@iptvnator/playlist/m3u/feature-player';
 
 export const routes: Routes = [
     {
@@ -42,6 +43,7 @@ export const routes: Routes = [
             },
             {
                 path: 'playlists/:id/favorites',
+                providers: provideM3uWorkspaceRouteSession(),
                 loadComponent: () =>
                     import('@iptvnator/playlist/m3u/feature-player').then(
                         (c) => c.M3uCollectionRouteComponent
@@ -53,6 +55,7 @@ export const routes: Routes = [
             },
             {
                 path: 'playlists/:id/recent',
+                providers: provideM3uWorkspaceRouteSession(),
                 loadComponent: () =>
                     import('@iptvnator/playlist/m3u/feature-player').then(
                         (c) => c.M3uCollectionRouteComponent
@@ -64,6 +67,7 @@ export const routes: Routes = [
             },
             {
                 path: 'playlists/:id/:view',
+                providers: provideM3uWorkspaceRouteSession(),
                 loadComponent: () =>
                     import('@iptvnator/playlist/m3u/feature-player').then(
                         (c) => c.VideoPlayerComponent
