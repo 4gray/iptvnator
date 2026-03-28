@@ -1,58 +1,165 @@
+@use '../../../../../styles/portal-sidebar';
+@use '../../../../../../../apps/web/src/nav-list.scss';
+
 :host {
     display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-}
-
-#groups-list {
     flex: 1;
     min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
 }
 
-.channel-list {
-    overflow-x: hidden;
-}
-
-::ng-deep {
-    .mat-expansion-panel-body {
-        padding: 0 !important;
-    }
-
-    .mat-expansion-panel {
-        border-radius: 0 !important;
-    }
-}
-
-.scroll-sentinel {
-    padding: 16px;
+.groups-view-layout {
     display: flex;
-    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--app-content-bg, var(--mat-sys-surface));
 }
 
-.loading-more {
+.groups-nav-panel {
+    width: 208px;
+    min-width: 164px;
+    max-width: 320px;
+    flex-shrink: 0;
+    min-height: 0;
     display: flex;
-    align-items: center;
+    overflow: hidden;
+    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+    padding: 12px 10px 10px 12px;
+    box-sizing: border-box;
+    container-type: inline-size;
+}
+
+.groups-nav-shell {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.groups-nav-header {
+    padding: 4px 6px 12px;
+    flex-shrink: 0;
+}
+
+.groups-nav-title {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--mat-sys-on-surface);
+}
+
+.category-title {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--mat-sys-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.category-count {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface-variant);
+    background: var(--mat-sys-surface-container);
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.category-heading {
+    display: flex;
+    align-items: baseline;
     gap: 8px;
-    color: var(--mdc-theme-primary, #90caf9);
-    font-size: 0.875rem;
-    opacity: 0.8;
+    flex: 1;
+    min-width: 0;
 }
 
-.loading-more-spinner {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-    animation: spin 1.5s linear infinite;
+.groups-nav-list {
+    height: 100%;
+    min-height: 0;
+    padding-top: 0;
+    padding-inline: 0 2px;
 }
 
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
+.group-nav-item {
+    background: transparent;
+}
+
+.groups-content-panel {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: none;
+    background: var(--app-content-bg, var(--mat-sys-surface));
+    border-top-left-radius: 16px;
+}
+
+.groups-content-panel > .groups-content-header {
+    border-bottom: none;
+    border-top-left-radius: inherit;
+}
+
+.groups-channels-viewport {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    padding: 4px 8px 12px;
+    box-sizing: border-box;
+
+    ::ng-deep .cdk-virtual-scroll-content-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
     }
-    to {
-        transform: rotate(360deg);
+}
+
+.groups-view-empty-state {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    text-align: center;
+}
+
+.empty-state-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 48px;
+    opacity: 0.5;
+    margin-bottom: 16px;
+}
+
+.empty-state-title {
+    font-size: 1.05rem;
+    font-weight: 520;
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+}
+
+.empty-state-hint {
+    opacity: 0.65;
+    font-size: 0.85rem;
+    max-width: 240px;
+    line-height: 1.4;
+}
+
+@container (max-width: 220px) {
+    .groups-nav-list {
+        padding-inline-end: 0;
     }
 }

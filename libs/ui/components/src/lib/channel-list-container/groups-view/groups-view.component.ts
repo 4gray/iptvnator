@@ -1,23 +1,29 @@
-import { KeyValue, KeyValuePipe, TitleCasePipe } from '@angular/common';
+import { KeyValue, TitleCasePipe } from '@angular/common';
 import {
-    AfterViewInit,
     ChangeDetectionStrategy,
-    ChangeDetectorRef,
     Component,
+    ElementRef,
     computed,
+    effect,
     inject,
     input,
-    NgZone,
-    OnDestroy,
     output,
     signal,
 } from '@angular/core';
-import { MatExpansionModule } from '@angular/material/expansion';
+import { ScrollingModule } from '@angular/cdk/scrolling';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Channel, EpgProgram } from 'shared-interfaces';
 import { EnrichedChannel } from '../all-channels-view/all-channels-view.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import { ResizableDirective } from '../../resizable/resizable.directive';
+
+interface FilteredGroupView {
+    readonly channels: Channel[];
+    readonly count: number;
+    readonly key: string;
+    readonly titleMatches: boolean;
+}
 
 @Component({
     selector: 'app-groups-view',
@@ -26,16 +32,15 @@ import { ChannelListItemComponent } from '../channel-list-item/channel-list-item
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         ChannelListItemComponent,
-        KeyValuePipe,
-        MatExpansionModule,
         MatIconModule,
+        ResizableDirective,
+        ScrollingModule,
         TitleCasePipe,
         TranslatePipe,
     ],
 })
-export class GroupsViewComponent implements AfterViewInit, OnDestroy {
-    private readonly cdr = inject(ChangeDetectorRef);
-    private readonly ngZone = inject(NgZone);
+export class GroupsViewComponent {
+    private readonly hostEl = inject(ElementRef<HTMLElement>);
 
     /** Grouped channels object */
     readonly groupedChannels = input.required<{ [key: string]: Channel[] }>();
@@ -65,187 +70,160 @@ export class GroupsViewComponent implements AfterViewInit, OnDestroy {
         event: MouseEvent;
     }>();
 
-    /** IntersectionObserver for infinite scroll in groups */
-    private groupScrollObserver?: IntersectionObserver;
+    readonly selectedGroupKey = signal<string | null>(null);
+    readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 48));
 
-    /** Track observed sentinel elements */
-    private observedSentinels = new Set<Element>();
+    private previousActiveChannelUrl: string | undefined;
 
-    /** Track expanded groups with their load limits for lazy-loading */
-    readonly expandedGroupLimits = signal(new Map<string, number>());
+    constructor() {
+        effect(() => {
+            const filteredGroups = this.filteredGroups();
+            const visibleGroupKeys = new Set(filteredGroups.map((group) => group.key));
+            const currentSelection = this.selectedGroupKey();
+            const activeGroupKey = this.activeChannelGroupKey();
+            const activeChannelUrl = this.activeChannelUrl();
+            const activeChannelChanged =
+                activeChannelUrl !== this.previousActiveChannelUrl;
 
-    /** Default number of channels to show when group is expanded */
-    private readonly DEFAULT_GROUP_LIMIT = 50;
+            this.previousActiveChannelUrl = activeChannelUrl;
 
-    ngAfterViewInit(): void {
-        // Set up IntersectionObserver for infinite scroll in groups
-        this.groupScrollObserver = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        const element = entry.target as HTMLElement;
-                        const groupKey = element.dataset['groupKey'];
-                        const totalInGroup = parseInt(
-                            element.dataset['totalInGroup'] || '0',
-                            10
-                        );
+            let nextSelection: string | null = null;
 
-                        if (groupKey) {
-                            // Run inside NgZone to trigger change detection
-                            this.ngZone.run(() => {
-                                this.loadMoreInGroup(groupKey, totalInGroup);
-                            });
-                        }
-                    }
-                });
-            },
-            {
-                root: null, // Use viewport
-                rootMargin: '100px', // Load more before reaching the bottom
-                threshold: 0.1,
+            if (
+                activeChannelChanged &&
+                activeGroupKey &&
+                visibleGroupKeys.has(activeGroupKey)
+            ) {
+                nextSelection = activeGroupKey;
+            } else if (
+                currentSelection &&
+                visibleGroupKeys.has(currentSelection)
+            ) {
+                nextSelection = currentSelection;
+            } else if (
+                activeGroupKey &&
+                visibleGroupKeys.has(activeGroupKey)
+            ) {
+                nextSelection = activeGroupKey;
+            } else {
+                nextSelection = filteredGroups[0]?.key ?? null;
             }
-        );
-    }
 
-    ngOnDestroy(): void {
-        // Clean up IntersectionObserver
-        if (this.groupScrollObserver) {
-            this.groupScrollObserver.disconnect();
-            this.observedSentinels.clear();
-        }
-    }
-
-    /**
-     * Gets the current limit for a group, or returns default
-     */
-    getGroupLimit(groupKey: string): number {
-        return (
-            this.expandedGroupLimits().get(groupKey) ?? this.DEFAULT_GROUP_LIMIT
-        );
-    }
-
-    /**
-     * Loads more channels in a group (used by infinite scroll)
-     */
-    loadMoreInGroup(groupKey: string, totalInGroup: number): void {
-        const limits = new Map(this.expandedGroupLimits());
-        const current = limits.get(groupKey) ?? this.DEFAULT_GROUP_LIMIT;
-        // Only load more if there are more items to show
-        if (current < totalInGroup) {
-            limits.set(groupKey, current + this.DEFAULT_GROUP_LIMIT);
-            this.expandedGroupLimits.set(limits);
-            this.cdr.markForCheck();
-        }
-    }
-
-    /**
-     * Sets up IntersectionObserver for a group's sentinel element.
-     */
-    private observeGroupSentinel(
-        element: HTMLElement,
-        groupKey: string,
-        totalInGroup: number
-    ): void {
-        if (!element || this.observedSentinels.has(element)) {
-            return;
-        }
-
-        // Store group info on the element for the observer callback
-        element.dataset['groupKey'] = groupKey;
-        element.dataset['totalInGroup'] = String(totalInGroup);
-
-        this.groupScrollObserver?.observe(element);
-        this.observedSentinels.add(element);
-    }
-
-    /**
-     * Called when an expansion panel opens - sets up infinite scroll observer
-     */
-    onGroupPanelOpened(groupKey: string, totalInGroup: number): void {
-        // Use setTimeout to ensure the panel content is rendered
-        setTimeout(() => {
-            const sentinel = document.querySelector(
-                `[data-sentinel-group="${groupKey}"]`
-            );
-            if (sentinel) {
-                this.observeGroupSentinel(
-                    sentinel as HTMLElement,
-                    groupKey,
-                    totalInGroup
-                );
+            if (nextSelection !== currentSelection) {
+                this.selectedGroupKey.set(nextSelection);
             }
-        }, 50);
-    }
+        });
 
-    /**
-     * Computed signal that memoizes enriched channels for all groups
-     */
-    readonly filteredGroupedChannels = computed(() => {
-        const grouped = this.groupedChannels();
-        const term = this.searchTerm().trim().toLowerCase();
+        effect(() => {
+            const selectedGroupKey = this.selectedGroupKey();
+            if (selectedGroupKey == null) {
+                return;
+            }
 
-        if (!term) {
-            return grouped;
-        }
+            queueMicrotask(() => {
+                const container = this.hostEl.nativeElement.querySelector(
+                    '.groups-nav-list'
+                ) as HTMLElement | null;
+                const candidates = Array.from(
+                    this.hostEl.nativeElement.querySelectorAll(
+                        '[data-group-key]'
+                    )
+                ) as HTMLElement[];
+                const selected =
+                    candidates.find(
+                        (candidate) =>
+                            candidate.dataset['groupKey'] === selectedGroupKey
+                    ) ?? null;
 
-        return Object.entries(grouped).reduce<Record<string, Channel[]>>(
-            (acc, [groupKey, channels]) => {
-                const groupMatches = groupKey.toLowerCase().includes(term);
-                const matchingChannels = groupMatches
-                    ? channels
-                    : channels.filter((channel) =>
-                          channel.name?.toLowerCase().includes(term)
-                      );
-
-                if (matchingChannels.length > 0) {
-                    acc[groupKey] = matchingChannels;
+                if (!container || !selected) {
+                    return;
                 }
 
+                const containerRect = container.getBoundingClientRect();
+                const selectedRect = selected.getBoundingClientRect();
+                const targetTop =
+                    container.scrollTop +
+                    (selectedRect.top - containerRect.top) -
+                    container.clientHeight / 2 +
+                    selectedRect.height / 2;
+                const maxScrollTop = Math.max(
+                    0,
+                    container.scrollHeight - container.clientHeight
+                );
+
+                container.scrollTo({
+                    behavior: 'smooth',
+                    top: Math.min(maxScrollTop, Math.max(0, targetTop)),
+                });
+            });
+        });
+    }
+
+    readonly sortedGroups = computed(() => {
+        const grouped = this.groupedChannels();
+        const groups = Object.entries(grouped).map(([key, channels]) => ({
+            key,
+            value: channels,
+        }));
+
+        return groups.sort(this.groupsComparator);
+    });
+
+    readonly filteredGroups = computed<FilteredGroupView[]>(() => {
+        const term = this.searchTerm().trim().toLowerCase();
+        const groups = this.sortedGroups();
+
+        if (!term) {
+            return groups
+                .filter((group) => group.value.length > 0)
+                .map((group) => ({
+                    channels: group.value,
+                    count: group.value.length,
+                    key: group.key,
+                    titleMatches: false,
+                }));
+        }
+
+        return groups.reduce<FilteredGroupView[]>((acc, group) => {
+            const titleMatches = group.key.toLowerCase().includes(term);
+            const channels = titleMatches
+                ? group.value
+                : group.value.filter((channel) =>
+                      `${channel.name ?? ''}`.toLowerCase().includes(term)
+                  );
+
+            if (channels.length === 0) {
                 return acc;
-            },
-            {}
+            }
+
+            acc.push({
+                channels,
+                count: channels.length,
+                key: group.key,
+                titleMatches,
+            });
+            return acc;
+        }, []);
+    });
+
+    readonly selectedGroup = computed(() => {
+        const selectedGroupKey = this.selectedGroupKey();
+        return (
+            this.filteredGroups().find((group) => group.key === selectedGroupKey) ??
+            null
         );
     });
 
-    private readonly enrichedGroupChannelsMap = computed(() => {
-        const grouped = this.filteredGroupedChannels();
+    readonly selectedGroupChannels = computed<EnrichedChannel[]>(() => {
+        const group = this.selectedGroup();
         const epgMap = this.channelEpgMap();
-        // Read progressTick to create dependency for progress refresh
         this.progressTick();
 
-        const result = new Map<string, EnrichedChannel[]>();
-        for (const [groupKey, channels] of Object.entries(grouped)) {
-            result.set(
-                groupKey,
-                channels.map((channel) => {
-                    const channelId =
-                        channel?.tvg?.id?.trim() || channel?.name?.trim();
-                    const epgProgram = channelId ? epgMap.get(channelId) : null;
-                    return {
-                        ...channel,
-                        epgProgram,
-                        progressPercentage: this.calculateProgress(epgProgram),
-                    } as EnrichedChannel;
-                })
-            );
+        if (!group) {
+            return [];
         }
-        return result;
-    });
 
-    /**
-     * Gets enriched channels for a specific group from the memoized map
-     */
-    getEnrichedGroupChannels(
-        channels: Channel[],
-        groupKey?: string
-    ): EnrichedChannel[] {
-        // If groupKey provided, use memoized map
-        if (groupKey !== undefined) {
-            return this.enrichedGroupChannelsMap().get(groupKey) || [];
-        }
-        // Fallback for direct channel array (shouldn't happen with proper template usage)
-        const epgMap = this.channelEpgMap();
-        return channels.map((channel) => {
+        return group.channels.map((channel) => {
             const channelId = channel?.tvg?.id?.trim() || channel?.name?.trim();
             const epgProgram = channelId ? epgMap.get(channelId) : null;
             return {
@@ -254,30 +232,34 @@ export class GroupsViewComponent implements AfterViewInit, OnDestroy {
                 progressPercentage: this.calculateProgress(epgProgram),
             } as EnrichedChannel;
         });
-    }
+    });
 
-    /**
-     * Calculates progress percentage for an EPG program
-     */
-    private calculateProgress(
-        epgProgram: EpgProgram | null | undefined
-    ): number {
-        if (!epgProgram) {
-            return 0;
+    readonly activeChannelGroupKey = computed(() => {
+        const activeChannelUrl = this.activeChannelUrl();
+        if (!activeChannelUrl) {
+            return null;
         }
 
-        const now = new Date().getTime();
-        const start = new Date(epgProgram.start).getTime();
-        const stop = new Date(epgProgram.stop).getTime();
+        const grouped = this.groupedChannels();
+        for (const [groupKey, channels] of Object.entries(grouped)) {
+            if (channels.some((channel) => channel.url === activeChannelUrl)) {
+                return groupKey;
+            }
+        }
 
-        const total = stop - start;
-        const elapsed = now - start;
+        return null;
+    });
 
-        return Math.min(100, Math.max(0, (elapsed / total) * 100));
+    selectGroup(groupKey: string): void {
+        this.selectedGroupKey.set(groupKey);
     }
 
-    trackByFn(_: number, channel: Channel): string {
+    trackByChannel(_: number, channel: Channel): string {
         return channel?.id;
+    }
+
+    trackByGroupKey(_: number, group: FilteredGroupView): string {
+        return group.key;
     }
 
     onChannelClick(channel: Channel): void {
@@ -291,17 +273,49 @@ export class GroupsViewComponent implements AfterViewInit, OnDestroy {
     /**
      * Comparator for sorting groups - numeric groups first, then alphabetical
      */
-    groupsComparator = (
-        a: KeyValue<string, Channel[]>,
-        b: KeyValue<string, Channel[]>
+    readonly groupsComparator = (
+        a: KeyValue<string, Channel[]> | { key: string; value: Channel[] },
+        b: KeyValue<string, Channel[]> | { key: string; value: Channel[] }
     ): number => {
-        const numA = parseInt(a.key.replace(/\D/g, ''));
-        const numB = parseInt(b.key.replace(/\D/g, ''));
+        const numA = parseInt(a.key.replace(/\D/g, ''), 10);
+        const numB = parseInt(b.key.replace(/\D/g, ''), 10);
 
-        if (!isNaN(numA) && !isNaN(numB)) {
+        if (!Number.isNaN(numA) && !Number.isNaN(numB) && numA !== numB) {
             return numA - numB;
+        }
+
+        if (!Number.isNaN(numA) && Number.isNaN(numB)) {
+            return -1;
+        }
+
+        if (Number.isNaN(numA) && !Number.isNaN(numB)) {
+            return 1;
         }
 
         return a.key.localeCompare(b.key);
     };
+
+    private calculateProgress(
+        epgProgram: EpgProgram | null | undefined
+    ): number {
+        if (!epgProgram) {
+            return 0;
+        }
+
+        const now = Date.now();
+        const start = new Date(epgProgram.start).getTime();
+        const stop = new Date(epgProgram.stop).getTime();
+
+        if (!Number.isFinite(start) || !Number.isFinite(stop)) {
+            return 0;
+        }
+
+        const total = stop - start;
+        if (total <= 0) {
+            return 0;
+        }
+
+        const elapsed = Math.min(total, Math.max(0, now - start));
+        return Math.round((elapsed / total) * 100);
+    }
 }

@@ -1,97 +1,114 @@
-<div id="groups-list" class="channel-list">
-    @if (searchTerm() && (filteredGroupedChannels() | keyvalue).length === 0) {
-        <div class="no-results">
-            <mat-icon class="no-results-icon">search_off</mat-icon>
-            <div class="no-results-title">
-                {{ 'CHANNELS.NO_SEARCH_RESULTS' | translate }}
-            </div>
-            <div class="no-results-hint">
-                {{ 'CHANNELS.TRY_DIFFERENT_SEARCH' | translate }}
-            </div>
+@if (filteredGroups().length === 0) {
+    <div class="groups-view-empty-state">
+        <mat-icon class="empty-state-icon">{{
+            searchTerm() ? 'search_off' : 'folder_off'
+        }}</mat-icon>
+        <div class="empty-state-title">
+            {{
+                (searchTerm()
+                    ? 'CHANNELS.NO_SEARCH_RESULTS'
+                    : 'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE'
+                ) | translate
+            }}
         </div>
-    } @else {
-        <mat-accordion multi>
-            @for (
-                groups of filteredGroupedChannels() | keyvalue: groupsComparator;
-                track $index
-            ) {
-                @if (groups.value.length > 0) {
-                    <mat-expansion-panel
-                        (afterExpand)="
-                            onGroupPanelOpened(groups.key, groups.value.length)
-                        "
-                    >
-                        <mat-expansion-panel-header>
-                            {{
-                                groups.key || ('CHANNELS.UNGROUPED' | translate)
-                                    | titlecase
-                            }}
-                            ({{ groups.value.length }})
-                        </mat-expansion-panel-header>
+        <div class="empty-state-hint">
+            {{
+                (searchTerm()
+                    ? 'CHANNELS.TRY_DIFFERENT_SEARCH'
+                    : 'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION'
+                ) | translate
+            }}
+        </div>
+    </div>
+} @else {
+    <div class="groups-view-layout">
+        <aside
+            class="groups-nav-panel"
+            appResizable
+            [minWidth]="164"
+            [maxWidth]="320"
+            [defaultWidth]="208"
+            storageKey="m3u-groups-nav-width"
+        >
+            <div class="groups-nav-shell">
+                <header class="groups-nav-header">
+                    <h2 class="groups-nav-title">
+                        {{ 'CHANNELS.GROUPS' | translate }}
+                    </h2>
+                </header>
 
-                        <ng-template matExpansionPanelContent>
-                            @let enrichedGroupChannels =
-                                getEnrichedGroupChannels(groups.value, groups.key);
-                            @let limit = getGroupLimit(groups.key);
-                            <div class="group-channels">
-                                @for (
-                                    channel of enrichedGroupChannels.slice(
-                                        0,
-                                        limit
-                                    );
-                                    track trackByFn($index, channel);
-                                    let i = $index
-                                ) {
-                                    <app-channel-list-item
-                                        [name]="
-                                            i +
-                                            1 +
-                                            '. ' +
-                                            (channel?.name ||
-                                                'CHANNELS.UNNAMED_CHANNEL'
-                                                | translate)
-                                        "
-                                        [logo]="channel?.tvg?.logo"
-                                        [showEpg]="shouldShowEpg()"
-                                        [epgProgram]="channel.epgProgram"
-                                        [progressPercentage]="
-                                            channel.progressPercentage
-                                        "
-                                        (clicked)="onChannelClick(channel)"
-                                        [selected]="
-                                            activeChannelUrl() === channel?.url
-                                        "
-                                        [showFavoriteButton]="true"
-                                        [isFavorite]="
-                                            favoriteIds().has(channel?.url)
-                                        "
-                                        (favoriteToggled)="
-                                            onFavoriteToggle(channel, $event)
-                                        "
-                                    ></app-channel-list-item>
+                <div class="groups-nav-list nav-list">
+                    @for (group of filteredGroups(); track trackByGroupKey($index, group)) {
+                        <button
+                            type="button"
+                            class="nav-item group-nav-item"
+                            [attr.data-group-key]="group.key"
+                            [class.selected]="selectedGroupKey() === group.key"
+                            [attr.aria-current]="
+                                selectedGroupKey() === group.key ? 'true' : null
+                            "
+                            (click)="selectGroup(group.key)"
+                        >
+                            <span class="nav-item-label">
+                                @if (group.key) {
+                                    {{ group.key | titlecase }}
+                                } @else {
+                                    {{ 'CHANNELS.UNGROUPED' | translate }}
                                 }
-                                @if (groups.value.length > limit) {
-                                    <div
-                                        class="scroll-sentinel"
-                                        [attr.data-sentinel-group]="groups.key"
-                                    >
-                                        <div class="loading-more">
-                                            <mat-icon
-                                                class="loading-more-spinner"
-                                                >sync</mat-icon
-                                            >
-                                            <span>{{
-                                                'CHANNELS.LOADING_MORE'
-                                                    | translate
-                                            }}</span>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        </ng-template>
-                    </mat-expansion-panel>
-                }
+                            </span>
+                            <span class="nav-item-meta">
+                                {{ group.count }}
+                            </span>
+                        </button>
+                    }
+                </div>
+            </div>
+        </aside>
+
+        <section class="sidebar groups-content-panel">
+            @if (selectedGroup(); as group) {
+                <header class="sidebar-header groups-content-header">
+                    <div class="category-heading">
+                        <h2 class="category-title">
+                            @if (group.key) {
+                                {{ group.key | titlecase }}
+                            } @else {
+                                {{ 'CHANNELS.UNGROUPED' | translate }}
+                            }
+                        </h2>
+                        <span class="category-count">{{ group.count }}</span>
+                    </div>
+                </header>
+
+                <cdk-virtual-scroll-viewport
+                    [itemSize]="itemSize()"
+                    class="groups-channels-viewport"
+                >
+                    <app-channel-list-item
+                        *cdkVirtualFor="
+                            let channel of selectedGroupChannels();
+                            index as i;
+                            trackBy: trackByChannel
+                        "
+                        [name]="
+                            i +
+                            1 +
+                            '. ' +
+                            (channel?.name ||
+                                ('CHANNELS.UNNAMED_CHANNEL' | translate))
+                        "
+                        [logo]="channel?.tvg?.logo"
+                        [showEpg]="shouldShowEpg()"
+                        [epgProgram]="channel.epgProgram"
+                        [progressPercentage]="channel.progressPercentage"
+                        [selected]="activeChannelUrl() === channel?.url"
+                        [showFavoriteButton]="true"
+                        [isFavorite]="favoriteIds().has(channel?.url)"
+                        (clicked)="onChannelClick(channel)"
+                        (favoriteToggled)="onFavoriteToggle(channel, $event)"
+                    />
+                </cdk-virtual-scroll-viewport>
             }
-        </mat-accordion>
-    }
-</div>
+        </section>
+    </div>
+}
