@@ -13,7 +13,9 @@ import {
     PortalDebugEvent,
 } from 'shared-interfaces';
 import {
+    DbOperationEvent,
     GlobalFavoriteItem,
+    GlobalRecentlyAddedItem,
     GlobalRecentItem,
     GlobalSearchResult,
     XCategoryFromDb,
@@ -117,6 +119,7 @@ declare global {
                 url: string;
                 params: Record<string, string>;
                 requestId?: string;
+                suppressErrorLog?: boolean;
             }) => Promise<{ payload: unknown; action: string }>;
             // Database operations
             dbCreatePlaylist: (
@@ -136,9 +139,13 @@ declare global {
                 updates: Partial<Playlist>
             ) => Promise<{ success: boolean }>;
             dbDeletePlaylist: (
-                playlistId: string
+                playlistId: string,
+                operationId?: string
             ) => Promise<{ success: boolean }>;
-            dbDeleteXtreamContent: (playlistId: string) => Promise<{
+            dbDeleteXtreamContent: (
+                playlistId: string,
+                operationId?: string
+            ) => Promise<{
                 success: boolean;
                 favoritedXtreamIds: number[];
                 recentlyViewedXtreamIds: {
@@ -156,7 +163,8 @@ declare global {
                 recentlyViewedXtreamIds: {
                     xtreamId: number;
                     viewedAt: string;
-                }[]
+                }[],
+                operationId?: string
             ) => Promise<{ success: boolean }>;
             dbHasCategories: (
                 playlistId: string,
@@ -191,7 +199,8 @@ declare global {
             dbSaveContent: (
                 playlistId: string,
                 streams: JsonArray,
-                type: string
+                type: string,
+                operationId?: string
             ) => Promise<{ success: boolean; count: number }>;
             dbSearchContent: (
                 playlistId: string,
@@ -204,6 +213,10 @@ declare global {
                 types: string[],
                 excludeHidden?: boolean
             ) => Promise<GlobalSearchResult[]>;
+            dbGetGlobalRecentlyAdded: (
+                kind: 'all' | 'vod' | 'series',
+                limit?: number
+            ) => Promise<GlobalRecentlyAddedItem[]>;
             dbGetRecentlyViewed: () => Promise<GlobalRecentItem[]>;
             dbClearRecentlyViewed: () => Promise<{ success: boolean }>;
             // Favorites
@@ -299,7 +312,15 @@ declare global {
                 callback: (count: number) => void
             ) => void;
             removeDbSaveContentProgress: () => void;
-            dbDeleteAllPlaylists: () => Promise<{ success: boolean }>;
+            onDbOperationEvent?: (
+                callback: (data: DbOperationEvent) => void
+            ) => () => void;
+            dbDeleteAllPlaylists: (
+                operationId?: string
+            ) => Promise<{ success: boolean }>;
+            dbCancelOperation: (
+                operationId: string
+            ) => Promise<{ success: boolean }>;
             // Playback positions
             dbSavePlaybackPosition: (
                 playlistId: string,
