@@ -110,6 +110,9 @@
         "THEME_DESCRIPTION": "애플리케이션의 시각적 테마 선택",
         "EPG_NOTE": "현재 EPG는 IPTVnator의 전자 기반 버전에서만 사용할 수 있습니다.",
         "VLC_PLAYER_PATH": "VLC 플레이어 경로",
+        "POTPLAYER_PATH_LABEL": "PotPlayer 경로",
+        "POTPLAYER_PATH_DESCRIPTION": "시스템에서 PotPlayer의 경로를 설정하십시오. \n시스템의 기본 경로 대신 PotPlayer 바이너리에 제공된 경로를 사용합니다.",
+        "POTPLAYER_PATH": "PotPlayer 플레이어 경로",
         "IMPORT_EXPORT_DATA_DESCRIPTION": "애플리케이션 내에서 사용되는 JSON 형식으로 재생 목록을 내보내거나 가져옵니다.",
         "EPG_NOTE_URL_TEXT": "여기에서 확인하세요",
         "MPV_PLAYER_PATH_LABEL": "mpv 경로"

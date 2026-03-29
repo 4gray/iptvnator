@@ -640,8 +640,12 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     private isExternalPlayer(
         player: VideoPlayer | null | undefined
-    ): player is VideoPlayer.MPV | VideoPlayer.VLC {
-        return player === VideoPlayer.MPV || player === VideoPlayer.VLC;
+    ): player is VideoPlayer.MPV | VideoPlayer.VLC | VideoPlayer.PotPlayer {
+        return (
+            player === VideoPlayer.MPV ||
+            player === VideoPlayer.VLC ||
+            player === VideoPlayer.PotPlayer
+        );
     }
 
     private isTerminalExternalSession(
