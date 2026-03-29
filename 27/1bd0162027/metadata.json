@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "271bd0162027",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.html",
+    "libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.scss",
+    "libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts",
+    "libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.html",
+    "libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.scss",
+    "libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/27/1bd0162027/0/metadata.json",
+      "transcript": "/27/1bd0162027/0/full.jsonl",
+      "context": "/27/1bd0162027/0/context.md",
+      "content_hash": "/27/1bd0162027/0/content_hash.txt",
+      "prompt": "/27/1bd0162027/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 83,
+    "cache_creation_tokens": 139634,
+    "cache_read_tokens": 4492874,
+    "output_tokens": 21998,
+    "api_call_count": 61
+  }
+}

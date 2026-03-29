@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "271bd0162027",
+  "session_id": "03864394-1085-432c-a261-484b3547126b",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-29T21:51:28.566352Z",
+  "branch": "master",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.html",
+    "libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.scss",
+    "libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts",
+    "libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.html",
+    "libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.scss",
+    "libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "c5d0e9a6-efb4-4bee-8f18-56961dc7898f",
+  "token_usage": {
+    "input_tokens": 83,
+    "cache_creation_tokens": 139634,
+    "cache_read_tokens": 4492874,
+    "output_tokens": 21998,
+    "api_call_count": 61
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-29T21:51:28.401334Z",
+    "agent_lines": 217,
+    "human_added": 13,
+    "human_modified": 12,
+    "human_removed": 0,
+    "total_committed": 242,
+    "agent_percentage": 89.6694214876033
+  }
+}

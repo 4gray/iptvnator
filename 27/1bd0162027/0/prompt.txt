@@ -1,0 +1,274 @@
+in @libs/playlist/shared/ui/src/lib/recent-playlists/ and @libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/ the single item playlist element looks a bit off from different design parts and look&feel in UI, for example strongly rounded corners, padding/margin, size of buttons, font, typography, metadata, buttons etc. can you analyse it and compary with other design elements in the app and suggst me how to improve it, so that it looks more aligned with other elements. use /plan mode and /frontend-design skill and /sc-brainstorm skill
+
+---
+
+Base directory for this skill: /Users/4gray/Code/iptvnator/.claude/skills/sc-brainstorm
+
+# Brainstorming & Requirements Discovery Skill
+
+Transform ambiguous ideas into concrete specifications through structured exploration.
+
+## Quick Start
+
+```bash
+# Basic brainstorm
+/sc:brainstorm [topic]
+
+# Deep systematic exploration
+/sc:brainstorm "AI project management tool" --strategy systematic --depth deep
+
+# Parallel exploration with multiple personas
+/sc:brainstorm "real-time collaboration" --strategy agile --parallel
+```
+
+## Behavioral Flow
+
+1. **Explore** - Transform ambiguous ideas through Socratic dialogue
+2. **Analyze** - Coordinate multiple personas for domain expertise
+3. **Validate** - Apply feasibility assessment across domains
+4. **Specify** - Generate concrete specifications
+5. **Handoff** - Create actionable briefs for implementation
+
+## Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--strategy` | string | systematic | systematic, agile, enterprise |
+| `--depth` | string | normal | shallow, normal, deep |
+| `--parallel` | bool | false | Enable parallel exploration paths |
+| `--validate` | bool | false | Include feasibility validation |
+
+## Personas Activated
+
+- **architect** - System design and technical feasibility
+- **analyzer** - Requirements analysis and complexity assessment
+- **frontend** - User experience and interface considerations
+- **backend** - API and data architecture
+- **security** - Security requirements and compliance
+- **devops** - Infrastructure and deployment considerations
+- **project-manager** - Timeline and resource planning
+
+## MCP Integration
+
+### PAL MCP (Collaborative Intelligence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__pal__consensus` | Conflicting priorities | Multi-model resolution of trade-offs |
+| `mcp__pal__chat` | Brainstorming | Collaborative idea exploration with external model |
+| `mcp__pal__thinkdeep` | Complex problems | Multi-stage deep analysis |
+| `mcp__pal__planner` | Solution design | Sequential planning with branching |
+| `mcp__pal__challenge` | Validate ideas | Force critical thinking on proposed solutions |
+
+### PAL Usage Patterns
+
+```bash
+# Consensus on conflicting priorities
+mcp__pal__consensus(
+    models=[
+        {"model": "gpt-5.2", "stance": "for", "stance_prompt": "Prioritize user experience"},
+        {"model": "gemini-3-pro", "stance": "against", "stance_prompt": "Prioritize technical simplicity"},
+        {"model": "deepseek", "stance": "neutral"}
+    ],
+    step="Evaluate: Should we use real-time sync or eventual consistency?"
+)
+
+# Deep exploration of complex idea
+mcp__pal__thinkdeep(
+    step="Exploring AI-powered analytics dashboard concept",
+    hypothesis="Users need predictive insights, not just historical data",
+    confidence="medium",
+    focus_areas=["user_needs", "technical_feasibility", "market_fit"]
+)
+
+# Collaborative brainstorming
+mcp__pal__chat(
+    prompt="Help me explore innovative approaches for real-time collaboration in document editing",
+    model="gpt-5.2",
+    thinking_mode="high"
+)
+
+# Challenge assumptions
+mcp__pal__challenge(
+    prompt="We assume users want AI-generated summaries. Is this assumption valid?"
+)
+
+# Plan solution architecture
+mcp__pal__planner(
+    step="Planning architecture for real-time notification system",
+    step_number=1,
+    total_steps=4,
+    is_branch_point=True,
+    branch_id="websocket-approach"
+)
+```
+
+### Rube MCP (Research & Persistence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__rube__RUBE_SEARCH_TOOLS` | Market research | Find web search, competitor analysis tools |
+| `mcp__rube__RUBE_MULTI_EXECUTE_TOOL` | Documentation | Save ideas to Notion, share in Slack |
+| `mcp__rube__RUBE_CREATE_UPDATE_RECIPE` | Workflows | Save brainstorming processes |
+| `mcp__rube__RUBE_REMOTE_WORKBENCH` | Data analysis | Analyze market data, user research |
+
+### Rube Usage Patterns
+
+```bash
+# Research market and competitors
+mcp__rube__RUBE_SEARCH_TOOLS(queries=[
+    {"use_case": "web search", "known_fields": "query:AI analytics dashboard competitors 2025"}
+])
+
+# Document brainstorming session
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "NOTION_CREATE_PAGE", "arguments": {
+        "title": "Brainstorm: AI Analytics Dashboard",
+        "content": "## Key Ideas\n- Predictive insights\n- Natural language queries\n\n## Decisions\n- Real-time sync chosen over eventual consistency"
+    }},
+    {"tool_slug": "SLACK_SEND_MESSAGE", "arguments": {
+        "channel": "#product",
+        "text": "New brainstorm session documented: AI Analytics Dashboard"
+    }}
+])
+
+# Create user research tasks
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "JIRA_CREATE_ISSUE", "arguments": {
+        "project": "PROD",
+        "summary": "User research: AI analytics preferences",
+        "issue_type": "Task",
+        "description": "Interview 10 users about analytics needs"
+    }},
+    {"tool_slug": "ASANA_CREATE_TASK", "arguments": {
+        "name": "Competitor analysis: analytics dashboards",
+        "project": "Research"
+    }}
+])
+
+# Analyze existing user feedback
+mcp__rube__RUBE_REMOTE_WORKBENCH(
+    thought="Analyze user feedback data for patterns",
+    code_to_execute='''
+import json
+# Load user feedback from file
+feedback_data = json.load(open("/tmp/user_feedback.json"))
+# Analyze with LLM
+analysis, error = invoke_llm(f"Analyze this user feedback for analytics feature requests: {feedback_data[:5000]}")
+output = {"analysis": analysis, "feedback_count": len(feedback_data)}
+output
+'''
+)
+```
+
+## Flags (Extended)
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--pal-consensus` | bool | false | Use PAL consensus for trade-offs |
+| `--pal-deep` | bool | false | Use PAL thinkdeep for complex exploration |
+| `--research` | bool | false | Use Rube for market/competitor research |
+| `--document` | string | - | Document to Rube (notion, confluence, google-docs) |
+| `--notify` | string | - | Notify via Rube (slack, teams, email) |
+
+## Evidence Requirements
+
+This skill does NOT require hard evidence. Focus on:
+- Documenting exploration paths and decisions
+- Recording stakeholder input and priorities
+- Capturing specifications and requirements
+
+## Exploration Strategies
+
+### Systematic (`--strategy systematic`)
+- Structured question-driven discovery
+- Comprehensive domain coverage
+- Documentation-heavy approach
+
+### Agile (`--strategy agile`)
+- Rapid iteration cycles
+- User story focused
+- Minimal viable specification
+
+### Enterprise (`--strategy enterprise`)
+- Compliance and governance focus
+- Stakeholder alignment
+- Risk assessment integration
+
+## Examples
+
+### Product Discovery
+```
+/sc:brainstorm "AI-powered analytics dashboard" --strategy systematic --depth deep
+# Multi-persona analysis with comprehensive feasibility
+```
+
+### Feature Exploration
+```
+/sc:brainstorm "real-time notifications" --strategy agile --parallel
+# Parallel paths: frontend UX, backend architecture, security implications
+```
+
+### Enterprise Solution
+```
+/sc:brainstorm "enterprise data platform" --strategy enterprise --validate
+# Compliance-aware exploration with security and devops input
+```
+
+## Tool Coordination
+
+- **Read/Write** - Requirements documentation
+- **TodoWrite** - Exploration progress tracking
+- **Task** - Parallel exploration delegation
+- **WebSearch** - Market research and technology validation
+
+
+ARGUMENTS: Analyze the playlist-item component in @libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/ - it looks visually inconsistent with the rest of the app (rounded corners, padding/margin, button sizes, font/typography, metadata display). Compare with other UI elements and suggest improvements for visual alignment.
+
+---
+
+what do you think about border-radius of the playlist item elements? can we reduce them? also as you can see the element is a bit cut off on the right side [Image #1] . is the scroll bar layout cutting it off, so that border radius is not visible?
+
+---
+
+[Image: source: /Users/4gray/.claude/image-cache/03864394-1085-432c-a261-484b3547126b/1.png]
+
+---
+
+i think the border radius was not changed, or? see screenshot [Image #2]
+
+---
+
+[Image: source: /Users/4gray/.claude/image-cache/03864394-1085-432c-a261-484b3547126b/2.png]
+
+---
+
+is way more better. as you can see, the text in the icon, text, meta icons/buttons in the mat-list-item are somehow not vertically aligned or? how easy can it be adapted or is it also hardcoded somewhere in material design? [Image #3]
+
+---
+
+[Image: source: /Users/4gray/.claude/image-cache/03864394-1085-432c-a261-484b3547126b/3.png]
+
+---
+
+the button on the right and title and meta are still not vertically aligned or? check screenshot and highlighted element: [Image #4]
+
+---
+
+[Image: source: /Users/4gray/.claude/image-cache/03864394-1085-432c-a261-484b3547126b/4.png]
+
+---
+
+still no effect
+
+---
+
+now it's even more sticky to bottom , see [Image #5]
+
+---
+
+[Image: source: /Users/4gray/.claude/image-cache/03864394-1085-432c-a261-484b3547126b/5.png]
+
+---
+
+still not perfect, maybe we can replace the mat-list-item, what do you think? or would it produce issues with drag&drop?
