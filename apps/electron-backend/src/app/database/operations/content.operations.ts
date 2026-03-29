@@ -219,12 +219,27 @@ export async function saveContent(
     type: 'live' | 'movie' | 'series',
     control?: OperationControl
 ): Promise<{ success: boolean; count: number }> {
-    console.log(
-        `>>> DB_SAVE_CONTENT called: ${streams.length} items, type: ${type}, playlist: ${playlistId}`
-    );
-
     const dbType =
         type === 'series' ? 'series' : type === 'movie' ? 'movies' : 'live';
+
+    const existingContent = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.content)
+        .innerJoin(
+            schema.categories,
+            eq(schema.content.categoryId, schema.categories.id)
+        )
+        .where(
+            and(
+                eq(schema.categories.playlistId, playlistId),
+                eq(schema.categories.type, dbType),
+                eq(schema.content.type, type)
+            )
+        );
+
+    if ((existingContent[0]?.count ?? 0) > 0) {
+        return { success: true, count: existingContent[0].count };
+    }
 
     const categories = await db
         .select({
@@ -255,7 +270,16 @@ export async function saveContent(
     for (let index = 0; index < values.length; index += chunkSize) {
         await checkpointOperation(control);
         const chunk = values.slice(index, index + chunkSize);
-        await db.insert(schema.content).values(chunk);
+        await db
+            .insert(schema.content)
+            .values(chunk)
+            .onConflictDoNothing({
+                target: [
+                    schema.content.categoryId,
+                    schema.content.type,
+                    schema.content.xtreamId,
+                ],
+            });
         totalInserted += chunk.length;
         await reportOperationProgress(control, {
             phase: 'saving-content',

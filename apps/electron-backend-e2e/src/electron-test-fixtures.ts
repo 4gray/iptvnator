@@ -339,7 +339,12 @@ export async function saveSettings(page: Page): Promise<void> {
 }
 
 export async function goToDashboard(page: Page): Promise<void> {
-    await page.locator('a[href$="/workspace/dashboard"]').click();
+    const dashboardLink = page
+        .locator('a.brand[href$="/workspace/dashboard"]')
+        .first();
+
+    await expect(dashboardLink).toBeVisible();
+    await dashboardLink.click();
     await page.waitForURL(/\/workspace\/dashboard$/);
 }
 
@@ -544,21 +549,52 @@ export async function switchUnifiedCollectionScope(
     page: Page,
     scopeLabel: 'This playlist' | 'All playlists'
 ): Promise<void> {
-    const toggle = page
-        .locator('.scope-toggle')
-        .getByRole('button', { name: scopeLabel, exact: true });
+    const toggleGroup = page.locator('.scope-toggle');
 
-    await expect(toggle).toBeVisible();
-    await toggle.click();
+    await expect(toggleGroup).toBeVisible();
+    await clickButtonToggleOption(toggleGroup, scopeLabel);
 }
 
 export async function switchUnifiedCollectionContent(
     page: Page,
     contentLabel: 'Live TV' | 'Movies' | 'Series'
 ): Promise<void> {
-    const toggle = page
-        .locator('.content-toggle')
-        .getByRole('button', { name: contentLabel, exact: true });
+    const toggleGroup = page.locator('.content-toggle');
+
+    await expect(toggleGroup).toBeVisible();
+    await clickButtonToggleOption(toggleGroup, contentLabel);
+}
+
+async function clickButtonToggleOption(
+    toggleGroup: Locator,
+    label: string
+): Promise<void> {
+    const radio = toggleGroup.getByRole('radio', {
+        name: label,
+        exact: true,
+    });
+
+    if ((await radio.count()) > 0) {
+        await expect(radio.first()).toBeVisible();
+        await radio.first().click();
+        return;
+    }
+
+    const button = toggleGroup.getByRole('button', {
+        name: label,
+        exact: true,
+    });
+
+    if ((await button.count()) > 0) {
+        await expect(button.first()).toBeVisible();
+        await button.first().click();
+        return;
+    }
+
+    const toggle = toggleGroup
+        .locator('mat-button-toggle')
+        .filter({ hasText: flexibleTextPattern(label) })
+        .first();
 
     await expect(toggle).toBeVisible();
     await toggle.click();
@@ -606,7 +642,8 @@ export async function clickCategoryById(
         `app-workspace-context-panel .category-item[data-category-id="${categoryId}"]:visible`
     );
 
-    await expect(category.first()).toBeVisible();
+    await expect(category.first()).toBeVisible({ timeout: 20000 });
+    await category.first().scrollIntoViewIfNeeded();
     await category.first().click();
 }
 
@@ -614,16 +651,17 @@ export async function clickCategoryByNameExact(
     page: Page,
     categoryName: string
 ): Promise<void> {
-    const category = page
+    const categories = page
         .locator('app-workspace-context-panel .category-item:visible')
         .filter({
             has: page.locator('.nav-item-label', {
                 hasText: new RegExp(`^\\s*${escapeRegex(categoryName)}\\s*$`),
             }),
-        })
-        .first();
+        });
+    const category = await pickPreferredCategory(categories);
 
     await expect(category).toBeVisible();
+    await category.scrollIntoViewIfNeeded();
     await category.click();
 }
 
@@ -868,7 +906,6 @@ export async function waitForM3uCatalog(page: Page): Promise<void> {
 export async function waitForXtreamCatalog(page: Page): Promise<void> {
     await page.waitForURL(/\/workspace\/xtreams\/.+/);
     await waitForXtreamImportToFinish(page);
-    await waitForXtreamCategoryCounts(page);
 
     const categories = page.locator(
         'app-workspace-context-panel .category-item'
@@ -883,7 +920,9 @@ export async function waitForXtreamCatalog(page: Page): Promise<void> {
         await expect(contentItems.first()).toBeVisible({ timeout: 5000 });
         return;
     } catch {
-        await categories.first().click();
+        const category = await pickPreferredCategory(categories);
+        await category.scrollIntoViewIfNeeded();
+        await category.click();
         await expect(contentItems.first()).toBeVisible({ timeout: 20000 });
     }
 }
@@ -902,23 +941,6 @@ export async function expectPlaylistUpdatedToast(page: Page): Promise<void> {
     });
 }
 
-async function waitForXtreamCategoryCounts(page: Page): Promise<void> {
-    await expect
-        .poll(
-            async () => {
-                const texts = await page
-                    .locator(
-                        'app-workspace-context-panel .category-item .item-count'
-                    )
-                    .allInnerTexts();
-
-                return texts.some((text) => Number.parseInt(text, 10) > 0);
-            },
-            { timeout: 30000 }
-        )
-        .toBeTruthy();
-}
-
 export async function waitForXtreamImportToFinish(page: Page): Promise<void> {
     const overlay = page.locator('.workspace-loading-overlay');
 
@@ -929,6 +951,32 @@ export async function waitForXtreamImportToFinish(page: Page): Promise<void> {
     }
 
     await expect(overlay).toHaveCount(0, { timeout: 30000 });
+}
+
+async function pickPreferredCategory(categories: Locator): Promise<Locator> {
+    const count = await categories.count();
+    let fallback: Locator | null = null;
+
+    for (let index = 0; index < count; index += 1) {
+        const candidate = categories.nth(index);
+
+        if (!(await candidate.isVisible())) {
+            continue;
+        }
+
+        fallback ??= candidate;
+
+        const countText =
+            (await candidate.locator('.item-count').first().textContent()) ??
+            '';
+        const itemCount = Number.parseInt(countText.trim(), 10);
+
+        if (Number.isFinite(itemCount) && itemCount > 0) {
+            return candidate;
+        }
+    }
+
+    return fallback ?? categories.first();
 }
 
 export async function waitForStalkerCatalog(page: Page): Promise<void> {

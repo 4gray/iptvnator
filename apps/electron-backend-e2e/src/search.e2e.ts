@@ -1,4 +1,4 @@
-import { APIRequestContext, Page } from '@playwright/test';
+import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { readFileSync } from 'fs';
 import {
     addStalkerPortal,
@@ -281,6 +281,11 @@ test.describe('Electron Workspace Search', () => {
                 username: xtreamSearchUsername,
             });
             await waitForXtreamWorkspaceReady(app.mainWindow);
+            await openWorkspaceSection(app.mainWindow, 'Movies');
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/xtreams\/[^/]+\/vod$/
+            );
 
             await clickCategoryByNameExact(app.mainWindow, sample.categoryName);
             await expect(
@@ -513,6 +518,11 @@ test.describe('Electron Workspace Search', () => {
                 username: xtreamSearchUsername,
             });
             await waitForXtreamWorkspaceReady(app.mainWindow);
+            await openWorkspaceSection(app.mainWindow, 'Movies');
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/xtreams\/[^/]+\/vod$/
+            );
 
             await clickCategoryByNameExact(app.mainWindow, sample.categoryName);
             await expect(
@@ -1176,16 +1186,17 @@ async function clickCategoryByNameExact(
     page: Page,
     categoryName: string
 ): Promise<void> {
-    const category = page
+    const categories = page
         .locator('app-workspace-context-panel .category-item:visible')
         .filter({
             has: page.locator('.nav-item-label', {
                 hasText: new RegExp(`^\\s*${escapeRegex(categoryName)}\\s*$`),
             }),
-        })
-        .first();
+        });
+    const category = await pickPreferredCategory(categories);
 
     await expect(category).toBeVisible();
+    await category.scrollIntoViewIfNeeded();
     await category.click();
 }
 
@@ -1310,6 +1321,32 @@ async function goBackFromDetail(page: Page): Promise<void> {
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     await backButton.click();
+}
+
+async function pickPreferredCategory(categories: Locator): Promise<Locator> {
+    const count = await categories.count();
+    let fallback = categories.first();
+
+    for (let index = 0; index < count; index += 1) {
+        const candidate = categories.nth(index);
+
+        if (!(await candidate.isVisible())) {
+            continue;
+        }
+
+        fallback = candidate;
+
+        const countText =
+            (await candidate.locator('.item-count').first().textContent()) ??
+            '';
+        const itemCount = Number.parseInt(countText.trim(), 10);
+
+        if (Number.isFinite(itemCount) && itemCount > 0) {
+            return candidate;
+        }
+    }
+
+    return fallback;
 }
 
 async function performXtreamPlaylistSearch(

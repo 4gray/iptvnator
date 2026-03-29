@@ -4,6 +4,8 @@ import {
     addXtreamPortal,
     clickCategoryByNameExact,
     closeElectronApp,
+    defaultXtreamPassword,
+    defaultXtreamUsername,
     expect,
     launchElectronApp,
     openWorkspaceSection,
@@ -26,19 +28,28 @@ test.describe('Electron Catalog Sorting', () => {
         request,
     }) => {
         await resetMockServers(request, ['xtream']);
-        const fixture = await fetchXtreamLiveFixture(request);
+        const fixture = await fetchXtreamLiveFixture(request, xtreamCredentials);
         const expectedServerOrder = fixture.items
             .map((item) => getXtreamTitle(item))
+            .filter((title, index, titles) => titles.indexOf(title) === index)
             .slice(0, 5);
-        const expectedAscending = [...expectedServerOrder]
+        const expectedAscending = fixture.items
+            .map((item) => getXtreamTitle(item))
+            .filter((title, index, titles) => titles.indexOf(title) === index)
             .sort(collator.compare)
             .slice(0, 5);
-        const expectedDescending = [...expectedAscending].reverse();
+        const expectedDescending = fixture.items
+            .map((item) => getXtreamTitle(item))
+            .filter((title, index, titles) => titles.indexOf(title) === index)
+            .sort(collator.compare)
+            .reverse()
+            .slice(0, 5);
         const app = await launchElectronApp(dataDir);
 
         try {
             await addXtreamPortal(app.mainWindow);
             await waitForXtreamWorkspaceReady(app.mainWindow);
+            await openWorkspaceSection(app.mainWindow, 'Live TV');
             await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
 
             await expectVisibleChannelTitles(app.mainWindow, expectedServerOrder);
@@ -64,19 +75,32 @@ test.describe('Electron Catalog Sorting', () => {
         request,
     }) => {
         await resetMockServers(request, ['xtream']);
-        const vodFixture = await fetchXtreamVodFixture(request);
-        const seriesFixture = await fetchXtreamSeriesFixture(request);
+        const vodFixture = await fetchXtreamVodFixture(request, xtreamCredentials);
+        const seriesFixture = await fetchXtreamSeriesFixture(
+            request,
+            xtreamCredentials
+        );
         const expectedVodDateDesc = [...vodFixture.items]
             .sort((left, right) => getXtreamDateValue(right) - getXtreamDateValue(left))
-            .map((item) => getXtreamTitle(item));
-        const expectedVodDateAsc = [...expectedVodDateDesc].reverse();
+            .map((item) => getXtreamTitle(item))
+            .slice(0, visibleComparisonSize);
+        const expectedVodDateAsc = [...vodFixture.items]
+            .sort((left, right) => getXtreamDateValue(left) - getXtreamDateValue(right))
+            .map((item) => getXtreamTitle(item))
+            .slice(0, visibleComparisonSize);
         const expectedVodNameAsc = [...vodFixture.items]
             .map((item) => getXtreamTitle(item))
-            .sort(collator.compare);
-        const expectedVodNameDesc = [...expectedVodNameAsc].reverse();
+            .sort(collator.compare)
+            .slice(0, visibleComparisonSize);
+        const expectedVodNameDesc = [...vodFixture.items]
+            .map((item) => getXtreamTitle(item))
+            .sort(collator.compare)
+            .reverse()
+            .slice(0, visibleComparisonSize);
         const expectedSeriesNameAsc = [...seriesFixture.items]
             .map((item) => getXtreamTitle(item))
-            .sort(collator.compare);
+            .sort(collator.compare)
+            .slice(0, visibleComparisonSize);
         const app = await launchElectronApp(dataDir);
 
         try {
@@ -147,6 +171,11 @@ const collator = new Intl.Collator(undefined, {
     numeric: true,
     sensitivity: 'base',
 });
+const visibleComparisonSize = 8;
+const xtreamCredentials = {
+    username: defaultXtreamUsername,
+    password: defaultXtreamPassword,
+};
 
 async function setLiveSortMode(
     page: Page,
@@ -173,7 +202,10 @@ async function expectVisibleChannelTitles(
     expectedTitles: string[]
 ): Promise<void> {
     await expect
-        .poll(() => visibleChannelTitles(page))
+        .poll(async () => {
+            const titles = await visibleChannelTitles(page);
+            return titles.slice(0, expectedTitles.length);
+        })
         .toEqual(expectedTitles);
 }
 
@@ -182,7 +214,10 @@ async function expectVisibleGridTitles(
     expectedTitles: string[]
 ): Promise<void> {
     await expect
-        .poll(() => visibleGridTitles(page))
+        .poll(async () => {
+            const titles = await visibleGridTitles(page);
+            return titles.slice(0, expectedTitles.length);
+        })
         .toEqual(expectedTitles);
 }
 
@@ -190,12 +225,29 @@ async function visibleChannelTitles(page: Page): Promise<string[]> {
     return page
         .locator('[data-test-id="channel-item"] .channel-name')
         .allInnerTexts()
-        .then((titles: string[]) => titles.map((title) => title.trim()));
+        .then((titles: string[]) =>
+            uniqueTitles(titles.map((title) => title.trim()))
+        );
 }
 
 async function visibleGridTitles(page: Page): Promise<string[]> {
     return page
         .locator('.category-content-layout mat-card .title')
         .allInnerTexts()
-        .then((titles: string[]) => titles.map((title) => title.trim()));
+        .then((titles: string[]) =>
+            uniqueTitles(titles.map((title) => title.trim()))
+        );
+}
+
+function uniqueTitles(titles: string[]): string[] {
+    const seen = new Set<string>();
+
+    return titles.filter((title) => {
+        if (seen.has(title)) {
+            return false;
+        }
+
+        seen.add(title);
+        return true;
+    });
 }

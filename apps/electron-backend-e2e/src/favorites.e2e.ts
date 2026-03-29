@@ -4,12 +4,16 @@ import {
     addXtreamPortal,
     channelItemByTitle,
     clickCategoryById,
+    clickCategoryByNameExact,
     clickGridListCardByTitle,
     closeElectronApp,
     contentCardByTitle,
+    defaultXtreamPassword,
+    defaultXtreamUsername,
     expect,
     importM3uPlaylistFromNativeDialog,
     launchElectronApp,
+    openWorkspaceSection,
     openPlaylistFavorites,
     openSources,
     resetMockServers,
@@ -105,9 +109,12 @@ test.describe('Electron Favorites', () => {
         request,
     }) => {
         await resetMockServers(request, ['xtream']);
-        const liveFixture = await fetchXtreamLiveFixture(request);
-        const vodFixture = await fetchXtreamVodFixture(request);
-        const seriesFixture = await fetchXtreamSeriesFixture(request);
+        const liveFixture = await fetchXtreamLiveFixture(request, xtreamCredentials);
+        const vodFixture = await fetchXtreamVodFixture(request, xtreamCredentials);
+        const seriesFixture = await fetchXtreamSeriesFixture(
+            request,
+            xtreamCredentials
+        );
         const [liveTitle] = pickDistinctTitles(liveFixture.items, getXtreamTitle);
         const [movieTitle] = pickDistinctTitles(vodFixture.items, getXtreamTitle);
         const [seriesTitle] = pickDistinctTitles(seriesFixture.items, getXtreamTitle);
@@ -120,17 +127,27 @@ test.describe('Electron Favorites', () => {
             });
             await waitForXtreamWorkspaceReady(app.mainWindow);
 
-            await clickCategoryById(app.mainWindow, liveFixture.categoryId);
+            await openWorkspaceSection(app.mainWindow, 'Live TV');
+            await clickCategoryByNameExact(
+                app.mainWindow,
+                liveFixture.categoryName
+            );
             await toggleFavoriteForChannel(app.mainWindow, liveTitle);
 
             await app.mainWindow.getByRole('link', { name: 'Movies', exact: true }).click();
-            await clickCategoryById(app.mainWindow, vodFixture.categoryId);
+            await clickCategoryByNameExact(
+                app.mainWindow,
+                vodFixture.categoryName
+            );
             await clickGridListCardByTitle(app.mainWindow, movieTitle);
             await addCurrentDetailToFavorites(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
 
             await app.mainWindow.getByRole('link', { name: 'Series', exact: true }).click();
-            await clickCategoryById(app.mainWindow, seriesFixture.categoryId);
+            await clickCategoryByNameExact(
+                app.mainWindow,
+                seriesFixture.categoryName
+            );
             await clickGridListCardByTitle(app.mainWindow, seriesTitle);
             await addCurrentDetailToFavorites(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
@@ -263,6 +280,11 @@ test.describe('Electron Favorites', () => {
         }
     });
 });
+
+const xtreamCredentials = {
+    username: defaultXtreamUsername,
+    password: defaultXtreamPassword,
+};
 
 async function addCurrentDetailToFavorites(page: Page): Promise<void> {
     const addButton = page.locator('button.favorite-btn').first();

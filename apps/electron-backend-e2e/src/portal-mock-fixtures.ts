@@ -55,6 +55,10 @@ type StalkerOrderedList<T> = {
     data: T[];
 };
 
+type StalkerSeasonLike = {
+    id?: number | string;
+};
+
 export type StalkerContentItem = {
     id?: number | string;
     name?: string;
@@ -128,6 +132,30 @@ export async function fetchStalkerCategoryFixture(
         const items = itemsResponse.payload.js.data ?? [];
 
         if (items.length > 0) {
+            if (type === 'series') {
+                const playableSeries = await findPlayableStalkerSeriesItem(
+                    request,
+                    items
+                );
+
+                if (!playableSeries) {
+                    continue;
+                }
+
+                return {
+                    categoryId: String(category.id),
+                    categoryName: category.title,
+                    items: [
+                        playableSeries,
+                        ...items.filter(
+                            (item) =>
+                                String(item.id ?? '') !==
+                                String(playableSeries.id ?? '')
+                        ),
+                    ],
+                };
+            }
+
             return {
                 categoryId: String(category.id),
                 categoryName: category.title,
@@ -245,4 +273,47 @@ function buildStalkerProxyUrl(
     });
 
     return `${stalkerMockServer}/stalker?${searchParams.toString()}`;
+}
+
+async function findPlayableStalkerSeriesItem(
+    request: APIRequestContext,
+    items: StalkerContentItem[]
+): Promise<StalkerContentItem | null> {
+    for (const item of items) {
+        const itemId = String(item.id ?? '').trim();
+
+        if (!itemId) {
+            continue;
+        }
+
+        const seasonsResponse = await fetchJson<
+            StalkerProxyPayload<
+                StalkerOrderedList<StalkerSeasonLike> | StalkerSeasonLike[]
+            >
+        >(
+            request,
+            buildStalkerProxyUrl('get_ordered_list', {
+                movie_id: itemId,
+                p: '1',
+                type: 'series',
+            })
+        );
+        const seasons = extractStalkerSeriesItems(seasonsResponse.payload.js);
+
+        if (seasons.length > 0) {
+            return item;
+        }
+    }
+
+    return null;
+}
+
+function extractStalkerSeriesItems<T>(
+    payload: StalkerOrderedList<T> | T[] | undefined
+): T[] {
+    if (Array.isArray(payload)) {
+        return payload;
+    }
+
+    return payload?.data ?? [];
 }

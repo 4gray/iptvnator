@@ -52,6 +52,20 @@ export async function saveCategories(
         return { success: true };
     }
 
+    const existingCategories = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.categories)
+        .where(
+            and(
+                eq(schema.categories.playlistId, playlistId),
+                eq(schema.categories.type, type)
+            )
+        );
+
+    if ((existingCategories[0]?.count ?? 0) > 0) {
+        return { success: true };
+    }
+
     const hiddenSet = new Set(hiddenCategoryXtreamIds || []);
     const values = categories.map((category) => ({
         playlistId,
@@ -61,7 +75,16 @@ export async function saveCategories(
         hidden: hiddenSet.has(category.category_id),
     }));
 
-    await db.insert(schema.categories).values(values);
+    await db
+        .insert(schema.categories)
+        .values(values)
+        .onConflictDoNothing({
+            target: [
+                schema.categories.playlistId,
+                schema.categories.type,
+                schema.categories.xtreamId,
+            ],
+        });
 
     return { success: true };
 }

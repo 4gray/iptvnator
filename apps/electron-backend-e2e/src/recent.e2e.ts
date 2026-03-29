@@ -4,14 +4,18 @@ import {
     addXtreamPortal,
     channelItemByTitle,
     clickCategoryById,
+    clickCategoryByNameExact,
     clickGridListCardByTitle,
     closeElectronApp,
     contentCardByTitle,
+    defaultXtreamPassword,
+    defaultXtreamUsername,
     expect,
     importM3uPlaylistFromNativeDialog,
     launchElectronApp,
     openPlaylistFavorites,
     openPlaylistRecent,
+    openWorkspaceSection,
     openSources,
     resetMockServers,
     restartElectronApp,
@@ -104,9 +108,12 @@ test.describe('Electron Recently Viewed', () => {
         request,
     }) => {
         await resetMockServers(request, ['xtream']);
-        const liveFixture = await fetchXtreamLiveFixture(request);
-        const vodFixture = await fetchXtreamVodFixture(request);
-        const seriesFixture = await fetchXtreamSeriesFixture(request);
+        const liveFixture = await fetchXtreamLiveFixture(request, xtreamCredentials);
+        const vodFixture = await fetchXtreamVodFixture(request, xtreamCredentials);
+        const seriesFixture = await fetchXtreamSeriesFixture(
+            request,
+            xtreamCredentials
+        );
         const [liveTitle] = pickDistinctTitles(liveFixture.items, getXtreamTitle);
         const [movieTitle] = pickDistinctTitles(vodFixture.items, getXtreamTitle);
         const [seriesTitle] = pickDistinctTitles(seriesFixture.items, getXtreamTitle);
@@ -119,20 +126,30 @@ test.describe('Electron Recently Viewed', () => {
             });
             await waitForXtreamWorkspaceReady(app.mainWindow);
 
-            await clickCategoryById(app.mainWindow, liveFixture.categoryId);
+            await openWorkspaceSection(app.mainWindow, 'Live TV');
+            await clickCategoryByNameExact(
+                app.mainWindow,
+                liveFixture.categoryName
+            );
             await toggleFavoriteForChannel(app.mainWindow, liveTitle);
             await openPlaylistFavorites(app.mainWindow);
             await channelItemByTitle(app.mainWindow, liveTitle).first().click();
             await closeUnifiedLiveDetail(app.mainWindow);
 
             await app.mainWindow.getByRole('link', { name: 'Movies', exact: true }).click();
-            await clickCategoryById(app.mainWindow, vodFixture.categoryId);
+            await clickCategoryByNameExact(
+                app.mainWindow,
+                vodFixture.categoryName
+            );
             await clickGridListCardByTitle(app.mainWindow, movieTitle);
             await playCurrentDetail(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
 
             await app.mainWindow.getByRole('link', { name: 'Series', exact: true }).click();
-            await clickCategoryById(app.mainWindow, seriesFixture.categoryId);
+            await clickCategoryByNameExact(
+                app.mainWindow,
+                seriesFixture.categoryName
+            );
             await clickGridListCardByTitle(app.mainWindow, seriesTitle);
             await playFirstSeriesEpisode(app.mainWindow);
 
@@ -253,6 +270,11 @@ test.describe('Electron Recently Viewed', () => {
     });
 });
 
+const xtreamCredentials = {
+    username: defaultXtreamUsername,
+    password: defaultXtreamPassword,
+};
+
 async function clearRecentItems(page: Page): Promise<void> {
     await page
         .getByRole('button', { name: 'Clear recently viewed for this section' })
@@ -282,11 +304,23 @@ async function playCurrentDetail(page: Page): Promise<void> {
 
 async function playFirstSeriesEpisode(page: Page): Promise<void> {
     const seasonCard = page.locator('.season-card').first();
-
-    await expect(seasonCard).toBeVisible({ timeout: 20000 });
-    await seasonCard.click();
     const episodeCard = page.locator('.episode-card, .episode-list-item').first();
 
+    await expect
+        .poll(
+            async () =>
+                (await seasonCard.count()) + (await episodeCard.count()),
+            { timeout: 20000 }
+        )
+        .toBeGreaterThan(0);
+
+    if ((await seasonCard.count()) > 0) {
+        await seasonCard.scrollIntoViewIfNeeded();
+        await expect(seasonCard).toBeVisible({ timeout: 20000 });
+        await seasonCard.click();
+    }
+
+    await episodeCard.scrollIntoViewIfNeeded();
     await expect(episodeCard).toBeVisible({ timeout: 20000 });
     await episodeCard.click();
 }
