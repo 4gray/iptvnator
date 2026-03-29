@@ -35,7 +35,7 @@ const initialSelectionState: StalkerSelectionState = {
     selectedVodId: undefined,
     selectedSerialId: undefined,
     selectedItvId: undefined,
-    limit: 14,
+    limit: 50,
     page: 0,
     searchPhrase: '',
     selectedItem: undefined,

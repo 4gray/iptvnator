@@ -22,6 +22,9 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionData } from 'shared-interfaces';
 
+type CustomPortalPrimitive = string | number | boolean;
+type CustomPortalRequest = Record<string, CustomPortalPrimitive>;
+
 function calculateProgress(position: PlaybackPositionData | undefined): number {
     if (!position || !position.durationSeconds) {
         return 0;
@@ -37,15 +40,94 @@ function calculateProgress(position: PlaybackPositionData | undefined): number {
     return Math.min(100, Math.round(percent));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isPrimitive(value: unknown): value is CustomPortalPrimitive {
+    return (
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+    );
+}
+
+function sanitizeCustomPortalRequest(value: unknown): CustomPortalRequest | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+
+    const normalized: CustomPortalRequest = {};
+
+    Object.entries(value).forEach(([key, entry]) => {
+        if (isPrimitive(entry)) {
+            normalized[key] = entry;
+        }
+    });
+
+    return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
+function toBase64Url(value: string): string {
+    return btoa(value)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/g, '');
+}
+
+function encodeCustomPortalRequest(request: CustomPortalRequest): string {
+    return `vp:${toBase64Url(JSON.stringify(request))}`;
+}
+
+function getStringValue(...values: unknown[]): string {
+    for (const value of values) {
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (trimmed) {
+                return trimmed;
+            }
+        }
+    }
+
+    return '';
+}
+
+function getNestedCustomPortalCategoryId(item: StalkerVodSource): string | null {
+    const cmd = String(item.cmd ?? '').trim();
+    if (cmd) {
+        return null;
+    }
+
+    if (typeof item.id === 'string' && item.id.startsWith('vp:')) {
+        return item.id;
+    }
+
+    const request = sanitizeCustomPortalRequest((item as Record<string, unknown>).request);
+    if (!request) {
+        return null;
+    }
+
+    const parentImage = getStringValue(
+        item.screenshot_uri,
+        item.logo,
+        (item as Record<string, unknown>).cover
+    );
+
+    if (parentImage && !request.__parent_image) {
+        request.__parent_image = parentImage;
+    }
+
+    return encodeCustomPortalRequest(request);
+}
+
 @Injectable()
 export class StalkerCatalogFacadeService
     implements
-        StalkerPortalCatalogFacade<
-            Record<string, unknown>,
-            StalkerVodSource,
-            StalkerVodSource
-        >
-{
+    StalkerPortalCatalogFacade<
+        Record<string, unknown>,
+        StalkerVodSource,
+        StalkerVodSource
+    > {
     private readonly stalkerStore = inject(StalkerStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly destroyRef = inject(DestroyRef);
@@ -58,7 +140,7 @@ export class StalkerCatalogFacadeService
     private loadedPositionsForPlaylistId: string | null = null;
 
     readonly provider = 'stalker' as const;
-    readonly pageSizeOptions = [14] as const;
+    readonly pageSizeOptions = [50] as const;
     readonly contentType = this.stalkerStore.selectedContentType;
     readonly limit = this.stalkerStore.limit;
     readonly pageIndex = this.stalkerStore.page;
@@ -176,6 +258,13 @@ export class StalkerCatalogFacadeService
     }
 
     selectItem(item: StalkerVodSource): string[] | null {
+        const nestedCategoryId = getNestedCustomPortalCategoryId(item);
+        if (nestedCategoryId) {
+            this.stalkerStore.clearSelectedItem();
+            this.stalkerStore.setSelectedCategory(nestedCategoryId);
+            return null;
+        }
+
         const needsSeriesFetch =
             this.contentType() === 'vod' &&
             (item.is_series === '1' || item.is_series === 1);

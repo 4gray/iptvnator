@@ -26,6 +26,14 @@ import { StalkerContentTypes } from '../../stalker-content-types';
 import { toStalkerContentItem, toStalkerItvChannel } from '../utils';
 
 /**
+ * Augments a Playlist with an optional customPortalKey property.
+ * The real interface may already define this property in the feature branch,
+ * but we add it here locally to avoid TypeScript errors and to document its
+ * expected type.
+ */
+type PlaylistWithCustomKey = Playlist & { customPortalKey?: string };
+
+/**
  * Content/categories/channels feature state.
  */
 export interface StalkerContentState {
@@ -68,33 +76,6 @@ interface StalkerOrderedListResponse {
     };
 }
 
-interface CustomPortalRequest {
-    cmd?: string;
-    fid?: string | number;
-    offset?: number;
-    limit?: number;
-    query?: string;
-}
-
-interface CustomPortalItem {
-    type?: string;
-    title?: string;
-    request?: CustomPortalRequest;
-    url?: string;
-    fid?: string | number;
-    id?: string | number;
-    img?: string;
-    imglr?: string;
-    description?: string;
-    year?: string | number;
-}
-
-interface CustomPortalResponse {
-    type?: string;
-    items?: CustomPortalItem[];
-    count?: number;
-}
-
 interface StalkerContentStoreContext {
     selectedContentType(): 'vod' | 'series' | 'itv';
     currentPlaylist(): Playlist | undefined;
@@ -104,57 +85,6 @@ interface StalkerContentStoreContext {
     limit(): number;
     getContentResource: ResourceState<StalkerContentItem[] | undefined>;
     getCategoryResource: ResourceState<StalkerCategoryItem[]>;
-}
-
-const CUSTOM_PORTAL_EMPTY_MAC = '00:00:00:00:00:00';
-const CUSTOM_PORTAL_DEFAULT_PAGE_SIZE = 25;
-
-function encodeCustomPortalCategoryRequest(
-    request: CustomPortalRequest
-): string {
-    return encodeURIComponent(JSON.stringify(request));
-}
-
-function decodeCustomPortalCategoryRequest(
-    value: string | null | undefined
-): CustomPortalRequest | null {
-    if (!value) return null;
-
-    try {
-        return JSON.parse(decodeURIComponent(value)) as CustomPortalRequest;
-    } catch {
-        return null;
-    }
-}
-
-function isCustomPortalCategoryItem(
-    item: CustomPortalItem
-): item is CustomPortalItem & { request: CustomPortalRequest } {
-    return item?.type === 'category' && !!item.request;
-}
-
-function isCustomPortalPlayableItem(item: CustomPortalItem): boolean {
-    return item?.type === 'stream' || item?.type === 'multistream';
-}
-
-function toCustomPortalContentItem(item: CustomPortalItem): StalkerContentItem {
-    const stableId =
-        item.fid ?? item.id ?? item.request?.fid ?? item.title ?? 'custom-item';
-
-    return {
-        id: stableId,
-        cmd: item.url ?? '',
-        title: item.title ?? '',
-        name: item.title ?? '',
-        o_name: item.title ?? '',
-        cover: item.img ?? item.imglr ?? '',
-        screenshot_uri: item.imglr ?? item.img ?? '',
-        description: item.description ?? '',
-        year: item.year ? String(item.year) : '',
-        category_id: item.request?.fid ? String(item.request.fid) : '',
-        has_files: 0,
-        is_series: 0,
-    };
 }
 
 export function withStalkerContent() {
@@ -183,6 +113,7 @@ export function withStalkerContent() {
                         }): Promise<StalkerCategoryItem[]> => {
                             if (!params.currentPlaylist) return [];
 
+                            // If categories are already loaded, return cached ones
                             switch (params.contentType) {
                                 case 'itv':
                                     if (store.itvCategories().length > 0) {
@@ -201,120 +132,172 @@ export function withStalkerContent() {
                                     break;
                             }
 
-                            const playlist = params.currentPlaylist as Playlist;
-                            const { portalUrl, macAddress } = playlist;
+                            const { portalUrl, macAddress } =
+                                params.currentPlaylist;
 
-                            if (playlist.isCustomPortal) {
-                                if (params.contentType !== 'vod') {
-                                    return [];
-                                }
-
-                                const response =
-                                    await dataService.sendIpcEvent<CustomPortalResponse>(
-                                        STALKER_REQUEST,
-                                        {
-                                            url: portalUrl,
-                                            macAddress:
-                                                macAddress ||
-                                                CUSTOM_PORTAL_EMPTY_MAC,
-                                            customPortalKey:
-                                                playlist.customPortalKey,
-                                            params: {},
-                                        }
-                                    );
-
-                                if (!Array.isArray(response?.items)) {
-                                    logger.warn(
-                                        'Invalid custom portal categories response',
-                                        response
-                                    );
-                                    return [];
-                                }
-
-                                const categories = response.items
-                                    .filter(isCustomPortalCategoryItem)
-                                    .map(
-                                        (item): StalkerCategoryItem => ({
-                                            category_name: item.title ?? '',
-                                            category_id:
-                                                encodeCustomPortalCategoryRequest(
-                                                    item.request
-                                                ),
-                                        })
-                                    )
-                                    .filter(
-                                        (item) =>
-                                            item.category_name.trim() !== ''
-                                    );
-
-                                patchState(store, {
-                                    vodCategories: categories,
-                                    seriesCategories: [],
-                                    itvCategories: [],
-                                });
-
-                                return categories;
-                            }
-
-                            const queryParams = {
+                            // Prepare query params for categories
+                            const playlist = params.currentPlaylist as PlaylistWithCustomKey;
+                            const queryParams: Record<string, string | number> = {
                                 action: StalkerContentTypes[params.contentType]
                                     .getCategoryAction,
                                 type: params.contentType,
                             };
+                            // Include the custom portal key in the query params when present.
+                            // Use the original property name 'customPortalKey' instead of
+                            // converting it to 'key', as some portals expect this exact name.
+                            if (playlist.customPortalKey) {
+                                queryParams['customPortalKey'] = playlist.customPortalKey;
+                            }
 
                             let response: StalkerCategoryResponse;
                             if (playlist.isFullStalkerPortal) {
-                                response =
-                                    await stalkerSession.makeAuthenticatedRequest<StalkerCategoryResponse>(
-                                        playlist,
-                                        queryParams
-                                    );
+                                // Full stalker portal - use authenticated request with retry
+                                response = await stalkerSession.makeAuthenticatedRequest<StalkerCategoryResponse>(
+                                    playlist,
+                                    queryParams
+                                );
                             } else {
-                                response =
-                                    await dataService.sendIpcEvent<StalkerCategoryResponse>(
-                                        STALKER_REQUEST,
-                                        {
-                                            url: portalUrl,
-                                            macAddress,
-                                            params: queryParams,
-                                        }
+                                // Simple stalker portal - no auth needed
+                                // Build payload with optional top-level customPortalKey so that the electron
+                                // backend can access it if needed
+                                const payload: any = {
+                                    url: portalUrl,
+                                    macAddress,
+                                    params: queryParams,
+                                };
+                                if (playlist.customPortalKey) {
+                                    payload.customPortalKey = playlist.customPortalKey;
+                                }
+                                response = await dataService.sendIpcEvent<StalkerCategoryResponse>(
+                                    STALKER_REQUEST,
+                                    payload
+                                );
+                            }
+
+                            // Normalize categories array. Some portals return
+                            // categories in different shapes. Accept an array at
+                            // response.js (baseline), response.js.data, or
+                            // response.js.categories. Fallback to empty array
+                            // and log unexpected structures for easier debugging.
+                            let rawCategories: unknown[] = [];
+                            const js = (response as any)?.js;
+                            if (Array.isArray(js)) {
+                                rawCategories = js as unknown[];
+                            } else if (js && Array.isArray(js.data)) {
+                                rawCategories = js.data as unknown[];
+                            } else if (js && Array.isArray(js.categories)) {
+                                rawCategories = js.categories as unknown[];
+                            } else {
+                                // In some APIs the array might be under js.data.items
+                                if (js?.data && Array.isArray(js.data.items)) {
+                                    rawCategories = js.data.items as unknown[];
+                                }
+                            }
+                            // If no categories returned from the primary action (e.g. get_categories),
+                            // attempt a fallback request using the 'get_genres' action. Some portals
+                            // may use get_genres for VOD and series categories. Only attempt fallback
+                            // when rawCategories is empty and contentType is vod or series.
+                            if (
+                                (!Array.isArray(rawCategories) || rawCategories.length === 0) &&
+                                (params.contentType === 'vod' || params.contentType === 'series')
+                            ) {
+                                logger.info(
+                                    `No categories returned for ${params.contentType} via ${queryParams.action}, falling back to get_genres.`
+                                );
+                                // Build fallback query params by copying existing ones and overriding the action
+                                const fallbackQuery = {
+                                    ...queryParams,
+                                    action: StalkerPortalActions.GetGenres,
+                                } as Record<string, string | number>;
+                                // Keep the custom portal key if present
+                                if (playlist.customPortalKey) {
+                                    fallbackQuery['customPortalKey'] = playlist.customPortalKey;
+                                }
+                                // Perform fallback request via appropriate channel
+                                let fallbackResponse: StalkerCategoryResponse;
+                                if (playlist.isFullStalkerPortal) {
+                                    fallbackResponse = await stalkerSession.makeAuthenticatedRequest<StalkerCategoryResponse>(
+                                        playlist,
+                                        fallbackQuery
                                     );
+                                } else {
+                                    const fallbackPayload: any = {
+                                        url: portalUrl,
+                                        macAddress,
+                                        params: fallbackQuery,
+                                    };
+                                    if (playlist.customPortalKey) {
+                                        fallbackPayload.customPortalKey = playlist.customPortalKey;
+                                    }
+                                    fallbackResponse = await dataService.sendIpcEvent<StalkerCategoryResponse>(
+                                        STALKER_REQUEST,
+                                        fallbackPayload
+                                    );
+                                }
+                                response = fallbackResponse;
+                                // Extract raw categories from fallback response
+                                const fjs = (fallbackResponse as any)?.js;
+                                if (Array.isArray(fjs)) {
+                                    rawCategories = fjs;
+                                } else if (fjs && Array.isArray(fjs.data)) {
+                                    rawCategories = fjs.data;
+                                } else if (fjs && Array.isArray(fjs.categories)) {
+                                    rawCategories = fjs.categories;
+                                } else if (fjs?.data && Array.isArray(fjs.data.items)) {
+                                    rawCategories = fjs.data.items;
+                                }
                             }
-
-                            if (!response?.js || !Array.isArray(response.js)) {
-                                logger.warn(
-                                    'Invalid categories response',
-                                    response
-                                );
-                                return [];
+                            if (!Array.isArray(rawCategories) || rawCategories.length === 0) {
+                                logger.warn('Invalid categories response structure', response);
+                                // Still provide an 'All' category for UI consistency
+                                const categories: StalkerCategoryItem[] = [
+                                    {
+                                        category_name: translateService.instant('PORTALS.ALL_CATEGORIES'),
+                                        category_id: '*',
+                                    },
+                                ];
+                                patchState(store, {
+                                    [`${params.contentType}Categories`]: categories,
+                                });
+                                return categories;
                             }
-
-                            const categories = response.js
-                                .map(
-                                    (item): StalkerCategoryItem => ({
-                                        category_name: item.title,
-                                        category_id: String(item.id),
-                                    })
-                                )
-                                .sort((a, b) =>
-                                    a.category_name.localeCompare(
-                                        b.category_name
-                                    )
+                            const normalizedCategories = rawCategories
+                                .map((item: any) => {
+                                    const title = item?.title ?? item?.category_name ?? '';
+                                    const id = item?.id ?? item?.category_id ?? '';
+                                    return {
+                                        category_name: String(title).trim(),
+                                        category_id: String(id),
+                                    } as StalkerCategoryItem;
+                                })
+                                .filter(
+                                    (category) =>
+                                        category.category_name !== '' &&
+                                        category.category_id !== ''
                                 );
 
-                            const allIdx = categories.findIndex(
-                                (c) =>
-                                    c.category_name.trim().toLowerCase() ===
-                                    'all'
-                            );
+                            const seenCategoryIds = new Set<string>();
+                            const categories: StalkerCategoryItem[] = [];
+                            normalizedCategories.forEach((category) => {
+                                const normalizedId = String(category.category_id);
+                                if (seenCategoryIds.has(normalizedId)) {
+                                    return;
+                                }
 
-                            if (allIdx > 0) {
-                                categories.unshift(
-                                    categories.splice(allIdx, 1)[0]
-                                );
+                                seenCategoryIds.add(normalizedId);
+                                categories.push(category);
+                            });
+
+                            // Preserve the original API order.
+                            // Only keep the synthetic/global "All categories" entry pinned to the top.
+                            if (categories.length === 0) {
+                                categories.push({
+                                    category_name: translateService.instant(
+                                        'PORTALS.ALL_CATEGORIES'
+                                    ),
+                                    category_id: '*',
+                                });
                             } else if (
-                                allIdx === -1 &&
-                                categories.length > 0 &&
                                 !categories.some(
                                     (category) =>
                                         String(category.category_id) === '*'
@@ -327,11 +310,9 @@ export function withStalkerContent() {
                                     category_id: '*',
                                 });
                             }
-
                             patchState(store, {
                                 [`${params.contentType}Categories`]: categories,
                             });
-
                             return categories;
                         },
                     }),
@@ -343,18 +324,15 @@ export function withStalkerContent() {
                             search: storeContext.searchPhrase(),
                             pageIndex: storeContext.page() + 1,
                             availableCategoryCount: (() => {
-                                const contentType =
-                                    storeContext.selectedContentType();
+                                const contentType = storeContext.selectedContentType();
                                 const categories =
                                     contentType === 'vod'
                                         ? store.vodCategories()
                                         : contentType === 'series'
                                             ? store.seriesCategories()
                                             : store.itvCategories();
-
                                 return categories.filter(
-                                    (category) =>
-                                        String(category.category_id) !== '*'
+                                    (category) => String(category.category_id) !== '*'
                                 ).length;
                             })(),
                         }),
@@ -369,7 +347,6 @@ export function withStalkerContent() {
                                 patchState(store, { totalCount: 0 });
                                 return Promise.resolve(undefined);
                             }
-
                             if (
                                 params.category === '*' &&
                                 (params.contentType === 'vod' ||
@@ -382,6 +359,7 @@ export function withStalkerContent() {
 
                             const currentPlaylist = storeContext.currentPlaylist;
 
+                            // Guard: ensure currentPlaylist is available (may not be during deep link init)
                             if (
                                 !currentPlaylist() ||
                                 !currentPlaylist().portalUrl
@@ -389,152 +367,147 @@ export function withStalkerContent() {
                                 patchState(store, { totalCount: 0 });
                                 return Promise.resolve(undefined);
                             }
-
-                            const playlist = currentPlaylist() as Playlist;
-
-                            if (playlist.isCustomPortal) {
-                                if (params.contentType !== 'vod') {
-                                    patchState(store, { totalCount: 0 });
-                                    return [];
-                                }
-
-                                const pageSize =
-                                    Number(storeContext.limit()) ||
-                                    CUSTOM_PORTAL_DEFAULT_PAGE_SIZE;
-
-                                let customRequest: CustomPortalRequest | null =
-                                    null;
-
-                                if (params.search !== '') {
-                                    customRequest = {
-                                        cmd: 'search',
-                                        query: params.search,
-                                    };
-                                } else {
-                                    customRequest =
-                                        decodeCustomPortalCategoryRequest(
-                                            String(params.category)
-                                        );
-                                }
-
-                                if (!customRequest) {
-                                    patchState(store, { totalCount: 0 });
-                                    return [];
-                                }
-
-                                const response =
-                                    await dataService.sendIpcEvent<CustomPortalResponse>(
-                                        STALKER_REQUEST,
-                                        {
-                                            url: playlist.portalUrl,
-                                            macAddress:
-                                                playlist.macAddress ||
-                                                CUSTOM_PORTAL_EMPTY_MAC,
-                                            customPortalKey:
-                                                playlist.customPortalKey,
-                                            params: {
-                                                ...customRequest,
-                                                offset:
-                                                    (params.pageIndex - 1) *
-                                                    pageSize,
-                                                limit: pageSize,
-                                            },
-                                        }
-                                    );
-
-                                const responseItems = Array.isArray(
-                                    response?.items
-                                )
-                                    ? response.items
-                                    : [];
-
-                                const playableItems = responseItems.filter(
-                                    isCustomPortalPlayableItem
-                                );
-
-                                patchState(store, {
-                                    totalCount: Number(
-                                        response?.count ??
-                                        playableItems.length
-                                    ),
-                                });
-
-                                return playableItems.map(
-                                    toCustomPortalContentItem
-                                );
-                            }
-
-                            const categoryParam = params.category || '*';
-                            const queryParams: Record<string, string | number> =
-                            {
-                                action: StalkerContentTypes[
-                                    params.contentType
-                                ].getContentAction,
+                            // Cast playlist once so we can safely access customPortalKey
+                            const playlist = currentPlaylist() as PlaylistWithCustomKey;
+                            // VOD uses 'genre' param, series uses 'category' param, itv uses both
+                            // Use "*" for categories without an ID (e.g. "All") to fetch all items
+                            const hasSearch = String(params.search ?? '').trim().length > 0;
+                            const categoryParam =
+                                hasSearch &&
+                                    (params.contentType === 'vod' || params.contentType === 'series')
+                                    ? '*'
+                                    : params.category || '*';
+                            const queryParams: Record<string, string | number> = {
+                                action: StalkerContentTypes[params.contentType]
+                                    .getContentAction,
                                 type: params.contentType,
                                 sortby: 'added',
                                 ...(params.search !== ''
                                     ? { search: params.search }
                                     : {}),
                                 p: params.pageIndex,
+                                limit: storeContext.limit(),
                             };
-
+                            // Include the custom portal key when present
+                            if (playlist.customPortalKey) {
+                                queryParams['customPortalKey'] = playlist.customPortalKey;
+                            }
+                            // Add the correct category/genre param based on content type
+                            // Based on working app traces: VOD uses genre=0 and category={id}
                             if (params.contentType === 'vod') {
                                 queryParams['genre'] = '0';
                                 queryParams['category'] = categoryParam;
                             } else if (params.contentType === 'series') {
                                 queryParams['category'] = categoryParam;
                             } else {
+                                // itv - use both for compatibility
                                 queryParams['category'] = categoryParam;
                                 queryParams['genre'] = categoryParam;
                             }
 
                             let response: StalkerOrderedListResponse;
                             if (playlist.isFullStalkerPortal) {
-                                response =
-                                    await stalkerSession.makeAuthenticatedRequest<StalkerOrderedListResponse>(
-                                        playlist,
-                                        queryParams
-                                    );
+                                // Full stalker portal - use authenticated request with retry
+                                response = await stalkerSession.makeAuthenticatedRequest<StalkerOrderedListResponse>(
+                                    playlist,
+                                    queryParams
+                                );
                             } else {
-                                response =
-                                    await dataService.sendIpcEvent<StalkerOrderedListResponse>(
-                                        STALKER_REQUEST,
-                                        {
-                                            url: playlist.portalUrl,
-                                            macAddress: playlist.macAddress,
-                                            params: queryParams,
-                                        }
-                                    );
+                                // Simple stalker portal - no auth needed
+                                const payload: any = {
+                                    url: playlist.portalUrl,
+                                    macAddress: playlist.macAddress,
+                                    params: queryParams,
+                                };
+                                if (playlist.customPortalKey) {
+                                    payload.customPortalKey = playlist.customPortalKey;
+                                }
+                                response = await dataService.sendIpcEvent<StalkerOrderedListResponse>(
+                                    STALKER_REQUEST,
+                                    payload
+                                );
                             }
 
-                            if (!response?.js?.data) {
-                                logger.warn(
-                                    'Invalid response structure',
-                                    response
-                                );
+                            // Guard: ensure response has expected structure
+                            // Normalize ordered list / content response. Accept data at
+                            // response.js.data (baseline) or response.js.items or response.data
+                            const js = (response as any)?.js;
+                            let items: unknown[] = [];
+                            let totalItems: number | undefined;
+                            if (js && Array.isArray(js.data)) {
+                                items = js.data as unknown[];
+                                totalItems = js.total_items;
+                            } else if (js && Array.isArray(js.items)) {
+                                items = js.items as unknown[];
+                                totalItems = js.total_items;
+                            } else if (Array.isArray(js)) {
+                                items = js as unknown[];
+                                totalItems = (js as any)?.length;
+                            }
+                            if (!Array.isArray(items)) {
+                                logger.warn('Invalid ordered list response structure', response);
                                 return [];
                             }
+                            const portalUrl = playlist.portalUrl;
+                            const mappedItems = items
+                                .map((item: any) =>
+                                    toStalkerContentItem(item as StalkerVodSource, portalUrl)
+                                )
+                                .filter((item) => {
+                                    const title = String(
+                                        item?.name ?? item?.o_name ?? item?.title ?? ''
+                                    )
+                                        .trim()
+                                        .toLowerCase();
+
+                                    if (title !== 'next') {
+                                        return true;
+                                    }
+
+                                    logger.info(
+                                        'Skipping synthetic custom portal pagination item',
+                                        item
+                                    );
+                                    return false;
+                                });
+
+                            const normalizedSearch = String(params.search ?? '')
+                                .trim()
+                                .toLowerCase();
+                            const visibleItems =
+                                normalizedSearch.length > 0
+                                    ? mappedItems.filter((item) => {
+                                        const haystack = [
+                                            item?.name,
+                                            item?.o_name,
+                                            item?.title,
+                                        ]
+                                            .map((value) => String(value ?? '').toLowerCase())
+                                            .join(' ');
+
+                                        return haystack.includes(normalizedSearch);
+                                    })
+                                    : mappedItems;
+
+                            const filteredCountDelta = items.length - mappedItems.length;
+                            const resolvedTotalCount = Math.max(
+                                0,
+                                (totalItems ?? items.length ?? 0) - filteredCountDelta
+                            );
+                            const effectiveTotalCount =
+                                normalizedSearch.length > 0
+                                    ? visibleItems.length
+                                    : resolvedTotalCount;
 
                             patchState(store, {
-                                totalCount: response.js.total_items ?? 0,
+                                totalCount: effectiveTotalCount,
                             });
 
-                            const portalUrl = currentPlaylist().portalUrl;
-                            const newItems = response.js.data.map(
-                                (item: StalkerVodSource) =>
-                                    toStalkerContentItem(item, portalUrl)
-                            );
-
-                            if (
-                                storeContext.selectedContentType() === 'itv'
-                            ) {
-                                const channels =
-                                    newItems.map(toStalkerItvChannel);
-
+                            if (storeContext.selectedContentType() === 'itv') {
+                                const channels = visibleItems.map(toStalkerItvChannel);
+                                // Check if we're loading the first page or loading more
                                 if (params.pageIndex === 1) {
-                                    patchState(store, {
-                                        itvChannels: channels,
-                                    });
+                                    patchState(store, { itvChannels: channels });
                                 } else {
                                     patchState(store, {
                                         itvChannels: [
@@ -544,16 +517,14 @@ export function withStalkerContent() {
                                     });
                                 }
 
-                                const totalLoaded =
-                                    store.itvChannels().length;
+                                // Update hasMoreItems based on total count and current items
+                                const totalLoaded = store.itvChannels().length;
                                 patchState(store, {
-                                    hasMoreChannels:
-                                        totalLoaded <
-                                        (response.js.total_items ?? 0),
+                                    hasMoreChannels: totalLoaded < effectiveTotalCount,
                                 });
                             }
 
-                            return newItems;
+                            return visibleItems;
                         },
                     }),
                 };
@@ -561,22 +532,15 @@ export function withStalkerContent() {
         ),
         withComputed((store) => {
             const storeContext = store as unknown as StalkerContentStoreContext;
-
             return {
                 getTotalPages: computed(() => {
-                    return Math.ceil(
-                        store.totalCount() / storeContext.limit()
-                    );
+                    return Math.ceil(store.totalCount() / storeContext.limit());
                 }),
                 getSelectedCategoryName: computed(() => {
                     const type = storeContext.selectedContentType();
-                    const selectedCategoryId =
-                        storeContext.selectedCategoryId();
-
+                    const selectedCategoryId = storeContext.selectedCategoryId();
                     if (!selectedCategoryId) return '';
-
                     let categories: StalkerCategoryItem[] = [];
-
                     if (type === 'vod') {
                         categories = store.vodCategories();
                     } else if (type === 'series') {
@@ -584,13 +548,10 @@ export function withStalkerContent() {
                     } else if (type === 'itv') {
                         categories = store.itvCategories();
                     }
-
                     const category = categories.find(
                         (cat) =>
-                            String(cat.category_id) ===
-                            String(selectedCategoryId)
+                            String(cat.category_id) === String(selectedCategoryId)
                     );
-
                     return category ? category.category_name : '';
                 }),
                 /** category content */

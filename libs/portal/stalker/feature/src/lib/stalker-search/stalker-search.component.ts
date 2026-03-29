@@ -149,17 +149,17 @@ export class StalkerSearchComponent {
                 await this.dataService.sendIpcEvent<StalkerSearchResponse>(
                     STALKER_REQUEST,
                     {
-                    url: portalUrl,
-                    macAddress,
-                    params: {
-                        action: StalkerContentTypes[params.contentType]
-                            .getContentAction,
-                        type: params.contentType,
-                        search: params.search,
-                        max_page_items: 100,
-                    },
-                    token,
-                    serialNumber,
+                        url: portalUrl,
+                        macAddress,
+                        params: {
+                            action: StalkerContentTypes[params.contentType]
+                                .getContentAction,
+                            type: params.contentType,
+                            search: params.search,
+                            max_page_items: 100,
+                        },
+                        token,
+                        serialNumber,
                     }
                 );
             if (response) {

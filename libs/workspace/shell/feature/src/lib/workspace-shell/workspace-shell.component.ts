@@ -91,6 +91,15 @@ interface WorkspaceContextActionGroup {
     hasCleanupActions: boolean;
 }
 
+
+type CustomPortalPlaylistLike = PlaylistMeta & {
+    portalUrl?: string;
+    macAddress?: string;
+    customPortalKey?: string;
+    customPortalOriginalUrl?: string;
+    isCustomPortal?: boolean;
+};
+
 const SEARCH_INPUT_DEBOUNCE_MS = 350;
 
 @Component({
@@ -306,7 +315,14 @@ export class WorkspaceShellComponent {
             );
         }
 
-        return context?.provider === 'stalker';
+        if (context?.provider === 'stalker') {
+            const routePlaylist = this.playlists().find(
+                (playlist) => playlist._id === context.playlistId
+            );
+            return !this.isCustomVodPortalPlaylist(routePlaylist);
+        }
+
+        return false;
     });
 
     closeActiveExternalSession(): void {
@@ -354,6 +370,12 @@ export class WorkspaceShellComponent {
         }
 
         if (context.provider === 'stalker') {
+            const routePlaylist = this.playlists().find(
+                (playlist) => playlist._id === context.playlistId
+            );
+            if (this.isCustomVodPortalPlaylist(routePlaylist)) {
+                return 'WORKSPACE.SHELL.FILTER_SECTION_PLACEHOLDER';
+            }
             if (section === 'search') {
                 return 'WORKSPACE.SHELL.SEARCH_PLAYLIST_PLACEHOLDER';
             }
@@ -370,13 +392,36 @@ export class WorkspaceShellComponent {
 
         const context = this.railContext();
         if (!context) return [];
+
+        const routePlaylist = this.playlists().find(
+            (playlist) => playlist._id === context.playlistId
+        );
+        const isCustomVodPortal =
+            context.provider === 'stalker' &&
+            this.isCustomVodPortalPlaylist(routePlaylist);
+
+        const primaryLinks = buildPortalRailLinks({
+            provider: context.provider,
+            playlistId: context.playlistId,
+            isElectron: this.isElectron,
+            workspace: true,
+        }).primary;
+
         return this.translateRailLinks(
-            buildPortalRailLinks({
-                provider: context.provider,
-                playlistId: context.playlistId,
-                isElectron: this.isElectron,
-                workspace: true,
-            }).primary,
+            isCustomVodPortal
+                ? primaryLinks.filter(
+                    (link) =>
+                        link.section !== 'itv' &&
+                        link.section !== 'series' &&
+                        link.section !== 'search' &&
+                        link.icon !== 'live_tv' &&
+                        link.icon !== 'video_library' &&
+                        link.icon !== 'search' &&
+                        !link.path.includes('itv') &&
+                        !link.path.includes('series') &&
+                        !link.path.includes('search')
+                )
+                : primaryLinks,
             context.provider
         );
     });
@@ -385,13 +430,30 @@ export class WorkspaceShellComponent {
 
         const context = this.railContext();
         if (!context) return [];
+
+        const routePlaylist = this.playlists().find(
+            (playlist) => playlist._id === context.playlistId
+        );
+        const isCustomVodPortal =
+            context.provider === 'stalker' &&
+            this.isCustomVodPortalPlaylist(routePlaylist);
+
+        const secondaryLinks = buildPortalRailLinks({
+            provider: context.provider,
+            playlistId: context.playlistId,
+            isElectron: this.isElectron,
+            workspace: true,
+        }).secondary.filter((link) => link.section !== 'downloads');
+
         return this.translateRailLinks(
-            buildPortalRailLinks({
-                provider: context.provider,
-                playlistId: context.playlistId,
-                isElectron: this.isElectron,
-                workspace: true,
-            }).secondary.filter((link) => link.section !== 'downloads'),
+            isCustomVodPortal
+                ? secondaryLinks.filter(
+                    (link) =>
+                        link.section !== 'search' &&
+                        link.icon !== 'search' &&
+                        !link.path.includes('search')
+                )
+                : secondaryLinks,
             context.provider
         );
     });
@@ -543,6 +605,12 @@ export class WorkspaceShellComponent {
             const term = this.appliedSearchQuery();
 
             if (context?.provider === 'stalker' && section === 'search') {
+                const routePlaylist = this.playlists().find(
+                    (playlist) => playlist._id === context.playlistId
+                );
+                if (this.isCustomVodPortalPlaylist(routePlaylist)) {
+                    return;
+                }
                 this.syncStalkerSearchQueryParam(term);
             }
         });
@@ -787,7 +855,13 @@ export class WorkspaceShellComponent {
                     dashboardXtream ||
                     (context &&
                         (context.provider === 'xtreams' ||
-                            context.provider === 'stalker'))
+                            (context.provider === 'stalker' &&
+                                !this.isCustomVodPortalPlaylist(
+                                    this.playlists().find(
+                                        (playlist) =>
+                                            playlist._id === context.playlistId
+                                    )
+                                ))))
                 ),
             },
             {
@@ -885,6 +959,13 @@ export class WorkspaceShellComponent {
         }
 
         if (effectiveContext.provider === 'stalker') {
+            const routePlaylist = this.playlists().find(
+                (playlist) => playlist._id === effectiveContext.playlistId
+            );
+            if (this.isCustomVodPortalPlaylist(routePlaylist)) {
+                return;
+            }
+
             this.router.navigate(
                 [
                     '/workspace',
@@ -936,6 +1017,19 @@ export class WorkspaceShellComponent {
         }
 
         if (context?.provider === 'stalker' && section === 'search') {
+            const routePlaylist = this.playlists().find(
+                (playlist) => playlist._id === context.playlistId
+            );
+            if (this.isCustomVodPortalPlaylist(routePlaylist)) {
+                this.setSearchState('');
+                void this.router.navigate([
+                    '/workspace',
+                    'stalker',
+                    context.playlistId,
+                    'vod',
+                ]);
+                return;
+            }
             this.setSearchState(this.getRouteQueryParam('q'));
             return;
         }
@@ -974,6 +1068,15 @@ export class WorkspaceShellComponent {
         this.appliedSearchQuery.set(value);
 
         const context = this.currentContext();
+        if (context?.provider === 'stalker') {
+            const routePlaylist = this.playlists().find(
+                (playlist) => playlist._id === context.playlistId
+            );
+            if (this.isCustomVodPortalPlaylist(routePlaylist)) {
+                return;
+            }
+        }
+
         if (
             context?.provider === 'stalker' &&
             this.currentSection() !== 'search' &&
@@ -1085,6 +1188,25 @@ export class WorkspaceShellComponent {
         }
 
         return false;
+    }
+
+
+    private isCustomVodPortalPlaylist(
+        playlist: CustomPortalPlaylistLike | null | undefined
+    ): boolean {
+        if (!playlist?.macAddress) {
+            return false;
+        }
+
+        const originalUrl = String(playlist.customPortalOriginalUrl ?? '').trim();
+        const portalUrl = String(playlist.portalUrl ?? '').trim();
+
+        return Boolean(
+            playlist.customPortalKey ||
+            playlist.isCustomPortal ||
+            /\/api\/v1\/?$/i.test(originalUrl) ||
+            /\/api\/v1\/?$/i.test(portalUrl)
+        );
     }
 
     private getProviderFromPlaylist(playlist: {
