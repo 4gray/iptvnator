@@ -1,3 +1,5 @@
+@use '../../../../../../ui/styles/panel-header' as panel;
+
 :host {
     display: flex;
     flex-direction: column;
@@ -16,52 +18,20 @@
 
 // ─── Sticky header bar — styled like a widget header ─────────────────────────
 .category-content-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding: 0 20px;
-    min-height: 52px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    // distinct widget-header surface so it reads over the content below
-    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
-    border-bottom: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+    @include panel.standard-panel-header($sticky: true);
 }
 
 // ─── Category meta (title + subtitle) ────────────────────────────────────────
 .category-meta {
-    min-width: 0;
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    flex: 1;
+    @include panel.standard-panel-meta();
 }
 
 .category-title {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    // Explicit token so it never blends with the header background
-    color: var(--app-heading-color, var(--mat-sys-on-surface));
-    letter-spacing: -0.01em;
+    @include panel.standard-panel-title();
 }
 
 .category-subtitle {
-    white-space: nowrap;
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
-    // pill chip appearance
-    background: var(--mat-sys-surface-container);
-    padding: 2px 8px;
-    border-radius: 999px;
-    flex-shrink: 0;
+    @include panel.standard-panel-subtitle();
 }
 
 // ─── Paginator — flush right, no ghost background ────────────────────────────

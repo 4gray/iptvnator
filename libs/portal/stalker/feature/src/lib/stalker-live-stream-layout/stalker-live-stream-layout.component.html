@@ -9,15 +9,16 @@
         [defaultWidth]="400"
         storageKey="sidebar-width"
     >
-        <div class="sidebar-header">
-            <div class="category-heading">
+        <div class="sidebar-header category-content-header">
+            <div class="category-meta">
                 <h2 class="category-title">
                     {{ selectedCategoryTitle() }}
                 </h2>
                 @if (visibleChannels().length > 0) {
-                    <span class="category-count">{{
-                        visibleChannels().length
-                    }}</span>
+                    <span class="category-subtitle"
+                        >{{ visibleChannels().length }}
+                        {{ visibleChannels().length === 1 ? 'item' : 'items' }}</span
+                    >
                 }
             </div>
         </div>
@@ -33,7 +34,7 @@
             } @else {
                 @for (item of visibleChannels(); track item.id ?? $index) {
                     <app-channel-list-item
-                        [name]="item.o_name || item.name"
+                        [name]="item.o_name || item.name || ''"
                         [logo]="item.logo"
                         [selected]="isSelectedChannel(item)"
                         [epgProgram]="
