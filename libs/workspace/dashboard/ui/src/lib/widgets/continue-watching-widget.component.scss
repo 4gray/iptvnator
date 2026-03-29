@@ -61,22 +61,22 @@
 
 // Live: square logo
 .hero__thumb--live {
-    width: 60px;
-    height: 60px;
+    width: 72px;
+    height: 72px;
 }
 
 // Movie: portrait poster 2:3
 .hero__thumb--movie {
-    width: 45px;
-    height: 60px;
-    border-radius: 8px;
+    width: 56px;
+    height: 84px;
+    border-radius: 10px;
 }
 
-// Series: widescreen 16:9
+// Series: use poster dimensions like movies to avoid cropped covers.
 .hero__thumb--series {
-    width: 80px;
-    height: 45px;
-    border-radius: 8px;
+    width: 56px;
+    height: 84px;
+    border-radius: 10px;
 }
 
 .hero__thumb img {
@@ -88,7 +88,7 @@
 
 .hero__thumb--live img {
     object-fit: contain;
-    padding: 6px;
+    padding: 10px;
     box-sizing: border-box;
 }
 
