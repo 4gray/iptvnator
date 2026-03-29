@@ -310,8 +310,11 @@ export function withContent() {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
 
-                    // Skip if we already initialized content for this playlist
-                    if (store.isContentInitialized()) {
+                    // Skip duplicate route-session triggers while an import is already
+                    // running. The workspace session currently syncs from multiple
+                    // entry points during bootstrap, and without this guard Electron
+                    // can save the same Xtream categories/content multiple times.
+                    if (store.isContentInitialized() || store.isImporting()) {
                         return;
                     }
 

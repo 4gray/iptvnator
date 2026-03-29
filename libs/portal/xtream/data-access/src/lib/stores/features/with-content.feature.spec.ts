@@ -244,6 +244,40 @@ describe('withContent import state', () => {
         expect(dataSource.getContent).toHaveBeenCalledTimes(3);
     });
 
+    it('ignores concurrent initializeContent calls while an import is already running', async () => {
+        const pendingCategories = {
+            live: createDeferred<any[]>(),
+            vod: createDeferred<any[]>(),
+            series: createDeferred<any[]>(),
+        };
+
+        dataSource.getCategories.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                type: 'live' | 'vod' | 'series'
+            ) => pendingCategories[type].promise
+        );
+        dataSource.getContent.mockResolvedValue([]);
+
+        const firstInitialization = store.initializeContent();
+        const secondInitialization = store.initializeContent();
+        await Promise.resolve();
+
+        expect(store.isImporting()).toBe(true);
+        expect(dataSource.getCategories).toHaveBeenCalledTimes(3);
+        expect(dataSource.getContent).not.toHaveBeenCalled();
+
+        pendingCategories.live.resolve([]);
+        pendingCategories.vod.resolve([]);
+        pendingCategories.series.resolve([]);
+
+        await Promise.all([firstInitialization, secondInitialization]);
+
+        expect(dataSource.getCategories).toHaveBeenCalledTimes(3);
+        expect(dataSource.getContent).toHaveBeenCalledTimes(3);
+    });
+
     it('cancels active imports and clears stale progress after worker aborts', async () => {
         const pendingCategories = {
             live: createDeferred<any[]>(),

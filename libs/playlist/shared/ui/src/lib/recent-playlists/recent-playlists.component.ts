@@ -3,7 +3,6 @@ import {
     DragDropModule,
     moveItemInArray,
 } from '@angular/cdk/drag-drop';
-import { AsyncPipe } from '@angular/common';
 import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
@@ -20,7 +19,6 @@ import {
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from 'm3u-state';
-import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { DialogService } from 'components';
 import {
@@ -51,12 +49,10 @@ type PlaylistBusyOperation = {
     templateUrl: './recent-playlists.component.html',
     styleUrls: ['./recent-playlists.component.scss'],
     imports: [
-        AsyncPipe,
         DragDropModule,
         EmptyStateComponent,
         MatInputModule,
         MatListModule,
-        NgxSkeletonLoaderComponent,
         PlaylistItemComponent,
     ],
 })
@@ -96,8 +92,6 @@ export class RecentPlaylistsComponent {
     readonly busyOperations = signal<Map<string, PlaylistBusyOperation>>(
         new Map()
     );
-
-    readonly ghostElements = new Array(10);
 
     constructor() {
         // Update searchQuery when input changes
@@ -153,6 +147,13 @@ export class RecentPlaylistsComponent {
             };
         })
     );
+
+    readonly playlistsData = toSignal(this.playlistsData$, {
+        initialValue: {
+            playlists: [] as PlaylistMeta[],
+            totalCount: 0,
+        },
+    });
 
     /**
      * Opens the details dialog with the information about the provided playlist
