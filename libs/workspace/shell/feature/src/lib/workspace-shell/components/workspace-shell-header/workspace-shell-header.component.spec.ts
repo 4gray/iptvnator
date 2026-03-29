@@ -7,12 +7,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
-import { AddPlaylistMenuComponent } from '@iptvnator/playlist/shared/ui';
 import { WorkspaceShellHeaderComponent } from './workspace-shell-header.component';
 
 @Component({
@@ -55,10 +53,8 @@ describe('WorkspaceShellHeaderComponent', () => {
             .overrideComponent(WorkspaceShellHeaderComponent, {
                 set: {
                     imports: [
-                        AddPlaylistMenuComponent,
                         MatIcon,
                         MatIconButton,
-                        MatMenuModule,
                         MatTooltip,
                         MockPlaylistSwitcherComponent,
                         TranslatePipe,

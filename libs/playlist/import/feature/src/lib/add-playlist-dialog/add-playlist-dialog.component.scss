@@ -1,0 +1,44 @@
+@use '@angular/material' as mat;
+
+// Compact density themes scoped to this dialog only
+// Scale -1 for form fields: 52px height, labels still visible
+$form-field-theme: mat.define-theme((
+    density: (scale: -1),
+));
+
+// Scale -3 for button toggles: 36px height
+$toggle-theme: mat.define-theme((
+    density: (scale: -3),
+));
+
+:host {
+    @include mat.form-field-density($form-field-theme);
+    @include mat.button-toggle-density($toggle-theme);
+}
+
+// ─── Dialog title ────────────────────────────────────────────────────────────
+h2[mat-dialog-title] {
+    margin-bottom: 8px;
+}
+
+// ─── Toggle groups ───────────────────────────────────────────────────────────
+.category-toggle,
+.subtype-toggle {
+    display: flex;
+    width: 100%;
+    margin-bottom: 8px;
+
+    mat-button-toggle {
+        flex: 1;
+        --mat-standard-button-toggle-label-text-size: 13px;
+    }
+}
+
+.subtype-toggle mat-button-toggle {
+    --mat-standard-button-toggle-label-text-size: 12px;
+}
+
+// ─── Form area — stable height across all views ─────────────────────────────
+.form-area {
+    min-height: 0;
+}

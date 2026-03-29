@@ -12,10 +12,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { filter, firstValueFrom, startWith } from 'rxjs';
-import {
-    PlaylistInfoComponent,
-    PlaylistType,
-} from '@iptvnator/playlist/shared/ui';
+import { PlaylistInfoComponent } from '@iptvnator/playlist/shared/ui';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     buildPortalRailLinks,
@@ -669,8 +666,8 @@ export class WorkspaceShellFacade {
         this.applySearchQuery(trimmedValue);
     }
 
-    openAddPlaylistDialog(type: PlaylistType): void {
-        this.workspaceActions.openAddPlaylistDialog(type);
+    openAddPlaylistDialog(): void {
+        this.workspaceActions.openAddPlaylistDialog();
     }
 
     openCommandPalette(): void {

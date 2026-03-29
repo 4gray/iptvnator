@@ -51,15 +51,12 @@
         <button
             type="button"
             mat-icon-button
-            [matMenuTriggerFor]="addPlaylistMenu().menu()"
+            (click)="onAddPlaylistRequested()"
             [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate"
             [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
         >
             <mat-icon>add</mat-icon>
         </button>
-        <app-add-playlist-menu
-            (playlistTypeSelected)="onAddPlaylistRequested($event)"
-        />
         <span class="header-actions-divider" aria-hidden="true"></span>
         <button
             type="button"

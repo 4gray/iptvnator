@@ -5,14 +5,13 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
-import { MatButton } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
     selector: 'app-url-upload',
     templateUrl: './url-upload.component.html',
-    imports: [MatButton, MatInputModule, ReactiveFormsModule, TranslatePipe],
+    imports: [MatInputModule, ReactiveFormsModule, TranslatePipe],
 })
 export class UrlUploadComponent implements OnInit {
     private readonly fb = inject(FormBuilder);

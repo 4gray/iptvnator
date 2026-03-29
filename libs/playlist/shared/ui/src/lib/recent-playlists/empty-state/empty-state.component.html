@@ -38,14 +38,11 @@
                 <button
                     mat-raised-button
                     class="primary-button"
-                    [matMenuTriggerFor]="addPlaylistMenuComponent().menu()"
+                    (click)="onAddPlaylist()"
                 >
                     <mat-icon>add_circle</mat-icon>
                     {{ 'HOME.PLAYLISTS.ADD_YOUR_FIRST' | translate }}
                 </button>
-                <app-add-playlist-menu
-                    (playlistTypeSelected)="onAddPlaylist($event)"
-                />
             </div>
 
             <div class="features">

@@ -4,7 +4,7 @@
             <!-- Welcome state: no playlists at all -->
             <app-empty-state
                 [type]="'welcome'"
-                (addPlaylistClicked)="onAddPlaylist($event)"
+                (addPlaylistClicked)="onAddPlaylist()"
             />
         } @else {
             <!-- No results state: search/filter returned nothing -->

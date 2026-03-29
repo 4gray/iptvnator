@@ -30,7 +30,7 @@ import {
     SortService,
 } from 'services';
 import { PLAYLIST_UPDATE, PlaylistMeta } from 'shared-interfaces';
-import { PlaylistType } from '../add-playlist-menu/add-playlist-menu.component';
+
 import { EmptyStateComponent } from './empty-state/empty-state.component';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
@@ -71,7 +71,7 @@ export class RecentPlaylistsComponent {
     readonly sidebarMode = input(false);
     readonly searchQueryInput = input<string>('');
     readonly playlistClicked = output<string>();
-    readonly addPlaylistClicked = output<PlaylistType>();
+    readonly addPlaylistClicked = output<void>();
 
     readonly allPlaylistsLoaded = this.store.selectSignal(
         selectPlaylistsLoadingFlag
@@ -181,8 +181,8 @@ export class RecentPlaylistsComponent {
         );
     }
 
-    onAddPlaylist(playlistType: PlaylistType) {
-        this.addPlaylistClicked.emit(playlistType);
+    onAddPlaylist() {
+        this.addPlaylistClicked.emit();
     }
 
     getPlaylist(playlistMeta: PlaylistMeta): void {

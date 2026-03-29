@@ -1,10 +1,10 @@
 import { inject, Injectable, Provider } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
-import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspaceAccountInfoData,
+    WorkspacePlaylistType,
     WorkspaceShellActions,
 } from '@iptvnator/workspace/shell/util';
 
@@ -13,12 +13,12 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
     private readonly dialog = inject(MatDialog);
     private readonly router = inject(Router);
 
-    openAddPlaylistDialog(type: PlaylistType): void {
+    openAddPlaylistDialog(type?: WorkspacePlaylistType): void {
         void import('@iptvnator/playlist/import/feature').then(
             ({ AddPlaylistDialogComponent }) => {
                 this.dialog.open(AddPlaylistDialogComponent, {
                     width: '600px',
-                    data: { type },
+                    data: type ? { type } : {},
                 });
             }
         );

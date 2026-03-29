@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import {
     MAT_DIALOG_DATA,
     MatDialogModule,
@@ -9,6 +10,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
+import {
+    M3uSubType,
+    PlaylistCategory,
+} from '@iptvnator/workspace/shell/util';
 import { PlaylistActions } from 'm3u-state';
 import { getFilenameFromUrl } from 'm3u-utils';
 import { DataService } from 'services';
@@ -23,6 +28,7 @@ import { XtreamCodeImportComponent } from '../xtream-code-import/xtream-code-imp
     imports: [
         FileUploadComponent,
         MatButtonModule,
+        MatButtonToggleModule,
         MatDialogModule,
         StalkerPortalImportComponent,
         TextImportComponent,
@@ -32,6 +38,7 @@ import { XtreamCodeImportComponent } from '../xtream-code-import/xtream-code-imp
     ],
     selector: 'app-add-playlist',
     templateUrl: './add-playlist-dialog.component.html',
+    styleUrl: './add-playlist-dialog.component.scss',
 })
 export class AddPlaylistDialogComponent {
     private dataService = inject(DataService);
@@ -39,12 +46,40 @@ export class AddPlaylistDialogComponent {
     private store = inject(Store);
     private snackBar = inject(MatSnackBar);
     private translateService = inject(TranslateService);
-    readonly data = inject<{ type: PlaylistType }>(MAT_DIALOG_DATA);
+    private data = inject<{ type?: PlaylistType } | null>(MAT_DIALOG_DATA, {
+        optional: true,
+    });
 
-    readonly playlistType!: PlaylistType;
+    readonly urlUpload = viewChild(UrlUploadComponent);
+    readonly textImport = viewChild(TextImportComponent);
+    readonly xtreamImport = viewChild(XtreamCodeImportComponent);
+    readonly stalkerImport = viewChild(StalkerPortalImportComponent);
+
+    readonly category = signal<PlaylistCategory>('m3u');
+    readonly m3uSubType = signal<M3uSubType>('url');
+
+    readonly playlistType = computed<PlaylistType>(() => {
+        const cat = this.category();
+        if (cat === 'xtream') return 'xtream';
+        if (cat === 'stalker') return 'stalker';
+        return this.m3uSubType();
+    });
 
     constructor() {
-        this.playlistType = this.data.type;
+        if (this.data?.type) {
+            this.initFromType(this.data.type);
+        }
+    }
+
+    private initFromType(type: PlaylistType): void {
+        if (type === 'xtream') {
+            this.category.set('xtream');
+        } else if (type === 'stalker') {
+            this.category.set('stalker');
+        } else {
+            this.category.set('m3u');
+            this.m3uSubType.set(type as M3uSubType);
+        }
     }
 
     /**
