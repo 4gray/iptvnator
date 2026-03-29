@@ -48,6 +48,14 @@ export class NavigationComponent {
         () => !!(this.currentPlaylist() as Playlist | undefined)?.macAddress
     );
 
+    readonly isCustomVodPortal = computed(() => {
+        const playlist = this.currentPlaylist() as Playlist | undefined;
+        return Boolean(
+            playlist?.isCustomPortal ||
+            (playlist?.customPortalKey && /\/api\/v1\/?$/i.test(playlist?.portalUrl ?? ''))
+        );
+    });
+
     readonly isElectron = !!window.electron;
 
     readonly railLinks = computed(() => {
@@ -58,12 +66,21 @@ export class NavigationComponent {
             return { primary: [], secondary: [] };
         }
 
-        return buildPortalRailLinks({
+        const links = buildPortalRailLinks({
             provider: this.isStalkerPlaylist() ? 'stalker' : 'xtreams',
             playlistId,
             isElectron: this.isElectron,
             workspace: false,
         });
+
+        if (!this.isCustomVodPortal()) {
+            return links;
+        }
+
+        return {
+            primary: links.primary.filter((link) => link.section !== 'itv'),
+            secondary: links.secondary,
+        };
     });
     readonly primaryLinks = computed(() => this.railLinks().primary);
     readonly secondaryLinks = computed(() => this.railLinks().secondary);

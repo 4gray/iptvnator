@@ -211,8 +211,8 @@ export function normalizeStalkerFavoriteItem(
                 typeof (item as StalkerVodSource).category_id === 'string'
                     ? (item as StalkerVodSource).category_id
                     : typeof source.category_id === 'string'
-                      ? source.category_id
-                      : undefined,
+                        ? source.category_id
+                        : undefined,
         },
     };
 }
@@ -250,14 +250,14 @@ export function createStalkerInlineDetailState(
         (typeof itemDetails.category_id === 'string'
             ? itemDetails.category_id
             : typeof seriesItem.category_id === 'string'
-              ? seriesItem.category_id
-              : undefined);
+                ? seriesItem.category_id
+                : undefined);
     const categoryId =
         rawCategoryId === 'vod' || rawCategoryId === 'movie'
             ? 'vod'
             : rawCategoryId === 'series'
-              ? 'series'
-              : null;
+                ? 'series'
+                : null;
 
     return {
         categoryId,

@@ -327,6 +327,11 @@ export class ElectronService extends DataService {
         return normalized;
     }
 
+
+    private isCustomPortalUrl(url: string | undefined): boolean {
+        return !!url && /\/api\/v1\/?$/i.test(url);
+    }
+
     private async fetchStalkerData(payload: StalkerPayloadInput) {
         const normalizedParams = this.normalizeParamsToPlainObject(payload.params);
 
@@ -351,16 +356,21 @@ export class ElectronService extends DataService {
             return response;
         } catch (err: unknown) {
             const errorInfo = this.getErrorDetails(err);
-            console.error('Stalker request error:', err);
+            const isSilentCustomPortal404 =
+                this.isCustomPortalUrl(normalizedPayload.url) &&
+                errorInfo?.status === 404;
 
-            this.snackBar.open(
-                `Error: ${errorInfo?.message ?? 'Not found'}, status: ${errorInfo?.status ?? 404
-                }`,
-                'Close',
-                {
-                    duration: 5000,
-                }
-            );
+            if (!isSilentCustomPortal404) {
+                console.error('Stalker request error:', err);
+
+                this.snackBar.open(
+                    `Error: ${errorInfo?.message ?? 'Not found'}, status: ${errorInfo?.status ?? 404}`,
+                    'Close',
+                    {
+                        duration: 5000,
+                    }
+                );
+            }
 
             throw err;
         }

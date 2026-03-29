@@ -430,7 +430,7 @@ export class PlaylistSwitcherComponent {
             provider,
             playlist._id,
             routeContext,
-            playlist.isCustomPortal === true
+            this.isCustomVodPortalPlaylist(playlist)
         );
 
         if (targetCommands) {
@@ -451,7 +451,7 @@ export class PlaylistSwitcherComponent {
     private getProviderForPlaylist(
         playlist: PlaylistMeta
     ): PlaylistRouteProvider {
-        if (playlist.isCustomPortal) {
+        if (this.isCustomVodPortalPlaylist(playlist)) {
             return 'stalker';
         }
 
@@ -467,7 +467,7 @@ export class PlaylistSwitcherComponent {
     }
 
     private getPlaylistFilterType(playlist: PlaylistMeta): PlaylistFilterType {
-        if (playlist.isCustomPortal) {
+        if (this.isCustomVodPortalPlaylist(playlist)) {
             return 'stalker';
         }
 
@@ -480,6 +480,19 @@ export class PlaylistSwitcherComponent {
         }
 
         return 'm3u';
+    }
+
+    private isCustomVodPortalPlaylist(
+        playlist: PlaylistMeta | null | undefined
+    ): boolean {
+        const portalUrl =
+            playlist?.customPortalOriginalUrl ?? playlist?.portalUrl ?? '';
+
+        return Boolean(
+            playlist?.isCustomPortal ||
+            playlist?.customPortalKey ||
+            /\/api\/v1\/?$/i.test(portalUrl)
+        );
     }
 
     private getRouteContext(url: string): PlaylistRouteContext {
@@ -890,7 +903,7 @@ export class PlaylistSwitcherComponent {
     }
 
     getPlaylistIcon(playlist: PlaylistMeta): string {
-        if (playlist.isCustomPortal || playlist.macAddress) {
+        if (this.isCustomVodPortalPlaylist(playlist) || playlist.macAddress) {
             return 'dashboard';
         }
 
@@ -906,7 +919,7 @@ export class PlaylistSwitcherComponent {
     }
 
     getPlaylistTypeLabel(playlist: PlaylistMeta): string {
-        if (playlist.isCustomPortal) {
+        if (this.isCustomVodPortalPlaylist(playlist)) {
             return 'Custom VOD Portal';
         }
 

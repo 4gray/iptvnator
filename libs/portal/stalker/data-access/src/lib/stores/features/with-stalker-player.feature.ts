@@ -291,6 +291,7 @@ export function withStalkerPlayer() {
                                     url: portalUrl,
                                     macAddress,
                                     params,
+                                    customPortalKey: playlist?.customPortalKey,
                                 }
                             );
                         }
@@ -371,6 +372,7 @@ export function withStalkerPlayer() {
                                 url: playlist.portalUrl,
                                 macAddress: playlist.macAddress,
                                 params: queryParams,
+                                customPortalKey: playlist.customPortalKey,
                             }
                         );
                     }
@@ -603,6 +605,7 @@ export function withStalkerPlayer() {
                                         url: playlist.portalUrl,
                                         macAddress: playlist.macAddress,
                                         params,
+                                        customPortalKey: playlist.customPortalKey,
                                     }
                                 );
                             }

@@ -146,6 +146,9 @@ export class PlaylistsService {
             stalkerSignature1: playlist.stalkerSignature1,
             stalkerSignature2: playlist.stalkerSignature2,
             isFullStalkerPortal: playlist.isFullStalkerPortal,
+            isCustomPortal: playlist.isCustomPortal,
+            customPortalKey: playlist.customPortalKey,
+            customPortalOriginalUrl: playlist.customPortalOriginalUrl,
             stalkerToken: playlist.stalkerToken,
             stalkerAccountInfo: playlist.stalkerAccountInfo,
         } as Playlist);
@@ -316,9 +319,9 @@ export class PlaylistsService {
                         : {}),
                     ...(updatedPlaylist.stalkerSerialNumber !== undefined
                         ? {
-                              stalkerSerialNumber:
-                                  updatedPlaylist.stalkerSerialNumber,
-                          }
+                            stalkerSerialNumber:
+                                updatedPlaylist.stalkerSerialNumber,
+                        }
                         : {}),
                     ...(updatedPlaylist.stalkerDeviceId1 !== undefined
                         ? { stalkerDeviceId1: updatedPlaylist.stalkerDeviceId1 }
@@ -328,15 +331,15 @@ export class PlaylistsService {
                         : {}),
                     ...(updatedPlaylist.stalkerSignature1 !== undefined
                         ? {
-                              stalkerSignature1:
-                                  updatedPlaylist.stalkerSignature1,
-                          }
+                            stalkerSignature1:
+                                updatedPlaylist.stalkerSignature1,
+                        }
                         : {}),
                     ...(updatedPlaylist.stalkerSignature2 !== undefined
                         ? {
-                              stalkerSignature2:
-                                  updatedPlaylist.stalkerSignature2,
-                          }
+                            stalkerSignature2:
+                                updatedPlaylist.stalkerSignature2,
+                        }
                         : {}),
                 };
 

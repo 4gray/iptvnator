@@ -80,130 +80,132 @@ export function withStalkerSeries() {
 
                 return {
                     serialSeasonsResource: resource({
-                    params: () => ({
-                        itemId: storeContext.selectedSerialId(),
-                    }),
-                    loader: async ({ params }): Promise<StalkerSeason[]> => {
-                        const movieId = toMovieId(params.itemId);
-                        // Guard: ensure currentPlaylist and itemId are available
-                        if (!storeContext.currentPlaylist() || !movieId) {
-                            return [];
-                        }
-                        const playlist = storeContext.currentPlaylist() as Playlist;
-                        const queryParams = {
-                            action: StalkerContentTypes.series.getContentAction,
-                            type: 'series',
-                            movie_id: movieId,
-                        };
+                        params: () => ({
+                            itemId: storeContext.selectedSerialId(),
+                        }),
+                        loader: async ({ params }): Promise<StalkerSeason[]> => {
+                            const movieId = toMovieId(params.itemId);
+                            // Guard: ensure currentPlaylist and itemId are available
+                            if (!storeContext.currentPlaylist() || !movieId) {
+                                return [];
+                            }
+                            const playlist = storeContext.currentPlaylist() as Playlist;
+                            const queryParams = {
+                                action: StalkerContentTypes.series.getContentAction,
+                                type: 'series',
+                                movie_id: movieId,
+                            };
 
-                        // Use makeAuthenticatedRequest for automatic retry on auth failure
-                        let response: StalkerSeriesResponse<StalkerSeason>;
-                        if (playlist.isFullStalkerPortal) {
-                            // Full stalker portal - use authenticated request with retry
-                            response = await stalkerSession.makeAuthenticatedRequest<StalkerSeriesResponse<StalkerSeason>>(
+                            // Use makeAuthenticatedRequest for automatic retry on auth failure
+                            let response: StalkerSeriesResponse<StalkerSeason>;
+                            if (playlist.isFullStalkerPortal) {
+                                // Full stalker portal - use authenticated request with retry
+                                response = await stalkerSession.makeAuthenticatedRequest<StalkerSeriesResponse<StalkerSeason>>(
                                     playlist,
                                     queryParams
                                 );
-                        } else {
-                            // Simple stalker portal - no auth needed
-                            response = await dataService.sendIpcEvent<StalkerSeriesResponse<StalkerSeason>>(
-                                STALKER_REQUEST,
-                                {
-                                    url: playlist.portalUrl,
-                                    macAddress: playlist.macAddress,
-                                    params: queryParams,
-                                }
-                            );
-                        }
+                            } else {
+                                // Simple stalker portal - no auth needed
+                                response = await dataService.sendIpcEvent<StalkerSeriesResponse<StalkerSeason>>(
+                                    STALKER_REQUEST,
+                                    {
+                                        url: playlist.portalUrl,
+                                        macAddress: playlist.macAddress,
+                                        params: queryParams,
+                                        customPortalKey: playlist.customPortalKey,
+                                    }
+                                );
+                            }
 
-                        // Guard: ensure response has expected structure
-                        if (!response?.js?.data) {
-                            logger.warn('Invalid seasons response', response);
-                            return [];
-                        }
-                        return sortByNumericValue(response.js.data);
-                    },
-                }),
-                /**
-                 * Resource to fetch seasons for VOD items that are actually series (is_series=1)
-                 * Used for Ministra plugin where VOD items can contain series/seasons
-                 */
-                vodSeriesSeasonsResource: resource({
-                    params: () => ({
-                        selectedItem: storeContext.selectedItem(),
-                        selectedContentType: storeContext.selectedContentType(),
+                            // Guard: ensure response has expected structure
+                            if (!response?.js?.data) {
+                                logger.warn('Invalid seasons response', response);
+                                return [];
+                            }
+                            return sortByNumericValue(response.js.data);
+                        },
                     }),
-                    loader: async ({
-                        params,
-                    }): Promise<StalkerVodSeriesSeason[]> => {
-                        const item = params.selectedItem;
-                        logger.debug('vodSeriesSeasonsResource loader called', {
-                            item,
-                            isSeries: item?.is_series,
-                            currentPlaylist: storeContext.currentPlaylist(),
-                        });
+                    /**
+                     * Resource to fetch seasons for VOD items that are actually series (is_series=1)
+                     * Used for Ministra plugin where VOD items can contain series/seasons
+                     */
+                    vodSeriesSeasonsResource: resource({
+                        params: () => ({
+                            selectedItem: storeContext.selectedItem(),
+                            selectedContentType: storeContext.selectedContentType(),
+                        }),
+                        loader: async ({
+                            params,
+                        }): Promise<StalkerVodSeriesSeason[]> => {
+                            const item = params.selectedItem;
+                            logger.debug('vodSeriesSeasonsResource loader called', {
+                                item,
+                                isSeries: item?.is_series,
+                                currentPlaylist: storeContext.currentPlaylist(),
+                            });
 
-                        // Only fetch if item is a VOD series (has is_series flag)
-                        if (
-                            !storeContext.currentPlaylist() ||
-                            params.selectedContentType !== 'vod' ||
-                            !item ||
-                            !item.is_series
-                        ) {
-                            logger.debug(
-                                'vodSeriesSeasonsResource skipped - conditions not met'
-                            );
-                            return [];
-                        }
+                            // Only fetch if item is a VOD series (has is_series flag)
+                            if (
+                                !storeContext.currentPlaylist() ||
+                                params.selectedContentType !== 'vod' ||
+                                !item ||
+                                !item.is_series
+                            ) {
+                                logger.debug(
+                                    'vodSeriesSeasonsResource skipped - conditions not met'
+                                );
+                                return [];
+                            }
 
-                        const playlist = storeContext.currentPlaylist() as Playlist;
-                        const queryParams = {
-                            action: StalkerPortalActions.GetOrderedList,
-                            type: 'vod',
-                            movie_id: item.id,
-                            p: '1',
-                        };
+                            const playlist = storeContext.currentPlaylist() as Playlist;
+                            const queryParams = {
+                                action: StalkerPortalActions.GetOrderedList,
+                                type: 'vod',
+                                movie_id: item.id,
+                                p: '1',
+                            };
 
-                        let response: StalkerSeriesResponse<StalkerVodSeriesSeason>;
-                        if (playlist.isFullStalkerPortal) {
-                            response = await stalkerSession.makeAuthenticatedRequest<StalkerSeriesResponse<StalkerVodSeriesSeason>>(
+                            let response: StalkerSeriesResponse<StalkerVodSeriesSeason>;
+                            if (playlist.isFullStalkerPortal) {
+                                response = await stalkerSession.makeAuthenticatedRequest<StalkerSeriesResponse<StalkerVodSeriesSeason>>(
                                     playlist,
                                     queryParams
                                 );
-                        } else {
-                            response = await dataService.sendIpcEvent<StalkerSeriesResponse<StalkerVodSeriesSeason>>(
-                                STALKER_REQUEST,
-                                {
-                                    url: playlist.portalUrl,
-                                    macAddress: playlist.macAddress,
-                                    params: queryParams,
-                                }
-                            );
-                        }
+                            } else {
+                                response = await dataService.sendIpcEvent<StalkerSeriesResponse<StalkerVodSeriesSeason>>(
+                                    STALKER_REQUEST,
+                                    {
+                                        url: playlist.portalUrl,
+                                        macAddress: playlist.macAddress,
+                                        params: queryParams,
+                                        customPortalKey: playlist.customPortalKey,
+                                    }
+                                );
+                            }
 
-                        if (!response?.js?.data) {
+                            if (!response?.js?.data) {
+                                logger.debug(
+                                    'vodSeriesSeasonsResource - no response data'
+                                );
+                                return [];
+                            }
+
                             logger.debug(
-                                'vodSeriesSeasonsResource - no response data'
+                                'vodSeriesSeasonsResource response data',
+                                response.js.data
                             );
-                            return [];
-                        }
 
-                        logger.debug(
-                            'vodSeriesSeasonsResource response data',
-                            response.js.data
-                        );
-
-                        // Filter for season items (is_season: true)
-                        const seasons = response.js.data.filter(
-                            (item: StalkerVodSeriesSeason) =>
-                                item.is_season === true
-                        );
-                        logger.debug(
-                            'vodSeriesSeasonsResource filtered seasons',
-                            seasons
-                        );
-                        return sortVodSeriesSeasonsByNumber(seasons);
-                    },
+                            // Filter for season items (is_season: true)
+                            const seasons = response.js.data.filter(
+                                (item: StalkerVodSeriesSeason) =>
+                                    item.is_season === true
+                            );
+                            logger.debug(
+                                'vodSeriesSeasonsResource filtered seasons',
+                                seasons
+                            );
+                            return sortVodSeriesSeasonsByNumber(seasons);
+                        },
                     }),
                 };
             }
@@ -264,9 +266,9 @@ export function withStalkerSeries() {
                         let response: StalkerSeriesResponse<StalkerVodSeriesEpisode>;
                         if (playlist.isFullStalkerPortal) {
                             response = await stalkerSession.makeAuthenticatedRequest<StalkerSeriesResponse<StalkerVodSeriesEpisode>>(
-                                    playlist,
-                                    queryParams
-                                );
+                                playlist,
+                                queryParams
+                            );
                         } else {
                             response = await dataService.sendIpcEvent<StalkerSeriesResponse<StalkerVodSeriesEpisode>>(
                                 STALKER_REQUEST,
@@ -274,6 +276,7 @@ export function withStalkerSeries() {
                                     url: playlist.portalUrl,
                                     macAddress: playlist.macAddress,
                                     params: queryParams,
+                                    customPortalKey: playlist.customPortalKey,
                                 }
                             );
                         }

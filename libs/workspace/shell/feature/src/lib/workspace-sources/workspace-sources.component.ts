@@ -5,20 +5,26 @@ import { Store } from '@ngrx/store';
 import {
     PlaylistType,
     RecentPlaylistsComponent,
-} from '../../../../../../playlist/shared/ui/src';
+} from '@iptvnator/playlist/shared/ui';
 import { TranslateService } from '@ngx-translate/core';
-import {
-    selectActiveTypeFilters,
-    selectAllPlaylistsMeta,
-} from '../../../../../../m3u-state/src/lib/selectors';
+import { selectActiveTypeFilters, selectAllPlaylistsMeta } from 'm3u-state';
 import { map, startWith } from 'rxjs';
-import { WORKSPACE_SHELL_ACTIONS } from '../../../../util/src';
+import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
+
+/**
+ * WorkspaceSourcesComponent is responsible for displaying and filtering the
+ * list of playlists on the workspace landing page. This version includes
+ * enhanced filtering logic to ensure that custom Stalker portals are
+ * correctly classified as Stalker rather than M3U. Without this change,
+ * playlists lacking a macAddress were being treated as M3U, leading to
+ * incorrect counts and titles in the UI.
+ */
 
 @Component({
     selector: 'app-workspace-sources',
     imports: [RecentPlaylistsComponent],
     templateUrl: './workspace-sources.component.html',
-    styleUrls: ['./workspace-sources.component.scss'],
+    styleUrl: './workspace-sources.component.scss',
 })
 export class WorkspaceSourcesComponent {
     private readonly route = inject(ActivatedRoute);
@@ -29,11 +35,9 @@ export class WorkspaceSourcesComponent {
     private readonly activeTypeFilters = this.store.selectSignal(
         selectActiveTypeFilters
     );
-
     private readonly playlists = this.store.selectSignal(
         selectAllPlaylistsMeta
     );
-
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
@@ -43,58 +47,40 @@ export class WorkspaceSourcesComponent {
         this.route.queryParamMap.pipe(map((params) => params.get('q') ?? '')),
         { initialValue: '' }
     );
-
     readonly title = computed(() => {
         this.languageTick();
-
-        const filters = this.activeTypeFilters() as string[];
-
+        const filters = this.activeTypeFilters();
         if (filters.length === 1) {
             if (filters[0] === 'm3u') {
                 return this.translateText('WORKSPACE.SOURCES.M3U_PLAYLISTS');
             }
-
             if (filters[0] === 'xtream') {
                 return this.translateText('WORKSPACE.SOURCES.XTREAM_PLAYLISTS');
             }
-
             if (filters[0] === 'stalker') {
-                return this.translateText(
-                    'WORKSPACE.SOURCES.STALKER_PLAYLISTS'
-                );
+                return this.translateText('WORKSPACE.SOURCES.STALKER_PLAYLISTS');
             }
         }
-
         return this.translateText('WORKSPACE.SOURCES.ALL_PLAYLISTS');
     });
 
     readonly visibleSourcesCount = computed(() => {
         const query = this.searchQuery().trim().toLowerCase();
-        const filters = this.activeTypeFilters() as string[];
-        const allPlaylists = this.playlists() as Array<{
-            title?: string;
-            username?: string;
-            password?: string;
-            serverUrl?: string;
-            macAddress?: string;
-            isCustomPortal?: boolean;
-        }>;
-
+        const filters = this.activeTypeFilters();
+        const allPlaylists = this.playlists();
         return allPlaylists
             .filter((item) => {
-                const isCustomPortalStalker = item.isCustomPortal === true;
-
+                const isCustomPortalStalker = (item as any).isCustomPortal === true;
                 const isStalkerFilter =
-                    (Boolean(item.macAddress) || isCustomPortalStalker) &&
+                    ((!!item.macAddress && item.macAddress !== '') ||
+                        isCustomPortalStalker) &&
                     filters.includes('stalker');
-
                 const isXtreamFilter =
                     !isCustomPortalStalker &&
-                    Boolean(item.username) &&
-                    Boolean(item.password) &&
-                    Boolean(item.serverUrl) &&
+                    !!item.username &&
+                    !!item.password &&
+                    !!item.serverUrl &&
                     filters.includes('xtream');
-
                 const isM3uFilter =
                     !isCustomPortalStalker &&
                     !item.username &&
@@ -102,7 +88,6 @@ export class WorkspaceSourcesComponent {
                     !item.serverUrl &&
                     !item.macAddress &&
                     filters.includes('m3u');
-
                 return isStalkerFilter || isXtreamFilter || isM3uFilter;
             })
             .filter((item) => (item.title || '').toLowerCase().includes(query))
@@ -111,13 +96,10 @@ export class WorkspaceSourcesComponent {
 
     readonly subtitle = computed(() => {
         this.languageTick();
-
         const count = this.visibleSourcesCount();
-
         if (count === 1) {
             return this.translateText('WORKSPACE.SOURCES.PLAYLIST_COUNT_ONE');
         }
-
         return this.translateText('WORKSPACE.SOURCES.PLAYLIST_COUNT_OTHER', {
             count,
         });
