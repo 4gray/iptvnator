@@ -1,0 +1,1 @@
+in @libs/playlist/import/feature/src/lib/xtream-code-import/xtream-code-import.component.ts dialog when i enter credentials and click on test, and the test gives me an error, after that i want to enter new credentials, therefore i have to clear all fields manually, which takes long time. can we add a proper button, maybe next to test connection, to clear the form?

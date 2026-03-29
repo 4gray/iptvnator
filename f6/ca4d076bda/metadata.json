@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f6ca4d076bda",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/assets/i18n/en.json",
+    "libs/playlist/import/feature/src/lib/xtream-code-import/xtream-code-import.component.html",
+    "libs/playlist/import/feature/src/lib/xtream-code-import/xtream-code-import.component.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f6/ca4d076bda/0/metadata.json",
+      "transcript": "/f6/ca4d076bda/0/full.jsonl",
+      "context": "/f6/ca4d076bda/0/context.md",
+      "content_hash": "/f6/ca4d076bda/0/content_hash.txt",
+      "prompt": "/f6/ca4d076bda/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 15,
+    "cache_creation_tokens": 37913,
+    "cache_read_tokens": 409345,
+    "output_tokens": 2419,
+    "api_call_count": 13
+  }
+}
