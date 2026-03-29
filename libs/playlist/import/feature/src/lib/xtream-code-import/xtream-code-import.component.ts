@@ -127,6 +127,18 @@ export class XtreamCodeImportComponent {
         return this.portalStatusService.getStatusIcon(this.connectionStatus);
     }
 
+    clearForm() {
+        this.form.reset({
+            _id: uuid(),
+            title: '',
+            password: '',
+            username: '',
+            serverUrl: '',
+            importDate: new Date().toISOString(),
+        });
+        this.connectionStatus = null;
+    }
+
     addPlaylist() {
         const serverUrlAsString = this.form.value.serverUrl as string;
         const url = new URL(serverUrlAsString);

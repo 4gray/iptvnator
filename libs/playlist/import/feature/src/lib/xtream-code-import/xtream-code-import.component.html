@@ -35,14 +35,23 @@
     </mat-form-field>
 
     <div class="button-row">
-        <button
-            mat-button
-            type="button"
-            [disabled]="!form.valid || isTestingConnection"
-            (click)="testConnection()"
-        >
-            {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
-        </button>
+        <div>
+            <button
+                mat-button
+                type="button"
+                [disabled]="!form.valid || isTestingConnection"
+                (click)="testConnection()"
+            >
+                {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
+            </button>
+            <button
+                mat-button
+                type="button"
+                (click)="clearForm()"
+            >
+                {{ 'CLEAR' | translate }}
+            </button>
+        </div>
         <button
             mat-button
             type="submit"
