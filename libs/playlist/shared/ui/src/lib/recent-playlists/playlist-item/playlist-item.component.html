@@ -1,4 +1,5 @@
-<mat-list-item
+<div
+    class="playlist-item"
     cdkDrag
     [cdkDragDisabled]="!isDraggable() || isBusy()"
     cdkDragPreviewContainer="parent"
@@ -7,140 +8,149 @@
     (click)="onPlaylistClick()"
 >
     @if (isDraggable()) {
-        <mat-icon cdkDragHandle class="drag-icon" matListItemIcon
-            >drag_indicator</mat-icon
-        >
+        <mat-icon cdkDragHandle class="drag-icon">drag_indicator</mat-icon>
     }
-    @if (item.url) {
-        <div class="icon-container" matListItemIcon>
-            <mat-icon
-                class="upload-type-icon"
-                [matTooltip]="
-                    ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) + ' ' + item.url
-                "
-                >cloud</mat-icon
-            >
-            @if (item.autoRefresh) {
+    <div class="playlist-icon">
+        @if (item.url) {
+            <div class="icon-container">
                 <mat-icon
-                    class="auto-refresh-indicator"
-                    [matTooltip]="'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate"
-                    >autorenew</mat-icon
-                >
-            }
-        </div>
-    }
-    @if (!item.url && !item.serverUrl && !item.macAddress) {
-        <div class="icon-container" matListItemIcon>
-            <mat-icon
-                class="upload-type-icon"
-                [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
-                >folder</mat-icon
-            >
-            @if (item.autoRefresh) {
-                <mat-icon
-                    class="auto-refresh-indicator"
-                    [matTooltip]="'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate"
-                    >autorenew</mat-icon
-                >
-            }
-        </div>
-    }
-    @if (item.serverUrl) {
-        <div class="icon-container" matListItemIcon>
-            <mat-icon
-                class="upload-type-icon"
-                [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
-                >public</mat-icon
-            >
-            <span
-                class="status-dot"
-                [class]="getStatusClass()"
-                [matTooltip]="'Portal status: ' + portalStatus"
-                [attr.aria-label]="'Portal status: ' + portalStatus"
-            ></span>
-        </div>
-    }
-    @if (item.macAddress) {
-        <mat-icon
-            matListItemIcon
-            class="upload-type-icon"
-            [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
-            >dashboard</mat-icon
-        >
-    }
-    <div matListItemTitle>
-        {{ item.title || item.filename }}
-    </div>
-    <div matListItemLine class="meta">
-        @if (!item.serverUrl && !item.portalUrl) {
-            {{ 'HOME.PLAYLISTS.CHANNELS' | translate }}: {{ item.count }}
-            @if (item.importDate.length > 3) {
-                | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
-                {{ item.importDate | date }}
-            }
-            @if (item.updateDate) {
-                | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
-                {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
-            }
-            @if (item.updateState === 2) {
-                <mat-icon
+                    class="upload-type-icon"
                     [matTooltip]="
-                        'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED' | translate
+                        ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) +
+                        ' ' +
+                        item.url
                     "
-                    [inline]="true"
-                    >warning</mat-icon
+                    >cloud</mat-icon
                 >
-            }
-        } @else {
-            @if (item.macAddress) {
-                Stalker Portal
-            } @else {
-                Xtream Code Playlist
-            }
-            @if (item.importDate.length > 3) {
-                | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
-                {{ item.importDate | date }}
-            }
-            @if (item.updateDate) {
-                | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
-                {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
-            }
+                @if (item.autoRefresh) {
+                    <mat-icon
+                        class="auto-refresh-indicator"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate
+                        "
+                        >autorenew</mat-icon
+                    >
+                }
+            </div>
+        }
+        @if (!item.url && !item.serverUrl && !item.macAddress) {
+            <div class="icon-container">
+                <mat-icon
+                    class="upload-type-icon"
+                    [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
+                    >folder</mat-icon
+                >
+                @if (item.autoRefresh) {
+                    <mat-icon
+                        class="auto-refresh-indicator"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate
+                        "
+                        >autorenew</mat-icon
+                    >
+                }
+            </div>
+        }
+        @if (item.serverUrl) {
+            <div class="icon-container">
+                <mat-icon
+                    class="upload-type-icon"
+                    [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
+                    >public</mat-icon
+                >
+                <span
+                    class="status-dot"
+                    [class]="getStatusClass()"
+                    [matTooltip]="'Portal status: ' + portalStatus"
+                    [attr.aria-label]="'Portal status: ' + portalStatus"
+                ></span>
+            </div>
+        }
+        @if (item.macAddress) {
+            <mat-icon
+                class="upload-type-icon"
+                [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
+                >dashboard</mat-icon
+            >
         }
     </div>
-    @if (isBusy() && busyMessage()) {
-        <div matListItemLine class="busy-state">
-            <span class="busy-state__message">{{ busyMessage() }}</span>
-            @if (busyProgress() !== null) {
-                <span class="busy-state__value">{{ busyProgress() }}%</span>
+    <div class="playlist-content">
+        <div class="playlist-title">
+            {{ item.title || item.filename }}
+        </div>
+        <div class="meta">
+            @if (!item.serverUrl && !item.portalUrl) {
+                {{ 'HOME.PLAYLISTS.CHANNELS' | translate }}: {{ item.count }}
+                @if (item.importDate.length > 3) {
+                    | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
+                    {{ item.importDate | date }}
+                }
+                @if (item.updateDate) {
+                    | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
+                    {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
+                }
+                @if (item.updateState === 2) {
+                    <mat-icon
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.INFO_DIALOG.UPDATE_FAILED'
+                                | translate
+                        "
+                        [inline]="true"
+                        >warning</mat-icon
+                    >
+                }
+            } @else {
+                @if (item.macAddress) {
+                    Stalker
+                } @else {
+                    Xtream
+                }
+                @if (item.importDate.length > 3) {
+                    | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
+                    {{ item.importDate | date }}
+                }
+                @if (item.updateDate) {
+                    | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
+                    {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
+                }
             }
         </div>
-    }
-    @if (isBusy() && busyMessage() && busyProgress() !== null) {
-        <div matListItemLine class="busy-state__bar">
-            <mat-progress-bar
-                mode="determinate"
-                [value]="busyProgress() ?? 0"
-            />
-        </div>
-    }
-    @if (isBusy() && busyMessage() && busyProgress() === null) {
-        <div matListItemLine class="busy-state__bar">
-            <mat-progress-bar mode="indeterminate" />
-        </div>
-    }
+        @if (isBusy() && busyMessage()) {
+            <div class="busy-state">
+                <span class="busy-state__message">{{ busyMessage() }}</span>
+                @if (busyProgress() !== null) {
+                    <span class="busy-state__value">{{ busyProgress() }}%</span>
+                }
+            </div>
+        }
+        @if (isBusy() && busyMessage() && busyProgress() !== null) {
+            <div class="busy-state__bar">
+                <mat-progress-bar
+                    mode="determinate"
+                    [value]="busyProgress() ?? 0"
+                />
+            </div>
+        }
+        @if (isBusy() && busyMessage() && busyProgress() === null) {
+            <div class="busy-state__bar">
+                <mat-progress-bar mode="indeterminate" />
+            </div>
+        }
+    </div>
 
     @if (showActions()) {
-        <span matListItemMeta class="action-buttons">
+        <div class="action-buttons">
             @if (canCancelBusyAction()) {
                 <button
                     mat-icon-button
                     color="warn"
                     class="cancel-btn"
                     (click)="
-                        $event.stopPropagation();
-                        cancelBusyActionClicked.emit()
+                        $event.stopPropagation(); cancelBusyActionClicked.emit()
                     "
-                    [matTooltip]="'WORKSPACE.SHELL.XTREAM_IMPORT_CANCEL' | translate"
+                    [matTooltip]="
+                        'WORKSPACE.SHELL.XTREAM_IMPORT_CANCEL' | translate
+                    "
                 >
                     <mat-icon>close</mat-icon>
                 </button>
@@ -149,7 +159,6 @@
                 <button
                     mat-icon-button
                     class="refresh-btn"
-                    color="accent"
                     (click)="
                         $event.stopPropagation(); refreshClicked.emit(item)
                     "
@@ -171,7 +180,6 @@
                 <button
                     mat-icon-button
                     class="refresh-btn"
-                    color="accent"
                     (click)="
                         $event.stopPropagation(); refreshClicked.emit(item)
                     "
@@ -192,7 +200,6 @@
 
             <button
                 mat-icon-button
-                color="accent"
                 class="edit-btn"
                 (click)="
                     $event.stopPropagation(); editPlaylistClicked.emit(item)
@@ -205,7 +212,6 @@
 
             <button
                 mat-icon-button
-                color="accent"
                 class="delete-btn"
                 (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
                 [disabled]="isBusy()"
@@ -221,6 +227,6 @@
                     <mat-icon>delete</mat-icon>
                 }
             </button>
-        </span>
+        </div>
     }
-</mat-list-item>
+</div>

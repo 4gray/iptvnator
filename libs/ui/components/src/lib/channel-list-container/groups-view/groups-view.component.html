@@ -38,7 +38,10 @@
                 </header>
 
                 <div class="groups-nav-list nav-list">
-                    @for (group of filteredGroups(); track trackByGroupKey($index, group)) {
+                    @for (
+                        group of filteredGroups();
+                        track trackByGroupKey($index, group)
+                    ) {
                         <button
                             type="button"
                             class="nav-item group-nav-item"
@@ -107,7 +110,9 @@
                         [selected]="activeChannelUrl() === channel?.url"
                         [showFavoriteButton]="true"
                         [isFavorite]="
-                            channel?.url ? favoriteIds().has(channel.url) : false
+                            channel?.url
+                                ? favoriteIds().has(channel.url)
+                                : false
                         "
                         (clicked)="onChannelClick(channel)"
                         (favoriteToggled)="onFavoriteToggle(channel, $event)"

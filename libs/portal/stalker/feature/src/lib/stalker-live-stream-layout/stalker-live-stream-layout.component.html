@@ -17,7 +17,9 @@
                 @if (visibleChannels().length > 0) {
                     <span class="category-subtitle"
                         >{{ visibleChannels().length }}
-                        {{ visibleChannels().length === 1 ? 'item' : 'items' }}</span
+                        {{
+                            visibleChannels().length === 1 ? 'item' : 'items'
+                        }}</span
                     >
                 }
             </div>

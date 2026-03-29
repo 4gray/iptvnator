@@ -1,34 +1,15 @@
-@use '@angular/material' as mat;
-
 :host {
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-.mat-list-base {
-    padding-top: 0;
-}
-
 .playlists-list {
-    padding: 0;
+    padding: 0 6px;
     width: 100%;
     overflow-x: hidden;
+    box-sizing: border-box;
 }
-
-.meta {
-    font-size: 12px !important;
-    color: #666;
-    margin-top: 2px !important;
-}
-
-// Light theme
-@media (prefers-color-scheme: light) {
-    .meta {
-        color: #757575;
-    }
-}
-
 
 #skeleton-container {
     padding-top: 10px;
@@ -52,6 +33,6 @@
 @media only screen and (max-width: 480px) {
     .favorites-icon {
         padding-left: 0 !important;
-        display: none
+        display: none;
     }
 }

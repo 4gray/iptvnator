@@ -11,7 +11,7 @@
             <app-empty-state [type]="'no-results'" />
         }
     } @else {
-        <mat-nav-list
+        <div
             class="playlists-list"
             cdkDropList
             [cdkDropListDisabled]="!isCustomSortActive()"
@@ -39,6 +39,6 @@
                     (cancelBusyActionClicked)="cancelBusyOperation(item)"
                 />
             }
-        </mat-nav-list>
+        </div>
     }
 }
