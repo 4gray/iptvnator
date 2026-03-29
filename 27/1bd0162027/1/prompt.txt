@@ -1,0 +1,1140 @@
+right now we have add button in the app in header and it opens a dialog where user can select one of the multiple options, which playlist and how to add. i'm thinking abut improving that and have one entry point. what do you think about this idea: just one button, on click open a dialog with segmented toggle button on top to select type m3u (as url, file, text) or starlker or xtream. for m3u there are three differents optinos how to add. what do you think about that idea? would it be better and easier for users? or should i keep like now. use sc-brainstorm to think and frontend-design skill.
+
+---
+
+Base directory for this skill: /Users/4gray/Code/iptvnator/.claude/skills/sc-brainstorm
+
+# Brainstorming & Requirements Discovery Skill
+
+Transform ambiguous ideas into concrete specifications through structured exploration.
+
+## Quick Start
+
+```bash
+# Basic brainstorm
+/sc:brainstorm [topic]
+
+# Deep systematic exploration
+/sc:brainstorm "AI project management tool" --strategy systematic --depth deep
+
+# Parallel exploration with multiple personas
+/sc:brainstorm "real-time collaboration" --strategy agile --parallel
+```
+
+## Behavioral Flow
+
+1. **Explore** - Transform ambiguous ideas through Socratic dialogue
+2. **Analyze** - Coordinate multiple personas for domain expertise
+3. **Validate** - Apply feasibility assessment across domains
+4. **Specify** - Generate concrete specifications
+5. **Handoff** - Create actionable briefs for implementation
+
+## Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--strategy` | string | systematic | systematic, agile, enterprise |
+| `--depth` | string | normal | shallow, normal, deep |
+| `--parallel` | bool | false | Enable parallel exploration paths |
+| `--validate` | bool | false | Include feasibility validation |
+
+## Personas Activated
+
+- **architect** - System design and technical feasibility
+- **analyzer** - Requirements analysis and complexity assessment
+- **frontend** - User experience and interface considerations
+- **backend** - API and data architecture
+- **security** - Security requirements and compliance
+- **devops** - Infrastructure and deployment considerations
+- **project-manager** - Timeline and resource planning
+
+## MCP Integration
+
+### PAL MCP (Collaborative Intelligence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__pal__consensus` | Conflicting priorities | Multi-model resolution of trade-offs |
+| `mcp__pal__chat` | Brainstorming | Collaborative idea exploration with external model |
+| `mcp__pal__thinkdeep` | Complex problems | Multi-stage deep analysis |
+| `mcp__pal__planner` | Solution design | Sequential planning with branching |
+| `mcp__pal__challenge` | Validate ideas | Force critical thinking on proposed solutions |
+
+### PAL Usage Patterns
+
+```bash
+# Consensus on conflicting priorities
+mcp__pal__consensus(
+    models=[
+        {"model": "gpt-5.2", "stance": "for", "stance_prompt": "Prioritize user experience"},
+        {"model": "gemini-3-pro", "stance": "against", "stance_prompt": "Prioritize technical simplicity"},
+        {"model": "deepseek", "stance": "neutral"}
+    ],
+    step="Evaluate: Should we use real-time sync or eventual consistency?"
+)
+
+# Deep exploration of complex idea
+mcp__pal__thinkdeep(
+    step="Exploring AI-powered analytics dashboard concept",
+    hypothesis="Users need predictive insights, not just historical data",
+    confidence="medium",
+    focus_areas=["user_needs", "technical_feasibility", "market_fit"]
+)
+
+# Collaborative brainstorming
+mcp__pal__chat(
+    prompt="Help me explore innovative approaches for real-time collaboration in document editing",
+    model="gpt-5.2",
+    thinking_mode="high"
+)
+
+# Challenge assumptions
+mcp__pal__challenge(
+    prompt="We assume users want AI-generated summaries. Is this assumption valid?"
+)
+
+# Plan solution architecture
+mcp__pal__planner(
+    step="Planning architecture for real-time notification system",
+    step_number=1,
+    total_steps=4,
+    is_branch_point=True,
+    branch_id="websocket-approach"
+)
+```
+
+### Rube MCP (Research & Persistence)
+
+| Tool | When to Use | Purpose |
+|------|-------------|---------|
+| `mcp__rube__RUBE_SEARCH_TOOLS` | Market research | Find web search, competitor analysis tools |
+| `mcp__rube__RUBE_MULTI_EXECUTE_TOOL` | Documentation | Save ideas to Notion, share in Slack |
+| `mcp__rube__RUBE_CREATE_UPDATE_RECIPE` | Workflows | Save brainstorming processes |
+| `mcp__rube__RUBE_REMOTE_WORKBENCH` | Data analysis | Analyze market data, user research |
+
+### Rube Usage Patterns
+
+```bash
+# Research market and competitors
+mcp__rube__RUBE_SEARCH_TOOLS(queries=[
+    {"use_case": "web search", "known_fields": "query:AI analytics dashboard competitors 2025"}
+])
+
+# Document brainstorming session
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "NOTION_CREATE_PAGE", "arguments": {
+        "title": "Brainstorm: AI Analytics Dashboard",
+        "content": "## Key Ideas\n- Predictive insights\n- Natural language queries\n\n## Decisions\n- Real-time sync chosen over eventual consistency"
+    }},
+    {"tool_slug": "SLACK_SEND_MESSAGE", "arguments": {
+        "channel": "#product",
+        "text": "New brainstorm session documented: AI Analytics Dashboard"
+    }}
+])
+
+# Create user research tasks
+mcp__rube__RUBE_MULTI_EXECUTE_TOOL(tools=[
+    {"tool_slug": "JIRA_CREATE_ISSUE", "arguments": {
+        "project": "PROD",
+        "summary": "User research: AI analytics preferences",
+        "issue_type": "Task",
+        "description": "Interview 10 users about analytics needs"
+    }},
+    {"tool_slug": "ASANA_CREATE_TASK", "arguments": {
+        "name": "Competitor analysis: analytics dashboards",
+        "project": "Research"
+    }}
+])
+
+# Analyze existing user feedback
+mcp__rube__RUBE_REMOTE_WORKBENCH(
+    thought="Analyze user feedback data for patterns",
+    code_to_execute='''
+import json
+# Load user feedback from file
+feedback_data = json.load(open("/tmp/user_feedback.json"))
+# Analyze with LLM
+analysis, error = invoke_llm(f"Analyze this user feedback for analytics feature requests: {feedback_data[:5000]}")
+output = {"analysis": analysis, "feedback_count": len(feedback_data)}
+output
+'''
+)
+```
+
+## Flags (Extended)
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--pal-consensus` | bool | false | Use PAL consensus for trade-offs |
+| `--pal-deep` | bool | false | Use PAL thinkdeep for complex exploration |
+| `--research` | bool | false | Use Rube for market/competitor research |
+| `--document` | string | - | Document to Rube (notion, confluence, google-docs) |
+| `--notify` | string | - | Notify via Rube (slack, teams, email) |
+
+## Evidence Requirements
+
+This skill does NOT require hard evidence. Focus on:
+- Documenting exploration paths and decisions
+- Recording stakeholder input and priorities
+- Capturing specifications and requirements
+
+## Exploration Strategies
+
+### Systematic (`--strategy systematic`)
+- Structured question-driven discovery
+- Comprehensive domain coverage
+- Documentation-heavy approach
+
+### Agile (`--strategy agile`)
+- Rapid iteration cycles
+- User story focused
+- Minimal viable specification
+
+### Enterprise (`--strategy enterprise`)
+- Compliance and governance focus
+- Stakeholder alignment
+- Risk assessment integration
+
+## Examples
+
+### Product Discovery
+```
+/sc:brainstorm "AI-powered analytics dashboard" --strategy systematic --depth deep
+# Multi-persona analysis with comprehensive feasibility
+```
+
+### Feature Exploration
+```
+/sc:brainstorm "real-time notifications" --strategy agile --parallel
+# Parallel paths: frontend UX, backend architecture, security implications
+```
+
+### Enterprise Solution
+```
+/sc:brainstorm "enterprise data platform" --strategy enterprise --validate
+# Compliance-aware exploration with security and devops input
+```
+
+## Tool Coordination
+
+- **Read/Write** - Requirements documentation
+- **TodoWrite** - Exploration progress tracking
+- **Task** - Parallel exploration delegation
+- **WebSearch** - Market research and technology validation
+
+
+ARGUMENTS: The user has an IPTV player app (IPTVnator) that supports 3 playlist types: M3U (can be added as URL, file upload, or raw text), Xtream Codes API (needs server URL, username, password), and Stalker portal (needs MAC address and portal URL). Currently there's an "Add" button in the header that opens a dialog with multiple options. The user wants to replace this with a single dialog that has a segmented toggle at the top to switch between M3U / Stalker / Xtream, with M3U having sub-options for URL/file/text. Evaluate whether this unified entry point would be better UX than the current multi-option approach.
+
+---
+
+Base directory for this skill: /Users/4gray/.claude/skills/userinterface-wiki
+
+# User Interface Wiki
+
+Comprehensive UI/UX best practices guide for web interfaces. Contains 152 rules across 12 categories, prioritized by impact to guide automated code review and generation.
+
+## When to Apply
+
+Reference these guidelines when:
+- Implementing or reviewing animations (CSS transitions, Motion/Framer Motion)
+- Choosing between springs, easing curves, or no animation
+- Working with AnimatePresence and exit animations
+- Writing CSS with pseudo-elements or View Transitions API
+- Adding audio feedback or procedural sound to UI
+- Building morphing icon components
+- Animating container width/height with dynamic content
+- Designing UI that respects cognitive psychology (Fitts's, Hick's, Miller's laws)
+- Implementing predictive prefetching for perceived performance
+- Setting up typography, OpenType features, or numeric formatting
+
+## Rule Categories by Priority
+
+| Priority | Category | Impact | Prefixes |
+|----------|----------|--------|----------|
+| 1 | Animation Principles | CRITICAL | `timing-`, `physics-`, `staging-` |
+| 2 | Timing Functions | HIGH | `spring-`, `easing-`, `duration-`, `none-` |
+| 3 | Exit Animations | HIGH | `exit-`, `presence-`, `mode-`, `nested-` |
+| 4 | CSS Pseudo Elements | MEDIUM | `pseudo-`, `transition-`, `native-` |
+| 5 | Audio Feedback | MEDIUM | `a11y-`, `appropriate-`, `impl-`, `weight-` |
+| 6 | Sound Synthesis | MEDIUM | `context-`, `envelope-`, `design-`, `param-` |
+| 7 | Morphing Icons | LOW | `morphing-` |
+| 8 | Container Animation | MEDIUM | `container-` |
+| 9 | Laws of UX | HIGH | `ux-` |
+| 10 | Predictive Prefetching | MEDIUM | `prefetch-` |
+| 11 | Typography | MEDIUM | `type-` |
+| 12 | Visual Design | HIGH | `visual-` |
+
+## Quick Reference
+
+### 1. Animation Principles (CRITICAL)
+
+- `timing-under-300ms` - User animations must complete within 300ms
+- `timing-consistent` - Similar elements use identical timing values
+- `timing-no-entrance-context-menu` - Context menus: no entrance animation, exit only
+- `easing-natural-decay` - Use exponential ramps for natural decay, not linear
+- `easing-no-linear-motion` - Linear easing only for progress indicators
+- `physics-active-state` - Interactive elements need :active scale transform
+- `physics-subtle-deformation` - Squash/stretch in 0.95-1.05 range
+- `physics-spring-for-overshoot` - Springs for overshoot-and-settle, not easing
+- `physics-no-excessive-stagger` - Stagger delays under 50ms per item
+- `staging-one-focal-point` - One prominent animation at a time
+- `staging-dim-background` - Dim modal/dialog backgrounds
+- `staging-z-index-hierarchy` - Animated elements respect z-index layers
+
+### 2. Timing Functions (HIGH)
+
+- `spring-for-gestures` - Gesture-driven motion (drag, flick) must use springs
+- `spring-for-interruptible` - Interruptible motion must use springs
+- `spring-preserves-velocity` - Springs preserve input energy on release
+- `spring-params-balanced` - Avoid excessive oscillation in spring params
+- `easing-for-state-change` - System state changes use easing curves
+- `easing-entrance-ease-out` - Entrances use ease-out
+- `easing-exit-ease-in` - Exits use ease-in
+- `easing-transition-ease-in-out` - View transitions use ease-in-out
+- `easing-linear-only-progress` - Linear only for progress/time representation
+- `duration-press-hover` - Press/hover: 120-180ms
+- `duration-small-state` - Small state changes: 180-260ms
+- `duration-max-300ms` - User-initiated max 300ms
+- `duration-shorten-before-curve` - Fix slow feel with shorter duration, not curve
+- `none-high-frequency` - No animation for high-frequency interactions
+- `none-keyboard-navigation` - Keyboard navigation instant, no animation
+- `none-context-menu-entrance` - Context menus: no entrance, exit only
+
+### 3. Exit Animations (HIGH)
+
+- `exit-requires-wrapper` - Conditional motion elements need AnimatePresence wrapper
+- `exit-prop-required` - Elements in AnimatePresence need exit prop
+- `exit-key-required` - Dynamic lists need unique keys, not index
+- `exit-matches-initial` - Exit mirrors initial for symmetry
+- `presence-hook-in-child` - useIsPresent in child, not parent
+- `presence-safe-to-remove` - Call safeToRemove after async cleanup
+- `presence-disable-interactions` - Disable interactions on exiting elements
+- `mode-wait-doubles-duration` - Mode "wait" doubles duration; halve timing
+- `mode-sync-layout-conflict` - Mode "sync" causes layout conflicts
+- `mode-pop-layout-for-lists` - Use popLayout for list reordering
+- `nested-propagate-required` - Nested AnimatePresence needs propagate prop
+- `nested-consistent-timing` - Coordinate parent-child exit durations
+
+### 4. CSS Pseudo Elements (MEDIUM)
+
+- `pseudo-content-required` - ::before/::after need content property
+- `pseudo-over-dom-node` - Pseudo-elements over extra DOM nodes for decoration
+- `pseudo-position-relative-parent` - Parent needs position: relative
+- `pseudo-z-index-layering` - Z-index for correct pseudo-element layering
+- `pseudo-hit-target-expansion` - Negative inset for larger hit targets
+- `pseudo-marker-styling` - Use ::marker for custom list bullet styles
+- `pseudo-first-line-styling` - Use ::first-line for typographic treatments
+- `transition-name-required` - View transitions need view-transition-name
+- `transition-name-unique` - Each transition name unique during transition
+- `transition-name-cleanup` - Remove transition name after completion
+- `transition-over-js-library` - Prefer View Transitions API over JS libraries
+- `transition-style-pseudo-elements` - Style ::view-transition-group for custom animations
+- `native-backdrop-styling` - Use ::backdrop for dialog backgrounds
+- `native-placeholder-styling` - Use ::placeholder for input styling
+- `native-selection-styling` - Use ::selection for text selection styling
+
+### 5. Audio Feedback (MEDIUM)
+
+- `a11y-visual-equivalent` - Every sound must have a visual equivalent
+- `a11y-toggle-setting` - Provide toggle to disable sounds
+- `a11y-reduced-motion-check` - Respect prefers-reduced-motion for sound
+- `a11y-volume-control` - Allow independent volume adjustment
+- `appropriate-no-high-frequency` - No sound on typing or keyboard nav
+- `appropriate-confirmations-only` - Sound for payments, uploads, submissions
+- `appropriate-errors-warnings` - Sound for errors that can't be overlooked
+- `appropriate-no-decorative` - No sound on hover or decorative moments
+- `appropriate-no-punishing` - Inform, don't punish with harsh sounds
+- `impl-preload-audio` - Preload audio files to avoid delay
+- `impl-default-subtle` - Default volume subtle (0.3), not loud
+- `impl-reset-current-time` - Reset currentTime before replay
+- `weight-match-action` - Sound weight matches action importance
+- `weight-duration-matches-action` - Sound duration matches action duration
+
+### 6. Sound Synthesis (MEDIUM)
+
+- `context-reuse-single` - Reuse single AudioContext, don't create per sound
+- `context-resume-suspended` - Resume suspended AudioContext before playing
+- `context-cleanup-nodes` - Disconnect audio nodes after playback
+- `envelope-exponential-decay` - Exponential ramps for natural decay
+- `envelope-no-zero-target` - Exponential ramps target 0.001, not 0
+- `envelope-set-initial-value` - Set initial value before ramping
+- `design-noise-for-percussion` - Filtered noise for clicks/taps
+- `design-oscillator-for-tonal` - Oscillators with pitch sweep for tonal sounds
+- `design-filter-for-character` - Bandpass filter to shape percussive sounds
+- `param-click-duration` - Click sounds: 5-15ms duration
+- `param-filter-frequency-range` - Click filter: 3000-6000Hz
+- `param-reasonable-gain` - Gain under 1.0 to prevent clipping
+- `param-q-value-range` - Filter Q: 2-5 for focused but natural
+
+### 7. Morphing Icons (LOW)
+
+- `morphing-three-lines` - Every icon uses exactly 3 SVG lines
+- `morphing-use-collapsed` - Unused lines use collapsed constant
+- `morphing-consistent-viewbox` - All icons share same viewBox (14x14)
+- `morphing-group-variants` - Rotational variants share group and base lines
+- `morphing-spring-rotation` - Spring physics for grouped icon rotation
+- `morphing-reduced-motion` - Respect prefers-reduced-motion
+- `morphing-jump-non-grouped` - Instant rotation jump between non-grouped icons
+- `morphing-strokelinecap-round` - Round stroke line caps
+- `morphing-aria-hidden` - Icon SVGs are aria-hidden
+
+### 8. Container Animation (MEDIUM)
+
+- `container-two-div-pattern` - Outer animated div, inner measured div; never same element
+- `container-guard-initial-zero` - Guard bounds === 0 on initial render, fall back to "auto"
+- `container-use-resize-observer` - Use ResizeObserver for measurement, not getBoundingClientRect
+- `container-overflow-hidden` - Set overflow: hidden on animated container during transitions
+- `container-no-excessive-use` - Use sparingly: buttons, accordions, interactive elements
+- `container-callback-ref` - Use callback ref (not useRef) for measurement hooks
+- `container-transition-delay` - Add small delay for natural catching-up feel
+
+### 9. Laws of UX (HIGH)
+
+- `ux-fitts-target-size` - Size interactive targets for easy clicking (min 32px)
+- `ux-fitts-hit-area` - Expand hit areas with invisible padding or pseudo-elements
+- `ux-hicks-minimize-choices` - Minimize choices to reduce decision time
+- `ux-millers-chunking` - Chunk data into groups of 5-9 for scannability
+- `ux-doherty-under-400ms` - Respond within 400ms to feel instant
+- `ux-doherty-perceived-speed` - Fake speed with skeletons, optimistic UI, progress indicators
+- `ux-postels-accept-messy-input` - Accept messy input, output clean data
+- `ux-progressive-disclosure` - Show what matters now, reveal complexity later
+- `ux-jakobs-familiar-patterns` - Use familiar UI patterns users know from other sites
+- `ux-aesthetic-usability` - Visual polish increases perceived usability
+- `ux-proximity-grouping` - Group related elements spatially with tighter spacing
+- `ux-similarity-consistency` - Similar elements should look alike
+- `ux-common-region-boundaries` - Use boundaries to group related content
+- `ux-von-restorff-emphasis` - Make important elements visually distinct
+- `ux-serial-position` - Place key items first or last in sequences
+- `ux-peak-end-finish-strong` - End experiences with clear success states
+- `ux-teslers-complexity` - Move complexity to the system, not the user
+- `ux-goal-gradient-progress` - Show progress toward completion
+- `ux-zeigarnik-show-incomplete` - Show incomplete state to drive completion
+- `ux-pragnanz-simplify` - Simplify complex visuals into clear forms
+- `ux-pareto-prioritize-features` - Prioritize the critical 20% of features
+- `ux-cognitive-load-reduce` - Minimize extraneous cognitive load
+- `ux-uniform-connectedness` - Visually connect related elements with lines or frames
+
+### 10. Predictive Prefetching (MEDIUM)
+
+- `prefetch-trajectory-over-hover` - Trajectory prediction over hover; reclaims 100-200ms
+- `prefetch-not-everything` - Prefetch by intent, not viewport; avoid wasted bandwidth
+- `prefetch-hit-slop` - Use hitSlop to trigger predictions earlier
+- `prefetch-touch-fallback` - Fall back gracefully on touch devices (no cursor)
+- `prefetch-keyboard-tab` - Prefetch on keyboard navigation when focus approaches
+- `prefetch-use-selectively` - Use predictive prefetching where latency is noticeable
+
+### 11. Typography (MEDIUM)
+
+- `type-tabular-nums-for-data` - Tabular numbers for columns, dashboards, pricing
+- `type-oldstyle-nums-for-prose` - Oldstyle numbers blend into body text
+- `type-slashed-zero` - Slashed zero in code-adjacent UIs
+- `type-opentype-contextual-alternates` - Keep calt enabled for contextual glyph adjustment
+- `type-disambiguation-stylistic-set` - Enable ss02 to distinguish I/l/1 and 0/O
+- `type-optical-sizing-auto` - Leave font-optical-sizing auto for size-adaptive glyphs
+- `type-antialiased-on-retina` - Antialiased font smoothing on retina displays
+- `type-text-wrap-balance-headings` - text-wrap: balance on headings for even lines
+- `type-underline-offset` - Offset underlines below descenders
+- `type-no-font-synthesis` - Disable font-synthesis to prevent faux bold/italic
+- `type-font-display-swap` - Use font-display: swap to avoid invisible text during load
+- `type-variable-weight-continuous` - Use continuous weight values (100-900) with variable fonts
+- `type-text-wrap-pretty` - text-wrap: pretty for body text to reduce orphans
+- `type-justify-with-hyphens` - Pair text-align: justify with hyphens: auto
+- `type-letter-spacing-uppercase` - Add letter-spacing to uppercase and small-caps text
+- `type-proper-fractions` - Use diagonal-fractions for proper typographic fractions
+
+### 12. Visual Design (HIGH)
+
+- `visual-concentric-radius` - Inner radius = outer radius minus padding for nested elements
+- `visual-layered-shadows` - Layer multiple shadows for realistic depth
+- `visual-shadow-direction` - All shadows share same offset direction (single light source)
+- `visual-no-pure-black-shadow` - Use neutral colors, not pure black, for shadows
+- `visual-shadow-matches-elevation` - Shadow size indicates elevation in consistent scale
+- `visual-animate-shadow-pseudo` - Animate shadow via pseudo-element opacity for performance
+- `visual-consistent-spacing-scale` - Use a consistent spacing scale, not arbitrary values
+- `visual-border-alpha-colors` - Semi-transparent borders adapt to any background
+- `visual-button-shadow-anatomy` - Six-layer shadow anatomy for polished buttons
+
+## How to Use
+
+Read individual rule files for detailed explanations and code examples:
+
+```
+rules/timing-under-300ms.md
+rules/spring-for-gestures.md
+rules/ux-doherty-under-400ms.md
+rules/type-tabular-nums-for-data.md
+```
+
+Each rule file contains:
+- Brief explanation of why it matters
+- Incorrect code example with explanation
+- Correct code example with explanation
+
+## Full Compiled Document
+
+For the complete guide with all rules expanded: `AGENTS.md`
+
+
+ARGUMENTS: Evaluate UX patterns for a unified "add item" dialog with segmented toggle/tabs vs a dropdown menu that leads to separate dialogs. Context: IPTV player app where users add playlists of 3 types (M3U with sub-options URL/file/text, Xtream Codes API, Stalker portal). Currently uses a dropdown menu with 5 flat options that each open a dialog. Proposed: single dialog with segmented control to switch between types.
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+do not stash, just lint
+
+---
+
+we also need to adapt the adding of new playists in e2e tests now
+
+---
+
+i don't like the visual part  of the new adding playlist dialog, i think the angular material elements are too big. can you check the theming page: https://material.angular.dev/guide/theming and try to reduce the density(size) of input fields, select menus, segmented toggle buttons. also by switching between views, the dialog height is changing the height, i dont know if that is fine. use  /plan mode and use frontend-design skill.
+
+---
+
+Base directory for this skill: /Users/4gray/.claude/skills/userinterface-wiki
+
+# User Interface Wiki
+
+Comprehensive UI/UX best practices guide for web interfaces. Contains 152 rules across 12 categories, prioritized by impact to guide automated code review and generation.
+
+## When to Apply
+
+Reference these guidelines when:
+- Implementing or reviewing animations (CSS transitions, Motion/Framer Motion)
+- Choosing between springs, easing curves, or no animation
+- Working with AnimatePresence and exit animations
+- Writing CSS with pseudo-elements or View Transitions API
+- Adding audio feedback or procedural sound to UI
+- Building morphing icon components
+- Animating container width/height with dynamic content
+- Designing UI that respects cognitive psychology (Fitts's, Hick's, Miller's laws)
+- Implementing predictive prefetching for perceived performance
+- Setting up typography, OpenType features, or numeric formatting
+
+## Rule Categories by Priority
+
+| Priority | Category | Impact | Prefixes |
+|----------|----------|--------|----------|
+| 1 | Animation Principles | CRITICAL | `timing-`, `physics-`, `staging-` |
+| 2 | Timing Functions | HIGH | `spring-`, `easing-`, `duration-`, `none-` |
+| 3 | Exit Animations | HIGH | `exit-`, `presence-`, `mode-`, `nested-` |
+| 4 | CSS Pseudo Elements | MEDIUM | `pseudo-`, `transition-`, `native-` |
+| 5 | Audio Feedback | MEDIUM | `a11y-`, `appropriate-`, `impl-`, `weight-` |
+| 6 | Sound Synthesis | MEDIUM | `context-`, `envelope-`, `design-`, `param-` |
+| 7 | Morphing Icons | LOW | `morphing-` |
+| 8 | Container Animation | MEDIUM | `container-` |
+| 9 | Laws of UX | HIGH | `ux-` |
+| 10 | Predictive Prefetching | MEDIUM | `prefetch-` |
+| 11 | Typography | MEDIUM | `type-` |
+| 12 | Visual Design | HIGH | `visual-` |
+
+## Quick Reference
+
+### 1. Animation Principles (CRITICAL)
+
+- `timing-under-300ms` - User animations must complete within 300ms
+- `timing-consistent` - Similar elements use identical timing values
+- `timing-no-entrance-context-menu` - Context menus: no entrance animation, exit only
+- `easing-natural-decay` - Use exponential ramps for natural decay, not linear
+- `easing-no-linear-motion` - Linear easing only for progress indicators
+- `physics-active-state` - Interactive elements need :active scale transform
+- `physics-subtle-deformation` - Squash/stretch in 0.95-1.05 range
+- `physics-spring-for-overshoot` - Springs for overshoot-and-settle, not easing
+- `physics-no-excessive-stagger` - Stagger delays under 50ms per item
+- `staging-one-focal-point` - One prominent animation at a time
+- `staging-dim-background` - Dim modal/dialog backgrounds
+- `staging-z-index-hierarchy` - Animated elements respect z-index layers
+
+### 2. Timing Functions (HIGH)
+
+- `spring-for-gestures` - Gesture-driven motion (drag, flick) must use springs
+- `spring-for-interruptible` - Interruptible motion must use springs
+- `spring-preserves-velocity` - Springs preserve input energy on release
+- `spring-params-balanced` - Avoid excessive oscillation in spring params
+- `easing-for-state-change` - System state changes use easing curves
+- `easing-entrance-ease-out` - Entrances use ease-out
+- `easing-exit-ease-in` - Exits use ease-in
+- `easing-transition-ease-in-out` - View transitions use ease-in-out
+- `easing-linear-only-progress` - Linear only for progress/time representation
+- `duration-press-hover` - Press/hover: 120-180ms
+- `duration-small-state` - Small state changes: 180-260ms
+- `duration-max-300ms` - User-initiated max 300ms
+- `duration-shorten-before-curve` - Fix slow feel with shorter duration, not curve
+- `none-high-frequency` - No animation for high-frequency interactions
+- `none-keyboard-navigation` - Keyboard navigation instant, no animation
+- `none-context-menu-entrance` - Context menus: no entrance, exit only
+
+### 3. Exit Animations (HIGH)
+
+- `exit-requires-wrapper` - Conditional motion elements need AnimatePresence wrapper
+- `exit-prop-required` - Elements in AnimatePresence need exit prop
+- `exit-key-required` - Dynamic lists need unique keys, not index
+- `exit-matches-initial` - Exit mirrors initial for symmetry
+- `presence-hook-in-child` - useIsPresent in child, not parent
+- `presence-safe-to-remove` - Call safeToRemove after async cleanup
+- `presence-disable-interactions` - Disable interactions on exiting elements
+- `mode-wait-doubles-duration` - Mode "wait" doubles duration; halve timing
+- `mode-sync-layout-conflict` - Mode "sync" causes layout conflicts
+- `mode-pop-layout-for-lists` - Use popLayout for list reordering
+- `nested-propagate-required` - Nested AnimatePresence needs propagate prop
+- `nested-consistent-timing` - Coordinate parent-child exit durations
+
+### 4. CSS Pseudo Elements (MEDIUM)
+
+- `pseudo-content-required` - ::before/::after need content property
+- `pseudo-over-dom-node` - Pseudo-elements over extra DOM nodes for decoration
+- `pseudo-position-relative-parent` - Parent needs position: relative
+- `pseudo-z-index-layering` - Z-index for correct pseudo-element layering
+- `pseudo-hit-target-expansion` - Negative inset for larger hit targets
+- `pseudo-marker-styling` - Use ::marker for custom list bullet styles
+- `pseudo-first-line-styling` - Use ::first-line for typographic treatments
+- `transition-name-required` - View transitions need view-transition-name
+- `transition-name-unique` - Each transition name unique during transition
+- `transition-name-cleanup` - Remove transition name after completion
+- `transition-over-js-library` - Prefer View Transitions API over JS libraries
+- `transition-style-pseudo-elements` - Style ::view-transition-group for custom animations
+- `native-backdrop-styling` - Use ::backdrop for dialog backgrounds
+- `native-placeholder-styling` - Use ::placeholder for input styling
+- `native-selection-styling` - Use ::selection for text selection styling
+
+### 5. Audio Feedback (MEDIUM)
+
+- `a11y-visual-equivalent` - Every sound must have a visual equivalent
+- `a11y-toggle-setting` - Provide toggle to disable sounds
+- `a11y-reduced-motion-check` - Respect prefers-reduced-motion for sound
+- `a11y-volume-control` - Allow independent volume adjustment
+- `appropriate-no-high-frequency` - No sound on typing or keyboard nav
+- `appropriate-confirmations-only` - Sound for payments, uploads, submissions
+- `appropriate-errors-warnings` - Sound for errors that can't be overlooked
+- `appropriate-no-decorative` - No sound on hover or decorative moments
+- `appropriate-no-punishing` - Inform, don't punish with harsh sounds
+- `impl-preload-audio` - Preload audio files to avoid delay
+- `impl-default-subtle` - Default volume subtle (0.3), not loud
+- `impl-reset-current-time` - Reset currentTime before replay
+- `weight-match-action` - Sound weight matches action importance
+- `weight-duration-matches-action` - Sound duration matches action duration
+
+### 6. Sound Synthesis (MEDIUM)
+
+- `context-reuse-single` - Reuse single AudioContext, don't create per sound
+- `context-resume-suspended` - Resume suspended AudioContext before playing
+- `context-cleanup-nodes` - Disconnect audio nodes after playback
+- `envelope-exponential-decay` - Exponential ramps for natural decay
+- `envelope-no-zero-target` - Exponential ramps target 0.001, not 0
+- `envelope-set-initial-value` - Set initial value before ramping
+- `design-noise-for-percussion` - Filtered noise for clicks/taps
+- `design-oscillator-for-tonal` - Oscillators with pitch sweep for tonal sounds
+- `design-filter-for-character` - Bandpass filter to shape percussive sounds
+- `param-click-duration` - Click sounds: 5-15ms duration
+- `param-filter-frequency-range` - Click filter: 3000-6000Hz
+- `param-reasonable-gain` - Gain under 1.0 to prevent clipping
+- `param-q-value-range` - Filter Q: 2-5 for focused but natural
+
+### 7. Morphing Icons (LOW)
+
+- `morphing-three-lines` - Every icon uses exactly 3 SVG lines
+- `morphing-use-collapsed` - Unused lines use collapsed constant
+- `morphing-consistent-viewbox` - All icons share same viewBox (14x14)
+- `morphing-group-variants` - Rotational variants share group and base lines
+- `morphing-spring-rotation` - Spring physics for grouped icon rotation
+- `morphing-reduced-motion` - Respect prefers-reduced-motion
+- `morphing-jump-non-grouped` - Instant rotation jump between non-grouped icons
+- `morphing-strokelinecap-round` - Round stroke line caps
+- `morphing-aria-hidden` - Icon SVGs are aria-hidden
+
+### 8. Container Animation (MEDIUM)
+
+- `container-two-div-pattern` - Outer animated div, inner measured div; never same element
+- `container-guard-initial-zero` - Guard bounds === 0 on initial render, fall back to "auto"
+- `container-use-resize-observer` - Use ResizeObserver for measurement, not getBoundingClientRect
+- `container-overflow-hidden` - Set overflow: hidden on animated container during transitions
+- `container-no-excessive-use` - Use sparingly: buttons, accordions, interactive elements
+- `container-callback-ref` - Use callback ref (not useRef) for measurement hooks
+- `container-transition-delay` - Add small delay for natural catching-up feel
+
+### 9. Laws of UX (HIGH)
+
+- `ux-fitts-target-size` - Size interactive targets for easy clicking (min 32px)
+- `ux-fitts-hit-area` - Expand hit areas with invisible padding or pseudo-elements
+- `ux-hicks-minimize-choices` - Minimize choices to reduce decision time
+- `ux-millers-chunking` - Chunk data into groups of 5-9 for scannability
+- `ux-doherty-under-400ms` - Respond within 400ms to feel instant
+- `ux-doherty-perceived-speed` - Fake speed with skeletons, optimistic UI, progress indicators
+- `ux-postels-accept-messy-input` - Accept messy input, output clean data
+- `ux-progressive-disclosure` - Show what matters now, reveal complexity later
+- `ux-jakobs-familiar-patterns` - Use familiar UI patterns users know from other sites
+- `ux-aesthetic-usability` - Visual polish increases perceived usability
+- `ux-proximity-grouping` - Group related elements spatially with tighter spacing
+- `ux-similarity-consistency` - Similar elements should look alike
+- `ux-common-region-boundaries` - Use boundaries to group related content
+- `ux-von-restorff-emphasis` - Make important elements visually distinct
+- `ux-serial-position` - Place key items first or last in sequences
+- `ux-peak-end-finish-strong` - End experiences with clear success states
+- `ux-teslers-complexity` - Move complexity to the system, not the user
+- `ux-goal-gradient-progress` - Show progress toward completion
+- `ux-zeigarnik-show-incomplete` - Show incomplete state to drive completion
+- `ux-pragnanz-simplify` - Simplify complex visuals into clear forms
+- `ux-pareto-prioritize-features` - Prioritize the critical 20% of features
+- `ux-cognitive-load-reduce` - Minimize extraneous cognitive load
+- `ux-uniform-connectedness` - Visually connect related elements with lines or frames
+
+### 10. Predictive Prefetching (MEDIUM)
+
+- `prefetch-trajectory-over-hover` - Trajectory prediction over hover; reclaims 100-200ms
+- `prefetch-not-everything` - Prefetch by intent, not viewport; avoid wasted bandwidth
+- `prefetch-hit-slop` - Use hitSlop to trigger predictions earlier
+- `prefetch-touch-fallback` - Fall back gracefully on touch devices (no cursor)
+- `prefetch-keyboard-tab` - Prefetch on keyboard navigation when focus approaches
+- `prefetch-use-selectively` - Use predictive prefetching where latency is noticeable
+
+### 11. Typography (MEDIUM)
+
+- `type-tabular-nums-for-data` - Tabular numbers for columns, dashboards, pricing
+- `type-oldstyle-nums-for-prose` - Oldstyle numbers blend into body text
+- `type-slashed-zero` - Slashed zero in code-adjacent UIs
+- `type-opentype-contextual-alternates` - Keep calt enabled for contextual glyph adjustment
+- `type-disambiguation-stylistic-set` - Enable ss02 to distinguish I/l/1 and 0/O
+- `type-optical-sizing-auto` - Leave font-optical-sizing auto for size-adaptive glyphs
+- `type-antialiased-on-retina` - Antialiased font smoothing on retina displays
+- `type-text-wrap-balance-headings` - text-wrap: balance on headings for even lines
+- `type-underline-offset` - Offset underlines below descenders
+- `type-no-font-synthesis` - Disable font-synthesis to prevent faux bold/italic
+- `type-font-display-swap` - Use font-display: swap to avoid invisible text during load
+- `type-variable-weight-continuous` - Use continuous weight values (100-900) with variable fonts
+- `type-text-wrap-pretty` - text-wrap: pretty for body text to reduce orphans
+- `type-justify-with-hyphens` - Pair text-align: justify with hyphens: auto
+- `type-letter-spacing-uppercase` - Add letter-spacing to uppercase and small-caps text
+- `type-proper-fractions` - Use diagonal-fractions for proper typographic fractions
+
+### 12. Visual Design (HIGH)
+
+- `visual-concentric-radius` - Inner radius = outer radius minus padding for nested elements
+- `visual-layered-shadows` - Layer multiple shadows for realistic depth
+- `visual-shadow-direction` - All shadows share same offset direction (single light source)
+- `visual-no-pure-black-shadow` - Use neutral colors, not pure black, for shadows
+- `visual-shadow-matches-elevation` - Shadow size indicates elevation in consistent scale
+- `visual-animate-shadow-pseudo` - Animate shadow via pseudo-element opacity for performance
+- `visual-consistent-spacing-scale` - Use a consistent spacing scale, not arbitrary values
+- `visual-border-alpha-colors` - Semi-transparent borders adapt to any background
+- `visual-button-shadow-anatomy` - Six-layer shadow anatomy for polished buttons
+
+## How to Use
+
+Read individual rule files for detailed explanations and code examples:
+
+```
+rules/timing-under-300ms.md
+rules/spring-for-gestures.md
+rules/ux-doherty-under-400ms.md
+rules/type-tabular-nums-for-data.md
+```
+
+Each rule file contains:
+- Brief explanation of why it matters
+- Incorrect code example with explanation
+- Correct code example with explanation
+
+## Full Compiled Document
+
+For the complete guide with all rules expanded: `AGENTS.md`
+
+
+ARGUMENTS: Best practices for dialog height stability when switching between tabs/views with different content heights. Also: reducing visual density of Material Design form components (inputs, toggles, selects) inside dialogs to feel less bulky.
+
+---
+
+the placeholder are not there any more and the button position in footer looks weird, user electron skill and agent-browser to check, create sscreenshots what i mean
+
+---
+
+Base directory for this skill: /Users/4gray/.claude/skills/electron
+
+# Electron App Automation
+
+Automate any Electron desktop app using agent-browser. Electron apps are built on Chromium and expose a Chrome DevTools Protocol (CDP) port that agent-browser can connect to, enabling the same snapshot-interact workflow used for web pages.
+
+## Core Workflow
+
+1. **Launch** the Electron app with remote debugging enabled
+2. **Connect** agent-browser to the CDP port
+3. **Snapshot** to discover interactive elements
+4. **Interact** using element refs
+5. **Re-snapshot** after navigation or state changes
+
+```bash
+# Launch an Electron app with remote debugging
+open -a "Slack" --args --remote-debugging-port=9222
+
+# Connect agent-browser to the app
+agent-browser connect 9222
+
+# Standard workflow from here
+agent-browser snapshot -i
+agent-browser click @e5
+agent-browser screenshot slack-desktop.png
+```
+
+## Launching Electron Apps with CDP
+
+Every Electron app supports the `--remote-debugging-port` flag since it's built into Chromium.
+
+### macOS
+
+```bash
+# Slack
+open -a "Slack" --args --remote-debugging-port=9222
+
+# VS Code
+open -a "Visual Studio Code" --args --remote-debugging-port=9223
+
+# Discord
+open -a "Discord" --args --remote-debugging-port=9224
+
+# Figma
+open -a "Figma" --args --remote-debugging-port=9225
+
+# Notion
+open -a "Notion" --args --remote-debugging-port=9226
+
+# Spotify
+open -a "Spotify" --args --remote-debugging-port=9227
+```
+
+### Linux
+
+```bash
+slack --remote-debugging-port=9222
+code --remote-debugging-port=9223
+discord --remote-debugging-port=9224
+```
+
+### Windows
+
+```bash
+"C:\Users\%USERNAME%\AppData\Local\slack\slack.exe" --remote-debugging-port=9222
+"C:\Users\%USERNAME%\AppData\Local\Programs\Microsoft VS Code\Code.exe" --remote-debugging-port=9223
+```
+
+**Important:** If the app is already running, quit it first, then relaunch with the flag. The `--remote-debugging-port` flag must be present at launch time.
+
+## Connecting
+
+```bash
+# Connect to a specific port
+agent-browser connect 9222
+
+# Or use --cdp on each command
+agent-browser --cdp 9222 snapshot -i
+
+# Auto-discover a running Chromium-based app
+agent-browser --auto-connect snapshot -i
+```
+
+After `connect`, all subsequent commands target the connected app without needing `--cdp`.
+
+## Tab Management
+
+Electron apps often have multiple windows or webviews. Use tab commands to list and switch between them:
+
+```bash
+# List all available targets (windows, webviews, etc.)
+agent-browser tab
+
+# Switch to a specific tab by index
+agent-browser tab 2
+
+# Switch by URL pattern
+agent-browser tab --url "*settings*"
+```
+
+## Common Patterns
+
+### Inspect and Navigate an App
+
+```bash
+open -a "Slack" --args --remote-debugging-port=9222
+sleep 3  # Wait for app to start
+agent-browser connect 9222
+agent-browser snapshot -i
+# Read the snapshot output to identify UI elements
+agent-browser click @e10  # Navigate to a section
+agent-browser snapshot -i  # Re-snapshot after navigation
+```
+
+### Take Screenshots of Desktop Apps
+
+```bash
+agent-browser connect 9222
+agent-browser screenshot app-state.png
+agent-browser screenshot --full full-app.png
+agent-browser screenshot --annotate annotated-app.png
+```
+
+### Extract Data from a Desktop App
+
+```bash
+agent-browser connect 9222
+agent-browser snapshot -i
+agent-browser get text @e5
+agent-browser snapshot --json > app-state.json
+```
+
+### Fill Forms in Desktop Apps
+
+```bash
+agent-browser connect 9222
+agent-browser snapshot -i
+agent-browser fill @e3 "search query"
+agent-browser press Enter
+agent-browser wait 1000
+agent-browser snapshot -i
+```
+
+### Run Multiple Apps Simultaneously
+
+Use named sessions to control multiple Electron apps at the same time:
+
+```bash
+# Connect to Slack
+agent-browser --session slack connect 9222
+
+# Connect to VS Code
+agent-browser --session vscode connect 9223
+
+# Interact with each independently
+agent-browser --session slack snapshot -i
+agent-browser --session vscode snapshot -i
+```
+
+## Color Scheme
+
+Playwright overrides the color scheme to `light` by default when connecting via CDP. To preserve dark mode:
+
+```bash
+agent-browser connect 9222
+agent-browser --color-scheme dark snapshot -i
+```
+
+Or set it globally:
+
+```bash
+AGENT_BROWSER_COLOR_SCHEME=dark agent-browser connect 9222
+```
+
+## Troubleshooting
+
+### "Connection refused" or "Cannot connect"
+
+- Make sure the app was launched with `--remote-debugging-port=NNNN`
+- If the app was already running, quit and relaunch with the flag
+- Check that the port isn't in use by another process: `lsof -i :9222`
+
+### App launches but connect fails
+
+- Wait a few seconds after launch before connecting (`sleep 3`)
+- Some apps take time to initialize their webview
+
+### Elements not appearing in snapshot
+
+- The app may use multiple webviews. Use `agent-browser tab` to list targets and switch to the right one
+- Use `agent-browser snapshot -i -C` to include cursor-interactive elements (divs with onclick handlers)
+
+### Cannot type in input fields
+
+- Try `agent-browser keyboard type "text"` to type at the current focus without a selector
+- Some Electron apps use custom input components; use `agent-browser keyboard inserttext "text"` to bypass key events
+
+## Supported Apps
+
+Any app built on Electron works, including:
+
+- **Communication:** Slack, Discord, Microsoft Teams, Signal, Telegram Desktop
+- **Development:** VS Code, GitHub Desktop, Postman, Insomnia
+- **Design:** Figma, Notion, Obsidian
+- **Media:** Spotify, Tidal
+- **Productivity:** Todoist, Linear, 1Password
+
+If an app is built with Electron, it supports `--remote-debugging-port` and can be automated with agent-browser.
+
+
+ARGUMENTS: Take screenshots of the Add Playlist dialog in the running Electron app to check visual issues: missing placeholders on form fields and weird button positioning in footer
+
+---
+
+yes, do all three things
+
+---
+
+select your favorite
+
+---
+
+can we move dialog buttons in the dialog to the dialog mat-dialog-footer so that they are always visible?
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user wanted to improve the "Add playlist" UX in their IPTVnator app. Originally there was a "+" button in the header opening a dropdown menu with 5 flat options. The user proposed a unified dialog with segmented toggles (M3U | Xtream | Stalker), with M3U having sub-options (URL | File | Text). After implementing this, the user requested: (a) reducing Angular Material component density/size, (b) fixing dialog height jumping, (c) adapting e2e tests, and (d) moving action buttons to a sticky `mat-dialog-actions` footer.
+
+2. Key Technical Concepts:
+   - Angular Material M3 theming with `mat.define-theme()` and per-component density mixins
+   - Density scale levels: scale 0 (default) through scale -5, affecting component heights
+   - At density scale -2, `form-field-filled-label-display` becomes `none` (labels hidden)
+   - Signal-based Angular APIs: `signal()`, `computed()`, `viewChild()`, `input()`, `output()`
+   - `mat-button-toggle-group` for segmented controls
+   - `mat-dialog-actions` for sticky dialog footer buttons
+   - `@switch` control flow for rendering type-specific form components
+   - Factory pattern for environment detection (Electron vs PWA)
+   - NgRx for playlist state management
+   - Playwright e2e tests with `agent-browser` CDP automation for visual verification
+   - Component-scoped density via `:host { @include mat.form-field-density($theme) }`
+
+3. Files and Code Sections:
+
+   - **`libs/workspace/shell/util/src/lib/workspace-shell-actions.ts`**
+     - Added new types and made `openAddPlaylistDialog` optional
+     ```typescript
+     export type PlaylistCategory = 'm3u' | 'xtream' | 'stalker';
+     export type M3uSubType = 'url' | 'file' | 'text';
+     // openAddPlaylistDialog(type?: WorkspacePlaylistType): void;
+     ```
+
+   - **`libs/playlist/import/feature/src/lib/add-playlist-dialog/add-playlist-dialog.component.ts`**
+     - Core refactoring: signal-based toggle state, computed PlaylistType, viewChild refs for sub-components, optional MAT_DIALOG_DATA
+     ```typescript
+     readonly urlUpload = viewChild(UrlUploadComponent);
+     readonly textImport = viewChild(TextImportComponent);
+     readonly xtreamImport = viewChild(XtreamCodeImportComponent);
+     readonly stalkerImport = viewChild(StalkerPortalImportComponent);
+     readonly category = signal<PlaylistCategory>('m3u');
+     readonly m3uSubType = signal<M3uSubType>('url');
+     readonly playlistType = computed<PlaylistType>(() => {
+         const cat = this.category();
+         if (cat === 'xtream') return 'xtream';
+         if (cat === 'stalker') return 'stalker';
+         return this.m3uSubType();
+     });
+     private data = inject<{ type?: PlaylistType } | null>(MAT_DIALOG_DATA, { optional: true });
+     ```
+
+   - **`libs/playlist/import/feature/src/lib/add-playlist-dialog/add-playlist-dialog.component.html`**
+     - Two-level mat-button-toggle-groups, @switch for forms, mat-dialog-actions footer with type-specific buttons
+     - Footer uses viewChild refs to access sub-component forms: `[disabled]="!urlUpload()?.form?.valid"`, `(click)="xtreamImport()?.addPlaylist()"`
+
+   - **`libs/playlist/import/feature/src/lib/add-playlist-dialog/add-playlist-dialog.component.scss`**
+     - Component-scoped density with separate themes for form fields (scale -1) and toggles (scale -3)
+     ```scss
+     @use '@angular/material' as mat;
+     $form-field-theme: mat.define-theme((density: (scale: -1)));
+     $toggle-theme: mat.define-theme((density: (scale: -3)));
+     :host {
+         @include mat.form-field-density($form-field-theme);
+         @include mat.button-toggle-density($toggle-theme);
+     }
+     .category-toggle, .subtype-toggle {
+         display: flex; width: 100%; margin-bottom: 8px;
+         mat-button-toggle { flex: 1; --mat-standard-button-toggle-label-text-size: 13px; }
+     }
+     .subtype-toggle mat-button-toggle { --mat-standard-button-toggle-label-text-size: 12px; }
+     .form-area { min-height: 0; }
+     ```
+
+   - **`libs/workspace/shell/feature/.../workspace-shell-header/workspace-shell-header.component.ts`**
+     - Removed AddPlaylistMenuComponent, MatMenuModule, viewChild; changed output to `output<void>()`
+
+   - **`libs/workspace/shell/feature/.../workspace-shell-header/workspace-shell-header.component.html`**
+     - Replaced `[matMenuTriggerFor]` button with simple `(click)="onAddPlaylistRequested()"`; removed `<app-add-playlist-menu>`
+
+   - **`libs/workspace/shell/feature/.../workspace-shell.facade.ts`**
+     - `openAddPlaylistDialog()` takes no args; removed PlaylistType import
+
+   - **`libs/workspace/shell/feature/.../workspace-shell.component.html`**
+     - Changed `(addPlaylistRequested)="facade.openAddPlaylistDialog($event)"` to `facade.openAddPlaylistDialog()`
+
+   - **`apps/web/src/app/services/workspace-shell-actions.service.ts`**
+     - Optional type parameter: `data: type ? { type } : {}`
+
+   - **`libs/playlist/shared/ui/src/lib/add-playlist-menu/playlist-type.ts`** (NEW)
+     - Extracted `PlaylistType` type from deleted component
+
+   - **`libs/playlist/shared/ui/src/lib/add-playlist-menu/add-playlist-menu.component.ts`** (DELETED)
+   - **`libs/playlist/shared/ui/src/lib/add-playlist-menu/add-playlist-menu.component.html`** (DELETED)
+
+   - **`libs/playlist/shared/ui/src/lib/recent-playlists/empty-state/empty-state.component.ts`**
+     - Removed AddPlaylistMenuComponent, MatMenuModule; changed output to `output<void>()`; removed viewChild
+
+   - **`libs/playlist/shared/ui/src/lib/recent-playlists/empty-state/empty-state.component.html`**
+     - Replaced mat-menu trigger with simple `(click)="onAddPlaylist()"`
+
+   - **`libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.ts`**
+     - Changed `addPlaylistClicked` to `output<void>()`, removed PlaylistType import
+
+   - **`libs/workspace/shell/feature/.../workspace-sources/workspace-sources.component.ts`**
+     - Changed `onAddPlaylist()` to void, calls `openAddPlaylistDialog()` without args
+
+   - **Sub-component button removals:**
+     - `url-upload.component.html` — removed submit button, removed MatButton import
+     - `text-import.component.html` — removed submit button, removed MatButton import  
+     - `xtream-code-import.component.html` — removed button-row div, kept connection-status; removed MatButton import and `.button-row` CSS
+     - `stalker-portal-import.component.html` — removed loading spinner and add button; removed MatButtonModule and MatProgressSpinnerModule imports
+
+   - **E2E test updates:**
+     - `apps/web-e2e/src/basic.e2e.ts` — Changed from `menuitem` click to dialog button click for "Add via file upload"
+     - `apps/web-e2e/src/stalker.e2e.ts` — `addStalkerPortal()` now clicks "Stalker" toggle button in dialog
+     - `apps/web-e2e/src/xtream.e2e.ts` — `addXtreamPortal()` now clicks "Xtream" toggle button in dialog
+
+   - **Test spec updates:**
+     - `workspace-shell-header.component.spec.ts` — removed AddPlaylistMenuComponent, MatMenuModule from override imports
+     - `workspace-shell.component.spec.ts` — changed mock output from `output<string>()` to `output<void>()`
+
+4. Errors and Fixes:
+   - **Form field labels disappeared at density scale -2**: The M3 density system sets `form-field-filled-label-display: none` at scale -2. Fixed by using scale -1 for form fields (52px height, labels visible) while keeping scale -3 for button toggles (36px).
+   - **User feedback on density**: "the placeholder are not there any more and the button position in footer looks weird" — this led to splitting density into two separate themes.
+   - **User feedback on dialog height**: Asked to see all three min-height options (280px, 0, 380px). After showing screenshots, user asked me to pick — I chose 0 (no min-height).
+   - **NG8113 warning**: `MatButton is not used within the template of XtreamCodeImportComponent` after removing buttons. Fixed by removing unused `MatButton` imports from all sub-components.
+   - **Pre-existing lint error**: `app.routes.ts` has a module boundaries error unrelated to changes.
+
+5. Problem Solving:
+   - Solved the UX problem of too many choices (5→3 top-level) with progressive disclosure
+   - Solved the density problem by using component-scoped Sass mixins with separate density scales
+   - Solved the label visibility problem by understanding M3 density token internals
+   - Solved the button positioning problem by moving buttons to `mat-dialog-actions` footer
+   - Used agent-browser CDP automation to visually verify changes in the running Electron app
+
+6. All User Messages:
+   - "right now we have add button in the app in header and it opens a dialog where user can select one of the multiple options... what do you think about this idea: just one button, on click open a dialog with segmented toggle button... use sc-brainstorm to think and frontend-design skill."
+   - "we also need to adapt the adding of new playlists in e2e tests now"
+   - "i don't like the visual part of the new adding playlist dialog, i think the angular material elements are too big. can you check the theming page: https://material.angular.dev/guide/theming and try to reduce the density(size) of input fields, select menus, segmented toggle buttons. also by switching between views, the dialog height is changing the height, i dont know if that is fine. use /plan mode and use frontend-design skill."
+   - "the placeholder are not there any more and the button position in footer looks weird, user electron skill and agent-browser to check, create screenshots what i mean"
+   - "yes, do all three things" (referring to 3 mutually exclusive min-height options)
+   - "select your favorite"
+   - "can we move dialog buttons in the dialog to the dialog mat-dialog-footer so that they are always visible?"
+
+7. Pending Tasks:
+   - Run unit tests (`nx test web`) after the footer button changes to verify nothing broke
+   - Potentially run e2e tests to verify the new dialog flow works end-to-end
+
+8. Current Work:
+   Just completed moving all action buttons from sub-component templates into the dialog's `mat-dialog-actions` footer. The dialog now uses `viewChild` references to access each sub-component's form state and methods, rendering type-specific buttons in a sticky footer. Screenshots were taken via agent-browser confirming:
+   - M3U URL: "Add playlist" button in footer
+   - Xtream: "Test Connection", "Clear", "Add" buttons in footer
+   - Stalker: "Add" button in footer (with loading state support)
+   
+   Build succeeds with no warnings. No explicit user feedback yet on the footer button screenshots.
+
+9. Optional Next Step:
+   Run `nx test web` and `nx run-many --target=test --all` to verify all unit tests still pass after the footer button refactoring, since buttons were removed from sub-component templates and wiring changed significantly.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/4gray/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+is something left? if yes, continue

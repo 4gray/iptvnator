@@ -1,9 +1,11 @@
 {
   "cli_version": "0.4.2",
   "checkpoint_id": "271bd0162027",
+  "session_id": "6d8abbfe-ae0d-4e8f-a9e6-be06fad5cd10",
   "strategy": "manual-commit",
+  "created_at": "2026-03-29T21:51:29.453104Z",
   "branch": "master",
-  "checkpoints_count": 14,
+  "checkpoints_count": 6,
   "files_touched": [
     "apps/web-e2e/src/basic.e2e.ts",
     "apps/web-e2e/src/stalker.e2e.ts",
@@ -18,11 +20,7 @@
     "libs/playlist/shared/ui/src/lib/add-playlist-menu/playlist-type.ts",
     "libs/playlist/shared/ui/src/lib/recent-playlists/empty-state/empty-state.component.html",
     "libs/playlist/shared/ui/src/lib/recent-playlists/empty-state/empty-state.component.ts",
-    "libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.html",
-    "libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.scss",
-    "libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts",
     "libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.html",
-    "libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.scss",
     "libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.ts",
     "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.html",
     "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.spec.ts",
@@ -34,27 +32,22 @@
     "libs/workspace/shell/feature/src/lib/workspace-sources/workspace-sources.component.ts",
     "libs/workspace/shell/util/src/lib/workspace-shell-actions.ts"
   ],
-  "sessions": [
-    {
-      "metadata": "/27/1bd0162027/0/metadata.json",
-      "transcript": "/27/1bd0162027/0/full.jsonl",
-      "context": "/27/1bd0162027/0/context.md",
-      "content_hash": "/27/1bd0162027/0/content_hash.txt",
-      "prompt": "/27/1bd0162027/0/prompt.txt"
-    },
-    {
-      "metadata": "/27/1bd0162027/1/metadata.json",
-      "transcript": "/27/1bd0162027/1/full.jsonl",
-      "context": "/27/1bd0162027/1/context.md",
-      "content_hash": "/27/1bd0162027/1/content_hash.txt",
-      "prompt": "/27/1bd0162027/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "bcc35683-1e91-4d17-92e5-db5d33e19472",
   "token_usage": {
-    "input_tokens": 6399,
-    "cache_creation_tokens": 343474,
-    "cache_read_tokens": 27545682,
-    "output_tokens": 68013,
-    "api_call_count": 278
+    "input_tokens": 6316,
+    "cache_creation_tokens": 203840,
+    "cache_read_tokens": 23052808,
+    "output_tokens": 46015,
+    "api_call_count": 217
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-29T21:51:29.333312Z",
+    "agent_lines": 0,
+    "human_added": 3073,
+    "human_modified": 421,
+    "human_removed": 0,
+    "total_committed": 3102,
+    "agent_percentage": 0
   }
 }
