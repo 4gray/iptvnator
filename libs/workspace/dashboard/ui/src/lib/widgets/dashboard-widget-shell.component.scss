@@ -24,9 +24,7 @@
     justify-content: space-between;
     gap: 12px;
     padding: 14px 16px 10px;
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    flex-shrink: 0;
     background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
     border-bottom: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
 }

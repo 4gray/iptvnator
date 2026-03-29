@@ -222,8 +222,7 @@
     right: 4px;
     width: 24px;
     height: 24px;
-    background: color-mix(in srgb, var(--mat-sys-surface-container-highest) 90%, transparent);
-    backdrop-filter: blur(4px);
+    background: color-mix(in srgb, var(--mat-sys-surface-container-highest) 96%, transparent);
     opacity: 0;
 
     mat-icon {
