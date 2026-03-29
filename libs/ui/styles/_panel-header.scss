@@ -1,0 +1,60 @@
+@mixin standard-panel-header(
+    $sticky: false,
+    $padding: 0 20px,
+    $gap: 12px,
+    $min-height: 52px,
+    $z-index: 2,
+    $border-color: var(--app-widget-header-border, rgba(255, 255, 255, 0.05))
+) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: $gap;
+    padding: $padding;
+    min-height: $min-height;
+    flex-shrink: 0;
+    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    border-bottom: 1px solid $border-color;
+
+    @if $sticky {
+        position: sticky;
+        top: 0;
+        z-index: $z-index;
+    }
+}
+
+@mixin standard-panel-meta($gap: 10px) {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: $gap;
+    flex: 1;
+}
+
+@mixin standard-panel-title($font-size: 0.95rem) {
+    margin: 0;
+    font-size: $font-size;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    letter-spacing: -0.01em;
+}
+
+@mixin standard-panel-subtitle(
+    $font-size: 0.78rem,
+    $font-weight: 500,
+    $padding: 2px 8px,
+    $color: var(--app-body-color, var(--mat-sys-on-surface-variant)),
+    $background: var(--mat-sys-surface-container)
+) {
+    white-space: nowrap;
+    font-size: $font-size;
+    font-weight: $font-weight;
+    color: $color;
+    background: $background;
+    padding: $padding;
+    border-radius: 999px;
+    flex-shrink: 0;
+}

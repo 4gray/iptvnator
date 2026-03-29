@@ -1,13 +1,12 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { EpgService } from '@iptvnator/epg/data-access';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
-import { EpgService } from '@iptvnator/epg/data-access';
 import {
-    combineLatestWith,
     EMPTY,
     filter,
     firstValueFrom,
@@ -53,7 +52,7 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(FavoritesActions.updateFavorites),
-                combineLatestWith(
+                withLatestFrom(
                     this.store.select(selectFavorites),
                     this.store.select(selectActivePlaylistId)
                 ),
@@ -77,7 +76,7 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(FavoritesActions.setFavorites),
-                combineLatestWith(this.store.select(selectActivePlaylistId)),
+                withLatestFrom(this.store.select(selectActivePlaylistId)),
                 filter(([, playlistId]) => !!playlistId),
                 switchMap(([action, playlistId]) =>
                     this.playlistsService.setFavorites(
@@ -96,7 +95,7 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(EpgActions.setActiveEpgProgram),
-                combineLatestWith(this.store.select(selectActive)),
+                withLatestFrom(this.store.select(selectActive)),
                 map(([, activeChannel]) => {
                     firstValueFrom(this.storage.get(STORE_KEY.Settings)).then(
                         (settings: any) => {

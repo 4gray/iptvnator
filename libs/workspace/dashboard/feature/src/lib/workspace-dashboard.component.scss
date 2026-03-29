@@ -52,7 +52,6 @@
         var(--mat-sys-surface-container-high) 100%
     );
     box-shadow: 0 8px 24px -16px var(--dashboard-frame-glow);
-    backdrop-filter: blur(8px);
 }
 
 .topbar-label {
@@ -245,6 +244,7 @@
         transform 0.2s ease,
         box-shadow 0.2s ease,
         border-color 0.2s ease;
+    contain: layout style;
     z-index: 1;
     height: var(--dashboard-widget-height);
     // Suppress the inner mat-card outlined border — slot provides the only visible border
@@ -293,11 +293,10 @@
     border-radius: 12px;
     background: color-mix(
         in srgb,
-        var(--mat-sys-surface-container-high) 78%,
-        var(--dashboard-accent) 22%
+        var(--mat-sys-surface-container-high) 92%,
+        var(--dashboard-accent) 8%
     );
     padding: 4px 6px;
-    backdrop-filter: blur(4px);
 }
 
 .drag-handle {

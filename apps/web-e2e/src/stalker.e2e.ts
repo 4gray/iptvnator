@@ -64,8 +64,8 @@ async function setInputValue(input: Locator, value: string): Promise<void> {
 
 /**
  * Add a Stalker portal via the UI:
- * 1. Click the "add playlist" button
- * 2. Click "Stalker Portal Import" in the menu
+ * 1. Click the "add playlist" button to open the unified dialog
+ * 2. Select "Stalker" toggle
  * 3. Fill in the form and submit
  */
 async function addStalkerPortal(
@@ -75,8 +75,8 @@ async function addStalkerPortal(
     const { name = 'Mock Stalker Portal', mac = DEFAULT_MAC } = options;
 
     await page.getByRole('button', { name: 'Add playlist' }).click();
-    await page.getByRole('menuitem', { name: /Add Stalker Portal/i }).click();
     const dialog = page.locator('mat-dialog-container');
+    await dialog.getByRole('button', { name: 'Stalker' }).click();
 
     await setInputValue(dialog.locator('input#title'), name);
     await setInputValue(dialog.locator('input#portalUrl'), PORTAL_URL);

@@ -68,7 +68,7 @@
         <section class="sidebar groups-content-panel">
             @if (selectedGroup(); as group) {
                 <header class="sidebar-header groups-content-header">
-                    <div class="category-heading">
+                    <div class="category-meta">
                         <h2 class="category-title">
                             @if (group.key) {
                                 {{ group.key | titlecase }}
@@ -76,7 +76,10 @@
                                 {{ 'CHANNELS.UNGROUPED' | translate }}
                             }
                         </h2>
-                        <span class="category-count">{{ group.count }}</span>
+                        <span class="category-subtitle">
+                            {{ group.count }}
+                            {{ group.count === 1 ? 'item' : 'items' }}
+                        </span>
                     </div>
                 </header>
 
@@ -103,7 +106,9 @@
                         [progressPercentage]="channel.progressPercentage"
                         [selected]="activeChannelUrl() === channel?.url"
                         [showFavoriteButton]="true"
-                        [isFavorite]="favoriteIds().has(channel?.url)"
+                        [isFavorite]="
+                            channel?.url ? favoriteIds().has(channel.url) : false
+                        "
                         (clicked)="onChannelClick(channel)"
                         (favoriteToggled)="onFavoriteToggle(channel, $event)"
                     />

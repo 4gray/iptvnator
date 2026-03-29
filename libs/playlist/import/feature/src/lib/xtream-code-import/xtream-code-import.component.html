@@ -34,34 +34,6 @@
         <input matInput type="text" id="password" formControlName="password" />
     </mat-form-field>
 
-    <div class="button-row">
-        <div>
-            <button
-                mat-button
-                type="button"
-                [disabled]="!form.valid || isTestingConnection"
-                (click)="testConnection()"
-            >
-                {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
-            </button>
-            <button
-                mat-button
-                type="button"
-                (click)="clearForm()"
-            >
-                {{ 'CLEAR' | translate }}
-            </button>
-        </div>
-        <button
-            mat-button
-            type="submit"
-            [disabled]="!form.valid"
-            (click)="addPlaylist()"
-        >
-            {{ 'HOME.XTREAM_PLAYLIST.ADD' | translate }}
-        </button>
-    </div>
-
     @if (connectionStatus) {
         <div class="connection-status">
             <mat-icon [class]="getStatusClass()">

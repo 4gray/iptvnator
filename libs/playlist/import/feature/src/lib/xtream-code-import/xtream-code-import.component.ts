@@ -6,7 +6,6 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
-import { MatButton } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -20,7 +19,6 @@ import { v4 as uuid } from 'uuid';
 @Component({
     imports: [
         FormsModule,
-        MatButton,
         MatFormFieldModule,
         MatIcon,
         MatInputModule,
@@ -64,10 +62,6 @@ import { v4 as uuid } from 'uuid';
                 gap: 8px;
             }
 
-            .button-row {
-                display: flex;
-                justify-content: space-between;
-            }
         `,
     ],
 })

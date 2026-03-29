@@ -1,4 +1,4 @@
-<form (ngSubmit)="urlAdded.emit(form.value.playlistUrl)" [formGroup]="form">
+<form [formGroup]="form">
     <mat-form-field class="w-full">
         <input
             type="url"
@@ -12,13 +12,4 @@
             {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
         </p>
     }
-    <button
-        class="add-button"
-        mat-flat-button
-        [disabled]="!form.valid"
-        color="primary"
-        type="submit"
-    >
-        {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
-    </button>
 </form>

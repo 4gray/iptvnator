@@ -54,7 +54,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
-    readonly addPlaylistRequested = output<string>();
+    readonly addPlaylistRequested = output<void>();
     readonly globalFavoritesRequested = output<void>();
     readonly headerShortcutRequested = output<void>();
     readonly downloadsRequested = output<void>();

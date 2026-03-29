@@ -3,27 +3,19 @@ import {
     Component,
     input,
     output,
-    viewChild,
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-    AddPlaylistMenuComponent,
-    PlaylistSwitcherComponent,
-    PlaylistType,
-} from '@iptvnator/playlist/shared/ui';
+import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { WorkspaceHeaderAction } from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-workspace-shell-header',
     imports: [
-        AddPlaylistMenuComponent,
         MatIcon,
         MatIconButton,
-        MatMenuModule,
         MatTooltip,
         PlaylistSwitcherComponent,
         TranslatePipe,
@@ -33,8 +25,6 @@ import { WorkspaceHeaderAction } from '@iptvnator/portal/shared/util';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceShellHeaderComponent {
-    readonly addPlaylistMenu = viewChild.required(AddPlaylistMenuComponent);
-
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
     readonly canOpenPlaylistInfo = input(false);
@@ -52,7 +42,7 @@ export class WorkspaceShellHeaderComponent {
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
-    readonly addPlaylistRequested = output<PlaylistType>();
+    readonly addPlaylistRequested = output<void>();
     readonly globalFavoritesRequested = output<void>();
     readonly headerShortcutRequested = output<void>();
     readonly downloadsRequested = output<void>();
@@ -77,8 +67,8 @@ export class WorkspaceShellHeaderComponent {
         this.accountInfoRequested.emit();
     }
 
-    onAddPlaylistRequested(type: PlaylistType): void {
-        this.addPlaylistRequested.emit(type);
+    onAddPlaylistRequested(): void {
+        this.addPlaylistRequested.emit();
     }
 
     onCommandPaletteRequested(): void {

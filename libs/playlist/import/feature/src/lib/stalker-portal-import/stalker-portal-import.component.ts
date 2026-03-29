@@ -6,10 +6,8 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -24,10 +22,8 @@ import { v4 as uuid } from 'uuid';
 @Component({
     imports: [
         FormsModule,
-        MatButtonModule,
         MatFormFieldModule,
         MatInputModule,
-        MatProgressSpinnerModule,
         ReactiveFormsModule,
         TranslatePipe,
     ],

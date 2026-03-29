@@ -2,10 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
-import {
-    PlaylistType,
-    RecentPlaylistsComponent,
-} from '@iptvnator/playlist/shared/ui';
+import { RecentPlaylistsComponent } from '@iptvnator/playlist/shared/ui';
 import { TranslateService } from '@ngx-translate/core';
 import { selectActiveTypeFilters, selectAllPlaylistsMeta } from 'm3u-state';
 import { map, startWith } from 'rxjs';
@@ -100,8 +97,8 @@ export class WorkspaceSourcesComponent {
         });
     });
 
-    onAddPlaylist(playlistType: PlaylistType): void {
-        this.workspaceActions.openAddPlaylistDialog(playlistType);
+    onAddPlaylist(): void {
+        this.workspaceActions.openAddPlaylistDialog();
     }
 
     private translateText(

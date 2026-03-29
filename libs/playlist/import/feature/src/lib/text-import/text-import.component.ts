@@ -5,7 +5,6 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
-import { MatButton } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
 
@@ -13,7 +12,7 @@ import { TranslatePipe } from '@ngx-translate/core';
     selector: 'app-text-import',
     templateUrl: './text-import.component.html',
     styleUrls: ['./text-import.component.scss'],
-    imports: [MatButton, MatInputModule, ReactiveFormsModule, TranslatePipe],
+    imports: [MatInputModule, ReactiveFormsModule, TranslatePipe],
 })
 export class TextImportComponent {
     @Output() textAdded = new EventEmitter<string>();

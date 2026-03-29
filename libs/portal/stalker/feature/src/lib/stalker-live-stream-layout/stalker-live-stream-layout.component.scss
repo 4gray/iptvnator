@@ -1,7 +1,40 @@
 @use '../../../../../../ui/styles/portal-layout' as portal;
+@use '../../../../../../ui/styles/panel-header' as panel;
 @use '../../../../../../ui/styles/portal-sidebar';
 
 @include portal.live-layout;
+
+.category-content-header {
+    @include panel.standard-panel-header(
+        $padding: 8px 12px,
+        $gap: 8px,
+        $min-height: 48px,
+        $border-color: var(--app-separator)
+    );
+    app-region: drag;
+
+    button {
+        app-region: no-drag;
+    }
+}
+
+.category-meta {
+    @include panel.standard-panel-meta(8px);
+}
+
+.category-title {
+    @include panel.standard-panel-title(0.94rem);
+    color: var(--mat-sys-on-surface);
+}
+
+.category-subtitle {
+    @include panel.standard-panel-subtitle(
+        $font-size: 0.72rem,
+        $padding: 2px 8px,
+        $color: var(--mat-sys-on-surface-variant),
+        $background: var(--mat-sys-surface-container)
+    );
+}
 
 .channels-list {
     flex: 1;
