@@ -34,6 +34,14 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     private readonly dbService = inject(DatabaseService);
     private readonly playbackService = inject(PlaybackPositionService);
     private readonly apiService = inject(XtreamApiService);
+    private readonly categoryRequests = new Map<
+        string,
+        Promise<XtreamCategoryFromDb[]>
+    >();
+    private readonly contentRequests = new Map<
+        string,
+        Promise<XtreamContentItem[]>
+    >();
 
     // =========================================================================
     // Playlist Operations
@@ -88,6 +96,28 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         type: CategoryType
     ): Promise<XtreamCategoryFromDb[]> {
         const dbType = mapCategoryTypeToDbType(type);
+        const requestKey = `${playlistId}:${dbType}`;
+        const inFlightRequest = this.categoryRequests.get(requestKey);
+
+        if (inFlightRequest) {
+            return inFlightRequest;
+        }
+
+        const request = this.loadCategories(playlistId, credentials, type, dbType)
+            .finally(() => {
+                this.categoryRequests.delete(requestKey);
+            });
+
+        this.categoryRequests.set(requestKey, request);
+        return request;
+    }
+
+    private async loadCategories(
+        playlistId: string,
+        credentials: XtreamCredentials,
+        type: CategoryType,
+        dbType: DbCategoryType
+    ): Promise<XtreamCategoryFromDb[]> {
 
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
@@ -192,6 +222,36 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     }
 
     async getContent(
+        playlistId: string,
+        credentials: XtreamCredentials,
+        type: StreamType,
+        onProgress?: (count: number) => void,
+        onTotal?: (total: number) => void,
+        options?: XtreamOperationOptions
+    ): Promise<XtreamContentItem[]> {
+        const requestKey = `${playlistId}:${type}`;
+        const inFlightRequest = this.contentRequests.get(requestKey);
+
+        if (inFlightRequest) {
+            return inFlightRequest;
+        }
+
+        const request = this.loadContent(
+            playlistId,
+            credentials,
+            type,
+            onProgress,
+            onTotal,
+            options
+        ).finally(() => {
+            this.contentRequests.delete(requestKey);
+        });
+
+        this.contentRequests.set(requestKey, request);
+        return request;
+    }
+
+    private async loadContent(
         playlistId: string,
         credentials: XtreamCredentials,
         type: StreamType,

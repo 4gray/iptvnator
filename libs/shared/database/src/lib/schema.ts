@@ -69,6 +69,9 @@ export const categories = sqliteTable(
     (table) => ({
         playlistIdx: index('idx_categories_playlist').on(table.playlistId),
         typeIdx: index('idx_categories_type').on(table.type),
+        playlistTypeXtreamUnique: uniqueIndex(
+            'categories_playlist_type_xtream_unique'
+        ).on(table.playlistId, table.type, table.xtreamId),
     })
 );
 
@@ -92,6 +95,9 @@ export const content = sqliteTable(
         categoryIdx: index('idx_content_category').on(table.categoryId),
         titleIdx: index('idx_content_title').on(table.title),
         xtreamIdx: index('idx_content_xtream').on(table.xtreamId),
+        categoryTypeXtreamUnique: uniqueIndex(
+            'content_category_type_xtream_unique'
+        ).on(table.categoryId, table.type, table.xtreamId),
         typeAddedIdx: index('idx_content_type_added').on(
             table.type,
             table.added

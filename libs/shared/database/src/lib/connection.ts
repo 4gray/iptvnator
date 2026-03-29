@@ -213,7 +213,7 @@ const CREATE_TABLE_STATEMENTS = [
  * Migration statements that may fail if already applied
  * These are run with try-catch to handle existing columns
  */
-const MIGRATION_STATEMENTS = [
+const COLUMN_MIGRATION_STATEMENTS = [
     // v1.0.0 -> v1.1.0: Add hidden column to categories for category management
     `ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0`,
     // v1.1.0 -> v1.2.0: Add playlist metadata/payload columns for M3U + unified playlist persistence
@@ -227,6 +227,12 @@ const MIGRATION_STATEMENTS = [
     `ALTER TABLE playlists ADD COLUMN payload TEXT`,
     // v1.2.0 -> v1.3.0: Add position column to favorites for global favorites ordering
     `ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0`,
+];
+
+const INDEX_MIGRATION_STATEMENTS = [
+    // v1.3.0 -> v1.4.0: Prevent duplicate Xtream categories/content rows
+    `CREATE UNIQUE INDEX IF NOT EXISTS categories_playlist_type_xtream_unique ON categories(playlist_id, type, xtream_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS content_category_type_xtream_unique ON content(category_id, type, xtream_id)`,
 ];
 
 /**
@@ -247,11 +253,157 @@ function isDuplicateColumnError(error: unknown): boolean {
     return message.toLowerCase().includes('duplicate column name');
 }
 
-/**
- * Run migrations that may fail if already applied
- */
-function runMigrations(sqliteDb: Database.Database): void {
-    for (const stmt of MIGRATION_STATEMENTS) {
+type XtreamCategoryDuplicateGroup = {
+    playlistId: string;
+    type: 'live' | 'movies' | 'series';
+    xtreamId: number;
+};
+
+type XtreamCategoryCandidate = {
+    id: number;
+    hidden: number;
+    contentCount: number;
+};
+
+type XtreamContentDuplicateGroup = {
+    categoryId: number;
+    type: 'live' | 'movie' | 'series';
+    xtreamId: number;
+};
+
+type XtreamContentCandidate = {
+    id: number;
+};
+
+function deduplicateXtreamCache(sqliteDb: Database.Database): void {
+    const executeCleanup = sqliteDb.transaction(() => {
+        const duplicateCategoryGroups = sqliteDb
+            .prepare(
+                `SELECT
+                    playlist_id AS playlistId,
+                    type,
+                    xtream_id AS xtreamId
+                 FROM categories
+                 GROUP BY playlist_id, type, xtream_id
+                 HAVING COUNT(*) > 1`
+            )
+            .all() as XtreamCategoryDuplicateGroup[];
+
+        const selectCategoryCandidates = sqliteDb.prepare(
+            `SELECT
+                categories.id AS id,
+                COALESCE(categories.hidden, 0) AS hidden,
+                COUNT(content.id) AS contentCount
+             FROM categories
+             LEFT JOIN content ON content.category_id = categories.id
+             WHERE categories.playlist_id = ?
+               AND categories.type = ?
+               AND categories.xtream_id = ?
+             GROUP BY categories.id, categories.hidden
+             ORDER BY COUNT(content.id) DESC, COALESCE(categories.hidden, 0) ASC, categories.id ASC`
+        );
+        const updateContentCategory = sqliteDb.prepare(
+            `UPDATE content SET category_id = ? WHERE category_id = ?`
+        );
+        const deleteCategory = sqliteDb.prepare(
+            `DELETE FROM categories WHERE id = ?`
+        );
+
+        for (const group of duplicateCategoryGroups) {
+            const candidates = selectCategoryCandidates.all(
+                group.playlistId,
+                group.type,
+                group.xtreamId
+            ) as XtreamCategoryCandidate[];
+            const canonicalCategoryId = candidates[0]?.id;
+
+            if (!canonicalCategoryId) {
+                continue;
+            }
+
+            for (const candidate of candidates.slice(1)) {
+                updateContentCategory.run(canonicalCategoryId, candidate.id);
+                deleteCategory.run(candidate.id);
+            }
+        }
+
+        const duplicateContentGroups = sqliteDb
+            .prepare(
+                `SELECT
+                    category_id AS categoryId,
+                    type,
+                    xtream_id AS xtreamId
+                 FROM content
+                 GROUP BY category_id, type, xtream_id
+                 HAVING COUNT(*) > 1`
+            )
+            .all() as XtreamContentDuplicateGroup[];
+
+        const selectContentCandidates = sqliteDb.prepare(
+            `SELECT id
+             FROM content
+             WHERE category_id = ?
+               AND type = ?
+               AND xtream_id = ?
+             ORDER BY id ASC`
+        );
+        const moveFavorites = sqliteDb.prepare(
+            `INSERT INTO favorites (content_id, playlist_id, added_at, position)
+             SELECT ?, playlist_id, added_at, COALESCE(position, 0)
+             FROM favorites
+             WHERE content_id = ?
+             ON CONFLICT(content_id, playlist_id) DO NOTHING`
+        );
+        const deleteFavorites = sqliteDb.prepare(
+            `DELETE FROM favorites WHERE content_id = ?`
+        );
+        const moveRecentlyViewed = sqliteDb.prepare(
+            `INSERT INTO recently_viewed (content_id, playlist_id, viewed_at)
+             SELECT ?, playlist_id, viewed_at
+             FROM recently_viewed
+             WHERE content_id = ?
+             ON CONFLICT(content_id, playlist_id) DO UPDATE SET
+                viewed_at = CASE
+                    WHEN excluded.viewed_at > recently_viewed.viewed_at
+                        THEN excluded.viewed_at
+                    ELSE recently_viewed.viewed_at
+                END`
+        );
+        const deleteRecentlyViewed = sqliteDb.prepare(
+            `DELETE FROM recently_viewed WHERE content_id = ?`
+        );
+        const deleteContent = sqliteDb.prepare(`DELETE FROM content WHERE id = ?`);
+
+        for (const group of duplicateContentGroups) {
+            const candidates = selectContentCandidates.all(
+                group.categoryId,
+                group.type,
+                group.xtreamId
+            ) as XtreamContentCandidate[];
+            const canonicalContentId = candidates[0]?.id;
+
+            if (!canonicalContentId) {
+                continue;
+            }
+
+            for (const candidate of candidates.slice(1)) {
+                moveFavorites.run(canonicalContentId, candidate.id);
+                deleteFavorites.run(candidate.id);
+                moveRecentlyViewed.run(canonicalContentId, candidate.id);
+                deleteRecentlyViewed.run(candidate.id);
+                deleteContent.run(candidate.id);
+            }
+        }
+    });
+
+    executeCleanup();
+}
+
+function runMigrationStatements(
+    sqliteDb: Database.Database,
+    statements: string[]
+): void {
+    for (const stmt of statements) {
         try {
             sqliteDb.exec(stmt);
         } catch (error) {
@@ -273,6 +425,15 @@ function runMigrations(sqliteDb: Database.Database): void {
             );
         }
     }
+}
+
+/**
+ * Run migrations that may fail if already applied
+ */
+function runMigrations(sqliteDb: Database.Database): void {
+    runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
+    deduplicateXtreamCache(sqliteDb);
+    runMigrationStatements(sqliteDb, INDEX_MIGRATION_STATEMENTS);
 }
 
 export interface DatabaseOptions {

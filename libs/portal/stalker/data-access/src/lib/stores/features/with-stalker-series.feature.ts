@@ -46,9 +46,11 @@ interface ResourceState<T> {
 }
 
 interface StalkerSeriesResponse<T> {
-    js?: {
-        data?: T[];
-    };
+    js?:
+        | {
+              data?: T[];
+          }
+        | T[];
 }
 
 interface StalkerSeriesStoreContext {
@@ -58,6 +60,18 @@ interface StalkerSeriesStoreContext {
     selectedContentType(): 'vod' | 'series' | 'itv';
     serialSeasonsResource: ResourceState<StalkerSeason[]>;
     vodSeriesSeasonsResource: ResourceState<StalkerVodSeriesSeason[]>;
+}
+
+function extractSeriesItems<T>(response: StalkerSeriesResponse<T>): T[] {
+    if (Array.isArray(response?.js)) {
+        return response.js;
+    }
+
+    if (Array.isArray(response?.js?.data)) {
+        return response.js.data;
+    }
+
+    return [];
 }
 
 export function withStalkerSeries() {
@@ -116,12 +130,14 @@ export function withStalkerSeries() {
                             );
                         }
 
-                        // Guard: ensure response has expected structure
-                        if (!response?.js?.data) {
+                        const seasons = extractSeriesItems(response);
+
+                        if (seasons.length === 0) {
                             logger.warn('Invalid seasons response', response);
                             return [];
                         }
-                        return sortByNumericValue(response.js.data);
+
+                        return sortByNumericValue(seasons);
                     },
                 }),
                 /**
@@ -181,20 +197,19 @@ export function withStalkerSeries() {
                             );
                         }
 
-                        if (!response?.js?.data) {
+                        const seasonItems = extractSeriesItems(response);
+
+                        if (seasonItems.length === 0) {
                             logger.debug(
                                 'vodSeriesSeasonsResource - no response data'
                             );
                             return [];
                         }
 
-                        logger.debug(
-                            'vodSeriesSeasonsResource response data',
-                            response.js.data
-                        );
+                        logger.debug('vodSeriesSeasonsResource response data', seasonItems);
 
                         // Filter for season items (is_season: true)
-                        const seasons = response.js.data.filter(
+                        const seasons = seasonItems.filter(
                             (item: StalkerVodSeriesSeason) =>
                                 item.is_season === true
                         );
@@ -278,13 +293,15 @@ export function withStalkerSeries() {
                             );
                         }
 
-                        if (!response?.js?.data) {
+                        const episodeItems = extractSeriesItems(response);
+
+                        if (episodeItems.length === 0) {
                             return [];
                         }
 
                         // Filter for episode items (is_episode: true) and sort by series_number
                         const episodes = sortEpisodesByNumber(
-                            response.js.data.filter(
+                            episodeItems.filter(
                                 (item: StalkerVodSeriesEpisode) =>
                                     item.is_episode === true
                             )
