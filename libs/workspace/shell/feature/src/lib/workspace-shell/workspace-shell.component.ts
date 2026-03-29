@@ -316,10 +316,7 @@ export class WorkspaceShellComponent {
         }
 
         if (context?.provider === 'stalker') {
-            const routePlaylist = this.playlists().find(
-                (playlist) => playlist._id === context.playlistId
-            );
-            return !this.isCustomVodPortalPlaylist(routePlaylist);
+            return true;
         }
 
         return false;
@@ -374,7 +371,7 @@ export class WorkspaceShellComponent {
                 (playlist) => playlist._id === context.playlistId
             );
             if (this.isCustomVodPortalPlaylist(routePlaylist)) {
-                return 'WORKSPACE.SHELL.FILTER_SECTION_PLACEHOLDER';
+                return 'WORKSPACE.SHELL.SEARCH_SECTION_PLACEHOLDER';
             }
             if (section === 'search') {
                 return 'WORKSPACE.SHELL.SEARCH_PLAYLIST_PLACEHOLDER';
@@ -699,6 +696,25 @@ export class WorkspaceShellComponent {
             return;
         }
 
+        const context = this.currentContext();
+        if (context?.provider === 'stalker') {
+            const routePlaylist = this.playlists().find(
+                (playlist) => playlist._id === context.playlistId
+            );
+
+            if (this.isCustomVodPortalPlaylist(routePlaylist)) {
+                event.preventDefault();
+                this.appliedSearchQuery.set(value);
+                this.router.navigate(
+                    ['/workspace', 'stalker', context.playlistId, 'search'],
+                    {
+                        queryParams: { q: value },
+                    }
+                );
+                return;
+            }
+        }
+
         // For other contexts, Enter applies immediately instead of waiting debounce.
         this.applySearchQuery(value);
     }
@@ -959,13 +975,6 @@ export class WorkspaceShellComponent {
         }
 
         if (effectiveContext.provider === 'stalker') {
-            const routePlaylist = this.playlists().find(
-                (playlist) => playlist._id === effectiveContext.playlistId
-            );
-            if (this.isCustomVodPortalPlaylist(routePlaylist)) {
-                return;
-            }
-
             this.router.navigate(
                 [
                     '/workspace',
@@ -1017,19 +1026,6 @@ export class WorkspaceShellComponent {
         }
 
         if (context?.provider === 'stalker' && section === 'search') {
-            const routePlaylist = this.playlists().find(
-                (playlist) => playlist._id === context.playlistId
-            );
-            if (this.isCustomVodPortalPlaylist(routePlaylist)) {
-                this.setSearchState('');
-                void this.router.navigate([
-                    '/workspace',
-                    'stalker',
-                    context.playlistId,
-                    'vod',
-                ]);
-                return;
-            }
             this.setSearchState(this.getRouteQueryParam('q'));
             return;
         }
