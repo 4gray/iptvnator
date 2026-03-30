@@ -193,7 +193,7 @@ async function waitForAppReady(page: Page): Promise<void> {
     );
 }
 
-export async function openAddPlaylistMenu(page: Page): Promise<void> {
+export async function openAddPlaylistDialog(page: Page): Promise<void> {
     await page.getByRole('button', { name: 'Add playlist' }).click();
 }
 
@@ -215,9 +215,9 @@ export async function importM3uPlaylistFromNativeDialog(
     filePath: string
 ): Promise<void> {
     await stubNativePlaylistFileDialog(app.electronApp, filePath);
-    await openAddPlaylistMenu(app.mainWindow);
+    await openAddPlaylistDialog(app.mainWindow);
     await app.mainWindow
-        .getByRole('menuitem', { name: 'Add via file upload' })
+        .locator('mat-dialog-container mat-button-toggle[value="file"]')
         .click();
     await app.mainWindow.locator('mat-dialog-container .file-upload').click();
     await app.mainWindow.waitForSelector('mat-dialog-container', {
@@ -241,9 +241,9 @@ export async function addXtreamPortal(
         username = defaultXtreamUsername,
     } = options;
 
-    await openAddPlaylistMenu(page);
-    await page.getByRole('menuitem', { name: 'Add Xtreme Code' }).click();
+    await openAddPlaylistDialog(page);
     const dialog = page.locator('mat-dialog-container');
+    await dialog.locator('mat-button-toggle[value="xtream"]').click();
 
     await setInputValue(dialog.locator('#title'), name);
     await setInputValue(dialog.locator('#serverUrl'), serverUrl);
@@ -298,9 +298,9 @@ export async function addStalkerPortal(
         portalUrl = `${stalkerMockServer}/portal.php`,
     } = options;
 
-    await openAddPlaylistMenu(page);
-    await page.getByRole('menuitem', { name: 'Add Stalker Portal' }).click();
+    await openAddPlaylistDialog(page);
     const dialog = page.locator('mat-dialog-container');
+    await dialog.locator('mat-button-toggle[value="stalker"]').click();
 
     await setInputValue(dialog.locator('input#title'), name);
     await setInputValue(dialog.locator('input#portalUrl'), portalUrl);
@@ -366,9 +366,9 @@ export async function importM3uPlaylistFromUrl(
     page: Page,
     playlistUrl: string
 ): Promise<void> {
-    await openAddPlaylistMenu(page);
-    await page.getByRole('menuitem', { name: 'Add via URL' }).click();
+    await openAddPlaylistDialog(page);
     const dialog = page.locator('mat-dialog-container');
+    await dialog.locator('mat-button-toggle[value="url"]').click();
 
     await setInputValue(
         dialog.locator('input[formcontrolname="playlistUrl"]'),
