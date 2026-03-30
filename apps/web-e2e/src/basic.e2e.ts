@@ -12,7 +12,7 @@ test('basic test', async ({ page }) => {
     // Upload playlist test
     await page.getByRole('button', { name: 'Add playlist' }).click();
     const dialog = page.locator('mat-dialog-container');
-    await dialog.getByRole('button', { name: 'Add via file upload' }).click();
+    await dialog.locator('mat-button-toggle[value="file"]').click();
     await page.setInputFiles('input[type="file"]', fixturePath);
     await page.waitForURL(/\/workspace\/playlists\/.+\/all$/);
     await expect(page.getByText('test.m3u')).toBeVisible();
