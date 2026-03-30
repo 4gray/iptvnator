@@ -186,10 +186,10 @@ test.describe('Electron Recently Viewed', () => {
 
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
             await clearRecentItems(app.mainWindow);
+            // After clearing all items, the content toggle disappears.
+            // All content types are cleared simultaneously, so no toggle switch needed.
             await expect(channelItemByTitle(app.mainWindow, liveTitle)).toHaveCount(0);
-            await switchUnifiedCollectionContent(app.mainWindow, 'Movies');
             await expect(contentCardByTitle(app.mainWindow, movieTitle)).toHaveCount(0);
-            await switchUnifiedCollectionContent(app.mainWindow, 'Series');
             await expect(contentCardByTitle(app.mainWindow, seriesTitle)).toHaveCount(0);
         } finally {
             await closeElectronApp(app);

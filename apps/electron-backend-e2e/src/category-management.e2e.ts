@@ -68,6 +68,7 @@ test.describe('Electron Xtream Category Management', () => {
 
             await openSources(app.mainWindow);
             await refreshSource(app.mainWindow, portalName, { confirm: true });
+            await openSources(app.mainWindow);
             await waitForSourceRowIdle(app.mainWindow, portalName);
             await sourceRowByTitle(app.mainWindow, portalName).first().click();
             await waitForXtreamWorkspaceReady(app.mainWindow);

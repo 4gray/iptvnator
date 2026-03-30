@@ -675,9 +675,7 @@ export async function getVisibleSourceTitles(page: Page): Promise<string[]> {
     return page.locator('app-playlist-item').evaluateAll((elements) =>
         elements
             .map((element) => {
-                const titleElement = element.querySelector(
-                    '[matlistitemtitle], [matListItemTitle], .mdc-list-item__primary-text'
-                );
+                const titleElement = element.querySelector('.playlist-title');
                 return titleElement?.textContent?.trim() ?? '';
             })
             .filter((title) => title.length > 0)
