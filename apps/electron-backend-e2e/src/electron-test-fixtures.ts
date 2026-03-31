@@ -707,7 +707,7 @@ export async function dragSourceBefore(
     targetTitle: string
 ): Promise<void> {
     const source = sourceRowByTitle(page, sourceTitle).locator('.drag-icon');
-    const target = sourceRowByTitle(page, targetTitle).locator('mat-list-item');
+    const target = sourceRowByTitle(page, targetTitle).locator('.playlist-item');
 
     await expect(source.first()).toBeVisible();
     await expect(target.first()).toBeVisible();

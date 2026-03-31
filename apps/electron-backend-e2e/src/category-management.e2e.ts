@@ -170,7 +170,7 @@ async function toggleManagedCategory(
             (await categoryRow.locator('.item-count').textContent())?.trim() ?? '';
         const itemCount = Number.parseInt(countText.replace(/[()]/g, ''), 10) || 0;
 
-        if (name !== targetCategory.name || itemCount !== targetCategory.itemCount) {
+        if (name !== targetCategory.name) {
             continue;
         }
 
