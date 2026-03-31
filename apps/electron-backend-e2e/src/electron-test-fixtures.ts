@@ -624,6 +624,17 @@ export function gridListCardByTitle(page: Page, title: string): Locator {
     });
 }
 
+/**
+ * Waits for the first grid card to appear (skeleton loading done) and returns
+ * its display title. Use this instead of picking from fixture order, since the
+ * grid sorts by date-desc and may paginate items off the first page.
+ */
+export async function waitForFirstGridListCardTitle(page: Page): Promise<string> {
+    const card = page.locator('.category-content-layout mat-card').first();
+    await expect(card).toBeVisible({ timeout: 20000 });
+    return ((await card.locator('.title').textContent()) ?? '').trim();
+}
+
 export async function clickGridListCardByTitle(
     page: Page,
     title: string

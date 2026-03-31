@@ -22,6 +22,7 @@ import {
     switchUnifiedCollectionContent,
     switchUnifiedCollectionScope,
     test,
+    waitForFirstGridListCardTitle,
     waitForM3uCatalog,
     waitForStalkerCatalog,
     waitForXtreamWorkspaceReady,
@@ -116,8 +117,6 @@ test.describe('Electron Favorites', () => {
             xtreamCredentials
         );
         const [liveTitle] = pickDistinctTitles(liveFixture.items, getXtreamTitle);
-        const [movieTitle] = pickDistinctTitles(vodFixture.items, getXtreamTitle);
-        const [seriesTitle] = pickDistinctTitles(seriesFixture.items, getXtreamTitle);
         const portalTitle = 'Xtream Favorites Source';
         const app = await launchElectronApp(dataDir);
 
@@ -139,6 +138,9 @@ test.describe('Electron Favorites', () => {
                 app.mainWindow,
                 vodFixture.categoryName
             );
+            // Pick the title from the first displayed card (grid sorts by date-desc,
+            // so fixture order ≠ display order; pagination may hide some items).
+            const movieTitle = await waitForFirstGridListCardTitle(app.mainWindow);
             await clickGridListCardByTitle(app.mainWindow, movieTitle);
             await addCurrentDetailToFavorites(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
@@ -148,6 +150,7 @@ test.describe('Electron Favorites', () => {
                 app.mainWindow,
                 seriesFixture.categoryName
             );
+            const seriesTitle = await waitForFirstGridListCardTitle(app.mainWindow);
             await clickGridListCardByTitle(app.mainWindow, seriesTitle);
             await addCurrentDetailToFavorites(app.mainWindow);
             await goBackFromDetail(app.mainWindow);

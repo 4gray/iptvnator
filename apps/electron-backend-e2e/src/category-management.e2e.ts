@@ -158,28 +158,17 @@ async function toggleManagedCategory(
         name: string;
     }
 ): Promise<void> {
-    const categories = dialog.locator('.category-item');
-    const count = await categories.count();
+    // Use Playwright's built-in filter so it retries until Angular re-renders
+    // the filtered list after the search field is populated.
+    const categoryRow = dialog
+        .locator('.category-item')
+        .filter({
+            has: dialog.locator('.category-name', {
+                hasText: targetCategory.name,
+            }),
+        })
+        .first();
 
-    for (let index = 0; index < count; index += 1) {
-        const categoryRow = categories.nth(index);
-        const name =
-            (await categoryRow.locator('.category-name').textContent())?.trim() ??
-            '';
-        const countText =
-            (await categoryRow.locator('.item-count').textContent())?.trim() ?? '';
-        const itemCount = Number.parseInt(countText.replace(/[()]/g, ''), 10) || 0;
-
-        if (name !== targetCategory.name) {
-            continue;
-        }
-
-        await expect(categoryRow).toBeVisible();
-        await categoryRow.click();
-        return;
-    }
-
-    throw new Error(
-        `Could not find category "${targetCategory.name}" with count ${targetCategory.itemCount} in the management dialog.`
-    );
+    await expect(categoryRow).toBeVisible({ timeout: 5000 });
+    await categoryRow.click();
 }
