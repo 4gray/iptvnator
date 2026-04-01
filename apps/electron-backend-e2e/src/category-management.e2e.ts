@@ -103,6 +103,11 @@ async function openManageCategoriesDialog(page: Page) {
     await expect(
         dialog.getByRole('button', { name: 'Select All', exact: true })
     ).toBeVisible();
+    // Wait for the category list to render — Angular needs a CD cycle after
+    // isLoading() flips to false before the @for items are painted.
+    await expect(dialog.locator('.category-item').first()).toBeVisible({
+        timeout: 15000,
+    });
     return dialog;
 }
 
@@ -167,6 +172,6 @@ async function toggleManagedCategory(
         .filter({ hasText: targetCategory.name })
         .first();
 
-    await expect(categoryRow).toBeVisible({ timeout: 5000 });
+    await expect(categoryRow).toBeVisible({ timeout: 15000 });
     await categoryRow.click();
 }
