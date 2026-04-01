@@ -158,15 +158,13 @@ async function toggleManagedCategory(
         name: string;
     }
 ): Promise<void> {
-    // Use Playwright's built-in filter so it retries until Angular re-renders
-    // the filtered list after the search field is populated.
+    // Use hasText on the whole row so Playwright's retry loop waits for Angular
+    // to re-render filteredCategories() after the search field is populated.
+    // Avoid nesting dialog.locator() inside filter({ has: }) — Playwright
+    // cannot scope an absolute locator to each candidate element.
     const categoryRow = dialog
         .locator('.category-item')
-        .filter({
-            has: dialog.locator('.category-name', {
-                hasText: targetCategory.name,
-            }),
-        })
+        .filter({ hasText: targetCategory.name })
         .first();
 
     await expect(categoryRow).toBeVisible({ timeout: 5000 });

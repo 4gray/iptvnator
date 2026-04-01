@@ -23,6 +23,7 @@ import {
     switchUnifiedCollectionContent,
     switchUnifiedCollectionScope,
     test,
+    waitForFirstGridListCardTitle,
     waitForM3uCatalog,
     waitForStalkerCatalog,
     waitForXtreamWorkspaceReady,
@@ -115,8 +116,6 @@ test.describe('Electron Recently Viewed', () => {
             xtreamCredentials
         );
         const [liveTitle] = pickDistinctTitles(liveFixture.items, getXtreamTitle);
-        const [movieTitle] = pickDistinctTitles(vodFixture.items, getXtreamTitle);
-        const [seriesTitle] = pickDistinctTitles(seriesFixture.items, getXtreamTitle);
         const portalTitle = 'Xtream Recent Source';
         const app = await launchElectronApp(dataDir);
 
@@ -141,6 +140,9 @@ test.describe('Electron Recently Viewed', () => {
                 app.mainWindow,
                 vodFixture.categoryName
             );
+            // Pick from the displayed grid: fixture order ≠ display order (date-desc
+            // sort + pagination), so the first fixture item may not be on page 1.
+            const movieTitle = await waitForFirstGridListCardTitle(app.mainWindow);
             await clickGridListCardByTitle(app.mainWindow, movieTitle);
             await playCurrentDetail(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
@@ -150,6 +152,7 @@ test.describe('Electron Recently Viewed', () => {
                 app.mainWindow,
                 seriesFixture.categoryName
             );
+            const seriesTitle = await waitForFirstGridListCardTitle(app.mainWindow);
             await clickGridListCardByTitle(app.mainWindow, seriesTitle);
             await playFirstSeriesEpisode(app.mainWindow);
 
