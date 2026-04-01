@@ -30,6 +30,12 @@ test.describe('Electron Xtream Category Management', () => {
             });
             await waitForXtreamWorkspaceReady(app.mainWindow);
             await openWorkspaceSection(app.mainWindow, 'Live TV');
+            // Wait for the route to settle on the live TV section so that
+            // the sidebar shows live categories (not VOD/series from a
+            // previous section) before we read from it.
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/live/
+            );
 
             const targetCategory = await pickSidebarCategory(app.mainWindow);
 
@@ -73,6 +79,9 @@ test.describe('Electron Xtream Category Management', () => {
             await sourceRowByTitle(app.mainWindow, portalName).first().click();
             await waitForXtreamWorkspaceReady(app.mainWindow);
             await openWorkspaceSection(app.mainWindow, 'Live TV');
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/live/
+            );
             await expect(sidebarCategoryById(app.mainWindow, targetCategory.id)).toHaveCount(
                 0
             );

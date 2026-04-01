@@ -5,7 +5,7 @@ import {
     channelItemByTitle,
     clickCategoryById,
     clickCategoryByNameExact,
-    clickGridListCardByTitle,
+    clickFirstGridListCard,
     closeElectronApp,
     contentCardByTitle,
     defaultXtreamPassword,
@@ -22,7 +22,6 @@ import {
     switchUnifiedCollectionContent,
     switchUnifiedCollectionScope,
     test,
-    waitForFirstGridListCardTitle,
     waitForM3uCatalog,
     waitForStalkerCatalog,
     waitForXtreamWorkspaceReady,
@@ -138,10 +137,11 @@ test.describe('Electron Favorites', () => {
                 app.mainWindow,
                 vodFixture.categoryName
             );
-            // Pick the title from the first displayed card (grid sorts by date-desc,
-            // so fixture order ≠ display order; pagination may hide some items).
-            const movieTitle = await waitForFirstGridListCardTitle(app.mainWindow);
-            await clickGridListCardByTitle(app.mainWindow, movieTitle);
+            // Use clickFirstGridListCard: grid sorts by date-desc so fixture order ≠
+            // display order; this atomically reads the first card's title and clicks
+            // it, avoiding a race where the grid re-renders between the title read
+            // and a separate search-by-title click.
+            const movieTitle = await clickFirstGridListCard(app.mainWindow);
             await addCurrentDetailToFavorites(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
 
@@ -150,8 +150,7 @@ test.describe('Electron Favorites', () => {
                 app.mainWindow,
                 seriesFixture.categoryName
             );
-            const seriesTitle = await waitForFirstGridListCardTitle(app.mainWindow);
-            await clickGridListCardByTitle(app.mainWindow, seriesTitle);
+            const seriesTitle = await clickFirstGridListCard(app.mainWindow);
             await addCurrentDetailToFavorites(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
 

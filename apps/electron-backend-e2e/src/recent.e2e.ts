@@ -5,7 +5,7 @@ import {
     channelItemByTitle,
     clickCategoryById,
     clickCategoryByNameExact,
-    clickGridListCardByTitle,
+    clickFirstGridListCard,
     closeElectronApp,
     contentCardByTitle,
     defaultXtreamPassword,
@@ -23,7 +23,6 @@ import {
     switchUnifiedCollectionContent,
     switchUnifiedCollectionScope,
     test,
-    waitForFirstGridListCardTitle,
     waitForM3uCatalog,
     waitForStalkerCatalog,
     waitForXtreamWorkspaceReady,
@@ -142,8 +141,10 @@ test.describe('Electron Recently Viewed', () => {
             );
             // Pick from the displayed grid: fixture order ≠ display order (date-desc
             // sort + pagination), so the first fixture item may not be on page 1.
-            const movieTitle = await waitForFirstGridListCardTitle(app.mainWindow);
-            await clickGridListCardByTitle(app.mainWindow, movieTitle);
+            // Use clickFirstGridListCard to atomically read + click the first visible
+            // card, avoiding a race where the grid re-renders between title read and
+            // a separate search-by-title click.
+            const movieTitle = await clickFirstGridListCard(app.mainWindow);
             await playCurrentDetail(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
 
@@ -152,8 +153,7 @@ test.describe('Electron Recently Viewed', () => {
                 app.mainWindow,
                 seriesFixture.categoryName
             );
-            const seriesTitle = await waitForFirstGridListCardTitle(app.mainWindow);
-            await clickGridListCardByTitle(app.mainWindow, seriesTitle);
+            const seriesTitle = await clickFirstGridListCard(app.mainWindow);
             await playFirstSeriesEpisode(app.mainWindow);
 
             await openPlaylistRecent(app.mainWindow);

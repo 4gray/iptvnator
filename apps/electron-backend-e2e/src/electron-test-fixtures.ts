@@ -635,6 +635,25 @@ export async function waitForFirstGridListCardTitle(page: Page): Promise<string>
     return ((await card.locator('.title').textContent()) ?? '').trim();
 }
 
+/**
+ * Waits for the first grid card to appear with a non-empty title, clicks it,
+ * and returns the title. Use this instead of waitForFirstGridListCardTitle +
+ * clickGridListCardByTitle to avoid a race condition where the grid re-renders
+ * between the title read and the subsequent search-by-title click.
+ */
+export async function clickFirstGridListCard(page: Page): Promise<string> {
+    const card = page.locator('.category-content-layout mat-card').first();
+    await expect(card).toBeVisible({ timeout: 20000 });
+    const titleEl = card.locator('.title');
+    let title = '';
+    await expect(async () => {
+        title = ((await titleEl.textContent()) ?? '').trim();
+        expect(title.length).toBeGreaterThan(0);
+    }).toPass({ timeout: 10000 });
+    await card.click();
+    return title;
+}
+
 export async function clickGridListCardByTitle(
     page: Page,
     title: string
