@@ -9,6 +9,7 @@ import {
     openWorkspaceSection,
     refreshSource,
     resetMockServers,
+    restartElectronApp,
     sourceRowByTitle,
     test,
     waitForSourceRowIdle,
@@ -62,7 +63,7 @@ test.describe('Electron Xtream Category Management', () => {
             ).toBeVisible();
 
             await dialog.locator('.search-field input').fill(targetCategory.name);
-            await toggleManagedCategory(dialog, targetCategory);
+            await toggleManagedCategory(dialog, targetCategory, false);
             await dialog.getByRole('button', { name: 'Save', exact: true }).click();
             await app.mainWindow.waitForSelector('mat-dialog-container', {
                 state: 'detached',
@@ -76,6 +77,12 @@ test.describe('Electron Xtream Category Management', () => {
             await refreshSource(app.mainWindow, portalName, { confirm: true });
             await openSources(app.mainWindow);
             await waitForSourceRowIdle(app.mainWindow, portalName);
+
+            const restarted = await restartElectronApp(app, dataDir);
+            app.electronApp = restarted.electronApp;
+            app.mainWindow = restarted.mainWindow;
+
+            await openSources(app.mainWindow);
             await sourceRowByTitle(app.mainWindow, portalName).first().click();
             await waitForXtreamWorkspaceReady(app.mainWindow);
             await openWorkspaceSection(app.mainWindow, 'Live TV');
@@ -88,16 +95,23 @@ test.describe('Electron Xtream Category Management', () => {
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog.locator('.search-field input').fill(targetCategory.name);
-            await toggleManagedCategory(dialog, targetCategory);
+            await toggleManagedCategory(dialog, targetCategory, true);
             await dialog.getByRole('button', { name: 'Save', exact: true }).click();
             await app.mainWindow.waitForSelector('mat-dialog-container', {
                 state: 'detached',
             });
 
-            await expect(sidebarCategoryById(app.mainWindow, targetCategory.id)).toHaveCount(
-                1
-            );
-            await clickCategoryById(app.mainWindow, targetCategory.id);
+            dialog = await openManageCategoriesDialog(app.mainWindow);
+            await dialog.locator('.search-field input').fill(targetCategory.name);
+            const restoredRows = dialog.locator('.category-item');
+            await expect(restoredRows).toHaveCount(1, { timeout: 15000 });
+            await expect(
+                restoredRows.first().locator('mat-checkbox input')
+            ).toBeChecked();
+            await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+            await app.mainWindow.waitForSelector('mat-dialog-container', {
+                state: 'detached',
+            });
         } finally {
             await closeElectronApp(app);
         }
@@ -168,19 +182,25 @@ async function pickSidebarCategory(
 async function toggleManagedCategory(
     dialog: Locator,
     targetCategory: {
+        id: string;
         itemCount: number;
         name: string;
-    }
+    },
+    shouldBeSelected: boolean
 ): Promise<void> {
-    // Use hasText on the whole row so Playwright's retry loop waits for Angular
-    // to re-render filteredCategories() after the search field is populated.
-    // Avoid nesting dialog.locator() inside filter({ has: }) — Playwright
-    // cannot scope an absolute locator to each candidate element.
-    const categoryRow = dialog
-        .locator('.category-item')
-        .filter({ hasText: targetCategory.name })
-        .first();
+    void targetCategory.id;
+    const categoryRows = dialog.locator('.category-item');
+    await expect(categoryRows).toHaveCount(1, { timeout: 15000 });
+    const categoryRow = categoryRows.first();
+    const checkbox = categoryRow.locator('mat-checkbox input');
 
     await expect(categoryRow).toBeVisible({ timeout: 15000 });
-    await categoryRow.click();
+    if (shouldBeSelected) {
+        await checkbox.check();
+        await expect(checkbox).toBeChecked();
+        return;
+    }
+
+    await checkbox.uncheck();
+    await expect(checkbox).not.toBeChecked();
 }

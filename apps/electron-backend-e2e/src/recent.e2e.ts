@@ -4,6 +4,7 @@ import {
     addXtreamPortal,
     channelItemByTitle,
     clickCategoryById,
+    clickGridListCardByTitle,
     clickCategoryByNameExact,
     clickFirstGridListCard,
     closeElectronApp,

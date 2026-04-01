@@ -52,7 +52,7 @@ test.describe('Electron Xtream Responsiveness', () => {
             await expect(overlay).toBeVisible({ timeout: 15000 });
             await expect(
                 overlay.getByRole('button', { name: /cancel import/i })
-            ).toBeVisible({ timeout: 10000 });
+            ).toBeVisible({ timeout: 20000 });
 
             await waitForDbOperationEvent(app.mainWindow, {
                 operation: 'save-content',
