@@ -11,6 +11,7 @@ import {
     contentCardByTitle,
     defaultXtreamPassword,
     defaultXtreamUsername,
+    expectVisibleContentCardTitle,
     expect,
     importM3uPlaylistFromNativeDialog,
     launchElectronApp,
@@ -159,18 +160,18 @@ test.describe('Electron Favorites', () => {
             await expect(channelItemByTitle(app.mainWindow, liveTitle)).toHaveCount(1);
 
             await switchUnifiedCollectionContent(app.mainWindow, 'Movies');
-            await expect(contentCardByTitle(app.mainWindow, movieTitle)).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
 
             await switchUnifiedCollectionContent(app.mainWindow, 'Series');
-            await expect(contentCardByTitle(app.mainWindow, seriesTitle)).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
 
             await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
             await expect(channelItemByTitle(app.mainWindow, liveTitle)).toHaveCount(1);
             await switchUnifiedCollectionContent(app.mainWindow, 'Movies');
-            await expect(contentCardByTitle(app.mainWindow, movieTitle)).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
             await switchUnifiedCollectionContent(app.mainWindow, 'Series');
-            await expect(contentCardByTitle(app.mainWindow, seriesTitle)).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
 
             const restarted = await restartElectronApp(app, dataDir);
             app.electronApp = restarted.electronApp;
@@ -189,13 +190,9 @@ test.describe('Electron Favorites', () => {
                 channelItemByTitle(app.mainWindow, liveTitle)
             ).toHaveCount(1);
             await switchUnifiedCollectionContent(app.mainWindow, 'Movies');
-            await expect(
-                contentCardByTitle(app.mainWindow, movieTitle)
-            ).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
             await switchUnifiedCollectionContent(app.mainWindow, 'Series');
-            await expect(
-                contentCardByTitle(app.mainWindow, seriesTitle)
-            ).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
         } finally {
             await closeElectronApp(app);
         }

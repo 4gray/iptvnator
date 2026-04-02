@@ -569,35 +569,22 @@ async function clickButtonToggleOption(
     toggleGroup: Locator,
     label: string
 ): Promise<void> {
-    const radio = toggleGroup.getByRole('radio', {
-        name: label,
-        exact: true,
-    });
-
-    if ((await radio.count()) > 0) {
-        await expect(radio.first()).toBeVisible();
-        await radio.first().click();
-        return;
-    }
-
-    const button = toggleGroup.getByRole('button', {
-        name: label,
-        exact: true,
-    });
-
-    if ((await button.count()) > 0) {
-        await expect(button.first()).toBeVisible();
-        await button.first().click();
-        return;
-    }
-
     const toggle = toggleGroup
         .locator('mat-button-toggle')
         .filter({ hasText: flexibleTextPattern(label) })
         .first();
 
     await expect(toggle).toBeVisible();
-    await toggle.click();
+
+    if (!(await isButtonToggleSelected(toggle))) {
+        await toggle.click();
+    }
+
+    await expect
+        .poll(() => isButtonToggleSelected(toggle), {
+            timeout: 10000,
+        })
+        .toBe(true);
 }
 
 export function channelItemByTitle(page: Page, title: string): Locator {
@@ -614,6 +601,25 @@ export function contentCardByTitle(page: Page, title: string): Locator {
             hasText: flexibleTextPattern(title),
         }),
     });
+}
+
+export async function expectVisibleContentCardTitle(
+    page: Page,
+    title: string
+): Promise<void> {
+    await expect
+        .poll(
+            async () => {
+                const titles = await visibleContentCardTitles(page);
+                return titles.some(
+                    (visibleTitle) =>
+                        normalizeVisibleText(visibleTitle) ===
+                        normalizeVisibleText(title)
+                );
+            },
+            { timeout: 20000 }
+        )
+        .toBe(true);
 }
 
 export function gridListCardByTitle(page: Page, title: string): Locator {
@@ -1371,4 +1377,35 @@ function flexibleTextPattern(value: string): RegExp {
             .join('\\s+'),
         'i'
     );
+}
+
+async function isButtonToggleSelected(toggle: Locator): Promise<boolean> {
+    try {
+        return await toggle.evaluate((element) => {
+            const host = element as HTMLElement;
+            const selectedDescendant = host.querySelector(
+                '[aria-checked="true"], [aria-pressed="true"]'
+            );
+
+            return (
+                host.classList.contains('mat-button-toggle-checked') ||
+                host.getAttribute('aria-checked') === 'true' ||
+                host.getAttribute('aria-pressed') === 'true' ||
+                selectedDescendant !== null
+            );
+        });
+    } catch {
+        return false;
+    }
+}
+
+async function visibleContentCardTitles(page: Page): Promise<string[]> {
+    return page
+        .locator('app-content-card h3')
+        .allInnerTexts()
+        .then((titles) => titles.map((title) => title.trim()).filter(Boolean));
+}
+
+function normalizeVisibleText(value: string): string {
+    return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
