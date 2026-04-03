@@ -156,7 +156,7 @@
         "@typescript-eslint/parser": "^8.46.2",
         "@typescript-eslint/utils": "^8.46.2",
         "angular-eslint": "20.5.2",
-        "astro": "5.17.2",
+        "astro": "5.18.1",
         "conventional-changelog-cli": "5.0.0",
         "cors": "2.8.6",
         "drizzle-kit": "0.31.5",
