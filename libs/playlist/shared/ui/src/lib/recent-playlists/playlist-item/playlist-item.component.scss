@@ -1,12 +1,30 @@
-mat-list-item {
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 12px;
-    margin: 2px 4px;
+:host {
+    display: block;
+    width: 100%;
+}
+
+.playlist-item {
+    width: 100%;
+    min-height: 68px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px 8px 12px;
     border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.18s ease,
+        transform 0.18s ease,
+        color 0.15s ease;
 
     &:hover {
-        background-color: rgba(255, 255, 255, 0.03) !important;
+        background: color-mix(in srgb, currentColor 8%, transparent);
     }
 
     &.selected {
@@ -14,9 +32,9 @@ mat-list-item {
             135deg,
             var(--app-selection-surface-strong),
             var(--app-selection-surface)
-        ) !important;
-        border-color: var(--app-selection-border) !important;
-        color: var(--app-selection-color) !important;
+        );
+        border-color: var(--app-selection-border);
+        color: var(--app-selection-color);
         box-shadow:
             inset 0 0 0 1px var(--app-selection-border),
             0 12px 20px -18px var(--app-selection-glow);
@@ -27,7 +45,7 @@ mat-list-item {
         .drag-icon,
         .action-buttons button,
         .action-buttons mat-icon {
-            color: inherit !important;
+            color: inherit;
         }
 
         .status-dot {
@@ -44,21 +62,41 @@ mat-list-item {
     }
 }
 
-// Light theme hover
-@media (prefers-color-scheme: light) {
-    mat-list-item:hover {
-        background-color: rgba(0, 0, 0, 0.04) !important;
-    }
+.playlist-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
 }
 
-.mat-list-base {
-    padding-top: 0 !important;
+.playlist-content {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+
+.playlist-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.96rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
 }
 
 .meta {
-    font-size: 12px !important;
-    color: #666;
-    margin-top: 2px !important;
+    font-size: 0.82rem;
+    color: var(--mat-sys-on-surface-variant);
+    opacity: 0.84;
+    line-height: 1.2;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .busy-state {
@@ -66,9 +104,9 @@ mat-list-item {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    font-size: 11px !important;
+    font-size: 0.7rem;
     color: var(--app-selection-border, #8aa4c8);
-    margin-top: 4px !important;
+    margin-top: 2px;
 }
 
 .busy-state__message {
@@ -82,12 +120,12 @@ mat-list-item {
 }
 
 .busy-state__bar {
-    margin-top: 4px !important;
+    margin-top: 4px;
 }
 
 .cdk-drag-preview {
     box-sizing: border-box;
-    border-radius: 12px;
+    border-radius: 8px;
     box-shadow:
         0 8px 24px rgba(0, 0, 0, 0.25),
         0 4px 12px rgba(0, 0, 0, 0.15),
@@ -104,56 +142,49 @@ mat-list-item {
 }
 
 .drag-icon {
+    flex-shrink: 0;
     cursor: move;
-    margin-right: 0;
-    opacity: 0.5;
-    transition: opacity 0.2s ease;
+    opacity: 0.46;
+    transition: opacity 0.15s ease;
 
     &:hover {
         opacity: 1;
     }
 }
 
-::ng-deep {
-    @media only screen and (max-width: 480px) {
-        .main-container {
-            .favorites-icon,
-            .upload-type-icon,
-            .refresh-btn,
-            .edit-btn,
-            .delete-btn {
-                display: none;
-            }
-        }
-
-        .mdc-list-item__content {
-            padding-left: 20px;
-        }
-    }
-}
-
 .action-buttons {
-    align-self: center !important;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-inline-start: auto;
 
     button {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        color: inherit;
+        opacity: 0.76;
+        transition:
+            opacity 0.15s ease,
+            background-color 0.15s ease,
+            transform 0.15s ease;
 
         &:hover {
-            background-color: rgba(255, 255, 255, 0.06) !important;
-            transform: scale(1.05);
-
-            mat-icon {
-                opacity: 1;
-            }
+            opacity: 1;
+            background: color-mix(in srgb, currentColor 10%, transparent);
+            transform: translateY(-1px);
         }
 
         mat-icon {
-            opacity: 0.85;
-            transition: opacity 0.3s ease;
+            width: 20px;
+            height: 20px;
+            font-size: 20px;
         }
 
         &:disabled {
             transform: none;
+            opacity: 0.38;
         }
     }
 }
@@ -163,23 +194,16 @@ mat-list-item {
     margin: 0 auto;
 }
 
-// Light theme action buttons
-@media (prefers-color-scheme: light) {
-    .action-buttons button:hover {
-        background-color: rgba(0, 0, 0, 0.04) !important;
-    }
-}
-
 .icon-container {
     position: relative;
     display: inline-flex;
 
     .upload-type-icon {
         opacity: 0.75;
-        transition: opacity 0.3s ease;
+        transition: opacity 0.15s ease;
     }
 
-    mat-list-item:hover & .upload-type-icon {
+    .playlist-item:hover & .upload-type-icon {
         opacity: 0.95;
     }
 }
@@ -191,9 +215,9 @@ mat-list-item {
     border-radius: 50%;
     right: 0;
     bottom: 0;
-    border: 2px solid var(--background-color, #131316);
+    border: 2px solid var(--mat-sys-surface);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
+    transition: all 0.15s ease;
 }
 
 .status-active {
@@ -212,7 +236,8 @@ mat-list-item {
 }
 
 .status-unavailable {
-    background-color: #666666;
+    background-color: var(--mat-sys-on-surface-variant);
+    opacity: 0.5;
 }
 
 .auto-refresh-indicator {
@@ -223,30 +248,26 @@ mat-list-item {
     width: 14px !important;
     height: 14px !important;
     color: #4caf50;
-    background-color: var(--background-color, #131316);
+    background-color: var(--mat-sys-surface);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
+    transition: all 0.15s ease;
 
-    mat-list-item:hover & {
+    .playlist-item:hover & {
         color: #66bb6a;
         transform: rotate(90deg);
     }
 }
 
-// Light theme auto-refresh indicator
-@media (prefers-color-scheme: light) {
-    .auto-refresh-indicator {
-        background-color: #ffffff;
-    }
-}
-
 @media only screen and (max-width: 480px) {
     .upload-type-icon,
-    .icon-container {
+    .icon-container,
+    .action-buttons .refresh-btn,
+    .action-buttons .edit-btn,
+    .action-buttons .delete-btn {
         display: none;
     }
 }

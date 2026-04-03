@@ -7,7 +7,6 @@ import { Component, effect, inject, input, output, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -52,7 +51,6 @@ type PlaylistBusyOperation = {
         DragDropModule,
         EmptyStateComponent,
         MatInputModule,
-        MatListModule,
         PlaylistItemComponent,
     ],
 })

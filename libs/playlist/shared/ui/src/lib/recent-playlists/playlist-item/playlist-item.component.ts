@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -28,7 +27,6 @@ import { PlaylistMeta } from 'shared-interfaces';
         DragDropModule,
         MatIconButton,
         MatIcon,
-        MatListModule,
         MatProgressBarModule,
         MatProgressSpinnerModule,
         MatTooltip,
