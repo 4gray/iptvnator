@@ -55,7 +55,11 @@
 
         <div class="categories-list">
             @for (category of filteredCategories(); track category.id) {
-                <div class="category-item" (click)="toggleCategory(category)">
+                <div
+                    class="category-item"
+                    [attr.data-category-id]="category.xtream_id"
+                    (click)="toggleCategory(category)"
+                >
                     <mat-checkbox
                         [checked]="category.selected"
                         (click)="$event.stopPropagation()"

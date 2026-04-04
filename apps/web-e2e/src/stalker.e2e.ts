@@ -76,7 +76,7 @@ async function addStalkerPortal(
 
     await page.getByRole('button', { name: 'Add playlist' }).click();
     const dialog = page.locator('mat-dialog-container');
-    await dialog.getByRole('button', { name: 'Stalker' }).click();
+    await dialog.locator('mat-button-toggle[value="stalker"]').click();
 
     await setInputValue(dialog.locator('input#title'), name);
     await setInputValue(dialog.locator('input#portalUrl'), PORTAL_URL);

@@ -1,14 +1,27 @@
 import { Page } from '@playwright/test';
 import {
+    addXtreamPortal,
+    clickCategoryByNameExact,
+    clickFirstGridListCard,
     closeElectronApp,
     createMutableTextServer,
     enableRemoteControl,
     expect,
     launchElectronApp,
+    openGlobalRecent,
     openSettings,
+    openWorkspaceSection,
+    resetMockServers,
+    restartElectronApp,
     saveSettings,
     test,
+    waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
+import {
+    defaultXtreamPassword,
+    defaultXtreamUsername,
+} from './electron-test-fixtures';
+import { fetchXtreamVodFixture } from './portal-mock-fixtures';
 
 const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 <tv>
@@ -106,6 +119,111 @@ test.describe('Electron Settings', () => {
         } finally {
             await closeElectronApp(secondLaunch);
             await epgServer.close();
+        }
+    });
+
+    test('starts on sources when dashboard is disabled', async ({ dataDir }) => {
+        const firstLaunch = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(firstLaunch.mainWindow);
+            await firstLaunch.mainWindow
+                .locator(
+                    'mat-checkbox[formcontrolname="showDashboard"] input[type="checkbox"]'
+                )
+                .uncheck();
+            await saveSettings(firstLaunch.mainWindow);
+        } finally {
+            await closeElectronApp(firstLaunch);
+        }
+
+        const secondLaunch = await launchElectronApp(dataDir);
+
+        try {
+            await secondLaunch.mainWindow.waitForURL(/\/workspace\/sources$/);
+            await expect(
+                secondLaunch.mainWindow.getByRole('link', {
+                    name: 'Dashboard',
+                    exact: true,
+                })
+            ).toHaveCount(0);
+            await expect(secondLaunch.mainWindow.locator('a.brand')).toHaveAttribute(
+                'href',
+                /\/workspace\/sources$/
+            );
+        } finally {
+            await closeElectronApp(secondLaunch);
+        }
+    });
+
+    test('restores the last section-level view across restart when configured', async ({
+        dataDir,
+    }) => {
+        let app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await selectSettingsOption(
+                app.mainWindow,
+                'select-startup-behavior',
+                'restore-last-view'
+            );
+            await saveSettings(app.mainWindow);
+
+            await openGlobalRecent(app.mainWindow);
+        } finally {
+            app = await restartElectronApp(app, dataDir);
+        }
+
+        try {
+            await app.mainWindow.waitForURL(/\/workspace\/global-recent$/);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('ignores settings and restores only the section root after a detail route', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const vodFixture = await fetchXtreamVodFixture(request, {
+            password: defaultXtreamPassword,
+            username: defaultXtreamUsername,
+        });
+        let app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await selectSettingsOption(
+                app.mainWindow,
+                'select-startup-behavior',
+                'restore-last-view'
+            );
+            await saveSettings(app.mainWindow);
+
+            await addXtreamPortal(app.mainWindow);
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+
+            await openWorkspaceSection(app.mainWindow, 'Movies');
+            await clickCategoryByNameExact(
+                app.mainWindow,
+                vodFixture.categoryName
+            );
+            await clickFirstGridListCard(app.mainWindow);
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/vod\/[^/]+\/[^/]+$/
+            );
+
+            await openSettings(app.mainWindow);
+        } finally {
+            app = await restartElectronApp(app, dataDir);
+        }
+
+        try {
+            await app.mainWindow.waitForURL(/\/workspace\/xtreams\/[^/]+\/vod$/);
+        } finally {
+            await closeElectronApp(app);
         }
     });
 });

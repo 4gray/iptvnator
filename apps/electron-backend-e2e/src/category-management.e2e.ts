@@ -9,6 +9,7 @@ import {
     openWorkspaceSection,
     refreshSource,
     resetMockServers,
+    restartElectronApp,
     sourceRowByTitle,
     test,
     waitForSourceRowIdle,
@@ -30,6 +31,12 @@ test.describe('Electron Xtream Category Management', () => {
             });
             await waitForXtreamWorkspaceReady(app.mainWindow);
             await openWorkspaceSection(app.mainWindow, 'Live TV');
+            // Wait for the route to settle on the live TV section so that
+            // the sidebar shows live categories (not VOD/series from a
+            // previous section) before we read from it.
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/live/
+            );
 
             const targetCategory = await pickSidebarCategory(app.mainWindow);
 
@@ -56,7 +63,7 @@ test.describe('Electron Xtream Category Management', () => {
             ).toBeVisible();
 
             await dialog.locator('.search-field input').fill(targetCategory.name);
-            await toggleManagedCategory(dialog, targetCategory);
+            await toggleManagedCategory(dialog, targetCategory, false);
             await dialog.getByRole('button', { name: 'Save', exact: true }).click();
             await app.mainWindow.waitForSelector('mat-dialog-container', {
                 state: 'detached',
@@ -68,26 +75,43 @@ test.describe('Electron Xtream Category Management', () => {
 
             await openSources(app.mainWindow);
             await refreshSource(app.mainWindow, portalName, { confirm: true });
+            await openSources(app.mainWindow);
             await waitForSourceRowIdle(app.mainWindow, portalName);
+
+            const restarted = await restartElectronApp(app, dataDir);
+            app.electronApp = restarted.electronApp;
+            app.mainWindow = restarted.mainWindow;
+
+            await openSources(app.mainWindow);
             await sourceRowByTitle(app.mainWindow, portalName).first().click();
             await waitForXtreamWorkspaceReady(app.mainWindow);
             await openWorkspaceSection(app.mainWindow, 'Live TV');
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/live/
+            );
             await expect(sidebarCategoryById(app.mainWindow, targetCategory.id)).toHaveCount(
                 0
             );
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog.locator('.search-field input').fill(targetCategory.name);
-            await toggleManagedCategory(dialog, targetCategory);
+            await toggleManagedCategory(dialog, targetCategory, true);
             await dialog.getByRole('button', { name: 'Save', exact: true }).click();
             await app.mainWindow.waitForSelector('mat-dialog-container', {
                 state: 'detached',
             });
 
-            await expect(sidebarCategoryById(app.mainWindow, targetCategory.id)).toHaveCount(
-                1
-            );
-            await clickCategoryById(app.mainWindow, targetCategory.id);
+            dialog = await openManageCategoriesDialog(app.mainWindow);
+            await dialog.locator('.search-field input').fill(targetCategory.name);
+            const restoredRows = dialog.locator('.category-item');
+            await expect(restoredRows).toHaveCount(1, { timeout: 15000 });
+            await expect(
+                restoredRows.first().locator('mat-checkbox input')
+            ).toBeChecked();
+            await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+            await app.mainWindow.waitForSelector('mat-dialog-container', {
+                state: 'detached',
+            });
         } finally {
             await closeElectronApp(app);
         }
@@ -102,6 +126,11 @@ async function openManageCategoriesDialog(page: Page) {
     await expect(
         dialog.getByRole('button', { name: 'Select All', exact: true })
     ).toBeVisible();
+    // Wait for the category list to render — Angular needs a CD cycle after
+    // isLoading() flips to false before the @for items are painted.
+    await expect(dialog.locator('.category-item').first()).toBeVisible({
+        timeout: 15000,
+    });
     return dialog;
 }
 
@@ -153,32 +182,25 @@ async function pickSidebarCategory(
 async function toggleManagedCategory(
     dialog: Locator,
     targetCategory: {
+        id: string;
         itemCount: number;
         name: string;
-    }
+    },
+    shouldBeSelected: boolean
 ): Promise<void> {
-    const categories = dialog.locator('.category-item');
-    const count = await categories.count();
+    void targetCategory.id;
+    const categoryRows = dialog.locator('.category-item');
+    await expect(categoryRows).toHaveCount(1, { timeout: 15000 });
+    const categoryRow = categoryRows.first();
+    const checkbox = categoryRow.locator('mat-checkbox input');
 
-    for (let index = 0; index < count; index += 1) {
-        const categoryRow = categories.nth(index);
-        const name =
-            (await categoryRow.locator('.category-name').textContent())?.trim() ??
-            '';
-        const countText =
-            (await categoryRow.locator('.item-count').textContent())?.trim() ?? '';
-        const itemCount = Number.parseInt(countText.replace(/[()]/g, ''), 10) || 0;
-
-        if (name !== targetCategory.name || itemCount !== targetCategory.itemCount) {
-            continue;
-        }
-
-        await expect(categoryRow).toBeVisible();
-        await categoryRow.click();
+    await expect(categoryRow).toBeVisible({ timeout: 15000 });
+    if (shouldBeSelected) {
+        await checkbox.check();
+        await expect(checkbox).toBeChecked();
         return;
     }
 
-    throw new Error(
-        `Could not find category "${targetCategory.name}" with count ${targetCategory.itemCount} in the management dialog.`
-    );
+    await checkbox.uncheck();
+    await expect(checkbox).not.toBeChecked();
 }

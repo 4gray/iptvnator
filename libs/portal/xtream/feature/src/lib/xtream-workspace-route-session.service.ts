@@ -33,6 +33,7 @@ function toXtreamPlaylistData(
         id: playlist._id,
         name: playlist.title || playlist.filename || 'Untitled playlist',
         title: playlist.title,
+        updateDate: playlist.updateDate,
         serverUrl: playlist.serverUrl,
         username: playlist.username,
         password: playlist.password,
@@ -51,6 +52,7 @@ export class XtreamWorkspaceRouteSession {
     private readonly xtreamStore = inject(XtreamStore);
 
     private currentPlaylistId: string | null = null;
+    private currentPlaylistUpdateDate: number | null = null;
 
     constructor() {
         effect(() => {
@@ -95,19 +97,22 @@ export class XtreamWorkspaceRouteSession {
                 ? toXtreamPlaylistData(this.playlistContext.activePlaylist())
                 : null;
         const currentPlaylist = this.xtreamStore.currentPlaylist();
+        const routePlaylistUpdateDate = routePlaylist?.updateDate ?? null;
         const needsPlaylistBootstrap = Boolean(
             playlistId &&
                 routePlaylist &&
-                currentPlaylist?.id !== playlistId
+                (currentPlaylist?.id !== playlistId ||
+                    this.currentPlaylistUpdateDate !== routePlaylistUpdateDate)
         );
 
         if (
             playlistId &&
             (this.currentPlaylistId !== playlistId || needsPlaylistBootstrap)
         ) {
-            if (this.currentPlaylistId !== playlistId) {
+            if (this.currentPlaylistId !== playlistId || needsPlaylistBootstrap) {
                 this.xtreamStore.resetStore(playlistId);
                 this.currentPlaylistId = playlistId;
+                this.currentPlaylistUpdateDate = routePlaylistUpdateDate;
             }
 
             this.xtreamStore.setCurrentPlaylist(routePlaylist);

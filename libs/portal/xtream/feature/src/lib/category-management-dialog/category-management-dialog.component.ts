@@ -86,10 +86,7 @@ export class CategoryManagementDialogComponent implements OnInit {
     private async loadCategories(): Promise<void> {
         try {
             const type = this.getDbType();
-            const allCategories = await this.dbService.getAllXtreamCategories(
-                this.data.playlistId,
-                type
-            );
+            const allCategories = await this.waitForCategories(type);
             this.categories.set(
                 allCategories.map((c) => ({
                     ...c,
@@ -100,6 +97,30 @@ export class CategoryManagementDialogComponent implements OnInit {
             this.logger.error('Error loading categories', error);
         } finally {
             this.isLoading.set(false);
+        }
+    }
+
+    private async waitForCategories(
+        type: 'live' | 'movies' | 'series'
+    ): Promise<XCategoryFromDb[]> {
+        const retryDeadlineMs = Date.now() + 10000;
+        const expectedCategoryCount = this.data.itemCounts.size;
+
+        while (true) {
+            const categories = await this.dbService.getAllXtreamCategories(
+                this.data.playlistId,
+                type
+            );
+
+            if (
+                categories.length > 0 ||
+                expectedCategoryCount === 0 ||
+                Date.now() >= retryDeadlineMs
+            ) {
+                return categories;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 250));
         }
     }
 

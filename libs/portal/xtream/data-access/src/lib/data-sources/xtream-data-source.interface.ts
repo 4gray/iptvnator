@@ -23,6 +23,7 @@ export interface XtreamPlaylistData {
     id: string;
     name: string;
     title?: string; // Alias for name, used in some templates
+    updateDate?: number;
     serverUrl: string;
     username: string;
     password: string;
