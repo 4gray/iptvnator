@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "55bde394786b",
+  "strategy": "manual-commit",
+  "branch": "feat/workspace-dashboard-improvements",
+  "checkpoints_count": 16,
+  "files_touched": [
+    "apps/electron-backend/src/app/database/operations/category.operations.spec.ts",
+    "apps/web/src/assets/i18n/de.json",
+    "apps/web/src/assets/i18n/en.json",
+    "apps/web/src/assets/i18n/ru.json",
+    "libs/portal/downloads/feature/src/lib/downloads.component.html",
+    "libs/portal/downloads/feature/src/lib/downloads.component.ts",
+    "libs/portal/xtream/feature/src/lib/category-management-dialog/category-management-dialog.component.html",
+    "libs/portal/xtream/feature/src/lib/category-management-dialog/category-management-dialog.component.scss",
+    "libs/portal/xtream/feature/src/lib/category-management-dialog/category-management-dialog.component.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-command-palette/workspace-command-palette.component.html",
+    "libs/workspace/shell/feature/src/lib/workspace-command-palette/workspace-command-palette.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-command-palette/workspace-command-palette.component.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-context-panel.component.html",
+    "libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-context-panel.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-context-panel.component.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.html",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/55/bde394786b/0/metadata.json",
+      "transcript": "/55/bde394786b/0/full.jsonl",
+      "context": "/55/bde394786b/0/context.md",
+      "content_hash": "/55/bde394786b/0/content_hash.txt",
+      "prompt": "/55/bde394786b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4440,
+    "cache_creation_tokens": 342732,
+    "cache_read_tokens": 24044837,
+    "output_tokens": 65644,
+    "api_call_count": 238
+  }
+}

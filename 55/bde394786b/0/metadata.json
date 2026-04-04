@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "55bde394786b",
+  "session_id": "6864ff97-5db6-4c77-9d56-2e75e89488a0",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-04T18:19:22.909771Z",
+  "branch": "feat/workspace-dashboard-improvements",
+  "checkpoints_count": 16,
+  "files_touched": [
+    "apps/electron-backend/src/app/database/operations/category.operations.spec.ts",
+    "apps/web/src/assets/i18n/de.json",
+    "apps/web/src/assets/i18n/en.json",
+    "apps/web/src/assets/i18n/ru.json",
+    "libs/portal/downloads/feature/src/lib/downloads.component.html",
+    "libs/portal/downloads/feature/src/lib/downloads.component.ts",
+    "libs/portal/xtream/feature/src/lib/category-management-dialog/category-management-dialog.component.html",
+    "libs/portal/xtream/feature/src/lib/category-management-dialog/category-management-dialog.component.scss",
+    "libs/portal/xtream/feature/src/lib/category-management-dialog/category-management-dialog.component.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-command-palette/workspace-command-palette.component.html",
+    "libs/workspace/shell/feature/src/lib/workspace-command-palette/workspace-command-palette.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-command-palette/workspace-command-palette.component.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-context-panel.component.html",
+    "libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-context-panel.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-context-panel.component.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.html",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.html"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 4440,
+    "cache_creation_tokens": 342732,
+    "cache_read_tokens": 24044837,
+    "output_tokens": 65644,
+    "api_call_count": 238
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-04T18:19:22.660641Z",
+    "agent_lines": 0,
+    "human_added": 9038,
+    "human_modified": 1819,
+    "human_removed": 0,
+    "total_committed": 9991,
+    "agent_percentage": 0
+  }
+}
