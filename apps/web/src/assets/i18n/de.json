@@ -243,6 +243,8 @@
         "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!",
         "THEME": "Farbdesign",
         "SHOW_CAPTIONS": "Untertitel anzeigen",
+        "SHOW_DASHBOARD": "Dashboard anzeigen",
+        "SHOW_DASHBOARD_DESCRIPTION": "Dashboard in der Workspace-Leiste verfügbar halten. Wenn deaktiviert, wird Quellen zur ersten Workspace-Seite.",
         "STREAM_FORMAT_DESCRIPTION": "Standard-Streamformat auswählen (Xtream)",
         "REMOVE_ALL": "Playlist entfernen",
         "REMOVE_ALL_BUTTON": "Entfernen",
@@ -274,6 +276,10 @@
         "VLC_PLAYER_PATH_LABEL": "VLC-Pfad",
         "VLC_PLAYER_PATH_DESCRIPTION": "Legen Sie den Pfad zum VLC-Player in Ihrem System fest. \nEs wird der bereitgestellte Pfad zu einer VLC-Binärdatei anstelle des Standardpfads für unser System verwendet.",
         "THEME_DESCRIPTION": "Wählen Sie das visuelle Thema der Anwendung aus",
+        "STARTUP_BEHAVIOR": "Startansicht",
+        "STARTUP_BEHAVIOR_DESCRIPTION": "Legen Sie fest, ob IPTVnator die erste verfügbare Workspace-Ansicht oder Ihre zuletzt geöffnete Abschnittsansicht startet. Erste Ansicht bedeutet Dashboard, wenn aktiviert, sonst Quellen.",
+        "STARTUP_BEHAVIOR_FIRST_VIEW": "Erste verfügbare Ansicht",
+        "STARTUP_BEHAVIOR_RESTORE_LAST_VIEW": "Letzte Ansicht wiederherstellen",
         "EPG_NOTE": "Derzeit ist EPG nur in der Electron-basierten Version von IPTVnator verfügbar.",
         "VLC_PLAYER_PATH": "VLC-Playerpfad",
         "IMPORT_EXPORT_DATA_DESCRIPTION": "Exportieren oder importieren Sie Wiedergabelisten im JSON-Format, das in der Anwendung verwendet wird.",
@@ -398,9 +404,17 @@
         "COPY_STREAM_URL": "Stream-URL kopieren",
         "ERROR_VIEW": {
             "DELETE": "Löschen",
+            "IMPORT_CANCELLED": {
+                "TITLE": "Import abgebrochen",
+                "DESCRIPTION": "Der Playlist-Import wurde abgebrochen. Wiederholen Sie ihn, wenn Sie diese Quelle erneut laden möchten."
+            },
             "ACCOUNT_EXPIRED": {
                 "TITLE": "Konto abgelaufen",
                 "DESCRIPTION": "Dieses Konto ist abgelaufen. \nBitte überprüfen Sie die Anmeldeinformationen in den Playlist-Einstellungen oder entfernen Sie sie."
+            },
+            "ACCOUNT_INACTIVE": {
+                "TITLE": "Konto inaktiv",
+                "DESCRIPTION": "Dieses Konto ist inaktiv. Bitte überprüfen Sie die Anmeldeinformationen in den Playlist-Einstellungen oder entfernen Sie es."
             },
             "HOME": "Startseite",
             "EMPTY_CATEGORY": {
@@ -418,6 +432,10 @@
             "NOT_FOUND": {
                 "TITLE": "Portal nicht gefunden",
                 "DESCRIPTION": "Bitte überprüfen Sie die Anmeldeinformationen und die Portal-URL in den Playlist-Einstellungen oder entfernen Sie sie."
+            },
+            "PORTAL_UNAVAILABLE": {
+                "TITLE": "Portal nicht erreichbar",
+                "DESCRIPTION": "Das Portal konnte nicht erreicht werden. Überprüfen Sie die Server-URL oder versuchen Sie es erneut, wenn die Quelle wieder verfügbar ist."
             },
             "UNKNOWN_ERROR": {
                 "TITLE": "Etwas ist schief gelaufen",
@@ -590,6 +608,7 @@
             "RAIL_DASHBOARD": "Dashboard",
             "OPEN_DASHBOARD": "Dashboard öffnen",
             "RAIL_SOURCES": "Quellen",
+            "OPEN_SOURCES": "Quellen öffnen",
             "RAIL_SETTINGS": "Einstellungen",
             "OPEN_SETTINGS": "Einstellungen öffnen",
             "RAIL_LIBRARY": "Bibliothek",
@@ -620,6 +639,7 @@
             "NO_SECTION_ACTIONS": "Keine Aktionen für diesen Abschnitt",
             "PLAYLIST_INFO": "Playlist-Info",
             "ACCOUNT_INFO": "Kontoinfo",
+            "REFRESH_PLAYLIST": "Playlist aktualisieren",
             "CLEAR_COMPLETED_DOWNLOADS_ALL": "Abgeschlossene Downloads löschen (alle Playlists)",
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Abgeschlossene Downloads für alle Playlists löschen",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Abgeschlossene Downloads löschen (diese Playlist)",
@@ -632,12 +652,18 @@
             "NO_SOURCES_AVAILABLE": "Keine Quellen verfügbar",
             "ONE_SOURCE_AVAILABLE": "1 Quelle verfügbar",
             "SOURCES_AVAILABLE": "{{count}} Quellen verfügbar",
-            "XTREAM_IMPORT_PREPARING": "Playlist-Daten werden vorbereitet...",
-            "XTREAM_IMPORT_SAVING": "Playlist-Inhalte werden gespeichert...",
-            "XTREAM_IMPORT_RESTORING_FAVORITES": "Favoriten werden wiederhergestellt...",
-            "XTREAM_IMPORT_RESTORING_RECENT": "Zuletzt angesehene Inhalte werden wiederhergestellt...",
-            "XTREAM_IMPORT_CANCEL": "Import abbrechen",
-            "XTREAM_IMPORT_CANCELLING": "Import wird abgebrochen...",
+            "XTREAM_IMPORT_TITLE": "Playlist wird synchronisiert",
+            "XTREAM_IMPORT_REMOTE_BADGE": "Remote-Quelle",
+            "XTREAM_IMPORT_LOCAL_BADGE": "Lokale Bibliothek",
+            "XTREAM_IMPORT_DETAIL_REMOTE": "Warte auf die Antwort des Providers.",
+            "XTREAM_IMPORT_DETAIL_LOCAL": "Bereitet schnellere Playlist-Wechsel für den nächsten Besuch vor.",
+            "XTREAM_IMPORT_PREPARING": "Lokale Bibliothek wird vorbereitet...",
+            "XTREAM_IMPORT_LOADING": "Playlist-Daten werden von der Quelle geladen...",
+            "XTREAM_IMPORT_SAVING": "Playlist-Daten werden lokal gespeichert...",
+            "XTREAM_IMPORT_RESTORING_FAVORITES": "Favoriten werden aus der lokalen Bibliothek wiederhergestellt...",
+            "XTREAM_IMPORT_RESTORING_RECENT": "Zuletzt angesehene Inhalte werden aus der lokalen Bibliothek wiederhergestellt...",
+            "XTREAM_IMPORT_CANCEL": "Synchronisierung stoppen",
+            "XTREAM_IMPORT_CANCELLING": "Synchronisierung wird gestoppt...",
             "COMMANDS": {
                 "GLOBAL_SEARCH_LABEL": "Alle Xtream-Playlists durchsuchen",
                 "GLOBAL_SEARCH_DESCRIPTION": "Globale Suchüberlagerung öffnen",

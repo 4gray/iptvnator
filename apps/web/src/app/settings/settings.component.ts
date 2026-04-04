@@ -44,6 +44,7 @@ import { DataService, PlaylistsService } from 'services';
 import {
     Language,
     Playlist,
+    StartupBehavior,
     StreamFormat,
     Theme,
     VideoPlayer,
@@ -67,6 +68,11 @@ interface ObservedSettingsSection {
 interface ThemeOption {
     value: Theme;
     icon: string;
+    labelKey: string;
+}
+
+interface StartupBehaviorOption {
+    value: StartupBehavior;
     labelKey: string;
 }
 
@@ -179,6 +185,17 @@ export class SettingsComponent implements OnInit, OnDestroy {
         },
     ];
 
+    readonly startupBehaviorOptions: StartupBehaviorOption[] = [
+        {
+            value: StartupBehavior.FirstView,
+            labelKey: 'SETTINGS.STARTUP_BEHAVIOR_FIRST_VIEW',
+        },
+        {
+            value: StartupBehavior.RestoreLastView,
+            labelKey: 'SETTINGS.STARTUP_BEHAVIOR_RESTORE_LAST_VIEW',
+        },
+    ];
+
     /** Settings form object */
     settingsForm = this.formBuilder.group({
         player: [VideoPlayer.VideoJs],
@@ -186,6 +203,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
         streamFormat: StreamFormat.M3u8StreamFormat,
         language: Language.ENGLISH,
         showCaptions: false,
+        showDashboard: true,
+        startupBehavior: StartupBehavior.FirstView,
         showExternalPlaybackBar: true,
         theme: Theme.SystemTheme,
         mpvPlayerPath: '',

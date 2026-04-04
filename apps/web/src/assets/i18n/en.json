@@ -200,6 +200,8 @@
         "SETTINGS_SAVED": "Success! Configuration was saved.",
         "THEME": "Visual theme",
         "SHOW_CAPTIONS": "Show subtitles",
+        "SHOW_DASHBOARD": "Show dashboard",
+        "SHOW_DASHBOARD_DESCRIPTION": "Keep Dashboard available in the workspace rail. When disabled, Sources becomes the first workspace page.",
         "ADD_EPG_SOURCE": "Add EPG source",
         "CLEAR_EPG_DATA": "Clear EPG data",
         "CLEAR_EPG_DIALOG": {
@@ -212,6 +214,10 @@
         "STREAM_FORMAT_DESCRIPTION": "Select default stream format (xtream)",
         "LANGUAGE_DESCRIPTION": "Select language of the application",
         "THEME_DESCRIPTION": "Select visual theme of the application",
+        "STARTUP_BEHAVIOR": "Startup view",
+        "STARTUP_BEHAVIOR_DESCRIPTION": "Choose whether IPTVnator opens the first available workspace view or restores your last section-level view. First view means Dashboard when enabled, otherwise Sources.",
+        "STARTUP_BEHAVIOR_FIRST_VIEW": "First available view",
+        "STARTUP_BEHAVIOR_RESTORE_LAST_VIEW": "Restore last view",
         "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Show now playing footer",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Keep the external-player status bar visible at the bottom of the workspace on desktop.",
@@ -469,9 +475,17 @@
             "ACCOUNT_INFO": "Account info"
         },
         "ERROR_VIEW": {
+            "IMPORT_CANCELLED": {
+                "TITLE": "Import cancelled",
+                "DESCRIPTION": "The playlist import was cancelled. Retry when you want to continue loading this source."
+            },
             "ACCOUNT_EXPIRED": {
                 "TITLE": "Account expired",
                 "DESCRIPTION": "This account has been expired. Please check the credentials in playlist settings or remove it."
+            },
+            "ACCOUNT_INACTIVE": {
+                "TITLE": "Account inactive",
+                "DESCRIPTION": "This account is inactive. Please check the credentials in playlist settings or remove it."
             },
             "UNAUTHORIZED": {
                 "TITLE": "Unauthorized",
@@ -480,6 +494,10 @@
             "NOT_FOUND": {
                 "TITLE": "Portal not found",
                 "DESCRIPTION": "Please check the credentials and portal url in playlist settings or remove it."
+            },
+            "PORTAL_UNAVAILABLE": {
+                "TITLE": "Portal unavailable",
+                "DESCRIPTION": "The portal could not be reached. Check the server URL or retry when the source is available again."
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "No content in this category",
@@ -661,6 +679,7 @@
             "RAIL_DASHBOARD": "Dashboard",
             "OPEN_DASHBOARD": "Open dashboard",
             "RAIL_SOURCES": "Sources",
+            "OPEN_SOURCES": "Open sources",
             "RAIL_SETTINGS": "Settings",
             "OPEN_SETTINGS": "Open settings",
             "RAIL_LIBRARY": "Library",
@@ -691,6 +710,7 @@
             "NO_SECTION_ACTIONS": "No actions for this section",
             "PLAYLIST_INFO": "Playlist info",
             "ACCOUNT_INFO": "Account info",
+            "REFRESH_PLAYLIST": "Refresh playlist",
             "CLEAR_COMPLETED_DOWNLOADS_ALL": "Clear completed downloads (all playlists)",
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Clear completed downloads for all playlists",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Clear completed downloads (this playlist)",
@@ -703,12 +723,18 @@
             "NO_SOURCES_AVAILABLE": "No sources available",
             "ONE_SOURCE_AVAILABLE": "1 source available",
             "SOURCES_AVAILABLE": "{{count}} sources available",
-            "XTREAM_IMPORT_PREPARING": "Preparing playlist data...",
-            "XTREAM_IMPORT_SAVING": "Saving playlist content...",
-            "XTREAM_IMPORT_RESTORING_FAVORITES": "Restoring favorites...",
-            "XTREAM_IMPORT_RESTORING_RECENT": "Restoring recently viewed...",
-            "XTREAM_IMPORT_CANCEL": "Cancel import",
-            "XTREAM_IMPORT_CANCELLING": "Cancelling import...",
+            "XTREAM_IMPORT_TITLE": "Syncing playlist",
+            "XTREAM_IMPORT_REMOTE_BADGE": "Remote source",
+            "XTREAM_IMPORT_LOCAL_BADGE": "Local library",
+            "XTREAM_IMPORT_DETAIL_REMOTE": "Waiting on the provider response.",
+            "XTREAM_IMPORT_DETAIL_LOCAL": "Preparing faster playlist switching for the next visit.",
+            "XTREAM_IMPORT_PREPARING": "Preparing local library...",
+            "XTREAM_IMPORT_LOADING": "Fetching playlist data from source...",
+            "XTREAM_IMPORT_SAVING": "Saving playlist data locally...",
+            "XTREAM_IMPORT_RESTORING_FAVORITES": "Restoring favorites from local library...",
+            "XTREAM_IMPORT_RESTORING_RECENT": "Restoring recently viewed from local library...",
+            "XTREAM_IMPORT_CANCEL": "Stop sync",
+            "XTREAM_IMPORT_CANCELLING": "Stopping sync...",
             "COMMANDS": {
                 "GLOBAL_SEARCH_LABEL": "Search all Xtream playlists",
                 "GLOBAL_SEARCH_DESCRIPTION": "Open global search overlay",
