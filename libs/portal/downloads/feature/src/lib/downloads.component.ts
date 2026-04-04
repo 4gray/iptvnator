@@ -201,6 +201,23 @@ export class DownloadsComponent {
         }
     }
 
+    async copyUrl(item: DownloadItem): Promise<void> {
+        try {
+            await navigator.clipboard.writeText(item.url);
+            this.snackBar.open(
+                this.translate.instant('DOWNLOADS.URL_COPIED'),
+                undefined,
+                { duration: 2000, horizontalPosition: 'start' }
+            );
+        } catch {
+            this.snackBar.open(
+                this.translate.instant('DOWNLOADS.URL_COPY_FAILED'),
+                undefined,
+                { duration: 3000, horizontalPosition: 'start' }
+            );
+        }
+    }
+
     async cancel(item: DownloadItem) {
         await this.downloadsService.cancelDownload(item.id);
     }
