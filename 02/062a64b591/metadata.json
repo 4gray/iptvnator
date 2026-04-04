@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "02062a64b591",
+  "strategy": "manual-commit",
+  "branch": "claude/fix-e2e-playlist-tests-ZB1XE",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/web/src/assets/i18n/de.json",
+    "apps/web/src/assets/i18n/en.json",
+    "apps/web/src/assets/i18n/ru.json",
+    "libs/playlist/shared/util/src/index.ts",
+    "libs/playlist/shared/util/src/lib/playlist-refresh-action.service.ts",
+    "libs/portal/xtream/feature/src/lib/account-info/account-info.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.html",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/02/062a64b591/0/metadata.json",
+      "transcript": "/02/062a64b591/0/full.jsonl",
+      "context": "/02/062a64b591/0/context.md",
+      "content_hash": "/02/062a64b591/0/content_hash.txt",
+      "prompt": "/02/062a64b591/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 342,
+    "cache_creation_tokens": 135533,
+    "cache_read_tokens": 10658379,
+    "output_tokens": 28196,
+    "api_call_count": 115
+  }
+}

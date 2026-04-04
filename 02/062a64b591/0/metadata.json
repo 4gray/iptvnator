@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "02062a64b591",
+  "session_id": "9bdfbec6-977a-410e-a1c3-97af564a811c",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-04T08:09:35.811883Z",
+  "branch": "claude/fix-e2e-playlist-tests-ZB1XE",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/web/src/assets/i18n/de.json",
+    "apps/web/src/assets/i18n/en.json",
+    "apps/web/src/assets/i18n/ru.json",
+    "libs/playlist/shared/util/src/index.ts",
+    "libs/playlist/shared/util/src/lib/playlist-refresh-action.service.ts",
+    "libs/portal/xtream/feature/src/lib/account-info/account-info.component.scss",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.html",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.ts",
+    "libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.html"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 342,
+    "cache_creation_tokens": 135533,
+    "cache_read_tokens": 10658379,
+    "output_tokens": 28196,
+    "api_call_count": 115
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-04T08:09:35.709786Z",
+    "agent_lines": 0,
+    "human_added": 8654,
+    "human_modified": 1911,
+    "human_removed": 0,
+    "total_committed": 8884,
+    "agent_percentage": 0
+  }
+}
