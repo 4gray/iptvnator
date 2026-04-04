@@ -12,6 +12,11 @@ import {
 } from './data-sources/xtream-data-source.interface';
 
 export type ContentType = 'live' | 'vod' | 'series';
+export type XtreamContentLoadState = 'idle' | 'loading' | 'ready' | 'error';
+export type XtreamContentLoadStateByType = Record<
+    ContentType,
+    XtreamContentLoadState
+>;
 
 export type PortalStatusType =
     | 'active'
@@ -35,6 +40,7 @@ export interface XtreamState {
     isLoadingCategories: boolean;
     isLoadingContent: boolean;
     isImporting: boolean;
+    contentLoadStateByType: XtreamContentLoadStateByType;
     liveCategories: XtreamCategory[];
     vodCategories: XtreamCategory[];
     serialCategories: XtreamCategory[];

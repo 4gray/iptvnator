@@ -368,21 +368,21 @@ export class RecentPlaylistsComponent {
                         }),
                     ]);
 
+                    const restoreKey = `xtream-restore-${item._id}`;
+                    const restorePayload = {
+                        favoritedXtreamIds,
+                        recentlyViewedXtreamIds,
+                        hiddenCategories,
+                    };
+                    localStorage.setItem(
+                        restoreKey,
+                        JSON.stringify(restorePayload)
+                    );
+
                     // Update the timestamp in NgRx / IndexedDB
                     this.store.dispatch(
                         PlaylistActions.updatePlaylistMeta({
                             playlist: { ...item, updateDate },
-                        })
-                    );
-
-                    // Persist user data so it can be restored after re-import
-                    const restoreKey = `xtream-restore-${item._id}`;
-                    localStorage.setItem(
-                        restoreKey,
-                        JSON.stringify({
-                            favoritedXtreamIds,
-                            recentlyViewedXtreamIds,
-                            hiddenCategories,
                         })
                     );
 

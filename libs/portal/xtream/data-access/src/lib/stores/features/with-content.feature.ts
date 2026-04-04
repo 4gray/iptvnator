@@ -31,6 +31,8 @@ import {
     ContentType,
     PortalStatusType,
     XtreamContentInitBlockReason,
+    XtreamContentLoadState,
+    XtreamContentLoadStateByType,
 } from '../../xtream-state';
 
 const cancelledPlaylistInitializationLockKey = (
@@ -89,6 +91,7 @@ export interface ContentState {
     isLoadingCategories: boolean;
     isLoadingContent: boolean;
     isImporting: boolean;
+    contentLoadStateByType: XtreamContentLoadStateByType;
     isCancellingImport: boolean;
     importCount: number;
     importPhase: string | null;
@@ -102,6 +105,12 @@ export interface ContentState {
 /**
  * Initial content state
  */
+const initialContentLoadStateByType: XtreamContentLoadStateByType = {
+    live: 'idle',
+    vod: 'idle',
+    series: 'idle',
+};
+
 const initialContentState: ContentState = {
     liveCategories: [],
     vodCategories: [],
@@ -112,6 +121,7 @@ const initialContentState: ContentState = {
     isLoadingCategories: false,
     isLoadingContent: false,
     isImporting: false,
+    contentLoadStateByType: { ...initialContentLoadStateByType },
     isCancellingImport: false,
     importCount: 0,
     importPhase: null,
@@ -200,6 +210,18 @@ export function withContent() {
             const xtreamApiService = inject(XtreamApiService);
             const importTypes: ContentType[] = ['live', 'vod', 'series'];
             let activeInitializationPromise: Promise<void> | null = null;
+
+            const updateContentTypeLoadState = (
+                type: ContentType,
+                loadState: XtreamContentLoadState
+            ): void => {
+                patchState(store, (state) => ({
+                    contentLoadStateByType: {
+                        ...state.contentLoadStateByType,
+                        [type]: loadState,
+                    },
+                }));
+            };
 
             const resolveInitBlockReason = (
                 portalStatus: PortalStatusType | null | undefined
@@ -356,6 +378,29 @@ export function withContent() {
                 }
             };
 
+            const finalizePendingContentLoadStates = (
+                completedTypes: Set<ContentType>,
+                loadState: XtreamContentLoadState
+            ): void => {
+                patchState(store, (state) => {
+                    const nextLoadStates = {
+                        ...state.contentLoadStateByType,
+                    };
+
+                    for (const type of importTypes) {
+                        if (completedTypes.has(type)) {
+                            continue;
+                        }
+
+                        nextLoadStates[type] = loadState;
+                    }
+
+                    return {
+                        contentLoadStateByType: nextLoadStates,
+                    };
+                });
+            };
+
             const executeContentInitialization = async (
                 ignoreBlockedState = false
             ): Promise<void> => {
@@ -397,6 +442,11 @@ export function withContent() {
                     itemsToImport: 0,
                     activeImportSessionId: importSessionId,
                     activeImportOperationIds: [],
+                    contentLoadStateByType: {
+                        live: 'loading',
+                        vod: 'loading',
+                        series: 'loading',
+                    },
                 });
 
                 const completedTypes = new Set<ContentType>();
@@ -471,6 +521,11 @@ export function withContent() {
                             isDbAbortError(error) ? 'cancelled' : 'failed'
                         );
                     }
+
+                    finalizePendingContentLoadStates(
+                        completedTypes,
+                        isDbAbortError(error) ? 'idle' : 'error'
+                    );
 
                     if (isDbAbortError(error)) {
                         patchState(store, (state) => ({
@@ -656,6 +711,10 @@ export function withContent() {
                         throwIfImportCancelled(options?.importSessionId);
                         await setImportStatus(ctx.playlistId, 'live', 'completed');
                         options?.completedTypes?.add('live');
+                        patchState(store, {
+                            liveStreams: live,
+                        });
+                        updateContentTypeLoadState('live', 'ready');
 
                         throwIfImportCancelled(options?.importSessionId);
                         const vodOperationId = databaseService.createOperationId(
@@ -682,6 +741,10 @@ export function withContent() {
                         throwIfImportCancelled(options?.importSessionId);
                         await setImportStatus(ctx.playlistId, 'vod', 'completed');
                         options?.completedTypes?.add('vod');
+                        patchState(store, {
+                            vodStreams: vod,
+                        });
+                        updateContentTypeLoadState('vod', 'ready');
 
                         throwIfImportCancelled(options?.importSessionId);
                         const seriesOperationId =
@@ -709,13 +772,11 @@ export function withContent() {
                         throwIfImportCancelled(options?.importSessionId);
                         await setImportStatus(ctx.playlistId, 'series', 'completed');
                         options?.completedTypes?.add('series');
-
                         patchState(store, {
-                            liveStreams: live,
-                            vodStreams: vod,
                             serialStreams: series,
                             isLoadingContent: false,
                         });
+                        updateContentTypeLoadState('series', 'ready');
                     } catch (error) {
                         if (!isDbAbortError(error)) {
                             logger.error('Error fetching content', error);

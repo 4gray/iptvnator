@@ -274,10 +274,115 @@ describe('withContent import state', () => {
         expect(store.isImporting()).toBe(false);
         expect(store.isContentInitialized()).toBe(true);
         expect(store.contentInitBlockReason()).toBeNull();
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
         expect(store.activeImportOperationIds()).toEqual([]);
         expect(store.importPhase()).toBeNull();
         expect(store.importCount()).toBe(0);
         expect(store.itemsToImport()).toBe(0);
+    });
+
+    it('marks content types ready and patches their streams as each import completes', async () => {
+        const pendingCategories = {
+            live: createDeferred<any[]>(),
+            vod: createDeferred<any[]>(),
+            series: createDeferred<any[]>(),
+        };
+        const pending = {
+            live: createDeferred<any[]>(),
+            movie: createDeferred<any[]>(),
+            series: createDeferred<any[]>(),
+        };
+
+        const liveItems = [
+            {
+                xtream_id: 101,
+                category_id: 11,
+                title: 'Live One',
+            },
+        ];
+        const vodItems = [
+            {
+                xtream_id: 202,
+                category_id: 22,
+                title: 'Movie One',
+            },
+        ];
+        const seriesItems = [
+            {
+                xtream_id: 303,
+                category_id: 33,
+                title: 'Series One',
+            },
+        ];
+
+        dataSource.getCategories.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                type: 'live' | 'vod' | 'series'
+            ) => pendingCategories[type].promise
+        );
+        dataSource.getContent.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                type: ContentType
+            ) => pending[type].promise
+        );
+
+        const initialization = store.initializeContent();
+        await Promise.resolve();
+
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'loading',
+            vod: 'loading',
+            series: 'loading',
+        });
+
+        pendingCategories.live.resolve([]);
+        pendingCategories.vod.resolve([]);
+        pendingCategories.series.resolve([]);
+
+        pending.live.resolve(liveItems);
+        await waitForCondition(
+            () => store.contentLoadStateByType().live === 'ready'
+        );
+
+        expect(store.liveStreams()).toEqual(liveItems);
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'ready',
+            vod: 'loading',
+            series: 'loading',
+        });
+        expect(store.isContentInitialized()).toBe(false);
+
+        pending.movie.resolve(vodItems);
+        await waitForCondition(
+            () => store.contentLoadStateByType().vod === 'ready'
+        );
+
+        expect(store.vodStreams()).toEqual(vodItems);
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'ready',
+            vod: 'ready',
+            series: 'loading',
+        });
+        expect(store.isContentInitialized()).toBe(false);
+
+        pending.series.resolve(seriesItems);
+        await initialization;
+
+        expect(store.serialStreams()).toEqual(seriesItems);
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
+        expect(store.isContentInitialized()).toBe(true);
     });
 
     it('loads categories before starting content import', async () => {
@@ -405,6 +510,11 @@ describe('withContent import state', () => {
         expect(store.isCancellingImport()).toBe(false);
         expect(store.isContentInitialized()).toBe(false);
         expect(store.contentInitBlockReason()).toBe('cancelled');
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'idle',
+            vod: 'idle',
+            series: 'idle',
+        });
 
         await store.initializeContent();
 
@@ -575,6 +685,11 @@ describe('withContent import state', () => {
         expect(store.isCancellingImport()).toBe(false);
         expect(store.isContentInitialized()).toBe(false);
         expect(store.contentInitBlockReason()).toBe('cancelled');
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'idle',
+            vod: 'idle',
+            series: 'idle',
+        });
         expect(store.activeImportOperationIds()).toEqual([]);
         expect(store.importPhase()).toBeNull();
         expect(store.importCount()).toBe(0);
