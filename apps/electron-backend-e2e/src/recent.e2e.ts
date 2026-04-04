@@ -41,6 +41,46 @@ import {
 } from './portal-mock-fixtures';
 
 test.describe('Electron Recently Viewed', () => {
+    test('keeps unified live detail open when re-clicking the active M3U recent item', async ({
+        dataDir,
+    }) => {
+        const filePath = writeTemporaryM3uFile(dataDir, 'm3u-live-reclick.m3u', [
+            {
+                groupTitle: 'Live',
+                name: 'Stable Recent Channel',
+                url: 'https://streams.example.test/stable-recent.m3u8',
+            },
+        ]);
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await importM3uPlaylistFromNativeDialog(app, filePath);
+            await waitForM3uCatalog(app.mainWindow);
+
+            await channelItemByTitle(app.mainWindow, 'Stable Recent Channel')
+                .first()
+                .click();
+
+            await openPlaylistRecent(app.mainWindow);
+
+            const item = channelItemByTitle(
+                app.mainWindow,
+                'Stable Recent Channel'
+            ).first();
+            const closeButton = app.mainWindow
+                .locator('.player-toolbar .close-btn')
+                .first();
+
+            await item.click();
+            await expect(closeButton).toBeVisible({ timeout: 20000 });
+
+            await item.click();
+            await expect(closeButton).toBeVisible({ timeout: 20000 });
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('tracks M3U recent channels in newest-first order, supports all-playlists scope, and persists removals after restart', async ({
         dataDir,
     }) => {
@@ -196,6 +236,77 @@ test.describe('Electron Recently Viewed', () => {
             await expect(channelItemByTitle(app.mainWindow, liveTitle)).toHaveCount(0);
             await expect(contentCardByTitle(app.mainWindow, movieTitle)).toHaveCount(0);
             await expect(contentCardByTitle(app.mainWindow, seriesTitle)).toHaveCount(0);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('opens Xtream recent movies and series in source detail routes and returns back to recent', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const vodFixture = await fetchXtreamVodFixture(request, xtreamCredentials);
+        const seriesFixture = await fetchXtreamSeriesFixture(
+            request,
+            xtreamCredentials
+        );
+        const portalTitle = 'Xtream Recent Detail Source';
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await addXtreamPortal(app.mainWindow, {
+                name: portalTitle,
+            });
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+
+            await app.mainWindow.getByRole('link', { name: 'Movies', exact: true }).click();
+            await clickCategoryByNameExact(
+                app.mainWindow,
+                vodFixture.categoryName
+            );
+            const movieTitle = await clickFirstGridListCard(app.mainWindow);
+            await playCurrentDetail(app.mainWindow);
+            await goBackFromDetail(app.mainWindow);
+
+            await app.mainWindow.getByRole('link', { name: 'Series', exact: true }).click();
+            await clickCategoryByNameExact(
+                app.mainWindow,
+                seriesFixture.categoryName
+            );
+            const seriesTitle = await clickFirstGridListCard(app.mainWindow);
+            await playFirstSeriesEpisode(app.mainWindow);
+
+            await openPlaylistRecent(app.mainWindow);
+
+            await switchUnifiedCollectionContent(app.mainWindow, 'Movies');
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
+            await contentCardByTitle(app.mainWindow, movieTitle).first().click();
+            await app.mainWindow.waitForURL(/\/workspace\/xtreams\/[^/]+\/vod\/[^/]+\/[^/]+$/);
+            await expect(app.mainWindow.locator('app-content-hero')).toContainText(
+                movieTitle
+            );
+
+            await goBackFromDetail(app.mainWindow);
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toMatch(/\/recent$/);
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
+
+            await switchUnifiedCollectionContent(app.mainWindow, 'Series');
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
+            await contentCardByTitle(app.mainWindow, seriesTitle).first().click();
+            await app.mainWindow.waitForURL(/\/workspace\/xtreams\/[^/]+\/series\/[^/]+\/[^/]+$/);
+            await expect(app.mainWindow.locator('app-content-hero')).toContainText(
+                seriesTitle
+            );
+
+            await goBackFromDetail(app.mainWindow);
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toMatch(/\/recent$/);
+            await switchUnifiedCollectionContent(app.mainWindow, 'Series');
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
         } finally {
             await closeElectronApp(app);
         }

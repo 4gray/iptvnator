@@ -279,6 +279,70 @@ test.describe('Electron Favorites', () => {
             await closeElectronApp(app);
         }
     });
+
+    test('opens Stalker favorite movies and series in source detail routes and returns back to favorites', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['stalker']);
+        const vodFixture = await fetchStalkerCategoryFixture(request, 'vod');
+        const seriesFixture = await fetchStalkerCategoryFixture(request, 'series');
+        const [movieTitle] = pickDistinctTitles(vodFixture.items, getStalkerTitle);
+        const [seriesTitle] = pickDistinctTitles(seriesFixture.items, getStalkerTitle);
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await addStalkerPortal(app.mainWindow, {
+                name: 'Stalker Favorite Detail Source',
+            });
+            await waitForStalkerCatalog(app.mainWindow);
+
+            await app.mainWindow.getByRole('link', { name: 'Movies', exact: true }).click();
+            await clickCategoryById(app.mainWindow, vodFixture.categoryId);
+            await clickGridListCardByTitle(app.mainWindow, movieTitle);
+            await addCurrentDetailToFavorites(app.mainWindow);
+            await goBackFromDetail(app.mainWindow);
+
+            await app.mainWindow.getByRole('link', { name: 'Series', exact: true }).click();
+            await clickCategoryById(app.mainWindow, seriesFixture.categoryId);
+            await clickGridListCardByTitle(app.mainWindow, seriesTitle);
+            await addCurrentDetailToFavorites(app.mainWindow);
+            await goBackFromDetail(app.mainWindow);
+
+            await openPlaylistFavorites(app.mainWindow);
+
+            await switchUnifiedCollectionContent(app.mainWindow, 'Movies');
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
+            await contentCardByTitle(app.mainWindow, movieTitle).first().click();
+            await app.mainWindow.waitForURL(/\/workspace\/stalker\/[^/]+\/vod\/[^/]+$/);
+            await expect(app.mainWindow.locator('app-content-hero')).toContainText(
+                movieTitle
+            );
+
+            await goBackFromDetail(app.mainWindow);
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toMatch(/\/favorites$/);
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
+
+            await switchUnifiedCollectionContent(app.mainWindow, 'Series');
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
+            await contentCardByTitle(app.mainWindow, seriesTitle).first().click();
+            await app.mainWindow.waitForURL(/\/workspace\/stalker\/[^/]+\/series\/[^/]+$/);
+            await expect(app.mainWindow.locator('app-content-hero')).toContainText(
+                seriesTitle
+            );
+
+            await goBackFromDetail(app.mainWindow);
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toMatch(/\/favorites$/);
+            await switchUnifiedCollectionContent(app.mainWindow, 'Series');
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
 });
 
 const xtreamCredentials = {
