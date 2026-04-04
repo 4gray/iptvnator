@@ -34,7 +34,7 @@ import {
     WorkspaceSearchCapability,
     WorkspaceStartupPreferencesService,
 } from '@iptvnator/workspace/shell/util';
-import { PlaylistsService, SettingsStore } from 'services';
+import { DownloadsService, PlaylistsService, SettingsStore } from 'services';
 import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
 import { PlaylistMeta } from 'shared-interfaces';
 import {
@@ -61,6 +61,10 @@ interface WorkspaceCommandAvailability {
     dashboardXtreamContext: WorkspacePortalContext | null;
     hasXtreamPlaylists: boolean;
     isElectron: boolean;
+    canRefreshPlaylist: boolean;
+    hasActivePlaylist: boolean;
+    isXtreamPlaylist: boolean;
+    isPortalPlaylist: boolean;
 }
 
 interface WorkspaceCommandDefinition {
@@ -144,6 +148,77 @@ const WORKSPACE_COMMAND_DEFINITIONS: readonly WorkspaceCommandDefinition[] = [
         scope: 'global',
         isEnabled: () => true,
     },
+    {
+        id: 'open-settings',
+        labelKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_SETTINGS_LABEL',
+        descriptionKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_SETTINGS_DESCRIPTION',
+        scope: 'global',
+        isEnabled: () => true,
+    },
+    {
+        id: 'open-sources',
+        labelKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_SOURCES_LABEL',
+        descriptionKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_SOURCES_DESCRIPTION',
+        scope: 'global',
+        isEnabled: () => true,
+    },
+    {
+        id: 'open-dashboard',
+        labelKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_DASHBOARD_LABEL',
+        descriptionKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_DASHBOARD_DESCRIPTION',
+        scope: 'global',
+        isEnabled: () => true,
+    },
+    {
+        id: 'add-playlist',
+        labelKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_LABEL',
+        descriptionKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_DESCRIPTION',
+        scope: 'global',
+        isEnabled: () => true,
+    },
+    {
+        id: 'refresh-playlist',
+        labelKey: 'WORKSPACE.SHELL.COMMANDS.REFRESH_PLAYLIST_LABEL',
+        descriptionKey:
+            'WORKSPACE.SHELL.COMMANDS.REFRESH_PLAYLIST_DESCRIPTION',
+        scope: 'playlist',
+        isEnabled: (state) => state.canRefreshPlaylist,
+    },
+    {
+        id: 'playlist-info',
+        labelKey: 'WORKSPACE.SHELL.COMMANDS.PLAYLIST_INFO_LABEL',
+        descriptionKey: 'WORKSPACE.SHELL.COMMANDS.PLAYLIST_INFO_DESCRIPTION',
+        scope: 'playlist',
+        isEnabled: (state) => state.hasActivePlaylist,
+    },
+    {
+        id: 'account-info',
+        labelKey: 'WORKSPACE.SHELL.COMMANDS.ACCOUNT_INFO_LABEL',
+        descriptionKey: 'WORKSPACE.SHELL.COMMANDS.ACCOUNT_INFO_DESCRIPTION',
+        scope: 'playlist',
+        isEnabled: (state) => state.isXtreamPlaylist,
+    },
+    {
+        id: 'go-to-vod',
+        labelKey: 'WORKSPACE.SHELL.COMMANDS.GO_TO_VOD_LABEL',
+        descriptionKey: 'WORKSPACE.SHELL.COMMANDS.GO_TO_VOD_DESCRIPTION',
+        scope: 'section',
+        isEnabled: (state) => state.isPortalPlaylist,
+    },
+    {
+        id: 'go-to-live',
+        labelKey: 'WORKSPACE.SHELL.COMMANDS.GO_TO_LIVE_LABEL',
+        descriptionKey: 'WORKSPACE.SHELL.COMMANDS.GO_TO_LIVE_DESCRIPTION',
+        scope: 'section',
+        isEnabled: (state) => state.isPortalPlaylist,
+    },
+    {
+        id: 'go-to-series',
+        labelKey: 'WORKSPACE.SHELL.COMMANDS.GO_TO_SERIES_LABEL',
+        descriptionKey: 'WORKSPACE.SHELL.COMMANDS.GO_TO_SERIES_DESCRIPTION',
+        scope: 'section',
+        isEnabled: (state) => state.isPortalPlaylist,
+    },
 ];
 
 @Injectable()
@@ -166,6 +241,10 @@ export class WorkspaceShellFacade {
     readonly headerContext = inject(WorkspaceHeaderContextService);
     private readonly playlistRefreshAction = inject(
         PlaylistRefreshActionService
+    );
+    private readonly downloadsService = inject(DownloadsService);
+    readonly hasActiveDownloads = computed(
+        () => this.isElectron && this.downloadsService.activeCount() > 0
     );
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -916,13 +995,20 @@ export class WorkspaceShellFacade {
     }
 
     private getCommandPaletteItems(): WorkspaceCommandItem[] {
+        const context = this.currentContext();
+        const provider = context?.provider;
         const availability: WorkspaceCommandAvailability = {
-            context: this.currentContext(),
+            context,
             dashboardXtreamContext: this.dashboardXtreamContext(),
             hasXtreamPlaylists: this.playlists().some(
                 (playlist) => !!playlist.serverUrl
             ),
             isElectron: this.isElectron,
+            canRefreshPlaylist: this.canRefreshPlaylist(),
+            hasActivePlaylist: !!this.activePlaylist(),
+            isXtreamPlaylist: provider === 'xtreams',
+            isPortalPlaylist:
+                provider === 'xtreams' || provider === 'stalker',
         };
 
         return WORKSPACE_COMMAND_DEFINITIONS.map((definition) => ({
@@ -961,7 +1047,76 @@ export class WorkspaceShellFacade {
 
         if (selection.commandId === 'open-global-recent') {
             this.openGlobalRecent();
+            return;
         }
+
+        if (selection.commandId === 'open-settings') {
+            void this.router.navigate(['/workspace', 'settings']);
+            return;
+        }
+
+        if (selection.commandId === 'open-sources') {
+            void this.router.navigate(['/workspace', 'sources']);
+            return;
+        }
+
+        if (selection.commandId === 'open-dashboard') {
+            void this.router.navigate(['/workspace', 'dashboard']);
+            return;
+        }
+
+        if (selection.commandId === 'add-playlist') {
+            this.openAddPlaylistDialog();
+            return;
+        }
+
+        if (selection.commandId === 'refresh-playlist') {
+            this.refreshCurrentPlaylist();
+            return;
+        }
+
+        if (selection.commandId === 'playlist-info') {
+            this.openPlaylistInfo();
+            return;
+        }
+
+        if (selection.commandId === 'account-info') {
+            this.openAccountInfo();
+            return;
+        }
+
+        this.navigateToPortalSection(selection.commandId);
+    }
+
+    private navigateToPortalSection(commandId: WorkspaceCommandId): void {
+        const context = this.currentContext();
+        if (!context) {
+            return;
+        }
+
+        const isStalker = context.provider === 'stalker';
+        let section: string;
+
+        switch (commandId) {
+            case 'go-to-vod':
+                section = 'vod';
+                break;
+            case 'go-to-live':
+                section = isStalker ? 'itv' : 'live';
+                break;
+            case 'go-to-series':
+                section = 'series';
+                break;
+            default:
+                return;
+        }
+
+        void this.router.navigate([
+            '/workspace',
+            context.provider,
+            context.playlistId,
+            section,
+        ]);
     }
 
     private openPlaylistSearchFromPalette(query: string): void {

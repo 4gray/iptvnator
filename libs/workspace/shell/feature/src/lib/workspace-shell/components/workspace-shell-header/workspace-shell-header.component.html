@@ -77,7 +77,7 @@
         <span class="header-actions-divider" aria-hidden="true"></span>
         <button
             type="button"
-            class="header-shortcut header-shortcut--global"
+            class="header-shortcut"
             mat-icon-button
             [class.is-active]="isGlobalFavoritesActive()"
             (click)="onGlobalFavoritesRequested()"
@@ -103,17 +103,29 @@
             </button>
         }
         @if (isElectron()) {
-            <button
-                type="button"
-                class="header-shortcut"
-                mat-icon-button
-                [class.is-active]="isDownloadsView()"
-                (click)="onDownloadsRequested()"
-                [matTooltip]="'WORKSPACE.SHELL.RAIL_DOWNLOADS' | translate"
-                [attr.aria-label]="'WORKSPACE.SHELL.OPEN_DOWNLOADS' | translate"
-            >
-                <mat-icon>download</mat-icon>
-            </button>
+            <span class="download-btn-wrap">
+                @if (hasActiveDownloads()) {
+                    <span class="download-activity-bar" aria-hidden="true">
+                        <span class="download-activity-bar__fill"></span>
+                    </span>
+                }
+                <button
+                    type="button"
+                    class="header-shortcut"
+                    mat-icon-button
+                    [class.is-active]="isDownloadsView()"
+                    [class.has-activity]="hasActiveDownloads()"
+                    (click)="onDownloadsRequested()"
+                    [matTooltip]="
+                        'WORKSPACE.SHELL.RAIL_DOWNLOADS' | translate
+                    "
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.OPEN_DOWNLOADS' | translate
+                    "
+                >
+                    <mat-icon>download</mat-icon>
+                </button>
+            </span>
         }
     </div>
 </header>

@@ -10,7 +10,29 @@
     justify-content: center;
 }
 
+.context-inline-status {
+    margin: 0 4px 8px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: color-mix(
+        in srgb,
+        var(--app-selection-surface, var(--mat-sys-surface-container)) 72%,
+        transparent
+    );
+    border: 1px solid
+        color-mix(
+            in srgb,
+            var(--app-selection-border, var(--mat-sys-outline-variant)) 70%,
+            transparent
+        );
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
 .category-item {
+    appearance: none;
+    font: inherit;
     cursor: pointer;
     width: auto;
 
@@ -18,6 +40,45 @@
         opacity: 0.6;
         font-size: 0.85em;
         margin-left: 4px;
+    }
+}
+
+.category-item--disabled,
+.category-item--disabled:hover {
+    cursor: progress;
+    transform: none;
+    box-shadow: none;
+}
+
+.item-count--loading {
+    position: relative;
+    overflow: hidden;
+    width: 22px;
+    height: 10px;
+    border-radius: 999px;
+    background: color-mix(
+        in srgb,
+        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 52%,
+        var(--app-body-color, var(--mat-sys-on-surface-variant)) 48%
+    );
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            100deg,
+            transparent 8%,
+            color-mix(
+                    in srgb,
+                    var(--app-heading-color, var(--mat-sys-on-surface)) 18%,
+                    transparent
+                )
+                44%,
+            transparent 74%
+        );
+        transform: translateX(-120%);
+        animation: context-item-count-shimmer 1.15s ease-in-out infinite;
     }
 }
 
@@ -48,6 +109,12 @@ mat-card-content {
         --error-empty-title-spacing: -0.006em;
         --error-empty-copy-gap: 4px;
         --error-empty-description-opacity: 0.82;
+    }
+}
+
+@keyframes context-item-count-shimmer {
+    100% {
+        transform: translateX(120%);
     }
 }
 

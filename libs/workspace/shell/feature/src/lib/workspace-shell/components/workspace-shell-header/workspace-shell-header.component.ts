@@ -40,6 +40,7 @@ export class WorkspaceShellHeaderComponent {
     readonly isRefreshingPlaylist = input(false);
     readonly isElectron = input(false);
     readonly isDownloadsView = input(false);
+    readonly hasActiveDownloads = input(false);
 
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();

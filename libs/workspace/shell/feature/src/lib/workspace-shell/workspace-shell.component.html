@@ -98,6 +98,7 @@
         [isRefreshingPlaylist]="facade.isRefreshingPlaylist()"
         [isElectron]="facade.isElectron"
         [isDownloadsView]="facade.isDownloadsView()"
+        [hasActiveDownloads]="facade.hasActiveDownloads()"
         (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
         (searchChanged)="facade.onSearchInput($event)"
         (searchSubmitted)="facade.onSearchEnter($event)"
