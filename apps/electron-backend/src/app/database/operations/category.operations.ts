@@ -2,6 +2,17 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import * as schema from 'database-schema';
 import type { AppDatabase } from '../database.types';
 
+type XtreamCategoryInput = {
+    category_name: string;
+    category_id: string | number;
+};
+
+function normalizeXtreamCategoryId(rawCategoryId: string | number): number | null {
+    const xtreamId = Number.parseInt(String(rawCategoryId), 10);
+
+    return Number.isNaN(xtreamId) ? null : xtreamId;
+}
+
 export async function hasCategories(
     db: AppDatabase,
     playlistId: string,
@@ -41,10 +52,7 @@ export async function getCategories(
 export async function saveCategories(
     db: AppDatabase,
     playlistId: string,
-    categories: Array<{
-        category_name: string;
-        category_id: number;
-    }>,
+    categories: XtreamCategoryInput[],
     type: 'live' | 'movies' | 'series',
     hiddenCategoryXtreamIds?: number[]
 ): Promise<{ success: boolean }> {
@@ -67,13 +75,27 @@ export async function saveCategories(
     }
 
     const hiddenSet = new Set(hiddenCategoryXtreamIds || []);
-    const values = categories.map((category) => ({
-        playlistId,
-        name: category.category_name,
-        type,
-        xtreamId: category.category_id,
-        hidden: hiddenSet.has(category.category_id),
-    }));
+    const values = categories.flatMap((category) => {
+        const xtreamId = normalizeXtreamCategoryId(category.category_id);
+
+        if (xtreamId === null) {
+            return [];
+        }
+
+        return [
+            {
+                playlistId,
+                name: category.category_name,
+                type,
+                xtreamId,
+                hidden: hiddenSet.has(xtreamId),
+            },
+        ];
+    });
+
+    if (values.length === 0) {
+        return { success: true };
+    }
 
     await db
         .insert(schema.categories)

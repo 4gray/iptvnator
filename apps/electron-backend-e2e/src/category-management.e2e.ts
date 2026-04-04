@@ -116,6 +116,77 @@ test.describe('Electron Xtream Category Management', () => {
             await closeElectronApp(app);
         }
     });
+
+    test('persists hidden selections after refreshing from the workspace header', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const portalName = 'Header Refresh Xtream';
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await addXtreamPortal(app.mainWindow, {
+                name: portalName,
+            });
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+            await openWorkspaceSection(app.mainWindow, 'Live TV');
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/live/
+            );
+
+            const targetCategory = await pickSidebarCategory(app.mainWindow);
+            const dialog = await openManageCategoriesDialog(app.mainWindow);
+
+            await dialog
+                .getByRole('button', {
+                    name: 'Deselect All',
+                    exact: true,
+                })
+                .click();
+            await expect(
+                dialog.locator('.category-item mat-checkbox input:checked')
+            ).toHaveCount(0);
+
+            await dialog.locator('.search-field input').fill(targetCategory.name);
+            await toggleManagedCategory(dialog, targetCategory, true);
+            await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+            await app.mainWindow.waitForSelector('mat-dialog-container', {
+                state: 'detached',
+            });
+
+            await expect(
+                sidebarCategoryById(app.mainWindow, targetCategory.id)
+            ).toBeVisible();
+
+            await refreshFromWorkspaceHeader(app.mainWindow);
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+            await openWorkspaceSection(app.mainWindow, 'Live TV');
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/live/
+            );
+            await expectVisibleSidebarCategoryIds(app.mainWindow, [
+                targetCategory.id,
+            ]);
+
+            const restarted = await restartElectronApp(app, dataDir);
+            app.electronApp = restarted.electronApp;
+            app.mainWindow = restarted.mainWindow;
+
+            await openSources(app.mainWindow);
+            await sourceRowByTitle(app.mainWindow, portalName).first().click();
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+            await openWorkspaceSection(app.mainWindow, 'Live TV');
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/live/
+            );
+            await expectVisibleSidebarCategoryIds(app.mainWindow, [
+                targetCategory.id,
+            ]);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
 });
 
 async function openManageCategoriesDialog(page: Page) {
@@ -134,10 +205,44 @@ async function openManageCategoriesDialog(page: Page) {
     return dialog;
 }
 
+async function refreshFromWorkspaceHeader(page: Page): Promise<void> {
+    await page
+        .getByRole('button', { name: 'Refresh playlist', exact: true })
+        .click();
+
+    const dialog = page.locator('mat-dialog-container');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Yes', exact: true }).click();
+    await page.waitForSelector('mat-dialog-container', { state: 'detached' });
+}
+
 function sidebarCategoryById(page: Page, categoryId: string): Locator {
     return page.locator(
         `app-workspace-context-panel .category-item[data-category-id="${categoryId}"]`
     );
+}
+
+async function expectVisibleSidebarCategoryIds(
+    page: Page,
+    expectedIds: string[]
+): Promise<void> {
+    const categories = page.locator(
+        'app-workspace-context-panel .category-item:visible'
+    );
+    const actualIds: string[] = [];
+    const count = await categories.count();
+
+    for (let index = 0; index < count; index += 1) {
+        const categoryId = await categories
+            .nth(index)
+            .getAttribute('data-category-id');
+
+        if (categoryId) {
+            actualIds.push(categoryId.trim());
+        }
+    }
+
+    expect(actualIds).toEqual(expectedIds);
 }
 
 async function pickSidebarCategory(
