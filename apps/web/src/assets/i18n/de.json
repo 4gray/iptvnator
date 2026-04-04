@@ -491,6 +491,9 @@
         "REMOVE": "Entfernen",
         "PLAY": "Abspielen",
         "REVEAL": "Im Ordner anzeigen",
+        "COPY_URL": "Download-URL kopieren",
+        "URL_COPIED": "Download-URL in die Zwischenablage kopiert",
+        "URL_COPY_FAILED": "URL konnte nicht kopiert werden",
         "STATUS": {
             "QUEUED": "In Warteschlange",
             "DOWNLOADING": "Wird heruntergeladen",
@@ -674,7 +677,27 @@
                 "OPEN_DOWNLOADS_LABEL": "Downloads öffnen",
                 "OPEN_DOWNLOADS_DESCRIPTION": "Zur Download-Ansicht wechseln",
                 "OPEN_GLOBAL_RECENT_LABEL": "Zuletzt angesehen öffnen",
-                "OPEN_GLOBAL_RECENT_DESCRIPTION": "Globale Zuletzt-angesehen-Seite öffnen"
+                "OPEN_GLOBAL_RECENT_DESCRIPTION": "Globale Zuletzt-angesehen-Seite öffnen",
+                "OPEN_SETTINGS_LABEL": "Einstellungen öffnen",
+                "OPEN_SETTINGS_DESCRIPTION": "Zu den Anwendungseinstellungen",
+                "OPEN_SOURCES_LABEL": "Quellen verwalten",
+                "OPEN_SOURCES_DESCRIPTION": "Zur Quellenverwaltung",
+                "OPEN_DASHBOARD_LABEL": "Dashboard öffnen",
+                "OPEN_DASHBOARD_DESCRIPTION": "Zum Dashboard navigieren",
+                "ADD_PLAYLIST_LABEL": "Neue Quelle hinzufügen",
+                "ADD_PLAYLIST_DESCRIPTION": "Dialog zum Hinzufügen öffnen",
+                "REFRESH_PLAYLIST_LABEL": "Playlist aktualisieren",
+                "REFRESH_PLAYLIST_DESCRIPTION": "Daten von der Quelle neu laden",
+                "PLAYLIST_INFO_LABEL": "Playlist-Details",
+                "PLAYLIST_INFO_DESCRIPTION": "Aktuelle Playlist-Informationen anzeigen",
+                "ACCOUNT_INFO_LABEL": "Kontoinformationen",
+                "ACCOUNT_INFO_DESCRIPTION": "Xtream-Server-Kontodaten anzeigen",
+                "GO_TO_VOD_LABEL": "Filme",
+                "GO_TO_VOD_DESCRIPTION": "Zum Filmbereich wechseln",
+                "GO_TO_LIVE_LABEL": "Live-TV",
+                "GO_TO_LIVE_DESCRIPTION": "Zum Live-TV-Bereich wechseln",
+                "GO_TO_SERIES_LABEL": "Serien",
+                "GO_TO_SERIES_DESCRIPTION": "Zum Serienbereich wechseln"
             }
         },
         "SOURCES": {
@@ -694,6 +717,9 @@
             "MOVIE_CATEGORIES": "Filmkategorien",
             "SERIES_CATEGORIES": "Serienkategorien",
             "LIVE_CATEGORIES": "Live-Kategorien",
+            "XTREAM_SYNCING_MOVIES": "Filmkategorien werden synchronisiert...",
+            "XTREAM_SYNCING_SERIES": "Serienkategorien werden synchronisiert...",
+            "XTREAM_SYNCING_LIVE": "Live-Kategorien werden synchronisiert...",
             "XTREAM_SOURCE": "Xtream-Quelle",
             "STALKER_PORTAL": "Stalker-Portal",
             "MANAGE_CATEGORIES": "Kategorien verwalten",
@@ -701,7 +727,9 @@
             "LOAD_CATEGORIES_ERROR_HINT": "Bitte erneut versuchen oder die Portal-Einstellungen prüfen.",
             "FILTER_BY_TYPE": "Nach Typ filtern",
             "ITEM_COUNT_ONE": "1 Element",
-            "ITEM_COUNT_OTHER": "{{count}} Elemente"
+            "ITEM_COUNT_OTHER": "{{count}} Elemente",
+            "SEARCH": "Suchen",
+            "SEARCH_CATEGORIES": "Kategorien suchen"
         },
         "COMMAND_PALETTE": {
             "TITLE": "Befehlspalette",

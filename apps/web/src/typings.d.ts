@@ -13,6 +13,7 @@ import {
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
     PortalDebugEvent,
+    XtreamCategory,
 } from 'shared-interfaces';
 import {
     DbOperationEvent,
@@ -191,7 +192,7 @@ declare global {
             ) => Promise<XCategoryFromDb[]>;
             dbSaveCategories: (
                 playlistId: string,
-                categories: XCategoryFromDb[],
+                categories: XtreamCategory[],
                 type: string,
                 hiddenCategoryXtreamIds?: number[]
             ) => Promise<{ success: boolean }>;

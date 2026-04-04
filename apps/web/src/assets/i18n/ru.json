@@ -474,7 +474,10 @@
         },
         "SOURCE_PLAYLIST_MISSING": "Эту загрузку больше нельзя открыть в библиотеке, потому что исходный плейлист был удален.",
         "FILE_NOT_FOUND": "Этот загруженный файл больше недоступен на диске.",
-        "FILE_ACTION_ERROR": "Не удалось выполнить действие с файлом."
+        "FILE_ACTION_ERROR": "Не удалось выполнить действие с файлом.",
+        "COPY_URL": "Копировать URL загрузки",
+        "URL_COPIED": "URL загрузки скопирован в буфер обмена",
+        "URL_COPY_FAILED": "Не удалось скопировать URL"
     },
     "REMOTE_CONTROL": {
         "TITLE": "Дистанционное управление",
@@ -651,7 +654,27 @@
                 "OPEN_DOWNLOADS_LABEL": "Открыть загрузки",
                 "OPEN_DOWNLOADS_DESCRIPTION": "Перейти к представлению загрузок",
                 "OPEN_GLOBAL_RECENT_LABEL": "Открыть недавно просмотренные",
-                "OPEN_GLOBAL_RECENT_DESCRIPTION": "Открыть глобальную страницу недавно просмотренного"
+                "OPEN_GLOBAL_RECENT_DESCRIPTION": "Открыть глобальную страницу недавно просмотренного",
+                "OPEN_SETTINGS_LABEL": "Открыть настройки",
+                "OPEN_SETTINGS_DESCRIPTION": "Перейти к настройкам приложения",
+                "OPEN_SOURCES_LABEL": "Управление источниками",
+                "OPEN_SOURCES_DESCRIPTION": "Перейти к управлению источниками",
+                "OPEN_DASHBOARD_LABEL": "Открыть панель",
+                "OPEN_DASHBOARD_DESCRIPTION": "Перейти к панели управления",
+                "ADD_PLAYLIST_LABEL": "Добавить источник",
+                "ADD_PLAYLIST_DESCRIPTION": "Открыть диалог добавления плейлиста",
+                "REFRESH_PLAYLIST_LABEL": "Обновить плейлист",
+                "REFRESH_PLAYLIST_DESCRIPTION": "Синхронизировать данные с источника",
+                "PLAYLIST_INFO_LABEL": "Сведения о плейлисте",
+                "PLAYLIST_INFO_DESCRIPTION": "Показать информацию о текущем плейлисте",
+                "ACCOUNT_INFO_LABEL": "Информация об аккаунте",
+                "ACCOUNT_INFO_DESCRIPTION": "Показать данные аккаунта Xtream",
+                "GO_TO_VOD_LABEL": "Фильмы",
+                "GO_TO_VOD_DESCRIPTION": "Перейти к разделу фильмов",
+                "GO_TO_LIVE_LABEL": "Прямой эфир",
+                "GO_TO_LIVE_DESCRIPTION": "Перейти к разделу ТВ",
+                "GO_TO_SERIES_LABEL": "Сериалы",
+                "GO_TO_SERIES_DESCRIPTION": "Перейти к разделу сериалов"
             }
         },
         "SOURCES": {
@@ -671,6 +694,9 @@
             "MOVIE_CATEGORIES": "Категории фильмов",
             "SERIES_CATEGORIES": "Категории сериалов",
             "LIVE_CATEGORIES": "Категории ТВ",
+            "XTREAM_SYNCING_MOVIES": "Синхронизация категорий фильмов...",
+            "XTREAM_SYNCING_SERIES": "Синхронизация категорий сериалов...",
+            "XTREAM_SYNCING_LIVE": "Синхронизация категорий ТВ...",
             "XTREAM_SOURCE": "Xtream источник",
             "STALKER_PORTAL": "Портал Stalker",
             "MANAGE_CATEGORIES": "Управлять категориями",
@@ -678,7 +704,9 @@
             "LOAD_CATEGORIES_ERROR_HINT": "Повторите попытку или проверьте настройки портала.",
             "FILTER_BY_TYPE": "Фильтр по типу",
             "ITEM_COUNT_ONE": "1 элемент",
-            "ITEM_COUNT_OTHER": "{{count}} элементов"
+            "ITEM_COUNT_OTHER": "{{count}} элементов",
+            "SEARCH": "Поиск",
+            "SEARCH_CATEGORIES": "Поиск категорий"
         },
         "COMMAND_PALETTE": {
             "TITLE": "Палитра команд",

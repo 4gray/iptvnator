@@ -3,6 +3,7 @@ import type {
     ExternalPlayerSession,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
+    XtreamCategory,
 } from 'shared-interfaces';
 
 const PORTAL_DEBUG_EVENT = 'PORTAL_DEBUG_EVENT';
@@ -298,7 +299,7 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('DB_GET_CATEGORIES', playlistId, type),
     dbSaveCategories: (
         playlistId: string,
-        categories: any[],
+        categories: XtreamCategory[],
         type: string,
         hiddenCategoryXtreamIds?: number[]
     ) =>

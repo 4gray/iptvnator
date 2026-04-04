@@ -561,6 +561,9 @@
         "REMOVE": "Remove",
         "PLAY": "Play",
         "REVEAL": "Show in Folder",
+        "COPY_URL": "Copy download URL",
+        "URL_COPIED": "Download URL copied to clipboard",
+        "URL_COPY_FAILED": "Failed to copy URL to clipboard",
         "STATUS": {
             "QUEUED": "Queued",
             "DOWNLOADING": "Downloading",
@@ -745,7 +748,27 @@
                 "OPEN_DOWNLOADS_LABEL": "Open downloads",
                 "OPEN_DOWNLOADS_DESCRIPTION": "Navigate to downloads view",
                 "OPEN_GLOBAL_RECENT_LABEL": "Open recently viewed",
-                "OPEN_GLOBAL_RECENT_DESCRIPTION": "Open global recently viewed page"
+                "OPEN_GLOBAL_RECENT_DESCRIPTION": "Open global recently viewed page",
+                "OPEN_SETTINGS_LABEL": "Open settings",
+                "OPEN_SETTINGS_DESCRIPTION": "Navigate to application settings",
+                "OPEN_SOURCES_LABEL": "Manage sources",
+                "OPEN_SOURCES_DESCRIPTION": "Navigate to source management",
+                "OPEN_DASHBOARD_LABEL": "Open dashboard",
+                "OPEN_DASHBOARD_DESCRIPTION": "Navigate to the dashboard",
+                "ADD_PLAYLIST_LABEL": "Add new source",
+                "ADD_PLAYLIST_DESCRIPTION": "Open add playlist dialog",
+                "REFRESH_PLAYLIST_LABEL": "Refresh playlist",
+                "REFRESH_PLAYLIST_DESCRIPTION": "Re-sync data from remote source",
+                "PLAYLIST_INFO_LABEL": "Playlist details",
+                "PLAYLIST_INFO_DESCRIPTION": "Show current playlist information",
+                "ACCOUNT_INFO_LABEL": "Account info",
+                "ACCOUNT_INFO_DESCRIPTION": "Show Xtream server account details",
+                "GO_TO_VOD_LABEL": "Movies",
+                "GO_TO_VOD_DESCRIPTION": "Jump to movies section",
+                "GO_TO_LIVE_LABEL": "Live TV",
+                "GO_TO_LIVE_DESCRIPTION": "Jump to live TV section",
+                "GO_TO_SERIES_LABEL": "Series",
+                "GO_TO_SERIES_DESCRIPTION": "Jump to series section"
             }
         },
         "SOURCES": {
@@ -765,6 +788,9 @@
             "MOVIE_CATEGORIES": "Movie Categories",
             "SERIES_CATEGORIES": "Series Categories",
             "LIVE_CATEGORIES": "Live Categories",
+            "XTREAM_SYNCING_MOVIES": "Syncing movie categories...",
+            "XTREAM_SYNCING_SERIES": "Syncing series categories...",
+            "XTREAM_SYNCING_LIVE": "Syncing live categories...",
             "XTREAM_SOURCE": "Xtream source",
             "STALKER_PORTAL": "Stalker portal",
             "MANAGE_CATEGORIES": "Manage categories",
@@ -772,7 +798,9 @@
             "LOAD_CATEGORIES_ERROR_HINT": "Please retry or verify portal settings.",
             "FILTER_BY_TYPE": "Filter by type",
             "ITEM_COUNT_ONE": "1 item",
-            "ITEM_COUNT_OTHER": "{{count}} items"
+            "ITEM_COUNT_OTHER": "{{count}} items",
+            "SEARCH": "Search",
+            "SEARCH_CATEGORIES": "Search categories"
         },
         "COMMAND_PALETTE": {
             "TITLE": "Command palette",
