@@ -90,19 +90,20 @@ export class PlaylistRefreshActionService {
                         }),
                     ]);
 
+                    const restoreKey = `xtream-restore-${item._id}`;
+                    const restorePayload = {
+                        favoritedXtreamIds,
+                        recentlyViewedXtreamIds,
+                        hiddenCategories,
+                    };
+                    localStorage.setItem(
+                        restoreKey,
+                        JSON.stringify(restorePayload)
+                    );
+
                     this.store.dispatch(
                         PlaylistActions.updatePlaylistMeta({
                             playlist: { ...item, updateDate },
-                        })
-                    );
-
-                    const restoreKey = `xtream-restore-${item._id}`;
-                    localStorage.setItem(
-                        restoreKey,
-                        JSON.stringify({
-                            favoritedXtreamIds,
-                            recentlyViewedXtreamIds,
-                            hiddenCategories,
                         })
                     );
 
