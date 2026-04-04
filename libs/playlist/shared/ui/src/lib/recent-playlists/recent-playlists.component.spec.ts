@@ -288,6 +288,53 @@ describe('RecentPlaylistsComponent busy state', () => {
         expect(router.navigate).not.toHaveBeenCalled();
     });
 
+    it('dispatches playlist meta with updateDate after Xtream refresh setup succeeds', async () => {
+        const item = createPlaylistMeta({ _id: 'playlist-refresh-success-1' });
+        let confirmPromise: Promise<void> | undefined;
+        const dateNowSpy = jest
+            .spyOn(Date, 'now')
+            .mockReturnValue(1712145600000);
+
+        dialogService.openConfirmDialog.mockImplementation(
+            ({ onConfirm }: { onConfirm?: () => Promise<void> }) => {
+                confirmPromise = onConfirm?.();
+            }
+        );
+        databaseService.deleteXtreamPlaylistContent.mockResolvedValue({
+            success: true,
+            favoritedXtreamIds: [101, 202],
+            recentlyViewedXtreamIds: [
+                {
+                    xtreamId: 303,
+                    viewedAt: '2026-04-03T11:15:00.000Z',
+                },
+            ],
+            hiddenCategories: [{ xtreamId: 404, type: 'live' }],
+        });
+
+        component.refreshXtreamPlaylist(item);
+        await confirmPromise;
+
+        expect(databaseService.updateXtreamPlaylistDetails).toHaveBeenCalledWith(
+            {
+                id: item._id,
+                updateDate: 1712145600000,
+            }
+        );
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: { ...item, updateDate: 1712145600000 },
+            })
+        );
+        expect(router.navigate).toHaveBeenCalledWith([
+            '/workspace',
+            'xtreams',
+            item._id,
+        ]);
+
+        dateNowSpy.mockRestore();
+    });
+
     it('uses the legacy IPC refresh flow for non-Xtream playlists', () => {
         const item = createPlaylistMeta({
             _id: 'playlist-m3u-1',

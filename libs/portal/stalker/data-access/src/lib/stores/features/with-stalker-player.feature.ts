@@ -58,6 +58,10 @@ interface StalkerResponse {
  */
 export function withStalkerPlayer() {
     const logger = createLogger('withStalkerPlayer');
+    const resolveCategoryId = (value: unknown, fallback: string): string => {
+        const normalized = String(value ?? '').trim();
+        return normalized || fallback;
+    };
     return signalStoreFeature(
         withMethods(
             (
@@ -404,7 +408,10 @@ export function withStalkerPlayer() {
                         cmd,
                         cover,
                         title,
-                        category_id: storeState.selectedContentType(),
+                        category_id: resolveCategoryId(
+                            item.category_id,
+                            storeState.selectedContentType()
+                        ),
                         added_at: Date.now(),
                     };
                     playlistService

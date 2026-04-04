@@ -1,6 +1,7 @@
 import { VodDetailsItem } from 'shared-interfaces';
 import { StalkerFavoriteItem } from './models';
 import {
+    buildStalkerFavoritePayload,
     createStalkerInlineDetailState,
     createStalkerDetailViewState,
     normalizeStalkerFavoriteItem,
@@ -108,6 +109,32 @@ describe('stalker-vod.utils regressions', () => {
         );
         expect(removeFromFavorites).toHaveBeenCalledTimes(1);
         expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves the concrete category id in favorite payloads', () => {
+        expect(
+            buildStalkerFavoritePayload({
+                id: '42',
+                cmd: '/media/file_42.mpg',
+                info: {
+                    name: 'Movie',
+                    movie_image: '',
+                    description: '',
+                    actors: '',
+                    director: '',
+                    releasedate: '',
+                    genre: '',
+                    rating_imdb: '',
+                    rating_kinopoisk: '',
+                },
+                category_id: '17',
+            } as unknown as Parameters<typeof buildStalkerFavoritePayload>[0])
+        ).toEqual(
+            expect.objectContaining({
+                id: '42',
+                category_id: '17',
+            })
+        );
     });
 
     it('normalizes nested favorite details for the shared inline detail shell', () => {

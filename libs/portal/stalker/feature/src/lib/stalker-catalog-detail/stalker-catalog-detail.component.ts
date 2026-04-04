@@ -7,8 +7,10 @@ import {
     signal,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
+    getStalkerReturnToState,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -63,6 +65,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     private readonly catalog = inject(StalkerCatalogFacadeService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly router = inject(Router);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
@@ -206,8 +209,13 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     }
 
     onVodBack(): void {
+        const returnTo = getStalkerReturnToState(window.history.state);
         this.closeInlinePlayer();
         this.catalog.clearSelectedItem();
+
+        if (returnTo) {
+            void this.router.navigateByUrl(returnTo);
+        }
     }
 
     handleInlineTimeUpdate(event: {

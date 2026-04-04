@@ -43,6 +43,31 @@ const initialPortalState: PortalState = {
  */
 export function withPortal() {
     const logger = createLogger('withPortal');
+
+    const resolvePortalStatus = (response: {
+        user_info?: {
+            exp_date?: string;
+            status?: string;
+        };
+    } | null): PortalStatusType => {
+        if (!response?.user_info?.status) {
+            return 'unavailable';
+        }
+
+        if (response.user_info.status === 'Active') {
+            if (!response.user_info.exp_date) {
+                return 'active';
+            }
+
+            const expDate = new Date(
+                parseInt(response.user_info.exp_date, 10) * 1000
+            );
+            return expDate < new Date() ? 'expired' : 'active';
+        }
+
+        return 'inactive';
+    };
+
     return signalStoreFeature(
         withState<PortalState>(initialPortalState),
 
@@ -98,11 +123,11 @@ export function withPortal() {
                 /**
                  * Check portal status via API
                  */
-                async checkPortalStatus(): Promise<void> {
+                async checkPortalStatus(): Promise<PortalStatusType> {
                     const playlist = store.currentPlaylist();
                     if (!playlist) {
                         patchState(store, { portalStatus: 'unavailable' });
-                        return;
+                        return 'unavailable';
                     }
 
                     const credentials: XtreamCredentials = {
@@ -114,32 +139,13 @@ export function withPortal() {
                     try {
                         const response =
                             await apiService.getAccountInfo(credentials);
-
-                        if (!response?.user_info?.status) {
-                            patchState(store, { portalStatus: 'unavailable' });
-                            return;
-                        }
-
-                        if (response.user_info.status === 'Active') {
-                            if (!response.user_info.exp_date) {
-                                patchState(store, { portalStatus: 'active' });
-                                return;
-                            }
-
-                            const expDate = new Date(
-                                parseInt(response.user_info.exp_date, 10) * 1000
-                            );
-                            if (expDate < new Date()) {
-                                patchState(store, { portalStatus: 'expired' });
-                            } else {
-                                patchState(store, { portalStatus: 'active' });
-                            }
-                        } else {
-                            patchState(store, { portalStatus: 'inactive' });
-                        }
+                        const portalStatus = resolvePortalStatus(response);
+                        patchState(store, { portalStatus });
+                        return portalStatus;
                     } catch (error) {
                         logger.error('Error checking portal status', error);
                         patchState(store, { portalStatus: 'unavailable' });
+                        return 'unavailable';
                     }
                 },
 

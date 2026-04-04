@@ -19,6 +19,13 @@ export type PortalStatusType =
     | 'expired'
     | 'unavailable';
 
+export type XtreamContentInitBlockReason =
+    | 'cancelled'
+    | 'expired'
+    | 'inactive'
+    | 'unavailable'
+    | 'error';
+
 export interface XtreamPortalStatus {
     status: 'active' | 'inactive' | 'expired' | 'unavailable';
     message?: string;
@@ -46,6 +53,7 @@ export interface XtreamState {
     epgItems: EpgItem[];
     hideExternalInfoDialog: boolean;
     portalStatus: PortalStatusType;
+    contentInitBlockReason: XtreamContentInitBlockReason | null;
     globalSearchResults: GlobalSearchResult[];
     streamUrl: string;
     playlistId: string | null;

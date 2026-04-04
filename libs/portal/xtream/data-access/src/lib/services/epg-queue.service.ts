@@ -26,10 +26,12 @@ export class EpgQueueService implements OnDestroy {
     private readonly inFlight = new Set<number>();
     private visibleSet = new Set<number>();
     private processing = false;
+    private readonly failureTimestamps = new Map<number, number>();
 
     private readonly maxConcurrency = 2;
     private readonly delayMs = 200;
     private readonly cacheTtlMs = 5 * 60 * 1000; // 5 minutes
+    private readonly failureCooldownMs = 60 * 1000;
 
     /** Emits EPG results as they arrive. */
     readonly epgResult$ = new Subject<{ streamId: number; items: EpgItem[] }>();
@@ -43,6 +45,28 @@ export class EpgQueueService implements OnDestroy {
             return null;
         }
         return entry.data;
+    }
+
+    private isFailureCoolingDown(streamId: number): boolean {
+        const timestamp = this.failureTimestamps.get(streamId);
+        if (timestamp == null) {
+            return false;
+        }
+
+        if (Date.now() - timestamp > this.failureCooldownMs) {
+            this.failureTimestamps.delete(streamId);
+            return false;
+        }
+
+        return true;
+    }
+
+    private shouldFetch(streamId: number): boolean {
+        return (
+            this.getCached(streamId) === null &&
+            !this.isFailureCoolingDown(streamId) &&
+            !this.inFlight.has(streamId)
+        );
     }
 
     /**
@@ -60,9 +84,7 @@ export class EpgQueueService implements OnDestroy {
         this.visibleSet = visibleIds;
 
         const toFetch = streamIds.filter(
-            (id) =>
-                !this.getCached(id) &&
-                !this.inFlight.has(id)
+            (id) => this.shouldFetch(id)
         );
 
         // Replace the queue – any previously queued but now-invisible IDs
@@ -92,8 +114,8 @@ export class EpgQueueService implements OnDestroy {
             // Drop stale entries that are no longer visible
             if (!this.visibleSet.has(streamId)) continue;
 
-            // Skip if it got cached while queued (e.g. duplicate)
-            if (this.getCached(streamId)) continue;
+            // Skip if it got cached or cooled down while queued (e.g. duplicate/failure)
+            if (!this.shouldFetch(streamId)) continue;
 
             this.inFlight.add(streamId);
             this.fetchEpg(credentials, streamId);
@@ -113,18 +135,19 @@ export class EpgQueueService implements OnDestroy {
             const items = await this.apiService.getShortEpg(
                 credentials,
                 streamId,
-                this.previewLimit
+                this.previewLimit,
+                {
+                    suppressErrorLog: true,
+                }
             );
-            if (items.length > 0) {
-                this.cache.set(streamId, {
-                    data: items,
-                    timestamp: Date.now(),
-                });
-            } else {
-                this.cache.delete(streamId);
-            }
+            this.cache.set(streamId, {
+                data: items,
+                timestamp: Date.now(),
+            });
+            this.failureTimestamps.delete(streamId);
             this.epgResult$.next({ streamId, items });
         } catch (error) {
+            this.failureTimestamps.set(streamId, Date.now());
             this.logger.error(
                 `Failed to load EPG for stream ${streamId}`,
                 error

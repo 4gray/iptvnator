@@ -12,7 +12,10 @@ import {
     PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
+    clearNavigationStateKeys,
+    getOpenStalkerItemState,
     PortalCatalogFacade,
+    OPEN_STALKER_ITEM_STATE_KEY,
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
     PortalCatalogSortMode,
@@ -89,6 +92,7 @@ export class CategoryContentViewComponent implements OnInit {
     ngOnInit(): void {
         const { categoryId } = this.activatedRoute.snapshot.params;
         this.catalog.initialize(categoryId ?? null);
+        this.openStalkerItemFromNavigationState();
     }
 
     onPageChange(event: PageEvent): void {
@@ -103,5 +107,23 @@ export class CategoryContentViewComponent implements OnInit {
                 relativeTo: this.activatedRoute,
             });
         }
+    }
+
+    private openStalkerItemFromNavigationState(): void {
+        if (this.catalog.provider !== 'stalker') {
+            return;
+        }
+
+        const item = getOpenStalkerItemState(window.history.state);
+        if (!item) {
+            return;
+        }
+
+        this.catalog.selectItem(item as CategoryContentItem);
+        clearNavigationStateKeys([
+            OPEN_STALKER_ITEM_STATE_KEY,
+            'openFavoriteItem',
+            'openRecentItem',
+        ]);
     }
 }

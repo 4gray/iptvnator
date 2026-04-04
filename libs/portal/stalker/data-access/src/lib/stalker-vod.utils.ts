@@ -73,9 +73,14 @@ export function isStalkerSeriesItem(item: {
 export function buildStalkerFavoritePayload(
     data: StalkerVodDetails
 ): Record<string, unknown> {
+    const categoryId = String(
+        (data as StalkerVodDetails & { category_id?: string | number })
+            .category_id ?? 'vod'
+    ).trim();
+
     return {
         ...data,
-        category_id: 'vod',
+        category_id: categoryId || 'vod',
         title: data.info?.name,
         cover: data.info?.movie_image,
         added_at: new Date().toISOString(),

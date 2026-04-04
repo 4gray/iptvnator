@@ -96,6 +96,10 @@ export const XtreamStore = signalStore(
                 // Clear the session cache for the playlist we're leaving so
                 // stale data cannot bleed into the new playlist (PWA path).
                 const leavingPlaylistId = store.playlistId();
+                const preserveCancelledBlock =
+                    Boolean(newPlaylistId) &&
+                    leavingPlaylistId === newPlaylistId &&
+                    store.contentInitBlockReason() === 'cancelled';
                 if (leavingPlaylistId) {
                     dataSource.clearSessionCache(leavingPlaylistId);
                 }
@@ -109,6 +113,10 @@ export const XtreamStore = signalStore(
 
                 if (newPlaylistId) {
                     store.setPlaylistId(newPlaylistId);
+                }
+
+                if (preserveCancelledBlock) {
+                    store.setContentInitBlockReason('cancelled');
                 }
             },
 

@@ -12,6 +12,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import {
     CollectionContentType,
     getUnifiedCollectionNavigation,
+    STALKER_RETURN_TO_STATE_KEY,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import { ContentCardComponent } from '../content-card/content-card.component';
@@ -51,8 +52,16 @@ export class UnifiedGridTabComponent {
             return;
         }
 
+        const state =
+            item.sourceType === 'stalker' && item.contentType !== 'live'
+                ? {
+                      ...(navigation.state ?? {}),
+                      [STALKER_RETURN_TO_STATE_KEY]: this.router.url,
+                  }
+                : navigation.state;
+
         void this.router.navigate(navigation.link, {
-            state: navigation.state,
+            state,
         });
     }
 

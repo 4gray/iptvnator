@@ -32,6 +32,12 @@ export type CategoryType = 'live' | 'vod' | 'series';
  */
 export type StreamType = 'live' | 'movie' | 'series';
 
+export interface XtreamRequestOptions {
+    requestId?: string;
+    sessionId?: string;
+    suppressErrorLog?: boolean;
+}
+
 /**
  * Raw EPG listing from API (before decoding)
  */
@@ -60,11 +66,26 @@ interface EpgResponse {
 export class XtreamApiService {
     private readonly dataService = inject(DataService);
 
+    async cancelSession(sessionId: string): Promise<boolean> {
+        if (!sessionId || typeof window.electron?.xtreamCancelSession !== 'function') {
+            return false;
+        }
+
+        try {
+            const result = await window.electron.xtreamCancelSession(sessionId);
+            return result.success;
+        } catch (error) {
+            console.error('Failed to cancel Xtream session:', error);
+            return false;
+        }
+    }
+
     /**
      * Get account/portal status
      */
     async getAccountInfo(
-        credentials: XtreamCredentials
+        credentials: XtreamCredentials,
+        options?: XtreamRequestOptions
     ): Promise<XtreamAccountInfo> {
         return this.sendRequest(
             credentials.serverUrl,
@@ -72,7 +93,8 @@ export class XtreamApiService {
                 username: credentials.username,
                 password: credentials.password,
                 action: XtreamCodeActions.GetAccountInfo,
-            }
+            },
+            options
         );
     }
 
@@ -81,7 +103,8 @@ export class XtreamApiService {
      */
     async getCategories(
         credentials: XtreamCredentials,
-        type: CategoryType
+        type: CategoryType,
+        options?: XtreamRequestOptions
     ): Promise<XtreamCategory[]> {
         const actionMap: Record<CategoryType, XtreamCodeActions> = {
             live: XtreamCodeActions.GetLiveCategories,
@@ -95,7 +118,8 @@ export class XtreamApiService {
                 action: actionMap[type],
                 username: credentials.username,
                 password: credentials.password,
-            }
+            },
+            options
         );
 
         return Array.isArray(response) ? response : [];
@@ -105,7 +129,8 @@ export class XtreamApiService {
      * Get live streams
      */
     async getLiveStreams(
-        credentials: XtreamCredentials
+        credentials: XtreamCredentials,
+        options?: XtreamRequestOptions
     ): Promise<XtreamLiveStream[]> {
         const response = await this.sendRequest(
             credentials.serverUrl,
@@ -113,7 +138,8 @@ export class XtreamApiService {
                 action: XtreamCodeActions.GetLiveStreams,
                 username: credentials.username,
                 password: credentials.password,
-            }
+            },
+            options
         );
 
         return Array.isArray(response) ? response : [];
@@ -123,7 +149,8 @@ export class XtreamApiService {
      * Get VOD streams
      */
     async getVodStreams(
-        credentials: XtreamCredentials
+        credentials: XtreamCredentials,
+        options?: XtreamRequestOptions
     ): Promise<XtreamVodStream[]> {
         const response = await this.sendRequest(
             credentials.serverUrl,
@@ -131,7 +158,8 @@ export class XtreamApiService {
                 action: XtreamCodeActions.GetVodStreams,
                 username: credentials.username,
                 password: credentials.password,
-            }
+            },
+            options
         );
 
         return Array.isArray(response) ? response : [];
@@ -141,7 +169,8 @@ export class XtreamApiService {
      * Get series items
      */
     async getSeriesStreams(
-        credentials: XtreamCredentials
+        credentials: XtreamCredentials,
+        options?: XtreamRequestOptions
     ): Promise<XtreamSerieItem[]> {
         const response = await this.sendRequest(
             credentials.serverUrl,
@@ -149,7 +178,8 @@ export class XtreamApiService {
                 action: XtreamCodeActions.GetSeries,
                 username: credentials.username,
                 password: credentials.password,
-            }
+            },
+            options
         );
 
         return Array.isArray(response) ? response : [];
@@ -160,15 +190,16 @@ export class XtreamApiService {
      */
     async getStreams(
         credentials: XtreamCredentials,
-        type: StreamType
+        type: StreamType,
+        options?: XtreamRequestOptions
     ): Promise<XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[]> {
         switch (type) {
             case 'live':
-                return this.getLiveStreams(credentials);
+                return this.getLiveStreams(credentials, options);
             case 'movie':
-                return this.getVodStreams(credentials);
+                return this.getVodStreams(credentials, options);
             case 'series':
-                return this.getSeriesStreams(credentials);
+                return this.getSeriesStreams(credentials, options);
         }
     }
 
@@ -177,7 +208,8 @@ export class XtreamApiService {
      */
     async getVodInfo(
         credentials: XtreamCredentials,
-        vodId: string | number
+        vodId: string | number,
+        options?: XtreamRequestOptions
     ): Promise<XtreamVodDetails> {
         return this.sendRequest(
             credentials.serverUrl,
@@ -186,7 +218,8 @@ export class XtreamApiService {
                 username: credentials.username,
                 password: credentials.password,
                 vod_id: vodId,
-            }
+            },
+            options
         );
     }
 
@@ -195,7 +228,8 @@ export class XtreamApiService {
      */
     async getSeriesInfo(
         credentials: XtreamCredentials,
-        seriesId: string | number
+        seriesId: string | number,
+        options?: XtreamRequestOptions
     ): Promise<XtreamSerieDetails> {
         return this.sendRequest(
             credentials.serverUrl,
@@ -204,7 +238,8 @@ export class XtreamApiService {
                 username: credentials.username,
                 password: credentials.password,
                 series_id: seriesId,
-            }
+            },
+            options
         );
     }
 
@@ -215,7 +250,8 @@ export class XtreamApiService {
     async getShortEpg(
         credentials: XtreamCredentials,
         streamId: number,
-        limit = 10
+        limit = 10,
+        options?: XtreamRequestOptions
     ): Promise<EpgItem[]> {
         const response: EpgResponse = await this.sendRequest(
             credentials.serverUrl,
@@ -225,7 +261,8 @@ export class XtreamApiService {
                 password: credentials.password,
                 stream_id: streamId,
                 limit,
-            }
+            },
+            options
         );
 
         if (!response?.epg_listings || !Array.isArray(response.epg_listings)) {
@@ -263,7 +300,8 @@ export class XtreamApiService {
      */
     private async sendRequest<TResponse>(
         url: string,
-        params: Record<string, string | number>
+        params: Record<string, string | number>,
+        options?: XtreamRequestOptions
     ): Promise<TResponse> {
         const serializedParams: Record<string, string> = {};
         Object.entries(params).forEach(([key, value]) => {
@@ -273,6 +311,9 @@ export class XtreamApiService {
         const response = (await this.dataService.sendIpcEvent(XTREAM_REQUEST, {
             url,
             params: serializedParams,
+            requestId: options?.requestId,
+            sessionId: options?.sessionId,
+            suppressErrorLog: options?.suppressErrorLog,
         })) as {
             message?: string;
             payload?: unknown;

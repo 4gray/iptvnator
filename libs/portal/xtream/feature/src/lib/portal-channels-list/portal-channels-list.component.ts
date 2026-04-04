@@ -206,12 +206,18 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         // Apply cached results immediately
         for (const channel of channels) {
             const cached = this.epgQueueService.getCached(channel.xtream_id);
-            const previewProgram = this.pickPreviewProgram(cached ?? []);
-            if (previewProgram) {
-                if (!this.epgPrograms.has(channel.xtream_id)) {
-                    this.applyProgram(channel.xtream_id, previewProgram);
+            if (cached !== null) {
+                const previewProgram = this.pickPreviewProgram(cached);
+                if (previewProgram) {
+                    if (!this.epgPrograms.has(channel.xtream_id)) {
+                        this.applyProgram(channel.xtream_id, previewProgram);
+                    }
                 }
-            } else if (!this.epgPrograms.has(channel.xtream_id)) {
+
+                continue;
+            }
+
+            if (!this.epgPrograms.has(channel.xtream_id)) {
                 uncachedIds.push(channel.xtream_id);
             }
         }

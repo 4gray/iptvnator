@@ -12,6 +12,7 @@ import { filter } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PortalRailSection } from '@iptvnator/portal/shared/util';
 import {
+    PortalStatusType,
     XtreamPlaylistData,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -44,6 +45,29 @@ function toXtreamPlaylistData(
     };
 }
 
+function isImportDrivenSection(section: PortalRailSection | null): boolean {
+    return (
+        section === 'vod' ||
+        section === 'live' ||
+        section === 'series' ||
+        section === 'search' ||
+        section === 'recently-added'
+    );
+}
+
+function toContentInitBlockReason(
+    portalStatus: PortalStatusType
+): 'expired' | 'inactive' | 'unavailable' | null {
+    switch (portalStatus) {
+        case 'expired':
+        case 'inactive':
+        case 'unavailable':
+            return portalStatus;
+        default:
+            return null;
+    }
+}
+
 @Injectable()
 export class XtreamWorkspaceRouteSession {
     private readonly destroyRef = inject(DestroyRef);
@@ -53,6 +77,8 @@ export class XtreamWorkspaceRouteSession {
 
     private currentPlaylistId: string | null = null;
     private currentPlaylistUpdateDate: number | null = null;
+    private syncInFlight = false;
+    private syncPending = false;
 
     constructor() {
         effect(() => {
@@ -68,7 +94,7 @@ export class XtreamWorkspaceRouteSession {
                 return;
             }
 
-            void this.syncRouteContext();
+            this.scheduleSyncRouteContext();
         });
 
         this.router.events
@@ -80,10 +106,30 @@ export class XtreamWorkspaceRouteSession {
                 takeUntilDestroyed(this.destroyRef)
             )
             .subscribe(() => {
-                void this.syncRouteContext();
+                this.scheduleSyncRouteContext();
             });
 
-        void this.syncRouteContext();
+        this.scheduleSyncRouteContext();
+    }
+
+    private scheduleSyncRouteContext(): void {
+        if (this.syncInFlight) {
+            this.syncPending = true;
+            return;
+        }
+
+        this.syncInFlight = true;
+
+        void (async () => {
+            try {
+                do {
+                    this.syncPending = false;
+                    await this.syncRouteContext();
+                } while (this.syncPending);
+            } finally {
+                this.syncInFlight = false;
+            }
+        })();
     }
 
     private async syncRouteContext(): Promise<void> {
@@ -92,6 +138,7 @@ export class XtreamWorkspaceRouteSession {
             routeContext.provider === 'xtreams'
                 ? routeContext.playlistId
                 : null;
+        const section = this.syncRouteState(routeContext.section);
         const routePlaylist =
             routeContext.provider === 'xtreams'
                 ? toXtreamPlaylistData(this.playlistContext.activePlaylist())
@@ -104,6 +151,7 @@ export class XtreamWorkspaceRouteSession {
                 (currentPlaylist?.id !== playlistId ||
                     this.currentPlaylistUpdateDate !== routePlaylistUpdateDate)
         );
+        let portalStatus = this.xtreamStore.portalStatus();
 
         if (
             playlistId &&
@@ -118,10 +166,23 @@ export class XtreamWorkspaceRouteSession {
             this.xtreamStore.setCurrentPlaylist(routePlaylist);
 
             await this.xtreamStore.fetchXtreamPlaylist();
-            await this.xtreamStore.checkPortalStatus();
+            portalStatus = await this.xtreamStore.checkPortalStatus();
+            const nextBlockReason = toContentInitBlockReason(portalStatus);
+            const currentBlockReason =
+                this.xtreamStore.contentInitBlockReason();
+
+            if (
+                nextBlockReason !== null ||
+                currentBlockReason !== 'cancelled'
+            ) {
+                this.xtreamStore.setContentInitBlockReason(nextBlockReason);
+            }
         }
 
-        const section = this.syncRouteState(routeContext.section);
+        if (isImportDrivenSection(section) && portalStatus !== 'active') {
+            return;
+        }
+
         await this.initializeCurrentSectionContent(section);
     }
 
@@ -150,11 +211,7 @@ export class XtreamWorkspaceRouteSession {
         }
 
         if (
-            section === 'vod' ||
-            section === 'live' ||
-            section === 'series' ||
-            section === 'search' ||
-            section === 'recently-added'
+            isImportDrivenSection(section)
         ) {
             await this.xtreamStore.initializeContent();
         }
