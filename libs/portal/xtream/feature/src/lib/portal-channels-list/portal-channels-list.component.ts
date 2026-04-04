@@ -69,6 +69,9 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly favoritesService = inject(FavoritesService);
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
+    readonly isSelectedTypeContentLoading =
+        this.xtreamStore.selectedTypeContentLoading;
+    readonly loadingRows = Array.from({ length: 9 }, (_, index) => index);
     readonly channels = computed(() => {
         const override = this.channelsOverride();
         if (Array.isArray(override)) {
@@ -261,11 +264,13 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     toggleFavorite(event: Event, item: XtreamChannelListItem) {
         event.stopPropagation();
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId) {
+            return;
+        }
+
         this.xtreamStore
-            .toggleFavorite(
-                item.xtream_id,
-                this.xtreamStore.currentPlaylist().id
-            )
+            .toggleFavorite(item.xtream_id, playlistId)
             .then((result: boolean) => {
                 if (result) {
                     this.favorites.set(item.xtream_id, true);
