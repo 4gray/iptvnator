@@ -80,19 +80,29 @@
         </mat-button-toggle-group>
     </ng-container>
 
-    <app-dashboard-activity-items
-        [items]="activityItems()"
-        [emptyLabel]="'WORKSPACE.DASHBOARD.NO_HISTORY' | translate"
-        emptyIcon="history"
-        [emptyHint]="'WORKSPACE.DASHBOARD.NO_HISTORY_HINT' | translate"
-        [emptyActionLabel]="'WORKSPACE.DASHBOARD.ADD_SOURCE' | translate"
-        [emptyActionLink]="['/workspace/sources']"
-        [viewMode]="viewMode()"
-        [showRemoveAction]="true"
-        [removeActionLabel]="
-            'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY' | translate
-        "
-        (itemAction)="onRemoveItem($event)"
-        (scrolledToEnd)="onItemsScrolledToEnd()"
-    />
+    @if (data.globalRecentLoading()) {
+        <div
+            class="recently-watched-widget__loading"
+            role="status"
+            [attr.aria-label]="'WORKSPACE.DASHBOARD.RECENTLY_WATCHED' | translate"
+        >
+            <mat-progress-spinner mode="indeterminate" diameter="36" />
+        </div>
+    } @else {
+        <app-dashboard-activity-items
+            [items]="activityItems()"
+            [emptyLabel]="'WORKSPACE.DASHBOARD.NO_HISTORY' | translate"
+            emptyIcon="history"
+            [emptyHint]="'WORKSPACE.DASHBOARD.NO_HISTORY_HINT' | translate"
+            [emptyActionLabel]="'WORKSPACE.DASHBOARD.ADD_SOURCE' | translate"
+            [emptyActionLink]="['/workspace/sources']"
+            [viewMode]="viewMode()"
+            [showRemoveAction]="true"
+            [removeActionLabel]="
+                'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY' | translate
+            "
+            (itemAction)="onRemoveItem($event)"
+            (scrolledToEnd)="onItemsScrolledToEnd()"
+        />
+    }
 </app-dashboard-widget-shell>

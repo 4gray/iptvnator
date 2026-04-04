@@ -13,7 +13,10 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { filter, firstValueFrom, startWith } from 'rxjs';
 import { PlaylistInfoComponent } from '@iptvnator/playlist/shared/ui';
-import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    PlaylistContextFacade,
+    PlaylistRefreshActionService,
+} from '@iptvnator/playlist/shared/util';
 import {
     buildPortalRailLinks,
     PORTAL_EXTERNAL_PLAYBACK,
@@ -29,6 +32,7 @@ import {
     WorkspacePortalContext,
     WorkspaceShellPageKind,
     WorkspaceSearchCapability,
+    WorkspaceStartupPreferencesService,
 } from '@iptvnator/workspace/shell/util';
 import { PlaylistsService, SettingsStore } from 'services';
 import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
@@ -66,6 +70,8 @@ interface WorkspaceCommandDefinition {
     scope: WorkspaceCommandScope;
     isEnabled: (state: WorkspaceCommandAvailability) => boolean;
 }
+
+type XtreamImportPhaseTone = 'remote' | 'local' | null;
 
 const SEARCH_INPUT_DEBOUNCE_MS = 350;
 const SEARCH_PLAYLIST_PLACEHOLDER =
@@ -154,7 +160,13 @@ export class WorkspaceShellFacade {
     private readonly translate = inject(TranslateService);
     private readonly dialog = inject(MatDialog);
     private readonly playlistContext = inject(PlaylistContextFacade);
+    private readonly startupPreferences = inject(
+        WorkspaceStartupPreferencesService
+    );
     readonly headerContext = inject(WorkspaceHeaderContextService);
+    private readonly playlistRefreshAction = inject(
+        PlaylistRefreshActionService
+    );
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
@@ -197,24 +209,47 @@ export class WorkspaceShellFacade {
     readonly currentRoute = computed(() =>
         parseWorkspaceShellRoute(this.currentUrl())
     );
+    readonly showDashboard = computed(() =>
+        this.startupPreferences.showDashboard()
+    );
+    readonly brandLink = computed(() =>
+        this.startupPreferences.getFirstAvailableWorkspacePath(
+            this.showDashboard()
+        )
+    );
+    readonly brandTooltipKey = computed(() =>
+        this.showDashboard()
+            ? 'WORKSPACE.SHELL.RAIL_DASHBOARD'
+            : 'WORKSPACE.SHELL.RAIL_SOURCES'
+    );
+    readonly brandAriaLabelKey = computed(() =>
+        this.showDashboard()
+            ? 'WORKSPACE.SHELL.OPEN_DASHBOARD'
+            : 'WORKSPACE.SHELL.OPEN_SOURCES'
+    );
     readonly currentContext = computed(() => this.currentRoute().context);
     readonly currentSection = computed(() => this.currentRoute().section);
     readonly workspaceLinks = computed<PortalRailLink[]>(() => {
         this.languageTick();
 
-        return [
-            {
+        const links: PortalRailLink[] = [];
+
+        if (this.showDashboard()) {
+            links.push({
                 icon: 'dashboard',
                 tooltip: this.translateText('WORKSPACE.SHELL.RAIL_DASHBOARD'),
                 path: ['/workspace/dashboard'],
                 exact: true,
-            },
-            {
-                icon: 'library_books',
-                tooltip: this.translateText('WORKSPACE.SHELL.RAIL_SOURCES'),
-                path: ['/workspace/sources'],
-            },
-        ];
+            });
+        }
+
+        links.push({
+            icon: 'library_books',
+            tooltip: this.translateText('WORKSPACE.SHELL.RAIL_SOURCES'),
+            path: ['/workspace/sources'],
+        });
+
+        return links;
     });
     readonly isDashboardRoute = computed(
         () => this.currentRoute().kind === 'dashboard'
@@ -292,9 +327,38 @@ export class WorkspaceShellFacade {
         () =>
             this.isElectron &&
             this.xtreamStore.isImporting() &&
-            this.xtreamStore.activeImportOperationIds().length > 0 &&
+            Boolean(this.xtreamStore.activeImportSessionId()) &&
             !this.xtreamStore.isCancellingImport()
     );
+    readonly xtreamImportTitleLabel = computed(() =>
+        this.translateText('WORKSPACE.SHELL.XTREAM_IMPORT_TITLE')
+    );
+    readonly xtreamImportPhaseTone = computed<XtreamImportPhaseTone>(() => {
+        switch (this.xtreamStore.currentImportPhase()) {
+            case 'loading-categories':
+            case 'loading-live':
+            case 'loading-movies':
+            case 'loading-series':
+                return 'remote';
+            case 'preparing-content':
+            case 'saving-categories':
+            case 'saving-content':
+            case 'restoring-favorites':
+            case 'restoring-recently-viewed':
+                return 'local';
+            default:
+                return null;
+        }
+    });
+    readonly xtreamImportSourceLabel = computed(() => {
+        this.languageTick();
+
+        return this.xtreamImportPhaseTone() === 'remote'
+            ? this.translateText('WORKSPACE.SHELL.XTREAM_IMPORT_REMOTE_BADGE')
+            : this.xtreamImportPhaseTone() === 'local'
+              ? this.translateText('WORKSPACE.SHELL.XTREAM_IMPORT_LOCAL_BADGE')
+              : '';
+    });
     readonly xtreamImportPhaseLabel = computed(() => {
         this.languageTick();
 
@@ -302,6 +366,20 @@ export class WorkspaceShellFacade {
             case 'preparing-content':
                 return this.translateText(
                     'WORKSPACE.SHELL.XTREAM_IMPORT_PREPARING'
+                );
+            case 'loading-categories':
+                return this.translateText(
+                    'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING'
+                );
+            case 'saving-categories':
+                return this.translateText(
+                    'WORKSPACE.SHELL.XTREAM_IMPORT_SAVING'
+                );
+            case 'loading-live':
+            case 'loading-movies':
+            case 'loading-series':
+                return this.translateText(
+                    'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING'
                 );
             case 'saving-content':
                 return this.translateText(
@@ -319,6 +397,15 @@ export class WorkspaceShellFacade {
                 return '';
         }
     });
+    readonly xtreamImportDetailLabel = computed(() => {
+        this.languageTick();
+
+        return this.xtreamImportPhaseTone() === 'remote'
+            ? this.translateText('WORKSPACE.SHELL.XTREAM_IMPORT_DETAIL_REMOTE')
+            : this.xtreamImportPhaseTone() === 'local'
+              ? this.translateText('WORKSPACE.SHELL.XTREAM_IMPORT_DETAIL_LOCAL')
+              : '';
+    });
     readonly showXtreamImportOverlay = computed(() => {
         const context = this.currentContext();
         const section = this.currentSection();
@@ -328,6 +415,7 @@ export class WorkspaceShellFacade {
         }
 
         return (
+            !this.xtreamStore.contentInitBlockReason() &&
             this.xtreamStore.isImporting() &&
             (section === 'vod' ||
                 section === 'live' ||
@@ -506,6 +594,10 @@ export class WorkspaceShellFacade {
     readonly canOpenAccountInfo = computed(() =>
         Boolean(this.activePlaylist()?.serverUrl)
     );
+    readonly canRefreshPlaylist = computed(() =>
+        this.playlistRefreshAction.canRefresh(this.activePlaylist())
+    );
+    readonly isRefreshingPlaylist = this.playlistRefreshAction.isRefreshing;
     readonly headerBulkAction = computed<WorkspaceHeaderBulkAction | null>(
         () => {
             this.languageTick();
@@ -583,6 +675,9 @@ export class WorkspaceShellFacade {
             )
             .subscribe((event) => {
                 this.currentUrl.set(event.urlAfterRedirects);
+                this.startupPreferences.persistLastRestorablePath(
+                    event.urlAfterRedirects
+                );
                 this.syncSearchFromRoute();
             });
 
@@ -808,6 +903,16 @@ export class WorkspaceShellFacade {
             seriesCount: this.xtreamStore.serialStreams().length,
         };
         this.workspaceActions.openAccountInfo(data);
+    }
+
+    refreshCurrentPlaylist(): void {
+        const playlist = this.activePlaylist();
+
+        if (!playlist || !this.canRefreshPlaylist()) {
+            return;
+        }
+
+        this.playlistRefreshAction.refresh(playlist);
     }
 
     private getCommandPaletteItems(): WorkspaceCommandItem[] {

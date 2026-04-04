@@ -11,6 +11,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
@@ -41,6 +42,7 @@ const DISPLAY_LIMIT = 25;
         MatButtonToggleModule,
         MatMenuModule,
         MatIcon,
+        MatProgressSpinnerModule,
         MatTooltipModule,
         DashboardActivityItemsComponent,
         DashboardWidgetShellComponent,
