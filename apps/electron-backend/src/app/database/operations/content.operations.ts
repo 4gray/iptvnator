@@ -3,6 +3,7 @@ import * as schema from 'database-schema';
 import type { AppDatabase } from '../database.types';
 import {
     checkpointOperation,
+    chunkValues,
     type OperationControl,
     reportOperationProgress,
 } from './operation-control';
@@ -290,6 +291,50 @@ export async function saveContent(
     }
 
     return { success: true, count: totalInserted };
+}
+
+export async function clearXtreamImportCache(
+    db: AppDatabase,
+    playlistId: string,
+    type: 'live' | 'movie' | 'series'
+): Promise<{ success: boolean }> {
+    const dbType =
+        type === 'series' ? 'series' : type === 'movie' ? 'movies' : 'live';
+
+    const categoryRows = await db
+        .select({ id: schema.categories.id })
+        .from(schema.categories)
+        .where(
+            and(
+                eq(schema.categories.playlistId, playlistId),
+                eq(schema.categories.type, dbType)
+            )
+        );
+
+    const categoryIds = categoryRows.map((category) => category.id);
+    if (categoryIds.length === 0) {
+        return { success: true };
+    }
+
+    const contentRows = await db
+        .select({ id: schema.content.id })
+        .from(schema.content)
+        .where(inArray(schema.content.categoryId, categoryIds));
+
+    for (const chunk of chunkValues(
+        contentRows.map((row) => row.id),
+        100
+    )) {
+        await db.delete(schema.content).where(inArray(schema.content.id, chunk));
+    }
+
+    for (const chunk of chunkValues(categoryIds, 100)) {
+        await db
+            .delete(schema.categories)
+            .where(inArray(schema.categories.id, chunk));
+    }
+
+    return { success: true };
 }
 
 export async function getContentByXtreamId(

@@ -30,6 +30,7 @@ import {
     reorderGlobalFavorites,
 } from '../database/operations/favorites.operations';
 import {
+    clearXtreamImportCache,
     getContent,
     getContentByXtreamId,
     getGlobalRecentlyAdded,
@@ -385,6 +386,15 @@ async function executeRequest(message: DbWorkerRequestMessage) {
                     return result;
                 }
             );
+        }
+
+        case 'DB_CLEAR_XTREAM_IMPORT_CACHE': {
+            const payload = message.payload as {
+                playlistId: string;
+                type: 'live' | 'movie' | 'series';
+            };
+
+            return clearXtreamImportCache(db, payload.playlistId, payload.type);
         }
 
         case 'DB_GET_CONTENT_BY_XTREAM_ID': {
