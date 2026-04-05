@@ -14,8 +14,12 @@ export type XtreamCategory = {
 export type XtreamLiveStream = {
     added?: string;
     category_id?: string;
+    epg_channel_id?: string;
     name?: string;
     stream_id?: number | string;
+    stream_type?: string;
+    tv_archive?: number | string;
+    tv_archive_duration?: number | string;
 };
 
 export type XtreamVodStream = {
@@ -38,6 +42,44 @@ export type XtreamCategoryFixture<T> = {
     categoryId: string;
     categoryName: string;
     items: T[];
+};
+
+export type XtreamRawEpgListing = {
+    channel_id?: string;
+    description?: string;
+    end?: string;
+    epg_id?: string;
+    id?: string;
+    lang?: string;
+    start?: string;
+    start_timestamp?: string;
+    stop_timestamp?: string;
+    title?: string;
+};
+
+export type XtreamNormalizedEpgListing = {
+    channelId: string;
+    description: string;
+    end: string;
+    id: string;
+    rawDescription: string;
+    rawEnd: string;
+    rawStart: string;
+    rawTitle: string;
+    start: string;
+    startTimestamp: number;
+    stopTimestamp: number;
+    title: string;
+};
+
+export type XtreamEpgFixture = {
+    categoryId: string;
+    categoryName: string;
+    fullEpg: XtreamNormalizedEpgListing[];
+    rawFullEpg: XtreamRawEpgListing[];
+    rawShortEpg: XtreamRawEpgListing[];
+    shortEpg: XtreamNormalizedEpgListing[];
+    stream: XtreamLiveStream;
 };
 
 type StalkerCategory = {
@@ -102,6 +144,60 @@ export async function fetchXtreamSeriesFixture(
         itemsAction: 'get_series',
         ...credentials,
     });
+}
+
+export async function fetchXtreamEpgFixture(
+    request: APIRequestContext,
+    credentials = { username: 'epg', password: 'epg' }
+): Promise<XtreamEpgFixture> {
+    const liveFixture = await fetchXtreamLiveFixture(request, credentials);
+    const stream = liveFixture.items[0];
+    if (!stream) {
+        throw new Error('Xtream EPG fixture returned no live stream.');
+    }
+    const streamId = Number(stream.stream_id);
+
+    if (!Number.isFinite(streamId) || streamId <= 0) {
+        throw new Error('Xtream EPG fixture returned an invalid stream id.');
+    }
+
+    const rawShortResponse = await fetchJson<{
+        epg_listings?: XtreamRawEpgListing[];
+    }>(
+        request,
+        `${xtreamMockServer}/player_api.php?action=get_short_epg&username=${encodeURIComponent(
+            credentials.username
+        )}&password=${encodeURIComponent(
+            credentials.password
+        )}&stream_id=${streamId}&limit=3`
+    );
+    const rawFullResponse = await fetchJson<{
+        epg_listings?: XtreamRawEpgListing[];
+    }>(
+        request,
+        `${xtreamMockServer}/player_api.php?action=get_simple_data_table&username=${encodeURIComponent(
+            credentials.username
+        )}&password=${encodeURIComponent(
+            credentials.password
+        )}&stream_id=${streamId}`
+    );
+
+    const rawShortEpg = rawShortResponse.epg_listings ?? [];
+    const rawFullEpg = rawFullResponse.epg_listings ?? [];
+
+    if (rawShortEpg.length === 0 || rawFullEpg.length === 0) {
+        throw new Error('Xtream EPG fixture returned no schedule data.');
+    }
+
+    return {
+        categoryId: liveFixture.categoryId,
+        categoryName: liveFixture.categoryName,
+        stream,
+        rawShortEpg,
+        rawFullEpg,
+        shortEpg: normalizeXtreamEpgListings(rawShortEpg),
+        fullEpg: normalizeXtreamEpgListings(rawFullEpg),
+    };
 }
 
 export async function fetchStalkerCategoryFixture(
@@ -259,6 +355,44 @@ async function fetchJson<T>(
     expect(response.ok()).toBeTruthy();
 
     return (await response.json()) as T;
+}
+
+function normalizeXtreamEpgListings(
+    listings: XtreamRawEpgListing[]
+): XtreamNormalizedEpgListing[] {
+    return listings
+        .map((listing, index) => {
+            const startTimestamp = Number.parseInt(
+                String(listing.start_timestamp ?? ''),
+                10
+            );
+            const stopTimestamp = Number.parseInt(
+                String(listing.stop_timestamp ?? ''),
+                10
+            );
+
+            return {
+                id: String(listing.id ?? index),
+                title: decodeXtreamText(String(listing.title ?? '')),
+                description: decodeXtreamText(
+                    String(listing.description ?? '')
+                ),
+                rawTitle: String(listing.title ?? ''),
+                rawDescription: String(listing.description ?? ''),
+                rawStart: String(listing.start ?? ''),
+                rawEnd: String(listing.end ?? ''),
+                start: new Date(startTimestamp * 1000).toISOString(),
+                end: new Date(stopTimestamp * 1000).toISOString(),
+                startTimestamp,
+                stopTimestamp,
+                channelId: String(listing.channel_id ?? listing.epg_id ?? ''),
+            };
+        })
+        .sort((left, right) => left.startTimestamp - right.startTimestamp);
+}
+
+function decodeXtreamText(value: string): string {
+    return Buffer.from(value, 'base64').toString('utf-8');
 }
 
 function buildStalkerProxyUrl(
