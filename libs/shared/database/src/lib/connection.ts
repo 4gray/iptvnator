@@ -17,9 +17,42 @@ import { getIptvnatorDatabasePath } from './path-utils';
 
 export type DatabaseInstance = BetterSQLite3Database<typeof schema>;
 
+const TRACE_ENV_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
+
 let db: DatabaseInstance | null = null;
 let sqlite: Database.Database | null = null;
 let initPromise: Promise<DatabaseInstance> | null = null;
+
+function readTraceFlag(name: string): boolean {
+    const value = process.env[name]?.trim().toLowerCase();
+    return value ? TRACE_ENV_TRUE_VALUES.has(value) : false;
+}
+
+function isSqlTraceEnabled(): boolean {
+    return (
+        readTraceFlag('IPTVNATOR_TRACE_STARTUP') ||
+        readTraceFlag('IPTVNATOR_TRACE_DB') ||
+        readTraceFlag('IPTVNATOR_TRACE_SQL')
+    );
+}
+
+function compactSqlForTrace(sql: string): string {
+    const compactSql = sql.replace(/\s+/g, ' ').trim();
+    return compactSql.length <= 180
+        ? compactSql
+        : `${compactSql.slice(0, 177)}...`;
+}
+
+function traceSql(scope: string, message: string, payload?: unknown): void {
+    if (payload === undefined) {
+        console.log(`[IPTVnator Trace][${scope}] ${message}`);
+        return;
+    }
+
+    console.log(
+        `[IPTVnator Trace][${scope}] ${message} ${JSON.stringify(payload)}`
+    );
+}
 
 /**
  * Get the database file path
@@ -467,7 +500,23 @@ export async function initDatabase(
 
     initPromise = (async () => {
         const filePath = getDatabasePath();
-        sqlite = new Database(filePath, { readonly });
+        sqlite = new Database(filePath, {
+            readonly,
+            verbose: isSqlTraceEnabled()
+                ? (sql: string) => {
+                      traceSql('sql-main', 'query', {
+                          sql: compactSqlForTrace(sql),
+                      });
+                  }
+                : undefined,
+        });
+
+        if (isSqlTraceEnabled()) {
+            traceSql('sql-main', 'open', {
+                filePath,
+                readonly,
+            });
+        }
 
         // Enable foreign keys
         sqlite.pragma('foreign_keys = ON');
@@ -517,6 +566,11 @@ export async function getReadOnlyDatabase(): Promise<DatabaseInstance> {
 export function closeDatabase(): void {
     if (sqlite) {
         sqlite.close();
+
+        if (isSqlTraceEnabled()) {
+            traceSql('sql-main', 'close');
+        }
+
         sqlite = null;
         db = null;
         initPromise = null;

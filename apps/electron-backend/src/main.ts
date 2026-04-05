@@ -17,6 +17,7 @@ import SettingsEvents from './app/events/settings.events';
 import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
+import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import XtreamEvents from './app/events/xtream.events';
 
@@ -37,12 +38,23 @@ export default class Main {
     }
 
     static bootstrapApp() {
+        if (isStartupTraceEnabled()) {
+            trace('startup', 'bootstrap-app');
+        }
         App.main(app, BrowserWindow);
     }
 
     static async bootstrapAppEvents() {
+        if (isStartupTraceEnabled()) {
+            trace('startup', 'bootstrap-events:start');
+        }
+
         // Initialize database before other events
         await initDatabase();
+
+        if (isStartupTraceEnabled()) {
+            trace('startup', 'init-database:done');
+        }
 
         ElectronEvents.bootstrapElectronEvents();
         PlaylistEvents.bootstrapPlaylistEvents();
@@ -61,9 +73,17 @@ export default class Main {
         }
         await resetStaleDownloads();
 
+        if (isStartupTraceEnabled()) {
+            trace('startup', 'reset-stale-downloads:done');
+        }
+
         // initialize auto updater service
         if (!App.isDevelopmentMode()) {
             // UpdateEvents.initAutoUpdateService();
+        }
+
+        if (isStartupTraceEnabled()) {
+            trace('startup', 'bootstrap-events:done');
         }
     }
 }
@@ -78,6 +98,9 @@ Main.bootstrapApp();
 
 // Bootstrap app events after Electron app is ready
 app.whenReady().then(async () => {
+    if (isStartupTraceEnabled()) {
+        trace('startup', 'app.whenReady');
+    }
     await Main.bootstrapAppEvents();
 });
 
