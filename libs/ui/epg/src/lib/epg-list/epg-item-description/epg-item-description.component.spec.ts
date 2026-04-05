@@ -21,6 +21,8 @@ describe('EpgItemDescriptionComponent', () => {
                 {
                     provide: MAT_DIALOG_DATA,
                     useValue: {
+                        start: '2026-04-05T11:30:00.000Z',
+                        stop: '2026-04-05T12:30:00.000Z',
                         title: 'TV Show 1',
                         desc: 'Highly interesting show about pets',
                         category: 'Fun',
@@ -44,21 +46,21 @@ describe('EpgItemDescriptionComponent', () => {
     it('should render epg details in the dialog', () => {
         fixture.detectChanges();
         const titleElement = fixture.debugElement.query(
-            By.css('[data-test="title"]')
+            By.css('.program-title')
         );
         expect(titleElement.nativeElement.textContent.trim()).toContain(
             'TV Show 1'
         );
 
         const categoryElement = fixture.debugElement.query(
-            By.css('[data-test="category"]')
+            By.css('.category-tag')
         );
         expect(categoryElement.nativeElement.textContent.trim()).toContain(
             'Fun'
         );
 
         const descElement = fixture.debugElement.query(
-            By.css('[data-test="desc"]')
+            By.css('.program-description')
         );
         expect(descElement.nativeElement.textContent.trim()).toContain(
             'Highly interesting show about pets'

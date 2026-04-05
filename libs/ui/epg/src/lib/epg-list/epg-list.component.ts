@@ -1,16 +1,16 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    ElementRef,
     computed,
     effect,
-    ElementRef,
     inject,
     input,
+    output,
     signal,
     viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -25,10 +25,14 @@ import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 
 const DATE_FORMAT = 'YYYY-MM-DD';
 
+export interface EpgProgramActivationEvent {
+    program: EpgProgram;
+    type: 'live' | 'timeshift';
+}
+
 @Component({
     imports: [
         EpgListItemComponent,
-        FormsModule,
         MatIcon,
         MatIconButton,
         MatTooltip,
@@ -43,14 +47,15 @@ const DATE_FORMAT = 'YYYY-MM-DD';
 export class EpgListComponent {
     readonly controlledChannel = input<Channel | null>(null);
     readonly controlledPrograms = input<EpgProgram[] | null>(null);
+    readonly controlledArchiveDays = input<number | null>(null);
+    readonly programActivated = output<EpgProgramActivationEvent>();
 
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
 
-    private readonly activeChannel = toSignal(
-        this.store.select(selectActive),
-        { initialValue: null }
-    );
+    private readonly activeChannel = toSignal(this.store.select(selectActive), {
+        initialValue: null,
+    });
     private readonly servicePrograms = toSignal(
         this.epgService.currentEpgPrograms$,
         { initialValue: [] as EpgProgram[] }
@@ -85,44 +90,47 @@ export class EpgListComponent {
     readonly items = computed(
         () => this.controlledPrograms() ?? this.servicePrograms() ?? []
     );
-    readonly timeshiftUntil = computed(() => {
+    readonly archiveDays = computed(() => {
+        const controlledArchiveDays = this.controlledArchiveDays();
+        if (controlledArchiveDays !== null) {
+            return Math.max(0, controlledArchiveDays);
+        }
+
         const channel = this.displayChannel();
         const value =
             channel?.tvg?.rec || channel?.timeshift || channel?.catchup?.days;
-        const days = Number(value ?? 0) || 0;
-        return moment().subtract(days, 'days').toISOString();
+        return Math.max(0, Number(value ?? 0) || 0);
     });
+    readonly timeshiftUntil = computed(() =>
+        moment()
+            .subtract(this.archiveDays(), 'days')
+            .toISOString()
+    );
     readonly filteredItems = computed(() =>
         [...this.items()]
             .filter(
                 (item) =>
-                    moment(item.start).format(DATE_FORMAT) === this.selectedDate()
+                    moment(item.start).format(DATE_FORMAT) ===
+                    this.selectedDate()
             )
-            .sort((a, b) => moment(a.start).diff(moment(b.start)))
+            .sort(
+                (left, right) =>
+                    getProgramTimeMs(left.start, left.startTimestamp) -
+                    getProgramTimeMs(right.start, right.startTimestamp)
+            )
     );
 
     private scrollScheduled = false;
+    private activeScrollContextKey: string | null = null;
+    private lastAutoScrolledContextKey: string | null = null;
 
     constructor() {
         effect((onCleanup) => {
-            const programList = this.programList()?.nativeElement;
-            if (!programList || typeof ResizeObserver === 'undefined') {
-                return;
-            }
+            const intervalId = window.setInterval(() => {
+                this.timeNow.set(new Date().toISOString());
+            }, 30_000);
 
-            const resizeObserver = new ResizeObserver((entries) => {
-                const [entry] = entries;
-                if (
-                    entry &&
-                    entry.contentRect.height > 0 &&
-                    entry.contentRect.width > 0
-                ) {
-                    this.scheduleScrollToCurrentProgram();
-                }
-            });
-
-            resizeObserver.observe(programList);
-            onCleanup(() => resizeObserver.disconnect());
+            onCleanup(() => clearInterval(intervalId));
         });
 
         effect(() => {
@@ -148,9 +156,7 @@ export class EpgListComponent {
                             })
                         );
                     } else {
-                        this.store.dispatch(
-                            EpgActions.resetActiveEpgProgram()
-                        );
+                        this.store.dispatch(EpgActions.resetActiveEpgProgram());
                     }
                 } else {
                     this.store.dispatch(EpgActions.resetActiveEpgProgram());
@@ -161,6 +167,7 @@ export class EpgListComponent {
                 this.store.dispatch(EpgActions.resetActiveEpgProgram());
             }
 
+            this.updateScrollContext(channel, programs);
             this.scheduleScrollToCurrentProgram();
         });
     }
@@ -171,55 +178,103 @@ export class EpgListComponent {
                 [direction === 'next' ? 'add' : 'subtract'](1, 'days')
                 .format(DATE_FORMAT)
         );
-        this.scheduleScrollToCurrentProgram();
     }
 
-    setEpgProgram(
-        program: EpgProgram,
-        isLive?: boolean,
-        timeshift?: boolean
-    ): void {
-        if (!this.isControlled()) {
-            if (isLive) {
-                this.store.dispatch(EpgActions.resetActiveEpgProgram());
-            } else if (timeshift) {
-                this.store.dispatch(
-                    EpgActions.setActiveEpgProgram({ program })
-                );
-            } else {
-                return;
-            }
+    activateProgram(program: EpgProgram): void {
+        const isLive = this.isProgramPlaying(program);
+        const isTimeshift = this.isProgramArchived(program);
+
+        if (!isLive && !isTimeshift) {
+            return;
+        }
+
+        if (this.isControlled()) {
+            this.programActivated.emit({
+                program,
+                type: isLive ? 'live' : 'timeshift',
+            });
+            this.timeNow.set(new Date().toISOString());
+            return;
+        }
+
+        if (isLive) {
+            this.store.dispatch(EpgActions.resetActiveEpgProgram());
+        } else {
+            this.store.dispatch(EpgActions.setActiveEpgProgram({ program }));
         }
 
         this.timeNow.set(new Date().toISOString());
     }
 
+    canActivateProgram(program: EpgProgram): boolean {
+        return this.isProgramPlaying(program) || this.isProgramArchived(program);
+    }
+
     calculateProgress(program: EpgProgram): number {
-        const now = new Date().getTime();
-        const start = new Date(program.start).getTime();
-        const stop = new Date(program.stop).getTime();
+        const now = Date.now();
+        const start = getProgramTimeMs(program.start, program.startTimestamp);
+        const stop = getProgramTimeMs(program.stop, program.stopTimestamp);
         const total = stop - start;
         const elapsed = now - start;
 
-        return Math.min(100, Math.max(0, (elapsed / total) * 100));
+        return total > 0 ? Math.min(100, Math.max(0, (elapsed / total) * 100)) : 0;
     }
 
     isProgramPlaying(program: EpgProgram): boolean {
-        const currentTime = this.timeNow();
-        return currentTime >= program.start && currentTime <= program.stop;
+        const now = Date.now();
+        const start = getProgramTimeMs(program.start, program.startTimestamp);
+        const stop = getProgramTimeMs(program.stop, program.stopTimestamp);
+        return now >= start && now <= stop;
+    }
+
+    isProgramArchived(program: EpgProgram): boolean {
+        if (this.archiveDays() <= 0) {
+            return false;
+        }
+
+        const now = Date.now();
+        const start = getProgramTimeMs(program.start, program.startTimestamp);
+        const stop = getProgramTimeMs(program.stop, program.stopTimestamp);
+        const archiveLimit = Date.parse(this.timeshiftUntil());
+
+        return stop < now && start >= archiveLimit;
     }
 
     private findCurrentProgram(programs: EpgProgram[]): EpgProgram | undefined {
-        const now = new Date().toISOString();
-        return programs.find((item) => {
-            const start = new Date(item.start).toISOString();
-            const stop = new Date(item.stop).toISOString();
+        const now = Date.now();
+        return programs.find((program) => {
+            const start = getProgramTimeMs(
+                program.start,
+                program.startTimestamp
+            );
+            const stop = getProgramTimeMs(program.stop, program.stopTimestamp);
             return now >= start && now <= stop;
         });
     }
 
+    private updateScrollContext(
+        channel: Channel | null,
+        programs: EpgProgram[]
+    ): void {
+        const nextContextKey = buildScrollContextKey(channel, programs);
+        if (nextContextKey === this.activeScrollContextKey) {
+            return;
+        }
+
+        this.activeScrollContextKey = nextContextKey;
+        this.scrollScheduled = false;
+    }
+
     private scheduleScrollToCurrentProgram(): void {
         if (this.selectedDate() !== moment().format(DATE_FORMAT)) {
+            return;
+        }
+
+        const scrollContextKey = this.activeScrollContextKey;
+        if (
+            !scrollContextKey ||
+            this.lastAutoScrolledContextKey === scrollContextKey
+        ) {
             return;
         }
 
@@ -231,12 +286,12 @@ export class EpgListComponent {
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 this.scrollScheduled = false;
-                this.scrollCurrentProgramIntoView();
+                this.scrollCurrentProgramIntoView(scrollContextKey);
             });
         });
     }
 
-    private scrollCurrentProgramIntoView(): void {
+    private scrollCurrentProgramIntoView(scrollContextKey: string): void {
         const container = this.programList()?.nativeElement;
         const currentProgram = container?.querySelector<HTMLElement>(
             '.program-item.current-program'
@@ -245,6 +300,8 @@ export class EpgListComponent {
         if (!container || !currentProgram) {
             return;
         }
+
+        this.lastAutoScrolledContextKey = scrollContextKey;
 
         const viewTop = container.scrollTop;
         const viewBottom = viewTop + container.clientHeight;
@@ -258,11 +315,39 @@ export class EpgListComponent {
 
         if (elementBottom > viewBottom) {
             container.scrollTo({
-                top:
-                    elementBottom -
-                    container.clientHeight +
-                    16,
+                top: elementBottom - container.clientHeight + 16,
             });
         }
     }
+}
+
+function buildScrollContextKey(
+    channel: Channel | null,
+    programs: EpgProgram[]
+): string | null {
+    if (!channel && programs.length === 0) {
+        return null;
+    }
+
+    const channelKey =
+        channel?.tvg?.id || channel?.name || channel?.url || 'unknown-channel';
+    const programKey = programs
+        .map(
+            (program) =>
+                `${getProgramTimeMs(program.start, program.startTimestamp)}-${getProgramTimeMs(program.stop, program.stopTimestamp)}`
+        )
+        .join('|');
+
+    return `${channelKey}:${programKey}`;
+}
+
+function getProgramTimeMs(
+    isoValue: string,
+    timestampValue?: number | null
+): number {
+    if (Number.isFinite(timestampValue) && Number(timestampValue) > 0) {
+        return Number(timestampValue) * 1000;
+    }
+
+    return Date.parse(isoValue);
 }
