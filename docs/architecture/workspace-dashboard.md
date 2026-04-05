@@ -1,188 +1,136 @@
-# Workspace Dashboard Plan
+# Workspace Dashboard
 
-## Context
+This document records the current dashboard implementation inside the workspace
+shell. It replaces the earlier dashboard plan document.
 
-The workspace shell is now the primary app entrypoint. The dashboard should evolve from a placeholder into an operational home page that helps users:
+Related:
 
-1. Quickly continue playback/work.
-2. Switch context across M3U, Xtream, and Stalker sources.
-3. Monitor relevant content (recent items, EPG, status) in one place.
+- [Workspace Shell](./workspace-shell.md)
 
-This document defines the implementation plan before Phase 1 work starts.
+## Summary
 
-## Status Snapshot (February 22, 2026)
+- The dashboard is the default `/workspace` landing page.
+- It is a widget-based surface with persisted layout and widget settings.
+- The current implementation favors a constrained, stable layout over a full
+  freeform grid system.
 
-### Delivered
+Core implementation:
 
-1. Dashboard route is active in workspace shell with persisted widget layout.
-2. Widget host and configurable widget model are implemented.
-3. `Customize` mode supports:
-   1. Enable/disable widgets
-   2. Reorder widgets (up/down)
-   3. Widget scope (provider + playlist selection)
-4. Active widgets in production:
-   1. Continue Watching
-   2. Recent Sources
-   3. Source Statistics
-   4. Recently Watched (global)
-   5. Global Favorites
-5. Recently Watched and Global Favorites support:
-   1. Content-kind chips (channels/vod/series)
-   2. List/grid toggle
-   3. Direct deep linking from widget item to target view/detail
-6. Xtream live deep links now auto-start playback when opened from dashboard widgets.
-7. Dashboard now uses a shared Material-based widget shell for consistent visual structure.
-8. Customize mode now supports drag-and-drop ordering and widget size presets (`1/3`, `1/2`, `2/3`, `full`).
+1. `libs/workspace/dashboard/feature/src/lib/workspace-dashboard.component.ts`
+2. `libs/workspace/dashboard/feature/src/lib/workspace-dashboard.component.html`
+3. `libs/workspace/dashboard/ui/src/lib/dashboard-widget-host.component.ts`
+4. `libs/workspace/dashboard/data-access/src/lib/dashboard-widget.model.ts`
+5. `libs/workspace/dashboard/data-access/src/lib/dashboard-layout.service.ts`
+6. `libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.ts`
 
-### Partially Delivered / Deviation From Initial Phase 1 List
+## Current Widget Set
 
-1. EPG Radar was intentionally removed from the current dashboard scope and is postponed.
-2. Recent Activity / Recently Added widget was intentionally removed from current scope.
+Registered widget types:
 
-### Not Started
+1. `source-stats`
+2. `continue-watching`
+3. `recently-watched`
+4. `global-favorites`
 
-1. Phase 4 external widgets (RSS/scores/news adapters).
+Default layout:
 
-### Immediate Next Widget Tasks (Recommended)
+1. `continue-watching`
+   1. Enabled by default
+   2. Size `full`
+2. `recently-watched`
+   1. Enabled by default
+   2. Size `two-thirds`
+   3. Scope-aware
+3. `global-favorites`
+   1. Enabled by default
+   2. Size `one-third`
+   3. Scope-aware
+4. `source-stats`
+   1. Present in the registry
+   2. Disabled by default
+   3. Size `one-third`
 
-1. Expand widget settings UX (scope presets, bulk provider toggles).
+The old refactor summary mentioned `Recent Sources`, but that widget is not in
+the current registry and should not be documented as shipped behavior.
 
-## Product Direction
+## Layout And Persistence Contract
 
-The dashboard should be a configurable widget system, but introduced in stages:
+The dashboard persists a versioned layout object in local storage.
 
-1. Start with useful, stable widgets and a constrained layout.
-2. Add edit/customization workflows after widget value is proven.
-3. Add advanced drag/resize and external integrations later.
+Current storage details:
 
-This avoids building heavy layout mechanics before core data widgets are solid.
+1. Storage key: `workspace-dashboard-layout-v3`
+2. Schema version: `12`
+3. Size presets:
+   1. `one-third`
+   2. `half`
+   3. `two-thirds`
+   4. `full`
+4. Scope settings:
+   1. `providers: Array<'m3u' | 'xtream' | 'stalker'>`
+   2. `playlistIds: string[]`
 
-## UX Direction
+Normalization rules in `DashboardLayoutService`:
 
-Design style: professional operator console (dense, calm, high-signal).
+1. Stored widgets are merged against `DEFAULT_DASHBOARD_WIDGETS`.
+2. Missing widgets are restored from defaults.
+3. Removed or invalid settings fall back to normalized defaults.
+4. Titles and descriptions come from the current code-defined defaults, not
+   stale stored values.
+5. Widget order is reindexed after normalization.
 
-Target layout:
+## Rendering Flow
 
-1. Top row: continue actions, recent sources, health/status.
-2. Middle row: discovery widgets (recently viewed, recently added, favorites).
-3. Edit mode: add/remove/reorder widgets and configure source scope.
+1. `WorkspaceDashboardComponent` reads `DashboardLayoutService.state()`.
+2. Enabled widgets are filtered and rendered in layout order.
+3. `DashboardWidgetHostComponent` maps `widget.type` to a concrete widget
+   component.
+4. Widgets receive the normalized config, including size and optional scope.
+5. Data comes from `DashboardDataService` and existing provider/state services.
+6. Widget actions deep-link back into workspace/provider routes.
 
-## Architecture
+## Customize Mode
 
-## Core Components
+Customize mode is part of the current product, not future work.
 
-1. `DashboardPageComponent` (container/layout/edit mode orchestration)
-2. `DashboardWidgetHostComponent` (widget factory/renderer by type)
-3. `DashboardLayoutStore` (signal-based state for layout, settings, edit mode)
-4. `DashboardPersistenceService` (save/load layout, version migration)
-5. `DashboardDataFacade` (aggregate provider data for widgets)
+Supported actions:
 
-## Widget Contract
+1. Toggle widget visibility.
+2. Drag-and-drop reorder for visible widgets.
+3. Change widget size within the fixed preset list.
+4. Configure provider scope for scoped widgets.
+5. Configure playlist scope for scoped widgets.
+6. Reset the layout to defaults.
 
-```ts
-type WidgetSize = 'one-third' | 'half' | 'two-thirds' | 'full';
+Scope-aware widgets currently rely on a provider/playlist filter model rather
+than per-widget custom query systems.
 
-interface WidgetScope {
-  providers: Array<'m3u' | 'xtream' | 'stalker'>;
-  playlistIds?: string[];
-}
+## UX Rules
 
-interface DashboardWidget {
-  id: string;
-  type: string;
-  title: string;
-  size: WidgetSize;
-  order: number;
-  enabled: boolean;
-  scope: WidgetScope;
-  settings: Record<string, unknown>;
-}
+1. Widgets should represent user tasks, not provider internals.
+2. Each widget must own its loading, empty, and error states.
+3. Dashboard failures must stay isolated to the widget that failed.
+4. Widget navigation should resolve directly into the relevant content context.
+5. New widgets should fit the existing constrained layout model unless the
+   dashboard architecture is explicitly being expanded.
 
-interface DashboardLayout {
-  version: number;
-  widgets: DashboardWidget[];
-}
-```
+## Adding Or Changing Widgets
 
-## Capability Rules
+Current workflow:
 
-Widgets must degrade gracefully per provider:
+1. Add or update the widget type in `dashboard-widget.model.ts`.
+2. Implement the widget UI under `libs/workspace/dashboard/ui/src/lib/widgets/`.
+3. Register the widget in `dashboard-widget-host.component.ts`.
+4. Add default state and migration-safe behavior in
+   `dashboard-layout.service.ts`.
+5. Extend `dashboard-data.service.ts` or reuse an existing feature service.
+6. Ensure the widget has explicit empty/error/loading states and valid
+   workspace deep links.
 
-1. If a source/provider does not support required data (for example EPG), show a clear empty/unsupported state.
-2. Widgets never hard fail the page; each widget owns loading/error states.
-3. Scope defaults to "all supported providers" unless user config overrides it.
+## Deferred Work
 
-## Phased Delivery
+These items are intentionally not part of the current contract:
 
-## Phase 1 (Now): Production Dashboard V1
-
-Scope:
-
-1. Replace placeholder dashboard with real widget host + predefined layout.
-2. Fixed grid slots (no free drag/resize yet).
-3. Initial widgets:
-   1. Recent Sources
-   2. Continue Watching
-   3. Source Statistics
-   4. Recently Added / Recently Viewed (provider-aware)
-4. Persist enabled/disabled and order (simple list reorder if needed).
-
-Out of scope:
-
-1. Freeform drag-and-drop grid resizing.
-2. External data providers (RSS/sports/news).
-3. Full widget marketplace.
-
-Acceptance criteria:
-
-1. Dashboard loads with useful content for at least one active source type.
-2. Empty states are clear and actionable (links to Sources/settings).
-3. No route regressions for existing workspace sections.
-4. Layout/settings survive app restart.
-
-## Phase 2: Edit Mode and Configuration
-
-Scope:
-
-1. "Customize dashboard" mode.
-2. Enable/disable widgets.
-3. Widget-level source scoping (providers + selected playlists).
-4. Order management (move up/down or drag reorder within constrained grid).
-
-## Phase 3: Advanced Layout (Drag/Resize)
-
-Scope:
-
-1. True grid layout manager with size presets and drag repositioning.
-2. Collision handling and responsive breakpoint behavior.
-3. Optional "reset layout" and preset templates.
-
-## Phase 4: External Widgets
-
-Scope:
-
-1. Adapter interface for non-playlist data widgets (RSS, scores, news).
-2. Polling/cache strategy with rate limits.
-3. User opt-in and failure isolation per external source.
-
-## Data and Performance Notes
-
-1. Use memoized/computed selectors for widget inputs.
-2. Avoid redundant provider fetches; reuse existing stores/services where possible.
-3. Update widgets incrementally and isolate heavy computations in facade/store utilities.
-
-## File/Module Placement (Proposed)
-
-1. `libs/workspace/dashboard/feature/` (page + edit mode orchestration)
-2. `libs/workspace/dashboard/ui/` (widget host + widget components)
-3. `libs/workspace/dashboard/data-access/` (state model + persistence + data facade/service)
-4. Route integration remains in `apps/web/src/app/app.routes.ts` and workspace shell.
-
-## Open Questions
-
-1. Should dashboard layout be global per app profile, or per active workspace/provider mix?
-2. Which widgets are enabled by default for new users vs migrated users?
-
-## Next Step
-
-Start Phase 1 implementation using this document as the source of truth and track deviations explicitly in follow-up updates.
+1. Freeform drag/resize grid with collision management.
+2. External data widgets such as RSS, sports, or news adapters.
+3. A widget marketplace or plugin system.

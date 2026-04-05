@@ -56,7 +56,7 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 
 **Category Management Dialog**
 
-- Path: `apps/web/src/app/xtream-electron/category-management-dialog/`
+- Path: `libs/portal/xtream/feature/src/lib/category-management-dialog/`
 - Features:
     - Checkbox list of all categories
     - Select All / Deselect All buttons
@@ -77,7 +77,7 @@ Both components:
 
 ### Store
 
-**File**: `apps/web/src/app/xtream-electron/xtream.store.ts`
+**File**: `libs/portal/xtream/data-access/src/lib/stores/xtream.store.ts`
 
 Added `reloadCategories()` method to refresh categories from database after visibility changes, ensuring the sidebar updates immediately.
 
@@ -96,8 +96,22 @@ When a user refreshes an Xtream playlist, hidden category preferences are preser
 2. **Temporary storage**: The hidden categories are stored in `localStorage` under key `xtream-restore-{playlistId}` along with favorites and recently viewed data
 3. **During re-import**: When categories are saved via `DB_SAVE_CATEGORIES`, the data source checks `localStorage` for saved hidden category xtreamIds
 4. **Restoration**: Categories matching the saved xtreamIds are inserted with `hidden = true`, preserving the user's visibility preferences
+5. **ID normalization**: Xtream category IDs arrive from the API as strings, while SQLite stores `categories.xtream_id` as an integer. Restoration must normalize incoming `category_id` values before matching them against saved hidden-category xtreamIds.
 
 This ensures that users don't lose their category visibility customizations when refreshing playlists to get updated content.
+
+### Debugging Note
+
+Hidden-category restoration runs through the Electron DB worker. When debugging
+or validating a fix in a live Electron app:
+
+1. rebuild the worker-backed Electron runtime
+2. restart the running Electron process
+3. reconnect `agent-browser --cdp 9222`
+
+Otherwise the app may still be using an older
+`dist/apps/electron-backend/workers/database.worker.js` bundle even though the
+TypeScript source has already been updated.
 
 ## Files Changed
 
@@ -117,20 +131,21 @@ libs/services/src/lib/
 libs/ui/components/src/lib/recent-playlists/
 └── recent-playlists.component.ts  # Stores hidden categories to localStorage on refresh
 
-apps/web/src/app/xtream-electron/
-├── category-management-dialog/   # Dialog component
+libs/portal/xtream/feature/src/lib/
+├── category-management-dialog/        # Dialog component
 │   ├── category-management-dialog.component.ts
 │   ├── category-management-dialog.component.html
 │   └── category-management-dialog.component.scss
-├── data-sources/
-│   └── electron-xtream-data-source.ts  # Reads/passes hidden categories on save
-├── xtream-main-container.component.ts   # Added button & dialog
+├── xtream-main-container.component.ts # Added button & dialog
 ├── xtream-main-container.component.html
 ├── live-stream-layout/
-│   ├── live-stream-layout.component.ts  # Added button & dialog
+│   ├── live-stream-layout.component.ts # Added button & dialog
 │   └── live-stream-layout.component.html
-├── sidebar.scss                  # Updated header styles
-└── xtream.store.ts              # Added reloadCategories method
+
+libs/portal/xtream/data-access/src/lib/
+├── data-sources/
+│   └── electron-xtream-data-source.ts # Reads/passes hidden categories on save
+└── stores/xtream.store.ts             # Added reloadCategories method
 
 apps/web/src/assets/i18n/
 └── en.json                      # Added translation keys
