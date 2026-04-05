@@ -2,8 +2,16 @@
     [eyebrow]="'WORKSPACE.DASHBOARD.FOCUS' | translate"
     [title]="'WORKSPACE.DASHBOARD.CONTINUE_WATCHING' | translate"
 >
-    @if (lastItem(); as item) {
-        <a class="hero" [routerLink]="getLink(item)">
+    @if (data.globalRecentLoading()) {
+        <div
+            class="continue-watching-widget__loading"
+            role="status"
+            [attr.aria-label]="'WORKSPACE.DASHBOARD.CONTINUE_WATCHING' | translate"
+        >
+            <mat-progress-spinner mode="indeterminate" diameter="36" />
+        </div>
+    } @else if (lastItem(); as item) {
+        <a class="hero" [routerLink]="getLink(item)" [state]="getState(item)">
             <!-- Thumbnail -->
             <span class="hero__thumb" [class]="'hero__thumb--' + item.type">
                 @if (hasImage(item)) {

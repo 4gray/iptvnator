@@ -1,5 +1,4 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
@@ -7,9 +6,7 @@ import {
     MatDialogModule,
     MatDialogRef,
 } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -32,11 +29,8 @@ interface CategoryWithSelection extends XCategoryFromDb {
         MatDialogModule,
         MatButtonModule,
         MatCheckboxModule,
-        MatFormFieldModule,
         MatIconModule,
-        MatInputModule,
         MatProgressSpinnerModule,
-        FormsModule,
         TranslatePipe,
     ],
     templateUrl: './category-management-dialog.component.html',
@@ -86,10 +80,7 @@ export class CategoryManagementDialogComponent implements OnInit {
     private async loadCategories(): Promise<void> {
         try {
             const type = this.getDbType();
-            const allCategories = await this.dbService.getAllXtreamCategories(
-                this.data.playlistId,
-                type
-            );
+            const allCategories = await this.waitForCategories(type);
             this.categories.set(
                 allCategories.map((c) => ({
                     ...c,
@@ -100,6 +91,30 @@ export class CategoryManagementDialogComponent implements OnInit {
             this.logger.error('Error loading categories', error);
         } finally {
             this.isLoading.set(false);
+        }
+    }
+
+    private async waitForCategories(
+        type: 'live' | 'movies' | 'series'
+    ): Promise<XCategoryFromDb[]> {
+        const retryDeadlineMs = Date.now() + 10000;
+        const expectedCategoryCount = this.data.itemCounts.size;
+
+        while (true) {
+            const categories = await this.dbService.getAllXtreamCategories(
+                this.data.playlistId,
+                type
+            );
+
+            if (
+                categories.length > 0 ||
+                expectedCategoryCount === 0 ||
+                Date.now() >= retryDeadlineMs
+            ) {
+                return categories;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 250));
         }
     }
 

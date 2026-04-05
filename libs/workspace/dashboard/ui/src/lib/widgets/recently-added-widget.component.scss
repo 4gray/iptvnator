@@ -59,6 +59,12 @@
     color: var(--mat-sys-on-surface-variant);
 }
 
+.feedback-state--loading {
+    min-height: 220px;
+    border-style: solid;
+    background: transparent;
+}
+
 .feedback-state__icon {
     font-size: 34px;
     width: 34px;

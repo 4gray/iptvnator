@@ -1,4 +1,5 @@
 import {
+    ChangeDetectionStrategy,
     Component,
     OnInit,
     computed,
@@ -11,6 +12,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
@@ -35,11 +37,13 @@ const PAGE_SIZE = 20;
 
 @Component({
     selector: 'app-global-favorites-widget',
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         MatButtonModule,
         MatButtonToggleModule,
         MatMenuModule,
         MatIcon,
+        MatProgressSpinnerModule,
         MatTooltipModule,
         DashboardActivityItemsComponent,
         DashboardWidgetShellComponent,
@@ -97,10 +101,8 @@ export class GlobalFavoritesWidgetComponent implements OnInit {
             }))
     );
 
-    constructor() {}
-
     ngOnInit(): void {
-        this.data.reloadGlobalFavorites().then(() => {
+        void this.data.reloadGlobalFavorites().then(() => {
             this.visibleItemLimit.set(INITIAL_PAGE_SIZE);
         });
     }

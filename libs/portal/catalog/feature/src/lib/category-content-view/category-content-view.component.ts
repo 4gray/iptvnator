@@ -6,13 +6,16 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     GridListComponent,
     PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
+    clearNavigationStateKeys,
+    getOpenStalkerItemState,
     PortalCatalogFacade,
+    OPEN_STALKER_ITEM_STATE_KEY,
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
     PortalCatalogSortMode,
@@ -47,6 +50,7 @@ interface CategoryContentItem {
 export class CategoryContentViewComponent implements OnInit {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly router = inject(Router);
+    private readonly translate = inject(TranslateService);
     private readonly catalog = inject(PORTAL_CATALOG_FACADE) as PortalCatalogFacade<
         CategoryContentItem,
         CategoryContentItem,
@@ -67,7 +71,18 @@ export class CategoryContentViewComponent implements OnInit {
     readonly contentSortMode = this.catalog.contentSortMode;
     readonly isPaginatedContentLoading =
         this.catalog.isPaginatedContentLoading;
+    readonly isXtreamLoadingSubtitle = computed(
+        () =>
+            this.catalog.provider === 'xtream' &&
+            this.isPaginatedContentLoading()
+    );
     readonly categoryItemSubtitle = computed(() => {
+        if (this.isXtreamLoadingSubtitle()) {
+            return this.translate.instant(
+                'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING'
+            );
+        }
+
         const itemCount = this.categoryItemCount();
         return `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
     });
@@ -89,6 +104,7 @@ export class CategoryContentViewComponent implements OnInit {
     ngOnInit(): void {
         const { categoryId } = this.activatedRoute.snapshot.params;
         this.catalog.initialize(categoryId ?? null);
+        this.openStalkerItemFromNavigationState();
     }
 
     onPageChange(event: PageEvent): void {
@@ -103,5 +119,23 @@ export class CategoryContentViewComponent implements OnInit {
                 relativeTo: this.activatedRoute,
             });
         }
+    }
+
+    private openStalkerItemFromNavigationState(): void {
+        if (this.catalog.provider !== 'stalker') {
+            return;
+        }
+
+        const item = getOpenStalkerItemState(window.history.state);
+        if (!item) {
+            return;
+        }
+
+        this.catalog.selectItem(item as CategoryContentItem);
+        clearNavigationStateKeys([
+            OPEN_STALKER_ITEM_STATE_KEY,
+            'openFavoriteItem',
+            'openRecentItem',
+        ]);
     }
 }

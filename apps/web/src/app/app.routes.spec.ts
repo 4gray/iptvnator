@@ -1,8 +1,10 @@
 describe('app routes', () => {
     let workspaceChildren: Array<{
+        canActivate?: unknown[];
         data?: Record<string, unknown>;
         loadComponent?: unknown;
         path?: string;
+        redirectTo?: unknown;
     }> = [];
 
     beforeAll(async () => {
@@ -49,5 +51,21 @@ describe('app routes', () => {
             defaultScope: 'all',
         });
         expect(typeof globalRecentRoute?.loadComponent).toBe('function');
+    });
+
+    it('uses a dynamic redirect for the default /workspace child route', async () => {
+        const workspaceDefaultRoute = workspaceChildren.find(
+            (route) => route.path === ''
+        );
+
+        expect(typeof workspaceDefaultRoute?.redirectTo).toBe('function');
+    });
+
+    it('protects the dashboard route behind a visibility guard', async () => {
+        const dashboardRoute = workspaceChildren.find(
+            (route) => route.path === 'dashboard'
+        );
+
+        expect(dashboardRoute?.canActivate).toHaveLength(1);
     });
 });

@@ -28,6 +28,7 @@ import { DialogService } from 'components';
 import { DataService, PlaylistsService } from 'services';
 import {
     Language,
+    StartupBehavior,
     StreamFormat,
     Theme,
     VideoPlayer,
@@ -58,6 +59,8 @@ const DEFAULT_SETTINGS = {
     streamFormat: StreamFormat.M3u8StreamFormat,
     language: Language.ENGLISH,
     showCaptions: false,
+    showDashboard: true,
+    startupBehavior: StartupBehavior.FirstView,
     showExternalPlaybackBar: true,
     theme: Theme.SystemTheme,
     mpvPlayerPath: '',
@@ -403,6 +406,18 @@ describe('SettingsComponent', () => {
 
         expect(component.settingsForm.value.theme).toBe(Theme.DarkTheme);
         expect(component.settingsForm.dirty).toBeTruthy();
+    });
+
+    it('renders workspace startup controls with the expected defaults', () => {
+        const nativeElement = fixture.nativeElement as HTMLElement;
+
+        expect(
+            nativeElement.querySelector('[data-test-id="toggle-show-dashboard"]')
+        ).not.toBeNull();
+        expect(component.settingsForm.value.showDashboard).toBe(true);
+        expect(component.settingsForm.value.startupBehavior).toBe(
+            StartupBehavior.FirstView
+        );
     });
 
     it('should save settings on submit', async () => {

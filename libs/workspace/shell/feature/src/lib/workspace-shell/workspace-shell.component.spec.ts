@@ -23,6 +23,9 @@ import {
 })
 class MockWorkspaceShellRailComponent {
     readonly isMacOS = input(false);
+    readonly brandLink = input('/workspace/dashboard');
+    readonly brandTooltipKey = input('WORKSPACE.SHELL.RAIL_DASHBOARD');
+    readonly brandAriaLabelKey = input('WORKSPACE.SHELL.OPEN_DASHBOARD');
     readonly workspaceLinks = input<unknown[]>([]);
     readonly primaryContextLinks = input<unknown[]>([]);
     readonly secondaryContextLinks = input<unknown[]>([]);
@@ -85,6 +88,9 @@ class MockExternalPlaybackDockComponent {
 }
 
 class MockWorkspaceShellFacade {
+    readonly brandLink = signal('/workspace/dashboard');
+    readonly brandTooltipKey = signal('WORKSPACE.SHELL.RAIL_DASHBOARD');
+    readonly brandAriaLabelKey = signal('WORKSPACE.SHELL.OPEN_DASHBOARD');
     readonly workspaceLinks = signal([]);
     readonly primaryContextLinks = signal([]);
     readonly secondaryContextLinks = signal([]);
@@ -115,6 +121,23 @@ class MockWorkspaceShellFacade {
     readonly showXtreamImportOverlay = signal(false);
     readonly xtreamImportCount = signal(0);
     readonly xtreamItemsToImport = signal(0);
+    readonly xtreamImportTitleLabel = signal(
+        'WORKSPACE.SHELL.XTREAM_IMPORT_TITLE'
+    );
+    readonly xtreamImportSourceLabel = signal(
+        'WORKSPACE.SHELL.XTREAM_IMPORT_REMOTE_BADGE'
+    );
+    readonly xtreamImportPhaseLabel = signal(
+        'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING'
+    );
+    readonly xtreamImportDetailLabel = signal(
+        'WORKSPACE.SHELL.XTREAM_IMPORT_DETAIL_REMOTE'
+    );
+    readonly xtreamImportPhaseTone = signal<'remote' | 'local' | null>(
+        'remote'
+    );
+    readonly canCancelXtreamImport = signal(false);
+    readonly isCancellingXtreamImport = signal(false);
     readonly isMacOS = true;
     readonly isElectron = true;
 
@@ -129,6 +152,7 @@ class MockWorkspaceShellFacade {
     openPlaylistInfo = jest.fn();
     openAccountInfo = jest.fn();
     closeActiveExternalSession = jest.fn();
+    cancelXtreamImport = jest.fn();
 }
 
 describe('WorkspaceShellComponent', () => {

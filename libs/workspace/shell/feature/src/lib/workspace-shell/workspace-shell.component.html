@@ -2,9 +2,31 @@
     @if (facade.showXtreamImportOverlay()) {
         <div class="workspace-loading-overlay">
             <div class="workspace-loading-overlay__card">
-                <h3>Loading playlist...</h3>
+                <div class="workspace-loading-overlay__header">
+                    @if (facade.xtreamImportSourceLabel()) {
+                        <span
+                            class="workspace-loading-overlay__badge"
+                            [class.workspace-loading-overlay__badge--remote]="
+                                facade.xtreamImportPhaseTone() === 'remote'
+                            "
+                        >
+                            {{ facade.xtreamImportSourceLabel() }}
+                        </span>
+                    }
+                    <h3>{{ facade.xtreamImportTitleLabel() }}</h3>
+                </div>
                 @if (facade.xtreamImportPhaseLabel()) {
-                    <p>{{ facade.xtreamImportPhaseLabel() }}</p>
+                    <p
+                        class="workspace-loading-overlay__phase"
+                        aria-live="polite"
+                    >
+                        {{ facade.xtreamImportPhaseLabel() }}
+                    </p>
+                }
+                @if (facade.xtreamImportDetailLabel()) {
+                    <p class="workspace-loading-overlay__detail">
+                        {{ facade.xtreamImportDetailLabel() }}
+                    </p>
                 }
                 @if (
                     facade.xtreamImportCount() !== 0 &&
@@ -18,7 +40,7 @@
                             100
                         "
                     />
-                    <p>
+                    <p class="workspace-loading-overlay__progress-copy">
                         {{ facade.xtreamImportCount() }} /
                         {{ facade.xtreamItemsToImport() }}
                     </p>
@@ -28,6 +50,7 @@
                 @if (facade.canCancelXtreamImport()) {
                     <button
                         mat-stroked-button
+                        class="workspace-loading-overlay__action"
                         type="button"
                         [disabled]="facade.isCancellingXtreamImport()"
                         (click)="facade.cancelXtreamImport()"
@@ -46,6 +69,9 @@
 
     <app-workspace-shell-rail
         [isMacOS]="facade.isMacOS"
+        [brandLink]="facade.brandLink()"
+        [brandTooltipKey]="facade.brandTooltipKey()"
+        [brandAriaLabelKey]="facade.brandAriaLabelKey()"
         [workspaceLinks]="facade.workspaceLinks()"
         [primaryContextLinks]="facade.primaryContextLinks()"
         [secondaryContextLinks]="facade.secondaryContextLinks()"
@@ -68,8 +94,12 @@
             facade.isGlobalFavoritesRoute() || facade.isPortalFavoritesAllScope()
         "
         [headerShortcut]="facade.headerShortcut()"
+        [canRefreshPlaylist]="facade.canRefreshPlaylist()"
+        [isRefreshingPlaylist]="facade.isRefreshingPlaylist()"
         [isElectron]="facade.isElectron"
         [isDownloadsView]="facade.isDownloadsView()"
+        [hasActiveDownloads]="facade.hasActiveDownloads()"
+        (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
         (searchChanged)="facade.onSearchInput($event)"
         (searchSubmitted)="facade.onSearchEnter($event)"
         (commandPaletteRequested)="facade.openCommandPalette()"

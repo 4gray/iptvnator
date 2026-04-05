@@ -139,26 +139,12 @@ function buildPlaylistRow(
     };
 }
 
-function parseAppPlaylist(row: schema.Playlist): Record<string, unknown> {
+export function parseAppPlaylist(row: schema.Playlist): Record<string, unknown> {
     const payload = parseJsonValue<Record<string, unknown> | null>(
         row.payload,
         null
     );
-
-    if (payload && typeof payload === 'object') {
-        return {
-            ...payload,
-            _id:
-                getStringValue(payload._id) ??
-                getStringValue(payload.id) ??
-                row.id,
-            title:
-                getStringValue(payload.title) ??
-                getStringValue(payload.name) ??
-                row.name,
-        };
-    }
-
+    const base = payload && typeof payload === 'object' ? payload : {};
     const favorites = parseJsonValue<unknown[]>(row.favorites, []);
     const recentlyViewed = parseJsonValue<unknown[]>(row.recentlyViewed, []);
     const importDate =
@@ -166,30 +152,42 @@ function parseAppPlaylist(row: schema.Playlist): Record<string, unknown> {
     const portalUrl =
         row.portalUrl ??
         (row.type === PLAYLIST_TYPES.STALKER ? row.url : null);
+    const updateDate =
+        row.updateDate ??
+        (row.lastUpdated ? new Date(row.lastUpdated).getTime() : undefined);
 
     return {
+        ...base,
         _id: row.id,
-        title: row.name,
-        count: row.count ?? 0,
-        importDate,
-        lastUsage: row.lastUsage ?? importDate,
+        title:
+            getStringValue(base.title) ??
+            getStringValue(base.name) ??
+            row.name,
+        count: row.count ?? getNumericValue(base.count) ?? 0,
+        importDate: getStringValue(base.importDate) ?? importDate,
+        lastUsage:
+            row.lastUsage ??
+            getStringValue(base.lastUsage) ??
+            getStringValue(base.importDate) ??
+            importDate,
         favorites,
         recentlyViewed,
-        autoRefresh: row.autoRefresh ?? false,
-        url: row.type === PLAYLIST_TYPES.M3U_URL ? row.url : undefined,
-        filePath: row.filePath ?? undefined,
-        userAgent: row.userAgent ?? undefined,
-        referrer: row.referrer ?? undefined,
-        origin: row.origin ?? undefined,
-        updateDate:
-            row.updateDate ??
-            (row.lastUpdated ? new Date(row.lastUpdated).getTime() : undefined),
-        position: row.position ?? undefined,
-        serverUrl: row.serverUrl ?? undefined,
-        username: row.username ?? undefined,
-        password: row.password ?? undefined,
-        macAddress: row.macAddress ?? undefined,
-        portalUrl: portalUrl ?? undefined,
+        autoRefresh: row.autoRefresh ?? Boolean(base.autoRefresh),
+        url:
+            row.type === PLAYLIST_TYPES.M3U_URL
+                ? row.url ?? getStringValue(base.url)
+                : getStringValue(base.url),
+        filePath: row.filePath ?? getStringValue(base.filePath),
+        userAgent: row.userAgent ?? getStringValue(base.userAgent),
+        referrer: row.referrer ?? getStringValue(base.referrer),
+        origin: row.origin ?? getStringValue(base.origin),
+        updateDate,
+        position: row.position ?? getNumericValue(base.position),
+        serverUrl: row.serverUrl ?? getStringValue(base.serverUrl),
+        username: row.username ?? getStringValue(base.username),
+        password: row.password ?? getStringValue(base.password),
+        macAddress: row.macAddress ?? getStringValue(base.macAddress),
+        portalUrl: portalUrl ?? getStringValue(base.portalUrl),
     };
 }
 

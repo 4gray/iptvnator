@@ -97,7 +97,10 @@ export function withEpg() {
                         const epgItems = await apiService.getShortEpg(
                             credentials,
                             selectedItem.xtream_id,
-                            10
+                            10,
+                            {
+                                suppressErrorLog: true,
+                            }
                         );
 
                         patchState(store, {
@@ -129,7 +132,10 @@ export function withEpg() {
                         return await apiService.getShortEpg(
                             credentials,
                             streamId,
-                            1
+                            1,
+                            {
+                                suppressErrorLog: true,
+                            }
                         );
                     } catch (error) {
                         logger.error('Error loading channel EPG', error);

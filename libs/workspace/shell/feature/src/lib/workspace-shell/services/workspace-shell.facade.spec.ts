@@ -5,6 +5,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -13,13 +14,20 @@ import {
     SettingsStore,
 } from 'services';
 import { PlaylistMeta } from 'shared-interfaces';
-import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
+import {
+    WorkspaceStartupPreferencesService,
+    WORKSPACE_SHELL_ACTIONS,
+} from '@iptvnator/workspace/shell/util';
 import { WorkspaceShellFacade } from './workspace-shell.facade';
 
 class MockXtreamStore {
     readonly recentItems = signal<unknown[]>([]);
     readonly searchTerm = signal('');
     readonly categorySearchTerm = signal('');
+    readonly isImporting = signal(false);
+    readonly activeImportSessionId = signal<string | null>(null);
+    readonly currentImportPhase = signal<string | null>(null);
+    readonly itemsToImport = signal(0);
     readonly getSelectedCategory = signal<{
         category_name?: string;
         name?: string;
@@ -94,9 +102,16 @@ describe('WorkspaceShellFacade', () => {
     let activePlaylistSignal: ReturnType<typeof signal<PlaylistSignalMeta>>;
     let playlistsSignal: ReturnType<typeof signal<PlaylistSignalMeta[]>>;
     let stalkerStore: MockStalkerStore;
+    let showDashboardSignal: ReturnType<typeof signal<boolean>>;
+    let startupPreferences: {
+        getFirstAvailableWorkspacePath: jest.Mock;
+        persistLastRestorablePath: jest.Mock;
+        showDashboard: jest.Mock;
+    };
 
     beforeEach(() => {
         window.electron = { platform: 'darwin' } as typeof window.electron;
+        showDashboardSignal = signal(true);
 
         activePlaylistSignal = signal({
             _id: 'pl-1',
@@ -138,14 +153,17 @@ describe('WorkspaceShellFacade', () => {
             openGlobalRecent: jest.fn(),
             openAccountInfo: jest.fn(),
         };
+        startupPreferences = {
+            getFirstAvailableWorkspacePath: jest.fn((showDashboard: boolean) =>
+                showDashboard ? '/workspace/dashboard' : '/workspace/sources'
+            ),
+            persistLastRestorablePath: jest.fn(),
+            showDashboard: jest.fn(() => showDashboardSignal()),
+        };
         storeDispatch = jest.fn();
         stalkerStore = new MockStalkerStore();
 
-        const selectSignal = jest
-            .fn()
-            .mockReturnValueOnce(signal('Playlist A'))
-            .mockReturnValueOnce(activePlaylistSignal)
-            .mockReturnValueOnce(playlistsSignal);
+        const selectSignal = jest.fn().mockReturnValue(playlistsSignal);
 
         TestBed.configureTestingModule({
             providers: [
@@ -178,6 +196,12 @@ describe('WorkspaceShellFacade', () => {
                     },
                 },
                 {
+                    provide: PlaylistContextFacade,
+                    useValue: {
+                        activePlaylist: activePlaylistSignal,
+                    },
+                },
+                {
                     provide: SettingsStore,
                     useValue: {
                         showExternalPlaybackBar: signal(true),
@@ -198,6 +222,10 @@ describe('WorkspaceShellFacade', () => {
                 {
                     provide: WORKSPACE_SHELL_ACTIONS,
                     useValue: workspaceActions,
+                },
+                {
+                    provide: WorkspaceStartupPreferencesService,
+                    useValue: startupPreferences,
                 },
                 {
                     provide: TranslateService,
@@ -232,6 +260,42 @@ describe('WorkspaceShellFacade', () => {
             {
                 queryParams: { q: 'Matrix' },
             }
+        );
+    });
+
+    it('uses a loading label for remote Xtream fetch phases', () => {
+        const xtreamStore = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+
+        xtreamStore.currentImportPhase.set('loading-categories');
+        expect(facade.xtreamImportPhaseLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING'
+        );
+
+        xtreamStore.currentImportPhase.set('loading-live');
+        expect(facade.xtreamImportPhaseLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING'
+        );
+        expect(facade.xtreamImportSourceLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_REMOTE_BADGE'
+        );
+        expect(facade.xtreamImportDetailLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_DETAIL_REMOTE'
+        );
+
+        xtreamStore.currentImportPhase.set('saving-categories');
+        expect(facade.xtreamImportPhaseLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_SAVING'
+        );
+
+        xtreamStore.currentImportPhase.set('saving-content');
+        expect(facade.xtreamImportPhaseLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_SAVING'
+        );
+        expect(facade.xtreamImportSourceLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_LOCAL_BADGE'
+        );
+        expect(facade.xtreamImportDetailLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_DETAIL_LOCAL'
         );
     });
 
@@ -323,6 +387,25 @@ describe('WorkspaceShellFacade', () => {
 
         expect(facade.searchScopeLabel()).toBe(
             'HOME.PLAYLISTS.GLOBAL_FAVORITES'
+        );
+    });
+
+    it('removes the dashboard rail link when dashboard is hidden', () => {
+        showDashboardSignal.set(false);
+
+        expect(facade.workspaceLinks()).toEqual([
+            {
+                icon: 'library_books',
+                tooltip: 'WORKSPACE.SHELL.RAIL_SOURCES',
+                path: ['/workspace/sources'],
+            },
+        ]);
+        expect(facade.brandLink()).toBe('/workspace/sources');
+    });
+
+    it('persists the last restorable route from navigation events', () => {
+        expect(startupPreferences.persistLastRestorablePath).toHaveBeenCalledWith(
+            '/workspace/xtreams/pl-1/vod'
         );
     });
 

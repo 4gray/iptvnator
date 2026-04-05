@@ -365,7 +365,7 @@ export function generateSeasons(
     return Array.from({ length: seasonCount }, (_, s) => {
         const seasonId = `${series.id}-s${s + 1}`;
         const episodes = Array.from({ length: episodesPerSeason }, (_, e) =>
-            `${series.id}-s${s + 1}-e${e + 1}`
+            String(e + 1)
         );
         return {
             id: seasonId,

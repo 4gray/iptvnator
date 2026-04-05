@@ -38,3 +38,10 @@
     font-weight: 600;
     color: var(--mat-sys-primary);
 }
+
+.recently-watched-widget__loading {
+    min-height: 220px;
+    display: grid;
+    place-items: center;
+    padding: 16px 0;
+}

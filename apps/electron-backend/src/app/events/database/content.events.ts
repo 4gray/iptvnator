@@ -61,6 +61,14 @@ ipcMain.handle(
 );
 
 handleWorkerRequest(
+    'DB_CLEAR_XTREAM_IMPORT_CACHE',
+    (playlistId: string, type: 'live' | 'movie' | 'series') => ({
+        playlistId,
+        type,
+    })
+);
+
+handleWorkerRequest(
     'DB_GET_CONTENT_BY_XTREAM_ID',
     (xtreamId: number, playlistId: string) => ({
         xtreamId,

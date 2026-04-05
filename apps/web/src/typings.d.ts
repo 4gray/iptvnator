@@ -10,7 +10,10 @@ import {
     ExternalPlayerSession,
     PlaybackPositionData,
     Playlist,
+    PlaylistRefreshEvent,
+    PlaylistRefreshPayload,
     PortalDebugEvent,
+    XtreamCategory,
 } from 'shared-interfaces';
 import {
     DbOperationEvent,
@@ -30,6 +33,9 @@ declare global {
         electron: {
             onPortalDebugEvent?: (
                 callback: (data: PortalDebugEvent) => void
+            ) => () => void;
+            onPlaylistRefreshEvent?: (
+                callback: (data: PlaylistRefreshEvent) => void
             ) => () => void;
             getAppVersion: () => Promise<string>;
             platform: string;
@@ -119,8 +125,18 @@ declare global {
                 url: string;
                 params: Record<string, string>;
                 requestId?: string;
+                sessionId?: string;
                 suppressErrorLog?: boolean;
             }) => Promise<{ payload: unknown; action: string }>;
+            xtreamCancelSession: (
+                sessionId: string
+            ) => Promise<{ success: boolean; cancelled: number }>;
+            refreshPlaylist: (
+                payload: PlaylistRefreshPayload
+            ) => Promise<Playlist>;
+            cancelPlaylistRefresh: (
+                operationId: string
+            ) => Promise<{ success: boolean }>;
             // Database operations
             dbCreatePlaylist: (
                 playlist: Playlist
@@ -176,7 +192,7 @@ declare global {
             ) => Promise<XCategoryFromDb[]>;
             dbSaveCategories: (
                 playlistId: string,
-                categories: XCategoryFromDb[],
+                categories: XtreamCategory[],
                 type: string,
                 hiddenCategoryXtreamIds?: number[]
             ) => Promise<{ success: boolean }>;
@@ -202,6 +218,10 @@ declare global {
                 type: string,
                 operationId?: string
             ) => Promise<{ success: boolean; count: number }>;
+            dbClearXtreamImportCache: (
+                playlistId: string,
+                type: 'live' | 'movie' | 'series'
+            ) => Promise<{ success: boolean }>;
             dbSearchContent: (
                 playlistId: string,
                 searchTerm: string,

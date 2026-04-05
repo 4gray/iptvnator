@@ -9,6 +9,11 @@ const loadDownloadsComponent: ComponentLoader = () =>
         (c) => c.DownloadsComponent
     );
 
+const loadXtreamContentGateComponent: ComponentLoader = () =>
+    import('./xtream-content-gate.component').then(
+        (c) => c.XtreamContentGateComponent
+    );
+
 const loadLiveStreamLayoutComponent: ComponentLoader = () =>
     import('./live-stream-layout/live-stream-layout.component').then(
         (c) => c.LiveStreamLayoutComponent
@@ -56,46 +61,60 @@ export function createXtreamRoutes(): Route[] {
                     pathMatch: 'full',
                 },
                 {
-                    path: 'live',
-                    loadComponent: loadLiveStreamLayoutComponent,
-                },
-                {
-                    path: 'live/:categoryId',
-                    loadComponent: loadLiveStreamLayoutComponent,
-                },
-                {
-                    path: 'vod',
-                    providers: provideXtreamCatalogFacade(),
+                    path: '',
+                    loadComponent: loadXtreamContentGateComponent,
                     children: [
                         {
-                            path: '',
-                            loadComponent: loadCategoryContentViewComponent,
+                            path: 'live',
+                            loadComponent: loadLiveStreamLayoutComponent,
                         },
                         {
-                            path: ':categoryId',
-                            loadComponent: loadCategoryContentViewComponent,
+                            path: 'live/:categoryId',
+                            loadComponent: loadLiveStreamLayoutComponent,
                         },
                         {
-                            path: ':categoryId/:vodId',
-                            loadComponent: loadVodDetailsRouteComponent,
+                            path: 'vod',
+                            providers: provideXtreamCatalogFacade(),
+                            children: [
+                                {
+                                    path: '',
+                                    loadComponent: loadCategoryContentViewComponent,
+                                },
+                                {
+                                    path: ':categoryId',
+                                    loadComponent: loadCategoryContentViewComponent,
+                                },
+                                {
+                                    path: ':categoryId/:vodId',
+                                    loadComponent: loadVodDetailsRouteComponent,
+                                },
+                            ],
                         },
-                    ],
-                },
-                {
-                    path: 'series',
-                    providers: provideXtreamCatalogFacade(),
-                    children: [
                         {
-                            path: '',
-                            loadComponent: loadCategoryContentViewComponent,
+                            path: 'series',
+                            providers: provideXtreamCatalogFacade(),
+                            children: [
+                                {
+                                    path: '',
+                                    loadComponent: loadCategoryContentViewComponent,
+                                },
+                                {
+                                    path: ':categoryId',
+                                    loadComponent: loadCategoryContentViewComponent,
+                                },
+                                {
+                                    path: ':categoryId/:serialId',
+                                    loadComponent: loadSerialDetailsComponent,
+                                },
+                            ],
                         },
                         {
-                            path: ':categoryId',
-                            loadComponent: loadCategoryContentViewComponent,
+                            path: 'search',
+                            loadComponent: loadSearchResultsComponent,
                         },
                         {
-                            path: ':categoryId/:serialId',
-                            loadComponent: loadSerialDetailsComponent,
+                            path: 'recently-added',
+                            loadComponent: loadRecentlyAddedComponent,
                         },
                     ],
                 },
@@ -108,14 +127,6 @@ export function createXtreamRoutes(): Route[] {
                     path: 'recent',
                     loadComponent: loadXtreamCollectionRouteComponent,
                     data: { mode: 'recent', portalType: 'xtream' },
-                },
-                {
-                    path: 'search',
-                    loadComponent: loadSearchResultsComponent,
-                },
-                {
-                    path: 'recently-added',
-                    loadComponent: loadRecentlyAddedComponent,
                 },
                 {
                     path: 'downloads',

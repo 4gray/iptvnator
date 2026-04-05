@@ -121,6 +121,62 @@
 
                 <div class="setting-item">
                     <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.SHOW_DASHBOARD' | translate }}</h4>
+                        <p>
+                            {{
+                                'SETTINGS.SHOW_DASHBOARD_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control setting-item__toggle">
+                        <mat-checkbox
+                            formControlName="showDashboard"
+                            data-test-id="toggle-show-dashboard"
+                        ></mat-checkbox>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.STARTUP_BEHAVIOR' | translate }}</h4>
+                        <p>
+                            {{
+                                'SETTINGS.STARTUP_BEHAVIOR_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
+                            <mat-label>{{
+                                'SETTINGS.STARTUP_BEHAVIOR' | translate
+                            }}</mat-label>
+                            <mat-select
+                                formControlName="startupBehavior"
+                                data-test-id="select-startup-behavior"
+                            >
+                                @for (
+                                    option of startupBehaviorOptions;
+                                    track option.value
+                                ) {
+                                    <mat-option
+                                        [value]="option.value"
+                                        [attr.data-test-id]="option.value"
+                                    >
+                                        {{ option.labelKey | translate }}
+                                    </mat-option>
+                                }
+                            </mat-select>
+                        </mat-form-field>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-item__meta">
                         <h4>{{ 'SETTINGS.SHOW_CAPTIONS' | translate }}</h4>
                         <p>
                             {{

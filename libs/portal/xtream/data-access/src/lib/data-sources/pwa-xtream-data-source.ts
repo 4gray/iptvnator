@@ -136,8 +136,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getCategories(
         playlistId: string,
         credentials: XtreamCredentials,
-        type: CategoryType
+        type: CategoryType,
+        options?: XtreamOperationOptions
     ): Promise<XtreamCategory[]> {
+        void options;
         const cacheKey = `${playlistId}-${type}-categories`;
 
         // Check in-memory cache first

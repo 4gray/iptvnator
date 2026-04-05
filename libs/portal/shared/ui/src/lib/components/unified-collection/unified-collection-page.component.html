@@ -118,9 +118,11 @@
                     [items]="liveItems()"
                     [mode]="mode()"
                     [searchTerm]="workspaceSearchTerm()"
+                    [autoOpenItem]="pendingAutoOpenLiveItem()"
                     (removeItem)="onRemoveItem($event)"
                     (reorderItems)="onReorder($event)"
                     (itemPlayed)="onItemPlayed($event)"
+                    (autoOpenHandled)="onLiveAutoOpenHandled()"
                 />
             }
         }

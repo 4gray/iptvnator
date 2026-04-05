@@ -26,6 +26,7 @@ import {
     waitForM3uCatalog,
     waitForPortalDebugEvent,
     waitForXtreamCatalog,
+    waitForSourceRowIdle,
     writeTemporaryM3uFile,
 } from './electron-test-fixtures';
 
@@ -447,6 +448,13 @@ https://streams.example.test/refreshed-url.m3u8
                 provider: 'xtream',
                 timeoutMs: 30000,
             });
+            await openSources(app.mainWindow);
+            await waitForSourceRowIdle(app.mainWindow, 'Refresh Xtream Source');
+            await expect(
+                sourceRowByTitle(app.mainWindow, 'Refresh Xtream Source')
+                    .first()
+                    .locator('.meta')
+            ).toContainText('Updated:');
         } finally {
             await closeElectronApp(app);
             await urlServer.close();

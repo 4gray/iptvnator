@@ -1,11 +1,21 @@
-import { Component, computed, DestroyRef, inject, input } from '@angular/core';
+import {
+    Component,
+    computed,
+    DestroyRef,
+    effect,
+    inject,
+    input,
+    signal,
+    viewChild,
+    ElementRef,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { WorkspaceContextCategoryViewComponent } from './components/workspace-context-category-view.component';
@@ -42,6 +52,7 @@ export class WorkspaceContextPanelComponent {
     private readonly stalkerStore = inject(StalkerStore);
     private readonly dialog = inject(MatDialog);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly translate = inject(TranslateService);
 
     readonly context = input.required<WorkspaceContextRoute>();
     readonly section = input.required<string>();
@@ -64,6 +75,52 @@ export class WorkspaceContextPanelComponent {
     readonly xtreamCategories = this.xtreamStore.getCategoriesBySelectedType;
     readonly xtreamCategoryItemCounts = this.xtreamStore.getCategoryItemCounts;
     readonly xtreamSelectedCategoryId = this.xtreamStore.selectedCategoryId;
+    readonly xtreamSelectedTypeContentState =
+        this.xtreamStore.selectedTypeContentState;
+    readonly xtreamSelectedTypeContentReady =
+        this.xtreamStore.selectedTypeContentReady;
+    readonly xtreamSelectedTypeCountsReady =
+        this.xtreamStore.selectedTypeCountsReady;
+    readonly xtreamImportPhase = this.xtreamStore.currentImportPhase;
+    readonly isXtreamCategoryLoading = computed(
+        () =>
+            this.isXtreamCategories() &&
+            this.xtreamStore.isLoadingCategories() &&
+            this.xtreamCategories().length === 0
+    );
+    readonly isXtreamCategoryInteractionEnabled = computed(
+        () =>
+            !this.isXtreamCategoryLoading() &&
+            this.xtreamSelectedTypeContentReady()
+    );
+    readonly xtreamCountDisplayMode = computed<'loading' | 'ready'>(() =>
+        this.isXtreamCategoryInteractionEnabled() ? 'ready' : 'loading'
+    );
+    readonly canManageXtreamCategories = computed(
+        () =>
+            this.isXtreamCategories() &&
+            this.xtreamCategories().length > 0 &&
+            this.xtreamSelectedTypeCountsReady()
+    );
+    readonly xtreamStatusText = computed(() => {
+        if (
+            !this.isXtreamCategories() ||
+            this.isXtreamCategoryLoading() ||
+            this.xtreamSelectedTypeContentState() !== 'loading'
+        ) {
+            return '';
+        }
+
+        const syncLabel = this.translate.instant(
+            this.getXtreamSyncLabelKey(this.section())
+        );
+        const phaseKey = this.getXtreamImportPhaseLabelKey(
+            this.xtreamImportPhase()
+        );
+        const phaseLabel = phaseKey ? this.translate.instant(phaseKey) : '';
+
+        return phaseLabel ? `${syncLabel} ${phaseLabel}` : syncLabel;
+    });
 
     readonly stalkerCategories = this.stalkerStore.getCategoryResource;
     readonly stalkerSelectedCategoryId = this.stalkerStore.selectedCategoryId;
@@ -75,6 +132,45 @@ export class WorkspaceContextPanelComponent {
     readonly skeletonLabelWidths = [
         78, 66, 74, 59, 83, 69, 76, 62, 81, 64, 72, 67, 79, 61,
     ];
+
+    readonly searchInput =
+        viewChild<ElementRef<HTMLInputElement>>('searchInput');
+    readonly isSearchOpen = signal(false);
+    readonly categorySearchTerm = signal('');
+
+    readonly canSearchCategories = computed(
+        () =>
+            (this.isXtreamCategories() &&
+                this.xtreamCategories().length > 0) ||
+            (this.isStalkerCategories() &&
+                this.stalkerCategories().length > 0)
+    );
+
+    readonly filteredXtreamCategories = computed(() => {
+        const cats = this.xtreamCategories();
+        const term = this.categorySearchTerm().trim().toLowerCase();
+        if (!term) return cats;
+        return cats.filter((c) => {
+            const label =
+                (c as { category_name?: string }).category_name ??
+                (c as { name?: string }).name ??
+                '';
+            return label.toLowerCase().includes(term);
+        });
+    });
+
+    readonly filteredStalkerCategories = computed(() => {
+        const cats = this.stalkerCategories();
+        const term = this.categorySearchTerm().trim().toLowerCase();
+        if (!term) return cats;
+        return cats.filter((c) => {
+            const label =
+                (c as { name?: string }).name ??
+                (c as { category_name?: string }).category_name ??
+                '';
+            return label.toLowerCase().includes(term);
+        });
+    });
 
     readonly title = computed(() => {
         if (this.isXtreamCategories()) {
@@ -110,7 +206,39 @@ export class WorkspaceContextPanelComponent {
         return '';
     });
 
+    constructor() {
+        effect(() => {
+            if (this.isSearchOpen()) {
+                queueMicrotask(() => {
+                    this.searchInput()?.nativeElement.focus();
+                });
+            }
+        });
+    }
+
+    toggleCategorySearch(): void {
+        const opening = !this.isSearchOpen();
+        this.isSearchOpen.set(opening);
+        if (!opening) {
+            this.categorySearchTerm.set('');
+        }
+    }
+
+    onSearchInput(event: Event): void {
+        const value = (event.target as HTMLInputElement).value;
+        this.categorySearchTerm.set(value);
+    }
+
+    clearCategorySearch(): void {
+        this.categorySearchTerm.set('');
+        this.searchInput()?.nativeElement.focus();
+    }
+
     openManageCategories(): void {
+        if (!this.canManageXtreamCategories()) {
+            return;
+        }
+
         const context = this.context();
         const section = this.section();
         const contentType =
@@ -131,7 +259,7 @@ export class WorkspaceContextPanelComponent {
                             itemCounts: this.xtreamStore.getCategoryItemCounts(),
                         },
                         width: '500px',
-                        maxHeight: '80vh',
+                        maxHeight: '90vh',
                     }
                 );
 
@@ -148,6 +276,10 @@ export class WorkspaceContextPanelComponent {
     }
 
     onXtreamCategoryClicked(category: XtreamCategoryLike): void {
+        if (!this.isXtreamCategoryInteractionEnabled()) {
+            return;
+        }
+
         const context = this.context();
         const section = this.section();
         const rawCategoryId = category.category_id ?? category.id;
@@ -206,5 +338,38 @@ export class WorkspaceContextPanelComponent {
             section,
             categoryId,
         ]);
+    }
+
+    private getXtreamSyncLabelKey(section: string): string {
+        switch (section) {
+            case 'live':
+                return 'WORKSPACE.CONTEXT.XTREAM_SYNCING_LIVE';
+            case 'series':
+                return 'WORKSPACE.CONTEXT.XTREAM_SYNCING_SERIES';
+            case 'vod':
+            default:
+                return 'WORKSPACE.CONTEXT.XTREAM_SYNCING_MOVIES';
+        }
+    }
+
+    private getXtreamImportPhaseLabelKey(phase: string | null): string {
+        switch (phase) {
+            case 'preparing-content':
+                return 'WORKSPACE.SHELL.XTREAM_IMPORT_PREPARING';
+            case 'loading-categories':
+            case 'loading-live':
+            case 'loading-movies':
+            case 'loading-series':
+                return 'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING';
+            case 'saving-categories':
+            case 'saving-content':
+                return 'WORKSPACE.SHELL.XTREAM_IMPORT_SAVING';
+            case 'restoring-favorites':
+                return 'WORKSPACE.SHELL.XTREAM_IMPORT_RESTORING_FAVORITES';
+            case 'restoring-recently-viewed':
+                return 'WORKSPACE.SHELL.XTREAM_IMPORT_RESTORING_RECENT';
+            default:
+                return '';
+        }
     }
 }

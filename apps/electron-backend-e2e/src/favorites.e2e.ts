@@ -4,12 +4,14 @@ import {
     addXtreamPortal,
     channelItemByTitle,
     clickCategoryById,
-    clickCategoryByNameExact,
     clickGridListCardByTitle,
+    clickCategoryByNameExact,
+    clickFirstGridListCard,
     closeElectronApp,
     contentCardByTitle,
     defaultXtreamPassword,
     defaultXtreamUsername,
+    expectVisibleContentCardTitle,
     expect,
     importM3uPlaylistFromNativeDialog,
     launchElectronApp,
@@ -116,8 +118,6 @@ test.describe('Electron Favorites', () => {
             xtreamCredentials
         );
         const [liveTitle] = pickDistinctTitles(liveFixture.items, getXtreamTitle);
-        const [movieTitle] = pickDistinctTitles(vodFixture.items, getXtreamTitle);
-        const [seriesTitle] = pickDistinctTitles(seriesFixture.items, getXtreamTitle);
         const portalTitle = 'Xtream Favorites Source';
         const app = await launchElectronApp(dataDir);
 
@@ -139,7 +139,11 @@ test.describe('Electron Favorites', () => {
                 app.mainWindow,
                 vodFixture.categoryName
             );
-            await clickGridListCardByTitle(app.mainWindow, movieTitle);
+            // Use clickFirstGridListCard: grid sorts by date-desc so fixture order ≠
+            // display order; this atomically reads the first card's title and clicks
+            // it, avoiding a race where the grid re-renders between the title read
+            // and a separate search-by-title click.
+            const movieTitle = await clickFirstGridListCard(app.mainWindow);
             await addCurrentDetailToFavorites(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
 
@@ -148,7 +152,7 @@ test.describe('Electron Favorites', () => {
                 app.mainWindow,
                 seriesFixture.categoryName
             );
-            await clickGridListCardByTitle(app.mainWindow, seriesTitle);
+            const seriesTitle = await clickFirstGridListCard(app.mainWindow);
             await addCurrentDetailToFavorites(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
 
@@ -156,18 +160,18 @@ test.describe('Electron Favorites', () => {
             await expect(channelItemByTitle(app.mainWindow, liveTitle)).toHaveCount(1);
 
             await switchUnifiedCollectionContent(app.mainWindow, 'Movies');
-            await expect(contentCardByTitle(app.mainWindow, movieTitle)).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
 
             await switchUnifiedCollectionContent(app.mainWindow, 'Series');
-            await expect(contentCardByTitle(app.mainWindow, seriesTitle)).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
 
             await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
             await expect(channelItemByTitle(app.mainWindow, liveTitle)).toHaveCount(1);
             await switchUnifiedCollectionContent(app.mainWindow, 'Movies');
-            await expect(contentCardByTitle(app.mainWindow, movieTitle)).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
             await switchUnifiedCollectionContent(app.mainWindow, 'Series');
-            await expect(contentCardByTitle(app.mainWindow, seriesTitle)).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
 
             const restarted = await restartElectronApp(app, dataDir);
             app.electronApp = restarted.electronApp;
@@ -186,13 +190,9 @@ test.describe('Electron Favorites', () => {
                 channelItemByTitle(app.mainWindow, liveTitle)
             ).toHaveCount(1);
             await switchUnifiedCollectionContent(app.mainWindow, 'Movies');
-            await expect(
-                contentCardByTitle(app.mainWindow, movieTitle)
-            ).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
             await switchUnifiedCollectionContent(app.mainWindow, 'Series');
-            await expect(
-                contentCardByTitle(app.mainWindow, seriesTitle)
-            ).toHaveCount(1);
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
         } finally {
             await closeElectronApp(app);
         }
@@ -275,6 +275,70 @@ test.describe('Electron Favorites', () => {
             await expect(
                 contentCardByTitle(app.mainWindow, seriesTitle)
             ).toHaveCount(1);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('opens Stalker favorite movies and series in source detail routes and returns back to favorites', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['stalker']);
+        const vodFixture = await fetchStalkerCategoryFixture(request, 'vod');
+        const seriesFixture = await fetchStalkerCategoryFixture(request, 'series');
+        const [movieTitle] = pickDistinctTitles(vodFixture.items, getStalkerTitle);
+        const [seriesTitle] = pickDistinctTitles(seriesFixture.items, getStalkerTitle);
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await addStalkerPortal(app.mainWindow, {
+                name: 'Stalker Favorite Detail Source',
+            });
+            await waitForStalkerCatalog(app.mainWindow);
+
+            await app.mainWindow.getByRole('link', { name: 'Movies', exact: true }).click();
+            await clickCategoryById(app.mainWindow, vodFixture.categoryId);
+            await clickGridListCardByTitle(app.mainWindow, movieTitle);
+            await addCurrentDetailToFavorites(app.mainWindow);
+            await goBackFromDetail(app.mainWindow);
+
+            await app.mainWindow.getByRole('link', { name: 'Series', exact: true }).click();
+            await clickCategoryById(app.mainWindow, seriesFixture.categoryId);
+            await clickGridListCardByTitle(app.mainWindow, seriesTitle);
+            await addCurrentDetailToFavorites(app.mainWindow);
+            await goBackFromDetail(app.mainWindow);
+
+            await openPlaylistFavorites(app.mainWindow);
+
+            await switchUnifiedCollectionContent(app.mainWindow, 'Movies');
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
+            await contentCardByTitle(app.mainWindow, movieTitle).first().click();
+            await app.mainWindow.waitForURL(/\/workspace\/stalker\/[^/]+\/vod\/[^/]+$/);
+            await expect(app.mainWindow.locator('app-content-hero')).toContainText(
+                movieTitle
+            );
+
+            await goBackFromDetail(app.mainWindow);
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toMatch(/\/favorites$/);
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
+
+            await switchUnifiedCollectionContent(app.mainWindow, 'Series');
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
+            await contentCardByTitle(app.mainWindow, seriesTitle).first().click();
+            await app.mainWindow.waitForURL(/\/workspace\/stalker\/[^/]+\/series\/[^/]+$/);
+            await expect(app.mainWindow.locator('app-content-hero')).toContainText(
+                seriesTitle
+            );
+
+            await goBackFromDetail(app.mainWindow);
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toMatch(/\/favorites$/);
+            await switchUnifiedCollectionContent(app.mainWindow, 'Series');
+            await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
         } finally {
             await closeElectronApp(app);
         }

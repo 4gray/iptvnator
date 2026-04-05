@@ -2,7 +2,10 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { selectAllPlaylistsMeta } from 'm3u-state';
+import {
+    selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
+} from 'm3u-state';
 import { of } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
 import { Playlist, PlaylistMeta } from 'shared-interfaces';
@@ -10,6 +13,7 @@ import { DashboardDataService } from './dashboard-data.service';
 
 describe('DashboardDataService', () => {
     let service: DashboardDataService;
+    const playlistsLoadedSignal = signal(true);
 
     const playlistsSignal = signal<PlaylistMeta[]>([
         {
@@ -50,6 +54,9 @@ describe('DashboardDataService', () => {
             if (selector === selectAllPlaylistsMeta) {
                 return playlistsSignal;
             }
+            if (selector === selectPlaylistsLoadingFlag) {
+                return playlistsLoadedSignal;
+            }
             return signal(null);
         }),
         dispatch: jest.fn(),
@@ -58,7 +65,7 @@ describe('DashboardDataService', () => {
     const dbServiceMock = {
         getGlobalRecentlyAdded: jest.fn().mockResolvedValue([]),
         getGlobalRecentlyViewed: jest.fn().mockResolvedValue([]),
-        getGlobalFavorites: jest.fn().mockResolvedValue([]),
+        getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
         removeFromFavorites: jest.fn().mockResolvedValue(undefined),
         removeRecentItem: jest.fn().mockResolvedValue(undefined),
     };
@@ -113,6 +120,7 @@ describe('DashboardDataService', () => {
             value: {} as Window['electron'],
             configurable: true,
         });
+        playlistsLoadedSignal.set(true);
         playlistsServiceMock.getPlaylistById.mockClear();
         playlistsServiceMock.getPlaylistById.mockReturnValue(of(playlistMock));
         playlistsServiceMock.setFavorites.mockClear();
@@ -124,8 +132,8 @@ describe('DashboardDataService', () => {
                 recentlyViewed: [],
             })
         );
-        dbServiceMock.getGlobalFavorites.mockClear();
-        dbServiceMock.getGlobalFavorites.mockResolvedValue([]);
+        dbServiceMock.getAllGlobalFavorites.mockClear();
+        dbServiceMock.getAllGlobalFavorites.mockResolvedValue([]);
         dbServiceMock.getGlobalRecentlyAdded.mockClear();
         dbServiceMock.getGlobalRecentlyAdded.mockResolvedValue([]);
         dbServiceMock.getGlobalRecentlyViewed.mockClear();
@@ -186,6 +194,60 @@ describe('DashboardDataService', () => {
         );
     });
 
+    it('includes Xtream movies and series in global favorite items', async () => {
+        dbServiceMock.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: 51,
+                category_id: 12,
+                title: 'Action Movie',
+                rating: '8.0',
+                added_at: '2026-02-02T10:00:00.000Z',
+                poster_url: 'https://example.com/movie.png',
+                xtream_id: 5001,
+                type: 'movie',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+            },
+            {
+                id: 52,
+                category_id: 13,
+                title: 'Sci-Fi Series',
+                rating: '8.7',
+                added_at: '2026-02-03T10:00:00.000Z',
+                poster_url: 'https://example.com/series.png',
+                xtream_id: 5002,
+                type: 'series',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+            },
+        ]);
+
+        await service.reloadGlobalFavorites();
+
+        expect(service.globalFavoriteItems()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 51,
+                    title: 'Action Movie',
+                    type: 'movie',
+                    source: 'xtream',
+                }),
+                expect.objectContaining({
+                    id: 52,
+                    title: 'Sci-Fi Series',
+                    type: 'series',
+                    source: 'xtream',
+                }),
+            ])
+        );
+        expect(
+            service.globalFavoriteItems().filter((item) => item.type === 'movie')
+        ).toHaveLength(1);
+        expect(
+            service.globalFavoriteItems().filter((item) => item.type === 'series')
+        ).toHaveLength(1);
+    });
+
     it('builds the M3U favorites route', async () => {
         await service.reloadGlobalFavorites();
         const m3uItem = service
@@ -199,6 +261,16 @@ describe('DashboardDataService', () => {
             'm3u-1',
             'favorites',
         ]);
+        expect(service.getGlobalFavoriteNavigationState(m3uItem!)).toEqual({
+            openLiveCollectionItem: {
+                contentType: 'live',
+                sourceType: 'm3u',
+                playlistId: 'm3u-1',
+                itemId: 'channel-1',
+                title: 'Channel One',
+                imageUrl: 'https://example.com/logo-1.png',
+            },
+        });
     });
 
     it('removes M3U favorites via PlaylistsService', async () => {
@@ -292,7 +364,7 @@ describe('DashboardDataService', () => {
         expect(service.getRecentlyAddedNavigationState(item)).toBeUndefined();
     });
 
-    it('builds the M3U recent route with navigation state', () => {
+    it('builds the M3U recent route with collection auto-open state', () => {
         const m3uItem = service
             .globalRecentItems()
             .find((item) => item.source === 'm3u');
@@ -305,7 +377,14 @@ describe('DashboardDataService', () => {
             'recent',
         ]);
         expect(service.getRecentItemNavigationState(m3uItem!)).toEqual({
-            openRecentChannelUrl: 'https://example.com/stream-1.m3u8',
+            openLiveCollectionItem: {
+                contentType: 'live',
+                sourceType: 'm3u',
+                playlistId: 'm3u-1',
+                itemId: 'https://example.com/stream-1.m3u8',
+                title: 'Channel One',
+                imageUrl: 'https://example.com/logo-1.png',
+            },
         });
     });
 

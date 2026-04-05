@@ -17,6 +17,14 @@ type FavoritePayload = StalkerPortalItem & {
     id?: string | number;
 };
 
+function resolveCategoryId(
+    value: unknown,
+    fallback: string
+): string {
+    const normalized = String(value ?? '').trim();
+    return normalized || fallback;
+}
+
 /**
  * Favorites concern methods.
  */
@@ -37,7 +45,10 @@ export function withStalkerFavorites() {
                         playlistService
                             .addPortalFavorite(portalId, {
                                 ...item,
-                                category_id: storeContext.selectedContentType(),
+                                category_id: resolveCategoryId(
+                                    item.category_id,
+                                    storeContext.selectedContentType()
+                                ),
                                 added_at: Date.now(),
                                 id: item.stream_id ?? item.id,
                             })

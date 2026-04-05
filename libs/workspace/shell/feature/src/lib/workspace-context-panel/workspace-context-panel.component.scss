@@ -35,11 +35,27 @@
     }
 }
 
+.context-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
 .context-header__action {
     width: 28px;
     height: 28px;
     line-height: 28px;
     flex-shrink: 0;
+    padding: 0;
+
+    &[disabled] {
+        opacity: 0.48;
+    }
+
+    &--active mat-icon {
+        color: var(--mat-sys-primary);
+    }
 
     mat-icon {
         font-size: 18px;
@@ -68,6 +84,74 @@
     margin: 4px 0 0;
     font-size: 0.78rem;
     color: var(--mat-sys-on-surface-variant);
+}
+
+// ─── Search Bar ──────────────────────────────────────────────────────────────
+.context-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 6px 6px;
+    padding: 0 10px;
+    min-height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
+    background: var(--app-search-bg, var(--mat-sys-surface-container));
+    flex-shrink: 0;
+    cursor: text;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+
+    &:focus-within {
+        border-color: var(--mat-sys-primary);
+        box-shadow: 0 0 0 3px
+            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+    }
+}
+
+.context-search__icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--mat-sys-on-surface-variant);
+    flex-shrink: 0;
+}
+
+.context-search input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--mat-sys-on-surface);
+    font: inherit;
+    font-size: 0.84rem;
+    width: 100%;
+    min-width: 0;
+
+    &::placeholder {
+        color: var(--mat-sys-on-surface-variant);
+        opacity: 0.6;
+    }
+
+    &::-webkit-search-cancel-button {
+        display: none;
+    }
+}
+
+.context-search__clear {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    line-height: 24px;
+    flex-shrink: 0;
+    padding: 0;
+
+    mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
 }
 
 // ─── Divider ──────────────────────────────────────────────────────────────────

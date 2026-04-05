@@ -80,15 +80,28 @@
         </mat-button-toggle-group>
     </ng-container>
 
-    <app-dashboard-activity-items
-        [items]="activityItems()"
-        [emptyLabel]="'WORKSPACE.DASHBOARD.NO_FAVORITES' | translate"
-        emptyIcon="favorite_border"
-        [emptyHint]="'WORKSPACE.DASHBOARD.NO_FAVORITES_HINT' | translate"
-        [viewMode]="viewMode()"
-        [showRemoveAction]="true"
-        [removeActionLabel]="'WORKSPACE.DASHBOARD.REMOVE_FAVORITE' | translate"
-        (itemAction)="onRemoveItem($event)"
-        (scrolledToEnd)="onItemsScrolledToEnd()"
-    />
+    @if (data.globalFavoritesLoading()) {
+        <div
+            class="global-favorites-widget__loading"
+            role="status"
+            [attr.aria-label]="'WORKSPACE.DASHBOARD.GLOBAL_FAVORITES' | translate"
+        >
+            <mat-progress-spinner
+                mode="indeterminate"
+                diameter="36"
+            />
+        </div>
+    } @else {
+        <app-dashboard-activity-items
+            [items]="activityItems()"
+            [emptyLabel]="'WORKSPACE.DASHBOARD.NO_FAVORITES' | translate"
+            emptyIcon="favorite_border"
+            [emptyHint]="'WORKSPACE.DASHBOARD.NO_FAVORITES_HINT' | translate"
+            [viewMode]="viewMode()"
+            [showRemoveAction]="true"
+            [removeActionLabel]="'WORKSPACE.DASHBOARD.REMOVE_FAVORITE' | translate"
+            (itemAction)="onRemoveItem($event)"
+            (scrolledToEnd)="onItemsScrolledToEnd()"
+        />
+    }
 </app-dashboard-widget-shell>

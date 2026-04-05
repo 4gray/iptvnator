@@ -23,7 +23,17 @@ export type WorkspaceCommandId =
     | 'playlist-search'
     | 'open-global-favorites'
     | 'open-downloads'
-    | 'open-global-recent';
+    | 'open-global-recent'
+    | 'open-settings'
+    | 'open-sources'
+    | 'open-dashboard'
+    | 'add-playlist'
+    | 'refresh-playlist'
+    | 'playlist-info'
+    | 'account-info'
+    | 'go-to-vod'
+    | 'go-to-live'
+    | 'go-to-series';
 
 export interface WorkspaceCommandItem {
     id: WorkspaceCommandId;
@@ -229,20 +239,38 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
         return 'WORKSPACE.COMMAND_PALETTE.GROUP_SECTION';
     }
 
-    getCommandIcon(command: WorkspaceCommandItem): string | null {
-        if (command.scope !== 'global') {
-            return null;
-        }
-
+    getCommandIcon(command: WorkspaceCommandItem): string {
         switch (command.id) {
             case 'global-search':
                 return 'search';
+            case 'playlist-search':
+                return 'playlist_play';
             case 'open-global-favorites':
                 return 'star';
             case 'open-downloads':
                 return 'download';
             case 'open-global-recent':
                 return 'history';
+            case 'open-settings':
+                return 'settings';
+            case 'open-sources':
+                return 'library_books';
+            case 'open-dashboard':
+                return 'dashboard';
+            case 'add-playlist':
+                return 'add_circle_outline';
+            case 'refresh-playlist':
+                return 'sync';
+            case 'playlist-info':
+                return 'info';
+            case 'account-info':
+                return 'account_circle';
+            case 'go-to-vod':
+                return 'movie';
+            case 'go-to-live':
+                return 'live_tv';
+            case 'go-to-series':
+                return 'video_library';
             default:
                 return 'bolt';
         }

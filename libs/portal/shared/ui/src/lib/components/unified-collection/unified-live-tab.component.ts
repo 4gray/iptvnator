@@ -13,6 +13,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
+    matchesOpenLiveCollectionItem,
+    OpenLiveCollectionItemState,
     PORTAL_PLAYER,
     ResolvedLiveCollectionDetail,
     StreamResolverService,
@@ -54,10 +56,12 @@ export class UnifiedLiveTabComponent {
     readonly items = input.required<UnifiedCollectionItem[]>();
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly searchTerm = input('');
+    readonly autoOpenItem = input<OpenLiveCollectionItemState | null>(null);
 
     readonly removeItem = output<UnifiedCollectionItem>();
     readonly reorderItems = output<UnifiedCollectionItem[]>();
     readonly itemPlayed = output<UnifiedCollectionItem>();
+    readonly autoOpenHandled = output<void>();
 
     private readonly streamResolver = inject(StreamResolverService);
     private readonly recentData = inject(UnifiedRecentDataService);
@@ -166,6 +170,28 @@ export class UnifiedLiveTabComponent {
             }
         });
 
+        effect(() => {
+            const target = this.autoOpenItem();
+            const items = this.items();
+            if (!target || items.length === 0) {
+                return;
+            }
+
+            const matchedItem = items.find((item) =>
+                matchesOpenLiveCollectionItem(item, target)
+            );
+            if (!matchedItem) {
+                return;
+            }
+
+            if (this.activeUid() === matchedItem.uid && this.activeDetail()) {
+                this.autoOpenHandled.emit();
+                return;
+            }
+
+            void this.activateItem(matchedItem, true);
+        });
+
         const tickInterval = setInterval(
             () => this.progressTick.update((tick) => tick + 1),
             30_000
@@ -178,9 +204,47 @@ export class UnifiedLiveTabComponent {
         if (!item) {
             return;
         }
+        await this.activateItem(item);
+    }
 
-        if (this.activeUid() === item.uid) {
-            this.onClose();
+    onFavoriteToggled(channel: UnifiedFavoriteChannel): void {
+        const item = this.items().find((candidate) => candidate.uid === channel.uid);
+        if (item) {
+            this.removeItem.emit(item);
+        }
+    }
+
+    onReorder(channels: UnifiedFavoriteChannel[]): void {
+        const reordered = channels
+            .map((channel) =>
+                this.items().find((candidate) => candidate.uid === channel.uid)
+            )
+            .filter(Boolean) as UnifiedCollectionItem[];
+        this.reorderItems.emit(reordered);
+    }
+
+    onClose(): void {
+        this.selectionRequestId += 1;
+        this.isSelecting.set(false);
+        this.activeDetail.set(null);
+        this.activeUid.set(null);
+    }
+
+    private async loadEpgMap(
+        items: UnifiedCollectionItem[]
+    ): Promise<void> {
+        const epgMap = await this.streamResolver.loadEpgForItems(items);
+        this.epgMap.set(epgMap);
+    }
+
+    private async activateItem(
+        item: UnifiedCollectionItem,
+        isAutoOpen = false
+    ): Promise<void> {
+        if (this.activeUid() === item.uid && this.activeDetail()) {
+            if (isAutoOpen) {
+                this.autoOpenHandled.emit();
+            }
             return;
         }
 
@@ -217,6 +281,10 @@ export class UnifiedLiveTabComponent {
             } catch {
                 // Keep playback/EPG visible even if history persistence fails.
             }
+
+            if (requestId === this.selectionRequestId && isAutoOpen) {
+                this.autoOpenHandled.emit();
+            }
         } catch {
             if (requestId === this.selectionRequestId) {
                 this.activeDetail.set(null);
@@ -227,36 +295,6 @@ export class UnifiedLiveTabComponent {
                 this.isSelecting.set(false);
             }
         }
-    }
-
-    onFavoriteToggled(channel: UnifiedFavoriteChannel): void {
-        const item = this.items().find((candidate) => candidate.uid === channel.uid);
-        if (item) {
-            this.removeItem.emit(item);
-        }
-    }
-
-    onReorder(channels: UnifiedFavoriteChannel[]): void {
-        const reordered = channels
-            .map((channel) =>
-                this.items().find((candidate) => candidate.uid === channel.uid)
-            )
-            .filter(Boolean) as UnifiedCollectionItem[];
-        this.reorderItems.emit(reordered);
-    }
-
-    onClose(): void {
-        this.selectionRequestId += 1;
-        this.isSelecting.set(false);
-        this.activeDetail.set(null);
-        this.activeUid.set(null);
-    }
-
-    private async loadEpgMap(
-        items: UnifiedCollectionItem[]
-    ): Promise<void> {
-        const epgMap = await this.streamResolver.loadEpgForItems(items);
-        this.epgMap.set(epgMap);
     }
 
     private async hydrateSelectedM3uPrograms(

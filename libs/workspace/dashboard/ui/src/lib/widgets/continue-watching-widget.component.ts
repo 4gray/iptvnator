@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
@@ -16,6 +17,7 @@ import { DashboardWidgetShellComponent } from './dashboard-widget-shell.componen
     imports: [
         MatButtonModule,
         MatIcon,
+        MatProgressSpinnerModule,
         RouterLink,
         DashboardWidgetShellComponent,
         TranslatePipe,
@@ -42,6 +44,10 @@ export class ContinueWatchingWidgetComponent {
 
     getLink(item: GlobalRecentItem): string[] {
         return this.data.getRecentItemLink(item);
+    }
+
+    getState(item: GlobalRecentItem): Record<string, unknown> | undefined {
+        return this.data.getRecentItemNavigationState(item);
     }
 
     typeIcon(type: GlobalRecentItem['type']): string {

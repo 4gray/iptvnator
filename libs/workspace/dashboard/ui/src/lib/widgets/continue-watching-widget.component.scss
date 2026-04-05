@@ -13,6 +13,13 @@
     --_series-accent: oklch(68% 0.16 55);
 }
 
+.continue-watching-widget__loading {
+    min-height: 220px;
+    display: grid;
+    place-items: center;
+    padding: 16px 0;
+}
+
 // ── Hero card ─────────────────────────────────────────────────────────────────
 
 .hero {

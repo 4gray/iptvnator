@@ -5,7 +5,7 @@
 
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
-import { PortalDebugEvent } from 'shared-interfaces';
+import { PortalDebugEvent, XTREAM_CANCEL_SESSION } from 'shared-interfaces';
 import { emitPortalDebugEvent } from './portal-debug.events';
 
 export default class XtreamEvents {
@@ -62,12 +62,14 @@ ipcMain.handle(
             url: string;
             params: Record<string, string>;
             requestId?: string;
+            sessionId?: string;
             suppressErrorLog?: boolean;
         }
     ) => {
         const startedAt = Date.now();
+        let activeRequestKey: string | null = null;
         try {
-            const { url, params, requestId } = payload;
+            const { url, params, requestId, sessionId } = payload;
 
             // Build URL with query parameters
             // Xtream API endpoint is always at /player_api.php
@@ -75,6 +77,15 @@ ipcMain.handle(
             Object.entries(params).forEach(([key, value]) => {
                 apiUrl.searchParams.append(key, value);
             });
+
+            const controller = new AbortController();
+            if (requestId || sessionId) {
+                activeRequestKey = requestId ?? crypto.randomUUID();
+                activeXtreamRequests.set(activeRequestKey, {
+                    controller,
+                    sessionId,
+                });
+            }
 
             // Configure axios request
             const config: AxiosRequestConfig = {
@@ -87,6 +98,7 @@ ipcMain.handle(
                 },
                 timeout: 30000, // 30 seconds timeout for Xtream API
                 validateStatus: (status) => status < 500, // Don't throw on 4xx errors
+                signal: controller.signal,
             };
 
             const response = await axios(config);
@@ -166,6 +178,14 @@ ipcMain.handle(
 
             // Format error response
             if (axios.isAxiosError(error)) {
+                if (error.code === 'ERR_CANCELED') {
+                    throw {
+                        type: 'ERROR',
+                        name: 'AbortError',
+                        message: 'Xtream request cancelled',
+                        status: 499,
+                    };
+                }
                 const errorResponse = {
                     type: 'ERROR',
                     message:
@@ -188,6 +208,40 @@ ipcMain.handle(
                     status: 500,
                 };
             }
+        } finally {
+            if (activeRequestKey) {
+                activeXtreamRequests.delete(activeRequestKey);
+            }
         }
     }
 );
+
+ipcMain.handle(
+    XTREAM_CANCEL_SESSION,
+    async (_event, sessionId: string): Promise<{ success: boolean; cancelled: number }> => {
+        if (!sessionId) {
+            return { success: false, cancelled: 0 };
+        }
+
+        let cancelled = 0;
+        for (const activeRequest of activeXtreamRequests.values()) {
+            if (activeRequest.sessionId !== sessionId) {
+                continue;
+            }
+
+            activeRequest.controller.abort();
+            cancelled += 1;
+        }
+
+        return {
+            success: cancelled > 0,
+            cancelled,
+        };
+    }
+);
+type ActiveXtreamRequest = {
+    controller: AbortController;
+    sessionId?: string;
+};
+
+const activeXtreamRequests = new Map<string, ActiveXtreamRequest>();

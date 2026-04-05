@@ -193,7 +193,7 @@ async function waitForAppReady(page: Page): Promise<void> {
     );
 }
 
-export async function openAddPlaylistMenu(page: Page): Promise<void> {
+export async function openAddPlaylistDialog(page: Page): Promise<void> {
     await page.getByRole('button', { name: 'Add playlist' }).click();
 }
 
@@ -215,9 +215,9 @@ export async function importM3uPlaylistFromNativeDialog(
     filePath: string
 ): Promise<void> {
     await stubNativePlaylistFileDialog(app.electronApp, filePath);
-    await openAddPlaylistMenu(app.mainWindow);
+    await openAddPlaylistDialog(app.mainWindow);
     await app.mainWindow
-        .getByRole('menuitem', { name: 'Add via file upload' })
+        .locator('mat-dialog-container mat-button-toggle[value="file"]')
         .click();
     await app.mainWindow.locator('mat-dialog-container .file-upload').click();
     await app.mainWindow.waitForSelector('mat-dialog-container', {
@@ -241,9 +241,9 @@ export async function addXtreamPortal(
         username = defaultXtreamUsername,
     } = options;
 
-    await openAddPlaylistMenu(page);
-    await page.getByRole('menuitem', { name: 'Add Xtreme Code' }).click();
+    await openAddPlaylistDialog(page);
     const dialog = page.locator('mat-dialog-container');
+    await dialog.locator('mat-button-toggle[value="xtream"]').click();
 
     await setInputValue(dialog.locator('#title'), name);
     await setInputValue(dialog.locator('#serverUrl'), serverUrl);
@@ -298,9 +298,9 @@ export async function addStalkerPortal(
         portalUrl = `${stalkerMockServer}/portal.php`,
     } = options;
 
-    await openAddPlaylistMenu(page);
-    await page.getByRole('menuitem', { name: 'Add Stalker Portal' }).click();
+    await openAddPlaylistDialog(page);
     const dialog = page.locator('mat-dialog-container');
+    await dialog.locator('mat-button-toggle[value="stalker"]').click();
 
     await setInputValue(dialog.locator('input#title'), name);
     await setInputValue(dialog.locator('input#portalUrl'), portalUrl);
@@ -366,9 +366,9 @@ export async function importM3uPlaylistFromUrl(
     page: Page,
     playlistUrl: string
 ): Promise<void> {
-    await openAddPlaylistMenu(page);
-    await page.getByRole('menuitem', { name: 'Add via URL' }).click();
+    await openAddPlaylistDialog(page);
     const dialog = page.locator('mat-dialog-container');
+    await dialog.locator('mat-button-toggle[value="url"]').click();
 
     await setInputValue(
         dialog.locator('input[formcontrolname="playlistUrl"]'),
@@ -569,35 +569,22 @@ async function clickButtonToggleOption(
     toggleGroup: Locator,
     label: string
 ): Promise<void> {
-    const radio = toggleGroup.getByRole('radio', {
-        name: label,
-        exact: true,
-    });
-
-    if ((await radio.count()) > 0) {
-        await expect(radio.first()).toBeVisible();
-        await radio.first().click();
-        return;
-    }
-
-    const button = toggleGroup.getByRole('button', {
-        name: label,
-        exact: true,
-    });
-
-    if ((await button.count()) > 0) {
-        await expect(button.first()).toBeVisible();
-        await button.first().click();
-        return;
-    }
-
     const toggle = toggleGroup
         .locator('mat-button-toggle')
         .filter({ hasText: flexibleTextPattern(label) })
         .first();
 
     await expect(toggle).toBeVisible();
-    await toggle.click();
+
+    if (!(await isButtonToggleSelected(toggle))) {
+        await toggle.click();
+    }
+
+    await expect
+        .poll(() => isButtonToggleSelected(toggle), {
+            timeout: 10000,
+        })
+        .toBe(true);
 }
 
 export function channelItemByTitle(page: Page, title: string): Locator {
@@ -616,12 +603,61 @@ export function contentCardByTitle(page: Page, title: string): Locator {
     });
 }
 
+export async function expectVisibleContentCardTitle(
+    page: Page,
+    title: string
+): Promise<void> {
+    await expect
+        .poll(
+            async () => {
+                const titles = await visibleContentCardTitles(page);
+                return titles.some(
+                    (visibleTitle) =>
+                        normalizeVisibleText(visibleTitle) ===
+                        normalizeVisibleText(title)
+                );
+            },
+            { timeout: 20000 }
+        )
+        .toBe(true);
+}
+
 export function gridListCardByTitle(page: Page, title: string): Locator {
     return page.locator('.category-content-layout mat-card').filter({
         has: page.locator('.title', {
             hasText: flexibleTextPattern(title),
         }),
     });
+}
+
+/**
+ * Waits for the first grid card to appear (skeleton loading done) and returns
+ * its display title. Use this instead of picking from fixture order, since the
+ * grid sorts by date-desc and may paginate items off the first page.
+ */
+export async function waitForFirstGridListCardTitle(page: Page): Promise<string> {
+    const card = page.locator('.category-content-layout mat-card').first();
+    await expect(card).toBeVisible({ timeout: 20000 });
+    return ((await card.locator('.title').textContent()) ?? '').trim();
+}
+
+/**
+ * Waits for the first grid card to appear with a non-empty title, clicks it,
+ * and returns the title. Use this instead of waitForFirstGridListCardTitle +
+ * clickGridListCardByTitle to avoid a race condition where the grid re-renders
+ * between the title read and the subsequent search-by-title click.
+ */
+export async function clickFirstGridListCard(page: Page): Promise<string> {
+    const card = page.locator('.category-content-layout mat-card').first();
+    await expect(card).toBeVisible({ timeout: 20000 });
+    const titleEl = card.locator('.title');
+    let title = '';
+    await expect(async () => {
+        title = ((await titleEl.textContent()) ?? '').trim();
+        expect(title.length).toBeGreaterThan(0);
+    }).toPass({ timeout: 10000 });
+    await card.click();
+    return title;
 }
 
 export async function clickGridListCardByTitle(
@@ -675,9 +711,7 @@ export async function getVisibleSourceTitles(page: Page): Promise<string[]> {
     return page.locator('app-playlist-item').evaluateAll((elements) =>
         elements
             .map((element) => {
-                const titleElement = element.querySelector(
-                    '[matlistitemtitle], [matListItemTitle], .mdc-list-item__primary-text'
-                );
+                const titleElement = element.querySelector('.playlist-title');
                 return titleElement?.textContent?.trim() ?? '';
             })
             .filter((title) => title.length > 0)
@@ -709,7 +743,7 @@ export async function dragSourceBefore(
     targetTitle: string
 ): Promise<void> {
     const source = sourceRowByTitle(page, sourceTitle).locator('.drag-icon');
-    const target = sourceRowByTitle(page, targetTitle).locator('mat-list-item');
+    const target = sourceRowByTitle(page, targetTitle).locator('.playlist-item');
 
     await expect(source.first()).toBeVisible();
     await expect(target.first()).toBeVisible();
@@ -1343,4 +1377,35 @@ function flexibleTextPattern(value: string): RegExp {
             .join('\\s+'),
         'i'
     );
+}
+
+async function isButtonToggleSelected(toggle: Locator): Promise<boolean> {
+    try {
+        return await toggle.evaluate((element) => {
+            const host = element as HTMLElement;
+            const selectedDescendant = host.querySelector(
+                '[aria-checked="true"], [aria-pressed="true"]'
+            );
+
+            return (
+                host.classList.contains('mat-button-toggle-checked') ||
+                host.getAttribute('aria-checked') === 'true' ||
+                host.getAttribute('aria-pressed') === 'true' ||
+                selectedDescendant !== null
+            );
+        });
+    } catch {
+        return false;
+    }
+}
+
+async function visibleContentCardTitles(page: Page): Promise<string[]> {
+    return page
+        .locator('app-content-card h3')
+        .allInnerTexts()
+        .then((titles) => titles.map((title) => title.trim()).filter(Boolean));
+}
+
+function normalizeVisibleText(value: string): string {
+    return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }

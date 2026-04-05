@@ -217,6 +217,91 @@ describe('StreamResolverService', () => {
             'https://xtream.example.com/live/1'
         );
         expect(detail.epgItems).toHaveLength(1);
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledWith(
+            {
+                serverUrl: 'https://xtream.example.com',
+                username: 'user',
+                password: 'pass',
+            },
+            1,
+            10,
+            {
+                suppressErrorLog: true,
+            }
+        );
+    });
+
+    it('reuses cached empty Xtream preview EPG results instead of refetching immediately', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'xtream-1',
+                serverUrl: 'https://xtream.example.com',
+                username: 'user',
+                password: 'pass',
+            } satisfies Partial<Playlist>)
+        );
+        xtreamApi.getShortEpg.mockResolvedValue([]);
+
+        const items = [
+            {
+                uid: 'xtream::xtream-1::1',
+                name: 'Xtream Live',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream',
+                xtreamId: 1,
+            } satisfies UnifiedCollectionItem,
+        ];
+
+        await service.loadEpgForItems(items);
+        await service.loadEpgForItems(items);
+
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledTimes(1);
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledWith(
+            {
+                serverUrl: 'https://xtream.example.com',
+                username: 'user',
+                password: 'pass',
+            },
+            1,
+            2,
+            {
+                suppressErrorLog: true,
+            }
+        );
+    });
+
+    it('backs off repeated Xtream detail EPG failures during the cooldown window', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'xtream-1',
+                serverUrl: 'https://xtream.example.com',
+                username: 'user',
+                password: 'pass',
+            } satisfies Partial<Playlist>)
+        );
+        xtreamUrl.constructLiveUrl.mockReturnValue(
+            'https://xtream.example.com/live/1'
+        );
+        xtreamApi.getShortEpg.mockRejectedValue(new Error('EPG failed'));
+
+        const item = {
+            uid: 'xtream::xtream-1::1',
+            name: 'Xtream Live',
+            contentType: 'live',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream',
+            xtreamId: 1,
+        } satisfies UnifiedCollectionItem;
+
+        const firstDetail = await service.resolveLiveDetail(item);
+        const secondDetail = await service.resolveLiveDetail(item);
+
+        expect(firstDetail.epgItems).toEqual([]);
+        expect(secondDetail.epgItems).toEqual([]);
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledTimes(1);
     });
 
     it('loads current Stalker EPG previews for live collection rows', async () => {

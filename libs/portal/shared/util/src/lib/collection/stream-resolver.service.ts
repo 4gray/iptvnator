@@ -40,6 +40,11 @@ interface StalkerEpgResponse {
     readonly js?: StalkerEpgEntry[] | { readonly data?: StalkerEpgEntry[] };
 }
 
+interface XtreamEpgCacheEntry {
+    readonly data: EpgItem[];
+    readonly timestamp: number;
+}
+
 export interface ResolvedLiveCollectionDetail {
     readonly playback: ResolvedPortalPlayback;
     readonly epgMode: 'm3u' | 'portal';
@@ -56,6 +61,10 @@ export class StreamResolverService {
     private readonly dataService = inject(DataService);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly m3uEpgTimeoutMs = 3000;
+    private readonly xtreamEpgCache = new Map<string, XtreamEpgCacheEntry>();
+    private readonly xtreamEpgFailureTimestamps = new Map<string, number>();
+    private readonly xtreamEpgCacheTtlMs = 60 * 1000;
+    private readonly xtreamEpgFailureCooldownMs = 60 * 1000;
 
     async resolvePlayback(
         item: UnifiedCollectionItem
@@ -296,7 +305,12 @@ export class StreamResolverService {
                 return [];
             }
 
-            return await this.xtreamApi.getShortEpg(creds, item.xtreamId, 10);
+            return await this.fetchXtreamEpgItems(
+                item.playlistId,
+                creds,
+                item.xtreamId,
+                10
+            );
         } catch {
             return [];
         }
@@ -440,7 +454,8 @@ export class StreamResolverService {
                 }
 
                 try {
-                    const items = await this.xtreamApi.getShortEpg(
+                    const items = await this.fetchXtreamEpgItems(
+                        playlistId,
                         creds,
                         channel.xtreamId,
                         2
@@ -483,6 +498,88 @@ export class StreamResolverService {
                 }
             })
         );
+    }
+
+    private getXtreamEpgCacheKey(
+        playlistId: string,
+        streamId: number,
+        limit: number
+    ): string {
+        return `${playlistId}:${streamId}:${limit}`;
+    }
+
+    private getCachedXtreamEpgItems(cacheKey: string): EpgItem[] | null {
+        const entry = this.xtreamEpgCache.get(cacheKey);
+        if (!entry) {
+            return null;
+        }
+
+        if (Date.now() - entry.timestamp > this.xtreamEpgCacheTtlMs) {
+            this.xtreamEpgCache.delete(cacheKey);
+            return null;
+        }
+
+        return entry.data;
+    }
+
+    private isXtreamEpgFailureCoolingDown(cacheKey: string): boolean {
+        const timestamp = this.xtreamEpgFailureTimestamps.get(cacheKey);
+        if (timestamp == null) {
+            return false;
+        }
+
+        if (Date.now() - timestamp > this.xtreamEpgFailureCooldownMs) {
+            this.xtreamEpgFailureTimestamps.delete(cacheKey);
+            return false;
+        }
+
+        return true;
+    }
+
+    private async fetchXtreamEpgItems(
+        playlistId: string,
+        credentials: {
+            serverUrl: string;
+            username: string;
+            password: string;
+        },
+        streamId: number,
+        limit: number
+    ): Promise<EpgItem[]> {
+        const cacheKey = this.getXtreamEpgCacheKey(
+            playlistId,
+            streamId,
+            limit
+        );
+        const cached = this.getCachedXtreamEpgItems(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
+        if (this.isXtreamEpgFailureCoolingDown(cacheKey)) {
+            return [];
+        }
+
+        try {
+            const items = await this.xtreamApi.getShortEpg(
+                credentials,
+                streamId,
+                limit,
+                {
+                    suppressErrorLog: true,
+                }
+            );
+
+            this.xtreamEpgCache.set(cacheKey, {
+                data: items,
+                timestamp: Date.now(),
+            });
+            this.xtreamEpgFailureTimestamps.delete(cacheKey);
+            return items;
+        } catch {
+            this.xtreamEpgFailureTimestamps.set(cacheKey, Date.now());
+            return [];
+        }
     }
 
     private async loadStalkerEpgBatch(

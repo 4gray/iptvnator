@@ -169,21 +169,51 @@
     }
 }
 
-.header-shortcut--global {
+// ─── Download Activity Indicator ─────────────────────────────────────────────
+.download-btn-wrap {
     position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
 
-    &::before {
-        content: '';
-        position: absolute;
-        bottom: 5px;
-        right: 5px;
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--mat-sys-tertiary);
-        border: 1.5px solid
-            var(--app-header-bg, var(--mat-sys-surface-container-low));
-        z-index: 1;
+.download-activity-bar {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 18px;
+    height: 2px;
+    border-radius: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.download-activity-bar__fill {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: -50%;
+    width: 50%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--app-selection-color, #78adff);
+    animation: download-bar-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes download-bar-slide {
+    0% {
+        left: -50%;
+    }
+
+    50% {
+        left: 100%;
+    }
+
+    100% {
+        left: -50%;
     }
 }
 

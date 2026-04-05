@@ -50,6 +50,7 @@ export class ElectronService extends DataService {
         XtreamCodeActions.GetLiveCategories,
         XtreamCodeActions.GetVodCategories,
         XtreamCodeActions.GetSeriesCategories,
+        XtreamCodeActions.GetShortEpg,
     ]);
 
     constructor() {
@@ -432,6 +433,8 @@ export class ElectronService extends DataService {
         url: string;
         params: Record<string, string>;
         requestId?: string;
+        sessionId?: string;
+        suppressErrorLog?: boolean;
     }) {
         const context = createPortalDebugRequestContext({
             provider: 'xtream',
@@ -456,9 +459,9 @@ export class ElectronService extends DataService {
             return result;
         } catch (error: unknown) {
             const action = payload.params?.action;
-            const isSilentAction = action
-                ? this.silentXtreamActions.has(action)
-                : false;
+            const isSilentAction =
+                payload.suppressErrorLog === true ||
+                (action ? this.silentXtreamActions.has(action) : false);
             const normalizedMessage = this.getReadableXtreamErrorMessage(error);
             const errorInfo = this.getErrorDetails(error);
 

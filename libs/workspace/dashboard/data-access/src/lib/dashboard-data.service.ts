@@ -1,10 +1,18 @@
-import { Injectable, NgZone, computed, inject, signal } from '@angular/core';
+import {
+    Injectable,
+    NgZone,
+    computed,
+    effect,
+    inject,
+    signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
     PlaylistActions,
     selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
 } from 'm3u-state';
 import { firstValueFrom, startWith } from 'rxjs';
 import {
@@ -66,7 +74,34 @@ export class DashboardDataService {
         []
     );
     private readonly m3uGlobalFavorites = signal<DashboardFavoriteItem[]>([]);
+    private readonly globalRecentLoadingState = signal(true);
+    private readonly globalRecentLoadedState = signal(false);
+    private readonly globalRecentDbLoadedState = signal(!window.electron);
+    private readonly globalFavoritesLoadingState = signal(true);
+    private readonly globalFavoritesLoadedState = signal(false);
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
+    readonly playlistsLoaded = this.store.selectSignal(selectPlaylistsLoadingFlag);
+    readonly globalRecentLoading = this.globalRecentLoadingState.asReadonly();
+    readonly globalRecentLoaded = this.globalRecentLoadedState.asReadonly();
+    readonly globalFavoritesLoading =
+        this.globalFavoritesLoadingState.asReadonly();
+    readonly globalFavoritesLoaded = this.globalFavoritesLoadedState.asReadonly();
+
+    private readonly playlistFavoritesReloadKey = computed(() => {
+        if (!this.playlistsLoaded()) {
+            return null;
+        }
+
+        return this.playlists()
+            .map((playlist) =>
+                [
+                    playlist._id,
+                    playlist.serverUrl ? 'xtream' : playlist.macAddress ? 'stalker' : 'm3u',
+                    JSON.stringify(playlist.favorites ?? []),
+                ].join('::')
+            )
+            .join('|');
+    });
 
     readonly playlistBackedGlobalRecentItems = computed<GlobalRecentItem[]>(
         () => {
@@ -112,6 +147,21 @@ export class DashboardDataService {
 
     constructor() {
         void this.reloadGlobalFavorites();
+
+        effect(() => {
+            this.playlistFavoritesReloadKey();
+            if (!this.playlistsLoaded()) {
+                return;
+            }
+
+            void this.refreshPlaylistBackedGlobalFavorites();
+        });
+
+        effect(() => {
+            this.playlistsLoaded();
+            this.finishInitialGlobalRecentLoadIfReady();
+        });
+
         if (window.electron) {
             void this.reloadGlobalRecentItems();
         }
@@ -140,8 +190,14 @@ export class DashboardDataService {
     readonly quickRecent = computed(() => this.recentPlaylists().slice(0, 4));
 
     async reloadGlobalRecentItems(): Promise<void> {
+        if (!this.globalRecentLoaded()) {
+            this.globalRecentLoadingState.set(true);
+        }
+
         if (!window.electron) {
             this.xtreamGlobalRecentItems.set([]);
+            this.globalRecentDbLoadedState.set(true);
+            this.finishInitialGlobalRecentLoadIfReady();
             return;
         }
 
@@ -157,12 +213,19 @@ export class DashboardDataService {
                 err
             );
             this.ngZone.run(() => this.xtreamGlobalRecentItems.set([]));
+        } finally {
+            this.globalRecentDbLoadedState.set(true);
+            this.finishInitialGlobalRecentLoadIfReady();
         }
     }
 
     async reloadGlobalFavorites(): Promise<void> {
+        if (!this.globalFavoritesLoaded()) {
+            this.globalFavoritesLoadingState.set(true);
+        }
+
         const xtreamReload = this.reloadXtreamGlobalFavorites();
-        const m3uReload = this.reloadM3uGlobalFavorites();
+        const m3uReload = this.refreshPlaylistBackedGlobalFavorites();
 
         await Promise.all([xtreamReload, m3uReload]);
     }
@@ -184,11 +247,12 @@ export class DashboardDataService {
     private async reloadXtreamGlobalFavorites(): Promise<void> {
         if (!window.electron) {
             this.xtreamGlobalFavorites.set([]);
+            this.finishInitialGlobalFavoritesLoadIfReady();
             return;
         }
 
         try {
-            const favorites = await this.dbService.getGlobalFavorites();
+            const favorites = await this.dbService.getAllGlobalFavorites();
             const normalized = favorites.map((item) =>
                 mapDbFavoriteToItem(item)
             );
@@ -199,7 +263,14 @@ export class DashboardDataService {
                 err
             );
             this.ngZone.run(() => this.xtreamGlobalFavorites.set([]));
+        } finally {
+            this.finishInitialGlobalFavoritesLoadIfReady();
         }
+    }
+
+    private async refreshPlaylistBackedGlobalFavorites(): Promise<void> {
+        await this.reloadM3uGlobalFavorites();
+        this.finishInitialGlobalFavoritesLoadIfReady();
     }
 
     private async reloadM3uGlobalFavorites(): Promise<void> {
@@ -232,6 +303,28 @@ export class DashboardDataService {
         );
 
         this.ngZone.run(() => this.m3uGlobalFavorites.set(flattenedFavorites));
+    }
+
+    private finishInitialGlobalFavoritesLoadIfReady(): void {
+        if (!this.playlistsLoaded()) {
+            return;
+        }
+
+        this.ngZone.run(() => {
+            this.globalFavoritesLoadedState.set(true);
+            this.globalFavoritesLoadingState.set(false);
+        });
+    }
+
+    private finishInitialGlobalRecentLoadIfReady(): void {
+        if (!this.playlistsLoaded() || !this.globalRecentDbLoadedState()) {
+            return;
+        }
+
+        this.ngZone.run(() => {
+            this.globalRecentLoadedState.set(true);
+            this.globalRecentLoadingState.set(false);
+        });
     }
 
     isTypeInKind(

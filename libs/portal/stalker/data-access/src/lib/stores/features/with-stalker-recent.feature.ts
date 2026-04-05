@@ -16,6 +16,14 @@ type RecentlyViewedPayload = StalkerPortalItem & {
     title?: string;
 };
 
+function resolveCategoryId(
+    value: unknown,
+    fallback: string
+): string {
+    const normalized = String(value ?? '').trim();
+    return normalized || fallback;
+}
+
 /**
  * Recently-viewed concern methods.
  */
@@ -35,7 +43,10 @@ export function withStalkerRecent() {
                         const portalId = storeContext.currentPlaylist()?._id;
                         const recentItem = {
                             ...item,
-                            category_id: storeContext.selectedContentType(),
+                            category_id: resolveCategoryId(
+                                item.category_id,
+                                storeContext.selectedContentType()
+                            ),
                             added_at: Date.now(),
                             id: item.id ?? item.stream_id ?? '',
                             title:
