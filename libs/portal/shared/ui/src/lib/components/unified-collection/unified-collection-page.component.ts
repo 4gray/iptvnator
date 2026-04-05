@@ -2,12 +2,17 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
-    effect,
+    DestroyRef,
     inject,
+    Injector,
     input,
     OnInit,
     signal,
 } from '@angular/core';
+import {
+    takeUntilDestroyed,
+    toObservable,
+} from '@angular/core/rxjs-interop';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -15,6 +20,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { distinctUntilChanged } from 'rxjs';
 import {
     clearNavigationStateKeys,
     CollectionContentType,
@@ -56,6 +62,8 @@ export class UnifiedCollectionPageComponent implements OnInit {
     readonly defaultScope = input<CollectionScope>();
 
     private readonly route = inject(ActivatedRoute);
+    private readonly destroyRef = inject(DestroyRef);
+    private readonly injector = inject(Injector);
     private readonly store = inject(Store);
     private readonly scopeService = inject(ScopeToggleService);
     private readonly favoritesData = inject(UnifiedFavoritesDataService);
@@ -153,19 +161,15 @@ export class UnifiedCollectionPageComponent implements OnInit {
             )
             .join('|');
     });
+    private readonly loadRequest = computed(() => ({
+        mode: this.mode(),
+        portalType: this.portalType(),
+        playlistId: this.playlistId(),
+        scope: this.effectiveScope(),
+        reloadKey: this.favoritesReloadKey(),
+    }));
 
     private loadRequestId = 0;
-
-    constructor() {
-        effect(() => {
-            this.mode();
-            this.portalType();
-            this.playlistId();
-            this.effectiveScope();
-            this.favoritesReloadKey();
-            void this.loadData();
-        });
-    }
 
     ngOnInit(): void {
         const queryScope = this.route.snapshot.queryParams['scope'] as
@@ -182,6 +186,29 @@ export class UnifiedCollectionPageComponent implements OnInit {
             const persisted = this.scopeService.getScope(this.scopeKey());
             this.scope.set(persisted());
         }
+
+        toObservable(this.loadRequest, {
+            injector: this.injector,
+        })
+            .pipe(
+                distinctUntilChanged(
+                    (previous, current) =>
+                        previous.mode === current.mode &&
+                        previous.portalType === current.portalType &&
+                        previous.playlistId === current.playlistId &&
+                        previous.scope === current.scope &&
+                        previous.reloadKey === current.reloadKey
+                ),
+                takeUntilDestroyed(this.destroyRef)
+            )
+            .subscribe(({ mode, portalType, playlistId, scope }) => {
+                void this.loadData({
+                    mode,
+                    portalType,
+                    playlistId,
+                    scope,
+                });
+            });
     }
 
     onScopeChange(value: CollectionScope): void {
@@ -243,20 +270,30 @@ export class UnifiedCollectionPageComponent implements OnInit {
         });
     }
 
-    private async loadData(): Promise<void> {
+    private async loadData(params: {
+        mode: 'favorites' | 'recent';
+        portalType?: string;
+        playlistId?: string;
+        scope: CollectionScope;
+    }): Promise<void> {
         const requestId = ++this.loadRequestId;
         if (this.allItems().length === 0) {
             this.isLoading.set(true);
         }
 
         try {
-            const s = this.effectiveScope();
-            const pid = this.playlistId();
-            const pt = this.portalType();
             const items =
-                this.mode() === 'favorites'
-                    ? await this.favoritesData.getFavorites(s, pid, pt)
-                    : await this.recentData.getRecentItems(s, pid, pt);
+                params.mode === 'favorites'
+                    ? await this.favoritesData.getFavorites(
+                          params.scope,
+                          params.playlistId,
+                          params.portalType
+                      )
+                    : await this.recentData.getRecentItems(
+                          params.scope,
+                          params.playlistId,
+                          params.portalType
+                      );
             if (requestId !== this.loadRequestId) {
                 return;
             }

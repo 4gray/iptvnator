@@ -245,3 +245,46 @@ type ActiveXtreamRequest = {
 };
 
 const activeXtreamRequests = new Map<string, ActiveXtreamRequest>();
+
+ipcMain.handle(
+    'XTREAM_PROBE_URL',
+    async (
+        _event,
+        payload: {
+            url: string;
+            method?: 'GET' | 'HEAD';
+        }
+    ) => {
+        const config: AxiosRequestConfig = {
+            method: payload.method ?? 'HEAD',
+            url: payload.url,
+            headers: {
+                'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+            timeout: 10000,
+            maxRedirects: 5,
+            validateStatus: () => true,
+        };
+
+        try {
+            const response = await axios(config);
+            return {
+                status: response.status,
+                url: payload.url,
+            };
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.response) {
+                return {
+                    status: error.response.status,
+                    url: payload.url,
+                };
+            }
+
+            return {
+                status: 0,
+                url: payload.url,
+            };
+        }
+    }
+);

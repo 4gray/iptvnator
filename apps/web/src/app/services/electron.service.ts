@@ -51,6 +51,8 @@ export class ElectronService extends DataService {
         XtreamCodeActions.GetVodCategories,
         XtreamCodeActions.GetSeriesCategories,
         XtreamCodeActions.GetShortEpg,
+        XtreamCodeActions.GetSimpleDataTable,
+        XtreamCodeActions.GetSimpleDateTable,
     ]);
 
     constructor() {

@@ -8,12 +8,20 @@ import type {
     DbWorkerMessage,
     DbWorkerOperation,
 } from '../workers/database-worker.types';
+import {
+    isDbTraceEnabled,
+    roundTraceDuration,
+    summarizeForTrace,
+    trace,
+} from './debug-trace';
 import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
 
 type PendingRequest = {
     resolve: (value: unknown) => void;
     reject: (reason?: unknown) => void;
     onEvent?: (event: DbOperationEvent) => void;
+    operation: DbWorkerOperation;
+    startedAt: number;
 };
 
 type RequestOptions = {
@@ -47,12 +55,23 @@ export class DatabaseWorkerClient {
         await this.ensureWorker();
 
         const requestId = randomUUID();
+        const startedAt = Date.now();
+
+        if (isDbTraceEnabled()) {
+            trace('db-request', 'dispatch', {
+                operation,
+                payload: summarizeForTrace(payload),
+                requestId,
+            });
+        }
 
         return new Promise<TResult>((resolve, reject) => {
             this.pendingRequests.set(requestId, {
                 resolve: resolve as (value: unknown) => void,
                 reject,
                 onEvent: options?.onEvent,
+                operation,
+                startedAt,
             });
 
             this.worker?.postMessage({
@@ -126,6 +145,15 @@ export class DatabaseWorkerClient {
 
         try {
             const workerURL = pathToFileURL(bootstrap.workerPath);
+
+            if (isDbTraceEnabled()) {
+                trace('db-worker', 'create', {
+                    nativeModuleSearchPaths:
+                        bootstrap.nativeModuleSearchPaths?.length ?? 0,
+                    workerPath: bootstrap.workerPath,
+                });
+            }
+
             this.worker = new Worker(workerURL, {
                 workerData: {
                     nativeModuleSearchPaths: bootstrap.nativeModuleSearchPaths,
@@ -150,6 +178,9 @@ export class DatabaseWorkerClient {
 
     private handleMessage(message: DbWorkerMessage): void {
         if (message.type === 'ready') {
+            if (isDbTraceEnabled()) {
+                trace('db-worker', 'ready');
+            }
             this.readyResolve?.();
             this.readyResolve = null;
             this.readyReject = null;
@@ -157,6 +188,12 @@ export class DatabaseWorkerClient {
         }
 
         if (message.type === 'event') {
+            if (isDbTraceEnabled()) {
+                trace('db-event', 'worker-event', {
+                    event: message.event,
+                    requestId: message.requestId,
+                });
+            }
             this.pendingRequests.get(message.requestId)?.onEvent?.(message.event);
             return;
         }
@@ -169,8 +206,29 @@ export class DatabaseWorkerClient {
         this.pendingRequests.delete(message.requestId);
 
         if (message.success) {
+            if (isDbTraceEnabled()) {
+                trace('db-request', 'resolved', {
+                    durationMs: roundTraceDuration(
+                        Date.now() - pendingRequest.startedAt
+                    ),
+                    operation: pendingRequest.operation,
+                    requestId: message.requestId,
+                    result: summarizeForTrace(message.result),
+                });
+            }
             pendingRequest.resolve(message.result);
             return;
+        }
+
+        if (isDbTraceEnabled()) {
+            trace('db-request', 'failed', {
+                durationMs: roundTraceDuration(
+                    Date.now() - pendingRequest.startedAt
+                ),
+                error: message.error,
+                operation: pendingRequest.operation,
+                requestId: message.requestId,
+            });
         }
 
         pendingRequest.reject(
@@ -181,6 +239,10 @@ export class DatabaseWorkerClient {
     }
 
     private handleWorkerFailure(error: Error): void {
+        if (isDbTraceEnabled()) {
+            trace('db-worker', 'error', error);
+        }
+
         if (this.readyReject) {
             this.readyReject(error);
         }
@@ -192,6 +254,10 @@ export class DatabaseWorkerClient {
     private handleWorkerExit(code: number): void {
         if (this.shuttingDown) {
             return;
+        }
+
+        if (isDbTraceEnabled()) {
+            trace('db-worker', 'exit', { code });
         }
 
         const error =

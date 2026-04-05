@@ -37,6 +37,14 @@ async function flushEffects(): Promise<void> {
     await Promise.resolve();
 }
 
+function getXtreamSectionFromUrl(url: string): string | null {
+    const match = url.match(
+        /^\/workspace\/xtreams\/[^/]+\/([^/?]+)(?:\/|$)/
+    );
+
+    return match?.[1] ?? null;
+}
+
 describe('XtreamWorkspaceRouteSession', () => {
     const routerEvents = new Subject<NavigationEnd>();
     const routeProvider = signal<'xtreams' | null>('xtreams');
@@ -45,6 +53,7 @@ describe('XtreamWorkspaceRouteSession', () => {
     const currentPlaylist = signal<XtreamPlaylistData | null>(XTREAM_PLAYLIST);
     const playlistId = signal<string | null>(PLAYLIST_ID);
     const portalStatus = signal<PortalStatusType>('active');
+    const selectedContentType = signal<'live' | 'vod' | 'series'>('vod');
     const contentInitBlockReason =
         signal<XtreamContentInitBlockReason | null>(null);
 
@@ -62,6 +71,7 @@ describe('XtreamWorkspaceRouteSession', () => {
         resetStore: jest.fn((nextPlaylistId?: string) => {
             playlistId.set(nextPlaylistId ?? null);
             currentPlaylist.set(null);
+            selectedContentType.set('vod');
         }),
         setCurrentPlaylist: jest.fn((playlist: XtreamPlaylistData | null) => {
             currentPlaylist.set(playlist);
@@ -70,7 +80,11 @@ describe('XtreamWorkspaceRouteSession', () => {
         checkPortalStatus: jest.fn(),
         contentInitBlockReason,
         initializeContent: jest.fn().mockResolvedValue(undefined),
-        setSelectedContentType: jest.fn(),
+        setSelectedContentType: jest.fn(
+            (type: 'live' | 'vod' | 'series') => {
+                selectedContentType.set(type);
+            }
+        ),
         setContentInitBlockReason: jest.fn(
             (reason: XtreamContentInitBlockReason | null) => {
                 contentInitBlockReason.set(reason);
@@ -91,13 +105,21 @@ describe('XtreamWorkspaceRouteSession', () => {
         currentPlaylist.set(XTREAM_PLAYLIST);
         playlistId.set(PLAYLIST_ID);
         portalStatus.set('active');
+        selectedContentType.set('vod');
         contentInitBlockReason.set(null);
 
         playlistContext.syncFromUrl.mockImplementation((url: string) => ({
             inWorkspace: true,
             provider: 'xtreams',
             playlistId: PLAYLIST_ID,
-            section: url.endsWith('/favorites') ? 'favorites' : 'vod',
+            section: getXtreamSectionFromUrl(url) as
+                | 'favorites'
+                | 'live'
+                | 'recently-added'
+                | 'search'
+                | 'series'
+                | 'vod'
+                | null,
         }));
 
         xtreamStore.resetStore.mockClear();
@@ -140,6 +162,24 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.setContentInitBlockReason).toHaveBeenCalledWith(null);
         expect(xtreamStore.setSelectedContentType).toHaveBeenCalledWith('vod');
         expect(xtreamStore.initializeContent).toHaveBeenCalled();
+    });
+
+    it('reapplies a live route section after resetStore restores the default selection', async () => {
+        router.url = `/workspace/xtreams/${PLAYLIST_ID}/live`;
+        xtreamStore.checkPortalStatus.mockImplementation(async () => {
+            portalStatus.set('active');
+            return 'active';
+        });
+
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(xtreamStore.resetStore).toHaveBeenCalledWith(PLAYLIST_ID);
+        expect(xtreamStore.setSelectedContentType).toHaveBeenCalledWith('live');
+        expect(selectedContentType()).toBe('live');
+        expect(
+            xtreamStore.setSelectedContentType.mock.invocationCallOrder[0]
+        ).toBeGreaterThan(xtreamStore.resetStore.mock.invocationCallOrder[0]);
     });
 
     it.each(['expired', 'inactive', 'unavailable'] as const)(

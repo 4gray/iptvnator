@@ -62,6 +62,21 @@ export function withStalkerPlayer() {
         const normalized = String(value ?? '').trim();
         return normalized || fallback;
     };
+    const getSeriesRecentMetadata = (
+        selectedContentType: StalkerContentType
+    ): {
+        category_id?: 'series';
+        is_series?: true;
+    } => {
+        if (selectedContentType !== 'series') {
+            return {};
+        }
+
+        return {
+            category_id: 'series',
+            is_series: true,
+        };
+    };
     return signalStoreFeature(
         withMethods(
             (
@@ -399,6 +414,8 @@ export function withStalkerPlayer() {
                 ) => {
                     const playlistId = storeState.currentPlaylist()?._id;
                     if (!playlistId) return;
+                    const selectedContentType =
+                        storeState.selectedContentType();
                     const recentlyViewedItem: {
                         id: string;
                         title: string;
@@ -410,8 +427,9 @@ export function withStalkerPlayer() {
                         title,
                         category_id: resolveCategoryId(
                             item.category_id,
-                            storeState.selectedContentType()
+                            selectedContentType
                         ),
+                        ...getSeriesRecentMetadata(selectedContentType),
                         added_at: Date.now(),
                     };
                     playlistService

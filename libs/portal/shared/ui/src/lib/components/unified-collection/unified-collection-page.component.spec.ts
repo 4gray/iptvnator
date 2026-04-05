@@ -59,6 +59,15 @@ class StubUnifiedGridTabComponent {
 
 describe('UnifiedCollectionPageComponent', () => {
     let fixture: ComponentFixture<UnifiedCollectionPageComponent>;
+    let route: ActivatedRoute & {
+        snapshot: {
+            queryParamMap: ReturnType<typeof convertToParamMap>;
+            queryParams: Record<string, unknown>;
+            params: Record<string, unknown>;
+            data: Record<string, unknown>;
+            parent: null;
+        };
+    };
     const playlistsLoaded = signal(false);
     const playlists = signal<PlaylistMeta[]>([]);
     const favoritesData = {
@@ -77,6 +86,32 @@ describe('UnifiedCollectionPageComponent', () => {
         playlists.set([]);
         jest.clearAllMocks();
 
+        route = {
+            snapshot: {
+                queryParamMap: convertToParamMap({}),
+                queryParams: {},
+                params: {},
+                data: {},
+                parent: null,
+            },
+            queryParamMap: of(convertToParamMap({})),
+            pathFromRoot: [
+                {
+                    snapshot: {
+                        data: { layout: 'workspace' },
+                    },
+                },
+            ],
+        } as ActivatedRoute & {
+            snapshot: {
+                queryParamMap: ReturnType<typeof convertToParamMap>;
+                queryParams: Record<string, unknown>;
+                params: Record<string, unknown>;
+                data: Record<string, unknown>;
+                parent: null;
+            };
+        };
+
         await TestBed.configureTestingModule({
             imports: [
                 UnifiedCollectionPageComponent,
@@ -85,23 +120,7 @@ describe('UnifiedCollectionPageComponent', () => {
             providers: [
                 {
                     provide: ActivatedRoute,
-                    useValue: {
-                        snapshot: {
-                            queryParamMap: convertToParamMap({}),
-                            queryParams: {},
-                            params: {},
-                            data: {},
-                            parent: null,
-                        },
-                        queryParamMap: of(convertToParamMap({})),
-                        pathFromRoot: [
-                            {
-                                snapshot: {
-                                    data: { layout: 'workspace' },
-                                },
-                            },
-                        ],
-                    },
+                    useValue: route,
                 },
                 {
                     provide: Store,
@@ -183,5 +202,41 @@ describe('UnifiedCollectionPageComponent', () => {
             undefined,
             undefined
         );
+    });
+
+    it('does not reload when local item state changes on empty playlist favorites', async () => {
+        route.snapshot.params = { id: 'playlist-1' };
+        route.snapshot.queryParams = { scope: 'playlist' };
+        route.snapshot.queryParamMap = convertToParamMap({ scope: 'playlist' });
+        playlistsLoaded.set(true);
+        playlists.set([
+            {
+                _id: 'playlist-1',
+                title: 'Playlist One',
+                count: 0,
+                importDate: '2026-04-05T20:00:00.000Z',
+                autoRefresh: false,
+                favorites: [],
+            } as PlaylistMeta,
+        ]);
+
+        fixture.componentRef.setInput('portalType', 'm3u');
+        fixture.componentRef.setInput('defaultScope', undefined);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(favoritesData.getFavorites).toHaveBeenCalledTimes(1);
+        expect(favoritesData.getFavorites).toHaveBeenLastCalledWith(
+            'playlist',
+            'playlist-1',
+            'm3u'
+        );
+
+        fixture.componentInstance.allItems.set([]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(favoritesData.getFavorites).toHaveBeenCalledTimes(1);
     });
 });

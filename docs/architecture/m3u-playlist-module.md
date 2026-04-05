@@ -16,7 +16,7 @@ The M3U playlist module provides:
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         VIDEO PLAYER PAGE                            │
-│                    apps/web/src/app/home/video-player/              │
+│          libs/playlist/m3u/feature-player/src/lib/video-player/     │
 ├─────────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌──────────────────────┐  ┌────────────────────┐ │
 │  │   Sidebar   │  │    Video Player      │  │   EPG List         │ │
@@ -237,7 +237,7 @@ class EpgService {
 
 ## Video Player
 
-**Location**: `apps/web/src/app/home/video-player/`
+**Location**: `libs/playlist/m3u/feature-player/src/lib/video-player/`
 
 ### Supported Players
 - **ArtPlayer** (default) - Modern player with plugins

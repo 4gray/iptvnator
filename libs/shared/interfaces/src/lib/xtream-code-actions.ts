@@ -9,4 +9,6 @@ export enum XtreamCodeActions {
     GetVodCategories = 'get_vod_categories',
     GetVodInfo = 'get_vod_info',
     GetShortEpg = 'get_short_epg',
+    GetSimpleDataTable = 'get_simple_data_table',
+    GetSimpleDateTable = 'get_simple_date_table',
 }

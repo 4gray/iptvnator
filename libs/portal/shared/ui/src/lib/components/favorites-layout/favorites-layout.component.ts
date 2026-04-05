@@ -1,12 +1,10 @@
-import { Component, inject, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
-import { ActivatedRoute } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from 'components';
-import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
 import { StalkerPortalItem, XtreamCategory } from 'shared-interfaces';
 import { CategoryViewComponent } from '../category-view/category-view.component';
 import { ContentCardComponent } from '../content-card/content-card.component';
@@ -59,9 +57,9 @@ export interface FavoriteLayoutItem {
     ],
 })
 export class FavoritesLayoutComponent {
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(
+    /* readonly isWorkspaceLayout = isWorkspaceLayoutRoute(
         inject(ActivatedRoute)
-    );
+    ); */
 
     readonly categories = input<XtreamCategory[]>([]);
     readonly favorites = input<FavoriteLayoutItem[]>([]);
@@ -80,7 +78,7 @@ export class FavoritesLayoutComponent {
     readonly openItem = output<FavoriteLayoutItem>();
     readonly headerActionClicked = output<void>();
 
-    setCategoryId(categoryId: string | number) {
+    /* setCategoryId(categoryId: string | number) {
         this.categoryClicked.emit({ category_id: categoryId });
     }
 
@@ -94,5 +92,5 @@ export class FavoritesLayoutComponent {
 
     onHeaderActionClick() {
         this.headerActionClicked.emit();
-    }
+    } */
 }

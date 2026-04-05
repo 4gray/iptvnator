@@ -25,6 +25,10 @@ export interface XtreamContent {
     rating: string;
     added: string;
     poster_url: string;
+    epg_channel_id?: string | null;
+    tv_archive?: number | null;
+    tv_archive_duration?: number | null;
+    direct_source?: string | null;
     xtream_id: number;
     type: string;
     added_at?: string;
@@ -60,6 +64,10 @@ type XtreamContentStream =
           cover?: string;
           name?: string;
           title?: string;
+          epg_channel_id?: string;
+          tv_archive?: string | number;
+          tv_archive_duration?: string | number;
+          direct_source?: string;
           series_id?: string | number;
           stream_id?: string | number;
       }

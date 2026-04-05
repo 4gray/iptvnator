@@ -11,6 +11,8 @@ export interface ScenarioConfig {
     accountStatus: 'Active' | 'Disabled';
     /** ISO date string for subscription expiry */
     expiryDate: string;
+    /** Optional deterministic EPG fixture profile for scenario-specific tests. */
+    epgFixture?: 'timezone-focus';
 }
 
 /**
@@ -74,6 +76,19 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         episodesPerSeason: 3,
         accountStatus: 'Active',
         expiryDate: '2099-12-31',
+    },
+    'epg:epg': {
+        name: 'epg-fixture',
+        description:
+            'Deterministic Xtream EPG fixture — stable live channels and timezone-focused guide data',
+        seed: 6006,
+        categoryCount: { live: 2, vod: 1, series: 1 },
+        itemsPerCategory: 3,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 3,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        epgFixture: 'timezone-focus',
     },
     'expired:expired': {
         name: 'expired',

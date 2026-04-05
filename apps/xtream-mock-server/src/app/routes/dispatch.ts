@@ -4,6 +4,7 @@ import { handleGetLiveCategories, handleGetVodCategories, handleGetSeriesCategor
 import { handleGetLiveStreams, handleGetVodStreams, handleGetSeriesStreams } from '../handlers/get-streams.handler.js';
 import { handleGetVodInfo } from '../handlers/get-vod-info.handler.js';
 import { handleGetSeriesInfo } from '../handlers/get-series-info.handler.js';
+import { handleGetFullEpg } from '../handlers/get-full-epg.handler.js';
 import { handleGetShortEpg } from '../handlers/get-short-epg.handler.js';
 
 export function dispatchAction(req: Request, res: Response): void {
@@ -40,6 +41,10 @@ export function dispatchAction(req: Request, res: Response): void {
             break;
         case 'get_short_epg':
             handleGetShortEpg(req, res);
+            break;
+        case 'get_simple_data_table':
+        case 'get_simple_date_table':
+            handleGetFullEpg(req, res);
             break;
         default:
             res.status(400).json({ error: `Unknown action: ${action}` });

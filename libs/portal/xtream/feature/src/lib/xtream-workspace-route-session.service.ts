@@ -138,7 +138,8 @@ export class XtreamWorkspaceRouteSession {
             routeContext.provider === 'xtreams'
                 ? routeContext.playlistId
                 : null;
-        const section = this.syncRouteState(routeContext.section);
+        const routeSection =
+            routeContext.provider === 'xtreams' ? routeContext.section : null;
         const routePlaylist =
             routeContext.provider === 'xtreams'
                 ? toXtreamPlaylistData(this.playlistContext.activePlaylist())
@@ -178,6 +179,8 @@ export class XtreamWorkspaceRouteSession {
                 this.xtreamStore.setContentInitBlockReason(nextBlockReason);
             }
         }
+
+        const section = this.syncRouteState(routeSection);
 
         if (isImportDrivenSection(section) && portalStatus !== 'active') {
             return;

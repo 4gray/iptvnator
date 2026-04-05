@@ -45,13 +45,17 @@ test.describe('Electron Sources View', () => {
         request,
     }) => {
         await resetMockServers(request, ['xtream', 'stalker']);
-        const localFilePath = writeTemporaryM3uFile(dataDir, localSourceFileName, [
-            {
-                groupTitle: 'News',
-                name: 'Alpha Local News',
-                url: 'https://streams.example.test/local-alpha.m3u8',
-            },
-        ]);
+        const localFilePath = writeTemporaryM3uFile(
+            dataDir,
+            localSourceFileName,
+            [
+                {
+                    groupTitle: 'News',
+                    name: 'Alpha Local News',
+                    url: 'https://streams.example.test/local-alpha.m3u8',
+                },
+            ]
+        );
         const urlServer = await createMutableTextServer(
             `#EXTM3U
 #EXTINF:-1 group-title="Sports",Omega URL Sports
@@ -67,7 +71,10 @@ https://streams.example.test/url-omega.m3u8
 
         try {
             await importM3uPlaylistFromNativeDialog(app, localFilePath);
-            await importM3uPlaylistFromUrl(app.mainWindow, urlServer.resourceUrl);
+            await importM3uPlaylistFromUrl(
+                app.mainWindow,
+                urlServer.resourceUrl
+            );
             await addXtreamPortal(app.mainWindow, {
                 name: xtreamSourceName,
             });
@@ -223,7 +230,10 @@ https://streams.example.test/url-omega.m3u8
             });
             await saveSourceDialog(app.mainWindow, dialog);
 
-            dialog = await openSourceEditor(app.mainWindow, 'Editable Xtream Source');
+            dialog = await openSourceEditor(
+                app.mainWindow,
+                'Editable Xtream Source'
+            );
             await updateSourceDialog(dialog, {
                 password: 'pass1',
                 serverUrl: 'http://127.0.0.1:3211',
@@ -232,7 +242,10 @@ https://streams.example.test/url-omega.m3u8
             });
             await saveSourceDialog(app.mainWindow, dialog);
 
-            dialog = await openSourceEditor(app.mainWindow, 'Editable Stalker Source');
+            dialog = await openSourceEditor(
+                app.mainWindow,
+                'Editable Stalker Source'
+            );
             await updateSourceDialog(dialog, {
                 macAddress: '00:1A:79:00:00:99',
                 portalUrl: 'http://127.0.0.1:3210/portal.php',
@@ -240,30 +253,45 @@ https://streams.example.test/url-omega.m3u8
             });
             await saveSourceDialog(app.mainWindow, dialog);
 
-            dialog = await openSourceEditor(app.mainWindow, 'Edited Local Source');
+            dialog = await openSourceEditor(
+                app.mainWindow,
+                'Edited Local Source'
+            );
             await expectSourceDialogValues(dialog, {
                 autoRefresh: true,
                 title: 'Edited Local Source',
                 userAgent: 'Electron E2E Local/1.0',
             });
-            await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+            await dialog
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
 
-            dialog = await openSourceEditor(app.mainWindow, 'Edited Xtream Source');
+            dialog = await openSourceEditor(
+                app.mainWindow,
+                'Edited Xtream Source'
+            );
             await expectSourceDialogValues(dialog, {
                 password: 'pass1',
                 serverUrl: 'http://127.0.0.1:3211',
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
-            await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+            await dialog
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
 
-            dialog = await openSourceEditor(app.mainWindow, 'Edited Stalker Source');
+            dialog = await openSourceEditor(
+                app.mainWindow,
+                'Edited Stalker Source'
+            );
             await expectSourceDialogValues(dialog, {
                 macAddress: '00:1A:79:00:00:99',
                 portalUrl: 'http://127.0.0.1:3210/portal.php',
                 title: 'Edited Stalker Source',
             });
-            await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+            await dialog
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
 
             const restarted = await restartElectronApp(app, dataDir);
             app.electronApp = restarted.electronApp;
@@ -271,24 +299,37 @@ https://streams.example.test/url-omega.m3u8
 
             await openSources(app.mainWindow);
 
-            dialog = await openSourceEditor(app.mainWindow, 'Edited Local Source');
+            dialog = await openSourceEditor(
+                app.mainWindow,
+                'Edited Local Source'
+            );
             await expectSourceDialogValues(dialog, {
                 autoRefresh: true,
                 title: 'Edited Local Source',
                 userAgent: 'Electron E2E Local/1.0',
             });
-            await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+            await dialog
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
 
-            dialog = await openSourceEditor(app.mainWindow, 'Edited Xtream Source');
+            dialog = await openSourceEditor(
+                app.mainWindow,
+                'Edited Xtream Source'
+            );
             await expectSourceDialogValues(dialog, {
                 password: 'pass1',
                 serverUrl: 'http://127.0.0.1:3211',
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
-            await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+            await dialog
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
 
-            dialog = await openSourceEditor(app.mainWindow, 'Edited Stalker Source');
+            dialog = await openSourceEditor(
+                app.mainWindow,
+                'Edited Stalker Source'
+            );
             await expectSourceDialogValues(dialog, {
                 macAddress: '00:1A:79:00:00:99',
                 portalUrl: 'http://127.0.0.1:3210/portal.php',
@@ -327,10 +368,7 @@ https://streams.example.test/url-omega.m3u8
             });
             await openSources(app.mainWindow);
 
-            await deleteSource(
-                app.mainWindow,
-                deletableLocalSourceDisplayName
-            );
+            await deleteSource(app.mainWindow, deletableLocalSourceDisplayName);
             await expect(
                 sourceRowByTitle(
                     app.mainWindow,
@@ -428,6 +466,10 @@ https://streams.example.test/refreshed-url.m3u8
             );
             await refreshSource(app.mainWindow, 'refresh-url-source.m3u');
             await expectPlaylistUpdatedToast(app.mainWindow);
+            await waitForSourceRowIdle(
+                app.mainWindow,
+                'refresh-url-source.m3u'
+            );
             await sourceRowByTitle(app.mainWindow, 'refresh-url-source.m3u')
                 .first()
                 .click();

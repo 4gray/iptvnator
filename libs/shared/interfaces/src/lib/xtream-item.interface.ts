@@ -8,6 +8,9 @@ export interface XtreamItem {
     category_id: string;
     custom_sid: string;
     direct_source: string;
+    epg_channel_id?: string;
+    tv_archive?: number;
+    tv_archive_duration?: number;
     rating_imdb?: string;
     xtream_id?: number;
     type?: 'movie' | 'series' | 'live';
