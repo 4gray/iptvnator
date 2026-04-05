@@ -440,6 +440,36 @@ stat -f "%Sm %N" dist/apps/electron-backend/workers/database.worker.js
 
 Then restart the Electron process and reconnect to `127.0.0.1:9222`.
 
+### Electron freeze tracing
+
+When a renderer route freezes before DevTools become usable, start Electron with
+one of these opt-in trace flags and inspect the terminal output:
+
+```bash
+IPTVNATOR_TRACE_STARTUP=1 pnpm run serve:backend
+```
+
+Available trace flags:
+
+1. `IPTVNATOR_TRACE_STARTUP=1`
+   Enables the broad startup trace set: BrowserWindow lifecycle, renderer
+   bridge calls, DB worker requests/events, and SQL tracing.
+2. `IPTVNATOR_TRACE_IPC=1`
+   Logs `window.electron.*` method calls crossing the preload bridge so you can
+   see whether the renderer is still reaching Electron main.
+3. `IPTVNATOR_TRACE_DB=1`
+   Logs `DatabaseWorkerClient` request dispatch, completion timing, and emitted
+   `DB_OPERATION_EVENT` payloads.
+4. `IPTVNATOR_TRACE_SQL=1`
+   Logs SQLite statements for the shared main-process connection and the DB
+   worker connection using `better-sqlite3` verbose hooks.
+5. `IPTVNATOR_TRACE_WINDOW=1`
+   Logs BrowserWindow loading, navigation, `unresponsive`, and
+   `render-process-gone` transitions.
+6. `IPTVNATOR_TRACE_RENDERER_CONSOLE=1`
+   Mirrors renderer console messages into the Electron terminal output when the
+   renderer itself is the thing getting wedged.
+
 ### Electron E2E troubleshooting
 
 If a production-mode Electron or Electron E2E launch shows `ERR_FILE_NOT_FOUND`
