@@ -63,6 +63,8 @@ export class PwaService extends DataService {
         XtreamCodeActions.GetVodCategories,
         XtreamCodeActions.GetSeriesCategories,
         XtreamCodeActions.GetShortEpg,
+        XtreamCodeActions.GetSimpleDataTable,
+        XtreamCodeActions.GetSimpleDateTable,
     ]);
 
     /** Proxy URL to avoid CORS issues */

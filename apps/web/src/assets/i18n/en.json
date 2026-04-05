@@ -307,6 +307,8 @@
         "LIVE_NOW": "Live now",
         "LIVE_STREAM": "Live stream",
         "TIMESHIFT_AVAILABLE": "Timeshift is available, click to play",
+        "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "Archive playback is unavailable",
+        "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "This provider exposes schedule history for the channel, but does not expose playable archive/catch-up playback.",
         "EPG_NOT_AVAILABLE_DATE": "Ooops, EPG is not available for the selected date",
         "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ooops, EPG is not available for this channel.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Please add/change the URL of the EPG list in the settings of the app.",

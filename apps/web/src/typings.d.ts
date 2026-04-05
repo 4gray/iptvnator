@@ -131,6 +131,10 @@ declare global {
             xtreamCancelSession: (
                 sessionId: string
             ) => Promise<{ success: boolean; cancelled: number }>;
+            xtreamProbeUrl: (
+                url: string,
+                method?: 'GET' | 'HEAD'
+            ) => Promise<{ status: number; url: string }>;
             refreshPlaylist: (
                 payload: PlaylistRefreshPayload
             ) => Promise<Playlist>;
