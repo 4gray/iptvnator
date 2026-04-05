@@ -5,8 +5,8 @@
     app-region: no-drag;
 }
 
+// ─── Shell ───────────────────────────────────────────────────────────────────
 .palette-shell {
-    padding: 14px;
     background: var(--app-header-bg, var(--mat-sys-surface-container-low));
     color: var(--mat-sys-on-surface);
     border: 1px solid var(--mat-sys-outline-variant);
@@ -14,205 +14,207 @@
     box-shadow:
         0 24px 48px -28px rgba(0, 0, 0, 0.5),
         0 10px 24px -18px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
 }
 
-.palette-header {
-    display: grid;
-    gap: 2px;
-    margin-bottom: 10px;
-
-    h2 {
-        margin: 0;
-        font-size: 1rem;
-        letter-spacing: -0.01em;
-        font-weight: 640;
-    }
-
-    p {
-        margin: 0;
-        font-size: 0.78rem;
-        color: var(--mat-sys-on-surface-variant);
-    }
-}
-
-.palette-search-panel {
-    margin: 0 -2px;
-    padding: 10px 12px 12px;
-    border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
-    border-radius: 12px;
-    background: var(
-        --app-widget-header-bg,
-        var(--mat-sys-surface-container-high)
-    );
-}
-
+// ─── Search ──────────────────────────────────────────────────────────────────
 .palette-search {
-    width: 100%;
     display: flex;
     align-items: center;
-    gap: 8px;
-    border-radius: 10px;
-    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
-    background: var(--app-search-bg, var(--mat-sys-surface-container));
-    min-height: 40px;
-    padding: 0 12px;
-    box-sizing: border-box;
-    transition:
-        border-color 0.15s ease,
-        background-color 0.15s ease,
-        box-shadow 0.15s ease;
+    gap: 10px;
+    padding: 0 14px;
+    min-height: 44px;
+    cursor: text;
+}
 
-    &:focus-within {
-        border-color: var(--mat-sys-primary);
-        box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
-    }
+.palette-search__icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--mat-sys-on-surface-variant);
+    flex-shrink: 0;
+    opacity: 0.7;
+}
 
-    mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
+.palette-search input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--mat-sys-on-surface);
+    font: inherit;
+    font-size: 0.94rem;
+    font-weight: 450;
+    width: 100%;
+    min-width: 0;
+
+    &::placeholder {
         color: var(--mat-sys-on-surface-variant);
-        flex-shrink: 0;
+        opacity: 0.55;
     }
 
-    input {
-        flex: 1;
-        border: none;
-        outline: none;
-        background: transparent;
-        color: var(--mat-sys-on-surface);
-        font: inherit;
-        font-size: 0.875rem;
-        width: 100%;
-
-        &::placeholder {
-            color: var(--mat-sys-on-surface-variant);
-            opacity: 0.7;
-        }
+    &::-webkit-search-cancel-button {
+        display: none;
     }
 }
 
-.palette-search__hint {
-    font-size: 0.72rem;
+.palette-search__kbd {
+    font-family: inherit;
+    font-size: 0.68rem;
+    font-weight: 500;
     color: var(--mat-sys-on-surface-variant);
-    border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
-    border-radius: 6px;
-    padding: 2px 6px;
+    border: 1px solid
+        color-mix(
+            in srgb,
+            var(--mat-sys-outline-variant) 80%,
+            transparent
+        );
+    border-radius: 5px;
+    padding: 2px 5px;
     line-height: 1;
     flex-shrink: 0;
-    background: var(
-        --app-widget-header-bg,
-        var(--mat-sys-surface-container-high)
-    );
+    opacity: 0.7;
 }
 
+// ─── Divider ─────────────────────────────────────────────────────────────────
+.palette-divider {
+    height: 1px;
+    background: var(--mat-sys-outline-variant);
+    opacity: 0.6;
+}
+
+// ─── Results ─────────────────────────────────────────────────────────────────
 .palette-results {
-    max-height: min(56vh, 520px);
-    overflow: auto;
-    margin-top: 12px;
-    display: grid;
-    gap: 10px;
-    padding-right: 2px;
+    max-height: min(56vh, 480px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--mat-sys-outline-variant) transparent;
 }
 
+// ─── Group ───────────────────────────────────────────────────────────────────
 .palette-group {
-    display: grid;
-    gap: 6px;
-
-    h3 {
-        margin: 0;
-        font-size: 0.74rem;
-        color: var(--mat-sys-on-surface-variant);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-weight: 620;
+    &:not(:first-child) {
+        margin-top: 4px;
     }
 }
 
-.palette-group__items {
-    display: grid;
-    gap: 4px;
+.palette-group__title {
+    margin: 0;
+    padding: 6px 8px 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--mat-sys-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.7;
 }
 
+// ─── Command Row ─────────────────────────────────────────────────────────────
 .palette-command {
-    display: grid;
-    gap: 1px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     width: 100%;
-    text-align: left;
+    padding: 7px 8px;
     border: 1px solid transparent;
-    border-radius: 10px;
+    border-radius: 9px;
     background: transparent;
     color: inherit;
-    padding: 8px 10px;
+    text-align: left;
     cursor: pointer;
+    transition:
+        background 0.12s ease,
+        border-color 0.12s ease;
 
     &:hover:not(:disabled),
     &.is-selected:not(:disabled) {
         background: linear-gradient(
-            145deg,
+            135deg,
             var(--app-selection-surface-strong),
             var(--app-selection-surface)
         );
         border-color: var(--app-selection-border);
     }
 
+    &.is-selected:not(:disabled) {
+        box-shadow: 0 1px 4px -2px var(--app-selection-glow);
+
+        .palette-command__icon {
+            background: color-mix(
+                in srgb,
+                var(--app-selection-color) 22%,
+                transparent
+            );
+            color: var(--app-selection-color);
+        }
+
+        .palette-command__label {
+            color: var(--app-selection-color);
+        }
+    }
+
     &:disabled {
         cursor: not-allowed;
-        opacity: 0.45;
+        opacity: 0.4;
     }
-}
-
-.palette-command--with-icon {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    gap: 10px;
 }
 
 .palette-command__icon {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 9px;
+    border-radius: 7px;
     background: color-mix(
         in srgb,
-        var(--app-selection-surface-strong) 72%,
+        var(--mat-sys-on-surface-variant) 10%,
         transparent
     );
-    color: var(--app-selection-color);
+    color: var(--mat-sys-on-surface-variant);
     flex-shrink: 0;
+    transition:
+        background 0.12s ease,
+        color 0.12s ease;
 
     mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
+        font-size: 17px;
+        width: 17px;
+        height: 17px;
     }
 }
 
-.palette-command__content {
-    min-width: 0;
-    display: grid;
-    gap: 1px;
-}
-
 .palette-command__label {
-    font-size: 0.9rem;
-    font-weight: 560;
+    font-size: 0.84rem;
+    font-weight: 530;
     letter-spacing: -0.006em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    transition: color 0.12s ease;
 }
 
-.palette-command__description {
-    font-size: 0.76rem;
+.palette-command__desc {
+    margin-left: auto;
+    font-size: 0.74rem;
     color: var(--mat-sys-on-surface-variant);
+    opacity: 0.65;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    min-width: 0;
+    padding-left: 12px;
 }
 
+// ─── Empty State ─────────────────────────────────────────────────────────────
 .palette-empty {
-    border: 1px dashed var(--mat-sys-outline-variant);
-    border-radius: 10px;
-    padding: 18px;
+    padding: 20px 14px;
     text-align: center;
     color: var(--mat-sys-on-surface-variant);
-    font-size: 0.88rem;
+    font-size: 0.82rem;
+    opacity: 0.7;
 }

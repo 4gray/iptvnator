@@ -31,6 +31,9 @@ export class WorkspaceContextCategoryViewComponent {
     readonly selectedCategoryId = input<string | number | null | undefined>();
     readonly itemCounts = input<Map<number, number>>(new Map());
     readonly showCounts = input(false);
+    readonly countDisplayMode = input<'loading' | 'ready'>('ready');
+    readonly interactionEnabled = input(true);
+    readonly statusText = input('');
 
     private readonly hostEl = inject(ElementRef<HTMLElement>);
 
@@ -49,7 +52,8 @@ export class WorkspaceContextCategoryViewComponent {
                     container.querySelectorAll('[data-category-id]')
                 ) as HTMLElement[];
                 const selected = candidates.find(
-                    (el) => el.dataset.categoryId === String(selectedCategory)
+                    (el) =>
+                        el.dataset['categoryId'] === String(selectedCategory)
                 );
                 if (!selected) {
                     return;
@@ -87,5 +91,13 @@ export class WorkspaceContextCategoryViewComponent {
     getItemCount(item: WorkspaceCategoryViewItem): number {
         const itemId = Number(item.id ?? item.category_id);
         return this.itemCounts().get(itemId) ?? 0;
+    }
+
+    onCategoryClick(item: WorkspaceCategoryViewItem): void {
+        if (!this.interactionEnabled()) {
+            return;
+        }
+
+        this.categoryClicked.emit(item);
     }
 }

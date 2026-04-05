@@ -32,26 +32,29 @@
             </div>
         </div>
 
-        <mat-form-field
-            appearance="outline"
-            class="search-field"
-            subscriptSizing="dynamic"
-        >
-            <mat-icon matPrefix>search</mat-icon>
+        <label class="search-inline">
+            <mat-icon class="search-inline__icon">search</mat-icon>
             <input
-                matInput
-                [ngModel]="searchTerm()"
-                (ngModelChange)="searchTerm.set($event)"
-                placeholder="{{
-                    'XTREAM.CATEGORY_MANAGEMENT.SEARCH_PLACEHOLDER' | translate
-                }}"
+                type="search"
+                spellcheck="false"
+                [value]="searchTerm()"
+                (input)="searchTerm.set($any($event.target).value)"
+                [placeholder]="
+                    'XTREAM.CATEGORY_MANAGEMENT.SEARCH_PLACEHOLDER'
+                        | translate
+                "
             />
             @if (searchTerm()) {
-                <button matSuffix mat-icon-button (click)="clearSearch()">
+                <button
+                    type="button"
+                    mat-icon-button
+                    class="search-inline__clear"
+                    (click)="clearSearch()"
+                >
                     <mat-icon>close</mat-icon>
                 </button>
             }
-        </mat-form-field>
+        </label>
 
         <div class="categories-list">
             @for (category of filteredCategories(); track category.id) {

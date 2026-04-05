@@ -1,15 +1,24 @@
 @if (items()?.length > 0) {
     <div class="nav-list">
+        @if (statusText()) {
+            <div class="context-inline-status">
+                {{ statusText() }}
+            </div>
+        }
         @for (item of items(); track $index) {
-            <a
+            <button
+                type="button"
                 class="nav-item category-item"
                 [attr.data-category-id]="
                     $any(item).category_id ?? $any(item).xtream_id ?? item.id
                 "
                 [class.selected]="isSelected(item)"
                 [class.category-item--selected]="isSelected(item)"
+                [class.category-item--disabled]="!interactionEnabled()"
                 [attr.aria-current]="isSelected(item) ? 'true' : null"
-                (click)="categoryClicked.emit(item)"
+                [attr.aria-disabled]="!interactionEnabled()"
+                [disabled]="!interactionEnabled()"
+                (click)="onCategoryClick(item)"
             >
                 <span class="nav-item-label">
                     {{
@@ -19,15 +28,22 @@
                     }}
                 </span>
                 @if (showCounts()) {
-                    <div class="nav-item-meta item-count">
-                        {{ getItemCount(item) }}
-                    </div>
+                    @if (countDisplayMode() === 'loading') {
+                        <div
+                            class="nav-item-meta item-count item-count--loading"
+                            aria-hidden="true"
+                        ></div>
+                    } @else {
+                        <div class="nav-item-meta item-count">
+                            {{ getItemCount(item) }}
+                        </div>
+                    }
                 } @else if ($any(item).count !== undefined) {
                     <div class="nav-item-meta item-count">
                         {{ $any(item).count }}
                     </div>
                 }
-            </a>
+            </button>
         } @empty {
             <app-workspace-context-error-view
                 [title]="'PORTALS.EMPTY_LIST_VIEW.TITLE' | translate"

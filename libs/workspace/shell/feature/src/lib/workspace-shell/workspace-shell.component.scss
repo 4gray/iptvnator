@@ -69,19 +69,118 @@ app-workspace-shell-context-sidebar {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.7);
+    padding: 24px;
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(99, 120, 255, 0.12),
+            transparent 34%
+        ),
+        rgba(8, 10, 16, 0.68);
+    backdrop-filter: blur(14px);
     z-index: 1000;
 }
 
 .workspace-loading-overlay__card {
-    min-width: 300px;
-    padding: 2rem;
-    border-radius: 8px;
-    background: var(--mat-sys-surface-container-high);
+    width: min(440px, 100%);
+    display: grid;
+    gap: 14px;
+    padding: 24px 24px 20px;
+    border-radius: 24px;
+    border: 1px solid var(--app-separator, rgba(255, 255, 255, 0.12));
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.06),
+            rgba(255, 255, 255, 0)
+        ),
+        var(--mat-sys-surface-container-high);
+    box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.32),
+        0 1px 0 rgba(255, 255, 255, 0.05) inset;
     text-align: center;
+    animation: workspace-loading-overlay-enter 180ms ease-out;
 
     h3 {
-        margin-top: 0;
+        margin: 0;
+        font-size: 1.55rem;
+        font-weight: 650;
+        letter-spacing: -0.03em;
+        color: var(--app-heading-color, var(--mat-sys-on-surface));
+    }
+}
+
+.workspace-loading-overlay__header {
+    display: grid;
+    gap: 10px;
+    justify-items: center;
+}
+
+.workspace-loading-overlay__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(120, 220, 255, 0.24);
+    background: rgba(120, 220, 255, 0.08);
+    color: rgba(164, 233, 255, 1);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.workspace-loading-overlay__badge--remote {
+    border-color: rgba(105, 195, 255, 0.34);
+    background: rgba(83, 158, 255, 0.12);
+    color: rgba(202, 230, 255, 1);
+}
+
+.workspace-loading-overlay__phase,
+.workspace-loading-overlay__detail,
+.workspace-loading-overlay__progress-copy {
+    margin: 0;
+}
+
+.workspace-loading-overlay__phase {
+    font-size: 1rem;
+    font-weight: 560;
+    color: var(--app-body-color, var(--mat-sys-on-surface));
+}
+
+.workspace-loading-overlay__detail {
+    max-width: 32ch;
+    justify-self: center;
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    line-height: 1.45;
+}
+
+.workspace-loading-overlay__progress-copy {
+    font-variant-numeric: tabular-nums;
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+}
+
+.workspace-loading-overlay__action {
+    justify-self: center;
+    min-width: 180px;
+    border-radius: 999px;
+}
+
+:host ::ng-deep .workspace-loading-overlay__card .mat-mdc-progress-bar {
+    overflow: hidden;
+    border-radius: 999px;
+}
+
+@keyframes workspace-loading-overlay-enter {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
     }
 }
 

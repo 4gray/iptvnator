@@ -12,12 +12,24 @@ import {
 } from './data-sources/xtream-data-source.interface';
 
 export type ContentType = 'live' | 'vod' | 'series';
+export type XtreamContentLoadState = 'idle' | 'loading' | 'ready' | 'error';
+export type XtreamContentLoadStateByType = Record<
+    ContentType,
+    XtreamContentLoadState
+>;
 
 export type PortalStatusType =
     | 'active'
     | 'inactive'
     | 'expired'
     | 'unavailable';
+
+export type XtreamContentInitBlockReason =
+    | 'cancelled'
+    | 'expired'
+    | 'inactive'
+    | 'unavailable'
+    | 'error';
 
 export interface XtreamPortalStatus {
     status: 'active' | 'inactive' | 'expired' | 'unavailable';
@@ -28,6 +40,7 @@ export interface XtreamState {
     isLoadingCategories: boolean;
     isLoadingContent: boolean;
     isImporting: boolean;
+    contentLoadStateByType: XtreamContentLoadStateByType;
     liveCategories: XtreamCategory[];
     vodCategories: XtreamCategory[];
     serialCategories: XtreamCategory[];
@@ -46,6 +59,7 @@ export interface XtreamState {
     epgItems: EpgItem[];
     hideExternalInfoDialog: boolean;
     portalStatus: PortalStatusType;
+    contentInitBlockReason: XtreamContentInitBlockReason | null;
     globalSearchResults: GlobalSearchResult[];
     streamUrl: string;
     playlistId: string | null;

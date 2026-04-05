@@ -1,5 +1,9 @@
 import 'jest-extended';
 import { ExternalPlayerSession } from './libs/shared/interfaces/src/lib/external-player-session.interface';
+import {
+    PlaylistRefreshEvent,
+    PlaylistRefreshPayload,
+} from './libs/shared/interfaces/src/lib/playlist-refresh.interface';
 import { Playlist } from './libs/shared/interfaces/src/lib/playlist.interface';
 
 declare module 'video.js' {
@@ -23,6 +27,9 @@ declare global {
 
     interface Window {
         electron: {
+            onPlaylistRefreshEvent?: (
+                callback: (data: PlaylistRefreshEvent) => void
+            ) => () => void;
             getAppVersion: () => Promise<string>;
             platform: string;
             fetchPlaylistByUrl: (
@@ -113,7 +120,18 @@ declare global {
                 url: string;
                 params: Record<string, string>;
                 requestId?: string;
+                sessionId?: string;
+                suppressErrorLog?: boolean;
             }) => Promise<{ payload: any; action: string }>;
+            xtreamCancelSession: (
+                sessionId: string
+            ) => Promise<{ success: boolean; cancelled: number }>;
+            refreshPlaylist: (
+                payload: PlaylistRefreshPayload
+            ) => Promise<Playlist>;
+            cancelPlaylistRefresh: (
+                operationId: string
+            ) => Promise<{ success: boolean }>;
             // Database operations
             dbCreatePlaylist: (playlist: any) => Promise<{ success: boolean }>;
             dbGetPlaylist: (playlistId: string) => Promise<any>;
@@ -190,6 +208,10 @@ declare global {
                 type: string,
                 operationId?: string
             ) => Promise<{ success: boolean; count: number }>;
+            dbClearXtreamImportCache: (
+                playlistId: string,
+                type: 'live' | 'movie' | 'series'
+            ) => Promise<{ success: boolean }>;
             dbSearchContent: (
                 playlistId: string,
                 searchTerm: string,

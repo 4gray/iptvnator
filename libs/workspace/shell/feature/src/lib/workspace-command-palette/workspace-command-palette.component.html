@@ -1,72 +1,61 @@
 <div class="palette-shell">
-    <header class="palette-header">
-        <h2>{{ 'WORKSPACE.COMMAND_PALETTE.TITLE' | translate }}</h2>
-        <p>{{ 'WORKSPACE.COMMAND_PALETTE.SUBTITLE' | translate }}</p>
-    </header>
+    <label class="palette-search">
+        <mat-icon class="palette-search__icon">search</mat-icon>
+        <input
+            #queryInput
+            type="search"
+            spellcheck="false"
+            [value]="query()"
+            (input)="onQueryInput($event)"
+            (keydown)="onInputKeydown($event)"
+            [placeholder]="
+                'WORKSPACE.COMMAND_PALETTE.SEARCH_PLACEHOLDER' | translate
+            "
+            [attr.aria-label]="
+                'WORKSPACE.COMMAND_PALETTE.SEARCH_LABEL' | translate
+            "
+        />
+        <kbd class="palette-search__kbd">&#8984;K</kbd>
+    </label>
 
-    <div class="palette-search-panel">
-        <label class="palette-search">
-            <mat-icon>search</mat-icon>
-            <input
-                #queryInput
-                type="search"
-                spellcheck="false"
-                [value]="query()"
-                (input)="onQueryInput($event)"
-                (keydown)="onInputKeydown($event)"
-                [placeholder]="
-                    'WORKSPACE.COMMAND_PALETTE.SEARCH_PLACEHOLDER' | translate
-                "
-                [attr.aria-label]="
-                    'WORKSPACE.COMMAND_PALETTE.SEARCH_LABEL' | translate
-                "
-            />
-            <span class="palette-search__hint">Ctrl/Cmd+K</span>
-        </label>
-    </div>
+    @if (commandGroups().length > 0) {
+        <div class="palette-divider"></div>
 
-    <div class="palette-results">
-        @if (commandGroups().length === 0) {
-            <div class="palette-empty">
-                {{ 'WORKSPACE.COMMAND_PALETTE.EMPTY' | translate }}
-            </div>
-        } @else {
+        <div class="palette-results">
             @for (group of commandGroups(); track group.scope) {
                 <section class="palette-group">
-                    <h3>{{ getScopeTitleKey(group.scope) | translate }}</h3>
-                    <div class="palette-group__items">
-                        @for (command of group.items; track command.id) {
-                            <button
-                                type="button"
-                                class="palette-command"
-                                [class.palette-command--with-icon]="
-                                    !!getCommandIcon(command)
-                                "
-                                [class.is-selected]="isCommandSelected(command)"
-                                [disabled]="!command.enabled"
-                                (mouseenter)="onCommandHover(command)"
-                                (click)="onCommandClick(command)"
-                            >
-                                @if (getCommandIcon(command); as icon) {
-                                    <span class="palette-command__icon">
-                                        <mat-icon>{{ icon }}</mat-icon>
-                                    </span>
-                                }
-                                <span class="palette-command__content">
-                                    <span class="palette-command__label">{{
-                                        command.label
-                                    }}</span>
-                                    <span
-                                        class="palette-command__description"
-                                    >
-                                        {{ command.description }}
-                                    </span>
-                                </span>
-                            </button>
-                        }
-                    </div>
+                    <h3 class="palette-group__title">
+                        {{ getScopeTitleKey(group.scope) | translate }}
+                    </h3>
+                    @for (command of group.items; track command.id) {
+                        <button
+                            type="button"
+                            class="palette-command"
+                            [class.is-selected]="isCommandSelected(command)"
+                            [disabled]="!command.enabled"
+                            (mouseenter)="onCommandHover(command)"
+                            (click)="onCommandClick(command)"
+                        >
+                            <span class="palette-command__icon">
+                                <mat-icon>{{
+                                    getCommandIcon(command)
+                                }}</mat-icon>
+                            </span>
+                            <span class="palette-command__label">{{
+                                command.label
+                            }}</span>
+                            <span class="palette-command__desc">{{
+                                command.description
+                            }}</span>
+                        </button>
+                    }
                 </section>
             }
-        }
-    </div>
+        </div>
+    } @else {
+        <div class="palette-divider"></div>
+        <div class="palette-empty">
+            {{ 'WORKSPACE.COMMAND_PALETTE.EMPTY' | translate }}
+        </div>
+    }
 </div>

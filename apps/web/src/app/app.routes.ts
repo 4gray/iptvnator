@@ -1,5 +1,20 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { provideM3uWorkspaceRouteSession } from '@iptvnator/playlist/m3u/feature-player';
+import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
+
+const workspaceEntryRedirect = async () =>
+    inject(WorkspaceStartupPreferencesService).resolveInitialWorkspacePath();
+
+const dashboardAccessGuard = async () => {
+    const startupPreferences = inject(WorkspaceStartupPreferencesService);
+    const router = inject(Router);
+    const redirectPath = await startupPreferences.resolveDashboardPath();
+
+    return redirectPath === '/workspace/dashboard'
+        ? true
+        : router.parseUrl(redirectPath);
+};
 
 export const routes: Routes = [
     {
@@ -20,10 +35,11 @@ export const routes: Routes = [
             {
                 path: '',
                 pathMatch: 'full',
-                redirectTo: 'dashboard',
+                redirectTo: workspaceEntryRedirect,
             },
             {
                 path: 'dashboard',
+                canActivate: [dashboardAccessGuard],
                 loadComponent: () =>
                     import('workspace-dashboard-feature').then(
                         (c) => c.WorkspaceDashboardComponent

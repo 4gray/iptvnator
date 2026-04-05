@@ -60,6 +60,11 @@ describe('WorkspaceShellRailComponent', () => {
     });
 
     it('renders provider context region and active settings shortcut state', () => {
+        fixture.componentRef.setInput('brandLink', '/workspace/sources');
+        fixture.componentRef.setInput(
+            'brandAriaLabelKey',
+            'WORKSPACE.SHELL.OPEN_SOURCES'
+        );
         fixture.componentRef.setInput('primaryContextLinks', [
             {
                 icon: 'movie',
@@ -81,5 +86,15 @@ describe('WorkspaceShellRailComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.rail-shortcut.is-active')
         ).not.toBeNull();
+        expect(
+            fixture.nativeElement
+                .querySelector('.brand')
+                ?.getAttribute('href')
+        ).toContain('/workspace/sources');
+        expect(
+            fixture.nativeElement
+                .querySelector('.brand')
+                ?.getAttribute('aria-label')
+        ).toBe('WORKSPACE.SHELL.OPEN_SOURCES');
     });
 });

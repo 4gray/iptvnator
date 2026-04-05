@@ -44,6 +44,17 @@ async function buildWorker() {
                     '../../dist/apps/electron-backend/workers/database.worker.js'
                 ),
             },
+            {
+                label: 'playlist refresh worker',
+                entry: path.join(
+                    __dirname,
+                    'src/app/workers/playlist-refresh.worker.ts'
+                ),
+                outfile: path.join(
+                    __dirname,
+                    '../../dist/apps/electron-backend/workers/playlist-refresh.worker.js'
+                ),
+            },
         ];
 
         for (const worker of workers) {
@@ -69,6 +80,10 @@ async function buildWorker() {
                     'shared-interfaces': path.join(
                         __dirname,
                         '../../libs/shared/interfaces/src/index.ts'
+                    ),
+                    'm3u-utils': path.join(
+                        __dirname,
+                        '../../libs/shared/m3u-utils/src/index.ts'
                     ),
                     'database': path.join(
                         __dirname,

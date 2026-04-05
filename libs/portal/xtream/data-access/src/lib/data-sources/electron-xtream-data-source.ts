@@ -1,5 +1,9 @@
 import { inject, Injectable } from '@angular/core';
-import { DatabaseService, PlaybackPositionService } from 'services';
+import {
+    DatabaseService,
+    PlaybackPositionService,
+    XtreamImportStatus,
+} from 'services';
 import {
     PlaybackPositionData,
     PlaylistMeta,
@@ -42,6 +46,26 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         string,
         Promise<XtreamContentItem[]>
     >();
+
+    private mapCategoryTypeToImportType(
+        type: CategoryType
+    ): 'live' | 'movie' | 'series' {
+        switch (type) {
+            case 'live':
+                return 'live';
+            case 'vod':
+                return 'movie';
+            case 'series':
+                return 'series';
+        }
+    }
+
+    private async getImportStatus(
+        playlistId: string,
+        type: 'live' | 'movie' | 'series'
+    ): Promise<XtreamImportStatus> {
+        return this.dbService.getXtreamImportStatus(playlistId, type);
+    }
 
     // =========================================================================
     // Playlist Operations
@@ -93,7 +117,8 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async getCategories(
         playlistId: string,
         credentials: XtreamCredentials,
-        type: CategoryType
+        type: CategoryType,
+        options?: XtreamOperationOptions
     ): Promise<XtreamCategoryFromDb[]> {
         const dbType = mapCategoryTypeToDbType(type);
         const requestKey = `${playlistId}:${dbType}`;
@@ -103,8 +128,13 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             return inFlightRequest;
         }
 
-        const request = this.loadCategories(playlistId, credentials, type, dbType)
-            .finally(() => {
+        const request = this.loadCategories(
+            playlistId,
+            credentials,
+            type,
+            dbType,
+            options
+        ).finally(() => {
                 this.categoryRequests.delete(requestKey);
             });
 
@@ -116,23 +146,29 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         credentials: XtreamCredentials,
         type: CategoryType,
-        dbType: DbCategoryType
+        dbType: DbCategoryType,
+        options?: XtreamOperationOptions
     ): Promise<XtreamCategoryFromDb[]> {
-
+        const importType = this.mapCategoryTypeToImportType(type);
+        const importStatus = await this.getImportStatus(playlistId, importType);
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
         const cached = await this.dbService.getXtreamCategories(
             playlistId,
             dbType
         );
-        if (cached.length > 0) {
+        if (importStatus === 'completed' && cached.length > 0) {
             return cached;
         }
 
         // Fetch from API and cache
+        options?.onPhaseChange?.('loading-categories');
         const remoteData = await this.apiService.getCategories(
             credentials,
-            type
+            type,
+            {
+                sessionId: options?.sessionId,
+            }
         );
 
         if (remoteData && Array.isArray(remoteData) && remoteData.length > 0) {
@@ -142,6 +178,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
                 dbType
             );
 
+            options?.onPhaseChange?.('saving-categories');
             await this.dbService.saveXtreamCategories(
                 playlistId,
                 remoteData,
@@ -259,15 +296,25 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         onTotal?: (total: number) => void,
         options?: XtreamOperationOptions
     ): Promise<XtreamContentItem[]> {
+        const importStatus = await this.getImportStatus(playlistId, type);
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
         const cached = await this.dbService.getXtreamContent(playlistId, type);
-        if (cached.length > 0) {
+        if (importStatus === 'completed' && cached.length > 0) {
             return cached;
         }
 
         // Fetch from API
-        const remoteData = await this.apiService.getStreams(credentials, type);
+        options?.onPhaseChange?.(
+            type === 'live'
+                ? 'loading-live'
+                : type === 'movie'
+                  ? 'loading-movies'
+                  : 'loading-series'
+        );
+        const remoteData = await this.apiService.getStreams(credentials, type, {
+            sessionId: options?.sessionId,
+        });
 
         if (remoteData && Array.isArray(remoteData) && remoteData.length > 0) {
             // Report total items to import

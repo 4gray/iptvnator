@@ -120,7 +120,9 @@ export type ProgressCallback = (count: number) => void;
 
 export interface XtreamOperationOptions {
     operationId?: string;
+    sessionId?: string;
     onEvent?: (event: DbOperationEvent) => void;
+    onPhaseChange?: (phase: string) => void;
 }
 
 /**
@@ -171,7 +173,8 @@ export interface IXtreamDataSource {
     getCategories(
         playlistId: string,
         credentials: XtreamCredentials,
-        type: CategoryType
+        type: CategoryType,
+        options?: XtreamOperationOptions
     ): Promise<XtreamCategory[] | XtreamCategoryFromDb[]>;
 
     /**

@@ -4,12 +4,27 @@
  */
 
 import axios from 'axios';
-import { dialog, ipcMain } from 'electron';
+import { app, dialog, ipcMain, WebContents } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import { createPlaylistObject, getFilenameFromUrl } from 'm3u-utils';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
-import { AUTO_UPDATE_PLAYLISTS } from 'shared-interfaces';
+import { pathToFileURL } from 'url';
+import { Worker } from 'worker_threads';
+import {
+    AUTO_UPDATE_PLAYLISTS,
+    PLAYLIST_CANCEL_REFRESH,
+    PLAYLIST_REFRESH,
+    PLAYLIST_REFRESH_EVENT,
+    Playlist,
+    PlaylistRefreshEvent,
+    PlaylistRefreshPayload,
+} from 'shared-interfaces';
+import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
+import type {
+    PlaylistRefreshWorkerMessage,
+    PlaylistRefreshWorkerResponseMessage,
+} from '../workers/playlist-refresh.worker.types';
 
 export default class PlaylistEvents {
     static bootstrapPlaylistEvents(): Electron.IpcMain {
@@ -18,6 +33,15 @@ export default class PlaylistEvents {
 }
 
 const https = require('https');
+
+type ActivePlaylistRefresh = {
+    reject: (reason?: unknown) => void;
+    resolve: (value: Playlist) => void;
+    sender: WebContents;
+    worker: Worker;
+};
+
+const activePlaylistRefreshes = new Map<string, ActivePlaylistRefresh>();
 
 /**
  * Fetches and parses a playlist from a URL
@@ -71,6 +95,46 @@ async function fetchPlaylistFromFile(
         'FILE'
     );
     return playlistObject;
+}
+
+function resolvePlaylistRefreshWorker(): Worker {
+    const bootstrap = resolveWorkerRuntimeBootstrap({
+        isPackaged: app.isPackaged,
+        workerFilename: 'playlist-refresh.worker.js',
+        developmentWorkerDir: __dirname + '/workers',
+        resourcesPath: (
+            process as NodeJS.Process & { resourcesPath?: string }
+        ).resourcesPath,
+        appPath: app.getAppPath(),
+    });
+
+    return new Worker(pathToFileURL(bootstrap.workerPath), {
+        workerData: {
+            nativeModuleSearchPaths: bootstrap.nativeModuleSearchPaths,
+        },
+    });
+}
+
+function emitPlaylistRefreshEvent(
+    sender: WebContents,
+    event: PlaylistRefreshEvent
+): void {
+    if (sender.isDestroyed()) {
+        return;
+    }
+
+    sender.send(PLAYLIST_REFRESH_EVENT, event);
+}
+
+function createPlaylistRefreshError(error: {
+    message: string;
+    name?: string;
+    stack?: string;
+}): Error {
+    const workerError = new Error(error.message);
+    workerError.name = error.name || 'PlaylistRefreshWorkerError';
+    workerError.stack = error.stack || workerError.stack;
+    return workerError;
 }
 
 ipcMain.handle('fetch-playlist-by-url', async (event, url, title?: string) => {
@@ -178,6 +242,93 @@ ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlists) => {
     console.log(`Auto-update completed: ${updatedPlaylists.length} updated`);
     return updatedPlaylists;
 });
+
+ipcMain.handle(PLAYLIST_REFRESH, async (event, payload: PlaylistRefreshPayload) => {
+    const worker = resolvePlaylistRefreshWorker();
+
+    return await new Promise<Playlist>((resolve, reject) => {
+        const cleanup = async (): Promise<void> => {
+            activePlaylistRefreshes.delete(payload.operationId);
+            worker.removeAllListeners();
+            await worker.terminate().catch(() => undefined);
+        };
+
+        activePlaylistRefreshes.set(payload.operationId, {
+            worker,
+            sender: event.sender,
+            resolve,
+            reject,
+        });
+
+        worker.on('message', async (message: PlaylistRefreshWorkerMessage<Playlist>) => {
+            if (message.type === 'ready') {
+                worker.postMessage({
+                    type: 'request',
+                    payload,
+                });
+                return;
+            }
+
+            if (message.type === 'event') {
+                emitPlaylistRefreshEvent(event.sender, message.event);
+                return;
+            }
+
+            await cleanup();
+
+            const response = message as PlaylistRefreshWorkerResponseMessage<Playlist>;
+            if (response.success && response.result) {
+                resolve(response.result);
+                return;
+            }
+
+            reject(
+                createPlaylistRefreshError(
+                    response.error ?? {
+                        message: 'Playlist refresh worker request failed',
+                    }
+                )
+            );
+        });
+
+        worker.on('error', async (error) => {
+            await cleanup();
+            reject(error);
+        });
+
+        worker.on('exit', async (code) => {
+            if (!activePlaylistRefreshes.has(payload.operationId)) {
+                return;
+            }
+
+            await cleanup();
+            reject(
+                new Error(
+                    code === 0
+                        ? 'Playlist refresh worker exited unexpectedly'
+                        : `Playlist refresh worker stopped with exit code ${code}`
+                )
+            );
+        });
+    });
+});
+
+ipcMain.handle(
+    PLAYLIST_CANCEL_REFRESH,
+    async (_event, operationId: string): Promise<{ success: boolean }> => {
+        const activeRefresh = activePlaylistRefreshes.get(operationId);
+        if (!activeRefresh) {
+            return { success: false };
+        }
+
+        activeRefresh.worker.postMessage({
+            type: 'cancel',
+            operationId,
+        });
+
+        return { success: true };
+    }
+);
 
 ipcMain.handle('save-file-dialog', async (event, defaultPath, filters) => {
     try {

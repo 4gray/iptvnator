@@ -99,6 +99,13 @@ export interface DbOperationOptions {
     onEvent?: (event: DbOperationEvent) => void;
 }
 
+export type XtreamImportStatus =
+    | 'idle'
+    | 'importing'
+    | 'completed'
+    | 'cancelled'
+    | 'failed';
+
 export function isDbAbortError(error: unknown): boolean {
     return error instanceof Error && error.name === 'AbortError';
 }
@@ -115,6 +122,13 @@ export interface GlobalRecentlyAddedItem extends XtreamContent {
     providedIn: 'root',
 })
 export class DatabaseService {
+    private buildXtreamImportStateKey(
+        playlistId: string,
+        type: 'live' | 'movie' | 'series'
+    ): string {
+        return `xtream-import-status:${playlistId}:${type}`;
+    }
+
     createOperationId(prefix = 'db-op'): string {
         return (
             globalThis.crypto?.randomUUID?.() ??
@@ -457,6 +471,69 @@ export class DatabaseService {
             }
             throw error;
         }
+    }
+
+    async clearXtreamImportCache(
+        playlistId: string,
+        type: 'live' | 'movie' | 'series'
+    ): Promise<boolean> {
+        try {
+            await window.electron.dbClearXtreamImportCache(playlistId, type);
+            return true;
+        } catch (error) {
+            console.error('Error clearing Xtream import cache:', error);
+            return false;
+        }
+    }
+
+    async getAppState(key: string): Promise<string | null> {
+        try {
+            return await window.electron.dbGetAppState(key);
+        } catch (error) {
+            console.error('Error getting app state:', error);
+            return null;
+        }
+    }
+
+    async setAppState(key: string, value: string): Promise<boolean> {
+        try {
+            await window.electron.dbSetAppState(key, value);
+            return true;
+        } catch (error) {
+            console.error('Error setting app state:', error);
+            return false;
+        }
+    }
+
+    async getXtreamImportStatus(
+        playlistId: string,
+        type: 'live' | 'movie' | 'series'
+    ): Promise<XtreamImportStatus> {
+        const value = await this.getAppState(
+            this.buildXtreamImportStateKey(playlistId, type)
+        );
+
+        switch (value) {
+            case 'importing':
+            case 'completed':
+            case 'cancelled':
+            case 'failed':
+            case 'idle':
+                return value;
+            default:
+                return 'idle';
+        }
+    }
+
+    async setXtreamImportStatus(
+        playlistId: string,
+        type: 'live' | 'movie' | 'series',
+        status: XtreamImportStatus
+    ): Promise<boolean> {
+        return this.setAppState(
+            this.buildXtreamImportStateKey(playlistId, type),
+            status
+        );
     }
 
     /**

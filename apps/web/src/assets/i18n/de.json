@@ -243,6 +243,8 @@
         "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!",
         "THEME": "Farbdesign",
         "SHOW_CAPTIONS": "Untertitel anzeigen",
+        "SHOW_DASHBOARD": "Dashboard anzeigen",
+        "SHOW_DASHBOARD_DESCRIPTION": "Dashboard in der Workspace-Leiste verfügbar halten. Wenn deaktiviert, wird Quellen zur ersten Workspace-Seite.",
         "STREAM_FORMAT_DESCRIPTION": "Standard-Streamformat auswählen (Xtream)",
         "REMOVE_ALL": "Playlist entfernen",
         "REMOVE_ALL_BUTTON": "Entfernen",
@@ -274,6 +276,10 @@
         "VLC_PLAYER_PATH_LABEL": "VLC-Pfad",
         "VLC_PLAYER_PATH_DESCRIPTION": "Legen Sie den Pfad zum VLC-Player in Ihrem System fest. \nEs wird der bereitgestellte Pfad zu einer VLC-Binärdatei anstelle des Standardpfads für unser System verwendet.",
         "THEME_DESCRIPTION": "Wählen Sie das visuelle Thema der Anwendung aus",
+        "STARTUP_BEHAVIOR": "Startansicht",
+        "STARTUP_BEHAVIOR_DESCRIPTION": "Legen Sie fest, ob IPTVnator die erste verfügbare Workspace-Ansicht oder Ihre zuletzt geöffnete Abschnittsansicht startet. Erste Ansicht bedeutet Dashboard, wenn aktiviert, sonst Quellen.",
+        "STARTUP_BEHAVIOR_FIRST_VIEW": "Erste verfügbare Ansicht",
+        "STARTUP_BEHAVIOR_RESTORE_LAST_VIEW": "Letzte Ansicht wiederherstellen",
         "EPG_NOTE": "Derzeit ist EPG nur in der Electron-basierten Version von IPTVnator verfügbar.",
         "VLC_PLAYER_PATH": "VLC-Playerpfad",
         "IMPORT_EXPORT_DATA_DESCRIPTION": "Exportieren oder importieren Sie Wiedergabelisten im JSON-Format, das in der Anwendung verwendet wird.",
@@ -398,9 +404,17 @@
         "COPY_STREAM_URL": "Stream-URL kopieren",
         "ERROR_VIEW": {
             "DELETE": "Löschen",
+            "IMPORT_CANCELLED": {
+                "TITLE": "Import abgebrochen",
+                "DESCRIPTION": "Der Playlist-Import wurde abgebrochen. Wiederholen Sie ihn, wenn Sie diese Quelle erneut laden möchten."
+            },
             "ACCOUNT_EXPIRED": {
                 "TITLE": "Konto abgelaufen",
                 "DESCRIPTION": "Dieses Konto ist abgelaufen. \nBitte überprüfen Sie die Anmeldeinformationen in den Playlist-Einstellungen oder entfernen Sie sie."
+            },
+            "ACCOUNT_INACTIVE": {
+                "TITLE": "Konto inaktiv",
+                "DESCRIPTION": "Dieses Konto ist inaktiv. Bitte überprüfen Sie die Anmeldeinformationen in den Playlist-Einstellungen oder entfernen Sie es."
             },
             "HOME": "Startseite",
             "EMPTY_CATEGORY": {
@@ -418,6 +432,10 @@
             "NOT_FOUND": {
                 "TITLE": "Portal nicht gefunden",
                 "DESCRIPTION": "Bitte überprüfen Sie die Anmeldeinformationen und die Portal-URL in den Playlist-Einstellungen oder entfernen Sie sie."
+            },
+            "PORTAL_UNAVAILABLE": {
+                "TITLE": "Portal nicht erreichbar",
+                "DESCRIPTION": "Das Portal konnte nicht erreicht werden. Überprüfen Sie die Server-URL oder versuchen Sie es erneut, wenn die Quelle wieder verfügbar ist."
             },
             "UNKNOWN_ERROR": {
                 "TITLE": "Etwas ist schief gelaufen",
@@ -473,6 +491,9 @@
         "REMOVE": "Entfernen",
         "PLAY": "Abspielen",
         "REVEAL": "Im Ordner anzeigen",
+        "COPY_URL": "Download-URL kopieren",
+        "URL_COPIED": "Download-URL in die Zwischenablage kopiert",
+        "URL_COPY_FAILED": "URL konnte nicht kopiert werden",
         "STATUS": {
             "QUEUED": "In Warteschlange",
             "DOWNLOADING": "Wird heruntergeladen",
@@ -590,6 +611,7 @@
             "RAIL_DASHBOARD": "Dashboard",
             "OPEN_DASHBOARD": "Dashboard öffnen",
             "RAIL_SOURCES": "Quellen",
+            "OPEN_SOURCES": "Quellen öffnen",
             "RAIL_SETTINGS": "Einstellungen",
             "OPEN_SETTINGS": "Einstellungen öffnen",
             "RAIL_LIBRARY": "Bibliothek",
@@ -620,6 +642,7 @@
             "NO_SECTION_ACTIONS": "Keine Aktionen für diesen Abschnitt",
             "PLAYLIST_INFO": "Playlist-Info",
             "ACCOUNT_INFO": "Kontoinfo",
+            "REFRESH_PLAYLIST": "Playlist aktualisieren",
             "CLEAR_COMPLETED_DOWNLOADS_ALL": "Abgeschlossene Downloads löschen (alle Playlists)",
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Abgeschlossene Downloads für alle Playlists löschen",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Abgeschlossene Downloads löschen (diese Playlist)",
@@ -632,12 +655,18 @@
             "NO_SOURCES_AVAILABLE": "Keine Quellen verfügbar",
             "ONE_SOURCE_AVAILABLE": "1 Quelle verfügbar",
             "SOURCES_AVAILABLE": "{{count}} Quellen verfügbar",
-            "XTREAM_IMPORT_PREPARING": "Playlist-Daten werden vorbereitet...",
-            "XTREAM_IMPORT_SAVING": "Playlist-Inhalte werden gespeichert...",
-            "XTREAM_IMPORT_RESTORING_FAVORITES": "Favoriten werden wiederhergestellt...",
-            "XTREAM_IMPORT_RESTORING_RECENT": "Zuletzt angesehene Inhalte werden wiederhergestellt...",
-            "XTREAM_IMPORT_CANCEL": "Import abbrechen",
-            "XTREAM_IMPORT_CANCELLING": "Import wird abgebrochen...",
+            "XTREAM_IMPORT_TITLE": "Playlist wird synchronisiert",
+            "XTREAM_IMPORT_REMOTE_BADGE": "Remote-Quelle",
+            "XTREAM_IMPORT_LOCAL_BADGE": "Lokale Bibliothek",
+            "XTREAM_IMPORT_DETAIL_REMOTE": "Warte auf die Antwort des Providers.",
+            "XTREAM_IMPORT_DETAIL_LOCAL": "Bereitet schnellere Playlist-Wechsel für den nächsten Besuch vor.",
+            "XTREAM_IMPORT_PREPARING": "Lokale Bibliothek wird vorbereitet...",
+            "XTREAM_IMPORT_LOADING": "Playlist-Daten werden von der Quelle geladen...",
+            "XTREAM_IMPORT_SAVING": "Playlist-Daten werden lokal gespeichert...",
+            "XTREAM_IMPORT_RESTORING_FAVORITES": "Favoriten werden aus der lokalen Bibliothek wiederhergestellt...",
+            "XTREAM_IMPORT_RESTORING_RECENT": "Zuletzt angesehene Inhalte werden aus der lokalen Bibliothek wiederhergestellt...",
+            "XTREAM_IMPORT_CANCEL": "Synchronisierung stoppen",
+            "XTREAM_IMPORT_CANCELLING": "Synchronisierung wird gestoppt...",
             "COMMANDS": {
                 "GLOBAL_SEARCH_LABEL": "Alle Xtream-Playlists durchsuchen",
                 "GLOBAL_SEARCH_DESCRIPTION": "Globale Suchüberlagerung öffnen",
@@ -648,7 +677,27 @@
                 "OPEN_DOWNLOADS_LABEL": "Downloads öffnen",
                 "OPEN_DOWNLOADS_DESCRIPTION": "Zur Download-Ansicht wechseln",
                 "OPEN_GLOBAL_RECENT_LABEL": "Zuletzt angesehen öffnen",
-                "OPEN_GLOBAL_RECENT_DESCRIPTION": "Globale Zuletzt-angesehen-Seite öffnen"
+                "OPEN_GLOBAL_RECENT_DESCRIPTION": "Globale Zuletzt-angesehen-Seite öffnen",
+                "OPEN_SETTINGS_LABEL": "Einstellungen öffnen",
+                "OPEN_SETTINGS_DESCRIPTION": "Zu den Anwendungseinstellungen",
+                "OPEN_SOURCES_LABEL": "Quellen verwalten",
+                "OPEN_SOURCES_DESCRIPTION": "Zur Quellenverwaltung",
+                "OPEN_DASHBOARD_LABEL": "Dashboard öffnen",
+                "OPEN_DASHBOARD_DESCRIPTION": "Zum Dashboard navigieren",
+                "ADD_PLAYLIST_LABEL": "Neue Quelle hinzufügen",
+                "ADD_PLAYLIST_DESCRIPTION": "Dialog zum Hinzufügen öffnen",
+                "REFRESH_PLAYLIST_LABEL": "Playlist aktualisieren",
+                "REFRESH_PLAYLIST_DESCRIPTION": "Daten von der Quelle neu laden",
+                "PLAYLIST_INFO_LABEL": "Playlist-Details",
+                "PLAYLIST_INFO_DESCRIPTION": "Aktuelle Playlist-Informationen anzeigen",
+                "ACCOUNT_INFO_LABEL": "Kontoinformationen",
+                "ACCOUNT_INFO_DESCRIPTION": "Xtream-Server-Kontodaten anzeigen",
+                "GO_TO_VOD_LABEL": "Filme",
+                "GO_TO_VOD_DESCRIPTION": "Zum Filmbereich wechseln",
+                "GO_TO_LIVE_LABEL": "Live-TV",
+                "GO_TO_LIVE_DESCRIPTION": "Zum Live-TV-Bereich wechseln",
+                "GO_TO_SERIES_LABEL": "Serien",
+                "GO_TO_SERIES_DESCRIPTION": "Zum Serienbereich wechseln"
             }
         },
         "SOURCES": {
@@ -668,6 +717,9 @@
             "MOVIE_CATEGORIES": "Filmkategorien",
             "SERIES_CATEGORIES": "Serienkategorien",
             "LIVE_CATEGORIES": "Live-Kategorien",
+            "XTREAM_SYNCING_MOVIES": "Filmkategorien werden synchronisiert...",
+            "XTREAM_SYNCING_SERIES": "Serienkategorien werden synchronisiert...",
+            "XTREAM_SYNCING_LIVE": "Live-Kategorien werden synchronisiert...",
             "XTREAM_SOURCE": "Xtream-Quelle",
             "STALKER_PORTAL": "Stalker-Portal",
             "MANAGE_CATEGORIES": "Kategorien verwalten",
@@ -675,7 +727,9 @@
             "LOAD_CATEGORIES_ERROR_HINT": "Bitte erneut versuchen oder die Portal-Einstellungen prüfen.",
             "FILTER_BY_TYPE": "Nach Typ filtern",
             "ITEM_COUNT_ONE": "1 Element",
-            "ITEM_COUNT_OTHER": "{{count}} Elemente"
+            "ITEM_COUNT_OTHER": "{{count}} Elemente",
+            "SEARCH": "Suchen",
+            "SEARCH_CATEGORIES": "Kategorien suchen"
         },
         "COMMAND_PALETTE": {
             "TITLE": "Befehlspalette",

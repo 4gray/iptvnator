@@ -13,17 +13,25 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
+import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
+    clearNavigationStateKeys,
     CollectionContentType,
     CollectionScope,
+    getOpenLiveCollectionItemState,
     isWorkspaceLayoutRoute,
+    OPEN_LIVE_COLLECTION_ITEM_STATE_KEY,
     queryParamSignal,
     ScopeToggleService,
     UnifiedCollectionItem,
     UnifiedFavoritesDataService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/util';
+import {
+    selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
+} from 'm3u-state';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
 
@@ -48,9 +56,14 @@ export class UnifiedCollectionPageComponent implements OnInit {
     readonly defaultScope = input<CollectionScope>();
 
     private readonly route = inject(ActivatedRoute);
+    private readonly store = inject(Store);
     private readonly scopeService = inject(ScopeToggleService);
     private readonly favoritesData = inject(UnifiedFavoritesDataService);
     private readonly recentData = inject(UnifiedRecentDataService);
+    private readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
+    private readonly playlistsLoaded = this.store.selectSignal(
+        selectPlaylistsLoadingFlag
+    );
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
         this.route,
@@ -64,6 +77,9 @@ export class UnifiedCollectionPageComponent implements OnInit {
     readonly isLoading = signal(true);
     readonly allItems = signal<UnifiedCollectionItem[]>([]);
     readonly selectedContentType = signal<CollectionContentType>('live');
+    readonly pendingAutoOpenLiveItem = signal(
+        getOpenLiveCollectionItemState(window.history.state)
+    );
 
     readonly skeletonRows = Array.from({ length: 12 }, (_, i) => i);
     readonly skeletonCards = Array.from({ length: 8 }, (_, i) => i);
@@ -118,12 +134,35 @@ export class UnifiedCollectionPageComponent implements OnInit {
             : 'PORTALS.RECENTLY_VIEWED';
     });
 
+    private readonly favoritesReloadKey = computed(() => {
+        if (this.mode() !== 'favorites') {
+            return 'recent';
+        }
+
+        if (!this.playlistsLoaded()) {
+            return null;
+        }
+
+        return this.playlists()
+            .map((playlist) =>
+                [
+                    playlist._id,
+                    playlist.serverUrl ? 'xtream' : playlist.macAddress ? 'stalker' : 'm3u',
+                    JSON.stringify(playlist.favorites ?? []),
+                ].join('::')
+            )
+            .join('|');
+    });
+
+    private loadRequestId = 0;
+
     constructor() {
         effect(() => {
             this.mode();
             this.portalType();
             this.playlistId();
             this.effectiveScope();
+            this.favoritesReloadKey();
             void this.loadData();
         });
     }
@@ -205,7 +244,11 @@ export class UnifiedCollectionPageComponent implements OnInit {
     }
 
     private async loadData(): Promise<void> {
-        this.isLoading.set(true);
+        const requestId = ++this.loadRequestId;
+        if (this.allItems().length === 0) {
+            this.isLoading.set(true);
+        }
+
         try {
             const s = this.effectiveScope();
             const pid = this.playlistId();
@@ -214,12 +257,26 @@ export class UnifiedCollectionPageComponent implements OnInit {
                 this.mode() === 'favorites'
                     ? await this.favoritesData.getFavorites(s, pid, pt)
                     : await this.recentData.getRecentItems(s, pid, pt);
+            if (requestId !== this.loadRequestId) {
+                return;
+            }
             this.allItems.set(items);
             this.autoSelectContentType();
+            if (
+                this.pendingAutoOpenLiveItem() &&
+                items.some((item) => item.contentType === 'live')
+            ) {
+                this.selectedContentType.set('live');
+            }
         } catch {
+            if (requestId !== this.loadRequestId) {
+                return;
+            }
             this.allItems.set([]);
         } finally {
-            this.isLoading.set(false);
+            if (requestId === this.loadRequestId) {
+                this.isLoading.set(false);
+            }
         }
     }
 
@@ -228,5 +285,10 @@ export class UnifiedCollectionPageComponent implements OnInit {
         if (types.length > 0 && !types.includes(this.selectedContentType())) {
             this.selectedContentType.set(types[0]);
         }
+    }
+
+    onLiveAutoOpenHandled(): void {
+        this.pendingAutoOpenLiveItem.set(null);
+        clearNavigationStateKeys([OPEN_LIVE_COLLECTION_ITEM_STATE_KEY]);
     }
 }

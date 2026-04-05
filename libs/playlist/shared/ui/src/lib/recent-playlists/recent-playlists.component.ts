@@ -25,10 +25,15 @@ import {
     DataService,
     DbOperationEvent,
     isDbAbortError,
+    PlaylistRefreshService,
     SortBy,
     SortService,
 } from 'services';
-import { PLAYLIST_UPDATE, PlaylistMeta } from 'shared-interfaces';
+import {
+    PLAYLIST_UPDATE,
+    PlaylistMeta,
+    PlaylistRefreshEvent,
+} from 'shared-interfaces';
 
 import { EmptyStateComponent } from './empty-state/empty-state.component';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
@@ -59,6 +64,7 @@ export class RecentPlaylistsComponent {
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
     private readonly dataService = inject(DataService);
+    private readonly playlistRefreshService = inject(PlaylistRefreshService);
     private readonly router = inject(Router);
     private readonly snackBar = inject(MatSnackBar);
     private readonly sortService = inject(SortService);
@@ -280,6 +286,8 @@ export class RecentPlaylistsComponent {
         if (item.serverUrl) {
             // For Xtream playlists, delete and re-import
             this.refreshXtreamPlaylist(item);
+        } else if (window.electron && (item.url || item.filePath)) {
+            void this.refreshM3uPlaylist(item);
         } else {
             // For M3U playlists, use existing refresh logic
             this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
@@ -360,21 +368,21 @@ export class RecentPlaylistsComponent {
                         }),
                     ]);
 
+                    const restoreKey = `xtream-restore-${item._id}`;
+                    const restorePayload = {
+                        favoritedXtreamIds,
+                        recentlyViewedXtreamIds,
+                        hiddenCategories,
+                    };
+                    localStorage.setItem(
+                        restoreKey,
+                        JSON.stringify(restorePayload)
+                    );
+
                     // Update the timestamp in NgRx / IndexedDB
                     this.store.dispatch(
                         PlaylistActions.updatePlaylistMeta({
                             playlist: { ...item, updateDate },
-                        })
-                    );
-
-                    // Persist user data so it can be restored after re-import
-                    const restoreKey = `xtream-restore-${item._id}`;
-                    localStorage.setItem(
-                        restoreKey,
-                        JSON.stringify({
-                            favoritedXtreamIds,
-                            recentlyViewedXtreamIds,
-                            hiddenCategories,
                         })
                     );
 
@@ -399,6 +407,76 @@ export class RecentPlaylistsComponent {
         });
     }
 
+    private async refreshM3uPlaylist(item: PlaylistMeta): Promise<void> {
+        if (
+            this.isDeletePending(item._id) ||
+            this.isRefreshPending(item._id)
+        ) {
+            return;
+        }
+
+        this.setPendingRefresh(item._id, true);
+        const operationId = this.databaseService.createOperationId(
+            'playlist-refresh'
+        );
+
+        try {
+            const refreshedPlaylist = await this.playlistRefreshService.refreshPlaylist(
+                {
+                    operationId,
+                    playlistId: item._id,
+                    title: item.title,
+                    url: item.url,
+                    filePath: item.filePath,
+                },
+                {
+                    onEvent: (event) =>
+                        this.updateBusyOperation(
+                            item._id,
+                            this.toPlaylistRefreshBusyEvent(event)
+                        ),
+                }
+            );
+
+            this.updateBusyOperation(item._id, {
+                operationId,
+                operation: 'playlist-refresh',
+                playlistId: item._id,
+                phase: 'saving',
+                status: 'progress',
+            });
+
+            this.store.dispatch(
+                PlaylistActions.updatePlaylist({
+                    playlist: {
+                        ...refreshedPlaylist,
+                        _id: item._id,
+                    },
+                    playlistId: item._id,
+                })
+            );
+
+            this.clearBusyOperation(item._id);
+            this.snackBar.open(
+                this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'),
+                null,
+                { duration: 2000 }
+            );
+        } catch (error) {
+            if (!isDbAbortError(error)) {
+                console.error('Error refreshing playlist:', error);
+                this.snackBar.open(
+                    this.getPlaylistRefreshErrorMessage(error, item),
+                    this.translate.instant('CLOSE'),
+                    { duration: 5000 }
+                );
+            }
+        } finally {
+            this.clearBusyOperation(item._id);
+            this.setPendingRefresh(item._id, false);
+        }
+    }
+
     isDeletePending(playlistId: string): boolean {
         return this.pendingDeletionIds().has(playlistId);
     }
@@ -418,6 +496,8 @@ export class RecentPlaylistsComponent {
                 return this.translateDeletePhase(operation.phase);
             case 'delete-xtream-content':
                 return this.translateRefreshPhase(operation.phase);
+            case 'playlist-refresh':
+                return this.translatePlaylistRefreshPhase(operation.phase);
             default:
                 return '';
         }
@@ -442,12 +522,25 @@ export class RecentPlaylistsComponent {
 
     canCancelBusyOperation(item: PlaylistMeta): boolean {
         const operation = this.busyOperations().get(item._id);
-        return Boolean(item.serverUrl && operation?.operationId);
+        if (!operation?.operationId) {
+            return false;
+        }
+
+        if (operation.operation === 'playlist-refresh') {
+            return true;
+        }
+
+        return Boolean(item.serverUrl);
     }
 
     async cancelBusyOperation(item: PlaylistMeta): Promise<void> {
         const operation = this.busyOperations().get(item._id);
         if (!operation?.operationId) {
+            return;
+        }
+
+        if (operation.operation === 'playlist-refresh') {
+            await this.playlistRefreshService.cancelRefresh(operation.operationId);
             return;
         }
 
@@ -514,6 +607,19 @@ export class RecentPlaylistsComponent {
         });
     }
 
+    private toPlaylistRefreshBusyEvent(
+        event: PlaylistRefreshEvent
+    ): DbOperationEvent {
+        return {
+            operationId: event.operationId,
+            operation: 'playlist-refresh',
+            playlistId: event.playlistId,
+            phase: event.phase,
+            status: event.status,
+            error: event.error,
+        };
+    }
+
     private translateDeletePhase(phase?: string): string {
         switch (phase) {
             case 'deleting-favorites':
@@ -570,5 +676,62 @@ export class RecentPlaylistsComponent {
                     'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.IN_PROGRESS'
                 );
         }
+    }
+
+    private translatePlaylistRefreshPhase(phase?: string): string {
+        switch (phase) {
+            case 'fetching':
+                return this.translateWithFallback(
+                    'HOME.PLAYLISTS.REFRESH_FETCHING',
+                    'Fetching playlist...'
+                );
+            case 'reading-file':
+                return this.translateWithFallback(
+                    'HOME.PLAYLISTS.REFRESH_READING_FILE',
+                    'Reading playlist file...'
+                );
+            case 'parsing':
+                return this.translateWithFallback(
+                    'HOME.PLAYLISTS.REFRESH_PARSING',
+                    'Parsing playlist...'
+                );
+            case 'saving':
+                return this.translateWithFallback(
+                    'HOME.PLAYLISTS.REFRESH_SAVING',
+                    'Saving playlist...'
+                );
+            default:
+                return this.translate.instant('HOME.PLAYLISTS.REFRESH');
+        }
+    }
+
+    private getPlaylistRefreshErrorMessage(
+        error: unknown,
+        item: PlaylistMeta
+    ): string {
+        if (item.filePath) {
+            const message = String((error as { message?: string })?.message ?? error);
+
+            if (/(ENOENT|no such file or directory|not found)/i.test(message)) {
+                return this.translateWithFallback(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND',
+                    'Playlist refresh failed. The local file is no longer available. Check the file path or re-import the playlist.'
+                );
+            }
+
+            if (/(EACCES|EPERM|permission denied)/i.test(message)) {
+                return this.translateWithFallback(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR',
+                    'Playlist refresh failed. The app can no longer access the local file.'
+                );
+            }
+        }
+
+        return this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR');
+    }
+
+    private translateWithFallback(key: string, fallback: string): string {
+        const translated = this.translate.instant(key);
+        return translated === key ? fallback : translated;
     }
 }

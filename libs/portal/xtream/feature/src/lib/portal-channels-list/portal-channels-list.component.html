@@ -1,5 +1,23 @@
 <div class="channels-list">
-    @if (filteredChannels().length > 0) {
+    @if (isSelectedTypeContentLoading()) {
+        <div class="channels-loading-state" aria-live="polite">
+            <div class="channels-loading-state__copy">
+                <div class="channels-loading-state__title">
+                    {{ 'CHANNELS.LOADING' | translate }}
+                </div>
+            </div>
+
+            <div class="channels-loading-state__list" aria-hidden="true">
+                @for (row of loadingRows; track row) {
+                    <div class="channel-skeleton">
+                        <span class="channel-skeleton__logo"></span>
+                        <span class="channel-skeleton__title"></span>
+                        <span class="channel-skeleton__meta"></span>
+                    </div>
+                }
+            </div>
+        </div>
+    } @else if (filteredChannels().length > 0) {
         <cdk-virtual-scroll-viewport
             [itemSize]="68"
             class="scroll-viewport-portals"

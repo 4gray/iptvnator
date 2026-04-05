@@ -6,7 +6,7 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { ContentType } from '../../xtream-state';
+import { ContentType, XtreamContentLoadState } from '../../xtream-state';
 
 /**
  * Module-level collator — allocating Intl.Collator is expensive;
@@ -101,6 +101,7 @@ interface XtreamSelectionItem {
 }
 
 type ParentSelectionStoreLike = {
+    contentLoadStateByType?: () => Record<ContentType, XtreamContentLoadState>;
     isLoadingContent?: () => boolean;
     liveCategories?: () => XtreamSelectionCategory[];
     liveStreams?: () => XtreamSelectionItem[];
@@ -221,6 +222,23 @@ export function withSelection() {
                 buildCountMap(
                     (store as ParentSelectionStoreLike).serialStreams?.() || []
                 )
+            );
+            const selectedTypeContentState = computed(() => {
+                const storeAny = store as ParentSelectionStoreLike;
+                const selectedType = store.selectedContentType();
+                return (
+                    storeAny.contentLoadStateByType?.()?.[selectedType] ??
+                    'idle'
+                );
+            });
+            const selectedTypeContentLoading = computed(
+                () => selectedTypeContentState() === 'loading'
+            );
+            const selectedTypeContentReady = computed(
+                () => selectedTypeContentState() === 'ready'
+            );
+            const selectedTypeCountsReady = computed(
+                () => selectedTypeContentReady()
             );
 
             // ---------------------------------------------------------------------------
@@ -344,11 +362,17 @@ export function withSelection() {
                 /**
                  * Check if paginated content is loading
                  */
-                isPaginatedContentLoading: computed(() => {
-                    // Access parent store loading state (from withContent)
-                    const storeAny = store as ParentSelectionStoreLike;
-                    return storeAny.isLoadingContent?.() || false;
-                }),
+                isPaginatedContentLoading: computed(() =>
+                    selectedTypeContentLoading()
+                ),
+
+                selectedTypeContentState,
+
+                selectedTypeContentLoading,
+
+                selectedTypeContentReady,
+
+                selectedTypeCountsReady,
 
                 /**
                  * Memoized category item counts map.

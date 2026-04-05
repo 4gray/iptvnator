@@ -62,6 +62,7 @@ export class PwaService extends DataService {
         XtreamCodeActions.GetLiveCategories,
         XtreamCodeActions.GetVodCategories,
         XtreamCodeActions.GetSeriesCategories,
+        XtreamCodeActions.GetShortEpg,
     ]);
 
     /** Proxy URL to avoid CORS issues */
@@ -244,6 +245,9 @@ export class PwaService extends DataService {
         url: string;
         params: Record<string, string>;
         macAddress?: string;
+        requestId?: string;
+        sessionId?: string;
+        suppressErrorLog?: boolean;
     }) {
         const headers = payload.macAddress
             ? {
@@ -292,7 +296,9 @@ export class PwaService extends DataService {
 
             if (!response.payload) {
                 const action = payload.params.action;
-                const isSilentAction = this.silentXtreamActions.has(action);
+                const isSilentAction =
+                    payload.suppressErrorLog === true ||
+                    this.silentXtreamActions.has(action);
                 const normalizedMessage =
                     this.getReadableXtreamErrorMessage(response);
                 logPortalDebugEvent(
@@ -332,7 +338,9 @@ export class PwaService extends DataService {
         } catch (error: unknown) {
             logPortalDebugEvent(createPortalDebugErrorEvent(context, error));
             const action = payload.params.action;
-            const isSilentAction = this.silentXtreamActions.has(action);
+            const isSilentAction =
+                payload.suppressErrorLog === true ||
+                this.silentXtreamActions.has(action);
             const normalizedMessage = this.getReadableXtreamErrorMessage(error);
             const errorInfo = this.getErrorDetails(error);
 

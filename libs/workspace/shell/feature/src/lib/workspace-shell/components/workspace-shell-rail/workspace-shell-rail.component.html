@@ -1,10 +1,10 @@
 <aside class="app-rail" [class.is-macos]="isMacOS()">
     <a
         class="brand"
-        routerLink="/workspace/dashboard"
-        [matTooltip]="'WORKSPACE.SHELL.RAIL_DASHBOARD' | translate"
+        [routerLink]="brandLink()"
+        [matTooltip]="brandTooltipKey() | translate"
         [matTooltipPosition]="'right'"
-        [attr.aria-label]="'WORKSPACE.SHELL.OPEN_DASHBOARD' | translate"
+        [attr.aria-label]="brandAriaLabelKey() | translate"
     >
         <img
             src="./assets/icons/icon-tv-256.png"

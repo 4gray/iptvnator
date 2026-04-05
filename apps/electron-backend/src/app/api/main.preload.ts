@@ -1,9 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { ExternalPlayerSession } from 'shared-interfaces';
+import type {
+    ExternalPlayerSession,
+    PlaylistRefreshEvent,
+    PlaylistRefreshPayload,
+    XtreamCategory,
+} from 'shared-interfaces';
 
 const PORTAL_DEBUG_EVENT = 'PORTAL_DEBUG_EVENT';
 const EXTERNAL_PLAYER_SESSION_UPDATE = 'EXTERNAL_PLAYER_SESSION_UPDATE';
 const DB_OPERATION_EVENT = 'DB_OPERATION_EVENT';
+const PLAYLIST_REFRESH_EVENT = 'PLAYLIST:REFRESH_EVENT';
 
 type PortalDebugEvent = {
     requestId: string;
@@ -111,6 +117,14 @@ contextBridge.exposeInMainWorld('electron', {
             callback(data as DbOperationEvent);
         ipcRenderer.on(DB_OPERATION_EVENT, handler);
         return () => ipcRenderer.off(DB_OPERATION_EVENT, handler);
+    },
+    onPlaylistRefreshEvent: (
+        callback: (data: PlaylistRefreshEvent) => void
+    ) => {
+        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
+            callback(data as PlaylistRefreshEvent);
+        ipcRenderer.on(PLAYLIST_REFRESH_EVENT, handler);
+        return () => ipcRenderer.off(PLAYLIST_REFRESH_EVENT, handler);
     },
     // DB save content progress listener
     onDbSaveContentProgress: (callback: (count: number) => void) => {
@@ -235,8 +249,15 @@ contextBridge.exposeInMainWorld('electron', {
         url: string;
         params: Record<string, string>;
         requestId?: string;
+        sessionId?: string;
         suppressErrorLog?: boolean;
     }) => ipcRenderer.invoke('XTREAM_REQUEST', payload),
+    xtreamCancelSession: (sessionId: string) =>
+        ipcRenderer.invoke('XTREAM_CANCEL_SESSION', sessionId),
+    refreshPlaylist: (payload: PlaylistRefreshPayload) =>
+        ipcRenderer.invoke('PLAYLIST:REFRESH', payload),
+    cancelPlaylistRefresh: (operationId: string) =>
+        ipcRenderer.invoke('PLAYLIST:CANCEL_REFRESH', operationId),
     // Database operations
     dbCreatePlaylist: (playlist: any) =>
         ipcRenderer.invoke('DB_CREATE_PLAYLIST', playlist),
@@ -278,7 +299,7 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('DB_GET_CATEGORIES', playlistId, type),
     dbSaveCategories: (
         playlistId: string,
-        categories: any[],
+        categories: XtreamCategory[],
         type: string,
         hiddenCategoryXtreamIds?: number[]
     ) =>
@@ -314,6 +335,10 @@ contextBridge.exposeInMainWorld('electron', {
             type,
             operationId
         ),
+    dbClearXtreamImportCache: (
+        playlistId: string,
+        type: 'live' | 'movie' | 'series'
+    ) => ipcRenderer.invoke('DB_CLEAR_XTREAM_IMPORT_CACHE', playlistId, type),
     dbSearchContent: (
         playlistId: string,
         searchTerm: string,

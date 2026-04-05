@@ -181,6 +181,8 @@
         "SETTINGS_SAVED": "Новые настройки были успешно сохранены!",
         "THEME": "Тема оформления",
         "SHOW_CAPTIONS": "Отображать субтитры",
+        "SHOW_DASHBOARD": "Показывать панель",
+        "SHOW_DASHBOARD_DESCRIPTION": "Оставить Dashboard доступным в боковой панели рабочего пространства. Если отключить, первой страницей будет Источники.",
         "ADD_EPG_SOURCE": "Добавить источник EPG",
         "CLEAR_EPG_DATA": "Очистить данные EPG",
         "CLEAR_EPG_DIALOG": {
@@ -193,6 +195,10 @@
         "STREAM_FORMAT_DESCRIPTION": "Выбрать формат потока по умолчанию (Xtream)",
         "LANGUAGE_DESCRIPTION": "Выбрать язык приложения",
         "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
+        "STARTUP_BEHAVIOR": "Начальный экран",
+        "STARTUP_BEHAVIOR_DESCRIPTION": "Выберите, должен ли IPTVnator открывать первый доступный экран рабочего пространства или восстанавливать последний экран уровня раздела. Первый экран означает Dashboard, если он включён, иначе Источники.",
+        "STARTUP_BEHAVIOR_FIRST_VIEW": "Первый доступный экран",
+        "STARTUP_BEHAVIOR_RESTORE_LAST_VIEW": "Восстановить последний экран",
         "SHOW_CAPTIONS_DESCRIPTION": "Показать или скрыть субтитры по умолчанию.",
         "VERSION_DESCRIPTION": "Текущая версия приложения",
         "EPG_NOTE": "На данный момент EPG доступен только в нативной версии IPTVnator.",
@@ -393,9 +399,17 @@
         "COPY_STREAM_URL": "Копировать URL-адрес потока",
         "ERROR_VIEW": {
             "DELETE": "Удалить",
+            "IMPORT_CANCELLED": {
+                "TITLE": "Импорт отменён",
+                "DESCRIPTION": "Импорт плейлиста был отменён. Повторите попытку, когда захотите снова загрузить этот источник."
+            },
             "ACCOUNT_EXPIRED": {
                 "TITLE": "Срок действия учетной записи истек",
                 "DESCRIPTION": "Срок действия этой учетной записи истек. \nПожалуйста, проверьте учетные данные в настройках плейлиста или удалите его."
+            },
+            "ACCOUNT_INACTIVE": {
+                "TITLE": "Учётная запись неактивна",
+                "DESCRIPTION": "Эта учётная запись неактивна. Проверьте учётные данные в настройках плейлиста или удалите источник."
             },
             "HOME": "На главную",
             "EMPTY_CATEGORY": {
@@ -409,6 +423,10 @@
             "NOT_FOUND": {
                 "TITLE": "Портал не найден",
                 "DESCRIPTION": "Пожалуйста, проверьте учетные данные и URL портала в настройках плейлиста или удалите его."
+            },
+            "PORTAL_UNAVAILABLE": {
+                "TITLE": "Портал недоступен",
+                "DESCRIPTION": "Не удалось подключиться к порталу. Проверьте URL сервера или повторите попытку позже."
             },
             "NO_CATEGORY_SELECTED": {
                 "TITLE": "Категория не выбрана",
@@ -456,7 +474,10 @@
         },
         "SOURCE_PLAYLIST_MISSING": "Эту загрузку больше нельзя открыть в библиотеке, потому что исходный плейлист был удален.",
         "FILE_NOT_FOUND": "Этот загруженный файл больше недоступен на диске.",
-        "FILE_ACTION_ERROR": "Не удалось выполнить действие с файлом."
+        "FILE_ACTION_ERROR": "Не удалось выполнить действие с файлом.",
+        "COPY_URL": "Копировать URL загрузки",
+        "URL_COPIED": "URL загрузки скопирован в буфер обмена",
+        "URL_COPY_FAILED": "Не удалось скопировать URL"
     },
     "REMOTE_CONTROL": {
         "TITLE": "Дистанционное управление",
@@ -567,6 +588,7 @@
             "RAIL_DASHBOARD": "Панель",
             "OPEN_DASHBOARD": "Открыть панель",
             "RAIL_SOURCES": "Источники",
+            "OPEN_SOURCES": "Открыть источники",
             "RAIL_SETTINGS": "Настройки",
             "OPEN_SETTINGS": "Открыть настройки",
             "RAIL_LIBRARY": "Библиотека",
@@ -597,6 +619,7 @@
             "NO_SECTION_ACTIONS": "Для этого раздела нет действий",
             "PLAYLIST_INFO": "Информация о плейлисте",
             "ACCOUNT_INFO": "Информация об аккаунте",
+            "REFRESH_PLAYLIST": "Обновить плейлист",
             "CLEAR_COMPLETED_DOWNLOADS_ALL": "Очистить завершенные загрузки (все плейлисты)",
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Очистить завершенные загрузки для всех плейлистов",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Очистить завершенные загрузки (этот плейлист)",
@@ -609,12 +632,18 @@
             "NO_SOURCES_AVAILABLE": "Нет доступных источников",
             "ONE_SOURCE_AVAILABLE": "Доступен 1 источник",
             "SOURCES_AVAILABLE": "Доступно источников: {{count}}",
-            "XTREAM_IMPORT_PREPARING": "Подготовка данных плейлиста...",
-            "XTREAM_IMPORT_SAVING": "Сохранение контента плейлиста...",
-            "XTREAM_IMPORT_RESTORING_FAVORITES": "Восстановление избранного...",
-            "XTREAM_IMPORT_RESTORING_RECENT": "Восстановление недавно просмотренного...",
-            "XTREAM_IMPORT_CANCEL": "Отменить импорт",
-            "XTREAM_IMPORT_CANCELLING": "Отмена импорта...",
+            "XTREAM_IMPORT_TITLE": "Синхронизация плейлиста",
+            "XTREAM_IMPORT_REMOTE_BADGE": "Удалённый источник",
+            "XTREAM_IMPORT_LOCAL_BADGE": "Локальная библиотека",
+            "XTREAM_IMPORT_DETAIL_REMOTE": "Ожидание ответа от провайдера.",
+            "XTREAM_IMPORT_DETAIL_LOCAL": "Подготавливает более быстрые переключения плейлиста при следующем открытии.",
+            "XTREAM_IMPORT_PREPARING": "Подготовка локальной библиотеки...",
+            "XTREAM_IMPORT_LOADING": "Получение данных плейлиста из источника...",
+            "XTREAM_IMPORT_SAVING": "Сохранение данных плейлиста локально...",
+            "XTREAM_IMPORT_RESTORING_FAVORITES": "Восстановление избранного из локальной библиотеки...",
+            "XTREAM_IMPORT_RESTORING_RECENT": "Восстановление недавно просмотренного из локальной библиотеки...",
+            "XTREAM_IMPORT_CANCEL": "Остановить синхронизацию",
+            "XTREAM_IMPORT_CANCELLING": "Остановка синхронизации...",
             "COMMANDS": {
                 "GLOBAL_SEARCH_LABEL": "Искать во всех плейлистах Xtream",
                 "GLOBAL_SEARCH_DESCRIPTION": "Открыть глобальный поиск",
@@ -625,7 +654,27 @@
                 "OPEN_DOWNLOADS_LABEL": "Открыть загрузки",
                 "OPEN_DOWNLOADS_DESCRIPTION": "Перейти к представлению загрузок",
                 "OPEN_GLOBAL_RECENT_LABEL": "Открыть недавно просмотренные",
-                "OPEN_GLOBAL_RECENT_DESCRIPTION": "Открыть глобальную страницу недавно просмотренного"
+                "OPEN_GLOBAL_RECENT_DESCRIPTION": "Открыть глобальную страницу недавно просмотренного",
+                "OPEN_SETTINGS_LABEL": "Открыть настройки",
+                "OPEN_SETTINGS_DESCRIPTION": "Перейти к настройкам приложения",
+                "OPEN_SOURCES_LABEL": "Управление источниками",
+                "OPEN_SOURCES_DESCRIPTION": "Перейти к управлению источниками",
+                "OPEN_DASHBOARD_LABEL": "Открыть панель",
+                "OPEN_DASHBOARD_DESCRIPTION": "Перейти к панели управления",
+                "ADD_PLAYLIST_LABEL": "Добавить источник",
+                "ADD_PLAYLIST_DESCRIPTION": "Открыть диалог добавления плейлиста",
+                "REFRESH_PLAYLIST_LABEL": "Обновить плейлист",
+                "REFRESH_PLAYLIST_DESCRIPTION": "Синхронизировать данные с источника",
+                "PLAYLIST_INFO_LABEL": "Сведения о плейлисте",
+                "PLAYLIST_INFO_DESCRIPTION": "Показать информацию о текущем плейлисте",
+                "ACCOUNT_INFO_LABEL": "Информация об аккаунте",
+                "ACCOUNT_INFO_DESCRIPTION": "Показать данные аккаунта Xtream",
+                "GO_TO_VOD_LABEL": "Фильмы",
+                "GO_TO_VOD_DESCRIPTION": "Перейти к разделу фильмов",
+                "GO_TO_LIVE_LABEL": "Прямой эфир",
+                "GO_TO_LIVE_DESCRIPTION": "Перейти к разделу ТВ",
+                "GO_TO_SERIES_LABEL": "Сериалы",
+                "GO_TO_SERIES_DESCRIPTION": "Перейти к разделу сериалов"
             }
         },
         "SOURCES": {
@@ -645,6 +694,9 @@
             "MOVIE_CATEGORIES": "Категории фильмов",
             "SERIES_CATEGORIES": "Категории сериалов",
             "LIVE_CATEGORIES": "Категории ТВ",
+            "XTREAM_SYNCING_MOVIES": "Синхронизация категорий фильмов...",
+            "XTREAM_SYNCING_SERIES": "Синхронизация категорий сериалов...",
+            "XTREAM_SYNCING_LIVE": "Синхронизация категорий ТВ...",
             "XTREAM_SOURCE": "Xtream источник",
             "STALKER_PORTAL": "Портал Stalker",
             "MANAGE_CATEGORIES": "Управлять категориями",
@@ -652,7 +704,9 @@
             "LOAD_CATEGORIES_ERROR_HINT": "Повторите попытку или проверьте настройки портала.",
             "FILTER_BY_TYPE": "Фильтр по типу",
             "ITEM_COUNT_ONE": "1 элемент",
-            "ITEM_COUNT_OTHER": "{{count}} элементов"
+            "ITEM_COUNT_OTHER": "{{count}} элементов",
+            "SEARCH": "Поиск",
+            "SEARCH_CATEGORIES": "Поиск категорий"
         },
         "COMMAND_PALETTE": {
             "TITLE": "Палитра команд",

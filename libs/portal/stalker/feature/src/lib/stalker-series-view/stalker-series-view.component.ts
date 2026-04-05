@@ -9,6 +9,7 @@ import {
     signal,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import {
@@ -26,6 +27,7 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     createLogger,
+    getStalkerReturnToState,
 } from '@iptvnator/portal/shared/util';
 import {
     getVodSeriesSeasonKey,
@@ -68,6 +70,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly router = inject(Router);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly downloadsService = inject(DownloadsService);
     private readonly snackBar = inject(MatSnackBar);
@@ -415,9 +418,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     goBack() {
+        const returnTo = getStalkerReturnToState(window.history.state);
         this.closeInlinePlayer();
         this.backClicked.emit();
         this.stalkerStore.clearSelectedItem();
+
+        if (returnTo) {
+            void this.router.navigateByUrl(returnTo);
+        }
     }
 
     toSeriesId(id: string | number): number {

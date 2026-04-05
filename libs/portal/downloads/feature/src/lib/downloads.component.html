@@ -167,6 +167,18 @@
                             </div>
 
                             <div class="downloads__item-actions">
+                                <button
+                                    mat-icon-button
+                                    (click)="
+                                        $event.stopPropagation();
+                                        copyUrl(item)
+                                    "
+                                    [matTooltip]="
+                                        'DOWNLOADS.COPY_URL' | translate
+                                    "
+                                >
+                                    <mat-icon>content_copy</mat-icon>
+                                </button>
                                 @switch (item.status) {
                                     @case ('queued') {
                                         <button

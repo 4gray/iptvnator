@@ -12,6 +12,7 @@ import { DataService } from 'services';
 import {
     Language,
     Settings,
+    StartupBehavior,
     STORE_KEY,
     StreamFormat,
     Theme,
@@ -37,6 +38,8 @@ const DEFAULT_SETTINGS: Settings = {
     streamFormat: StreamFormat.M3u8StreamFormat,
     language: Language.ENGLISH,
     showCaptions: false,
+    showDashboard: true,
+    startupBehavior: StartupBehavior.FirstView,
     showExternalPlaybackBar: true,
     theme: Theme.SystemTheme,
     mpvPlayerPath: '',

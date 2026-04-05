@@ -61,11 +61,12 @@
     </ng-container>
 
     @if (loading()) {
-        <div class="feedback-state">
-            <mat-icon class="feedback-state__icon">schedule</mat-icon>
-            <p class="feedback-state__title">
-                {{ 'WORKSPACE.DASHBOARD.LOADING_RECENTLY_ADDED' | translate }}
-            </p>
+        <div
+            class="feedback-state feedback-state--loading"
+            role="status"
+            [attr.aria-label]="'WORKSPACE.DASHBOARD.LOADING_RECENTLY_ADDED' | translate"
+        >
+            <mat-progress-spinner mode="indeterminate" diameter="36" />
         </div>
     } @else if (loadFailed()) {
         <div class="feedback-state">

@@ -2,36 +2,103 @@
     <header class="context-header">
         <div class="context-header__top">
             <h2>{{ title() | translate }}</h2>
-            @if (isXtreamCategories()) {
-                <button
-                    type="button"
-                    mat-icon-button
-                    class="context-header__action"
-                    (click)="openManageCategories()"
-                    [matTooltip]="'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate"
-                    [attr.aria-label]="
-                        'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate
-                    "
-                >
-                    <mat-icon>tune</mat-icon>
-                </button>
-            }
+            <div class="context-header__actions">
+                @if (canSearchCategories()) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="context-header__action"
+                        [class.context-header__action--active]="isSearchOpen()"
+                        (click)="toggleCategorySearch()"
+                        [matTooltip]="'WORKSPACE.CONTEXT.SEARCH' | translate"
+                        [attr.aria-label]="
+                            'WORKSPACE.CONTEXT.SEARCH' | translate
+                        "
+                    >
+                        <mat-icon>search</mat-icon>
+                    </button>
+                }
+                @if (isXtreamCategories()) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="context-header__action"
+                        (click)="openManageCategories()"
+                        [disabled]="!canManageXtreamCategories()"
+                        [matTooltip]="
+                            'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate
+                        "
+                        [attr.aria-label]="
+                            'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate
+                        "
+                    >
+                        <mat-icon>tune</mat-icon>
+                    </button>
+                }
+            </div>
         </div>
         <!-- @if (subtitle(); as text) {
             <span class="context-header__badge">{{ text }}</span>
         } -->
     </header>
 
-    <div class="context-divider"></div>
+    @if (isSearchOpen()) {
+        <label class="context-search">
+            <mat-icon class="context-search__icon">search</mat-icon>
+            <input
+                #searchInput
+                type="search"
+                spellcheck="false"
+                [value]="categorySearchTerm()"
+                (input)="onSearchInput($event)"
+                [placeholder]="
+                    'WORKSPACE.CONTEXT.SEARCH_CATEGORIES' | translate
+                "
+                [attr.aria-label]="
+                    'WORKSPACE.CONTEXT.SEARCH_CATEGORIES' | translate
+                "
+            />
+            @if (categorySearchTerm()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    class="context-search__clear"
+                    (click)="clearCategorySearch()"
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+            }
+        </label>
+    } @else {
+        <div class="context-divider"></div>
+    }
 
     @if (isXtreamCategories()) {
-        <app-workspace-context-category-view
-            [items]="xtreamCategories()"
-            [selectedCategoryId]="xtreamSelectedCategoryId()"
-            [itemCounts]="xtreamCategoryItemCounts()"
-            [showCounts]="true"
-            (categoryClicked)="onXtreamCategoryClicked($event)"
-        />
+        @if (isXtreamCategoryLoading()) {
+            <div class="context-skeleton" aria-hidden="true">
+                @for (row of skeletonRows; track row) {
+                    <div class="context-skeleton__row">
+                        <span class="context-skeleton__dot"></span>
+                        <span
+                            class="context-skeleton__label"
+                            [style.width.%]="skeletonLabelWidths[row]"
+                        ></span>
+                        <span class="context-skeleton__count"></span>
+                    </div>
+                }
+            </div>
+        } @else {
+            <app-workspace-context-category-view
+                [items]="filteredXtreamCategories()"
+                [selectedCategoryId]="xtreamSelectedCategoryId()"
+                [itemCounts]="xtreamCategoryItemCounts()"
+                [showCounts]="true"
+                [countDisplayMode]="xtreamCountDisplayMode()"
+                [interactionEnabled]="isXtreamCategoryInteractionEnabled()"
+                [statusText]="xtreamStatusText()"
+                (categoryClicked)="onXtreamCategoryClicked($event)"
+            />
+        }
     } @else if (isStalkerCategories()) {
         @if (isStalkerCategoryLoading()) {
             <div class="context-skeleton" aria-hidden="true">
@@ -56,7 +123,7 @@
             />
         } @else {
             <app-workspace-context-category-view
-                [items]="stalkerCategories()"
+                [items]="filteredStalkerCategories()"
                 [selectedCategoryId]="$any(stalkerSelectedCategoryId())"
                 (categoryClicked)="onStalkerCategoryClicked($any($event))"
             />

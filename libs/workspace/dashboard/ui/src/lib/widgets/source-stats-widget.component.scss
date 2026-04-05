@@ -1,3 +1,10 @@
+.source-stats-widget__loading {
+    min-height: 180px;
+    display: grid;
+    place-items: center;
+    padding: 16px 0;
+}
+
 .stats-grid {
     display: flex;
     flex-wrap: wrap;

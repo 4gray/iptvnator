@@ -14,6 +14,10 @@ import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 
 describe('UnifiedFavoritesDataService', () => {
     let service: UnifiedFavoritesDataService;
+    let databaseService: {
+        getAllGlobalFavorites: jest.Mock;
+        getFavorites: jest.Mock;
+    };
     let playlistsService: {
         getPlaylistById: jest.Mock;
         setFavorites: jest.Mock;
@@ -75,10 +79,21 @@ describe('UnifiedFavoritesDataService', () => {
     ];
 
     beforeEach(() => {
+        Object.defineProperty(window, 'electron', {
+            value: {
+                dbGetAllGlobalFavorites: jest.fn(),
+            } as Window['electron'],
+            configurable: true,
+        });
+
         playlistsService = {
             getPlaylistById: jest.fn(),
             setFavorites: jest.fn().mockReturnValue(of({})),
             setPortalFavorites: jest.fn().mockReturnValue(of({})),
+        };
+        databaseService = {
+            getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
+            getFavorites: jest.fn().mockResolvedValue([]),
         };
 
         TestBed.configureTestingModule({
@@ -109,10 +124,7 @@ describe('UnifiedFavoritesDataService', () => {
                 },
                 {
                     provide: DatabaseService,
-                    useValue: {
-                        getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
-                        getFavorites: jest.fn().mockResolvedValue([]),
-                    },
+                    useValue: databaseService,
                 },
                 {
                     provide: PlaylistsService,
@@ -128,6 +140,72 @@ describe('UnifiedFavoritesDataService', () => {
         });
 
         service = TestBed.inject(UnifiedFavoritesDataService);
+    });
+
+    it('maps global Xtream favorites across live, movie, and series content types', async () => {
+        databaseService.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: 10,
+                category_id: 1,
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream One',
+                xtream_id: 101,
+                title: 'Live One',
+                type: 'live',
+                poster_url: 'live.png',
+                added_at: '2026-03-26T09:00:00.000Z',
+                position: 0,
+            },
+            {
+                id: 11,
+                category_id: 2,
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream One',
+                xtream_id: 102,
+                title: 'Movie One',
+                type: 'movie',
+                poster_url: 'movie.png',
+                added_at: '2026-03-26T08:00:00.000Z',
+                position: 1,
+            },
+            {
+                id: 12,
+                category_id: 3,
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream One',
+                xtream_id: 103,
+                title: 'Series One',
+                type: 'series',
+                poster_url: 'series.png',
+                added_at: '2026-03-26T07:00:00.000Z',
+                position: 2,
+            },
+        ]);
+
+        const items = await service.getFavorites('all');
+
+        expect(items).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    name: 'Live One',
+                    contentType: 'live',
+                    logo: 'live.png',
+                    posterUrl: null,
+                }),
+                expect.objectContaining({
+                    name: 'Movie One',
+                    contentType: 'movie',
+                    logo: null,
+                    posterUrl: 'movie.png',
+                }),
+                expect.objectContaining({
+                    name: 'Series One',
+                    contentType: 'series',
+                    logo: null,
+                    posterUrl: 'series.png',
+                }),
+            ])
+        );
     });
 
     it('preserves persisted M3U favorites order when extracting playlist favorites', async () => {
