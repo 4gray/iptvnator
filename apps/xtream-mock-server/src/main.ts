@@ -45,6 +45,17 @@ app.get('/series/:username/:password/:streamId.:ext', (_req, res) => {
     res.redirect(HLS_STUB);
 });
 
+app.all(
+    '/timeshift/:username/:password/:duration/:start/:streamId.ts',
+    (_req, res) => {
+        res.redirect(HLS_STUB);
+    }
+);
+
+app.all('/streaming/timeshift.php', (_req, res) => {
+    res.redirect(HLS_STUB);
+});
+
 // ─── PWA CORS proxy endpoint ────────────────────────────────────────────────────
 // IPTVnator PWA routes Xtream calls through:
 //   GET /xtream?url=<serverUrl>&action=<action>&username=X&password=Y
