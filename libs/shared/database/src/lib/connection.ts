@@ -79,6 +79,10 @@ const CREATE_TABLE_STATEMENTS = [
       rating TEXT,
       added TEXT,
       poster_url TEXT,
+      epg_channel_id TEXT,
+      tv_archive INTEGER,
+      tv_archive_duration INTEGER,
+      direct_source TEXT,
       xtream_id INTEGER NOT NULL,
       type TEXT NOT NULL CHECK (type IN ('live', 'movie', 'series')),
       FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
@@ -227,6 +231,11 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE playlists ADD COLUMN payload TEXT`,
     // v1.2.0 -> v1.3.0: Add position column to favorites for global favorites ordering
     `ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0`,
+    // v1.4.0 -> v1.5.0: Preserve Xtream live metadata required for EPG/catch-up
+    `ALTER TABLE content ADD COLUMN epg_channel_id TEXT`,
+    `ALTER TABLE content ADD COLUMN tv_archive INTEGER`,
+    `ALTER TABLE content ADD COLUMN tv_archive_duration INTEGER`,
+    `ALTER TABLE content ADD COLUMN direct_source TEXT`,
 ];
 
 const INDEX_MIGRATION_STATEMENTS = [
