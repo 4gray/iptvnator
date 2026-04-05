@@ -11,6 +11,29 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { PortalChannelsListComponent } from './portal-channels-list.component';
 
+function buildEpgItem(params: {
+    id: string;
+    title: string;
+    start: string;
+    stop: string;
+    startTimestamp: number;
+    stopTimestamp: number;
+}) {
+    return {
+        id: params.id,
+        epg_id: `epg-${params.id}`,
+        title: params.title,
+        description: `${params.title} description`,
+        lang: 'en',
+        start: params.start,
+        end: params.stop,
+        stop: params.stop,
+        channel_id: 'channel-1',
+        start_timestamp: String(params.startTimestamp),
+        stop_timestamp: String(params.stopTimestamp),
+    };
+}
+
 describe('PortalChannelsListComponent', () => {
     let fixture: ComponentFixture<PortalChannelsListComponent>;
     const selectedChannels = signal<unknown[]>([]);
@@ -103,6 +126,10 @@ describe('PortalChannelsListComponent', () => {
         fixture = TestBed.createComponent(PortalChannelsListComponent);
     });
 
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
     it('renders a loading placeholder instead of the empty state while xtream live content is still loading', () => {
         fixture.detectChanges();
 
@@ -125,5 +152,73 @@ describe('PortalChannelsListComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.empty-search-state')
         ).not.toBeNull();
+    });
+
+    it('selects the current preview program by timestamps, preserves them, and updates progress from them', () => {
+        jest.useFakeTimers();
+        const currentStartTimestamp = Math.floor(
+            Date.parse('2026-04-05T05:30:00.000Z') / 1000
+        );
+        const currentStopTimestamp = Math.floor(
+            Date.parse('2026-04-05T06:00:00.000Z') / 1000
+        );
+        const previousStartTimestamp = Math.floor(
+            Date.parse('2026-04-05T05:00:00.000Z') / 1000
+        );
+        const previousStopTimestamp = Math.floor(
+            Date.parse('2026-04-05T05:30:00.000Z') / 1000
+        );
+
+        jest.setSystemTime(new Date('2026-04-05T05:45:00.000Z'));
+
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([
+            {
+                title: 'Cartoon Network',
+                xtream_id: 50,
+            },
+        ]);
+        currentPlaylist.set({
+            id: 'playlist-1',
+            password: 'secret',
+            serverUrl: 'http://demo.example',
+            username: 'demo',
+        });
+
+        fixture.detectChanges();
+
+        epgResults$.next({
+            streamId: 50,
+            items: [
+                buildEpgItem({
+                    id: 'previous',
+                    title: 'Previous Show',
+                    start: '2026-04-05T03:00:00.000Z',
+                    stop: '2026-04-05T03:30:00.000Z',
+                    startTimestamp: previousStartTimestamp,
+                    stopTimestamp: previousStopTimestamp,
+                }),
+                buildEpgItem({
+                    id: 'current',
+                    title: 'Current Show',
+                    start: '2026-04-05T03:00:00.000Z',
+                    stop: '2026-04-05T03:30:00.000Z',
+                    startTimestamp: currentStartTimestamp,
+                    stopTimestamp: currentStopTimestamp,
+                }),
+            ],
+        });
+
+        fixture.detectChanges();
+
+        const component = fixture.componentInstance;
+        expect(component.epgPrograms.get(50)).toEqual(
+            expect.objectContaining({
+                title: 'Current Show',
+                startTimestamp: currentStartTimestamp,
+                stopTimestamp: currentStopTimestamp,
+            })
+        );
+        expect(component.currentProgramsProgress.get(50)).toBeCloseTo(50, 1);
     });
 });
