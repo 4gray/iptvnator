@@ -254,6 +254,8 @@ contextBridge.exposeInMainWorld('electron', {
     }) => ipcRenderer.invoke('XTREAM_REQUEST', payload),
     xtreamCancelSession: (sessionId: string) =>
         ipcRenderer.invoke('XTREAM_CANCEL_SESSION', sessionId),
+    xtreamProbeUrl: (url: string, method?: 'GET' | 'HEAD') =>
+        ipcRenderer.invoke('XTREAM_PROBE_URL', { url, method }),
     refreshPlaylist: (payload: PlaylistRefreshPayload) =>
         ipcRenderer.invoke('PLAYLIST:REFRESH', payload),
     cancelPlaylistRefresh: (operationId: string) =>

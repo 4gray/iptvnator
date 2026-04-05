@@ -10,6 +10,10 @@ export default class App {
     static application: Electron.App;
     static BrowserWindow;
 
+    private static shouldOpenDevTools() {
+        return process.env.ELECTRON_OPEN_DEVTOOLS === '1';
+    }
+
     public static isDevelopmentMode() {
         // First check ELECTRON_IS_DEV environment variable (used by E2E tests)
         // This allows E2E tests to run in production mode without packaging
@@ -161,7 +165,9 @@ export default class App {
         // load the index.html of the app.
         if (App.isDevelopmentMode()) {
             App.mainWindow.loadURL(`http://localhost:${rendererAppPort}`);
-            App.mainWindow.webContents.openDevTools();
+            if (App.shouldOpenDevTools()) {
+                App.mainWindow.webContents.openDevTools();
+            }
         } else {
             App.mainWindow.loadFile(
                 join(__dirname, '..', rendererAppName, 'index.html')

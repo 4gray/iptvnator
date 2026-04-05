@@ -64,8 +64,20 @@ export class ChannelListItemComponent {
     /**
      * Formats time for display (HH:mm)
      */
-    formatTime(dateString: string | number): string {
-        const date = new Date(dateString);
+    formatTime(
+        dateString: string | number,
+        timestampSeconds?: number | null
+    ): string {
+        const unixTimestamp = Number(timestampSeconds);
+        const date =
+            Number.isFinite(unixTimestamp) && unixTimestamp > 0
+                ? new Date(unixTimestamp * 1000)
+                : new Date(dateString);
+
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+
         return date.toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
