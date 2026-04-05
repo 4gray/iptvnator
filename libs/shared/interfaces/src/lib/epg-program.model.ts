@@ -8,6 +8,8 @@ export interface EpgProgram {
     title: string;
     desc: string | null;
     category: string | null;
+    startTimestamp?: number | null;
+    stopTimestamp?: number | null;
     date?: string;
     episodeNum?: string | null;
     iconUrl?: string | null;
