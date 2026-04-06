@@ -27,7 +27,7 @@
 
 .settings-panel-footer {
     flex-shrink: 0;
-    padding: 12px 8px 12px;
+    padding: 12px 8px calc(20px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--app-separator);
 }
 

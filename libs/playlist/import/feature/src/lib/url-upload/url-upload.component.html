@@ -7,6 +7,14 @@
             formControlName="playlistUrl"
         />
     </mat-form-field>
+    <mat-form-field class="w-full">
+        <input
+            type="text"
+            matInput
+            [placeholder]="'HOME.XTREAM_PLAYLIST.TITLE' | translate"
+            formControlName="playlistName"
+        />
+    </mat-form-field>
     @if (!isDesktop) {
         <p>
             {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}

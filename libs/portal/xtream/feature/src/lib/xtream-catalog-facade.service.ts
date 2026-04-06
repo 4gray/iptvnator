@@ -17,6 +17,7 @@ export class XtreamCatalogFacadeService
 {
     private readonly xtreamStore = inject(XtreamStore);
     private savedPageBeforeDetail: number | null = null;
+    private loadedPositionsPlaylistId: string | null = null;
 
     readonly provider = 'xtream' as const;
     readonly pageSizeOptions = [10, 25, 50, 100] as const;
@@ -33,8 +34,8 @@ export class XtreamCatalogFacadeService
         const category = this.selectedCategory();
         return String(category?.['name'] ?? category?.['title'] ?? '');
     });
-    readonly categoryItemCount = computed(
-        () => this.xtreamStore.selectItemsFromSelectedCategory().length
+    readonly categoryItemCount = computed(() =>
+        this.xtreamStore.selectItemsFromSelectedCategory().length
     );
     readonly contentSortMode = this.xtreamStore.contentSortMode;
     readonly playlist = computed<PortalCatalogPlaylistMeta | null>(() => {
@@ -61,7 +62,8 @@ export class XtreamCatalogFacadeService
         }
 
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (playlistId) {
+        if (playlistId && this.loadedPositionsPlaylistId !== playlistId) {
+            this.loadedPositionsPlaylistId = playlistId;
             this.xtreamStore.loadAllPositions(playlistId);
         }
 
@@ -81,6 +83,10 @@ export class XtreamCatalogFacadeService
 
     clearSelectedItem(): void {
         this.xtreamStore.setSelectedItem(null);
+    }
+
+    setSearchQuery(query: string): void {
+        this.xtreamStore.setCategorySearchTerm(query);
     }
 
     setPage(page: number): void {

@@ -1,5 +1,12 @@
 import { NgComponentOutlet } from '@angular/common';
-import { Component, computed, inject, OnInit } from '@angular/core';
+import {
+    Component,
+    computed,
+    DestroyRef,
+    inject,
+    OnInit,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -49,6 +56,7 @@ interface CategoryContentItem {
 })
 export class CategoryContentViewComponent implements OnInit {
     private readonly activatedRoute = inject(ActivatedRoute);
+    private readonly destroyRef = inject(DestroyRef);
     private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
     private readonly catalog = inject(PORTAL_CATALOG_FACADE) as PortalCatalogFacade<
@@ -102,9 +110,18 @@ export class CategoryContentViewComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        const { categoryId } = this.activatedRoute.snapshot.params;
-        this.catalog.initialize(categoryId ?? null);
-        this.openStalkerItemFromNavigationState();
+        this.activatedRoute.paramMap
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((params) => {
+                this.catalog.initialize(params.get('categoryId'));
+                this.openStalkerItemFromNavigationState();
+            });
+
+        this.activatedRoute.queryParamMap
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((params) => {
+                this.catalog.setSearchQuery?.(params.get('q') ?? '');
+            });
     }
 
     onPageChange(event: PageEvent): void {

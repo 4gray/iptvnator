@@ -20,6 +20,7 @@ import {
     XtreamImportStatus,
 } from 'services';
 import {
+    DbCategoryType,
     XTREAM_DATA_SOURCE,
     XtreamCategoryFromDb,
 } from '../../data-sources/xtream-data-source.interface';
@@ -282,6 +283,49 @@ export function withContent() {
                         password: playlist.password,
                     },
                 };
+            };
+
+            const hasCompletedOfflineCache = async (
+                playlistId: string
+            ): Promise<boolean> => {
+                const contentTypes: Array<{
+                    categoryType: DbCategoryType;
+                    contentType: 'live' | 'movie' | 'series';
+                }> = [
+                    { categoryType: 'live', contentType: 'live' },
+                    { categoryType: 'movies', contentType: 'movie' },
+                    { categoryType: 'series', contentType: 'series' },
+                ];
+
+                const cacheChecks = await Promise.all(
+                    contentTypes.map(
+                        async ({ categoryType, contentType }) => {
+                            const [
+                                importStatus,
+                                hasCategories,
+                                hasContent,
+                            ] = await Promise.all([
+                                databaseService.getXtreamImportStatus(
+                                    playlistId,
+                                    contentType
+                                ),
+                                dataSource.hasCategories(
+                                    playlistId,
+                                    categoryType
+                                ),
+                                dataSource.hasContent(playlistId, contentType),
+                            ]);
+
+                            return (
+                                importStatus === 'completed' &&
+                                hasCategories &&
+                                hasContent
+                            );
+                        }
+                    )
+                );
+
+                return cacheChecks.every(Boolean);
             };
 
             const trackImportEvent = (event: DbOperationEvent): void => {
@@ -791,6 +835,15 @@ export function withContent() {
                  */
                 async initializeContent(): Promise<void> {
                     await runContentInitialization();
+                },
+
+                async hasUsableOfflineCache(): Promise<boolean> {
+                    const ctx = getCredentialsFromStore();
+                    if (!ctx) {
+                        return false;
+                    }
+
+                    return hasCompletedOfflineCache(ctx.playlistId);
                 },
 
                 async retryContentInitialization(): Promise<void> {

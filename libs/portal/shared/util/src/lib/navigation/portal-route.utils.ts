@@ -1,13 +1,14 @@
 import { Signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
-import { map } from 'rxjs';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { combineLatest, map, of } from 'rxjs';
 import {
     PortalProvider,
     PortalRailSection,
 } from './portal-rail-links';
 
 type QueryParamNormalizer<T> = (value: string | null) => T;
+type RouteParamNormalizer<T> = (value: string | null) => T;
 
 const PORTAL_SECTIONS = new Set<PortalRailSection>([
     'all',
@@ -54,6 +55,37 @@ export function queryParamSignal<T = string>(
     );
 }
 
+export function routeParamSignal<T = string>(
+    route: ActivatedRoute,
+    key: string,
+    normalizer?: RouteParamNormalizer<T>
+): Signal<T> {
+    const normalize =
+        normalizer ??
+        (((
+            value: string | null
+        ) => (value ?? '') as T) as RouteParamNormalizer<T>);
+    const routeChain =
+        Array.isArray(route.pathFromRoot) && route.pathFromRoot.length > 0
+            ? route.pathFromRoot
+            : [route];
+
+    return toSignal(
+        combineLatest(
+            routeChain.map((currentRoute) =>
+                currentRoute.paramMap ??
+                of(
+                    currentRoute.snapshot.paramMap ??
+                        convertToParamMap(currentRoute.snapshot.params ?? {})
+                )
+            )
+        ).pipe(map(() => normalize(resolveCurrentRouteParam(route, key)))),
+        {
+            initialValue: normalize(resolveCurrentRouteParam(route, key)),
+        }
+    );
+}
+
 export function extractPortalSection(
     url: string,
     provider: PortalProvider
@@ -77,6 +109,18 @@ export function resolveCurrentPortalPlaylistId(
     routerUrl: string,
     provider: PortalProvider
 ): string | null {
+    const resolved = resolveCurrentRouteParam(route, 'id');
+    if (resolved) {
+        return resolved;
+    }
+
+    return extractPortalPlaylistId(routerUrl, provider);
+}
+
+function resolveCurrentRouteParam(
+    route: ActivatedRoute,
+    key: string
+): string | null {
     const routeChain =
         Array.isArray(route.pathFromRoot) && route.pathFromRoot.length > 0
             ? route.pathFromRoot
@@ -84,15 +128,15 @@ export function resolveCurrentPortalPlaylistId(
 
     for (let index = routeChain.length - 1; index >= 0; index -= 1) {
         const currentRoute = routeChain[index];
-        const playlistId =
-            currentRoute.snapshot.paramMap.get('id') ??
-            currentRoute.snapshot.params['id'];
-        if (playlistId) {
-            return playlistId;
+        const value =
+            currentRoute.snapshot.paramMap?.get(key) ??
+            currentRoute.snapshot.params?.[key];
+        if (value) {
+            return value;
         }
     }
 
-    return extractPortalPlaylistId(routerUrl, provider);
+    return null;
 }
 
 export function resolveCurrentPortalSection(

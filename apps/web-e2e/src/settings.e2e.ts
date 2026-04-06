@@ -17,18 +17,9 @@ async function saveSettings(page: Page) {
 
 test.describe('Settings', () => {
     test.beforeEach(async ({ page }) => {
+        // Playwright creates a fresh browser context per test, so extra
+        // IndexedDB cleanup here only risks racing with app-managed DB handles.
         await page.goto('/');
-        // Clear IndexedDB before each test
-        await page.evaluate(async () => {
-            const dbNames = (await window.indexedDB.databases()).map(
-                (db) => db.name
-            );
-            dbNames.forEach((name) =>
-                name !== undefined
-                    ? window.indexedDB.deleteDatabase(name)
-                    : null
-            );
-        });
     });
 
     test('Check settings page', async ({ page }) => {

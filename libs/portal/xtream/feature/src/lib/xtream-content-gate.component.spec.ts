@@ -9,6 +9,7 @@ import {
     XtreamContentInitBlockReason,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-notice.component';
 import { XtreamContentGateComponent } from './xtream-content-gate.component';
 
 @Component({
@@ -30,10 +31,16 @@ describe('XtreamContentGateComponent', () => {
     let fixture: ComponentFixture<XtreamContentGateComponent>;
     const contentInitBlockReason =
         signal<XtreamContentInitBlockReason | null>(null);
+    const isContentInitialized = signal(false);
+    const portalStatus = signal<'active' | 'inactive' | 'expired' | 'unavailable'>(
+        'active'
+    );
     const retryContentInitialization = jest.fn().mockResolvedValue(undefined);
 
     beforeEach(async () => {
         contentInitBlockReason.set(null);
+        isContentInitialized.set(false);
+        portalStatus.set('active');
         retryContentInitialization.mockClear();
 
         await TestBed.configureTestingModule({
@@ -57,6 +64,8 @@ describe('XtreamContentGateComponent', () => {
                     provide: XtreamStore,
                     useValue: {
                         contentInitBlockReason,
+                        isContentInitialized,
+                        portalStatus,
                         retryContentInitialization,
                     },
                 },
@@ -70,6 +79,7 @@ describe('XtreamContentGateComponent', () => {
                         MockPlaylistErrorViewComponent,
                         RouterOutlet,
                         TranslatePipe,
+                        XtreamCachedOfflineNoticeComponent,
                     ],
                 },
             })
@@ -103,6 +113,21 @@ describe('XtreamContentGateComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.mock-error')
         ).toBeNull();
+        expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
+    });
+
+    it('shows an inline warning when cached content remains available offline', () => {
+        isContentInitialized.set(true);
+        portalStatus.set('unavailable');
+        fixture.detectChanges();
+
+        const warning = fixture.nativeElement.querySelector(
+            '[data-testid="xtream-offline-warning"]'
+        ) as HTMLElement | null;
+
+        expect(warning?.textContent).toContain(
+            'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE'
+        );
         expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
     });
 

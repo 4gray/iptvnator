@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -27,6 +27,9 @@ export class SidebarComponent {
     readonly channels = input<Channel[]>([]);
     readonly showPlaylistHeader = input(true);
     readonly activeView = input<string>('all');
+    readonly sidebarWidth = input<number | null>(null);
+    readonly sidebarWidthRequested = output<number>();
+    readonly sidebarWidthRequestEnded = output<number>();
 
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly translate = inject(TranslateService);
@@ -48,4 +51,12 @@ export class SidebarComponent {
         const count = this.channels()?.length ?? 0;
         return `${count} ${this.translate.instant('HOME.PLAYLISTS.CHANNELS')}`;
     });
+
+    onSidebarWidthRequested(width: number): void {
+        this.sidebarWidthRequested.emit(width);
+    }
+
+    onSidebarWidthRequestEnded(width: number): void {
+        this.sidebarWidthRequestEnded.emit(width);
+    }
 }

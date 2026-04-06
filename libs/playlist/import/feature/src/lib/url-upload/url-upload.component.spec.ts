@@ -1,8 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
-import { MatInputModule } from '@angular/material/input';
-import { By } from '@angular/platform-browser';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule } from 'ng-mocks';
@@ -16,9 +14,8 @@ describe('UrlUploadComponent', () => {
         TestBed.configureTestingModule({
             imports: [
                 UrlUploadComponent,
-                MockModule(MatInputModule),
-                MockModule(MatCardModule),
                 MockModule(FormsModule),
+                MockModule(MatFormFieldModule),
                 MockModule(ReactiveFormsModule),
                 TranslateModule.forRoot(),
                 NoopAnimationsModule,
@@ -36,27 +33,28 @@ describe('UrlUploadComponent', () => {
         expect(component).toBeTruthy();
     });
 
-    it('submit form with playlist url', waitForAsync(() => {
-        jest.spyOn(component.urlAdded, 'emit');
-        const TEST_URL = 'http://example.org/playlist.m3u';
-        const submitButton =
-            fixture.debugElement.nativeElement.querySelector('button');
+    it('accepts an optional playlist name without affecting url validation', () => {
+        const testUrl = 'http://example.org/playlist.m3u';
 
-        // test input field validation
-        expect(submitButton.disabled).toBeTruthy();
-        component.form.setValue({ playlistUrl: 'wrong url here' });
+        component.form.setValue({
+            playlistName: '  Custom Playlist  ',
+            playlistUrl: 'wrong url here',
+        });
         fixture.detectChanges();
-        expect(submitButton.disabled).toBeTruthy();
-        component.form.setValue({ playlistUrl: TEST_URL + '8' });
-        fixture.detectChanges();
-        expect(submitButton.disabled).toBeFalsy();
-        component.form.setValue({ playlistUrl: TEST_URL });
-        fixture.detectChanges();
-        expect(submitButton.disabled).toBeFalsy();
+        expect(component.form.valid).toBeFalsy();
 
-        const form = fixture.debugElement.query(By.css('form'));
-        form.triggerEventHandler('ngSubmit', null);
+        component.form.setValue({
+            playlistName: '',
+            playlistUrl: testUrl,
+        });
+        fixture.detectChanges();
+        expect(component.form.valid).toBeTruthy();
 
-        expect(component.urlAdded.emit).toHaveBeenCalledWith(TEST_URL);
-    }));
+        component.form.setValue({
+            playlistName: '   ',
+            playlistUrl: testUrl,
+        });
+        fixture.detectChanges();
+        expect(component.form.valid).toBeTruthy();
+    });
 });

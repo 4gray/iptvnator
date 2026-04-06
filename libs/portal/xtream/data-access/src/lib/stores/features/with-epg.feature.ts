@@ -1,11 +1,13 @@
-import { inject } from '@angular/core';
+import { computed, inject } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
+    withComputed,
     withMethods,
     withState,
 } from '@ngrx/signals';
 import { EpgItem } from 'shared-interfaces';
+import { DataService } from 'services';
 import {
     XtreamApiService,
     XtreamCredentials,
@@ -49,9 +51,40 @@ export function withEpg() {
 
     return signalStoreFeature(
         withState<EpgState>(initialEpgState),
+        withComputed((store) => ({
+            currentEpgItem: computed(() => {
+                const now = Date.now();
+                const items = [...store.epgItems()].sort(
+                    (left, right) =>
+                        getEpgTimestampMs(
+                            left.start,
+                            left.start_timestamp
+                        ) -
+                        getEpgTimestampMs(
+                            right.start,
+                            right.start_timestamp
+                        )
+                );
+
+                return (
+                    items.find((item) => {
+                        const start = getEpgTimestampMs(
+                            item.start,
+                            item.start_timestamp
+                        );
+                        const stop = getEpgTimestampMs(
+                            item.stop ?? item.end,
+                            item.stop_timestamp
+                        );
+                        return now >= start && now < stop;
+                    }) ?? null
+                );
+            }),
+        })),
 
         withMethods((store) => {
             const apiService = inject(XtreamApiService);
+            const dataService = inject(DataService);
 
             /**
              * Helper to get credentials from parent store
@@ -91,17 +124,25 @@ export function withEpg() {
                         return [];
                     }
 
-                    patchState(store, { isLoadingEpg: true });
+                    patchState(store, { epgItems: [], isLoadingEpg: true });
 
                     try {
-                        const epgItems = await apiService.getShortEpg(
-                            credentials,
-                            selectedItem.xtream_id,
-                            10,
-                            {
-                                suppressErrorLog: true,
-                            }
-                        );
+                        const epgItems = dataService.isElectron
+                            ? await apiService.getFullEpg(
+                                  credentials,
+                                  selectedItem.xtream_id,
+                                  {
+                                      suppressErrorLog: true,
+                                  }
+                              )
+                            : await apiService.getShortEpg(
+                                  credentials,
+                                  selectedItem.xtream_id,
+                                  10,
+                                  {
+                                      suppressErrorLog: true,
+                                  }
+                              );
 
                         patchState(store, {
                             epgItems,
@@ -152,4 +193,16 @@ export function withEpg() {
             };
         })
     );
+}
+
+function getEpgTimestampMs(
+    dateValue: string | undefined,
+    unixTimestampValue: string | undefined
+): number {
+    const unixTimestamp = Number.parseInt(String(unixTimestampValue ?? ''), 10);
+    if (Number.isFinite(unixTimestamp) && unixTimestamp > 0) {
+        return unixTimestamp * 1000;
+    }
+
+    return Date.parse(String(dateValue ?? ''));
 }

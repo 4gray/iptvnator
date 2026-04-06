@@ -42,12 +42,17 @@ export interface XtreamRequestOptions {
  * Raw EPG listing from API (before decoding)
  */
 interface RawEpgListing {
-    title: string;
-    description: string;
-    start: string;
-    end: string;
-    start_timestamp: string;
-    stop_timestamp: string;
+    id?: string;
+    epg_id?: string;
+    title?: string;
+    description?: string;
+    start?: string;
+    end?: string;
+    stop?: string;
+    start_timestamp?: string;
+    stop_timestamp?: string;
+    channel_id?: string;
+    lang?: string;
     [key: string]: unknown;
 }
 
@@ -55,7 +60,7 @@ interface RawEpgListing {
  * EPG API response
  */
 interface EpgResponse {
-    epg_listings?: RawEpgListing[];
+    epg_listings?: RawEpgListing[] | Record<string, RawEpgListing>;
 }
 
 /**
@@ -265,15 +270,49 @@ export class XtreamApiService {
             options
         );
 
-        if (!response?.epg_listings || !Array.isArray(response.epg_listings)) {
-            return [];
+        return this.normalizeShortEpgItems(response);
+    }
+
+    /**
+     * Get the full EPG schedule for a stream.
+     * Uses the documented endpoint with a fallback for older typoed panels.
+     */
+    async getFullEpg(
+        credentials: XtreamCredentials,
+        streamId: number,
+        options?: XtreamRequestOptions
+    ): Promise<EpgItem[]> {
+        try {
+            const response: EpgResponse = await this.sendRequest(
+                credentials.serverUrl,
+                {
+                    action: XtreamCodeActions.GetSimpleDataTable,
+                    username: credentials.username,
+                    password: credentials.password,
+                    stream_id: streamId,
+                },
+                options
+            );
+            const items = this.normalizeFullEpgItems(response);
+            if (items.length > 0) {
+                return items;
+            }
+        } catch {
+            // Fall back to the legacy typo endpoint below.
         }
 
-        return response.epg_listings.map((item) => ({
-            ...item,
-            title: this.decodeBase64Unicode(item.title).trim(),
-            description: this.decodeBase64Unicode(item.description).trim(),
-        })) as EpgItem[];
+        const fallbackResponse: EpgResponse = await this.sendRequest(
+            credentials.serverUrl,
+            {
+                action: XtreamCodeActions.GetSimpleDateTable,
+                username: credentials.username,
+                password: credentials.password,
+                stream_id: streamId,
+            },
+            options
+        );
+
+        return this.normalizeFullEpgItems(fallbackResponse);
     }
 
     /**
@@ -293,6 +332,142 @@ export class XtreamApiService {
         } catch {
             return str;
         }
+    }
+
+    private getEpgListings(response: EpgResponse | null | undefined): RawEpgListing[] {
+        const listings = response?.epg_listings;
+        if (!listings) {
+            return [];
+        }
+
+        if (Array.isArray(listings)) {
+            return listings;
+        }
+
+        return Object.values(listings);
+    }
+
+    private normalizeShortEpgItems(response: EpgResponse): EpgItem[] {
+        return this.getEpgListings(response)
+            .map((item, index) => {
+                const startTimestamp = this.parseUnixTimestamp(
+                    item.start_timestamp
+                );
+                const stopTimestamp = this.parseUnixTimestamp(
+                    item.stop_timestamp
+                );
+                const normalizedStart =
+                    this.toIsoString(startTimestamp) ??
+                    this.normalizeDateString(item.start);
+                const normalizedStop =
+                    this.toIsoString(stopTimestamp) ??
+                    this.normalizeDateString(item.stop ?? item.end);
+
+                return {
+                    id: String(item.id ?? index),
+                    epg_id: String(item.epg_id ?? ''),
+                    title: this.decodeBase64Unicode(
+                        String(item.title ?? '')
+                    ).trim(),
+                    description: this.decodeBase64Unicode(
+                        String(item.description ?? '')
+                    ).trim(),
+                    lang: String(item.lang ?? ''),
+                    start: normalizedStart,
+                    end: normalizedStop,
+                    stop: normalizedStop,
+                    channel_id: String(item.channel_id ?? ''),
+                    start_timestamp: String(startTimestamp ?? ''),
+                    stop_timestamp: String(stopTimestamp ?? ''),
+                } satisfies EpgItem;
+            })
+            .filter((item) => Boolean(item.start) && Boolean(item.stop))
+            .sort(
+                (left, right) =>
+                    this.getEpgItemTimestampMs(left.start, left.start_timestamp) -
+                    this.getEpgItemTimestampMs(
+                        right.start,
+                        right.start_timestamp
+                    )
+            );
+    }
+
+    private normalizeFullEpgItems(response: EpgResponse): EpgItem[] {
+        return this.getEpgListings(response)
+            .map((item, index) => {
+                const startTimestamp = this.parseUnixTimestamp(
+                    item.start_timestamp
+                );
+                const stopTimestamp = this.parseUnixTimestamp(
+                    item.stop_timestamp
+                );
+                const normalizedStart =
+                    this.toIsoString(startTimestamp) ??
+                    this.normalizeDateString(item.start);
+                const normalizedStop =
+                    this.toIsoString(stopTimestamp) ??
+                    this.normalizeDateString(item.stop ?? item.end);
+
+                return {
+                    id: String(item.id ?? index),
+                    epg_id: String(item.epg_id ?? item.channel_id ?? ''),
+                    title: this.decodeBase64Unicode(
+                        String(item.title ?? '')
+                    ).trim(),
+                    description: this.decodeBase64Unicode(
+                        String(item.description ?? '')
+                    ).trim(),
+                    lang: String(item.lang ?? ''),
+                    start: normalizedStart,
+                    end: normalizedStop,
+                    stop: normalizedStop,
+                    channel_id: String(item.channel_id ?? ''),
+                    start_timestamp: String(startTimestamp ?? ''),
+                    stop_timestamp: String(stopTimestamp ?? ''),
+                } satisfies EpgItem;
+            })
+            .filter((item) => Boolean(item.start) && Boolean(item.stop))
+            .sort(
+                (left, right) =>
+                    this.getEpgItemTimestampMs(left.start, left.start_timestamp) -
+                    this.getEpgItemTimestampMs(
+                        right.start,
+                        right.start_timestamp
+                    )
+            );
+    }
+
+    private parseUnixTimestamp(value: unknown): number | null {
+        const parsed = Number.parseInt(String(value ?? ''), 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+
+    private toIsoString(timestamp: number | null): string | null {
+        return timestamp ? new Date(timestamp * 1000).toISOString() : null;
+    }
+
+    private normalizeDateString(value: unknown): string {
+        const rawValue = String(value ?? '').trim();
+        if (!rawValue) {
+            return '';
+        }
+
+        const parsed = Date.parse(rawValue.replace(' ', 'T'));
+        return Number.isFinite(parsed)
+            ? new Date(parsed).toISOString()
+            : rawValue;
+    }
+
+    private getEpgItemTimestampMs(
+        isoValue: string,
+        unixTimestampValue: string
+    ): number {
+        const unixTimestamp = this.parseUnixTimestamp(unixTimestampValue);
+        if (unixTimestamp) {
+            return unixTimestamp * 1000;
+        }
+
+        return Date.parse(isoValue);
     }
 
     /**

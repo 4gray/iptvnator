@@ -349,6 +349,29 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             title: program.title,
             desc: program.description ?? null,
             category: null,
+            startTimestamp: this.getProgramTimestampSeconds(
+                program.start,
+                program.start_timestamp
+            ),
+            stopTimestamp: this.getProgramTimestampSeconds(
+                program.stop ?? program.end,
+                program.stop_timestamp
+            ),
         };
+    }
+
+    private getProgramTimestampSeconds(
+        dateValue: string | undefined,
+        unixTimestampValue: string | undefined
+    ): number | null {
+        const unixTimestamp = Number(unixTimestampValue);
+        if (Number.isFinite(unixTimestamp) && unixTimestamp > 0) {
+            return unixTimestamp;
+        }
+
+        const parsedDate = new Date(dateValue ?? '').getTime();
+        return Number.isFinite(parsedDate)
+            ? Math.floor(parsedDate / 1000)
+            : null;
     }
 }

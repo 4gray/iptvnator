@@ -91,6 +91,7 @@ describe('EpgListItemComponent', () => {
         expect(dialog.open).toHaveBeenCalledTimes(1);
         expect(dialog.open).toHaveBeenCalledWith(EpgItemDescriptionComponent, {
             data: {},
+            width: '800px',
         });
     });
 });

@@ -15,7 +15,6 @@ import {
     PlaylistCategory,
 } from '@iptvnator/workspace/shell/util';
 import { PlaylistActions } from 'm3u-state';
-import { getFilenameFromUrl } from 'm3u-utils';
 import { DataService } from 'services';
 import { PLAYLIST_PARSE_BY_URL } from 'shared-interfaces';
 import { FileUploadComponent } from '../file-upload/file-upload.component';
@@ -110,13 +109,22 @@ export class AddPlaylistDialogComponent {
     }
 
     /**
-     * Sends url of the playlist to the renderer process
-     * @param playlistUrl url of the added playlist
+     * Sends url of the playlist to the renderer process and preserves the
+     * existing fallback title behavior when the optional name is blank.
      */
-    sendPlaylistsUrl(playlistUrl: string): void {
+    submitUrlPlaylist(): void {
+        const formValue = this.urlUpload()?.form?.getRawValue();
+        const playlistUrl = formValue?.playlistUrl?.trim();
+
+        if (!playlistUrl) {
+            return;
+        }
+
+        const playlistName = this.normalizeOptionalValue(formValue?.playlistName);
+
         this.dataService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
-            title: getFilenameFromUrl(playlistUrl),
             url: playlistUrl,
+            ...(playlistName ? { title: playlistName } : {}),
         });
         this.closeDialog();
     }
@@ -138,5 +146,10 @@ export class AddPlaylistDialogComponent {
 
     closeDialog(): void {
         this.dialogRef.close();
+    }
+
+    private normalizeOptionalValue(value?: string | null): string | undefined {
+        const normalizedValue = value?.trim();
+        return normalizedValue ? normalizedValue : undefined;
     }
 }

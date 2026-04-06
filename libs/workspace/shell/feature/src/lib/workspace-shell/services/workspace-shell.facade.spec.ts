@@ -373,6 +373,17 @@ describe('WorkspaceShellFacade', () => {
         );
     });
 
+    it('applies q to Xtream category search on vod routes', () => {
+        const xtreamStore = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+
+        facade.currentUrl.set('/workspace/xtreams/pl-1/vod?q=neo');
+        (facade as { syncSearchFromRoute: () => void }).syncSearchFromRoute();
+        TestBed.flushEffects();
+
+        expect(xtreamStore.setCategorySearchTerm).toHaveBeenCalledWith('neo');
+        expect(xtreamStore.setSearchTerm).not.toHaveBeenCalled();
+    });
+
     it('enables local-filter search on playlist favorites routes', () => {
         facade.currentUrl.set('/workspace/playlists/pl-1/favorites?q=news');
         (facade as { syncSearchFromRoute: () => void }).syncSearchFromRoute();

@@ -45,6 +45,10 @@ export interface XtreamContentItem {
     rating: string;
     added: string;
     poster_url: string;
+    epg_channel_id?: string | null;
+    tv_archive?: number | null;
+    tv_archive_duration?: number | null;
+    direct_source?: string | null;
     xtream_id: number;
     type: string;
     added_at?: string;
@@ -57,7 +61,6 @@ export interface XtreamContentItem {
     stream_id?: number;
     stream_icon?: string;
     custom_sid?: string;
-    direct_source?: string;
     rating_imdb?: string;
 
     // Global search result fields

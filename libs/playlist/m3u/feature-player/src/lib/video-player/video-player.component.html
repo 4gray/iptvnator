@@ -1,16 +1,22 @@
 <div
     class="sidebar"
     appResizable
-    [minWidth]="200"
-    [maxWidth]="600"
-    [defaultWidth]="460"
-    storageKey="m3u-sidebar-width"
+    [minWidth]="sidebarMinWidth"
+    [maxWidth]="sidebarMaxWidth"
+    [defaultWidth]="sidebarWidth()"
+    [style.width.px]="sidebarWidth()"
+    [storageKey]="sidebarStorageKey()"
+    (widthChange)="onSidebarWidthChange($event)"
+    (resizeEnd)="onSidebarResizeEnd($event)"
 >
     @defer {
         <app-sidebar
             [channels]="(channels$ | async)!"
             [showPlaylistHeader]="!isWorkspaceLayout"
             [activeView]="activeView()"
+            [sidebarWidth]="sidebarWidth()"
+            (sidebarWidthRequested)="onGroupedSidebarWidthRequested($event)"
+            (sidebarWidthRequestEnded)="onGroupedSidebarWidthRequestEnded($event)"
         />
     } @loading {
         <p>Loading...</p>
@@ -77,11 +83,9 @@
             </div>
         }
     } @else {
-        <div class="empty-state-container">
-            <mat-icon class="empty-state-icon">live_tv</mat-icon>
-            <h2 class="empty-state-title">
-                {{ 'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate }}
-            </h2>
-        </div>
+        <app-portal-empty-state
+            icon="live_tv"
+            [message]="'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate"
+        />
     }
 </div>

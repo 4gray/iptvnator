@@ -234,46 +234,72 @@ describe('SettingsComponent', () => {
         ).not.toBeNull();
     });
 
-    it('should scroll the general navigation target to the general section', async () => {
+    it('should scroll the selected navigation target within the workspace viewport', async () => {
         fixture.destroy();
+        jest.useFakeTimers();
 
-        const scrollFixture = TestBed.createComponent(SettingsComponent);
-        const scrollComponent = scrollFixture.componentInstance;
-        const settingsContext = TestBed.inject(SettingsContextService);
-        const scrollIntoView = jest.fn();
-        const originalGetElementById = document.getElementById.bind(document);
+        try {
+            const scrollFixture = TestBed.createComponent(SettingsComponent);
+            const scrollComponent = scrollFixture.componentInstance;
+            const settingsContext = TestBed.inject(SettingsContextService);
+            const originalGetElementById = document.getElementById.bind(
+                document
+            );
+            const scrollTo = jest.fn();
+            const scrollRoot = {
+                scrollTop: 96,
+                clientHeight: 885,
+                scrollHeight: 2469,
+                getBoundingClientRect: () =>
+                    ({
+                        top: 56,
+                    }) as DOMRect,
+                scrollTo,
+            } as unknown as HTMLElement;
 
-        scrollComponent.checkAppVersion = jest.fn();
-        scrollComponent.fetchLocalIpAddresses = jest
-            .fn()
-            .mockResolvedValue(undefined);
-        scrollFixture.detectChanges();
+            scrollComponent.checkAppVersion = jest.fn();
+            scrollComponent.fetchLocalIpAddresses = jest
+                .fn()
+                .mockResolvedValue(undefined);
+            jest.spyOn(scrollComponent as any, 'getScrollRoot').mockReturnValue(
+                scrollRoot
+            );
+            scrollFixture.detectChanges();
 
-        const getElementByIdSpy = jest
-            .spyOn(document, 'getElementById')
-            .mockImplementation((id: string) => {
-                if (id === 'general') {
-                    return {
-                        scrollIntoView,
-                    } as unknown as HTMLElement;
-                }
+            const getElementByIdSpy = jest
+                .spyOn(document, 'getElementById')
+                .mockImplementation((id: string) => {
+                    if (id === 'about') {
+                        return {
+                            getBoundingClientRect: () =>
+                                ({
+                                    top: 2050,
+                                    height: 159,
+                                }) as DOMRect,
+                        } as HTMLElement;
+                    }
 
-                return originalGetElementById(id);
+                    return originalGetElementById(id);
+                });
+
+            await scrollFixture.whenStable();
+            scrollFixture.detectChanges();
+            settingsContext.navigateToSection('about');
+            scrollFixture.detectChanges();
+
+            expect(getElementByIdSpy).toHaveBeenCalledWith('about');
+            expect(scrollTo).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                top: 1488,
             });
+            expect(settingsContext.pendingScrollTarget()).toBe('about');
 
-        await scrollFixture.whenStable();
-        scrollFixture.detectChanges();
-        settingsContext.navigateToSection('general');
-        scrollFixture.detectChanges();
-        await scrollFixture.whenStable();
+            jest.advanceTimersByTime(600);
 
-        expect(getElementByIdSpy).toHaveBeenCalledWith('general');
-        expect(getElementByIdSpy).not.toHaveBeenCalledWith('settings-intro');
-        expect(scrollIntoView).toHaveBeenCalledWith({
-            behavior: 'smooth',
-            block: 'start',
-        });
-        expect(settingsContext.pendingScrollTarget()).toBeNull();
+            expect(settingsContext.pendingScrollTarget()).toBeNull();
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     describe('Get and set settings on component init', () => {
@@ -384,6 +410,26 @@ describe('SettingsComponent', () => {
             undefined,
             {
                 duration: 2000,
+                horizontalPosition: 'center',
+                panelClass: ['settings-snackbar'],
+                verticalPosition: 'bottom',
+            }
+        );
+    });
+
+    it('shows the save confirmation snackbar at the bottom center with the settings offset class', () => {
+        jest.spyOn(translate, 'instant').mockReturnValue('Settings saved');
+
+        component.applyChangedSettings();
+
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'Settings saved',
+            undefined,
+            {
+                duration: 2000,
+                horizontalPosition: 'center',
+                panelClass: ['settings-snackbar'],
+                verticalPosition: 'bottom',
             }
         );
     });

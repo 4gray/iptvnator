@@ -1,9 +1,12 @@
 import {
+    inject,
     ChangeDetectionStrategy,
     Component,
     input,
 } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { UnifiedCollectionPageComponent } from '@iptvnator/portal/shared/ui';
+import { routeParamSignal } from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-m3u-collection-route',
@@ -12,11 +15,19 @@ import { UnifiedCollectionPageComponent } from '@iptvnator/portal/shared/ui';
         <app-unified-collection-page
             [mode]="mode()"
             [portalType]="portalType()"
+            [playlistId]="playlistId()"
         />
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class M3uCollectionRouteComponent {
+    private readonly route = inject(ActivatedRoute);
+
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly portalType = input('m3u');
+    readonly playlistId = routeParamSignal<string | undefined>(
+        this.route,
+        'id',
+        (value) => value ?? undefined
+    );
 }

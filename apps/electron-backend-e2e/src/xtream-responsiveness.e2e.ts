@@ -53,10 +53,14 @@ test.describe('Electron Xtream Responsiveness', () => {
                 username: stressXtreamUsername,
             });
 
-            const overlay = app.mainWindow.locator('.workspace-loading-overlay');
+            const overlay = app.mainWindow.locator(
+                '.workspace-loading-overlay'
+            );
             await expect(overlay).toBeVisible({ timeout: 15000 });
             await expect(
-                overlay.getByRole('button', { name: /cancel import/i })
+                overlay.getByRole('button', {
+                    name: /stop sync|cancel import/i,
+                })
             ).toBeVisible({ timeout: 20000 });
 
             await waitForDbOperationEvent(app.mainWindow, {
@@ -71,15 +75,14 @@ test.describe('Electron Xtream Responsiveness', () => {
             await expect
                 .poll(
                     async () =>
-                        (
-                            await app.mainWindow.evaluate(() =>
+                        (await app.mainWindow.evaluate(
+                            () =>
                                 (window.__dbOperationEvents ?? []).filter(
                                     (event) =>
                                         event.operation === 'save-content' &&
                                         event.status === 'progress'
                                 ).length
-                            )
-                        ) > 2,
+                        )) > 2,
                     { timeout: 30000 }
                 )
                 .toBeTruthy();
@@ -125,9 +128,11 @@ test.describe('Electron Xtream Responsiveness', () => {
                 username: stressXtreamUsername,
             });
 
-            const overlay = app.mainWindow.locator('.workspace-loading-overlay');
+            const overlay = app.mainWindow.locator(
+                '.workspace-loading-overlay'
+            );
             const cancelButton = overlay.getByRole('button', {
-                name: /cancel import/i,
+                name: /stop sync|cancel import/i,
             });
 
             await expect(overlay).toBeVisible({ timeout: 15000 });
@@ -145,9 +150,10 @@ test.describe('Electron Xtream Responsiveness', () => {
             await cancelButton.click();
 
             await expect(overlay).toHaveCount(0, { timeout: 20000 });
-            await expect(
-                xtreamBlockedStateTitle(app.mainWindow)
-            ).toHaveText('Import cancelled', { timeout: 20000 });
+            await expect(xtreamBlockedStateTitle(app.mainWindow)).toHaveText(
+                'Import cancelled',
+                { timeout: 20000 }
+            );
 
             await app.mainWindow.waitForTimeout(1200);
             await expect(overlay).toHaveCount(0);
@@ -267,7 +273,9 @@ test.describe('Electron Xtream Responsiveness', () => {
 
             await playlistRow.locator('.delete-btn').click();
 
-            const confirmDialog = app.mainWindow.locator('mat-dialog-container');
+            const confirmDialog = app.mainWindow.locator(
+                'mat-dialog-container'
+            );
             await expect(confirmDialog).toBeVisible();
             await confirmDialog
                 .getByRole('button', { name: 'Yes', exact: true })
@@ -279,9 +287,9 @@ test.describe('Electron Xtream Responsiveness', () => {
                 timeoutMs: 20000,
             });
 
-            await expect(playlistRow.locator('.busy-state__message')).toBeVisible(
-                { timeout: 20000 }
-            );
+            await expect(
+                playlistRow.locator('.busy-state__message')
+            ).toBeVisible({ timeout: 20000 });
             await expect(playlistRow.locator('.cancel-btn')).toBeVisible();
 
             await waitForDbOperationEvent(app.mainWindow, {

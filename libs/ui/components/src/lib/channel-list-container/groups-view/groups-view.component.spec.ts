@@ -121,6 +121,7 @@ describe('GroupsViewComponent', () => {
             groupedChannels: Record<string, Channel[]>;
             progressTick: number;
             searchTerm: string;
+            sidebarWidth: number | null;
             shouldShowEpg: boolean;
         }> = {}
     ): void {
@@ -148,6 +149,10 @@ describe('GroupsViewComponent', () => {
         fixture.componentRef.setInput(
             'favoriteIds',
             overrides.favoriteIds ?? new Set<string>()
+        );
+        fixture.componentRef.setInput(
+            'sidebarWidth',
+            overrides.sidebarWidth ?? 460
         );
         fixture.detectChanges();
     }
@@ -248,6 +253,43 @@ describe('GroupsViewComponent', () => {
             channel: movieClassic,
             event: clickEvent,
         });
+    });
+
+    it('emits total sidebar width requests while resizing the groups rail', () => {
+        const requested = jest.fn();
+        const committed = jest.fn();
+        let contentWidth = 252;
+
+        component.sidebarWidthRequested.subscribe(requested);
+        component.sidebarWidthRequestEnded.subscribe(committed);
+
+        const contentPanel = fixture.nativeElement.querySelector(
+            '.groups-content-panel'
+        ) as HTMLElement;
+
+        jest.spyOn(contentPanel, 'getBoundingClientRect').mockImplementation(
+            () =>
+                ({
+                    bottom: 0,
+                    height: 0,
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    width: contentWidth,
+                    x: 0,
+                    y: 0,
+                    toJSON: () => ({}),
+                }) as DOMRect
+        );
+
+        component.onGroupsNavResizeStart();
+        contentWidth = 120;
+
+        component.onGroupsNavWidthChange(260);
+        component.onGroupsNavResizeEnd(260);
+
+        expect(requested).toHaveBeenCalledWith(512);
+        expect(committed).toHaveBeenCalledWith(512);
     });
 
     it('renders the no-results state for searches without matches', () => {

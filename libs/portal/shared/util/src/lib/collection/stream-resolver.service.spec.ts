@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { XtreamApiService, XtreamUrlService } from '@iptvnator/portal/xtream/data-access';
+import {
+    XtreamApiService,
+    XtreamUrlService,
+} from '@iptvnator/portal/xtream/data-access';
 import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
 import { DataService, PlaylistsService } from 'services';
 import { Playlist } from 'shared-interfaces';
@@ -304,6 +307,70 @@ describe('StreamResolverService', () => {
         expect(xtreamApi.getShortEpg).toHaveBeenCalledTimes(1);
     });
 
+    it('falls back to empty Xtream EPG when the provider response is too slow', async () => {
+        jest.useFakeTimers();
+
+        try {
+            playlistsService.getPlaylistById.mockReturnValue(
+                of({
+                    _id: 'xtream-1',
+                    serverUrl: 'https://xtream.example.com',
+                    username: 'user',
+                    password: 'pass',
+                } satisfies Partial<Playlist>)
+            );
+            xtreamUrl.constructLiveUrl.mockReturnValue(
+                'https://xtream.example.com/live/1'
+            );
+            xtreamApi.getShortEpg.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        setTimeout(
+                            () =>
+                                resolve([
+                                    {
+                                        id: '1',
+                                        epg_id: '',
+                                        title: 'Late Xtream Show',
+                                        description: 'Delayed Xtream program',
+                                        lang: '',
+                                        start: '2026-03-26T11:00:00.000Z',
+                                        end: '2026-03-26T12:00:00.000Z',
+                                        stop: '2026-03-26T12:00:00.000Z',
+                                        channel_id: '1',
+                                        start_timestamp: '1774522800',
+                                        stop_timestamp: '1774526400',
+                                    },
+                                ]),
+                            10_000
+                        );
+                    })
+            );
+
+            const detailPromise = service.resolveLiveDetail({
+                uid: 'xtream::xtream-1::1',
+                name: 'Xtream Live',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream',
+                xtreamId: 1,
+            } satisfies UnifiedCollectionItem);
+
+            await jest.advanceTimersByTimeAsync(3000);
+
+            await expect(detailPromise).resolves.toMatchObject({
+                epgMode: 'portal',
+                playback: expect.objectContaining({
+                    streamUrl: 'https://xtream.example.com/live/1',
+                }),
+                epgItems: [],
+            });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('loads current Stalker EPG previews for live collection rows', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({
@@ -322,12 +389,8 @@ describe('StreamResolverService', () => {
                     time: '2026-03-26T11:00:00.000Z',
                     time_to: '2026-03-26T12:00:00.000Z',
                     ch_id: '77',
-                    start_timestamp: String(
-                        Math.floor(Date.now() / 1000) - 60
-                    ),
-                    stop_timestamp: String(
-                        Math.floor(Date.now() / 1000) + 60
-                    ),
+                    start_timestamp: String(Math.floor(Date.now() / 1000) - 60),
+                    stop_timestamp: String(Math.floor(Date.now() / 1000) + 60),
                 },
             ],
         });

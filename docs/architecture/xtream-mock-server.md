@@ -25,6 +25,7 @@ faker.seed(seed)           ←── all faker calls use same seed per credentia
   generateCategories()     ←── live / vod / series categories
         │
   generateLiveStreams()     ←── live TV stream list
+  scenario EPG fixture?     ←── optional deterministic per-stream EPG override
   generateVodStreams()      ←── VOD movie list
   generateSeriesItems()     ←── series list
   generateSeriesInfo()      ←── nested seasons + episodes (pre-populated)
@@ -57,6 +58,7 @@ apps/xtream-mock-server/
         ├── handlers/
         │   ├── get-account-info.handler.ts
         │   ├── get-categories.handler.ts   ← live/vod/series categories
+        │   ├── get-full-epg.handler.ts     ← full EPG + legacy typo alias
         │   ├── get-streams.handler.ts      ← live/vod/series stream lists
         │   ├── get-vod-info.handler.ts
         │   ├── get-series-info.handler.ts
@@ -159,6 +161,31 @@ All redirect to a publicly available HLS test stream
 
 Note: `title` and `description` are **base64-encoded**, matching the real Xtream API.
 
+### `get_simple_data_table` / `get_simple_date_table`
+
+Both actions return the same full per-channel schedule shape:
+
+```json
+{
+  "epg_listings": [
+    {
+      "id": "10000-current",
+      "epg_id": "channel-10000.mock",
+      "title": "base64encodedTitle",
+      "description": "base64encodedDescription",
+      "start": "2026-04-05 04:30:00",
+      "end": "2026-04-05 05:00:00",
+      "start_timestamp": "1775363400",
+      "stop_timestamp": "1775365200",
+      "channel_id": "channel-10000.mock"
+    }
+  ]
+}
+```
+
+The legacy `get_simple_date_table` typo alias exists because real Xtream panels
+sometimes only respond to that misspelled action.
+
 ### `get_series_info` (structure)
 
 ```json
@@ -193,9 +220,23 @@ Note: `title` and `description` are **base64-encoded**, matching the real Xtream
 | `large:large` | 9999 | 20 each | 200 | active |
 | `series:series` | 2002 | live:3, vod:4, series:15 | 30 | active |
 | `minimal:minimal` | 3003 | 2 each | 5 | active |
+| `epg:epg` | 6006 | live:2, vod:1, series:1 | 3 | active |
 | `expired:expired` | 4004 | 4 each | 10 | Expired |
 | `inactive:inactive` | 5005 | 4 each | 10 | Disabled |
 | `<any other>` | hash | 6 each | 30 | active |
+
+### `epg:epg` fixture details
+
+This scenario is reserved for Xtream EPG tests:
+
+- live category `EPG Focus` contains deterministic channels such as `Timezone News`
+- `Timezone News` serves a fixed `get_short_epg` window and a full `get_simple_data_table` schedule
+- the full schedule includes a program that spans a UTC midnight boundary and another program after midnight
+- raw `start` / `end` strings are intentionally offset from `start_timestamp` / `stop_timestamp`
+
+That deliberate mismatch lets Electron tests verify the renderer uses timestamp
+fields for sorting, current-program selection, progress bars, and local clock
+labels instead of trusting provider-local strings.
 
 ---
 
@@ -233,5 +274,6 @@ await page.route('**/localhost:3000/xtream**', async (route) => {
 
 - **Add new actions**: Implement a handler function and add a `case` in `routes/dispatch.ts`
 - **Add new scenarios**: Add an entry to `SCENARIOS` in `scenarios.ts`
+- **Add deterministic EPG fixtures**: Extend `ScenarioConfig.epgFixture` and populate `epgListingsByStreamId` in `data-store.ts`
 - **Adjust data volume**: Change `itemsPerCategory`, `seasonsPerSeries`, or `episodesPerSeason` per scenario
 - **Custom stream URLs**: Edit the HLS stub redirect in `main.ts`

@@ -30,7 +30,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import {
+    MatSnackBar,
+    MatSnackBarConfig,
+} from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -97,6 +100,10 @@ interface StartupBehaviorOption {
     ],
 })
 export class SettingsComponent implements OnInit, OnDestroy {
+    private static readonly SECTION_SCROLL_TOP_GUTTER = 112;
+    private static readonly SECTION_SCROLL_BOTTOM_GUTTER = 124;
+    private static readonly PENDING_SCROLL_CLEAR_DELAY_MS = 600;
+
     private dialogService = inject(DialogService);
     public dataService = inject(DataService);
     private epgService = inject(EpgService);
@@ -234,6 +241,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     private settingsStore = inject(SettingsStore);
     private sectionObserver?: IntersectionObserver;
+    private pendingScrollClearTimer: ReturnType<typeof window.setTimeout> | null =
+        null;
+    private pendingScrollClearRoot: HTMLElement | null = null;
+    private pendingScrollEndListener: (() => void) | null = null;
 
     readonly sectionNavItems: SettingsSection[] = [
         {
@@ -282,10 +293,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
                     return;
                 }
 
-                document
-                    .getElementById(sectionId)
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                this.settingsCtx.clearPendingScrollTarget();
+                const scrollRoot = this.scrollToSection(sectionId);
+                this.schedulePendingScrollTargetClear(scrollRoot);
             },
             { injector: this.injector }
         );
@@ -352,6 +361,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.cancelPendingScrollTargetClear();
         this.sectionObserver?.disconnect();
         this.settingsCtx.reset();
     }
@@ -517,13 +527,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settingsService.changeTheme(
             this.settingsForm.value.theme ?? Theme.SystemTheme
         );
-        this.snackBar.open(
-            this.translate.instant('SETTINGS.SETTINGS_SAVED'),
-            null,
-            {
-                duration: 2000,
-                horizontalPosition: 'start',
-            }
+        this.openSettingsSnackbar(
+            this.translate.instant('SETTINGS.SETTINGS_SAVED')
         );
     }
 
@@ -581,10 +586,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
             onConfirm: async (): Promise<void> => {
                 if (window.electron?.clearEpgData) {
                     await window.electron.clearEpgData();
-                    this.snackBar.open(
-                        this.translate.instant('SETTINGS.EPG_DATA_CLEARED'),
-                        null,
-                        { duration: 2000, horizontalPosition: 'start' }
+                    this.openSettingsSnackbar(
+                        this.translate.instant('SETTINGS.EPG_DATA_CLEARED')
                     );
                 }
             },
@@ -628,12 +631,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
                         );
 
                         if (!Array.isArray(parsedPlaylists)) {
-                            this.snackBar.open(
+                            this.openSettingsSnackbar(
                                 this.translate.instant('SETTINGS.IMPORT_ERROR'),
-                                null,
-                                {
-                                    duration: 2000,
-                                }
                             );
                         } else {
                             this.store.dispatch(
@@ -643,12 +642,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
                             );
                         }
                     } catch (error) {
-                        this.snackBar.open(
+                        this.openSettingsSnackbar(
                             this.translate.instant('SETTINGS.IMPORT_ERROR'),
-                            null,
-                            {
-                                duration: 2000,
-                            }
                         );
                         console.error(error);
                     }
@@ -674,21 +669,13 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 try {
                     await firstValueFrom(this.playlistsService.removeAll());
                     this.store.dispatch(PlaylistActions.removeAllPlaylists());
-                    this.snackBar.open(
+                    this.openSettingsSnackbar(
                         this.translate.instant('SETTINGS.PLAYLISTS_REMOVED'),
-                        undefined,
-                        {
-                            duration: 2000,
-                        }
                     );
                 } catch (error) {
                     console.error('Error removing playlists:', error);
-                    this.snackBar.open(
+                    this.openSettingsSnackbar(
                         this.translate.instant('SETTINGS.IMPORT_ERROR'),
-                        undefined,
-                        {
-                            duration: 2000,
-                        }
                     );
                 } finally {
                     this.isRemovingAllPlaylists.set(false);
@@ -722,6 +709,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.sectionObserver?.disconnect();
         this.sectionObserver = new IntersectionObserver(
             () => {
+                if (this.settingsCtx.pendingScrollTarget()) {
+                    return;
+                }
+
                 const activeSection = this.resolveActiveSection(sections);
                 if (activeSection) {
                     this.settingsCtx.setActiveSection(activeSection);
@@ -776,5 +767,106 @@ export class SettingsComponent implements OnInit, OnDestroy {
         return this.elementRef.nativeElement.closest(
             'main.workspace-content'
         ) as HTMLElement | null;
+    }
+
+    private schedulePendingScrollTargetClear(
+        scrollRoot: HTMLElement | null
+    ): void {
+        const clearPendingScrollTarget = () => {
+            this.cancelPendingScrollTargetClear();
+            this.settingsCtx.clearPendingScrollTarget();
+        };
+
+        this.cancelPendingScrollTargetClear();
+        this.pendingScrollClearTimer = window.setTimeout(
+            clearPendingScrollTarget,
+            SettingsComponent.PENDING_SCROLL_CLEAR_DELAY_MS
+        );
+        this.pendingScrollClearRoot = scrollRoot;
+        this.pendingScrollEndListener = clearPendingScrollTarget;
+        scrollRoot?.addEventListener?.('scrollend', clearPendingScrollTarget, {
+            once: true,
+        });
+    }
+
+    private cancelPendingScrollTargetClear(): void {
+        if (this.pendingScrollClearTimer) {
+            clearTimeout(this.pendingScrollClearTimer);
+            this.pendingScrollClearTimer = null;
+        }
+
+        if (this.pendingScrollClearRoot && this.pendingScrollEndListener) {
+            this.pendingScrollClearRoot.removeEventListener?.(
+                'scrollend',
+                this.pendingScrollEndListener
+            );
+        }
+
+        this.pendingScrollClearRoot = null;
+        this.pendingScrollEndListener = null;
+    }
+
+    private scrollToSection(sectionId: string): HTMLElement | null {
+        const sectionElement = document.getElementById(sectionId);
+        if (!sectionElement) {
+            return null;
+        }
+
+        const scrollRoot = this.getScrollRoot();
+        if (!scrollRoot) {
+            sectionElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            });
+            return null;
+        }
+
+        const rootRect = scrollRoot.getBoundingClientRect();
+        const sectionRect = sectionElement.getBoundingClientRect();
+        const sectionTop =
+            scrollRoot.scrollTop + (sectionRect.top - rootRect.top);
+        const sectionBottom = sectionTop + sectionRect.height;
+        const visibleTop =
+            scrollRoot.scrollTop + SettingsComponent.SECTION_SCROLL_TOP_GUTTER;
+        const visibleBottom =
+            scrollRoot.scrollTop +
+            scrollRoot.clientHeight -
+            SettingsComponent.SECTION_SCROLL_BOTTOM_GUTTER;
+        let nextScrollTop = scrollRoot.scrollTop;
+
+        if (sectionTop < visibleTop) {
+            nextScrollTop =
+                sectionTop - SettingsComponent.SECTION_SCROLL_TOP_GUTTER;
+        } else if (sectionBottom > visibleBottom) {
+            nextScrollTop =
+                sectionBottom -
+                scrollRoot.clientHeight +
+                SettingsComponent.SECTION_SCROLL_BOTTOM_GUTTER;
+        }
+
+        const maxScrollTop = Math.max(
+            0,
+            scrollRoot.scrollHeight - scrollRoot.clientHeight
+        );
+
+        scrollRoot.scrollTo({
+            top: Math.min(Math.max(nextScrollTop, 0), maxScrollTop),
+            behavior: 'smooth',
+        });
+
+        return scrollRoot;
+    }
+
+    private openSettingsSnackbar(
+        message: string,
+        config: MatSnackBarConfig = {}
+    ): void {
+        this.snackBar.open(message, undefined, {
+            duration: 2000,
+            horizontalPosition: 'center',
+            verticalPosition: 'bottom',
+            panelClass: ['settings-snackbar'],
+            ...config,
+        });
     }
 }

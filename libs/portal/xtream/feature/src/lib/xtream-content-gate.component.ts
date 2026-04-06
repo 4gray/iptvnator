@@ -10,6 +10,7 @@ import {
     XtreamContentInitBlockReason,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-notice.component';
 
 @Component({
     selector: 'app-xtream-content-gate',
@@ -20,6 +21,7 @@ import {
         PlaylistErrorViewComponent,
         RouterOutlet,
         TranslatePipe,
+        XtreamCachedOfflineNoticeComponent,
     ],
     template: `
         @if (contentInitBlockReason(); as blockReason) {
@@ -42,6 +44,7 @@ import {
                 </div>
             </div>
         } @else {
+            <app-xtream-cached-offline-notice />
             <router-outlet />
         }
     `,

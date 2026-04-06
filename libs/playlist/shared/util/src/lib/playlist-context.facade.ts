@@ -312,6 +312,10 @@ export class PlaylistContextFacade {
             return fromCurrent;
         }
 
+        if (provider === 'playlists' && currentSection) {
+            return 'all';
+        }
+
         const memory = this.readSectionMemory();
         const playlistMemory = memory.playlists[targetPlaylistId];
         if (playlistMemory?.provider === provider) {

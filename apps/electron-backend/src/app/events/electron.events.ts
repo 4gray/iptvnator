@@ -6,6 +6,11 @@
 import { app, ipcMain } from 'electron';
 import * as os from 'os';
 import { environment } from '../../environments/environment';
+import {
+    DEBUG_TRACE_EVENT_CHANNEL,
+    isRendererApiTraceEnabled,
+    trace,
+} from '../services/debug-trace';
 
 export default class ElectronEvents {
   static bootstrapElectronEvents(): Electron.IpcMain {
@@ -23,6 +28,18 @@ ipcMain.handle('get-app-version', (event) => {
 // Handle App termination
 ipcMain.on('quit', (event, code) => {
   app.exit(code);
+});
+
+ipcMain.on(DEBUG_TRACE_EVENT_CHANNEL, (event, payload) => {
+  if (!isRendererApiTraceEnabled()) {
+    return;
+  }
+
+  trace('renderer-api', 'event', {
+    payload,
+    senderId: event.sender.id,
+    url: event.sender.getURL(),
+  });
 });
 
 // Get local IP addresses for remote control URL display

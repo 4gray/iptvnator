@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { APIRequestContext, test, expect, Page } from '@playwright/test';
 
 /**
  * Xtream Codes E2E Tests
@@ -21,6 +21,8 @@ const MOCK_SERVER = `http://localhost:${XTREAM_MOCK_PORT}`;
 /** Default scenario credentials */
 const DEFAULT_USERNAME = 'user1';
 const DEFAULT_PASSWORD = 'pass1';
+const EPG_USERNAME = 'epg';
+const EPG_PASSWORD = 'epg';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -68,20 +70,6 @@ async function addXtreamPortal(
     await page.waitForURL(/xtreams.*vod/);
 }
 
-/**
- * Clear IndexedDB state between tests so each test starts fresh.
- */
-async function clearStorage(page: Page): Promise<void> {
-    await page.evaluate(async () => {
-        const dbs = await window.indexedDB.databases();
-        await Promise.all(
-            dbs
-                .filter((db) => db.name != null)
-                .map((db) => window.indexedDB.deleteDatabase(db.name!))
-        );
-    });
-}
-
 // ---------------------------------------------------------------------------
 // Test setup
 // ---------------------------------------------------------------------------
@@ -89,9 +77,9 @@ async function clearStorage(page: Page): Promise<void> {
 test.beforeEach(async ({ page, request }) => {
     await request.post(`${MOCK_SERVER}/reset`);
 
+    // Playwright creates a fresh browser context per test, so extra
+    // IndexedDB cleanup here only risks racing with app-managed DB handles.
     await page.goto('/');
-    await clearStorage(page);
-    await page.reload();
 
     await interceptXtreamRequests(page);
 });
@@ -282,6 +270,92 @@ test('@xtream get_short_epg — returns base64-encoded listings', async ({
     expect(listing.stop_timestamp).toBeDefined();
 });
 
+test('@xtream epg fixture — short epg starts at the current program, respects limit, and exposes timestamp-vs-string mismatches', async ({
+    request,
+}) => {
+    const stream = await getEpgFixtureStream(request);
+
+    const response = await request.get(
+        `${MOCK_SERVER}/player_api.php?username=${EPG_USERNAME}&password=${EPG_PASSWORD}&action=get_short_epg&stream_id=${stream.stream_id}&limit=2`
+    );
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+
+    expect(body.epg_listings).toHaveLength(2);
+
+    const [currentListing, nextListing] = body.epg_listings;
+    expect(decodeXtreamText(currentListing.title)).toBe('Global Headlines');
+    expect(decodeXtreamText(nextListing.title)).toBe('Market Wrap');
+
+    const now = Math.floor(Date.now() / 1000);
+    expect(Number.parseInt(currentListing.start_timestamp, 10)).toBeLessThanOrEqual(
+        now
+    );
+    expect(Number.parseInt(currentListing.stop_timestamp, 10)).toBeGreaterThanOrEqual(
+        now
+    );
+    expect(currentListing.start).not.toBe(
+        formatXtreamDateTime(
+            Number.parseInt(currentListing.start_timestamp, 10)
+        )
+    );
+    expect(currentListing.end).not.toBe(
+        formatXtreamDateTime(
+            Number.parseInt(currentListing.stop_timestamp, 10)
+        )
+    );
+});
+
+test('@xtream epg fixture — full epg and legacy alias return the same ordered schedule with a midnight boundary program', async ({
+    request,
+}) => {
+    const stream = await getEpgFixtureStream(request);
+
+    const fullResponse = await request.get(
+        `${MOCK_SERVER}/player_api.php?username=${EPG_USERNAME}&password=${EPG_PASSWORD}&action=get_simple_data_table&stream_id=${stream.stream_id}`
+    );
+    const aliasResponse = await request.get(
+        `${MOCK_SERVER}/player_api.php?username=${EPG_USERNAME}&password=${EPG_PASSWORD}&action=get_simple_date_table&stream_id=${stream.stream_id}`
+    );
+
+    expect(fullResponse.ok()).toBeTruthy();
+    expect(aliasResponse.ok()).toBeTruthy();
+
+    const fullBody = await fullResponse.json();
+    const aliasBody = await aliasResponse.json();
+
+    expect(aliasBody).toEqual(fullBody);
+
+    const titles = fullBody.epg_listings.map((listing: XtreamRawEpgListing) =>
+        decodeXtreamText(listing.title)
+    );
+    expect(titles).toEqual([
+        'Earlier Bulletin',
+        'Global Headlines',
+        'Market Wrap',
+        'Overnight Update',
+        'Late Edition',
+        'After Midnight',
+    ]);
+
+    const boundaryListing = fullBody.epg_listings.find(
+        (listing: XtreamRawEpgListing) =>
+            decodeXtreamText(listing.title) === 'Late Edition'
+    );
+    if (!boundaryListing) {
+        throw new Error('Expected the full EPG fixture to include Late Edition.');
+    }
+
+    const boundaryStart = new Date(
+        Number.parseInt(boundaryListing.start_timestamp, 10) * 1000
+    );
+    const boundaryStop = new Date(
+        Number.parseInt(boundaryListing.stop_timestamp, 10) * 1000
+    );
+
+    expect(boundaryStart.getUTCDate()).not.toBe(boundaryStop.getUTCDate());
+});
+
 test('@xtream reset — data regenerates identically after reset', async ({
     request,
 }) => {
@@ -357,3 +431,57 @@ test('@xtream minimal scenario — reduced item count', async ({ request }) => {
     // 2 categories × 5 items = 10
     expect(streams.length).toBe(10);
 });
+
+type XtreamLiveStream = {
+    category_id: string;
+    name: string;
+    stream_id: number;
+};
+
+type XtreamRawEpgListing = {
+    end: string;
+    start: string;
+    start_timestamp: string;
+    stop_timestamp: string;
+    title: string;
+};
+
+async function getEpgFixtureStream(
+    request: APIRequestContext
+): Promise<XtreamLiveStream> {
+    const categories = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${EPG_USERNAME}&password=${EPG_PASSWORD}&action=get_live_categories`
+        )
+    ).json()) as Array<{ category_id: string; category_name: string }>;
+
+    const epgCategory = categories.find(
+        (category) => category.category_name === 'EPG Focus'
+    );
+    if (!epgCategory) {
+        throw new Error('Expected the EPG fixture category to exist.');
+    }
+
+    const streams = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${EPG_USERNAME}&password=${EPG_PASSWORD}&action=get_live_streams&category_id=${epgCategory.category_id}`
+        )
+    ).json()) as XtreamLiveStream[];
+
+    const stream = streams.find((item) => item.name === 'Timezone News');
+    if (!stream) {
+        throw new Error('Expected the EPG fixture stream to exist.');
+    }
+    return stream;
+}
+
+function decodeXtreamText(value: string): string {
+    return Buffer.from(value, 'base64').toString('utf-8');
+}
+
+function formatXtreamDateTime(timestampSeconds: number): string {
+    return new Date(timestampSeconds * 1000)
+        .toISOString()
+        .replace('T', ' ')
+        .replace('.000Z', '');
+}

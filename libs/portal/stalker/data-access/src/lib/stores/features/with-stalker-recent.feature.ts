@@ -16,12 +16,23 @@ type RecentlyViewedPayload = StalkerPortalItem & {
     title?: string;
 };
 
-function resolveCategoryId(
-    value: unknown,
-    fallback: string
-): string {
+function resolveCategoryId(value: unknown, fallback: string): string {
     const normalized = String(value ?? '').trim();
     return normalized || fallback;
+}
+
+function getSeriesRecentMetadata(selectedContentType: string): {
+    category_id?: 'series';
+    is_series?: true;
+} {
+    if (selectedContentType !== 'series') {
+        return {};
+    }
+
+    return {
+        category_id: 'series',
+        is_series: true,
+    };
 }
 
 /**
@@ -41,19 +52,18 @@ export function withStalkerRecent() {
                 return {
                     addToRecentlyViewed(item: RecentlyViewedPayload) {
                         const portalId = storeContext.currentPlaylist()?._id;
+                        const selectedContentType =
+                            storeContext.selectedContentType();
                         const recentItem = {
                             ...item,
                             category_id: resolveCategoryId(
                                 item.category_id,
-                                storeContext.selectedContentType()
+                                selectedContentType
                             ),
+                            ...getSeriesRecentMetadata(selectedContentType),
                             added_at: Date.now(),
                             id: item.id ?? item.stream_id ?? '',
-                            title:
-                                item.title ??
-                                item.name ??
-                                item.o_name ??
-                                '',
+                            title: item.title ?? item.name ?? item.o_name ?? '',
                         };
                         playlistService
                             .addPortalRecentlyViewed(portalId, recentItem)

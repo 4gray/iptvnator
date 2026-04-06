@@ -48,9 +48,9 @@ test.describe('Electron Xtream Category Management', () => {
                     exact: true,
                 })
                 .click();
-            await expect(dialog.locator('.category-item mat-checkbox input:checked')).toHaveCount(
-                0
-            );
+            await expect(
+                dialog.locator('.category-item mat-checkbox input:checked')
+            ).toHaveCount(0);
 
             await dialog
                 .getByRole('button', {
@@ -59,19 +59,25 @@ test.describe('Electron Xtream Category Management', () => {
                 })
                 .click();
             await expect(
-                dialog.locator('.category-item mat-checkbox input:checked').first()
+                dialog
+                    .locator('.category-item mat-checkbox input:checked')
+                    .first()
             ).toBeVisible();
 
-            await dialog.locator('.search-field input').fill(targetCategory.name);
+            await dialog
+                .locator('input[type="search"]')
+                .fill(targetCategory.name);
             await toggleManagedCategory(dialog, targetCategory, false);
-            await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+            await dialog
+                .getByRole('button', { name: 'Save', exact: true })
+                .click();
             await app.mainWindow.waitForSelector('mat-dialog-container', {
                 state: 'detached',
             });
 
-            await expect(sidebarCategoryById(app.mainWindow, targetCategory.id)).toHaveCount(
-                0
-            );
+            await expect(
+                sidebarCategoryById(app.mainWindow, targetCategory.id)
+            ).toHaveCount(0);
 
             await openSources(app.mainWindow);
             await refreshSource(app.mainWindow, portalName, { confirm: true });
@@ -89,26 +95,34 @@ test.describe('Electron Xtream Category Management', () => {
             await app.mainWindow.waitForURL(
                 /\/workspace\/xtreams\/[^/]+\/live/
             );
-            await expect(sidebarCategoryById(app.mainWindow, targetCategory.id)).toHaveCount(
-                0
-            );
+            await expect(
+                sidebarCategoryById(app.mainWindow, targetCategory.id)
+            ).toHaveCount(0);
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
-            await dialog.locator('.search-field input').fill(targetCategory.name);
+            await dialog
+                .locator('input[type="search"]')
+                .fill(targetCategory.name);
             await toggleManagedCategory(dialog, targetCategory, true);
-            await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+            await dialog
+                .getByRole('button', { name: 'Save', exact: true })
+                .click();
             await app.mainWindow.waitForSelector('mat-dialog-container', {
                 state: 'detached',
             });
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
-            await dialog.locator('.search-field input').fill(targetCategory.name);
+            await dialog
+                .locator('input[type="search"]')
+                .fill(targetCategory.name);
             const restoredRows = dialog.locator('.category-item');
             await expect(restoredRows).toHaveCount(1, { timeout: 15000 });
             await expect(
                 restoredRows.first().locator('mat-checkbox input')
             ).toBeChecked();
-            await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+            await dialog
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
             await app.mainWindow.waitForSelector('mat-dialog-container', {
                 state: 'detached',
             });
@@ -148,9 +162,13 @@ test.describe('Electron Xtream Category Management', () => {
                 dialog.locator('.category-item mat-checkbox input:checked')
             ).toHaveCount(0);
 
-            await dialog.locator('.search-field input').fill(targetCategory.name);
+            await dialog
+                .locator('input[type="search"]')
+                .fill(targetCategory.name);
             await toggleManagedCategory(dialog, targetCategory, true);
-            await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+            await dialog
+                .getByRole('button', { name: 'Save', exact: true })
+                .click();
             await app.mainWindow.waitForSelector('mat-dialog-container', {
                 state: 'detached',
             });
@@ -165,8 +183,8 @@ test.describe('Electron Xtream Category Management', () => {
             await app.mainWindow.waitForURL(
                 /\/workspace\/xtreams\/[^/]+\/live/
             );
-            await expectVisibleSidebarCategoryIds(app.mainWindow, [
-                targetCategory.id,
+            await expectVisibleSidebarCategoryNames(app.mainWindow, [
+                targetCategory.name,
             ]);
 
             const restarted = await restartElectronApp(app, dataDir);
@@ -180,8 +198,8 @@ test.describe('Electron Xtream Category Management', () => {
             await app.mainWindow.waitForURL(
                 /\/workspace\/xtreams\/[^/]+\/live/
             );
-            await expectVisibleSidebarCategoryIds(app.mainWindow, [
-                targetCategory.id,
+            await expectVisibleSidebarCategoryNames(app.mainWindow, [
+                targetCategory.name,
             ]);
         } finally {
             await closeElectronApp(app);
@@ -245,43 +263,102 @@ async function expectVisibleSidebarCategoryIds(
     expect(actualIds).toEqual(expectedIds);
 }
 
+async function expectVisibleSidebarCategoryNames(
+    page: Page,
+    expectedNames: string[]
+): Promise<void> {
+    await expect
+        .poll(async () => {
+            const categories = page.locator(
+                'app-workspace-context-panel .category-item:visible'
+            );
+            const actualNames: string[] = [];
+            const count = await categories.count();
+
+            for (let index = 0; index < count; index += 1) {
+                const categoryName =
+                    (
+                        await categories
+                            .nth(index)
+                            .locator('.nav-item-label')
+                            .textContent()
+                    )?.trim() ?? '';
+
+                if (categoryName) {
+                    actualNames.push(categoryName);
+                }
+            }
+
+            return actualNames;
+        })
+        .toEqual(expectedNames);
+}
+
 async function pickSidebarCategory(
     page: Page
 ): Promise<{ id: string; itemCount: number; name: string }> {
-    const categories = page.locator(
-        'app-workspace-context-panel .category-item:visible'
-    );
-    const count = await categories.count();
-    const candidates: Array<{ id: string; itemCount: number; name: string }> = [];
+    let preferredCandidate:
+        | { id: string; itemCount: number; name: string }
+        | null = null;
 
-    for (let index = 0; index < count; index += 1) {
-        const category = categories.nth(index);
-        const id = (await category.getAttribute('data-category-id'))?.trim() ?? '';
-        const name =
-            (await category.locator('.nav-item-label').textContent())?.trim() ?? '';
-        const countText =
-            (await category.locator('.item-count').textContent())?.trim() ?? '';
-        const itemCount = Number.parseInt(countText, 10) || 0;
+    await expect
+        .poll(async () => {
+            const categories = page.locator(
+                'app-workspace-context-panel .category-item:visible'
+            );
+            const count = await categories.count();
+            const candidates: Array<{
+                id: string;
+                itemCount: number;
+                name: string;
+            }> = [];
 
-        if (id && name && itemCount > 0) {
-            candidates.push({ id, itemCount, name });
-        }
-    }
+            for (let index = 0; index < count; index += 1) {
+                const category = categories.nth(index);
+                const id =
+                    (await category.getAttribute('data-category-id'))?.trim() ??
+                    '';
+                const name =
+                    (
+                        await category.locator('.nav-item-label').textContent()
+                    )?.trim() ?? '';
+                const countText =
+                    (
+                        await category.locator('.item-count').textContent()
+                    )?.trim() ?? '';
+                const itemCount = Number.parseInt(countText, 10) || 0;
 
-    const nameCounts = new Map<string, number>();
-    for (const candidate of candidates) {
-        nameCounts.set(candidate.name, (nameCounts.get(candidate.name) ?? 0) + 1);
-    }
+                if (id && name && itemCount > 0) {
+                    candidates.push({ id, itemCount, name });
+                }
+            }
 
-    const preferredCandidate =
-        candidates.find((candidate) => nameCounts.get(candidate.name) === 1) ??
-        candidates[0];
+            if (candidates.length === 0) {
+                preferredCandidate = null;
+                return false;
+            }
 
-    if (!preferredCandidate) {
-        throw new Error('No visible Xtream category with content was found.');
-    }
+            const nameCounts = new Map<string, number>();
+            for (const candidate of candidates) {
+                nameCounts.set(
+                    candidate.name,
+                    (nameCounts.get(candidate.name) ?? 0) + 1
+                );
+            }
 
-    return preferredCandidate;
+            preferredCandidate =
+                candidates.find(
+                    (candidate) => nameCounts.get(candidate.name) === 1
+                ) ?? candidates[0];
+
+            return preferredCandidate !== null;
+        })
+        .toBe(true, {
+            message: 'No visible Xtream category with content was found.',
+            timeout: 15000,
+        });
+
+    return preferredCandidate!;
 }
 
 async function toggleManagedCategory(

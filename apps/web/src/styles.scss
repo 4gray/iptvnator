@@ -122,3 +122,7 @@ textarea,
 .global-search-overlay .mat-mdc-dialog-container {
     app-region: no-drag;
 }
+
+.mat-mdc-snack-bar-container.settings-snackbar {
+    margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+}

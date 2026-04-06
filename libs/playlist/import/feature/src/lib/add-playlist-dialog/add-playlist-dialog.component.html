@@ -42,7 +42,7 @@
                 />
             }
             @case ('url') {
-                <app-url-upload (urlAdded)="sendPlaylistsUrl($event)" />
+                <app-url-upload />
             }
             @case ('text') {
                 <app-text-import (textAdded)="uploadAsText($event)" />
@@ -63,7 +63,7 @@
                 mat-button
                 type="button"
                 [disabled]="!urlUpload()?.form?.valid"
-                (click)="urlUpload()?.urlAdded?.emit(urlUpload()?.form?.value?.playlistUrl)"
+                (click)="submitUrlPlaylist()"
             >
                 {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
             </button>

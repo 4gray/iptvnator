@@ -16,7 +16,7 @@ The Stalker ITV live stream layout displays EPG data in the right panel when a l
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
 │                  StalkerLiveStreamLayoutComponent                         │
-│            apps/web/src/app/stalker/stalker-live-stream-layout/          │
+│      libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/     │
 │                                                                           │
 │  ┌──────────────┐    ┌──────────────────────┐    ┌─────────────────────┐ │
 │  │   Sidebar    │    │   Video Player       │    │   EPG Panel         │ │
@@ -129,14 +129,14 @@ interface EpgItem {
 | File | Purpose |
 |------|---------|
 | `libs/shared/interfaces/src/lib/stalker-portal-actions.enum.ts` | `GetShortEpg`, `GetEpgInfo` enum values |
-| `apps/web/src/app/stalker/stalker.store.ts` | `fetchChannelEpg()` method |
-| `apps/web/src/app/stalker/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` | EPG signals + `loadEpgForChannel()` |
-| `apps/web/src/app/stalker/stalker-live-stream-layout/stalker-live-stream-layout.component.html` | `<app-epg-view>` integration |
+| `libs/portal/stalker/data-access/src/lib/stalker.store.ts` | `fetchChannelEpg()` method |
+| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` | EPG signals + `loadEpgForChannel()` |
+| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.html` | `<app-epg-view>` integration |
 | `libs/ui/shared-portals/src/lib/epg-view/epg-view.component.ts` | Shared EPG display component |
 
 ### StalkerStore.fetchChannelEpg()
 
-Location: `apps/web/src/app/stalker/stalker.store.ts` (in `withMethods`)
+Location: `libs/portal/stalker/data-access/src/lib/stalker.store.ts` (in `withMethods`)
 
 ```typescript
 async fetchChannelEpg(channelId: number | string): Promise<EpgItem[]>

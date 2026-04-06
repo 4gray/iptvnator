@@ -21,4 +21,7 @@
     [channelList]="channels()"
     [activeView]="activeView()"
     [recentItems]="activePlaylist()?.recentlyViewed ?? []"
+    [sidebarWidth]="sidebarWidth()"
+    (sidebarWidthRequested)="onSidebarWidthRequested($event)"
+    (sidebarWidthRequestEnded)="onSidebarWidthRequestEnded($event)"
 />

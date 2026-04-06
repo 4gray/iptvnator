@@ -34,7 +34,7 @@
                     </div>
                     <div class="epg-timeline">
                         <span class="epg-time">{{
-                            formatTime(program.start)
+                            formatTime(program.start, program.startTimestamp)
                         }}</span>
                         <div class="epg-progress-track">
                             <div
@@ -45,7 +45,7 @@
                             ></div>
                         </div>
                         <span class="epg-time">{{
-                            formatTime(program.stop)
+                            formatTime(program.stop, program.stopTimestamp)
                         }}</span>
                     </div>
                 } @else {

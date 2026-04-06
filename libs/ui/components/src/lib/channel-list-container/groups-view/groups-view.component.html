@@ -29,6 +29,9 @@
             [maxWidth]="320"
             [defaultWidth]="208"
             storageKey="m3u-groups-nav-width"
+            (resizeStart)="onGroupsNavResizeStart()"
+            (widthChange)="onGroupsNavWidthChange($event)"
+            (resizeEnd)="onGroupsNavResizeEnd($event)"
         >
             <div class="groups-nav-shell">
                 <header class="groups-nav-header">

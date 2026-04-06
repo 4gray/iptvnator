@@ -5,6 +5,12 @@ import type {
     PlaylistRefreshPayload,
     XtreamCategory,
 } from 'shared-interfaces';
+import {
+    DEBUG_TRACE_EVENT_CHANNEL,
+    isRendererApiTraceEnabled,
+    roundTraceDuration,
+    summarizeForTrace,
+} from '../services/debug-trace';
 
 const PORTAL_DEBUG_EVENT = 'PORTAL_DEBUG_EVENT';
 const EXTERNAL_PLAYER_SESSION_UPDATE = 'EXTERNAL_PLAYER_SESSION_UPDATE';
@@ -40,7 +46,118 @@ const dbSaveContentProgressListeners = new Set<
     (event: Electron.IpcRendererEvent, data: DbOperationEvent) => void
 >();
 
-contextBridge.exposeInMainWorld('electron', {
+const shouldTraceRendererApi = isRendererApiTraceEnabled();
+
+function emitRendererTrace(payload: {
+    method: string;
+    phase: 'start' | 'success' | 'error';
+    args?: unknown;
+    durationMs?: number;
+    error?: unknown;
+    result?: unknown;
+}): void {
+    if (!shouldTraceRendererApi) {
+        return;
+    }
+
+    ipcRenderer.send(DEBUG_TRACE_EVENT_CHANNEL, payload);
+}
+
+function wrapElectronApi<T extends Record<string, unknown>>(api: T): T {
+    if (!shouldTraceRendererApi) {
+        return api;
+    }
+
+    return Object.fromEntries(
+        Object.entries(api).map(([name, value]) => {
+            if (
+                typeof value !== 'function' ||
+                name.startsWith('on') ||
+                name.startsWith('remove')
+            ) {
+                return [name, value];
+            }
+
+            const original = value as (...args: unknown[]) => unknown;
+
+            return [
+                name,
+                (...args: unknown[]) => {
+                    const startedAt =
+                        globalThis.performance?.now?.() ?? Date.now();
+                    emitRendererTrace({
+                        args: summarizeForTrace(args),
+                        method: name,
+                        phase: 'start',
+                    });
+
+                    try {
+                        const result = original(...args);
+
+                        if (
+                            result &&
+                            typeof (result as PromiseLike<unknown>).then ===
+                                'function'
+                        ) {
+                            return (result as Promise<unknown>)
+                                .then((resolvedValue) => {
+                                    emitRendererTrace({
+                                        durationMs: roundTraceDuration(
+                                            (globalThis.performance?.now?.() ??
+                                                Date.now()) - startedAt
+                                        ),
+                                        method: name,
+                                        phase: 'success',
+                                        result: summarizeForTrace(
+                                            resolvedValue
+                                        ),
+                                    });
+                                    return resolvedValue;
+                                })
+                                .catch((error: unknown) => {
+                                    emitRendererTrace({
+                                        durationMs: roundTraceDuration(
+                                            (globalThis.performance?.now?.() ??
+                                                Date.now()) - startedAt
+                                        ),
+                                        error: summarizeForTrace(error),
+                                        method: name,
+                                        phase: 'error',
+                                    });
+                                    throw error;
+                                });
+                        }
+
+                        emitRendererTrace({
+                            durationMs: roundTraceDuration(
+                                (globalThis.performance?.now?.() ??
+                                    Date.now()) - startedAt
+                            ),
+                            method: name,
+                            phase: 'success',
+                            result: summarizeForTrace(result),
+                        });
+
+                        return result;
+                    } catch (error) {
+                        emitRendererTrace({
+                            durationMs: roundTraceDuration(
+                                (globalThis.performance?.now?.() ??
+                                    Date.now()) - startedAt
+                            ),
+                            error: summarizeForTrace(error),
+                            method: name,
+                            phase: 'error',
+                        });
+                        throw error;
+                    }
+                },
+            ];
+        })
+    ) as T;
+}
+
+const electronApi = {
     // Remote control channel change listener
     onChannelChange: (
         callback: (data: { direction: 'up' | 'down' }) => void
@@ -254,6 +371,8 @@ contextBridge.exposeInMainWorld('electron', {
     }) => ipcRenderer.invoke('XTREAM_REQUEST', payload),
     xtreamCancelSession: (sessionId: string) =>
         ipcRenderer.invoke('XTREAM_CANCEL_SESSION', sessionId),
+    xtreamProbeUrl: (url: string, method?: 'GET' | 'HEAD') =>
+        ipcRenderer.invoke('XTREAM_PROBE_URL', { url, method }),
     refreshPlaylist: (payload: PlaylistRefreshPayload) =>
         ipcRenderer.invoke('PLAYLIST:REFRESH', payload),
     cancelPlaylistRefresh: (operationId: string) =>
@@ -493,4 +612,6 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('DOWNLOADS_UPDATE_EVENT', handler);
         return () => ipcRenderer.off('DOWNLOADS_UPDATE_EVENT', handler);
     },
-});
+};
+
+contextBridge.exposeInMainWorld('electron', wrapElectronApi(electronApi));

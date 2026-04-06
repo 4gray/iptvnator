@@ -99,7 +99,7 @@ Type definitions:
 
 ## Shared helpers
 
-- File: `apps/web/src/app/shared/services/remote-channel-navigation.util.ts`
+- File: `libs/portal/shared/util/src/lib/remote-channel-navigation.ts`
 
 Functions:
 
@@ -110,7 +110,7 @@ Used by M3U, Xtream, and Stalker live integrations.
 
 ## M3U integration
 
-- File: `apps/web/src/app/home/video-player/video-player.component.ts`
+- File: `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts`
 
 Implemented behavior:
 
@@ -133,7 +133,7 @@ Implemented behavior:
 
 ## Xtream integration (live view)
 
-- File: `apps/web/src/app/xtream-electron/live-stream-layout/live-stream-layout.component.ts`
+- File: `libs/portal/xtream/feature/src/lib/live-stream-layout/live-stream-layout.component.ts`
 
 Implemented behavior:
 
@@ -156,7 +156,7 @@ Implemented behavior:
 
 ## Stalker integration (ITV live view)
 
-- File: `apps/web/src/app/stalker/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
+- File: `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
 
 Implemented behavior:
 

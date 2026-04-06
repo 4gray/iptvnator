@@ -179,6 +179,7 @@ export function withSelection() {
             // Memoized sorted content - only recalculates when content/type changes
             const sortedContent = computed(() => {
                 const categoryType = store.selectedContentType();
+                const sortMode = store.contentSortMode();
                 const storeAny = store as ParentSelectionStoreLike;
                 const content =
                     categoryType === 'live'
@@ -186,6 +187,10 @@ export function withSelection() {
                         : categoryType === 'vod'
                           ? storeAny.vodStreams?.() || []
                           : storeAny.serialStreams?.() || [];
+
+                if (categoryType === 'vod' || categoryType === 'series') {
+                    return sortByMode(content, sortMode, categoryType);
+                }
 
                 return sortByMode(content, 'date-desc', categoryType);
             });

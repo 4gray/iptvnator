@@ -1,12 +1,12 @@
 # Stalker Store API Baseline
 
-This is the compatibility baseline for refactoring `apps/web/src/app/stalker/stalker.store.ts`.
+This is the compatibility baseline for refactoring `libs/portal/stalker/data-access/src/lib/stalker.store.ts`.
 
 Goal: keep this public surface stable while splitting to feature stores.
 
 ## Source of Truth
 
-- Store implementation: `apps/web/src/app/stalker/stalker.store.ts`
+- Store implementation: `libs/portal/stalker/data-access/src/lib/stalker.store.ts`
 - Baseline created on current branch state before feature-store extraction.
 
 ## Public State Signals
@@ -108,9 +108,10 @@ Top observed store API usage in app code:
 
 Consumer directories sampled:
 
-- `apps/web/src/app/stalker/**`
-- `apps/web/src/app/xtream-electron/**`
-- `apps/web/src/app/shared/**`
+- `libs/portal/stalker/**`
+- `libs/portal/xtream/feature/**`
+- `libs/portal/catalog/feature/**`
+- `libs/ui/components/**`
 
 ## Invariants to Preserve During Refactor
 
@@ -123,4 +124,3 @@ Consumer directories sampled:
 - Full-portal auth path continues through `StalkerSessionService`.
 - Non-auth/simple path continues through `DataService.sendIpcEvent(STALKER_REQUEST, ...)`.
 - Resource-driven loading signals preserve existing names.
-

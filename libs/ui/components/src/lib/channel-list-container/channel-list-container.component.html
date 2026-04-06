@@ -40,8 +40,11 @@
                 [shouldShowEpg]="shouldShowEpg()"
                 [activeChannelUrl]="activeChannelUrl()"
                 [favoriteIds]="favoriteIds()"
+                [sidebarWidth]="sidebarWidth()"
                 (channelSelected)="onChannelSelected($event)"
                 (favoriteToggled)="onFavoriteToggled($event)"
+                (sidebarWidthRequested)="onSidebarWidthRequested($event)"
+                (sidebarWidthRequestEnded)="onSidebarWidthRequestEnded($event)"
             />
         }
         @case ('favorites') {

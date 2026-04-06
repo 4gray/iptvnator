@@ -85,12 +85,15 @@ describe('withContent import state', () => {
     let dataSource: {
         getCategories: jest.Mock;
         getContent: jest.Mock;
+        hasCategories: jest.Mock;
+        hasContent: jest.Mock;
         restoreUserData: jest.Mock;
     };
     let databaseService: {
         clearXtreamImportCache: jest.Mock;
         cancelOperation: jest.Mock;
         createOperationId: jest.Mock;
+        getXtreamImportStatus: jest.Mock;
         setXtreamImportStatus: jest.Mock;
         supportsDbOperationCancellation: jest.Mock;
     };
@@ -105,6 +108,8 @@ describe('withContent import state', () => {
         dataSource = {
             getCategories: jest.fn().mockResolvedValue([]),
             getContent: jest.fn(),
+            hasCategories: jest.fn().mockResolvedValue(true),
+            hasContent: jest.fn().mockResolvedValue(true),
             restoreUserData: jest.fn().mockResolvedValue(undefined),
         };
         databaseService = {
@@ -118,6 +123,7 @@ describe('withContent import state', () => {
                 operationCounter += 1;
                 return `${prefix ?? 'db-op'}-${operationCounter}`;
             }),
+            getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
             setXtreamImportStatus: jest.fn().mockResolvedValue(true),
             supportsDbOperationCancellation: jest.fn().mockReturnValue(true),
         };
@@ -436,6 +442,56 @@ describe('withContent import state', () => {
             expect.anything(),
             'importing'
         );
+    });
+
+    it('reports offline cache availability only when every import type is completed and cached', async () => {
+        databaseService.getXtreamImportStatus
+            .mockResolvedValueOnce('completed')
+            .mockResolvedValueOnce('completed')
+            .mockResolvedValueOnce('completed');
+        dataSource.hasCategories
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(true);
+        dataSource.hasContent
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(true);
+
+        await expect(store.hasUsableOfflineCache()).resolves.toBe(true);
+
+        expect(databaseService.getXtreamImportStatus).toHaveBeenNthCalledWith(
+            1,
+            PLAYLIST.id,
+            'live'
+        );
+        expect(databaseService.getXtreamImportStatus).toHaveBeenNthCalledWith(
+            2,
+            PLAYLIST.id,
+            'movie'
+        );
+        expect(databaseService.getXtreamImportStatus).toHaveBeenNthCalledWith(
+            3,
+            PLAYLIST.id,
+            'series'
+        );
+    });
+
+    it('treats partial cache as unusable for offline initialization', async () => {
+        databaseService.getXtreamImportStatus
+            .mockResolvedValueOnce('completed')
+            .mockResolvedValueOnce('completed')
+            .mockResolvedValueOnce('completed');
+        dataSource.hasCategories
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(true);
+        dataSource.hasContent
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(false)
+            .mockResolvedValueOnce(true);
+
+        await expect(store.hasUsableOfflineCache()).resolves.toBe(false);
     });
 
     it('ignores concurrent initializeContent calls while an import is already running', async () => {

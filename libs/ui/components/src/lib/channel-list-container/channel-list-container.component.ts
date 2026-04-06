@@ -8,6 +8,7 @@ import {
     input,
     OnDestroy,
     OnInit,
+    output,
     signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -113,6 +114,9 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     /** Active view (all, groups, favorites, recent) */
     readonly activeView = input<string>('all');
     readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
+    readonly sidebarWidth = input<number | null>(null);
+    readonly sidebarWidthRequested = output<number>();
+    readonly sidebarWidthRequestEnded = output<number>();
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
         this.route,
@@ -374,5 +378,13 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                 } as PlaylistMeta,
             }) as any
         );
+    }
+
+    onSidebarWidthRequested(width: number): void {
+        this.sidebarWidthRequested.emit(width);
+    }
+
+    onSidebarWidthRequestEnded(width: number): void {
+        this.sidebarWidthRequestEnded.emit(width);
     }
 }

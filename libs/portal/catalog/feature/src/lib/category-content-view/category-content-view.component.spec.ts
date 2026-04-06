@@ -7,9 +7,13 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
-import { ActivatedRoute, Router } from '@angular/router';
+import {
+    ActivatedRoute,
+    convertToParamMap,
+    Router,
+} from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { ReplaySubject, of } from 'rxjs';
 import {
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
@@ -54,6 +58,8 @@ class MockDetailComponent {}
 
 describe('CategoryContentViewComponent', () => {
     let fixture: ComponentFixture<CategoryContentViewComponent>;
+    const paramMap$ = new ReplaySubject(1);
+    const queryParamMap$ = new ReplaySubject(1);
     const isPaginatedContentLoading = signal(true);
     const categoryItemCount = signal(0);
     const contentSortMode = signal<PortalCatalogSortMode | null>(null);
@@ -73,6 +79,7 @@ describe('CategoryContentViewComponent', () => {
         playlist: signal(null),
         isPaginatedContentLoading,
         initialize: jest.fn(),
+        setSearchQuery: jest.fn(),
         clearSelectedItem: jest.fn(),
         setPage: jest.fn(),
         setLimit: jest.fn(),
@@ -86,6 +93,9 @@ describe('CategoryContentViewComponent', () => {
         categoryItemCount.set(0);
         contentSortMode.set(null);
         catalog.initialize.mockClear();
+        catalog.setSearchQuery.mockClear();
+        paramMap$.next(convertToParamMap({}));
+        queryParamMap$.next(convertToParamMap({}));
 
         await TestBed.configureTestingModule({
             imports: [CategoryContentViewComponent, NoopAnimationsModule],
@@ -127,6 +137,8 @@ describe('CategoryContentViewComponent', () => {
                 {
                     provide: ActivatedRoute,
                     useValue: {
+                        paramMap: paramMap$.asObservable(),
+                        queryParamMap: queryParamMap$.asObservable(),
                         snapshot: {
                             params: {},
                         },
@@ -171,5 +183,18 @@ describe('CategoryContentViewComponent', () => {
         expect(subtitle?.textContent?.trim()).toBe(
             'Fetching playlist data from source...'
         );
+    });
+
+    it('forwards query-param search updates to the catalog facade when supported', () => {
+        fixture.detectChanges();
+        catalog.setSearchQuery.mockClear();
+
+        queryParamMap$.next(
+            convertToParamMap({
+                q: 'matrix',
+            })
+        );
+
+        expect(catalog.setSearchQuery).toHaveBeenCalledWith('matrix');
     });
 });

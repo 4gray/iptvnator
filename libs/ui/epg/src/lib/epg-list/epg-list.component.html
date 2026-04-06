@@ -74,14 +74,7 @@
                             timeNow() >= program.start &&
                             timeNow() <= program.stop
                         "
-                        (click)="
-                            setEpgProgram(
-                                program,
-                                timeNow() >= program.start &&
-                                    timeNow() <= program.stop,
-                                program.start > timeshiftLimit
-                            )
-                        "
+                        (click)="activateProgram(program)"
                     >
                         <div class="program-meta">
                             <app-epg-list-item

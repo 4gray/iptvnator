@@ -11,7 +11,11 @@ import {
     GlobalFavoritesListComponent,
     UnifiedLiveTabComponent,
 } from '@iptvnator/portal/shared/ui';
-import { ArtPlayerComponent, HtmlVideoPlayerComponent, VjsPlayerComponent } from '@iptvnator/ui/playback';
+import {
+    ArtPlayerComponent,
+    HtmlVideoPlayerComponent,
+    VjsPlayerComponent,
+} from '@iptvnator/ui/playback';
 import { EpgListComponent } from '@iptvnator/ui/epg';
 import { ResizableDirective } from 'components';
 import { SettingsStore } from 'services';
@@ -233,9 +237,7 @@ describe('UnifiedLiveTabComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-list')
         ).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector('app-epg-view')
-        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
     it('does not wait for M3U program lookup before opening playback', async () => {
@@ -321,9 +323,7 @@ describe('UnifiedLiveTabComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-view')
         ).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector('app-epg-list')
-        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
     });
 
     it('renders shared EPG view for Stalker items and records recent history', async () => {
@@ -353,6 +353,69 @@ describe('UnifiedLiveTabComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-view')
         ).not.toBeNull();
+    });
+
+    it('does not restart auto-open while the same live item is still resolving', async () => {
+        const item = buildLiveItem('xtream');
+        const pendingDetail = createDeferred<{
+            epgMode: 'portal';
+            playback: {
+                streamUrl: string;
+                title: string;
+            };
+            epgItems: EpgItem[];
+        }>();
+        const autoOpenHandledSpy = jest.spyOn(
+            component.autoOpenHandled,
+            'emit'
+        );
+
+        streamResolver.resolveLiveDetail.mockReturnValue(pendingDetail.promise);
+        recentData.recordLivePlayback.mockResolvedValue({
+            ...item,
+            viewedAt: '2026-03-26T12:00:00.000Z',
+        });
+
+        fixture.componentRef.setInput('items', [item]);
+        fixture.componentRef.setInput('autoOpenItem', {
+            contentType: 'live',
+            sourceType: 'xtream',
+            playlistId: item.playlistId,
+            itemId: String(item.xtreamId),
+            title: item.name,
+            imageUrl: item.logo,
+        });
+        fixture.detectChanges();
+        await Promise.resolve();
+
+        expect(streamResolver.resolveLiveDetail).toHaveBeenCalledTimes(1);
+        expect(component.isSelecting()).toBe(true);
+
+        fixture.componentRef.setInput('items', [{ ...item }]);
+        fixture.detectChanges();
+        await Promise.resolve();
+
+        expect(streamResolver.resolveLiveDetail).toHaveBeenCalledTimes(1);
+
+        pendingDetail.resolve({
+            epgMode: 'portal',
+            playback: {
+                streamUrl: 'https://example.com/xtream.m3u8',
+                title: 'Xtream Live',
+            },
+            epgItems: [buildEpgItem('Xtream Show')],
+        });
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(component.activeDetail()).toEqual(
+            expect.objectContaining({
+                playback: expect.objectContaining({
+                    streamUrl: 'https://example.com/xtream.m3u8',
+                }),
+            })
+        );
+        expect(autoOpenHandledSpy).toHaveBeenCalledTimes(1);
     });
 });
 

@@ -140,6 +140,7 @@ describe('VideoPlayerComponent', () => {
 
     beforeEach(async () => {
         syncStoreState(null);
+        localStorage.removeItem('m3u-sidebar-width');
         player.set(VideoPlayer.VideoJs);
         showCaptions.set(false);
         currentEpgProgram.set(null);
@@ -285,11 +286,74 @@ describe('VideoPlayerComponent', () => {
         ).not.toBeNull();
     });
 
-    it('renders the empty state when no channel is active', () => {
+    it('updates the outer sidebar width while grouped view requests a larger total width', () => {
+        fixture.detectChanges();
+
+        component.onGroupedSidebarWidthRequested(540);
+        fixture.detectChanges();
+
+        const sidebar = fixture.nativeElement.querySelector(
+            '.sidebar'
+        ) as HTMLElement | null;
+
+        expect(sidebar?.style.width).toBe('540px');
+    });
+
+    it('uses the single-pane sidebar key for all-channel view instead of the groups total key', () => {
+        fixture.destroy();
+
+        localStorage.setItem('m3u-sidebar-width', '320');
+        localStorage.setItem('m3u-groups-sidebar-width', '560');
+
+        fixture = TestBed.createComponent(VideoPlayerComponent);
+        component = fixture.componentInstance;
+        headerContext = TestBed.inject(WorkspaceHeaderContextService);
+
+        fixture.detectChanges();
+
+        const sidebar = fixture.nativeElement.querySelector(
+            '.sidebar'
+        ) as HTMLElement | null;
+
+        expect(sidebar?.style.width).toBe('320px');
+    });
+
+    it('tracks manual sidebar resize and persists the committed width', () => {
+        fixture.detectChanges();
+
+        component.onSidebarWidthChange(420);
+        fixture.detectChanges();
+
+        const sidebar = fixture.nativeElement.querySelector(
+            '.sidebar'
+        ) as HTMLElement | null;
+
+        expect(sidebar?.style.width).toBe('420px');
+
+        component.onSidebarResizeEnd(420);
+
+        expect(localStorage.getItem('m3u-sidebar-width')).toBe('420');
+    });
+
+    it('clamps and persists grouped-view sidebar width requests on resize end', () => {
+        fixture.detectChanges();
+
+        component.onGroupedSidebarWidthRequestEnded(640);
+        fixture.detectChanges();
+
+        const sidebar = fixture.nativeElement.querySelector(
+            '.sidebar'
+        ) as HTMLElement | null;
+
+        expect(sidebar?.style.width).toBe('600px');
+        expect(localStorage.getItem('m3u-sidebar-width')).toBe('600');
+    });
+
+    it('renders the shared empty state when no channel is active', () => {
         fixture.detectChanges();
 
         const emptyState = fixture.nativeElement.querySelector(
-            '.empty-state-container'
+            'app-portal-empty-state'
         ) as HTMLElement | null;
 
         expect(emptyState).not.toBeNull();

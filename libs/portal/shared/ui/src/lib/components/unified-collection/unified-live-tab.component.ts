@@ -184,9 +184,15 @@ export class UnifiedLiveTabComponent {
                 return;
             }
 
-            if (this.activeUid() === matchedItem.uid && this.activeDetail()) {
-                this.autoOpenHandled.emit();
-                return;
+            if (this.activeUid() === matchedItem.uid) {
+                if (this.activeDetail()) {
+                    this.autoOpenHandled.emit();
+                    return;
+                }
+
+                if (this.isSelecting()) {
+                    return;
+                }
             }
 
             void this.activateItem(matchedItem, true);
@@ -200,7 +206,9 @@ export class UnifiedLiveTabComponent {
     }
 
     async onChannelSelected(channel: UnifiedFavoriteChannel): Promise<void> {
-        const item = this.items().find((candidate) => candidate.uid === channel.uid);
+        const item = this.items().find(
+            (candidate) => candidate.uid === channel.uid
+        );
         if (!item) {
             return;
         }
@@ -208,7 +216,9 @@ export class UnifiedLiveTabComponent {
     }
 
     onFavoriteToggled(channel: UnifiedFavoriteChannel): void {
-        const item = this.items().find((candidate) => candidate.uid === channel.uid);
+        const item = this.items().find(
+            (candidate) => candidate.uid === channel.uid
+        );
         if (item) {
             this.removeItem.emit(item);
         }
@@ -230,9 +240,7 @@ export class UnifiedLiveTabComponent {
         this.activeUid.set(null);
     }
 
-    private async loadEpgMap(
-        items: UnifiedCollectionItem[]
-    ): Promise<void> {
+    private async loadEpgMap(items: UnifiedCollectionItem[]): Promise<void> {
         const epgMap = await this.streamResolver.loadEpgForItems(items);
         this.epgMap.set(epgMap);
     }

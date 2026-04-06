@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     ElementRef,
+    OutputEmitterRef,
     computed,
     effect,
     inject,
@@ -61,6 +62,9 @@ export class GroupsViewComponent {
     /** Set of favorite channel URLs */
     readonly favoriteIds = input<Set<string>>(new Set());
 
+    /** Current outer sidebar width */
+    readonly sidebarWidth = input<number | null>(null);
+
     /** Emits when a channel is selected */
     readonly channelSelected = output<Channel>();
 
@@ -70,10 +74,17 @@ export class GroupsViewComponent {
         event: MouseEvent;
     }>();
 
+    /** Emits while the groups rail requests a larger total sidebar width */
+    readonly sidebarWidthRequested = output<number>();
+
+    /** Emits when the groups rail resize ends */
+    readonly sidebarWidthRequestEnded = output<number>();
+
     readonly selectedGroupKey = signal<string | null>(null);
     readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 48));
 
     private previousActiveChannelUrl: string | undefined;
+    private preservedContentWidth = 0;
 
     constructor() {
         effect(() => {
@@ -254,6 +265,19 @@ export class GroupsViewComponent {
         this.selectedGroupKey.set(groupKey);
     }
 
+    onGroupsNavResizeStart(): void {
+        this.preservedContentWidth = this.measureContentPanelWidth();
+    }
+
+    onGroupsNavWidthChange(width: number): void {
+        this.emitSidebarWidthRequest(width, this.sidebarWidthRequested);
+    }
+
+    onGroupsNavResizeEnd(width: number): void {
+        this.emitSidebarWidthRequest(width, this.sidebarWidthRequestEnded);
+        this.preservedContentWidth = 0;
+    }
+
     trackByChannel(_: number, channel: Channel): string {
         return channel?.id;
     }
@@ -317,5 +341,75 @@ export class GroupsViewComponent {
 
         const elapsed = Math.min(total, Math.max(0, now - start));
         return Math.round((elapsed / total) * 100);
+    }
+
+    private emitSidebarWidthRequest(
+        navWidth: number,
+        emitter: OutputEmitterRef<number>
+    ): void {
+        const preservedContentWidth =
+            this.preservedContentWidth || this.measureContentPanelWidth(navWidth);
+        const requestedWidth = Math.round(navWidth + preservedContentWidth);
+
+        if (requestedWidth > 0) {
+            emitter.emit(requestedWidth);
+        }
+    }
+
+    private measureContentPanelWidth(currentNavWidth?: number): number {
+        const contentPanel = this.hostEl.nativeElement.querySelector(
+            '.groups-content-panel'
+        );
+        const measuredContentWidth = this.readWidth(contentPanel);
+        if (measuredContentWidth > 0) {
+            return measuredContentWidth;
+        }
+
+        const hostWidth = this.readWidth(this.hostEl.nativeElement);
+        const totalWidth =
+            hostWidth > 0 ? hostWidth : Math.max(0, this.sidebarWidth() ?? 0);
+        const navPanel = this.hostEl.nativeElement.querySelector(
+            '.groups-nav-panel'
+        );
+        const navWidth = currentNavWidth ?? this.readWidth(navPanel);
+
+        if (totalWidth > 0 && navWidth > 0) {
+            return Math.max(0, totalWidth - navWidth);
+        }
+
+        return 0;
+    }
+
+    private readWidth(element: Element | null): number {
+        if (!element) {
+            return 0;
+        }
+
+        const rectWidth = element.getBoundingClientRect().width;
+        if (rectWidth > 0) {
+            return rectWidth;
+        }
+
+        if (!(element instanceof HTMLElement)) {
+            return 0;
+        }
+
+        if (element.offsetWidth > 0) {
+            return element.offsetWidth;
+        }
+
+        const inlineWidth = Number.parseFloat(element.style.width);
+        if (Number.isFinite(inlineWidth) && inlineWidth > 0) {
+            return inlineWidth;
+        }
+
+        const computedWidth = Number.parseFloat(
+            window.getComputedStyle(element).width
+        );
+        if (Number.isFinite(computedWidth) && computedWidth > 0) {
+            return computedWidth;
+        }
+
+        return 0;
     }
 }

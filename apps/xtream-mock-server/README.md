@@ -26,6 +26,7 @@ pnpm nx run xtream-mock-server:serve-with-watch
 | `large` | `large` | large catalog | 20 | 20 | 20 | 200 | active |
 | `series` | `series` | series-heavy | 3 | 4 | 15 | 30 | active |
 | `minimal` | `minimal` | minimal (edge cases) | 2 | 2 | 2 | 5 | active |
+| `epg` | `epg` | EPG fixture | 2 | 1 | 1 | 3 | active |
 | `expired` | `expired` | expired account | 4 | 4 | 4 | 10 | Expired |
 | `inactive` | `inactive` | disabled account | 4 | 4 | 4 | 10 | Disabled |
 
@@ -51,6 +52,8 @@ Any other credential pair is auto-generated using a hash of `username:password` 
 | `get_vod_info?vod_id=<id>` | Full movie details |
 | `get_series_info?series_id=<id>` | Full series info (seasons + episodes) |
 | `get_short_epg?stream_id=<id>[&limit=N]` | EPG listings for a live channel |
+| `get_simple_data_table?stream_id=<id>` | Full per-channel EPG schedule |
+| `get_simple_date_table?stream_id=<id>` | Legacy typo alias for full per-channel EPG schedule |
 
 ### PWA CORS Proxy Endpoint
 
@@ -95,6 +98,9 @@ curl "http://localhost:3211/player_api.php?username=user1&password=pass1&action=
 # EPG for stream (direct)
 curl "http://localhost:3211/player_api.php?username=user1&password=pass1&action=get_short_epg&stream_id=10000"
 
+# Full EPG schedule (direct)
+curl "http://localhost:3211/player_api.php?username=epg&password=epg&action=get_simple_data_table&stream_id=10000"
+
 # Via PWA proxy
 curl "http://localhost:3211/xtream?url=http://localhost:3211&username=user1&password=pass1&action=get_live_categories"
 ```
@@ -112,6 +118,9 @@ nx e2e web-e2e --grep "@xtream"
 
 Test files: `apps/web-e2e/src/xtream.e2e.ts`
 
+Electron Xtream EPG coverage lives in
+`apps/electron-backend-e2e/src/xtream-epg.e2e.ts`.
+
 The Playwright tests use `page.route()` to redirect the app's backend proxy
 calls (`localhost:3000/xtream**`) to the mock server without modifying any
 application code.
@@ -123,6 +132,8 @@ application code.
 - **Deterministic**: Same credentials → same data every time (seeded faker)
 - **Cached per session**: Data generated once on first request, reused until `/reset`
 - **EPG**: Titles and descriptions are base64-encoded (matches real Xtream API)
+- **Dedicated EPG fixture**: `epg:epg` returns stable live channels plus deterministic `get_short_epg` and `get_simple_data_table` payloads for timezone-focused tests
+- **Timestamp precedence coverage**: The `epg:epg` scenario intentionally shifts raw `start` / `end` strings away from `start_timestamp` / `stop_timestamp` so UI tests can prove timestamps drive rendering
 - **Stream IDs**: Live 10,000+, VOD 20,000+, Series 30,000+
 - **Category IDs**: Live 101+, VOD 201+, Series 301+
 

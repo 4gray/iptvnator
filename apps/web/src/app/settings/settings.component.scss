@@ -1,5 +1,8 @@
 :host {
     display: block;
+    --settings-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --settings-action-bar-offset: 24px;
+    --settings-action-bar-space: 112px;
     --settings-page-header-bg: color-mix(
         in srgb,
         var(--mat-sys-surface-container-low) 94%,
@@ -139,14 +142,14 @@
 .settings-container {
     height: auto;
     overflow: visible;
-    padding: 18px 20px 30px;
+    padding: 18px 20px calc(36px + var(--settings-safe-bottom));
 }
 
 .settings-container.dialog-mode {
     height: auto;
     max-height: none;
     overflow: visible;
-    padding: 12px 8px 16px;
+    padding: 12px 8px calc(24px + var(--settings-safe-bottom));
 }
 
 .settings-layout {
@@ -156,7 +159,13 @@
     align-items: stretch;
     max-width: 920px;
     margin: 0 auto;
-    padding-bottom: 72px; /* space for FAB */
+    padding-bottom: calc(
+        var(--settings-action-bar-space) + var(--settings-safe-bottom)
+    );
+}
+
+.settings-container.dialog-mode .settings-layout {
+    padding-bottom: 0;
 }
 
 .settings-page-header {
@@ -531,13 +540,16 @@
 
 .action-bar {
     position: sticky;
-    bottom: 24px;
+    bottom: calc(
+        var(--settings-action-bar-offset) + var(--settings-safe-bottom)
+    );
     margin-left: auto;
     z-index: 100;
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
     padding: 10px 14px;
     border: 1px solid var(--settings-action-bar-border);
     border-radius: 18px;
@@ -548,7 +560,8 @@
 
 .settings-container.dialog-mode .action-bar {
     position: static;
-    margin-top: 8px;
+    margin-top: 12px;
+    margin-bottom: 2px;
     box-shadow: none;
     border-radius: 16px;
     padding: 12px;
@@ -565,7 +578,7 @@
 @media (max-width: 860px) {
     .settings-container {
         height: auto;
-        padding: 12px;
+        padding: 12px 12px calc(18px + var(--settings-safe-bottom));
     }
 
     .settings-page-header {

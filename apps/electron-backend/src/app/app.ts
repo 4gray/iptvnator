@@ -1,7 +1,94 @@
 import { app, BrowserWindow, Menu, screen, shell } from 'electron';
 import { join } from 'path';
 import { rendererAppName, rendererAppPort } from './constants';
+import {
+    isRendererConsoleTraceEnabled,
+    isWindowTraceEnabled,
+    trace,
+} from './services/debug-trace';
 import { store, WINDOW_BOUNDS } from './services/store.service';
+
+function attachWindowTrace(mainWindow: Electron.BrowserWindow): void {
+    if (!isWindowTraceEnabled()) {
+        return;
+    }
+
+    const webContents = mainWindow.webContents;
+
+    trace('window', 'created', {
+        id: mainWindow.id,
+    });
+
+    mainWindow.on('unresponsive', () => {
+        trace('window', 'unresponsive', {
+            id: mainWindow.id,
+            url: webContents.getURL(),
+        });
+    });
+    mainWindow.on('responsive', () => {
+        trace('window', 'responsive', {
+            id: mainWindow.id,
+            url: webContents.getURL(),
+        });
+    });
+
+    webContents.on('did-start-loading', () => {
+        trace('window', 'did-start-loading', {
+            id: mainWindow.id,
+            url: webContents.getURL(),
+        });
+    });
+    webContents.on('dom-ready', () => {
+        trace('window', 'dom-ready', {
+            id: mainWindow.id,
+            url: webContents.getURL(),
+        });
+    });
+    webContents.on('did-finish-load', () => {
+        trace('window', 'did-finish-load', {
+            id: mainWindow.id,
+            url: webContents.getURL(),
+        });
+    });
+    webContents.on(
+        'did-fail-load',
+        (_event, errorCode, errorDescription, validatedURL) => {
+            trace('window', 'did-fail-load', {
+                errorCode,
+                errorDescription,
+                id: mainWindow.id,
+                validatedURL,
+            });
+        }
+    );
+    webContents.on('did-navigate', (_event, url) => {
+        trace('window', 'did-navigate', {
+            id: mainWindow.id,
+            url,
+        });
+    });
+    webContents.on('render-process-gone', (_event, details) => {
+        trace('window', 'render-process-gone', {
+            details,
+            id: mainWindow.id,
+            url: webContents.getURL(),
+        });
+    });
+
+    if (isRendererConsoleTraceEnabled()) {
+        webContents.on(
+            'console-message',
+            (_event, level, message, line, sourceId) => {
+                trace('renderer-console', 'message', {
+                    level,
+                    line,
+                    message,
+                    sourceId,
+                });
+            }
+        );
+    }
+}
 
 export default class App {
     // Keep a global reference of the window object, if you don't, the window will
@@ -9,6 +96,10 @@ export default class App {
     static mainWindow: Electron.BrowserWindow;
     static application: Electron.App;
     static BrowserWindow;
+
+    private static shouldOpenDevTools() {
+        return process.env.ELECTRON_OPEN_DEVTOOLS === '1';
+    }
 
     public static isDevelopmentMode() {
         // First check ELECTRON_IS_DEV environment variable (used by E2E tests)
@@ -90,6 +181,7 @@ export default class App {
                 : {}),
         });
         App.mainWindow.setMenu(null);
+        attachWindowTrace(App.mainWindow);
         if (!savedWindowBounds) {
             App.mainWindow.center();
         }
@@ -161,7 +253,9 @@ export default class App {
         // load the index.html of the app.
         if (App.isDevelopmentMode()) {
             App.mainWindow.loadURL(`http://localhost:${rendererAppPort}`);
-            App.mainWindow.webContents.openDevTools();
+            if (App.shouldOpenDevTools()) {
+                App.mainWindow.webContents.openDevTools();
+            }
         } else {
             App.mainWindow.loadFile(
                 join(__dirname, '..', rendererAppName, 'index.html')

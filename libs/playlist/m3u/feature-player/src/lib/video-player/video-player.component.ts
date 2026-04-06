@@ -7,11 +7,12 @@ import {
     Injector,
     OnDestroy,
     OnInit,
+    computed,
     effect,
     inject,
+    signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -50,6 +51,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
+import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
     ArtPlayerComponent,
     AudioPlayerComponent,
@@ -71,6 +73,11 @@ import {
 } from 'shared-interfaces';
 
 const M3U_MULTI_EPG_HEADER_ACTION_ID = 'm3u-multi-epg';
+const M3U_SIDEBAR_STORAGE_KEY = 'm3u-sidebar-width';
+const M3U_GROUPS_SIDEBAR_STORAGE_KEY = 'm3u-groups-sidebar-width';
+const M3U_SIDEBAR_MIN_WIDTH = 200;
+const M3U_SIDEBAR_MAX_WIDTH = 600;
+const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
 
 @Component({
     selector: 'app-video-player',
@@ -81,7 +88,7 @@ const M3U_MULTI_EPG_HEADER_ACTION_ID = 'm3u-multi-epg';
         CommonModule,
         EpgListComponent,
         HtmlVideoPlayerComponent,
-        MatIcon,
+        PortalEmptyStateComponent,
         ResizableDirective,
         SidebarComponent,
         TranslatePipe,
@@ -109,6 +116,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly activeChannel = this.store.selectSignal(selectActive);
     readonly activePlaylistId = this.playlistContext.resolvedPlaylistId;
     readonly channels = this.store.selectSignal(selectChannels);
+    readonly sidebarStorageKey = computed(() =>
+        this.activeView() === 'groups'
+            ? M3U_GROUPS_SIDEBAR_STORAGE_KEY
+            : M3U_SIDEBAR_STORAGE_KEY
+    );
+    readonly sidebarWidth = signal(M3U_SIDEBAR_DEFAULT_WIDTH);
+    readonly sidebarMinWidth = M3U_SIDEBAR_MIN_WIDTH;
+    readonly sidebarMaxWidth = M3U_SIDEBAR_MAX_WIDTH;
 
     /** Channels list */
     readonly channels$: Observable<Channel[]> = this.store.select(
@@ -166,6 +181,12 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 player: this.settingsStore.player(),
                 showCaptions: this.settingsStore.showCaptions(),
             };
+        });
+
+        effect(() => {
+            this.sidebarWidth.set(
+                this.loadSidebarWidth(this.sidebarStorageKey())
+            );
         });
 
         effect(() => {
@@ -361,6 +382,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.statusSubscription?.unsubscribe();
     }
 
+    onSidebarWidthChange(width: number): void {
+        this.sidebarWidth.set(this.clampSidebarWidth(width));
+    }
+
+    onSidebarResizeEnd(width: number): void {
+        this.persistSidebarWidth(this.sidebarStorageKey(), width);
+    }
+
+    onGroupedSidebarWidthRequested(width: number): void {
+        this.sidebarWidth.set(this.clampSidebarWidth(width));
+    }
+
+    onGroupedSidebarWidthRequestEnded(width: number): void {
+        this.persistSidebarWidth(this.sidebarStorageKey(), width);
+    }
+
     /**
      * Opens a playlist provided as a url param
      * e.g. iptvnat.or?url=http://...
@@ -391,6 +428,38 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 };
             }
         });
+    }
+
+    private loadSidebarWidth(storageKey: string): number {
+        const fallbackKey =
+            storageKey === M3U_GROUPS_SIDEBAR_STORAGE_KEY
+                ? M3U_SIDEBAR_STORAGE_KEY
+                : '';
+        const storedWidth = Number.parseInt(
+            localStorage.getItem(storageKey) ??
+                (fallbackKey ? localStorage.getItem(fallbackKey) : '') ??
+                '',
+            10
+        );
+
+        return this.clampSidebarWidth(
+            Number.isNaN(storedWidth)
+                ? M3U_SIDEBAR_DEFAULT_WIDTH
+                : storedWidth
+        );
+    }
+
+    private persistSidebarWidth(storageKey: string, width: number): void {
+        const clampedWidth = this.clampSidebarWidth(width);
+        this.sidebarWidth.set(clampedWidth);
+        localStorage.setItem(storageKey, clampedWidth.toString());
+    }
+
+    private clampSidebarWidth(width: number): number {
+        return Math.max(
+            M3U_SIDEBAR_MIN_WIDTH,
+            Math.min(M3U_SIDEBAR_MAX_WIDTH, width)
+        );
     }
 
     private async persistRecentlyViewedChannel(

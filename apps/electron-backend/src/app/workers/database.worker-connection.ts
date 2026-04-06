@@ -9,6 +9,11 @@ import {
     loadNativeModuleFromSearchPaths,
     registerNativeModuleSearchPaths,
 } from './worker-runtime-paths';
+import {
+    compactSqlForTrace,
+    isSqlTraceEnabled,
+    trace,
+} from '../services/debug-trace';
 
 let Database: typeof BetterSqlite3;
 let drizzleFactory:
@@ -63,10 +68,24 @@ export async function getWorkerDatabase(): Promise<AppDatabase> {
     }
 
     const filePath = getIptvnatorDatabasePath();
-    sqlite = new Database(filePath);
+    sqlite = new Database(filePath, {
+        verbose: isSqlTraceEnabled()
+            ? (sql: string) => {
+                  trace('sql-worker', 'query', {
+                      sql: compactSqlForTrace(sql),
+                  });
+              }
+            : undefined,
+    });
     sqlite.pragma('foreign_keys = ON');
     sqlite.pragma('journal_mode = WAL');
     sqlite.pragma('busy_timeout = 5000');
+
+    if (isSqlTraceEnabled()) {
+        trace('sql-worker', 'open', {
+            filePath,
+        });
+    }
 
     db = getDrizzleFactory()(sqlite, { schema });
     return db;
@@ -78,6 +97,11 @@ export function closeWorkerDatabase(): void {
     }
 
     sqlite.close();
+
+    if (isSqlTraceEnabled()) {
+        trace('sql-worker', 'close');
+    }
+
     sqlite = null;
     db = null;
 }

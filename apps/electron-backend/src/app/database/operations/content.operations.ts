@@ -44,6 +44,23 @@ function getRecentlyAddedContentTypes(
     return ['movie', 'series'];
 }
 
+function selectContentFields() {
+    return {
+        id: schema.content.id,
+        category_id: schema.content.categoryId,
+        title: schema.content.title,
+        rating: schema.content.rating,
+        added: schema.content.added,
+        poster_url: schema.content.posterUrl,
+        epg_channel_id: schema.content.epgChannelId,
+        tv_archive: schema.content.tvArchive,
+        tv_archive_duration: schema.content.tvArchiveDuration,
+        direct_source: schema.content.directSource,
+        xtream_id: schema.content.xtreamId,
+        type: schema.content.type,
+    };
+}
+
 export async function hasContent(
     db: AppDatabase,
     playlistId: string,
@@ -72,16 +89,7 @@ export async function getContent(
     type: 'live' | 'movie' | 'series'
 ) {
     const baseQuery = db
-        .select({
-            id: schema.content.id,
-            category_id: schema.content.categoryId,
-            title: schema.content.title,
-            rating: schema.content.rating,
-            added: schema.content.added,
-            poster_url: schema.content.posterUrl,
-            xtream_id: schema.content.xtreamId,
-            type: schema.content.type,
-        })
+        .select(selectContentFields())
         .from(schema.content)
         .innerJoin(
             schema.categories,
@@ -112,15 +120,8 @@ export async function getGlobalRecentlyAdded(
 
     return db
         .select({
-            id: schema.content.id,
-            category_id: schema.content.categoryId,
-            title: schema.content.title,
-            rating: schema.content.rating,
-            added: schema.content.added,
+            ...selectContentFields(),
             added_at: schema.content.added,
-            poster_url: schema.content.posterUrl,
-            xtream_id: schema.content.xtreamId,
-            type: schema.content.type,
             playlist_id: schema.playlists.id,
             playlist_name: schema.playlists.name,
         })
@@ -150,6 +151,10 @@ type XtreamContentValue = {
     rating: string;
     added: string;
     posterUrl: string;
+    epgChannelId?: string | null;
+    tvArchive?: number | null;
+    tvArchiveDuration?: number | null;
+    directSource?: string | null;
     xtreamId: number;
     type: 'live' | 'movie' | 'series';
 };
@@ -161,12 +166,16 @@ type XtreamContentSource = Record<string, unknown> & {
     last_modified?: string;
     added?: string;
     stream_icon?: string;
-    poster?: string;
-    cover?: string;
-    name?: string;
-    title?: string;
-    series_id?: string | number;
-    stream_id?: string | number;
+        poster?: string;
+        cover?: string;
+        name?: string;
+        title?: string;
+        epg_channel_id?: string;
+        tv_archive?: string | number;
+        tv_archive_duration?: string | number;
+        direct_source?: string;
+        series_id?: string | number;
+        stream_id?: string | number;
 };
 
 function toXtreamContentValue(
@@ -205,6 +214,25 @@ function toXtreamContentValue(
         posterUrl: String(
             source.stream_icon || source.poster || source.cover || ''
         ),
+        epgChannelId:
+            type === 'live'
+                ? String(source.epg_channel_id ?? '').trim() || null
+                : null,
+        tvArchive:
+            type === 'live'
+                ? Number.parseInt(String(source.tv_archive ?? '0'), 10) || 0
+                : null,
+        tvArchiveDuration:
+            type === 'live'
+                ? Number.parseInt(
+                      String(source.tv_archive_duration ?? '0'),
+                      10
+                  ) || 0
+                : null,
+        directSource:
+            type === 'live'
+                ? String(source.direct_source ?? '').trim() || null
+                : null,
         xtreamId:
             type === 'series'
                 ? parseInt(String(source.series_id || '0'))
@@ -343,16 +371,7 @@ export async function getContentByXtreamId(
     playlistId: string
 ) {
     const result = await db
-        .select({
-            id: schema.content.id,
-            category_id: schema.content.categoryId,
-            title: schema.content.title,
-            rating: schema.content.rating,
-            added: schema.content.added,
-            poster_url: schema.content.posterUrl,
-            xtream_id: schema.content.xtreamId,
-            type: schema.content.type,
-        })
+        .select(selectContentFields())
         .from(schema.content)
         .innerJoin(
             schema.categories,
@@ -397,16 +416,7 @@ export async function searchContent(
     }
 
     const candidates = await db
-        .select({
-            id: schema.content.id,
-            category_id: schema.content.categoryId,
-            title: schema.content.title,
-            rating: schema.content.rating,
-            added: schema.content.added,
-            poster_url: schema.content.posterUrl,
-            xtream_id: schema.content.xtreamId,
-            type: schema.content.type,
-        })
+        .select(selectContentFields())
         .from(schema.content)
         .innerJoin(
             schema.categories,
@@ -449,14 +459,7 @@ export async function globalSearch(
 
     const candidates = await db
         .select({
-            id: schema.content.id,
-            category_id: schema.content.categoryId,
-            title: schema.content.title,
-            rating: schema.content.rating,
-            added: schema.content.added,
-            poster_url: schema.content.posterUrl,
-            xtream_id: schema.content.xtreamId,
-            type: schema.content.type,
+            ...selectContentFields(),
             playlist_id: schema.categories.playlistId,
             playlist_name: schema.playlists.name,
         })

@@ -61,10 +61,28 @@ export class StreamResolverService {
     private readonly dataService = inject(DataService);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly m3uEpgTimeoutMs = 3000;
+    private readonly portalEpgTimeoutMs = 3000;
     private readonly xtreamEpgCache = new Map<string, XtreamEpgCacheEntry>();
     private readonly xtreamEpgFailureTimestamps = new Map<string, number>();
     private readonly xtreamEpgCacheTtlMs = 60 * 1000;
     private readonly xtreamEpgFailureCooldownMs = 60 * 1000;
+
+    private async getElectronPlaylist(
+        playlistId: string
+    ): Promise<Playlist | undefined> {
+        if (typeof window === 'undefined') {
+            return undefined;
+        }
+
+        try {
+            return (
+                (await window.electron?.dbGetAppPlaylist?.(playlistId)) ??
+                undefined
+            );
+        } catch {
+            return undefined;
+        }
+    }
 
     async resolvePlayback(
         item: UnifiedCollectionItem
@@ -159,12 +177,7 @@ export class StreamResolverService {
 
         for (const [playlistId, playlistItems] of stalkerByPlaylist.entries()) {
             tasks.push(
-                this.loadStalkerEpgBatch(
-                    playlistId,
-                    playlistItems,
-                    epgMap,
-                    now
-                )
+                this.loadStalkerEpgBatch(playlistId, playlistItems, epgMap, now)
             );
         }
 
@@ -182,7 +195,11 @@ export class StreamResolverService {
         item: UnifiedCollectionItem
     ): Promise<ResolvedLiveCollectionDetail> {
         const playback = await this.resolveXtream(item);
-        const epgItems = await this.loadXtreamEpgItems(item);
+        const epgItems = await this.withFallbackTimeout(
+            this.loadXtreamEpgItems(item),
+            this.portalEpgTimeoutMs,
+            []
+        );
 
         return {
             playback,
@@ -195,7 +212,11 @@ export class StreamResolverService {
         item: UnifiedCollectionItem
     ): Promise<ResolvedLiveCollectionDetail> {
         const playback = await this.resolveStalker(item);
-        const epgItems = await this.loadStalkerEpgItems(item, 10);
+        const epgItems = await this.withFallbackTimeout(
+            this.loadStalkerEpgItems(item, 10),
+            this.portalEpgTimeoutMs,
+            []
+        );
 
         return {
             playback,
@@ -325,9 +346,10 @@ export class StreamResolverService {
         )) as Playlist | undefined;
         const channelId = String(
             item.stalkerId ??
-                ((item.stalkerItem as Record<string, unknown> | undefined)?.[
+                (item.stalkerItem as Record<string, unknown> | undefined)?.[
                     'id'
-                ] ?? '')
+                ] ??
+                ''
         ).trim();
 
         if (!playlist || !channelId) {
@@ -338,9 +360,11 @@ export class StreamResolverService {
     }
 
     private async getXtreamCredentials(playlistId: string) {
-        const playlist = (await firstValueFrom(
-            this.playlistsService.getPlaylistById(playlistId)
-        )) as Playlist | undefined;
+        const playlist =
+            (await this.getElectronPlaylist(playlistId)) ??
+            ((await firstValueFrom(
+                this.playlistsService.getPlaylistById(playlistId)
+            )) as Playlist | undefined);
 
         if (!playlist?.serverUrl || !playlist.username || !playlist.password) {
             return null;
@@ -378,7 +402,9 @@ export class StreamResolverService {
             this.findM3uChannel(playlist?.playlist?.items ?? [], item) ??
             this.buildFallbackM3uChannel(item);
         const epgPrograms = includePrograms
-            ? await this.fetchM3uPrograms(this.getM3uEpgLookupKey(channel, item))
+            ? await this.fetchM3uPrograms(
+                  this.getM3uEpgLookupKey(channel, item)
+              )
             : [];
 
         return {
@@ -467,7 +493,8 @@ export class StreamResolverService {
                                 Number(item.start_timestamp) <= nowSeconds &&
                                 nowSeconds < Number(item.stop_timestamp)
                         ) ?? null;
-                    const epgKey = channel.tvgId?.trim() || channel.name?.trim();
+                    const epgKey =
+                        channel.tvgId?.trim() || channel.name?.trim();
 
                     if (!epgKey) {
                         return;
@@ -491,7 +518,8 @@ export class StreamResolverService {
                             : null
                     );
                 } catch {
-                    const epgKey = channel.tvgId?.trim() || channel.name?.trim();
+                    const epgKey =
+                        channel.tvgId?.trim() || channel.name?.trim();
                     if (epgKey) {
                         epgMap.set(epgKey, null);
                     }
@@ -546,11 +574,7 @@ export class StreamResolverService {
         streamId: number,
         limit: number
     ): Promise<EpgItem[]> {
-        const cacheKey = this.getXtreamEpgCacheKey(
-            playlistId,
-            streamId,
-            limit
-        );
+        const cacheKey = this.getXtreamEpgCacheKey(playlistId, streamId, limit);
         const cached = this.getCachedXtreamEpgItems(cacheKey);
         if (cached !== null) {
             return cached;
@@ -599,7 +623,8 @@ export class StreamResolverService {
         await Promise.all(
             channels.map(async (channel) => {
                 const channelId = String(channel.stalkerId ?? '').trim();
-                const epgKey = channel.tvgId?.trim() || channelId || channel.name?.trim();
+                const epgKey =
+                    channel.tvgId?.trim() || channelId || channel.name?.trim();
 
                 if (!channelId || !epgKey) {
                     return;
@@ -652,7 +677,7 @@ export class StreamResolverService {
 
         const epgData = Array.isArray(response?.js)
             ? response.js
-            : response?.js?.data ?? [];
+            : (response?.js?.data ?? []);
 
         return epgData.map((item) => ({
             id: String(item.id ?? ''),

@@ -681,6 +681,20 @@ export async function clickCategoryById(
     await expect(category.first()).toBeVisible({ timeout: 20000 });
     await category.first().scrollIntoViewIfNeeded();
     await category.first().click();
+    await expect
+        .poll(async () => {
+            const pathname = new URL(page.url()).pathname;
+            const isSelected =
+                (await category.first().getAttribute('aria-current')) ===
+                'true';
+
+            return (
+                isSelected ||
+                pathname.endsWith(`/${categoryId}`) ||
+                pathname.includes(`/${categoryId}/`)
+            );
+        })
+        .toBe(true);
 }
 
 export async function clickCategoryByNameExact(
@@ -698,7 +712,23 @@ export async function clickCategoryByNameExact(
 
     await expect(category).toBeVisible();
     await category.scrollIntoViewIfNeeded();
+    const categoryId =
+        (await category.getAttribute('data-category-id'))?.trim() ?? '';
     await category.click();
+    await expect
+        .poll(async () => {
+            const pathname = new URL(page.url()).pathname;
+            const isSelected =
+                (await category.getAttribute('aria-current')) === 'true';
+
+            return (
+                isSelected ||
+                (categoryId.length > 0 &&
+                    (pathname.endsWith(`/${categoryId}`) ||
+                        pathname.includes(`/${categoryId}/`)))
+            );
+        })
+        .toBe(true);
 }
 
 export function sourceRowByTitle(page: Page, title: string): Locator {

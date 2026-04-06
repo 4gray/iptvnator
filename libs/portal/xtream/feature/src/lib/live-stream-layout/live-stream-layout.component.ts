@@ -25,10 +25,16 @@ import {
 import {
     FavoriteItem,
     FavoritesService,
+    XtreamUrlService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import {
+    EpgListComponent,
+    EpgProgramActivationEvent,
+} from '@iptvnator/ui/epg';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
-import { EpgItem } from 'shared-interfaces';
+import { EpgItem, EpgProgram } from 'shared-interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute } from '@angular/router';
 
@@ -40,6 +46,8 @@ interface XtreamLiveChannelItem {
     readonly poster_url?: string;
     readonly stream_icon?: string;
     readonly title?: string;
+    readonly tv_archive?: number | null;
+    readonly tv_archive_duration?: number | string | null;
     readonly xtream_id: number;
 }
 
@@ -48,10 +56,12 @@ interface XtreamLiveChannelItem {
     templateUrl: './live-stream-layout.component.html',
     styleUrls: ['./live-stream-layout.component.scss'],
     imports: [
+        EpgListComponent,
         EpgViewComponent,
         MatIcon,
         MatIconButton,
         MatMenuModule,
+        MatProgressSpinnerModule,
         MatTooltipModule,
         PortalChannelsListComponent,
         PortalEmptyStateComponent,
@@ -65,13 +75,17 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private readonly route = inject(ActivatedRoute);
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly xtreamUrlService = inject(XtreamUrlService);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
     readonly epgItems = this.xtreamStore.epgItems;
+    readonly currentEpgItem = this.xtreamStore.currentEpgItem;
+    readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
     readonly liveChannelSortMode = signal<LiveChannelSortMode>('server');
+    readonly isElectron = Boolean(window.electron);
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
         this.route,
@@ -82,6 +96,52 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         this.isWorkspaceLayout ? this.routeSearchTerm() : ''
     );
     private readonly pendingAutoOpenLiveItemId = signal<number | null>(null);
+    readonly selectedLiveItem = computed<XtreamLiveChannelItem | null>(() => {
+        if (this.xtreamStore.selectedContentType() !== 'live') {
+            return null;
+        }
+
+        const selectedItem = this.xtreamStore.selectedItem();
+        if (!selectedItem || typeof selectedItem !== 'object') {
+            return null;
+        }
+
+        const item = selectedItem as XtreamLiveChannelItem;
+        return item.xtream_id ? item : null;
+    });
+    readonly controlledEpgPrograms = computed<EpgProgram[]>(() =>
+        this.epgItems().map((program) => this.toControlledEpgProgram(program))
+    );
+    private readonly currentTimeMs = signal(Date.now());
+    readonly controlledArchiveDays = computed(() =>
+        Math.max(
+            0,
+            Number(this.selectedLiveItem()?.tv_archive_duration ?? 0) || 0
+        )
+    );
+    readonly archivePlaybackAvailable = computed(() => {
+        const selectedItem = this.selectedLiveItem();
+        return (
+            Number(selectedItem?.tv_archive ?? 0) === 1 &&
+            this.controlledArchiveDays() > 0
+        );
+    });
+    readonly hasPastPrograms = computed(() => {
+        const now = this.currentTimeMs();
+        return this.controlledEpgPrograms().some((program) => {
+            const stop = this.getProgramTimestampMilliseconds(
+                program.stop,
+                program.stopTimestamp
+            );
+            return stop !== null && stop < now;
+        });
+    });
+    readonly showArchiveUnavailableNotice = computed(
+        () =>
+            this.controlledEpgPrograms().length > 0 &&
+            this.hasPastPrograms() &&
+            !this.archivePlaybackAvailable()
+    );
     readonly liveChannelSortLabel = computed(() => {
         const mode = this.liveChannelSortMode();
         if (mode === 'name-asc') return 'Name A-Z';
@@ -111,10 +171,18 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly usesEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
     );
-    streamUrl = '';
+    readonly activeStreamUrl = signal('');
     favorites = new Map<number, boolean>();
 
     constructor() {
+        effect((onCleanup) => {
+            const intervalId = window.setInterval(() => {
+                this.currentTimeMs.set(Date.now());
+            }, 30_000);
+
+            onCleanup(() => clearInterval(intervalId));
+        });
+
         const requestedItemId = Number(
             (window.history.state as Record<string, unknown> | null)?.[
                 'openXtreamLiveItemId'
@@ -156,7 +224,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             const selectedContentType = this.xtreamStore.selectedContentType();
             const selectedItem = this.xtreamStore.selectedItem();
             const channels = this.getVisibleChannels();
-            const epgItems = this.xtreamStore.epgItems();
+            const currentProgram = this.currentEpgItem();
 
             if (selectedContentType !== 'live' || !selectedItem?.xtream_id) {
                 window.electron.updateRemoteControlStatus({
@@ -171,7 +239,6 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                 (item) =>
                     Number(item.xtream_id) === Number(selectedItem.xtream_id)
             );
-            const currentProgram: EpgItem | undefined = epgItems?.[0];
 
             window.electron.updateRemoteControlStatus({
                 portal: 'xtream',
@@ -234,7 +301,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
 
     playLive(item: XtreamLiveChannelItem) {
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
-        this.streamUrl = streamUrl;
+        this.activeStreamUrl.set(streamUrl);
         if (this.usesEmbeddedPlayer()) {
             return;
         }
@@ -243,6 +310,22 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             item.title ?? item.name ?? '',
             item.poster_url ?? item.stream_icon ?? null
         );
+    }
+
+    async onProgramActivated(
+        event: EpgProgramActivationEvent
+    ): Promise<void> {
+        const selectedItem = this.selectedLiveItem();
+        if (!selectedItem?.xtream_id) {
+            return;
+        }
+
+        if (event.type === 'live') {
+            this.playLive(selectedItem);
+            return;
+        }
+
+        await this.playCatchup(event.program, selectedItem);
     }
 
     setLiveChannelSortMode(mode: LiveChannelSortMode): void {
@@ -300,6 +383,112 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private getVisibleChannels(): XtreamLiveChannelItem[] {
         return this.xtreamStore.selectItemsFromSelectedCategory() as
             XtreamLiveChannelItem[];
+    }
+
+    private async playCatchup(
+        program: EpgProgram,
+        item: XtreamLiveChannelItem
+    ): Promise<void> {
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) {
+            return;
+        }
+
+        const startTimestamp = this.getProgramTimestampSeconds(
+            program.start,
+            program.startTimestamp
+        );
+        const stopTimestamp = this.getProgramTimestampSeconds(
+            program.stop,
+            program.stopTimestamp
+        );
+
+        if (!startTimestamp || !stopTimestamp) {
+            return;
+        }
+
+        const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
+            playlist.id,
+            {
+                serverUrl: playlist.serverUrl,
+                username: playlist.username,
+                password: playlist.password,
+            },
+            item.xtream_id,
+            startTimestamp,
+            stopTimestamp
+        );
+
+        this.activeStreamUrl.set(catchupUrl);
+        if (this.usesEmbeddedPlayer()) {
+            return;
+        }
+
+        this.xtreamStore.openPlayer(
+            catchupUrl,
+            this.getCatchupPlaybackTitle(item, program),
+            item.poster_url ?? item.stream_icon ?? null
+        );
+    }
+
+    private toControlledEpgProgram(program: EpgItem): EpgProgram {
+        return {
+            start: program.start,
+            stop: program.stop ?? program.end,
+            channel: program.channel_id ?? program.id,
+            title: program.title,
+            desc: program.description ?? null,
+            category: null,
+            startTimestamp: this.getProgramTimestampSeconds(
+                program.start,
+                program.start_timestamp
+            ),
+            stopTimestamp: this.getProgramTimestampSeconds(
+                program.stop ?? program.end,
+                program.stop_timestamp
+            ),
+        };
+    }
+
+    private getProgramTimestampSeconds(
+        dateValue: string,
+        unixTimestampValue?: number | string | null
+    ): number | null {
+        const unixTimestamp = Number.parseInt(
+            String(unixTimestampValue ?? ''),
+            10
+        );
+        if (Number.isFinite(unixTimestamp) && unixTimestamp > 0) {
+            return unixTimestamp;
+        }
+
+        const parsedDate = Date.parse(dateValue);
+        return Number.isFinite(parsedDate)
+            ? Math.floor(parsedDate / 1000)
+            : null;
+    }
+
+    private getProgramTimestampMilliseconds(
+        dateValue: string,
+        unixTimestampValue?: number | string | null
+    ): number | null {
+        const unixTimestamp = this.getProgramTimestampSeconds(
+            dateValue,
+            unixTimestampValue
+        );
+        return unixTimestamp !== null ? unixTimestamp * 1000 : null;
+    }
+
+    private getCatchupPlaybackTitle(
+        item: XtreamLiveChannelItem,
+        program: EpgProgram
+    ): string {
+        const channelTitle = item.title ?? item.name ?? '';
+        if (!program.title) {
+            return channelTitle;
+        }
+
+        return channelTitle ? `${channelTitle} - ${program.title}` : program.title;
     }
 
     private clearAutoOpenHistoryState(): void {

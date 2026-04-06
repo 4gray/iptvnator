@@ -28,13 +28,22 @@ test.describe('Dashboard Activation', () => {
         request,
     }) => {
         await resetMockServers(request, ['xtream']);
-        const liveFixture = await fetchXtreamLiveFixture(request, xtreamCredentials);
-        const vodFixture = await fetchXtreamVodFixture(request, xtreamCredentials);
+        const liveFixture = await fetchXtreamLiveFixture(
+            request,
+            xtreamCredentials
+        );
+        const vodFixture = await fetchXtreamVodFixture(
+            request,
+            xtreamCredentials
+        );
         const seriesFixture = await fetchXtreamSeriesFixture(
             request,
             xtreamCredentials
         );
-        const [liveTitle] = pickDistinctTitles(liveFixture.items, getXtreamTitle);
+        const [liveTitle] = pickDistinctTitles(
+            liveFixture.items,
+            getXtreamTitle
+        );
         const app = await launchElectronApp(dataDir);
 
         try {
@@ -50,7 +59,9 @@ test.describe('Dashboard Activation', () => {
             );
             await toggleFavoriteForChannel(app.mainWindow, liveTitle);
 
-            await app.mainWindow.getByRole('link', { name: 'Movies', exact: true }).click();
+            await app.mainWindow
+                .getByRole('link', { name: 'Movies', exact: true })
+                .click();
             await clickCategoryByNameExact(
                 app.mainWindow,
                 vodFixture.categoryName
@@ -59,7 +70,9 @@ test.describe('Dashboard Activation', () => {
             await playCurrentDetail(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
 
-            await app.mainWindow.getByRole('link', { name: 'Series', exact: true }).click();
+            await app.mainWindow
+                .getByRole('link', { name: 'Series', exact: true })
+                .click();
             await clickCategoryByNameExact(
                 app.mainWindow,
                 seriesFixture.categoryName
@@ -74,7 +87,9 @@ test.describe('Dashboard Activation', () => {
                 'Global Favorites',
                 liveTitle
             ).click();
-            await app.mainWindow.waitForURL(/\/workspace\/xtreams\/[^/]+\/favorites$/);
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/favorites$/
+            );
             await expect(
                 app.mainWindow.locator('.player-toolbar .close-btn').first()
             ).toBeVisible({ timeout: 20000 });
@@ -87,10 +102,12 @@ test.describe('Dashboard Activation', () => {
                 'Recently Watched',
                 movieTitle
             ).click();
-            await app.mainWindow.waitForURL(/\/workspace\/xtreams\/[^/]+\/vod\/[^/]+\/[^/]+$/);
-            await expect(app.mainWindow.locator('app-content-hero')).toContainText(
-                movieTitle
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/vod\/[^/]+\/[^/]+$/
             );
+            await expect(
+                app.mainWindow.locator('app-content-hero')
+            ).toContainText(movieTitle);
 
             await app.mainWindow.goBack();
             await app.mainWindow.waitForURL(/\/workspace\/dashboard$/);
@@ -100,10 +117,12 @@ test.describe('Dashboard Activation', () => {
                 'Recently Watched',
                 seriesTitle
             ).click();
-            await app.mainWindow.waitForURL(/\/workspace\/xtreams\/[^/]+\/series\/[^/]+\/[^/]+$/);
-            await expect(app.mainWindow.locator('app-content-hero')).toContainText(
-                seriesTitle
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/series\/[^/]+\/[^/]+$/
             );
+            await expect(
+                app.mainWindow.locator('app-content-hero')
+            ).toContainText(seriesTitle);
         } finally {
             await closeElectronApp(app);
         }
@@ -130,7 +149,9 @@ function dashboardActivityItemByTitle(
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
-    const backButton = page.locator('app-content-hero .hero__back-button').first();
+    const backButton = page
+        .locator('app-content-hero .hero__back-button')
+        .first();
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     await backButton.click();
@@ -145,7 +166,9 @@ async function playCurrentDetail(page: Page): Promise<void> {
 
 async function playFirstSeriesEpisode(page: Page): Promise<void> {
     const seasonCard = page.locator('.season-card').first();
-    const episodeCard = page.locator('.episode-card, .episode-list-item').first();
+    const episodeCard = page
+        .locator('.episode-card, .episode-list-item')
+        .first();
 
     await expect
         .poll(
@@ -166,7 +189,10 @@ async function playFirstSeriesEpisode(page: Page): Promise<void> {
     await episodeCard.click();
 }
 
-async function toggleFavoriteForChannel(page: Page, title: string): Promise<void> {
+async function toggleFavoriteForChannel(
+    page: Page,
+    title: string
+): Promise<void> {
     const item = page
         .locator('[data-test-id="channel-item"]')
         .filter({ hasText: title })
@@ -175,5 +201,7 @@ async function toggleFavoriteForChannel(page: Page, title: string): Promise<void
     await expect(item).toBeVisible({ timeout: 20000 });
     await item.hover();
     await item.locator('.favorite-button').first().click();
-    await expect(item.locator('.favorite-button mat-icon').first()).toHaveText(/star/);
+    await expect(item.locator('.favorite-button mat-icon').first()).toHaveText(
+        /star/
+    );
 }

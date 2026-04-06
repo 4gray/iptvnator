@@ -46,6 +46,7 @@ export interface PortalCatalogFacade<
     readonly playlist: Signal<PortalCatalogPlaylistMeta | null>;
 
     initialize(categoryId?: string | null): void;
+    setSearchQuery?(query: string): void;
     clearSelectedItem(): void;
     setPage(page: number): void;
     setLimit(limit: number): void;

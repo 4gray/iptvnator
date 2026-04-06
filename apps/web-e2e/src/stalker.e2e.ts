@@ -90,20 +90,6 @@ async function addStalkerPortal(
     await page.waitForURL(/stalker.*vod/);
 }
 
-/**
- * Clear IndexedDB state between tests so each test starts fresh.
- */
-async function clearStorage(page: Page): Promise<void> {
-    await page.evaluate(async () => {
-        const dbs = await window.indexedDB.databases();
-        await Promise.all(
-            dbs
-                .filter((db) => db.name != null)
-                .map((db) => window.indexedDB.deleteDatabase(db.name!))
-        );
-    });
-}
-
 // ---------------------------------------------------------------------------
 // Test setup
 // ---------------------------------------------------------------------------
@@ -112,9 +98,9 @@ test.beforeEach(async ({ page, request }) => {
     // Reset mock server state (clears in-memory favorites and cache)
     await request.post(`${MOCK_SERVER}/reset`);
 
+    // Playwright creates a fresh browser context per test, so extra
+    // IndexedDB cleanup here only risks racing with app-managed DB handles.
     await page.goto('/');
-    await clearStorage(page);
-    await page.reload();
 
     // Redirect backend proxy calls to the mock server
     await interceptStalkerRequests(page);

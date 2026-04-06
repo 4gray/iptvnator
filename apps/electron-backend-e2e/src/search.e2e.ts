@@ -1180,6 +1180,20 @@ async function clickCategoryById(
 
     await expect(category.first()).toBeVisible();
     await category.first().click();
+    await expect
+        .poll(async () => {
+            const pathname = new URL(page.url()).pathname;
+            const isSelected =
+                (await category.first().getAttribute('aria-current')) ===
+                'true';
+
+            return (
+                isSelected ||
+                pathname.endsWith(`/${categoryId}`) ||
+                pathname.includes(`/${categoryId}/`)
+            );
+        })
+        .toBe(true);
 }
 
 async function clickCategoryByNameExact(
@@ -1197,7 +1211,23 @@ async function clickCategoryByNameExact(
 
     await expect(category).toBeVisible();
     await category.scrollIntoViewIfNeeded();
+    const categoryId =
+        (await category.getAttribute('data-category-id'))?.trim() ?? '';
     await category.click();
+    await expect
+        .poll(async () => {
+            const pathname = new URL(page.url()).pathname;
+            const isSelected =
+                (await category.getAttribute('aria-current')) === 'true';
+
+            return (
+                isSelected ||
+                (categoryId.length > 0 &&
+                    (pathname.endsWith(`/${categoryId}`) ||
+                        pathname.includes(`/${categoryId}/`)))
+            );
+        })
+        .toBe(true);
 }
 
 async function openWorkspaceSection(page: Page, label: string): Promise<void> {

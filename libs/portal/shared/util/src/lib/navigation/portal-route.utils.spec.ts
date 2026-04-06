@@ -11,6 +11,7 @@ import {
     extractPortalSection,
     isWorkspaceLayoutRoute,
     queryParamSignal,
+    routeParamSignal,
     resolveCurrentPortalPlaylistId,
     resolveCurrentPortalSection,
 } from './portal-route.utils';
@@ -223,6 +224,112 @@ describe('portal-route.utils', () => {
 
         expect(searchTerm()).toBe('alien');
         expect(refreshToken()).toBe('84');
+
+        childInjector.destroy();
+    });
+
+    it('creates route-param signals that react to current route param changes', () => {
+        TestBed.configureTestingModule({});
+
+        const parentInjector = TestBed.inject(EnvironmentInjector);
+        const childInjector = createEnvironmentInjector([], parentInjector);
+        const paramMap$ = new BehaviorSubject(
+            convertToParamMap({
+                id: 'playlist-1',
+            })
+        );
+        const route = {
+            snapshot: {
+                data: {},
+                paramMap: convertToParamMap({
+                    id: 'playlist-1',
+                }),
+                params: {
+                    id: 'playlist-1',
+                },
+            },
+            paramMap: paramMap$.asObservable(),
+        } as unknown as ActivatedRoute;
+
+        const playlistId = runInInjectionContext(childInjector, () =>
+            routeParamSignal(route, 'id', (value) => value ?? '')
+        );
+
+        expect(playlistId()).toBe('playlist-1');
+
+        route.snapshot.paramMap = convertToParamMap({
+            id: 'playlist-2',
+        });
+        route.snapshot.params = {
+            id: 'playlist-2',
+        };
+        paramMap$.next(
+            convertToParamMap({
+                id: 'playlist-2',
+            })
+        );
+
+        expect(playlistId()).toBe('playlist-2');
+
+        childInjector.destroy();
+    });
+
+    it('creates route-param signals that react to ancestor route param changes', () => {
+        TestBed.configureTestingModule({});
+
+        const parentInjector = TestBed.inject(EnvironmentInjector);
+        const childInjector = createEnvironmentInjector([], parentInjector);
+        const parentParamMap$ = new BehaviorSubject(
+            convertToParamMap({
+                id: 'playlist-1',
+            })
+        );
+        const childParamMap$ = new BehaviorSubject(convertToParamMap({}));
+        const parentRoute = {
+            snapshot: {
+                data: {},
+                paramMap: convertToParamMap({
+                    id: 'playlist-1',
+                }),
+                params: {
+                    id: 'playlist-1',
+                },
+            },
+            paramMap: parentParamMap$.asObservable(),
+        } as ActivatedRoute;
+        const route = {
+            snapshot: {
+                data: {},
+                paramMap: convertToParamMap({}),
+                params: {},
+            },
+            paramMap: childParamMap$.asObservable(),
+            pathFromRoot: [] as ActivatedRoute[],
+        } as ActivatedRoute & {
+            pathFromRoot: ActivatedRoute[];
+        };
+        route.pathFromRoot = [parentRoute, route];
+
+        const playlistId = runInInjectionContext(childInjector, () =>
+            routeParamSignal(route, 'id', (value) => value ?? '')
+        );
+
+        expect(playlistId()).toBe('playlist-1');
+
+        (parentRoute.snapshot as ActivatedRoute['snapshot']).paramMap =
+            convertToParamMap({
+                id: 'playlist-2',
+            });
+        (parentRoute.snapshot as ActivatedRoute['snapshot']).params = {
+            id: 'playlist-2',
+        };
+        parentParamMap$.next(
+            convertToParamMap({
+                id: 'playlist-2',
+            })
+        );
+
+        expect(playlistId()).toBe('playlist-2');
 
         childInjector.destroy();
     });

@@ -82,32 +82,6 @@
     }
 }
 
-.empty-state-container {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    color: rgba(15, 23, 42, 0.45);
-
-    .empty-state-icon {
-        width: 72px;
-        height: 72px;
-        margin-bottom: 24px;
-        font-size: 72px;
-        opacity: 0.25;
-    }
-
-    .empty-state-title {
-        margin: 0;
-        font-family: 'DM Sans', sans-serif;
-        font-size: 1.25rem;
-        font-weight: 500;
-        opacity: 0.7;
-    }
-}
-
 @media only screen and (max-width: 599px) {
     :host {
         flex-direction: column-reverse;
