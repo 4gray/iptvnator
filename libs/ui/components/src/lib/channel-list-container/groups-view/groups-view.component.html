@@ -108,6 +108,7 @@
                         "
                         [logo]="channel?.tvg?.logo"
                         [showEpg]="shouldShowEpg()"
+                        [isRadio]="channel?.radio === 'true'"
                         [epgProgram]="channel.epgProgram"
                         [progressPercentage]="channel.progressPercentage"
                         [selected]="activeChannelUrl() === channel?.url"

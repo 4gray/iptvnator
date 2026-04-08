@@ -25,6 +25,7 @@ import {
 import { EpgListComponent } from '@iptvnator/ui/epg';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
 import {
+    AudioPlayerComponent,
     ArtPlayerComponent,
     HtmlVideoPlayerComponent,
     VjsPlayerComponent,
@@ -40,6 +41,7 @@ import { EpgViewComponent } from 'shared-portals';
     styleUrl: './unified-live-tab.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        AudioPlayerComponent,
         ArtPlayerComponent,
         EpgListComponent,
         EpgViewComponent,
@@ -103,6 +105,23 @@ export class UnifiedLiveTabComponent {
         }
 
         return detail.channel ?? null;
+    });
+    readonly activeRadioChannel = computed(() => {
+        const channel = this.currentM3uChannel();
+        return channel?.radio === 'true' ? channel : null;
+    });
+    readonly isRadioSelection = computed(() => this.activeRadioChannel() !== null);
+    readonly shouldUseInlinePlayer = computed(() => {
+        return this.isRadioSelection() || this.isEmbeddedPlayer();
+    });
+    readonly layoutClass = computed(() => {
+        if (this.isRadioSelection()) {
+            return 'itv-container itv-container--radio';
+        }
+
+        return this.shouldUseInlinePlayer()
+            ? 'itv-container'
+            : 'itv-container--external';
     });
 
     readonly activeChannelForOverlay = computed((): Channel | undefined => {
@@ -276,7 +295,7 @@ export class UnifiedLiveTabComponent {
                 void this.hydrateSelectedM3uPrograms(item, detail, requestId);
             }
 
-            if (!this.portalPlayer.isEmbeddedPlayer()) {
+            if (this.shouldOpenExternalPlayback(detail)) {
                 void this.portalPlayer.openResolvedPlayback(detail.playback);
             }
 
@@ -303,6 +322,18 @@ export class UnifiedLiveTabComponent {
                 this.isSelecting.set(false);
             }
         }
+    }
+
+    private shouldOpenExternalPlayback(
+        detail: ResolvedLiveCollectionDetail
+    ): boolean {
+        return !this.isRadioDetail(detail) && !this.portalPlayer.isEmbeddedPlayer();
+    }
+
+    private isRadioDetail(
+        detail: ResolvedLiveCollectionDetail | null | undefined
+    ): boolean {
+        return detail?.epgMode === 'm3u' && detail.channel?.radio === 'true';
     }
 
     private async hydrateSelectedM3uPrograms(

@@ -176,6 +176,37 @@ describe('StreamResolverService', () => {
         expect(window.electron.getChannelPrograms).not.toHaveBeenCalled();
     });
 
+    it('preserves the radio flag when M3U playback falls back to item metadata', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'm3u-1',
+                playlist: {
+                    items: [],
+                },
+            } satisfies Partial<Playlist>)
+        );
+
+        const detail = await service.resolveM3uPlaybackDetail({
+            uid: 'm3u::m3u-1::radio-channel',
+            name: 'Radio Channel',
+            contentType: 'live',
+            sourceType: 'm3u',
+            playlistId: 'm3u-1',
+            playlistName: 'M3U List',
+            streamUrl: 'https://example.com/radio.m3u8',
+            channelId: 'radio-channel',
+            tvgId: 'radio-id',
+            logo: 'radio.png',
+            radio: 'true',
+        } satisfies UnifiedCollectionItem);
+
+        expect(detail.channel).toMatchObject({
+            id: 'radio-channel',
+            url: 'https://example.com/radio.m3u8',
+            radio: 'true',
+        });
+    });
+
     it('returns Xtream live detail with shared EPG items', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({

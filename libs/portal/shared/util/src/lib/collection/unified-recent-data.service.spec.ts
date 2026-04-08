@@ -79,7 +79,7 @@ describe('UnifiedRecentDataService', () => {
                 rec: '',
             },
             http: { referrer: '', 'user-agent': '', origin: '' },
-            radio: 'false',
+            radio: 'true',
             epgParams: '',
         },
     ];
@@ -148,6 +148,7 @@ describe('UnifiedRecentDataService', () => {
             name: 'Recent Channel',
             tvgId: 'recent-two',
             logo: 'two.png',
+            radio: 'true',
         });
     });
 

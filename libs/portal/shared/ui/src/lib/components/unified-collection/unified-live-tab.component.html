@@ -1,9 +1,5 @@
 @if (activeDetail()) {
-    <div
-        [class]="
-            isEmbeddedPlayer() ? 'itv-container' : 'itv-container--external'
-        "
-    >
+    <div [class]="layoutClass()">
         <div
             class="sidebar"
             appResizable
@@ -25,77 +21,104 @@
             />
         </div>
 
-        @if (isEmbeddedPlayer()) {
-            <div class="video-player">
-                <div class="player-toolbar">
-                    <span class="player-title">{{
-                        activeDetail()?.playback?.title
-                    }}</span>
+        @if (shouldUseInlinePlayer()) {
+            <div class="video-player" [class.video-player--radio]="isRadioSelection()">
+                @if (isRadioSelection()) {
                     <button
                         mat-icon-button
                         (click)="onClose()"
-                        class="close-btn"
+                        class="radio-close-btn"
+                        aria-label="Close player"
                     >
                         <mat-icon>close</mat-icon>
                     </button>
-                </div>
 
-                @if (player() === 'videojs') {
-                    <app-vjs-player
-                        [options]="{
-                            sources: [
-                                {
-                                    src: currentStreamUrl(),
-                                    type: 'application/x-mpegURL',
-                                },
-                            ],
-                        }"
-                        [volume]="1"
+                    <app-audio-player
+                        [url]="currentStreamUrl()"
+                        [icon]="
+                            activeRadioChannel()?.tvg?.logo ??
+                            activeDetail()?.playback?.thumbnail ??
+                            ''
+                        "
+                        [channelName]="
+                            activeRadioChannel()?.name ||
+                            activeDetail()?.playback?.title ||
+                            ''
+                        "
                     />
-                }
-                @if (player() === 'html5') {
-                    <app-html-video-player
-                        [channel]="activeChannelForOverlay()!"
-                        [volume]="1"
-                        [showCaptions]="false"
-                    />
-                }
-                @if (player() === 'artplayer') {
-                    <app-art-player
-                        [channel]="activeChannelForOverlay()!"
-                        [volume]="1"
-                        [showCaptions]="false"
-                    />
+                } @else {
+                    <div class="player-toolbar">
+                        <span class="player-title">{{
+                            activeDetail()?.playback?.title
+                        }}</span>
+                        <button
+                            mat-icon-button
+                            (click)="onClose()"
+                            class="close-btn"
+                        >
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    </div>
+
+                    @if (player() === 'videojs') {
+                        <app-vjs-player
+                            [options]="{
+                                sources: [
+                                    {
+                                        src: currentStreamUrl(),
+                                        type: 'application/x-mpegURL',
+                                    },
+                                ],
+                            }"
+                            [volume]="1"
+                        />
+                    }
+                    @if (player() === 'html5') {
+                        <app-html-video-player
+                            [channel]="activeChannelForOverlay()!"
+                            [volume]="1"
+                            [showCaptions]="false"
+                        />
+                    }
+                    @if (player() === 'artplayer') {
+                        <app-art-player
+                            [channel]="activeChannelForOverlay()!"
+                            [volume]="1"
+                            [showCaptions]="false"
+                        />
+                    }
                 }
             </div>
         }
 
-        <div class="epg">
-            @if (!isEmbeddedPlayer()) {
-                <div class="player-toolbar">
-                    <span class="player-title">{{
-                        activeDetail()?.playback?.title
-                    }}</span>
-                    <button
-                        mat-icon-button
-                        (click)="onClose()"
-                        class="close-btn"
-                    >
-                        <mat-icon>close</mat-icon>
-                    </button>
-                </div>
-            }
-            <div class="epg-content">
-                @if (isM3uSelection()) {
-                    <app-epg-list
-                        [controlledChannel]="currentM3uChannel()"
-                        [controlledPrograms]="currentM3uPrograms()"
-                    />
-                } @else {
-                    <app-epg-view [epgItems]="currentPortalEpgItems()" />
+        @if (!isRadioSelection()) {
+            <div class="epg">
+                @if (!shouldUseInlinePlayer()) {
+                    <div class="player-toolbar">
+                        <span class="player-title">{{
+                            activeDetail()?.playback?.title
+                        }}</span>
+                        <button
+                            mat-icon-button
+                            (click)="onClose()"
+                            class="close-btn"
+                        >
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    </div>
                 }
+                <div class="epg-content">
+                    @if (isM3uSelection()) {
+                        <app-epg-list
+                            [controlledChannel]="currentM3uChannel()"
+                            [controlledPrograms]="currentM3uPrograms()"
+                        />
+                    } @else {
+                        <app-epg-view [epgItems]="currentPortalEpgItems()" />
+                    }
+                </div>
             </div>
-        </div>
+        }
     </div>
 } @else {
     <div class="full-list">

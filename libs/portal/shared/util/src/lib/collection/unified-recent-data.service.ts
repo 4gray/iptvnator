@@ -390,6 +390,7 @@ export class UnifiedRecentDataService {
                     logo: channel.tvg?.logo ?? recentItem.poster_url ?? null,
                     streamUrl: channel.url,
                     channelId: channel.id,
+                    radio: channel.radio,
                     tvgId:
                         channel.tvg?.id ||
                         recentItem.tvg_id ||

@@ -23,6 +23,10 @@
 .video-player {
     background: #000;
 
+    &:has(> app-audio-player) {
+        background: var(--mat-sys-surface);
+    }
+
     > app-audio-player,
     > app-vjs-player,
     > app-html-video-player,

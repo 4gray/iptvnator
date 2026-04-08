@@ -1,123 +1,299 @@
+// ─── Radio Player — cinematic hero layout ────────────────────────────────────
+// Mirrors the content-hero/vod-details pattern: blurred backdrop, vignette,
+// floating artwork + controls centred in the available space.
+
 :host {
-    display: flex;
-    justify-content: center;
-    margin: 20px 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
-#audio-player {
+// ─── Hero container ──────────────────────────────────────────────────────────
+.radio-hero {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--mat-sys-surface);
+}
+
+// ─── Blurred backdrop (station logo, blown up) ──────────────────────────────
+.backdrop {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(60px) saturate(1.4) brightness(0.7);
+    transform: scale(1.6);
+    opacity: 0.55;
+    z-index: 0;
+}
+
+// ─── Vignette overlay (matches content-hero pattern) ─────────────────────────
+.vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        radial-gradient(
+            ellipse 80% 70% at 50% 40%,
+            transparent 0%,
+            var(--mat-sys-surface) 100%
+        );
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            to bottom,
+            transparent 0%,
+            color-mix(in srgb, var(--mat-sys-surface) 40%, transparent) 50%,
+            var(--mat-sys-surface) 85%
+        );
+    }
+}
+
+// ─── Floating content stage ──────────────────────────────────────────────────
+.stage {
+    position: relative;
+    z-index: 2;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    align-items: center;
-}
-
-.radio-logo {
-    border-radius: 14px;
-    height: 300px;
-    width: 300px;
-    display: flex;
     align-items: center;
     justify-content: center;
+    height: 100%;
+    gap: 20px;
+    padding: 32px 24px;
+    box-sizing: border-box;
+    animation: fadeUp 0.5s ease-out both;
+}
+
+// ─── Artwork card ────────────────────────────────────────────────────────────
+.artwork {
+    max-width: 220px;
+    max-height: 220px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: var(--mat-sys-surface-container);
+    box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.22),
+        0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: box-shadow 0.4s ease, transform 0.4s ease;
+    flex-shrink: 0;
+
+    &.is-playing {
+        animation: artwork-pulse 3s ease-in-out infinite;
+        transform: translateY(-2px);
+    }
 
     img {
-        max-width: 300px;
-        max-height: 300px;
+        display: block;
+        max-width: 220px;
+        max-height: 220px;
+        width: auto;
+        height: auto;
     }
 }
 
-.volume-panel {
+// Fallback keeps a fixed square since there's no image to dictate size
+.artwork-fallback {
+    width: 200px;
+    height: 200px;
     display: flex;
-    align-self: center;
     align-items: center;
-
-    input {
-        flex: 1;
-    }
-}
-
-.controls {
-    height: 100px;
-    align-items: center;
-    display: flex;
-    gap: 8px;
     justify-content: center;
+    background: linear-gradient(
+        145deg,
+        var(--mat-sys-surface-container) 0%,
+        var(--app-selection-surface) 100%
+    );
+
+    mat-icon {
+        font-size: 64px;
+        width: 64px;
+        height: 64px;
+        color: var(--app-selection-color, var(--mat-sys-primary));
+        opacity: 0.5;
+    }
 }
 
-.playing {
-    width: 36px;
-    height: 36px;
-    border-radius: 0.3rem;
+// ─── Station name ────────────────────────────────────────────────────────────
+.station-name {
+    margin: 4px 0 0;
+    font-family: 'DM Sans', sans-serif;
+    font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    color: var(--mat-sys-on-surface);
+    text-align: center;
+    max-width: 380px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+}
+
+// ─── Live / Paused badge ─────────────────────────────────────────────────────
+.station-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mat-sys-on-surface-variant);
+    padding: 3px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    background: color-mix(in srgb, var(--mat-sys-surface-container) 60%, transparent);
+    backdrop-filter: blur(6px);
+
+    &.live {
+        color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
+        border-color: color-mix(in srgb, var(--radio-accent, var(--app-selection-color)) 52%, transparent);
+        background: color-mix(in srgb, var(--radio-accent, var(--app-selection-color)) 14%, transparent);
+    }
+}
+
+.pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse-ring 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.5; transform: scale(1.6); }
+}
+
+// ─── Transport controls ──────────────────────────────────────────────────────
+.transport {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    padding: 0.5rem;
-    box-sizing: border-box;
+    align-items: center;
+    gap: 24px;
+    margin-top: 4px;
 }
 
-.playing-bar {
-    display: inline-block;
-    background: white;
-    width: 30%;
-    height: 100%;
-    animation: up-and-down 1.3s ease infinite alternate;
-}
+.skip-btn {
+    color: var(--mat-sys-on-surface-variant);
+    transition: color 0.15s ease, transform 0.15s ease;
 
-.playing-bar-stopped {
-    display: inline-block;
-    background: white;
-    width: 30%;
-    height: 100%;
-}
-
-.playing-bar1 {
-    height: 60%;
-}
-
-.playing-bar2 {
-    height: 30%;
-    animation-delay: -2.2s;
-}
-
-.playing-bar3 {
-    height: 75%;
-    animation-delay: -3.7s;
-}
-
-@keyframes up-and-down {
-    10% {
-        height: 30%;
+    &:hover {
+        color: var(--mat-sys-on-surface);
+        transform: scale(1.08);
     }
 
-    30% {
-        height: 100%;
-    }
-
-    60% {
-        height: 50%;
-    }
-
-    80% {
-        height: 75%;
-    }
-
-    100% {
-        height: 60%;
+    mat-icon {
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
     }
 }
 
-.icon-button-large {
-    transform: scale(2);
-    margin: 0 20px;
+.play-btn {
+    --mdc-fab-container-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
+    --mat-fab-container-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
+    --mdc-fab-icon-color: #fff;
+    --mat-fab-foreground-color: #fff;
+    --mat-fab-icon-color: #fff;
+    --mat-fab-container-shape: 50%;
+    --mdc-fab-container-shape: 50%;
+    box-shadow: none !important;
+    transition: transform 0.2s ease;
+
+    &:hover {
+        transform: scale(1.06);
+    }
+
+    mat-icon {
+        font-size: 32px;
+        width: 32px;
+        height: 32px;
+    }
 }
 
+// ─── Volume row ──────────────────────────────────────────────────────────────
+.volume-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    width: 200px;
+    margin-top: 4px;
+}
+
+.vol-icon {
+    flex-shrink: 0;
+    color: var(--mat-sys-on-surface-variant);
+    transform: scale(0.8);
+}
+
+.vol-slider {
+    flex: 1;
+    --mdc-slider-active-track-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
+    --mdc-slider-handle-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
+    --mat-slider-active-track-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
+    --mat-slider-handle-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
+    --mdc-slider-inactive-track-color: var(--mat-sys-outline-variant);
+    --mdc-slider-handle-width: 12px;
+    --mdc-slider-handle-height: 12px;
+}
+
+// ─── Entrance ────────────────────────────────────────────────────────────────
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes artwork-pulse {
+    0%, 100% {
+        box-shadow:
+            0 8px 40px rgba(0, 0, 0, 0.22),
+            0 0 0 1px color-mix(in srgb, var(--radio-accent, var(--app-selection-color)) 22%, transparent),
+            0 0 32px color-mix(in srgb, var(--radio-accent, var(--app-selection-color)) 34%, transparent);
+    }
+    50% {
+        box-shadow:
+            0 12px 56px rgba(0, 0, 0, 0.3),
+            0 0 0 1px color-mix(in srgb, var(--radio-accent, var(--app-selection-color)) 52%, transparent),
+            0 0 64px color-mix(in srgb, var(--radio-accent, var(--app-selection-color)) 34%, transparent);
+    }
+}
+
+// ─── Responsive ──────────────────────────────────────────────────────────────
 @media only screen and (max-width: 599px) {
-    .radio-logo {
-        height: 200px;
-        width: 200px;
+    .artwork {
+        max-width: 160px;
+        max-height: 160px;
+        border-radius: 14px;
 
-        img {
-            max-width: 200px;
-            max-height: 200px;
-        }
+        img { max-width: 160px; max-height: 160px; }
     }
+
+    .artwork-fallback { width: 160px; height: 160px; }
+    .stage { gap: 16px; padding: 24px 16px; }
+    .transport { gap: 18px; }
+}
+
+@media only screen and (max-height: 480px) {
+    .artwork {
+        max-width: 120px;
+        max-height: 120px;
+        border-radius: 12px;
+
+        img { max-width: 120px; max-height: 120px; }
+    }
+
+    .artwork-fallback { width: 120px; height: 120px; }
+
+    .stage { gap: 10px; padding: 16px 12px; }
+    .station-name { font-size: 1rem; }
 }

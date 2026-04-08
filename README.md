@@ -21,38 +21,39 @@ The application is a cross-platform, open-source project built with Electron and
 
 ## Features
 
--   M3u and M3u8 playlist support 📺
--   Xtream Code (XC) and Stalker portal (STB) support
--   External player support - MPV, VLC
--   Add playlists from the file system or remote URLs 📂
--   Automatic playlist updates on application startup
--   Channel search functionality 🔍
--   EPG support (TV Guide) with detailed information
--   TV archive/catchup/timeshift functionality
--   Group-based channel list
--   Favorite channels management
--   Global favorites aggregated from all playlists
--   HTML video player with HLS.js support or Video.js-based player
--   Internationalization with support for 16 languages:
-    * Arabic
-    * Moroccan arabic
-    * English
-    * Russian
-    * German
-    * Korean
-    * Spanish
-    * Chinese
-    * Traditional chinese
-    * French
-    * Italian
-    * Turkish
-    * Japanese
-    * Dutch
-    * Belarusian
-    * Polish  
--   Custom "User Agent" header configuration for playlists
--   Light and Dark themes
--   Docker version available for self-hosting
+- M3u and M3u8 playlist support 📺
+- Radio playlist support with dedicated audio player 📻
+- Xtream Code (XC) and Stalker portal (STB) support
+- External player support - MPV, VLC
+- Add playlists from the file system or remote URLs 📂
+- Automatic playlist updates on application startup
+- Channel search functionality 🔍
+- EPG support (TV Guide) with detailed information
+- TV archive/catchup/timeshift functionality
+- Group-based channel list
+- Favorite channels management
+- Global favorites aggregated from all playlists
+- HTML video player with HLS.js support or Video.js-based player
+- Internationalization with support for 16 languages:
+    - Arabic
+    - Moroccan arabic
+    - English
+    - Russian
+    - German
+    - Korean
+    - Spanish
+    - Chinese
+    - Traditional chinese
+    - French
+    - Italian
+    - Turkish
+    - Japanese
+    - Dutch
+    - Belarusian
+    - Polish
+- Custom "User Agent" header configuration for playlists
+- Light and Dark themes
+- Docker version available for self-hosting
 
 ## Screenshots:
 
@@ -112,7 +113,7 @@ sudo emerge iptvnator-bin
 
 ### macOS: "App is damaged and can't be opened"
 
-Due to Apple's Gatekeeper security and code signing requirements, you may need to remove the quarantine flag from the downloaded application:
+Older unsigned macOS builds may require removing the quarantine flag from the downloaded application:
 
 ```bash
 xattr -c /Applications/IPTVnator.app
@@ -148,14 +149,14 @@ sudo chmod 4755 chrome-sandbox
 Edit the desktop launcher file to add the `--no-sandbox` flag:
 
 1. Find your desktop file location:
-   - **Ubuntu/Debian**: `~/.local/share/applications/iptvnator.desktop`
-   - **System-wide**: `/usr/share/applications/iptvnator.desktop`
+    - **Ubuntu/Debian**: `~/.local/share/applications/iptvnator.desktop`
+    - **System-wide**: `/usr/share/applications/iptvnator.desktop`
 
 2. Edit the file and modify the `Exec` line:
 
-   ```
-   Exec=iptvnator --no-sandbox %U
-   ```
+    ```
+    Exec=iptvnator --no-sandbox %U
+    ```
 
 3. Save the file and relaunch the application from your application menu.
 
@@ -169,7 +170,7 @@ iptvnator --no-sandbox
 
 Requirements:
 
--   Node.js with pnpm (via Corepack)
+- Node.js with pnpm (via Corepack)
 
 1. Clone this repository and install project dependencies:
 
@@ -184,6 +185,51 @@ Requirements:
     ```
 
 This will open the Electron app in a separate window, while the Angular dev server will run at http://localhost:4200.
+
+The equivalent Nx command is:
+
+```
+$ nx serve electron-backend
+```
+
+If you need to debug renderer freezes or GPU/compositor issues in Electron, you
+can disable hardware acceleration for a run:
+
+```
+$ IPTVNATOR_DISABLE_HARDWARE_ACCELERATION=1 pnpm run serve:backend
+```
+
+If you need startup diagnostics for a white screen or a frozen route, you can
+also turn on opt-in Electron tracing. These logs are written to the Electron
+terminal output so they still help when the renderer DevTools never open:
+
+```
+$ IPTVNATOR_TRACE_STARTUP=1 pnpm run serve:backend
+```
+
+Nx equivalent:
+
+```
+$ IPTVNATOR_TRACE_STARTUP=1 nx serve electron-backend
+```
+
+Useful narrower flags:
+
+- `IPTVNATOR_TRACE_IPC=1` logs renderer `window.electron.*` calls reaching the
+  Electron bridge
+- `IPTVNATOR_TRACE_DB=1` logs DB worker requests and request-scoped DB events
+- `IPTVNATOR_TRACE_SQL=1` logs SQLite statements in both the main connection and
+  DB worker connection
+- `IPTVNATOR_TRACE_WINDOW=1` logs BrowserWindow load, navigation, and
+  unresponsive events
+- `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console messages into
+  the Electron terminal output
+
+If the local Nx daemon gets into a bad state before rerunning Electron, reset it:
+
+```
+$ pnpm nx reset
+```
 
 To run only the Angular app without Electron, use:
 

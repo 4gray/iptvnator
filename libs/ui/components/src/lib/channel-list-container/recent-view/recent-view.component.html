@@ -14,6 +14,7 @@
                 "
                 [logo]="item.channel?.tvg?.logo"
                 [showEpg]="shouldShowEpg()"
+                [isRadio]="item.channel?.radio === 'true'"
                 [epgProgram]="item.epgProgram"
                 [progressPercentage]="item.progressPercentage"
                 [selected]="activeChannelUrl() === item.channel?.url"

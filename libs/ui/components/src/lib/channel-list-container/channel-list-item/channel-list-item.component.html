@@ -48,7 +48,7 @@
                             formatTime(program.stop, program.stopTimestamp)
                         }}</span>
                     </div>
-                } @else {
+                } @else if (!isRadio()) {
                     <div class="epg-placeholder">
                         {{ 'EPG.NO_PROGRAM_INFO' | translate }}
                     </div>

@@ -723,7 +723,7 @@ export class StreamResolverService {
                 'user-agent': '',
                 origin: '',
             },
-            radio: 'false',
+            radio: item.radio ?? 'false',
             epgParams: '',
         };
     }

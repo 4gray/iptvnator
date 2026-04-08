@@ -12,6 +12,7 @@ import {
     UnifiedLiveTabComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
+    AudioPlayerComponent,
     ArtPlayerComponent,
     HtmlVideoPlayerComponent,
     VjsPlayerComponent,
@@ -108,6 +109,17 @@ class StubArtPlayerComponent {
     readonly showCaptions = input(false);
 }
 
+@Component({
+    selector: 'app-audio-player',
+    template: '<div class="stub-audio-player"></div>',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class StubAudioPlayerComponent {
+    readonly icon = input('');
+    readonly url = input.required<string>();
+    readonly channelName = input('');
+}
+
 describe('UnifiedLiveTabComponent', () => {
     let fixture: ComponentFixture<UnifiedLiveTabComponent>;
     let component: UnifiedLiveTabComponent;
@@ -157,6 +169,7 @@ describe('UnifiedLiveTabComponent', () => {
             .overrideComponent(UnifiedLiveTabComponent, {
                 remove: {
                     imports: [
+                        AudioPlayerComponent,
                         ArtPlayerComponent,
                         EpgListComponent,
                         EpgViewComponent,
@@ -168,6 +181,7 @@ describe('UnifiedLiveTabComponent', () => {
                 },
                 add: {
                     imports: [
+                        StubAudioPlayerComponent,
                         StubArtPlayerComponent,
                         StubEpgListComponent,
                         StubEpgViewComponent,
@@ -294,6 +308,59 @@ describe('UnifiedLiveTabComponent', () => {
 
         pendingPrograms.resolve([buildProgram('M3U Show')]);
         await fixture.whenStable();
+    });
+
+    it('renders inline audio for M3U radio items and skips external playback', async () => {
+        const item = {
+            ...buildLiveItem('m3u'),
+            radio: 'true',
+        } satisfies UnifiedCollectionItem;
+        streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
+            epgMode: 'm3u',
+            playback: {
+                streamUrl: 'https://example.com/radio.m3u8',
+                title: 'M3U Radio',
+                thumbnail: 'radio.png',
+            },
+            channel: {
+                id: 'm3u-channel',
+                name: 'M3U Radio',
+                url: 'https://example.com/radio.m3u8',
+                group: { title: 'Radio' },
+                tvg: {
+                    id: 'm3u-channel',
+                    name: 'M3U Radio',
+                    url: '',
+                    logo: 'radio.png',
+                    rec: '',
+                },
+                http: { referrer: '', 'user-agent': '', origin: '' },
+                radio: 'true',
+                epgParams: '',
+            },
+            epgPrograms: [],
+        });
+        recentData.recordLivePlayback.mockResolvedValue({
+            ...item,
+            viewedAt: '2026-03-26T12:00:00.000Z',
+        });
+
+        fixture.componentRef.setInput('items', [item]);
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        await component.onChannelSelected(component.channelsForList()[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
+        expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
+        expect(
+            fixture.nativeElement.querySelector('app-audio-player')
+        ).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
     it('renders shared EPG view for Xtream items and records recent history', async () => {
@@ -434,6 +501,7 @@ function buildLiveItem(
             channelId: 'm3u-channel',
             tvgId: 'm3u-channel',
             logo: 'm3u.png',
+            radio: 'false',
         };
     }
 

@@ -69,4 +69,15 @@ describe('ChannelListItemComponent', () => {
             }),
         ]);
     });
+
+    it('hides the no-program placeholder for radio items without EPG data', () => {
+        fixture.componentRef.setInput('name', 'Radio One');
+        fixture.componentRef.setInput('showEpg', true);
+        fixture.componentRef.setInput('isRadio', true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('.epg-placeholder')
+        ).toBeNull();
+    });
 });

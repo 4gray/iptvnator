@@ -54,7 +54,7 @@ describe('UnifiedFavoritesDataService', () => {
                 rec: '',
             },
             http: { referrer: '', 'user-agent': '', origin: '' },
-            radio: 'false',
+            radio: 'true',
             epgParams: '',
         },
     ];
@@ -229,6 +229,7 @@ describe('UnifiedFavoritesDataService', () => {
             'https://example.com/1.m3u8',
         ]);
         expect(items[1].channelId).toBe('channel-1');
+        expect(items[0].radio).toBe('true');
     });
 
     it('persists M3U playlist reorders through setFavorites', async () => {

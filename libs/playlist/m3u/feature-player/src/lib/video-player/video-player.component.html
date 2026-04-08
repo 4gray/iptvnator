@@ -27,12 +27,13 @@
 
 <div class="content-container">
     @if (activeChannel(); as activeChannel) {
-        @if (shouldShowInlinePlayer(activeChannel)) {
+        @if (activeChannel.radio === 'true' || shouldShowInlinePlayer(activeChannel)) {
             <div class="video-player">
                 @if (activeChannel.radio === 'true') {
                     <app-audio-player
                         [url]="activeChannel.url"
                         [icon]="activeChannel?.tvg?.logo!"
+                        [channelName]="activeChannel.name || activeChannel?.tvg?.name || ''"
                     />
                 } @else {
                     @if (playerSettings.player === 'videojs') {
@@ -69,11 +70,13 @@
             </div>
         }
 
-        <div class="epg">
-            <div class="epg-content">
-                <app-epg-list />
+        @if (activeChannel.radio !== 'true') {
+            <div class="epg">
+                <div class="epg-content">
+                    <app-epg-list />
+                </div>
             </div>
-        </div>
+        }
 
         @if (showChannelNumberOverlay) {
             <div class="channel-number-overlay">

@@ -44,6 +44,7 @@ export class ChannelListItemComponent {
     readonly isFavorite = input(false);
     readonly selected = input(false);
     readonly showEpg = input(true);
+    readonly isRadio = input(false);
     readonly epgProgram = input<EpgProgram | null | undefined>();
     /** Progress percentage pre-computed by parent for performance */
     readonly progressPercentage = input(0);
