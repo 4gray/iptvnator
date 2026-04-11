@@ -1,0 +1,233 @@
+<section mat-dialog-title class="channel-dialog__hero">
+    <div class="channel-dialog__hero-copy">
+        <div class="channel-dialog__eyebrow">
+            <span class="channel-dialog__eyebrow-mark"></span>
+            {{ channel.group?.title || 'M3U' }}
+        </div>
+
+        <div class="channel-dialog__headline-row">
+            <div class="channel-dialog__headline-text">
+                @if (channel.tvg?.logo) {
+                    <img
+                        class="channel-dialog__logo"
+                        [src]="channel.tvg.logo"
+                        [alt]="channel.name"
+                        (error)="logoError = true"
+                        [hidden]="logoError"
+                    />
+                }
+                <div>
+                    <h2 class="channel-dialog__title">{{ channel.name }}</h2>
+                    <p class="channel-dialog__subtitle">
+                        {{ 'CHANNELS.DETAILS_DIALOG.DESCRIPTION' | translate }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="channel-dialog__status-cluster">
+                @if (channel.radio === 'true') {
+                    <span
+                        class="channel-dialog__status-pill channel-dialog__status-pill--radio"
+                    >
+                        {{ 'CHANNELS.DETAILS_DIALOG.RADIO' | translate }}
+                    </span>
+                }
+                @if (catchupAvailable) {
+                    <span
+                        class="channel-dialog__status-pill channel-dialog__status-pill--active"
+                    >
+                        {{ 'CHANNELS.DETAILS_DIALOG.CATCHUP_AVAILABLE' | translate }}
+                    </span>
+                }
+                @if (catchupPlaybackSupported) {
+                    <span
+                        class="channel-dialog__status-pill channel-dialog__status-pill--playback"
+                    >
+                        {{ 'CHANNELS.DETAILS_DIALOG.PLAYBACK_SUPPORTED' | translate }}
+                    </span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="channel-dialog__hero-stats">
+        @for (stat of heroStats; track stat.labelKey) {
+            <article class="channel-stat">
+                <div class="channel-stat__icon">
+                    <mat-icon>{{ stat.icon }}</mat-icon>
+                </div>
+                <div class="channel-stat__label">
+                    {{ stat.labelKey | translate }}
+                </div>
+                <div
+                    class="channel-stat__value"
+                    [class.channel-stat__value--mono]="stat.mono"
+                    [class.channel-stat__value--empty]="stat.empty"
+                >
+                    @if (stat.valueKey) {
+                        {{ stat.valueKey | translate: stat.translateParams }}
+                    } @else {
+                        {{ stat.value }}
+                    }
+                </div>
+            </article>
+        }
+    </div>
+</section>
+
+<mat-dialog-content class="channel-dialog__content">
+    <div class="channel-dialog__grid">
+        <section class="channel-panel">
+            <div class="channel-panel__header">
+                <p class="channel-panel__eyebrow">
+                    {{ 'CHANNELS.DETAILS_DIALOG.SUMMARY' | translate }}
+                </p>
+                <h3>{{ 'CHANNELS.DETAILS_DIALOG.STREAM_URL' | translate }}</h3>
+            </div>
+
+            <div class="channel-dialog__url-block">
+                <code>{{ channel.url }}</code>
+                <button
+                    mat-icon-button
+                    class="channel-dialog__copy-btn"
+                    [cdkCopyToClipboard]="channel.url"
+                >
+                    <mat-icon>content_copy</mat-icon>
+                </button>
+            </div>
+
+            <dl class="channel-detail-list">
+                @for (field of streamFields; track field.labelKey) {
+                    <div class="channel-detail-row">
+                        <dt>{{ field.labelKey | translate }}</dt>
+                        <dd
+                            [class.channel-detail-row__value--mono]="
+                                field.monospace
+                            "
+                            [class.channel-detail-row__value--empty]="
+                                field.empty
+                            "
+                        >
+                            @if (field.valueKey) {
+                                {{
+                                    field.valueKey
+                                        | translate: field.translateParams
+                                }}
+                            } @else {
+                                {{ field.value }}
+                            }
+                        </dd>
+                    </div>
+                }
+            </dl>
+
+            @if (hasTvgData) {
+                <div class="channel-chip-section">
+                    <p class="channel-chip-section__label">
+                        {{ 'CHANNELS.DETAILS_DIALOG.TVG' | translate }}
+                    </p>
+                    <dl class="channel-detail-list">
+                        @for (field of tvgFields; track field.labelKey) {
+                            <div class="channel-detail-row">
+                                <dt>{{ field.labelKey | translate }}</dt>
+                                <dd
+                                    [class.channel-detail-row__value--mono]="
+                                        field.monospace
+                                    "
+                                    [class.channel-detail-row__value--empty]="
+                                        field.empty
+                                    "
+                                >
+                                    @if (field.valueKey) {
+                                        {{
+                                            field.valueKey
+                                                | translate
+                                                    : field.translateParams
+                                        }}
+                                    } @else {
+                                        {{ field.value }}
+                                    }
+                                </dd>
+                            </div>
+                        }
+                    </dl>
+                </div>
+            }
+        </section>
+
+        <section class="channel-panel">
+            <div class="channel-panel__header">
+                <p class="channel-panel__eyebrow">
+                    {{ 'CHANNELS.DETAILS_DIALOG.CATCHUP' | translate }}
+                </p>
+                <h3>
+                    {{ channel.catchup?.type || ('CHANNELS.DETAILS_DIALOG.NOT_AVAILABLE' | translate) }}
+                </h3>
+            </div>
+
+            <dl class="channel-detail-list">
+                @for (field of catchupFields; track field.labelKey) {
+                    <div class="channel-detail-row">
+                        <dt>{{ field.labelKey | translate }}</dt>
+                        <dd
+                            [class.channel-detail-row__value--mono]="
+                                field.monospace
+                            "
+                            [class.channel-detail-row__value--empty]="
+                                field.empty
+                            "
+                        >
+                            @if (field.valueKey) {
+                                {{
+                                    field.valueKey
+                                        | translate: field.translateParams
+                                }}
+                            } @else {
+                                {{ field.value }}
+                            }
+                        </dd>
+                    </div>
+                }
+            </dl>
+
+            @if (hasHttpData) {
+                <div class="channel-chip-section">
+                    <p class="channel-chip-section__label">
+                        {{ 'CHANNELS.DETAILS_DIALOG.HTTP' | translate }}
+                    </p>
+                    <dl class="channel-detail-list">
+                        @for (field of httpFields; track field.labelKey) {
+                            <div class="channel-detail-row">
+                                <dt>{{ field.labelKey | translate }}</dt>
+                                <dd
+                                    [class.channel-detail-row__value--mono]="
+                                        field.monospace
+                                    "
+                                    [class.channel-detail-row__value--empty]="
+                                        field.empty
+                                    "
+                                >
+                                    @if (field.valueKey) {
+                                        {{
+                                            field.valueKey
+                                                | translate
+                                                    : field.translateParams
+                                        }}
+                                    } @else {
+                                        {{ field.value }}
+                                    }
+                                </dd>
+                            </div>
+                        }
+                    </dl>
+                </div>
+            }
+        </section>
+    </div>
+</mat-dialog-content>
+
+<mat-dialog-actions class="channel-dialog__actions">
+    <button mat-stroked-button mat-dialog-close class="channel-dialog__close">
+        {{ 'CLOSE' | translate }}
+    </button>
+</mat-dialog-actions>

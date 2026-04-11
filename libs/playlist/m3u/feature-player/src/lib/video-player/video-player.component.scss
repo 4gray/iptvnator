@@ -8,6 +8,12 @@
 }
 
 .sidebar {
+    > app-channel-list-loading-state {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+
     app-sidebar {
         flex: 1;
         min-height: 0;

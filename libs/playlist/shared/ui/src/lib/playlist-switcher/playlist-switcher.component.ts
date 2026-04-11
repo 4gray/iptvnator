@@ -10,6 +10,7 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatRippleModule } from '@angular/material/core';
@@ -17,10 +18,12 @@ import { MatDivider } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenu, MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
-import { TranslatePipe } from '@ngx-translate/core';
+import { normalizeDateLocale } from '@iptvnator/pipes';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PortalStatus, PortalStatusService } from 'services';
 import { PlaylistMeta } from 'shared-interfaces';
+import { startWith } from 'rxjs';
 
 type PlaylistFilterType = 'm3u' | 'stalker' | 'xtream';
 
@@ -53,7 +56,12 @@ export class PlaylistSwitcherComponent {
     private readonly destroyRef = inject(DestroyRef);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly portalStatusService = inject(PortalStatusService);
+    private readonly translate = inject(TranslateService);
     private focusSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
 
     readonly currentTitle = input.required<string>();
     readonly subtitle = input<string>('');
@@ -116,6 +124,12 @@ export class PlaylistSwitcherComponent {
     });
 
     readonly portalStatuses = signal<Map<string, PortalStatus>>(new Map());
+    readonly currentLocale = computed(() => {
+        this.languageTick();
+        return normalizeDateLocale(
+            this.translate.currentLang || this.translate.defaultLang
+        );
+    });
 
     constructor() {
         this.destroyRef.onDestroy(() => {

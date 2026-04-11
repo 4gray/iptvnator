@@ -23,8 +23,12 @@ export const selectPlaylistId = (state: PlaylistState) =>
 export const selectIsEpgAvailableReducer = (state: PlaylistState) =>
     state.epgAvailable;
 export const selectActiveReducer = (state: PlaylistState) => state.active;
+export const selectActivePlaybackUrlReducer = (state: PlaylistState) =>
+    state.activePlaybackUrl;
 export const selectCurrentEpgProgramReducer = (state: PlaylistState) =>
     state.currentEpgProgram;
+export const selectChannelsLoadingReducer = (state: PlaylistState) =>
+    state.channelsLoading;
 export const selectChannelsReducer = (state: PlaylistState) => state.channels;
 export const selectPlaylistsLoadingFlagReducer = (state: PlaylistState) =>
     state.playlists?.allPlaylistsLoaded;

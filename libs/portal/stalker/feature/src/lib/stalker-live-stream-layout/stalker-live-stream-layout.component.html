@@ -84,18 +84,16 @@
         }
         <div class="epg">
             <div class="epg-content">
-                <app-epg-view [epgItems]="epgItems()" />
                 @if (isLoadingEpg()) {
                     <div class="loading-indicator">
                         <mat-spinner diameter="24" />
                     </div>
-                }
-                @if (hasMoreEpg() && !isLoadingEpg()) {
-                    <div class="load-more-epg">
-                        <button mat-button (click)="loadMoreEpg()">
-                            {{ 'CHANNELS.LOAD_MORE' | translate }}
-                        </button>
-                    </div>
+                } @else {
+                    <app-epg-list
+                        [controlledChannel]="controlledChannel()"
+                        [controlledPrograms]="activeEpgPrograms()"
+                        [controlledArchiveDays]="0"
+                    />
                 }
             </div>
         </div>

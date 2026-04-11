@@ -1,20 +1,26 @@
 <span class="time"
-    >{{ item.start | momentDate: 'HH:mm' }}
+    >{{ (item.startTimestamp ? item.startTimestamp * 1000 : item.start) | date: 'HH:mm' }}
     -
-    {{ item.stop | momentDate: 'HH:mm' }}</span
+    {{ (item.stopTimestamp ? item.stopTimestamp * 1000 : item.stop) | date: 'HH:mm' }}</span
 >
-@if (timeNow >= item.start && timeNow <= item.stop) {
+@if (isLive) {
     <span class="live badge" [matTooltip]="'EPG.LIVE_NOW' | translate"
         >live</span
     >
 }
 
-@if (
-    item.start < timeNow && item.stop < timeNow && item.start > timeshiftUntil
-) {
-    <span class="rec badge" [matTooltip]="'EPG.TIMESHIFT_AVAILABLE' | translate"
-        >r</span
+@if (showArchiveBadge) {
+    <span
+        class="archive-playback badge"
+        [matTooltip]="'EPG.TIMESHIFT_AVAILABLE' | translate"
     >
+        <mat-icon class="archive-playback__icon" aria-hidden="true"
+            >replay</mat-icon
+        >
+        <span class="archive-playback__label"
+            >{{ 'XTREAM.PLAY' | translate }}</span
+        >
+    </span>
 }
 
 @if (item?.desc) {

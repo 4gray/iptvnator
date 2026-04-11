@@ -31,6 +31,7 @@ The application is a cross-platform, open-source project built with Electron and
 - EPG support (TV Guide) with detailed information
 - TV archive/catchup/timeshift functionality
 - Group-based channel list
+- Read-only M3U channel details from the channel context menu
 - Favorite channels management
 - Global favorites aggregated from all playlists
 - HTML video player with HLS.js support or Video.js-based player

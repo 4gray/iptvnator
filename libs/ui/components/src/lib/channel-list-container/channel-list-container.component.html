@@ -1,4 +1,6 @@
-@if (displayedChannels().length) {
+@if (channelsLoading()) {
+    <app-channel-list-loading-state [view]="activeView()" />
+} @else if (displayedChannels().length) {
     @if (viewTitle() && activeView() !== 'groups') {
         <header class="context-header">
             <div class="context-header__top">
@@ -77,8 +79,12 @@
         }
     }
 } @else {
-    <div class="loading-container">
-        <mat-icon class="loading-spinner">sync</mat-icon>
-        <div class="loading-text">{{ 'CHANNELS.LOADING' | translate }}</div>
+    <div class="empty-source-state">
+        <div class="empty-source-state__icon-wrapper">
+            <mat-icon class="empty-source-state__icon">folder_off</mat-icon>
+        </div>
+        <h3 class="empty-source-state__title">
+            {{ 'CHANNELS.NO_CHANNELS_FOUND' | translate }}
+        </h3>
     </div>
 }

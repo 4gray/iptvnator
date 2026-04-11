@@ -31,10 +31,12 @@ describe('app routes', () => {
         expect(favoritesRoute?.data).toEqual({
             mode: 'favorites',
             portalType: 'm3u',
+            defaultScope: 'playlist',
         });
         expect(recentRoute?.data).toEqual({
             mode: 'recent',
             portalType: 'm3u',
+            defaultScope: 'playlist',
         });
 
         expect(typeof favoritesRoute?.loadComponent).toBe('function');

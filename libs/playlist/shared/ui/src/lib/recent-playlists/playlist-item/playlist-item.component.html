@@ -83,11 +83,17 @@
                 {{ 'HOME.PLAYLISTS.CHANNELS' | translate }}: {{ item.count }}
                 @if (item.importDate.length > 3) {
                     | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
-                    {{ item.importDate | date }}
+                    {{ item.importDate | date: undefined : undefined : currentLocale() }}
                 }
                 @if (item.updateDate) {
                     | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
-                    {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
+                    {{
+                        item.updateDate
+                            | date
+                                : 'MMMM d, yyyy, HH:mm'
+                                : undefined
+                                : currentLocale()
+                    }}
                 }
                 @if (item.updateState === 2) {
                     <mat-icon
@@ -107,11 +113,17 @@
                 }
                 @if (item.importDate.length > 3) {
                     | {{ 'HOME.PLAYLISTS.ADDED' | translate }}:
-                    {{ item.importDate | date }}
+                    {{ item.importDate | date: undefined : undefined : currentLocale() }}
                 }
                 @if (item.updateDate) {
                     | {{ 'HOME.PLAYLISTS.UPDATED' | translate }}:
-                    {{ item.updateDate | date: 'MMMM d, yyyy, HH:mm' }}
+                    {{
+                        item.updateDate
+                            | date
+                                : 'MMMM d, yyyy, HH:mm'
+                                : undefined
+                                : currentLocale()
+                    }}
                 }
             }
         </div>

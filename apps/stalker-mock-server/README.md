@@ -67,8 +67,8 @@ All endpoints are served at `GET /portal.php?action=<action>&...` matching the r
 | `get_ordered_list` | Paginated content list; if `movie_id` is present → returns seasons |
 | `create_link` | Returns a real public HLS stream URL for playback |
 | `favorites` | Add / remove / get favorites (in-memory, resets on restart) |
-| `get_short_epg` | EPG program list for a channel (`ch_id`) |
-| `get_epg_info` | Alias for `get_short_epg` |
+| `get_short_epg` | Current-and-upcoming EPG window for a channel (`ch_id`, `size`) |
+| `get_epg_info` | Bulk EPG keyed by channel id for a requested `period` window |
 
 ## Cover Images
 
@@ -99,6 +99,18 @@ nx e2e web-e2e --grep "@stalker"
 
 The test suite uses `00:1A:79:00:00:01` (default scenario) for most tests, and calls `POST /reset` in `beforeEach` to ensure a clean state between tests.
 
+## EPG Behavior
+
+The mock server generates a 7-day EPG schedule for every ITV channel using
+2-hour slots starting at the current UTC day boundary.
+
+- `get_short_epg` returns the current program and upcoming items from that
+  schedule, limited by `size`
+- `get_epg_info` returns bulk data in the shape
+  `{ js: { data: Record<channelId, program[]> } }`
+- `get_epg_info` filters the bulk response from the current UTC day start through
+  `now + period`
+
 ## Architecture
 
 See [`docs/architecture/stalker-mock-server.md`](../../docs/architecture/stalker-mock-server.md) for full implementation details.
@@ -123,6 +135,7 @@ apps/stalker-mock-server/
 │               ├── get-seasons.handler.ts
 │               ├── create-link.handler.ts
 │               ├── favorites.handler.ts
+│               ├── get-epg-info.handler.ts
 │               ├── get-short-epg.handler.ts
 │               └── get-genres.handler.ts
 ├── project.json

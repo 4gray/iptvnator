@@ -1,8 +1,12 @@
-import { Component, inject } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { TranslatePipe } from '@ngx-translate/core';
-import { format, differenceInMinutes } from 'date-fns';
+import { normalizeDateLocale } from '@iptvnator/pipes';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { differenceInMinutes } from 'date-fns';
+import { startWith } from 'rxjs';
 import { EpgProgram } from 'shared-interfaces';
 
 type EpgItemDialogData = EpgProgram & {
@@ -15,14 +19,25 @@ type EpgItemDialogData = EpgProgram & {
     selector: 'app-epg-item-description',
     templateUrl: './epg-item-description.component.html',
     styleUrls: ['./epg-item-description.component.scss'],
-    imports: [MatButtonModule, MatDialogModule, TranslatePipe],
+    imports: [DatePipe, MatButtonModule, MatDialogModule, TranslatePipe],
 })
 export class EpgItemDescriptionComponent {
     dialogData = inject<EpgItemDialogData>(MAT_DIALOG_DATA);
+    private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
 
     epgProgram: EpgProgram;
     channelName: string | null = null;
     duration: string | null = null;
+    readonly currentLocale = computed(() => {
+        this.languageTick();
+        return normalizeDateLocale(
+            this.translate.currentLang || this.translate.defaultLang
+        );
+    });
 
     constructor() {
         this.epgProgram = this.dialogData;
@@ -32,24 +47,6 @@ export class EpgItemDescriptionComponent {
             || this.dialogData.display_name
             || null;
         this.duration = this.calculateDuration();
-    }
-
-    formatTime(dateStr: string): string {
-        if (!dateStr) return '';
-        try {
-            return format(new Date(dateStr), 'HH:mm');
-        } catch {
-            return '';
-        }
-    }
-
-    formatDate(dateStr: string): string {
-        if (!dateStr) return '';
-        try {
-            return format(new Date(dateStr), 'EEEE, MMMM d');
-        } catch {
-            return '';
-        }
     }
 
     private calculateDuration(): string | null {

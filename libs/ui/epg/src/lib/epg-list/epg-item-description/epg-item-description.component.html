@@ -3,11 +3,26 @@
     <header class="program-header">
         <div class="time-block">
             <div class="time-display">
-                <span class="time-start">{{ formatTime(epgProgram.start) }}</span>
+                <span class="time-start">{{
+                    (epgProgram.startTimestamp
+                        ? epgProgram.startTimestamp * 1000
+                        : epgProgram.start
+                    ) | date: 'HH:mm'
+                }}</span>
                 <span class="time-separator">—</span>
-                <span class="time-end">{{ formatTime(epgProgram.stop) }}</span>
+                <span class="time-end">{{
+                    (epgProgram.stopTimestamp
+                        ? epgProgram.stopTimestamp * 1000
+                        : epgProgram.stop
+                    ) | date: 'HH:mm'
+                }}</span>
             </div>
-            <div class="date-display">{{ formatDate(epgProgram.start) }}</div>
+            <div class="date-display">{{
+                (epgProgram.startTimestamp
+                    ? epgProgram.startTimestamp * 1000
+                    : epgProgram.start
+                ) | date: 'EEEE, MMMM d' : undefined : currentLocale()
+            }}</div>
         </div>
         @if (channelName) {
             <div class="channel-badge">

@@ -17,9 +17,19 @@ export const selectActive = createSelector(
     fromPlaylistState.selectActiveReducer
 );
 
+export const selectActivePlaybackUrl = createSelector(
+    selectPlaylistState,
+    fromPlaylistState.selectActivePlaybackUrlReducer
+);
+
 export const selectCurrentEpgProgram = createSelector(
     selectPlaylistState,
     fromPlaylistState.selectCurrentEpgProgramReducer
+);
+
+export const selectChannelsLoading = createSelector(
+    selectPlaylistState,
+    fromPlaylistState.selectChannelsLoadingReducer
 );
 
 export const selectChannels = createSelector(

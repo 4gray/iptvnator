@@ -264,6 +264,23 @@ describe('UnifiedCollectionPageComponent', () => {
         );
     });
 
+    it('prefers the route default scope over the persisted collection scope', async () => {
+        setRouteParams({ id: 'playlist-1' });
+        playlistsLoaded.set(true);
+        fixture.componentRef.setInput('portalType', 'm3u');
+        fixture.componentRef.setInput('defaultScope', 'playlist');
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(favoritesData.getFavorites).toHaveBeenCalledTimes(1);
+        expect(favoritesData.getFavorites).toHaveBeenLastCalledWith(
+            'playlist',
+            'playlist-1',
+            'm3u'
+        );
+    });
+
     it('does not reload when local item state changes on empty playlist favorites', async () => {
         setRouteParams({ id: 'playlist-1' });
         setRouteQueryParams({ scope: 'playlist' });

@@ -87,6 +87,43 @@
                             {{ group.count === 1 ? 'item' : 'items' }}
                         </span>
                     </div>
+                    <button
+                        mat-icon-button
+                        [matMenuTriggerFor]="channelSortMenu"
+                        [matTooltip]="'Sort: ' + groupChannelSortLabel()"
+                        aria-label="Sort channels"
+                    >
+                        <mat-icon>sort_by_alpha</mat-icon>
+                    </button>
+                    <mat-menu #channelSortMenu="matMenu">
+                        <button
+                            mat-menu-item
+                            (click)="setGroupChannelSortMode('server')"
+                        >
+                            <span>Server Order</span>
+                            @if (groupChannelSortMode() === 'server') {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                        <button
+                            mat-menu-item
+                            (click)="setGroupChannelSortMode('name-asc')"
+                        >
+                            <span>Name A-Z</span>
+                            @if (groupChannelSortMode() === 'name-asc') {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                        <button
+                            mat-menu-item
+                            (click)="setGroupChannelSortMode('name-desc')"
+                        >
+                            <span>Name Z-A</span>
+                            @if (groupChannelSortMode() === 'name-desc') {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                    </mat-menu>
                 </header>
 
                 <cdk-virtual-scroll-viewport
@@ -108,6 +145,7 @@
                         "
                         [logo]="channel?.tvg?.logo"
                         [showEpg]="shouldShowEpg()"
+                        [showDetailsContextMenu]="true"
                         [isRadio]="channel?.radio === 'true'"
                         [epgProgram]="channel.epgProgram"
                         [progressPercentage]="channel.progressPercentage"
@@ -119,6 +157,9 @@
                                 : false
                         "
                         (clicked)="onChannelClick(channel)"
+                        (contextMenuRequested)="
+                            onChannelContextMenu(channel, $event)
+                        "
                         (favoriteToggled)="onFavoriteToggle(channel, $event)"
                     />
                 </cdk-virtual-scroll-viewport>
@@ -126,3 +167,19 @@
         </section>
     </div>
 }
+
+<div
+    aria-hidden="true"
+    class="channel-context-menu-anchor"
+    [style.left]="contextMenuPosition().x"
+    [style.top]="contextMenuPosition().y"
+    [matMenuTriggerFor]="channelContextMenu"
+    #contextMenuTrigger="matMenuTrigger"
+></div>
+
+<mat-menu #channelContextMenu="matMenu">
+    <button mat-menu-item (click)="openChannelDetails()">
+        <mat-icon>info</mat-icon>
+        <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
+    </button>
+</mat-menu>

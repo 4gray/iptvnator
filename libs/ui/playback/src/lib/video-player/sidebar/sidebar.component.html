@@ -19,6 +19,7 @@
 
 <app-channel-list-container
     [channelList]="channels()"
+    [channelsLoading]="channelsLoading()"
     [activeView]="activeView()"
     [recentItems]="activePlaylist()?.recentlyViewed ?? []"
     [sidebarWidth]="sidebarWidth()"

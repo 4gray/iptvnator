@@ -138,7 +138,15 @@ See full backend and web-remote flow in [Remote Control Architecture](./remote-c
 
 ## EPG Integration
 
-EPG in Stalker ITV uses `get_short_epg` and shared `EpgViewComponent`. Full details are documented in [Stalker Portal EPG Architecture](./stalker-epg.md).
+Stalker ITV now splits EPG usage:
+
+- active channel panel: bulk `get_epg_info` cached once per playlist and rendered
+  through shared `app-epg-list`
+- channel row preview: no pre-playback network requests; previews are derived
+  from cached bulk EPG only after the first active-channel fetch succeeds
+- active panel fallback: `get_short_epg` when bulk EPG is missing or unsupported
+
+Full details are documented in [Stalker Portal EPG Architecture](./stalker-epg.md).
 
 ## Shared/Reusable Infrastructure
 

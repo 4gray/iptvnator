@@ -26,4 +26,11 @@ export interface ParsedPlaylistItem {
     };
     url: string;
     raw: string;
+    catchup?: {
+        type?: string;
+        source?: string;
+        days?: string;
+    };
+    timeshift?: string;
+    radio?: string;
 }

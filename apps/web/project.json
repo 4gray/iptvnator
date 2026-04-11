@@ -4,6 +4,11 @@
     "projectType": "application",
     "prefix": "app",
     "sourceRoot": "apps/web/src",
+    "cli": {
+        "cache": {
+            "enabled": false
+        }
+    },
     "tags": ["scope:app", "type:app"],
     "targets": {
         "build": {
@@ -30,7 +35,6 @@
                 "allowedCommonJsDependencies": [
                     "qrcode",
                     "iptv-playlist-parser",
-                    "moment",
                     "mpegts.js",
                     "videojs-contrib-quality-levels",
                     "videojs-quality-selector-hls",

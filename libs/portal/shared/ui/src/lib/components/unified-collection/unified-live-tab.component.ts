@@ -12,6 +12,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { isM3uCatchupPlaybackSupported } from 'm3u-utils';
 import {
     matchesOpenLiveCollectionItem,
     OpenLiveCollectionItemState,
@@ -106,6 +107,9 @@ export class UnifiedLiveTabComponent {
 
         return detail.channel ?? null;
     });
+    readonly currentM3uArchivePlaybackAvailable = computed(() =>
+        isM3uCatchupPlaybackSupported(this.currentM3uChannel())
+    );
     readonly activeRadioChannel = computed(() => {
         const channel = this.currentM3uChannel();
         return channel?.radio === 'true' ? channel : null;

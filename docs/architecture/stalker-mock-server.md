@@ -152,9 +152,9 @@ The stream URL is selected from a pool of 4 real public HLS test streams. The ch
         "id": "1",
         "name": "Channel Name: Program Title",
         "start": "2026-02-21T10:00:00.000Z",
-        "stop": "2026-02-21T10:30:00.000Z",
+        "stop": "2026-02-21T12:00:00.000Z",
         "start_timestamp": 1740128400,
-        "stop_timestamp": 1740130200,
+        "stop_timestamp": 1740135600,
         "descr": "...",
         "category": "News"
       }
@@ -163,7 +163,37 @@ The stream URL is selected from a pool of 4 real public HLS test streams. The ch
 }
 ```
 
-EPG programs are generated as 30-minute slots spanning 3 hours past to 3 hours future relative to the time of generation.
+`get_short_epg` returns the current program and upcoming items from the
+generated schedule, limited by the requested `size`.
+
+### `get_epg_info`
+
+```json
+{
+  "js": {
+    "data": {
+      "10000": [
+        {
+          "id": "1",
+          "name": "Channel Name: Program Title",
+          "start": "2026-02-21T10:00:00.000Z",
+          "stop": "2026-02-21T12:00:00.000Z",
+          "start_timestamp": 1740128400,
+          "stop_timestamp": 1740135600,
+          "descr": "...",
+          "category": "News"
+        }
+      ]
+    }
+  }
+}
+```
+
+`get_epg_info` returns bulk EPG keyed by channel id and filters the generated
+7-day schedule from the current UTC day start through `now + period`.
+
+EPG programs are generated as 2-hour slots across 7 days for each channel,
+starting at the current UTC day boundary.
 
 ## Scenarios
 

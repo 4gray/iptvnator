@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
+import { resolveM3uCatchupUrl } from 'm3u-utils';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -19,6 +20,7 @@ import { DataService, PlaylistsService } from 'services';
 import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
+    Channel,
     Playlist,
     STORE_KEY,
     VideoPlayer,
@@ -35,6 +37,7 @@ import {
     selectChannels,
     selectFavorites,
 } from './selectors';
+import { buildExternalPlayerPayload } from './external-player-payload.util';
 
 @Injectable({ providedIn: 'any' })
 export class PlaylistEffects {
@@ -91,45 +94,48 @@ export class PlaylistEffects {
         }
     );
 
-    setActiveEpgProgram$ = createEffect(
+    resolveActiveEpgProgram$ = createEffect(() => {
+        return this.actions$.pipe(
+            ofType(EpgActions.setActiveEpgProgram),
+            withLatestFrom(this.store.select(selectActive)),
+            map(([action, activeChannel]) => {
+                const playbackUrl = activeChannel
+                    ? resolveM3uCatchupUrl(activeChannel, action.program)
+                    : null;
+
+                return playbackUrl
+                    ? EpgActions.setActivePlaybackUrl({ playbackUrl })
+                    : EpgActions.resetActiveEpgProgram();
+            })
+        );
+    });
+
+    openArchivedPlayback$ = createEffect(
         () => {
             return this.actions$.pipe(
-                ofType(EpgActions.setActiveEpgProgram),
+                ofType(EpgActions.setActivePlaybackUrl),
                 withLatestFrom(this.store.select(selectActive)),
-                map(([, activeChannel]) => {
-                    firstValueFrom(this.storage.get(STORE_KEY.Settings)).then(
-                        (settings: any) => {
-                            if (
-                                settings &&
-                                Object.keys(settings).length > 0 &&
-                                settings.player === VideoPlayer.MPV
-                            )
-                                this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
-                                    url:
-                                        activeChannel?.url +
-                                        (activeChannel?.epgParams ?? ''),
-                                    title: activeChannel?.name ?? '',
-                                    'user-agent':
-                                        activeChannel?.http?.['user-agent'],
-                                    referer: activeChannel?.http?.referrer,
-                                    origin: activeChannel?.http?.origin,
-                                });
-                            else if (
-                                settings &&
-                                Object.keys(settings).length > 0 &&
-                                settings.player === VideoPlayer.VLC
-                            )
-                                this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
-                                    url:
-                                        activeChannel?.url +
-                                        (activeChannel?.epgParams ?? ''),
-                                    title: activeChannel?.name ?? '',
-                                    'user-agent':
-                                        activeChannel?.http?.['user-agent'],
-                                    referer: activeChannel?.http?.referrer,
-                                    origin: activeChannel?.http?.origin,
-                                });
-                        }
+                tap(([action, activeChannel]) => {
+                    void this.openWithConfiguredExternalPlayer(
+                        action.playbackUrl,
+                        activeChannel
+                    );
+                })
+            );
+        },
+        { dispatch: false }
+    );
+
+    returnToLivePlayback$ = createEffect(
+        () => {
+            return this.actions$.pipe(
+                ofType(EpgActions.returnToLivePlayback),
+                withLatestFrom(this.store.select(selectActive)),
+                filter(([, activeChannel]) => Boolean(activeChannel?.url)),
+                tap(([, activeChannel]) => {
+                    void this.openWithConfiguredExternalPlayer(
+                        activeChannel?.url ?? '',
+                        activeChannel
                     );
                 })
             );
@@ -211,6 +217,32 @@ export class PlaylistEffects {
             )
         );
     });
+
+    private async openWithConfiguredExternalPlayer(
+        playbackUrl: string,
+        activeChannel: Channel | undefined | null
+    ): Promise<void> {
+        const payload = buildExternalPlayerPayload(activeChannel, playbackUrl);
+        if (!payload) {
+            return;
+        }
+
+        const settings: any = await firstValueFrom(
+            this.storage.get(STORE_KEY.Settings)
+        );
+        if (!settings || Object.keys(settings).length === 0) {
+            return;
+        }
+
+        if (settings.player === VideoPlayer.MPV) {
+            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, payload);
+            return;
+        }
+
+        if (settings.player === VideoPlayer.VLC) {
+            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, payload);
+        }
+    }
 
     removePlaylist$ = createEffect(
         () => {

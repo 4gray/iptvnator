@@ -56,6 +56,7 @@ import {
     RecentViewComponent,
     RecentViewItem,
 } from './recent-view/recent-view.component';
+import { ChannelListLoadingStateComponent } from '../channel-list-loading-state/channel-list-loading-state.component';
 
 function groupChannelsByTitle(channels: Channel[]): Record<string, Channel[]> {
     return channels.reduce<Record<string, Channel[]>>((groups, channel) => {
@@ -75,6 +76,7 @@ function groupChannelsByTitle(channels: Channel[]): Record<string, Channel[]> {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         AllChannelsViewComponent,
+        ChannelListLoadingStateComponent,
         CommonModule,
         FavoritesViewComponent,
         GroupsViewComponent,
@@ -113,6 +115,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Active view (all, groups, favorites, recent) */
     readonly activeView = input<string>('all');
+    readonly channelsLoading = input(false);
     readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
     readonly sidebarWidth = input<number | null>(null);
     readonly sidebarWidthRequested = output<number>();
@@ -281,7 +284,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.store.dispatch(ChannelActions.resetActiveChannel());
-        this.store.dispatch(ChannelActions.setChannels({ channels: [] }));
 
         if (this.epgRefreshInterval) {
             clearInterval(this.epgRefreshInterval);

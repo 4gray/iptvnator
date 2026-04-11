@@ -173,6 +173,13 @@ test('@stalker minimal scenario — correct item counts', async ({ page }) => {
 test('@stalker EPG data loads for ITV channel', async ({ page }) => {
     await addStalkerPortal(page);
 
+    const shortEpgRequests: string[] = [];
+    page.on('request', (request) => {
+        if (request.url().includes('action=get_short_epg')) {
+            shortEpgRequests.push(request.url());
+        }
+    });
+
     // Navigate to ITV tab
     await page.getByRole('link', { name: /live|itv/i }).click();
     await page.waitForURL(/stalker.*itv/);
@@ -184,14 +191,61 @@ test('@stalker EPG data loads for ITV channel', async ({ page }) => {
 
     // Wait for channels to appear
     const channels = page.locator('[data-test-id="channel-item"]');
-    await expect(channels.first()).toBeVisible({ timeout: 10_000 });
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    expect(shortEpgRequests).toHaveLength(0);
 
     // Click a channel — EPG info should appear
     await channels.first().click();
-    await expect(channels.first()).toHaveClass(/active/, { timeout: 10_000 });
-    await expect(page.locator('main app-epg-view')).toBeVisible({
-        timeout: 10_000,
+    await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
+    await expect(page.locator('app-epg-list')).toBeVisible({
+        timeout: 20_000,
     });
+    await expect(page.locator('app-epg-list .selected-date')).toBeVisible({
+        timeout: 20_000,
+    });
+});
+
+test('@stalker bulk EPG is fetched once and reused across channel switches', async ({
+    page,
+}) => {
+    await addStalkerPortal(page);
+
+    const epgInfoRequests: string[] = [];
+    const shortEpgRequests: string[] = [];
+    page.on('request', (request) => {
+        if (request.url().includes('action=get_epg_info')) {
+            epgInfoRequests.push(request.url());
+        }
+        if (request.url().includes('action=get_short_epg')) {
+            shortEpgRequests.push(request.url());
+        }
+    });
+
+    await page.getByRole('link', { name: /live|itv/i }).click();
+    await page.waitForURL(/stalker.*itv/);
+
+    const categories = page.locator('.category-item');
+    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+
+    const channels = page.locator('[data-test-id="channel-item"]');
+    await expect(channels.nth(1)).toBeVisible({ timeout: 20_000 });
+    expect(shortEpgRequests).toHaveLength(0);
+
+    await channels.first().click();
+    await expect(page.locator('app-epg-list')).toBeVisible({
+        timeout: 20_000,
+    });
+    await expect
+        .poll(() => epgInfoRequests.length, { timeout: 20_000 })
+        .toBe(1);
+
+    await channels.nth(1).click();
+    await expect(channels.nth(1)).toHaveClass(/active/, { timeout: 20_000 });
+    await expect
+        .poll(() => epgInfoRequests.length, { timeout: 20_000 })
+        .toBe(1);
+    expect(shortEpgRequests).toHaveLength(0);
 });
 
 test('@stalker mock server reset clears cached state', async ({ request }) => {

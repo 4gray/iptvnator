@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
@@ -7,8 +8,13 @@ import { ChannelListItemComponent } from './channel-list-item.component';
 
 describe('ChannelListItemComponent', () => {
     let fixture: ComponentFixture<ChannelListItemComponent>;
+    let dialog: { open: jest.Mock };
 
     beforeEach(async () => {
+        dialog = {
+            open: jest.fn(),
+        };
+
         await TestBed.configureTestingModule({
             imports: [
                 ChannelListItemComponent,
@@ -18,9 +24,7 @@ describe('ChannelListItemComponent', () => {
             providers: [
                 {
                     provide: MatDialog,
-                    useValue: {
-                        open: jest.fn(),
-                    },
+                    useValue: dialog,
                 },
             ],
         }).compileComponents();
@@ -55,18 +59,11 @@ describe('ChannelListItemComponent', () => {
             fixture.nativeElement.querySelectorAll('.epg-time'),
             (element: Element) => element.textContent?.trim() ?? ''
         );
+        const datePipe = new DatePipe('en-US');
 
         expect(times).toEqual([
-            new Date(startTimestamp * 1000).toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false,
-            }),
-            new Date(stopTimestamp * 1000).toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false,
-            }),
+            datePipe.transform(startTimestamp * 1000, 'HH:mm') ?? '',
+            datePipe.transform(stopTimestamp * 1000, 'HH:mm') ?? '',
         ]);
     });
 
@@ -79,5 +76,35 @@ describe('ChannelListItemComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.epg-placeholder')
         ).toBeNull();
+    });
+
+    it('emits a context menu request on right click when details are enabled', () => {
+        fixture.componentRef.setInput('name', 'News One');
+        fixture.componentRef.setInput('showDetailsContextMenu', true);
+        fixture.detectChanges();
+
+        const preventDefault = jest.fn();
+        const stopPropagation = jest.fn();
+        const contextMenuRequested = jest.fn();
+
+        fixture.componentInstance.contextMenuRequested.subscribe(
+            contextMenuRequested
+        );
+
+        fixture.componentInstance.onContextMenu({
+            clientX: 120,
+            clientY: 56,
+            preventDefault,
+            stopPropagation,
+        } as unknown as MouseEvent);
+
+        expect(preventDefault).toHaveBeenCalled();
+        expect(stopPropagation).toHaveBeenCalled();
+        expect(contextMenuRequested).toHaveBeenCalledWith(
+            expect.objectContaining({
+                clientX: 120,
+                clientY: 56,
+            })
+        );
     });
 });

@@ -17,10 +17,14 @@ import { ResizableDirective } from 'components';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
     PORTAL_PLAYER,
+    PortalChannelSortMode,
+    getPortalChannelSortModeLabel,
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isWorkspaceLayoutRoute,
+    persistPortalChannelSortMode,
     queryParamSignal,
+    restorePortalChannelSortMode,
 } from '@iptvnator/portal/shared/util';
 import {
     FavoriteItem,
@@ -28,17 +32,13 @@ import {
     XtreamUrlService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import {
-    EpgListComponent,
-    EpgProgramActivationEvent,
-} from '@iptvnator/ui/epg';
+import { EpgListComponent, EpgProgramActivationEvent } from '@iptvnator/ui/epg';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { EpgItem, EpgProgram } from 'shared-interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute } from '@angular/router';
 
-type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
 interface XtreamLiveChannelItem {
@@ -84,7 +84,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly currentEpgItem = this.xtreamStore.currentEpgItem;
     readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
-    readonly liveChannelSortMode = signal<LiveChannelSortMode>('server');
+    readonly liveChannelSortMode = signal<PortalChannelSortMode>('server');
     readonly isElectron = Boolean(window.electron);
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
@@ -142,12 +142,9 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             this.hasPastPrograms() &&
             !this.archivePlaybackAvailable()
     );
-    readonly liveChannelSortLabel = computed(() => {
-        const mode = this.liveChannelSortMode();
-        if (mode === 'name-asc') return 'Name A-Z';
-        if (mode === 'name-desc') return 'Name Z-A';
-        return 'Server Order';
-    });
+    readonly liveChannelSortLabel = computed(() =>
+        getPortalChannelSortModeLabel(this.liveChannelSortMode())
+    );
 
     readonly selectedCategoryInfo = computed(() => {
         const categoryId = this.selectedCategoryId();
@@ -275,16 +272,9 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             }
         }
 
-        const savedSortMode = localStorage.getItem(
-            LIVE_CHANNEL_SORT_STORAGE_KEY
+        this.liveChannelSortMode.set(
+            restorePortalChannelSortMode(LIVE_CHANNEL_SORT_STORAGE_KEY)
         );
-        if (
-            savedSortMode === 'server' ||
-            savedSortMode === 'name-asc' ||
-            savedSortMode === 'name-desc'
-        ) {
-            this.liveChannelSortMode.set(savedSortMode);
-        }
 
         const playlist = this.xtreamStore.currentPlaylist();
         if (playlist) {
@@ -312,9 +302,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         );
     }
 
-    async onProgramActivated(
-        event: EpgProgramActivationEvent
-    ): Promise<void> {
+    async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {
         const selectedItem = this.selectedLiveItem();
         if (!selectedItem?.xtream_id) {
             return;
@@ -328,9 +316,9 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         await this.playCatchup(event.program, selectedItem);
     }
 
-    setLiveChannelSortMode(mode: LiveChannelSortMode): void {
+    setLiveChannelSortMode(mode: PortalChannelSortMode): void {
         this.liveChannelSortMode.set(mode);
-        localStorage.setItem(LIVE_CHANNEL_SORT_STORAGE_KEY, mode);
+        persistPortalChannelSortMode(LIVE_CHANNEL_SORT_STORAGE_KEY, mode);
     }
 
     ngOnDestroy(): void {
@@ -381,8 +369,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     }
 
     private getVisibleChannels(): XtreamLiveChannelItem[] {
-        return this.xtreamStore.selectItemsFromSelectedCategory() as
-            XtreamLiveChannelItem[];
+        return this.xtreamStore.selectItemsFromSelectedCategory() as XtreamLiveChannelItem[];
     }
 
     private async playCatchup(
@@ -488,7 +475,9 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             return channelTitle;
         }
 
-        return channelTitle ? `${channelTitle} - ${program.title}` : program.title;
+        return channelTitle
+            ? `${channelTitle} - ${program.title}`
+            : program.title;
     }
 
     private clearAutoOpenHistoryState(): void {

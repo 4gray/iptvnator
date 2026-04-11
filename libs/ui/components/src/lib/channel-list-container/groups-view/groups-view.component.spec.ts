@@ -3,7 +3,10 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { Channel } from 'shared-interfaces';
+import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { GroupsViewComponent } from './groups-view.component';
+
+const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
 
 function createChannel(
     id: string,
@@ -38,6 +41,7 @@ function createChannel(
 describe('GroupsViewComponent', () => {
     let fixture: ComponentFixture<GroupsViewComponent>;
     let component: GroupsViewComponent;
+    let dialog: { open: jest.Mock };
 
     const sportsCenter = createChannel(
         'sports-1',
@@ -92,6 +96,12 @@ describe('GroupsViewComponent', () => {
     });
 
     beforeEach(async () => {
+        localStorage.removeItem(GROUP_CHANNEL_SORT_STORAGE_KEY);
+
+        dialog = {
+            open: jest.fn(),
+        };
+
         await TestBed.configureTestingModule({
             imports: [
                 GroupsViewComponent,
@@ -101,18 +111,34 @@ describe('GroupsViewComponent', () => {
             providers: [
                 {
                     provide: MatDialog,
-                    useValue: {
-                        open: jest.fn(),
-                    },
+                    useValue: dialog,
                 },
             ],
         }).compileComponents();
 
+        createComponent();
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        localStorage.removeItem(GROUP_CHANNEL_SORT_STORAGE_KEY);
+    });
+
+    function createComponent(
+        overrides: Partial<{
+            activeChannelUrl: string | undefined;
+            favoriteIds: Set<string>;
+            groupedChannels: Record<string, Channel[]>;
+            progressTick: number;
+            searchTerm: string;
+            sidebarWidth: number | null;
+            shouldShowEpg: boolean;
+        }> = {}
+    ): void {
         fixture = TestBed.createComponent(GroupsViewComponent);
         component = fixture.componentInstance;
-
-        setInputs();
-    });
+        setInputs(overrides);
+    }
 
     function setInputs(
         overrides: Partial<{
@@ -130,10 +156,7 @@ describe('GroupsViewComponent', () => {
             overrides.groupedChannels ?? groupedChannels
         );
         fixture.componentRef.setInput('searchTerm', overrides.searchTerm ?? '');
-        fixture.componentRef.setInput(
-            'channelEpgMap',
-            new Map<string, null>()
-        );
+        fixture.componentRef.setInput('channelEpgMap', new Map<string, null>());
         fixture.componentRef.setInput(
             'progressTick',
             overrides.progressTick ?? 0
@@ -173,6 +196,78 @@ describe('GroupsViewComponent', () => {
         ]);
     });
 
+    it('defaults to server order when no saved sort mode exists', () => {
+        expect(component.groupChannelSortMode()).toBe('server');
+        expect(component.groupChannelSortLabel()).toBe('Server Order');
+    });
+
+    it('restores a saved valid sort mode and ignores invalid stored values', () => {
+        fixture.destroy();
+        localStorage.setItem(GROUP_CHANNEL_SORT_STORAGE_KEY, 'name-asc');
+        createComponent();
+
+        expect(component.groupChannelSortMode()).toBe('name-asc');
+        expect(component.groupChannelSortLabel()).toBe('Name A-Z');
+
+        fixture.destroy();
+        localStorage.setItem(GROUP_CHANNEL_SORT_STORAGE_KEY, 'invalid');
+        createComponent();
+
+        expect(component.groupChannelSortMode()).toBe('server');
+    });
+
+    it('persists sort mode changes', () => {
+        component.setGroupChannelSortMode('name-desc');
+
+        expect(component.groupChannelSortMode()).toBe('name-desc');
+        expect(localStorage.getItem(GROUP_CHANNEL_SORT_STORAGE_KEY)).toBe(
+            'name-desc'
+        );
+    });
+
+    it('sorts selected group channels by server order, name ascending, and name descending', () => {
+        const alphaSignal = createChannel(
+            'sort-1',
+            'Alpha Signal',
+            'http://example.com/alpha-signal.m3u8',
+            'Sorted'
+        );
+        const zuluVision = createChannel(
+            'sort-2',
+            'Zulu Vision',
+            'http://example.com/zulu-vision.m3u8',
+            'Sorted'
+        );
+        const middleNews = createChannel(
+            'sort-3',
+            'Middle News',
+            'http://example.com/middle-news.m3u8',
+            'Sorted'
+        );
+
+        setInputs({
+            groupedChannels: {
+                Sorted: [zuluVision, alphaSignal, middleNews],
+            },
+        });
+
+        expect(
+            component.selectedGroupChannels().map((channel) => channel.name)
+        ).toEqual(['Zulu Vision', 'Alpha Signal', 'Middle News']);
+
+        component.setGroupChannelSortMode('name-asc');
+        fixture.detectChanges();
+        expect(
+            component.selectedGroupChannels().map((channel) => channel.name)
+        ).toEqual(['Alpha Signal', 'Middle News', 'Zulu Vision']);
+
+        component.setGroupChannelSortMode('name-desc');
+        fixture.detectChanges();
+        expect(
+            component.selectedGroupChannels().map((channel) => channel.name)
+        ).toEqual(['Zulu Vision', 'Middle News', 'Alpha Signal']);
+    });
+
     it('prefers the active channel group for initial selection', () => {
         setInputs({ activeChannelUrl: worldUpdate.url });
 
@@ -208,6 +303,22 @@ describe('GroupsViewComponent', () => {
         expect(component.selectedGroupKey()).toBe('Series');
     });
 
+    it('keeps group selection behavior unchanged when channel sort mode changes', () => {
+        component.setGroupChannelSortMode('name-asc');
+        component.selectGroup('Movies');
+        fixture.detectChanges();
+
+        setInputs({ activeChannelUrl: sportsCenter.url });
+
+        expect(component.selectedGroupKey()).toBe('Sports');
+        expect(component.filteredGroups().map((group) => group.key)).toEqual([
+            'Movies',
+            'News',
+            'Series',
+            'Sports',
+        ]);
+    });
+
     it('matches group titles as full-group results and channel names as filtered results', () => {
         setInputs({ searchTerm: 'news' });
 
@@ -218,10 +329,9 @@ describe('GroupsViewComponent', () => {
                 titleMatches: true,
             }),
         ]);
-        expect(component.selectedGroupChannels().map((channel) => channel.name)).toEqual([
-            'World Update',
-            'Daily Bulletin',
-        ]);
+        expect(
+            component.selectedGroupChannels().map((channel) => channel.name)
+        ).toEqual(['World Update', 'Daily Bulletin']);
 
         setInputs({ searchTerm: 'update' });
 
@@ -232,9 +342,9 @@ describe('GroupsViewComponent', () => {
                 titleMatches: false,
             }),
         ]);
-        expect(component.selectedGroupChannels().map((channel) => channel.name)).toEqual([
-            'World Update',
-        ]);
+        expect(
+            component.selectedGroupChannels().map((channel) => channel.name)
+        ).toEqual(['World Update']);
     });
 
     it('emits channel and favorite events from the selected group pane', () => {
@@ -253,6 +363,36 @@ describe('GroupsViewComponent', () => {
             channel: movieClassic,
             event: clickEvent,
         });
+    });
+
+    it('positions the context menu at the viewport click and opens channel details from the selected group pane', async () => {
+        const openMenuSpy = jest
+            .spyOn(component.contextMenuTrigger(), 'openMenu')
+            .mockImplementation();
+
+        component.onChannelContextMenu(movieClassic, {
+            clientX: 212,
+            clientY: 264,
+        } as MouseEvent);
+        await Promise.resolve();
+
+        expect(component.contextMenuChannel()).toBe(movieClassic);
+        expect(component.contextMenuPosition()).toEqual({
+            x: '212px',
+            y: '264px',
+        });
+        expect(openMenuSpy).toHaveBeenCalled();
+
+        component.openChannelDetails();
+
+        expect(dialog.open).toHaveBeenCalledWith(
+            ChannelDetailsDialogComponent,
+            expect.objectContaining({
+                data: movieClassic,
+                maxWidth: '720px',
+                width: 'calc(100vw - 32px)',
+            })
+        );
     });
 
     it('emits total sidebar width requests while resizing the groups rail', () => {

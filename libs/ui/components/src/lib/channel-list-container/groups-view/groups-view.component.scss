@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @use '../../../../../styles/portal-sidebar';
 @use '../../../../../styles/panel-header' as panel;
 @use '../../../../../../../apps/web/src/nav-list.scss';
@@ -58,6 +59,10 @@
     border-top-left-radius: inherit;
 }
 
+.groups-content-header button {
+    @include mat.form-field-density(-5);
+}
+
 .category-meta {
     @include panel.standard-panel-meta();
 }
@@ -79,6 +84,14 @@
 
 .group-nav-item {
     background: transparent;
+}
+
+.channel-context-menu-anchor {
+    position: fixed;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .groups-content-panel {

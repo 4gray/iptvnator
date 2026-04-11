@@ -107,9 +107,6 @@ importers:
       lodash:
         specifier: 4.17.21
         version: 4.17.21
-      moment:
-        specifier: 2.30.1
-        version: 2.30.1
       mpegts.js:
         specifier: 1.8.0
         version: 1.8.0
@@ -8605,9 +8602,6 @@ packages:
     resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
     engines: {node: '>=10'}
     hasBin: true
-
-  moment@2.30.1:
-    resolution: {integrity: sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==}
 
   mpd-parser@0.22.0:
     resolution: {integrity: sha512-P2GSZGTlud9zGr1IU/wd+dwK5v+cdeHd9ys+8y0Yo4kADfkKyYET37oIvOoQiLGp6k7CTNO7navdyV2mfG0yzw==}
@@ -21882,8 +21876,6 @@ snapshots:
   mkdirp-classic@0.5.3: {}
 
   mkdirp@1.0.4: {}
-
-  moment@2.30.1: {}
 
   mpd-parser@0.22.0:
     dependencies:

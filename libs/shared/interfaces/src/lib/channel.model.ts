@@ -12,7 +12,9 @@ export function createChannel(params: Partial<Channel>): Channel {
         url: params.url,
         tvg: params.tvg,
         timeshift: params.timeshift,
+        catchup: params.catchup,
         http: params.http,
+        radio: params.radio,
     } as Channel;
 }
 

@@ -1,4 +1,5 @@
 import {
+    ChangeDetectorRef,
     ChangeDetectionStrategy,
     Component,
     computed,
@@ -12,7 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ChannelListItemComponent } from 'components';
-import { EpgItem, EpgProgram } from 'shared-interfaces';
+import { EpgProgram } from 'shared-interfaces';
 import { StalkerVodSource } from '@iptvnator/portal/stalker/data-access';
 import { normalizeStalkerEntityId } from '@iptvnator/portal/stalker/data-access';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
@@ -33,6 +34,7 @@ export class StalkerCollectionChannelsListComponent {
     readonly favoriteToggled = output<StalkerVodSource>();
 
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly cdr = inject(ChangeDetectorRef);
     protected readonly normalizeStalkerEntityId = normalizeStalkerEntityId;
     readonly searchString = signal('');
     readonly filteredItems = computed(() => {
@@ -50,19 +52,12 @@ export class StalkerCollectionChannelsListComponent {
 
     readonly epgPrograms = new Map<string | number, EpgProgram>();
     readonly currentProgramsProgress = new Map<string | number, number>();
-    private readonly requestedChannels = new Set<string | number>();
 
     constructor() {
         effect(() => {
             const items = this.items();
-            if (!items.length) {
-                this.epgPrograms.clear();
-                this.currentProgramsProgress.clear();
-                this.requestedChannels.clear();
-                return;
-            }
-
-            void this.loadEpgPreviews(items);
+            const bulkProgramsByChannel = this.stalkerStore.bulkItvEpgByChannel();
+            this.syncBulkEpgPreviews(items, bulkProgramsByChannel);
         });
     }
 
@@ -82,60 +77,59 @@ export class StalkerCollectionChannelsListComponent {
         return this.favoriteIds().get(normalizeStalkerEntityId(item.id)) ?? false;
     }
 
-    private async loadEpgPreviews(items: StalkerVodSource[]): Promise<void> {
-        const newItems = items.filter((item) => {
-            const id = normalizeStalkerEntityId(item.id);
-            return id && !this.requestedChannels.has(id);
-        });
+    private syncBulkEpgPreviews(
+        items: StalkerVodSource[],
+        bulkProgramsByChannel: Record<string, EpgProgram[]>
+    ): void {
+        this.epgPrograms.clear();
+        this.currentProgramsProgress.clear();
 
-        if (!newItems.length) {
+        if (items.length === 0 || Object.keys(bulkProgramsByChannel).length === 0) {
+            this.cdr.markForCheck();
             return;
         }
 
-        for (const item of newItems) {
-            this.requestedChannels.add(normalizeStalkerEntityId(item.id));
-        }
-
-        const batchSize = 3;
-        for (let i = 0; i < newItems.length; i += batchSize) {
-            const batch = newItems.slice(i, i + batchSize);
-            await Promise.all(
-                batch.map((item) => this.loadSingleEpgPreview(item.id))
+        for (const item of items) {
+            const channelId = normalizeStalkerEntityId(item.id);
+            const currentProgram = this.findCurrentProgram(
+                bulkProgramsByChannel[channelId] ?? []
             );
-            if (i + batchSize < newItems.length) {
-                await new Promise((resolve) => setTimeout(resolve, 150));
-            }
-        }
-    }
 
-    private async loadSingleEpgPreview(channelId: number | string): Promise<void> {
-        try {
-            const items = await this.stalkerStore.fetchChannelEpg(channelId, 1);
-            if (!items.length) {
-                return;
+            if (!currentProgram) {
+                continue;
             }
 
-            const id = normalizeStalkerEntityId(channelId);
-            const program = this.toPreviewProgram(items[0], id);
-            this.epgPrograms.set(id, program);
-            this.updateProgramProgress(id, items[0]);
-        } catch {
-            // Ignore preview failures for collection live lists.
+            this.epgPrograms.set(channelId, currentProgram);
+            this.updateProgramProgress(channelId, currentProgram);
         }
+
+        this.cdr.markForCheck();
     }
 
     private updateProgramProgress(
         channelId: string | number,
-        item: EpgItem
+        program: EpgProgram
     ): void {
-        const now = Date.now() / 1000;
-        const start = parseInt(item.start_timestamp, 10);
-        const end = parseInt(item.stop_timestamp, 10);
+        const startMs = this.getProgramTimestampMs(
+            program.start,
+            program.startTimestamp
+        );
+        const stopMs = this.getProgramTimestampMs(
+            program.stop,
+            program.stopTimestamp
+        );
+        const nowMs = Date.now();
 
-        if (start && end && now >= start && now <= end) {
+        if (
+            Number.isFinite(startMs) &&
+            Number.isFinite(stopMs) &&
+            nowMs >= startMs &&
+            nowMs <= stopMs &&
+            stopMs > startMs
+        ) {
             this.currentProgramsProgress.set(
                 channelId,
-                ((now - start) / (end - start)) * 100
+                ((nowMs - startMs) / (stopMs - startMs)) * 100
             );
             return;
         }
@@ -143,17 +137,35 @@ export class StalkerCollectionChannelsListComponent {
         this.currentProgramsProgress.delete(channelId);
     }
 
-    private toPreviewProgram(
-        item: EpgItem,
-        channelId: string | number
-    ): EpgProgram {
-        return {
-            start: item.start,
-            stop: item.stop || item.end,
-            channel: String(channelId),
-            title: item.title,
-            desc: item.description || null,
-            category: null,
-        };
+    private findCurrentProgram(programs: EpgProgram[]): EpgProgram | null {
+        const nowMs = Date.now();
+
+        return (
+            programs.find((program) => {
+                const startMs = this.getProgramTimestampMs(
+                    program.start,
+                    program.startTimestamp
+                );
+                const stopMs = this.getProgramTimestampMs(
+                    program.stop,
+                    program.stopTimestamp
+                );
+
+                return nowMs >= startMs && nowMs <= stopMs;
+            }) ?? null
+        );
+    }
+
+    private getProgramTimestampMs(
+        rawDate: string,
+        timestamp?: number | null
+    ): number {
+        const parsedTimestamp = Number(timestamp);
+        if (Number.isFinite(parsedTimestamp) && parsedTimestamp > 0) {
+            return parsedTimestamp * 1000;
+        }
+
+        const parsedDate = Date.parse(rawDate);
+        return Number.isFinite(parsedDate) ? parsedDate : Number.POSITIVE_INFINITY;
     }
 }

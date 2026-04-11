@@ -12,6 +12,7 @@
     @defer {
         <app-sidebar
             [channels]="(channels$ | async)!"
+            [channelsLoading]="channelsLoading()"
             [showPlaylistHeader]="!isWorkspaceLayout"
             [activeView]="activeView()"
             [sidebarWidth]="sidebarWidth()"
@@ -19,14 +20,15 @@
             (sidebarWidthRequestEnded)="onGroupedSidebarWidthRequestEnded($event)"
         />
     } @loading {
-        <p>Loading...</p>
+        <app-channel-list-loading-state [view]="activeView()" />
     } @placeholder {
-        <p>Loading...</p>
+        <app-channel-list-loading-state [view]="activeView()" />
     }
 </div>
 
 <div class="content-container">
     @if (activeChannel(); as activeChannel) {
+        @let playbackTarget = playbackChannel();
         @if (activeChannel.radio === 'true' || shouldShowInlinePlayer(activeChannel)) {
             <div class="video-player">
                 @if (activeChannel.radio === 'true') {
@@ -42,8 +44,8 @@
                                 sources: [
                                     {
                                         src:
-                                            activeChannel.url +
-                                            activeChannel.epgParams,
+                                            playbackTarget?.url +
+                                            playbackTarget?.epgParams,
                                         type: 'application/x-mpegURL',
                                     },
                                 ],
@@ -54,14 +56,14 @@
                     }
                     @if (playerSettings.player === 'html5') {
                         <app-html-video-player
-                            [channel]="activeChannel"
+                            [channel]="playbackTarget!"
                             [volume]="volume"
                             [showCaptions]="playerSettings.showCaptions!"
                         />
                     }
                     @if (playerSettings.player === 'artplayer') {
                         <app-art-player
-                            [channel]="activeChannel"
+                            [channel]="playbackTarget!"
                             [volume]="volume"
                             [showCaptions]="playerSettings.showCaptions!"
                         />
@@ -73,7 +75,9 @@
         @if (activeChannel.radio !== 'true') {
             <div class="epg">
                 <div class="epg-content">
-                    <app-epg-list />
+                    <app-epg-list
+                        [archivePlaybackAvailable]="archivePlaybackAvailable()"
+                    />
                 </div>
             </div>
         }

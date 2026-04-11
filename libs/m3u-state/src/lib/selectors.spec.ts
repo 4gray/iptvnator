@@ -1,5 +1,6 @@
 import { PlaylistMeta } from 'shared-interfaces';
-import { selectActivePlaylist } from './selectors';
+import { PlaylistState } from './state';
+import { selectActivePlaylist, selectChannelsLoading } from './selectors';
 
 describe('selectors', () => {
     const playlistOne = {
@@ -24,6 +25,21 @@ describe('selectors', () => {
 
         it('returns null when there is no active playlist id', () => {
             expect(selectActivePlaylist.projector(entities, '')).toBeNull();
+        });
+    });
+
+    describe('selectChannelsLoading', () => {
+        it('returns the current M3U channel loading flag', () => {
+            expect(
+                selectChannelsLoading.projector({
+                    channelsLoading: true,
+                } as PlaylistState)
+            ).toBe(true);
+            expect(
+                selectChannelsLoading.projector({
+                    channelsLoading: false,
+                } as PlaylistState)
+            ).toBe(false);
         });
     });
 });

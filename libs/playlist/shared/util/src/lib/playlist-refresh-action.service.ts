@@ -9,8 +9,9 @@ import {
     isDbAbortError,
     PlaylistRefreshService,
 } from 'services';
-import { PlaylistActions } from 'm3u-state';
+import { ChannelActions, PlaylistActions } from 'm3u-state';
 import { PlaylistMeta } from 'shared-interfaces';
+import { PlaylistContextFacade } from './playlist-context.facade';
 
 @Injectable({ providedIn: 'root' })
 export class PlaylistRefreshActionService {
@@ -21,6 +22,7 @@ export class PlaylistRefreshActionService {
     private readonly dialogService = inject(DialogService);
     private readonly databaseService = inject(DatabaseService);
     private readonly playlistRefreshService = inject(PlaylistRefreshService);
+    private readonly playlistContext = inject(PlaylistContextFacade);
 
     readonly isRefreshing = signal(false);
 
@@ -134,7 +136,16 @@ export class PlaylistRefreshActionService {
     }
 
     private async refreshM3u(item: PlaylistMeta): Promise<void> {
+        const isActiveM3uRoute =
+            this.playlistContext.routeProvider() === 'playlists' &&
+            this.playlistContext.resolvedPlaylistId() === item._id;
+
         this.isRefreshing.set(true);
+        if (isActiveM3uRoute) {
+            this.store.dispatch(
+                ChannelActions.setChannelsLoading({ loading: true })
+            );
+        }
 
         try {
             const refreshedPlaylist =
@@ -173,6 +184,12 @@ export class PlaylistRefreshActionService {
                     this.getRefreshErrorMessage(error, item),
                     this.translate.instant('CLOSE'),
                     { duration: 5000 }
+                );
+            }
+
+            if (isActiveM3uRoute) {
+                this.store.dispatch(
+                    ChannelActions.setChannelsLoading({ loading: false })
                 );
             }
         } finally {

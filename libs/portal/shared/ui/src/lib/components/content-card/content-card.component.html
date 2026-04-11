@@ -41,7 +41,7 @@
         <h3>{{ title() }}</h3>
         @if (date()) {
             <p class="date-info">
-                {{ date() | date: 'd MMM, HH:mm' }}
+                {{ date() | date: 'd MMM, HH:mm' : undefined : currentLocale() }}
             </p>
         }
     </div>

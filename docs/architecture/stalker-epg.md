@@ -1,6 +1,7 @@
 # Stalker Portal EPG Architecture
 
-This document describes the EPG (Electronic Program Guide) implementation for Stalker/Ministra portal live TV (ITV) streams.
+This document describes the current EPG implementation for Stalker/Ministra ITV
+channels in IPTVnator.
 
 Related architecture docs:
 
@@ -9,48 +10,72 @@ Related architecture docs:
 
 ## Overview
 
-The Stalker ITV live stream layout displays EPG data in the right panel when a live channel is playing. EPG is fetched per-channel using the Stalker `get_short_epg` API action, which returns the current program plus the next ~5 upcoming programs. The response is mapped to the shared `EpgItem` interface and rendered by the reusable `EpgViewComponent`.
+Stalker now uses two EPG paths with different purposes:
+
+- The active channel EPG panel uses `get_epg_info` as a bulk endpoint, fetches a
+  7-day window once per playlist session, caches programs by channel id, and
+  renders the selected channel through the shared `app-epg-list` component.
+- Channel rows no longer send preview EPG requests during initial category load.
+  They stay empty until bulk EPG has been fetched once, then derive their
+  current program and progress bar from the cached bulk map.
+- If a portal does not return usable bulk data for the selected channel, the
+  active panel falls back to `get_short_epg`.
+
+This keeps the live list cheap while giving the active panel the same
+date-navigator UI used in the M3U/Xtream flows.
 
 ## Architecture
 
-```
-┌───────────────────────────────────────────────────────────────────────────┐
-│                  StalkerLiveStreamLayoutComponent                         │
-│      libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/     │
-│                                                                           │
-│  ┌──────────────┐    ┌──────────────────────┐    ┌─────────────────────┐ │
-│  │   Sidebar    │    │   Video Player       │    │   EPG Panel         │ │
-│  │  (channels)  │    │  (WebPlayerView)     │    │  (EpgViewComponent) │ │
-│  │              │    │                      │    │                     │ │
-│  │  click ──────┼────┼──► playChannel() ────┼────┼──► loadEpgFor...() │ │
-│  └──────────────┘    └──────────────────────┘    └─────────────────────┘ │
-│                              │                            │               │
-└──────────────────────────────┼────────────────────────────┼───────────────┘
-                               │                            │
-                               ▼                            ▼
-                    ┌──────────────────────┐     ┌────────────────────────┐
-                    │    StalkerStore      │     │    StalkerStore        │
-                    │  fetchLinkToPlay()   │     │  fetchChannelEpg()     │
-                    └──────────┬───────────┘     └────────────┬───────────┘
-                               │                              │
-                               ▼                              ▼
-                    ┌──────────────────────────────────────────────────────┐
-                    │              Stalker Portal API                       │
-                    │  action=create_link         action=get_short_epg     │
-                    └──────────────────────────────────────────────────────┘
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│                 StalkerLiveStreamLayoutComponent                          │
+│  libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/         │
+│                                                                            │
+│  sidebar rows                    active channel panel                      │
+│  ────────────                    ───────────────────                      │
+│  row preview map                 playChannel()                             │
+│  from bulk cache                 │                                          │
+│         │                        ▼                                          │
+│         │                  ensureBulkItvEpg(168)                           │
+│         │                  selectedItvEpgPrograms()                        │
+│         ▼                        │                                          │
+│  current program preview         ├── bulk hit → app-epg-list               │
+│  after first bulk load           └── empty/unsupported → short fallback    │
+└────────────────────────────────────────────────────────────────────────────┘
+                   │                                │
+                   ▼                                ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                           with-stalker-epg.feature                         │
+│                                                                            │
+│  bulkItvEpgByChannel: Record<string, EpgProgram[]>                         │
+│  bulkItvEpgPlaylistId / bulkItvEpgPeriodHours / bulkItvEpgLoaded           │
+│  ensureBulkItvEpg()  selectedItvEpgPrograms()                              │
+└────────────────────────────────────────────────────────────────────────────┘
+                   │                                │
+                   ▼                                ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                            Stalker Portal API                              │
+│                                                                            │
+│  action=create_link      action=get_short_epg      action=get_epg_info     │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Stalker EPG API
 
-### `get_short_epg` (per-channel)
+### `get_short_epg` (active-panel fallback)
 
-**Request:**
-```
-GET load.php?type=itv&action=get_short_epg&ch_id={channel_id}&JsHttpRequest=1-xml
-```
-Uses standard Stalker auth headers (Bearer token + MAC cookie).
+**Request**
 
-**Response:**
+```text
+GET load.php?type=itv&action=get_short_epg&ch_id={channel_id}&size={n}&JsHttpRequest=1-xml
+```
+
+**Current usage**
+
+- Active panel fallback path: `size=10`
+
+**Response**
+
 ```json
 {
   "js": {
@@ -64,149 +89,179 @@ Uses standard Stalker auth headers (Bearer token + MAC cookie).
         "time_to": "2025-01-15 14:30:00",
         "duration": "1800",
         "start_timestamp": "1736949600",
-        "stop_timestamp": "1736951400",
-        "t_time": "14:00",
-        "t_time_to": "14:30"
+        "stop_timestamp": "1736951400"
       }
     ]
   }
 }
 ```
 
-**Notes:**
-- If the channel has no `xmltv_id` set on the server, returns an empty array
-- Response normalization handles both `{ js: { data: [...] } }` and `{ js: [...] }` formats
-- No backend (Electron IPC) changes needed — the generic `stalker.events.ts` handler forwards any `params` to the portal URL
+**Notes**
 
-### `get_epg_info` (bulk — reserved for future use)
+- The response is normalized into shared `EpgItem[]`
+- The list-preview path uses this directly
+- The active-panel fallback maps the result into controlled `EpgProgram[]`
 
-```
+### `get_epg_info` (bulk active-panel source)
+
+**Request**
+
+```text
 GET load.php?type=itv&action=get_epg_info&period={hours}&JsHttpRequest=1-xml
 ```
 
-Returns EPG for all channels for a given time period. Currently unused but the enum value `StalkerPortalActions.GetEpgInfo` is defined for future bulk EPG features.
+**Current usage**
+
+- Fetched once with `period=168`
+- Scoped to the current playlist session
+- Not refetched on active-channel change
+
+**Expected response**
+
+```json
+{
+  "js": {
+    "data": {
+      "45": [
+        {
+          "id": "1",
+          "name": "Program Title",
+          "descr": "Program description",
+          "time": "2025-01-15 14:00:00",
+          "time_to": "2025-01-15 16:00:00",
+          "start_timestamp": "1736949600",
+          "stop_timestamp": "1736956800"
+        }
+      ]
+    }
+  }
+}
+```
+
+**Notes**
+
+- The store supports the channel-keyed bulk shape above as the primary contract
+- For weak or mock-style portals that still return array-style data, the store
+  treats the result as compatibility input and leaves the short-EPG fallback path
+  available
 
 ## Data Mapping
 
-### Stalker EPG → `EpgItem` Interface
+### Fallback data (`get_short_epg`) → `EpgItem`
 
-| Stalker field      | `EpgItem` field    | Notes |
-|--------------------|--------------------|-------|
-| `id`               | `id`               | Converted to string |
-| `ch_id`            | `channel_id`       | Falls back to passed `channelId` |
-| `name`             | `title`            | |
-| `descr`            | `description`      | |
-| `time`             | `start`            | Full datetime string |
-| `time_to`          | `end`, `stop`      | Both set to same value |
-| `start_timestamp`  | `start_timestamp`  | Unix timestamp as string |
-| `stop_timestamp`   | `stop_timestamp`   | Unix timestamp as string |
-| _(n/a)_            | `epg_id`           | Empty string |
-| _(n/a)_            | `lang`             | Empty string |
+The short EPG path now exists only for the active-panel fallback flow.
 
-### `EpgItem` Interface
+Key mapped fields:
 
-```typescript
-// libs/shared/interfaces/src/lib/epg-item.interface.ts
-interface EpgItem {
-    id: string;
-    epg_id: string;
-    title: string;
-    lang: string;
-    start: string;
-    end: string;
-    stop: string;
-    description: string;
-    channel_id: string;
-    start_timestamp: string;
-    stop_timestamp: string;
-}
-```
+| Stalker field | `EpgItem` field |
+| --- | --- |
+| `id` | `id` |
+| `ch_id` | `channel_id` |
+| `name` | `title` |
+| `descr` | `description` |
+| `time` | `start` |
+| `time_to` | `end`, `stop` |
+| `start_timestamp` | `start_timestamp` |
+| `stop_timestamp` | `stop_timestamp` |
+
+### Active panel data (`get_epg_info` / fallback) → `EpgProgram`
+
+The active panel uses controlled `EpgProgram[]` because `app-epg-list` filters
+and groups by day.
+
+Normalization rules:
+
+- `start` / `end` are converted to ISO strings
+- `startTimestamp` / `stopTimestamp` are always populated
+- Programs are sorted by start time per channel
+- `selectedItvId` is used to project cached bulk data to the active channel
 
 ## Implementation Details
 
-### Key Files
+### Key files
 
 | File | Purpose |
-|------|---------|
-| `libs/shared/interfaces/src/lib/stalker-portal-actions.enum.ts` | `GetShortEpg`, `GetEpgInfo` enum values |
-| `libs/portal/stalker/data-access/src/lib/stalker.store.ts` | `fetchChannelEpg()` method |
-| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` | EPG signals + `loadEpgForChannel()` |
-| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.html` | `<app-epg-view>` integration |
-| `libs/ui/shared-portals/src/lib/epg-view/epg-view.component.ts` | Shared EPG display component |
+| --- | --- |
+| `libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-epg.feature.ts` | bulk cache and fallback handling |
+| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` | active-channel EPG loading and controlled `app-epg-list` wiring |
+| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.html` | active panel template |
+| `libs/portal/stalker/feature/src/lib/stalker-collection-channels-list/stalker-collection-channels-list.component.ts` | row preview loading |
+| `libs/ui/shared-portals/src/lib/epg-list/epg-list.component.ts` | shared controlled EPG list with date navigator |
 
-### StalkerStore.fetchChannelEpg()
+### Store API
 
-Location: `libs/portal/stalker/data-access/src/lib/stalker.store.ts` (in `withMethods`)
+The Stalker EPG feature exposes one bulk method plus the short-EPG fallback:
 
-```typescript
-async fetchChannelEpg(channelId: number | string): Promise<EpgItem[]>
+```ts
+fetchChannelEpg(channelId: number | string, size?: number): Promise<EpgItem[]>
+ensureBulkItvEpg(periodHours = 168): Promise<void>
 ```
 
-- Sends `get_short_epg` request with `ch_id` param
-- Supports both full Stalker portals (authenticated via `StalkerSessionService`) and simple portals (direct IPC)
-- Returns mapped `EpgItem[]` or empty array on failure
-- No store state mutation — returns data directly to the component
+It also exposes:
 
-### StalkerLiveStreamLayoutComponent EPG Integration
+- `selectedItvEpgPrograms`
+- `clearBulkItvEpgCache()`
 
-The component manages EPG state locally with signals:
+Bulk state is keyed by playlist so cached results do not leak between Stalker
+playlists.
 
-```typescript
-readonly epgItems = signal<EpgItem[]>([]);
-readonly isLoadingEpg = signal(false);
-```
+### Active panel flow
 
-**Flow:**
-1. User clicks a channel in the sidebar → `playChannel(item)`
-2. `fetchLinkToPlay()` gets the stream URL
-3. If using embedded player, `streamUrl` is set and `loadEpgForChannel(item.id)` is called
-4. `loadEpgForChannel()` sets loading state, calls `stalkerStore.fetchChannelEpg()`, updates `epgItems`
-5. Template renders `<app-epg-view [epgItems]="epgItems()">` or a loading spinner
+1. User activates a live channel
+2. The component ensures playback link resolution as before
+3. The component calls `ensureBulkItvEpg(168)` on first use for the playlist
+4. `selectedItvEpgPrograms()` feeds `app-epg-list`
+5. If the selected channel has no bulk programs, the component falls back to
+   `get_short_epg`
 
-### EpgViewComponent (shared)
+The active panel no longer uses local EPG pagination or a "Load more" button.
 
-Location: `libs/ui/shared-portals/src/lib/epg-view/`
+### Channel row preview flow
 
-Reusable component shared between Stalker and Xtream live stream layouts:
-- **Input:** `epgItems: EpgItem[]`
-- Displays program list with time, title, and info button
-- Highlights current program with green progress bar
-- Handles empty state (shows "EPG not available" message)
-- Info button opens `EpgItemDescriptionComponent` dialog with title and description
+Before the first live-channel playback, channel rows do not fetch EPG at all.
 
-**Current program detection:**
-```typescript
-isCurrentProgram(item: EpgItem): boolean {
-    const now = new Date().getTime();
-    const start = new Date(item.start).getTime();
-    const stop = new Date(item.stop ?? item.end).getTime();
-    return now >= start && now <= stop;
-}
-```
+After bulk EPG has been loaded once for the playlist, visible row previews are
+derived locally from `bulkItvEpgByChannel`:
 
-This works with Stalker's datetime format (`"2025-01-15 14:00:00"`) because `new Date()` parses it correctly.
+- pick the current program for the channel, if one exists
+- compute progress from the cached program timestamps
+- leave the row in its existing placeholder state when no current program exists
+
+## Cache Lifecycle
+
+- Bulk EPG is fetched once per playlist session
+- Channel switches only read from `bulkItvEpgByChannel`
+- The cache is cleared when the Stalker playlist changes
+- This implementation does not add TTL-based refresh or background polling
 
 ## Authentication
 
-EPG requests follow the same authentication pattern as all Stalker API calls:
+EPG requests follow the standard Stalker request path:
 
-| Portal Type | Auth Method |
-|-------------|-------------|
-| **Full Stalker** (`isFullStalkerPortal: true`) | `StalkerSessionService.makeAuthenticatedRequest()` — handles token refresh and retry on 401 |
-| **Simple Stalker** | Direct IPC via `DataService.sendIpcEvent(STALKER_REQUEST, ...)` — no auth headers |
+| Portal type | Auth path |
+| --- | --- |
+| Full Stalker portal | `StalkerSessionService.makeAuthenticatedRequest()` |
+| Simple Stalker portal | generic IPC request path via Electron |
+
+No EPG-specific backend transport was needed; the Electron Stalker request
+handler forwards portal params directly.
+
+## Fallback Behavior
+
+Some providers do not implement `get_epg_info` consistently. The active panel
+therefore falls back to `get_short_epg` when:
+
+- the bulk request fails
+- the bulk response is empty
+- the selected channel has no programs in the cached bulk map
+
+This keeps the panel usable even on limited portals, while still taking
+advantage of the richer bulk API when it is available. Row previews do not
+fallback to per-channel requests in this mode; they remain empty until bulk EPG
+is available.
 
 ## Future Enhancements
 
-### Bulk EPG in Channel List Sidebar
-
-Use `get_epg_info` with `period=3` to pre-fetch current program titles for all channels when a category is selected:
-- Call `get_epg_info` after category selection
-- Build a `Map<channelId, currentProgram>`
-- Show current program name below channel title in the sidebar
-- Display progress bar per channel item
-
-This is a separate task due to Stalker's lazy-loaded channel pagination model.
-
-### EPG Auto-Refresh
-
-Currently EPG is fetched once per channel selection. A future enhancement could add a timer to refresh EPG data periodically (e.g., every 5 minutes) to keep the "current program" indicator accurate during long viewing sessions.
+- add cache refresh / invalidation for long-running live sessions
+- add Stalker catch-up support to `app-epg-list` once the playback flow exists
+- optionally add category-level prefetch timing metrics for bulk EPG

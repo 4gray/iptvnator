@@ -1,17 +1,20 @@
+import { registerLocaleData } from '@angular/common';
 import { Component, input } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import localeDe from '@angular/common/locales/de';
 import { MockPipe } from 'ng-mocks';
 import { BehaviorSubject, of } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
-import { MomentDatePipe } from '@iptvnator/pipes';
 import { Store } from '@ngrx/store';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Channel, EpgProgram } from 'shared-interfaces';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 import { EpgListComponent } from './epg-list.component';
 
 let requestAnimationFrameQueue: FrameRequestCallback[] = [];
+
+registerLocaleData(localeDe, 'de');
 
 @Component({
     selector: 'app-epg-list-item',
@@ -20,8 +23,8 @@ let requestAnimationFrameQueue: FrameRequestCallback[] = [];
 })
 class StubEpgListItemComponent {
     readonly item = input<EpgProgram>();
-    readonly timeNow = input('');
-    readonly timeshiftUntil = input('');
+    readonly isLive = input(false);
+    readonly showArchiveBadge = input(false);
 }
 
 describe('EpgListComponent', () => {
@@ -29,6 +32,11 @@ describe('EpgListComponent', () => {
     let component: EpgListComponent;
     let store: { select: jest.Mock; dispatch: jest.Mock };
     let epgService: { currentEpgPrograms$: BehaviorSubject<EpgProgram[]> };
+    let translateService: {
+        currentLang: string;
+        defaultLang: string;
+        onLangChange: BehaviorSubject<unknown>;
+    };
     let originalRequestAnimationFrame: typeof window.requestAnimationFrame;
 
     const fixedNow = new Date('2026-04-05T12:00:00.000Z');
@@ -67,45 +75,27 @@ describe('EpgListComponent', () => {
         epgService = {
             currentEpgPrograms$: new BehaviorSubject<EpgProgram[]>([]),
         };
+        translateService = {
+            currentLang: 'en',
+            defaultLang: 'en',
+            onLangChange: new BehaviorSubject<unknown>(null),
+        };
 
         await TestBed.configureTestingModule({
             imports: [EpgListComponent, NoopAnimationsModule],
             providers: [
                 { provide: Store, useValue: store },
                 { provide: EpgService, useValue: epgService },
+                { provide: TranslateService, useValue: translateService },
             ],
         })
             .overrideComponent(EpgListComponent, {
                 remove: {
-                    imports: [
-                        EpgListItemComponent,
-                        MomentDatePipe,
-                        TranslatePipe,
-                    ],
+                    imports: [EpgListItemComponent, TranslatePipe],
                 },
                 add: {
                     imports: [
                         StubEpgListItemComponent,
-                        MockPipe(
-                            MomentDatePipe,
-                            (
-                                value: string | null | undefined,
-                                format?: string
-                            ) => {
-                                if (!value) {
-                                    return '';
-                                }
-
-                                const parsed = new Date(value);
-                                if (format === 'HH:mm') {
-                                    return parsed
-                                        .toISOString()
-                                        .slice(11, 16);
-                                }
-
-                                return value.slice(0, 10);
-                            }
-                        ),
                         MockPipe(
                             TranslatePipe,
                             (value: string | null | undefined) => value ?? ''
@@ -213,6 +203,45 @@ describe('EpgListComponent', () => {
         flushAnimationFrames();
 
         expect(scrollToSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows archived rows as clickable only when archive playback is supported', () => {
+        const programs = buildPrograms();
+        fixture.componentRef.setInput('controlledPrograms', programs);
+        fixture.componentRef.setInput('archivePlaybackAvailable', false);
+
+        fixture.detectChanges();
+
+        expect(component.canActivateProgram(programs[0])).toBe(false);
+        expect(component.canActivateProgram(programs[1])).toBe(true);
+        expect(
+            fixture.nativeElement.querySelectorAll('.program-item.clickable')
+                .length
+        ).toBe(1);
+
+        fixture.componentRef.setInput('archivePlaybackAvailable', true);
+        fixture.detectChanges();
+
+        expect(component.canActivateProgram(programs[0])).toBe(true);
+        expect(
+            fixture.nativeElement.querySelectorAll('.program-item.clickable')
+                .length
+        ).toBe(2);
+    });
+
+    it('updates the selected-day header when the app language changes', () => {
+        fixture.componentRef.setInput('controlledPrograms', buildPrograms());
+        fixture.detectChanges();
+
+        translateService.currentLang = 'de';
+        translateService.onLangChange.next({ lang: 'de' });
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement
+                .querySelector('.selected-date')
+                .textContent.trim()
+        ).toContain('Sonntag');
     });
 });
 

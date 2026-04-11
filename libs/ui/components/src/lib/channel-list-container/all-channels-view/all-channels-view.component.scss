@@ -42,17 +42,21 @@
     overflow-x: hidden;
 }
 
-::ng-deep {
-    .search-bar {
-        div {
-            border-radius: 20px;
-        }
-    }
+.channel-context-menu-anchor {
+    position: fixed;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
 
-    div[matformfieldlineripple],
-    .mat-mdc-form-field-subscript-wrapper {
-        display: none;
-    }
+:host ::ng-deep .search-bar div {
+    border-radius: 20px;
+}
+
+:host ::ng-deep .search-bar div[matformfieldlineripple],
+:host ::ng-deep .search-bar .mat-mdc-form-field-subscript-wrapper {
+    display: none;
 }
 
 [type='search']::-webkit-search-cancel-button {

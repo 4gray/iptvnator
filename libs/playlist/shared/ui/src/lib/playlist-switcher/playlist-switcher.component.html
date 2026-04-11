@@ -125,7 +125,13 @@
                         {{ getPlaylistTypeLabel(playlist) }}
                         @if (playlist.updateDate) {
                             <span class="separator">|</span>
-                            {{ playlist.updateDate | date: 'MMM d, HH:mm' }}
+                            {{
+                                playlist.updateDate
+                                    | date
+                                        : 'MMM d, HH:mm'
+                                        : undefined
+                                        : currentLocale()
+                            }}
                         }
                     </span>
                 </div>

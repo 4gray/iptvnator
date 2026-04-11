@@ -6,7 +6,10 @@ import {
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { UnifiedCollectionPageComponent } from '@iptvnator/portal/shared/ui';
-import { routeParamSignal } from '@iptvnator/portal/shared/util';
+import {
+    CollectionScope,
+    routeParamSignal,
+} from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-m3u-collection-route',
@@ -16,6 +19,7 @@ import { routeParamSignal } from '@iptvnator/portal/shared/util';
             [mode]="mode()"
             [portalType]="portalType()"
             [playlistId]="playlistId()"
+            [defaultScope]="defaultScope()"
         />
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,6 +29,7 @@ export class M3uCollectionRouteComponent {
 
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly portalType = input('m3u');
+    readonly defaultScope = input<CollectionScope | undefined>(undefined);
     readonly playlistId = routeParamSignal<string | undefined>(
         this.route,
         'id',

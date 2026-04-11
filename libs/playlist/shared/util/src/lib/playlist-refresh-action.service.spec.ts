@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
@@ -5,8 +6,9 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { DialogService } from 'components';
 import { DatabaseService, PlaylistRefreshService } from 'services';
-import { PlaylistActions } from 'm3u-state';
-import { PlaylistMeta } from 'shared-interfaces';
+import { ChannelActions, PlaylistActions } from 'm3u-state';
+import { Playlist, PlaylistMeta } from 'shared-interfaces';
+import { PlaylistContextFacade } from './playlist-context.facade';
 import { PlaylistRefreshActionService } from './playlist-refresh-action.service';
 
 function createPlaylistMeta(
@@ -41,6 +43,11 @@ describe('PlaylistRefreshActionService', () => {
     let store: {
         dispatch: jest.Mock;
     };
+    let playlistRefreshService: {
+        refreshPlaylist: jest.Mock;
+    };
+    let routeProvider: ReturnType<typeof signal<'playlists' | 'xtreams' | null>>;
+    let resolvedPlaylistId: ReturnType<typeof signal<string | null>>;
 
     beforeEach(() => {
         localStorage.clear();
@@ -72,6 +79,11 @@ describe('PlaylistRefreshActionService', () => {
         store = {
             dispatch: jest.fn(),
         };
+        playlistRefreshService = {
+            refreshPlaylist: jest.fn(),
+        };
+        routeProvider = signal<'playlists' | 'xtreams' | null>('xtreams');
+        resolvedPlaylistId = signal<string | null>(null);
 
         TestBed.configureTestingModule({
             providers: [
@@ -104,8 +116,13 @@ describe('PlaylistRefreshActionService', () => {
                 },
                 {
                     provide: PlaylistRefreshService,
+                    useValue: playlistRefreshService,
+                },
+                {
+                    provide: PlaylistContextFacade,
                     useValue: {
-                        refreshPlaylist: jest.fn(),
+                        routeProvider,
+                        resolvedPlaylistId,
                     },
                 },
             ],
@@ -178,5 +195,39 @@ describe('PlaylistRefreshActionService', () => {
 
         setItemSpy.mockRestore();
         dateNowSpy.mockRestore();
+    });
+
+    it('marks the active M3U route as loading before refreshing and clears loading after the update action', async () => {
+        const item = createPlaylistMeta({
+            _id: 'playlist-1',
+            filePath: '/tmp/playlist.m3u',
+            serverUrl: undefined,
+            url: 'https://example.com/playlist.m3u',
+        });
+        const refreshedPlaylist = {
+            _id: item._id,
+            playlist: {
+                items: [],
+            },
+        } as Playlist;
+        routeProvider.set('playlists');
+        resolvedPlaylistId.set(item._id);
+        playlistRefreshService.refreshPlaylist.mockResolvedValue(refreshedPlaylist);
+
+        service.refresh(item);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(store.dispatch).toHaveBeenNthCalledWith(
+            1,
+            ChannelActions.setChannelsLoading({ loading: true })
+        );
+        expect(store.dispatch).toHaveBeenNthCalledWith(
+            2,
+            PlaylistActions.updatePlaylist({
+                playlist: refreshedPlaylist,
+                playlistId: item._id,
+            })
+        );
     });
 });

@@ -1,0 +1,98 @@
+<div class="channel-list-loading-state" aria-live="polite" role="status">
+    <span class="visually-hidden">
+        {{ 'CHANNELS.LOADING' | translate }}
+    </span>
+
+    @if (isGroupsView()) {
+        <div class="groups-loading-layout" aria-hidden="true">
+            <aside class="groups-loading-nav">
+                <header class="groups-loading-nav__header">
+                    <h2 class="groups-loading-nav__title">
+                        {{ 'CHANNELS.GROUPS' | translate }}
+                    </h2>
+                </header>
+
+                <div class="groups-loading-nav__list">
+                    @for (row of groupRows; track row) {
+                        <div class="groups-loading-nav__item">
+                            <span
+                                class="grid-skeleton-line groups-loading-nav__label"
+                                [style.width.%]="groupLabelWidths[row]"
+                            ></span>
+                            <span
+                                class="grid-skeleton-line groups-loading-nav__count"
+                            ></span>
+                        </div>
+                    }
+                </div>
+            </aside>
+
+            <section class="groups-loading-content">
+                <header class="groups-loading-content__header">
+                    <div class="groups-loading-content__meta">
+                        <span
+                            class="grid-skeleton-line groups-loading-content__title"
+                        ></span>
+                        <span
+                            class="grid-skeleton-line groups-loading-content__subtitle"
+                        ></span>
+                    </div>
+                </header>
+
+                <div class="groups-loading-content__list">
+                    @for (row of channelRows; track row) {
+                        <div class="channel-loading-row">
+                            <span
+                                class="list-skeleton-avatar channel-loading-row__logo"
+                            ></span>
+                            <span class="channel-loading-row__text">
+                                <span
+                                    class="grid-skeleton-line channel-loading-row__title"
+                                    [style.width.%]="channelTitleWidths[row]"
+                                ></span>
+                                <span
+                                    class="grid-skeleton-line channel-loading-row__meta"
+                                    [style.width.%]="channelMetaWidths[row]"
+                                ></span>
+                            </span>
+                            <span
+                                class="list-skeleton-star channel-loading-row__favorite"
+                            ></span>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+    } @else {
+        <div class="channels-loading-state">
+            <div class="channels-loading-state__copy">
+                <div class="channels-loading-state__title">
+                    {{ 'CHANNELS.LOADING' | translate }}
+                </div>
+            </div>
+
+            <div class="channels-loading-state__list" aria-hidden="true">
+                @for (row of channelRows; track row) {
+                    <div class="channel-loading-row">
+                        <span
+                            class="list-skeleton-avatar channel-loading-row__logo"
+                        ></span>
+                        <span class="channel-loading-row__text">
+                            <span
+                                class="grid-skeleton-line channel-loading-row__title"
+                                [style.width.%]="channelTitleWidths[row]"
+                            ></span>
+                            <span
+                                class="grid-skeleton-line channel-loading-row__meta"
+                                [style.width.%]="channelMetaWidths[row]"
+                            ></span>
+                        </span>
+                        <span
+                            class="list-skeleton-star channel-loading-row__favorite"
+                        ></span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>

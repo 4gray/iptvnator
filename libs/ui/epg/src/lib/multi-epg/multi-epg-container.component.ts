@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { OverlayRef } from '@angular/cdk/overlay';
 
 import {
@@ -13,14 +14,15 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
-import { MomentDatePipe } from '@iptvnator/pipes';
-import { TranslatePipe } from '@ngx-translate/core';
+import { normalizeDateLocale } from '@iptvnator/pipes';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
-import { Observable, Subscription } from 'rxjs';
+import { Observable, Subscription, startWith } from 'rxjs';
 import {
     Channel,
     EpgChannel,
@@ -54,10 +56,10 @@ interface ProgramSearchResult extends EpgProgram {
 
 @Component({
     imports: [
+        DatePipe,
         MatButtonModule,
         MatIcon,
         MatTooltip,
-        MomentDatePipe,
         TranslatePipe,
     ],
     selector: 'app-multi-epg-container',
@@ -104,6 +106,20 @@ export class MultiEpgContainerComponent
     readonly isSearchingPrograms = signal(false);
     readonly highlightedProgramKey = signal<string | null>(null);
     private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
+    readonly currentLocale = computed(() => {
+        this.languageTick();
+        return normalizeDateLocale(
+            this.translate.currentLang || this.translate.defaultLang
+        );
+    });
+    readonly selectedDayDate = computed(() =>
+        parse(this.today(), 'yyyyMMdd', new Date())
+    );
 
     // Computed signal for enriched channels - automatically updates when dependencies change
     readonly channels = computed(() => this.enrichProgramData());
@@ -449,17 +465,6 @@ export class MultiEpgContainerComponent
     getProgramKey(program: ProgramSearchResult): string {
         const channelId = program.channel_id || program.channel;
         return `${channelId}|${program.start}`;
-    }
-
-    formatProgramTime(program: EpgProgram): string {
-        const start = new Date(program.start);
-        const stop = new Date(program.stop);
-        return `${format(start, 'HH:mm')} - ${format(stop, 'HH:mm')}`;
-    }
-
-    formatProgramDate(program: EpgProgram): string {
-        const start = new Date(program.start);
-        return format(start, 'MMM d');
     }
 
     close() {

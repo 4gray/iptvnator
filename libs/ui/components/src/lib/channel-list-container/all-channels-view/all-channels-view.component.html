@@ -28,10 +28,12 @@
                 "
                 [logo]="channel?.tvg?.logo"
                 [showEpg]="shouldShowEpg()"
+                [showDetailsContextMenu]="true"
                 [isRadio]="channel?.radio === 'true'"
                 [epgProgram]="channel.epgProgram"
                 [progressPercentage]="channel.progressPercentage"
                 (clicked)="onChannelClick(channel)"
+                (contextMenuRequested)="onChannelContextMenu(channel, $event)"
                 [selected]="activeChannelUrl() === channel?.url"
                 [showFavoriteButton]="true"
                 [isFavorite]="favoriteIds().has(channel?.url)"
@@ -40,3 +42,19 @@
         </cdk-virtual-scroll-viewport>
     }
 </div>
+
+<div
+    aria-hidden="true"
+    class="channel-context-menu-anchor"
+    [style.left]="contextMenuPosition().x"
+    [style.top]="contextMenuPosition().y"
+    [matMenuTriggerFor]="channelContextMenu"
+    #contextMenuTrigger="matMenuTrigger"
+></div>
+
+<mat-menu #channelContextMenu="matMenu">
+    <button mat-menu-item (click)="openChannelDetails()">
+        <mat-icon>info</mat-icon>
+        <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
+    </button>
+</mat-menu>

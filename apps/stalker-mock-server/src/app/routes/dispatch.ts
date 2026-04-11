@@ -6,6 +6,7 @@ import { handleGetOrderedList } from '../handlers/get-ordered-list.handler.js';
 import { handleGetSeasons } from '../handlers/get-seasons.handler.js';
 import { handleCreateLink } from '../handlers/create-link.handler.js';
 import { handleFavorites } from '../handlers/favorites.handler.js';
+import { handleGetEpgInfo } from '../handlers/get-epg-info.handler.js';
 import { handleGetShortEpg } from '../handlers/get-short-epg.handler.js';
 import { handleGetGenres } from '../handlers/get-genres.handler.js';
 
@@ -45,8 +46,10 @@ export default function dispatchPortalAction(req: Request, res: Response): void 
             handleFavorites(req, res);
             break;
         case 'get_short_epg':
-        case 'get_epg_info':
             handleGetShortEpg(req, res);
+            break;
+        case 'get_epg_info':
+            handleGetEpgInfo(req, res);
             break;
         default:
             console.warn(`[portal] Unknown action: ${action}`);

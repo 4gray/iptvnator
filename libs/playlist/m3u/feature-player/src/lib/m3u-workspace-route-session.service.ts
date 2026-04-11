@@ -13,6 +13,8 @@ import { filter, firstValueFrom } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from 'services';
 
+type M3uLoadedSection = 'all' | 'groups';
+
 @Injectable()
 export class M3uWorkspaceRouteSession {
     private readonly destroyRef = inject(DestroyRef);
@@ -23,6 +25,7 @@ export class M3uWorkspaceRouteSession {
 
     private currentPlaylistId: string | null = null;
     private currentSection: string | null = null;
+    private loadRequestId = 0;
 
     constructor() {
         this.router.events
@@ -49,16 +52,18 @@ export class M3uWorkspaceRouteSession {
         const section =
             routeContext.provider === 'playlists' ? routeContext.section : null;
         const previousSection = this.currentSection;
+        this.currentSection = section;
         const playlistChanged = playlistId !== this.currentPlaylistId;
-        const shouldLoadPlaylist = section === 'all' || section === 'groups';
+        const shouldLoadPlaylist = this.isLoadedSection(section);
         const enteringLoadedSection =
-            shouldLoadPlaylist &&
-            previousSection !== 'all' &&
-            previousSection !== 'groups';
+            shouldLoadPlaylist && !this.isLoadedSection(previousSection);
 
         if (!playlistId) {
             this.currentPlaylistId = null;
-            this.currentSection = section;
+            this.loadRequestId += 1;
+            this.store.dispatch(
+                ChannelActions.setChannelsLoading({ loading: false })
+            );
             return;
         }
 
@@ -67,10 +72,29 @@ export class M3uWorkspaceRouteSession {
             this.store.dispatch(ChannelActions.resetActiveChannel());
         }
 
-        if (shouldLoadPlaylist && (playlistChanged || enteringLoadedSection)) {
+        if (!shouldLoadPlaylist) {
+            this.loadRequestId += 1;
+            this.store.dispatch(
+                ChannelActions.setChannelsLoading({ loading: false })
+            );
+            return;
+        }
+
+        if (!playlistChanged && !enteringLoadedSection) {
+            return;
+        }
+
+        const requestId = ++this.loadRequestId;
+        this.store.dispatch(ChannelActions.setChannelsLoading({ loading: true }));
+
+        try {
             const playlist = await firstValueFrom(
                 this.playlistsService.getPlaylist(playlistId)
             );
+
+            if (!this.isCurrentLoadRequest(requestId, playlistId, section)) {
+                return;
+            }
 
             if (playlist.userAgent) {
                 window.electron?.setUserAgent(playlist.userAgent, 'localhost');
@@ -90,9 +114,32 @@ export class M3uWorkspaceRouteSession {
                     channelIds: favorites,
                 })
             );
-        }
+        } catch {
+            if (!this.isCurrentLoadRequest(requestId, playlistId, section)) {
+                return;
+            }
 
-        this.currentSection = section;
+            this.store.dispatch(ChannelActions.setChannels({ channels: [] }));
+            this.store.dispatch(
+                FavoritesActions.setFavorites({ channelIds: [] })
+            );
+        }
+    }
+
+    private isLoadedSection(section: string | null): section is M3uLoadedSection {
+        return section === 'all' || section === 'groups';
+    }
+
+    private isCurrentLoadRequest(
+        requestId: number,
+        playlistId: string,
+        section: M3uLoadedSection
+    ): boolean {
+        return (
+            requestId === this.loadRequestId &&
+            this.currentPlaylistId === playlistId &&
+            this.currentSection === section
+        );
     }
 }
 

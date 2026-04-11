@@ -13,6 +13,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { formatWithIntl } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
 import {
@@ -212,16 +213,12 @@ export class RecentlyWatchedWidgetComponent implements OnInit {
             return this.translate.instant('WORKSPACE.DASHBOARD.RECENTLY');
         }
 
-        return date.toLocaleString(
-            this.translate.currentLang ||
-                this.translate.defaultLang ||
-                undefined,
-            {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-            }
-        );
+        return formatWithIntl(date, {
+            locale: this.translate.currentLang || this.translate.defaultLang,
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
     }
 }

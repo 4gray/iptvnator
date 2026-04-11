@@ -14,7 +14,8 @@
         </button>
         <span class="selected-date">
             {{
-                selectedDate() | momentDate: 'MMMM Do, dddd' : 'YYYY-MM-DD'
+                selectedDate()
+                    | date: 'MMMM d, EEEE' : undefined : currentLocale()
             }}</span
         >
         <button
@@ -33,18 +34,18 @@
     <div id="program-list" #programList>
         @if (items.length > 0) {
             @for (program of items; track $index) {
-                @if (
-                    program.start < timeshiftLimit || program.start >= timeNow()
-                ) {
+                @if (!canActivateProgram(program)) {
                     <div
                         class="program-item"
                         [class.current-program]="isProgramPlaying(program)"
                     >
                         <div class="program-meta">
                             <app-epg-list-item
-                                [timeshiftUntil]="timeshiftLimit"
-                                [timeNow]="timeNow()"
                                 [item]="program"
+                                [isLive]="isProgramPlaying(program)"
+                                [showArchiveBadge]="
+                                    canPlayArchivedProgram(program)
+                                "
                             />
                         </div>
                         <div class="program-title">
@@ -70,17 +71,16 @@
                     <div
                         class="program-item clickable"
                         [class.current-program]="isProgramPlaying(program)"
-                        [class.active]="
-                            timeNow() >= program.start &&
-                            timeNow() <= program.stop
-                        "
+                        [class.active]="isProgramPlaying(program)"
                         (click)="activateProgram(program)"
                     >
                         <div class="program-meta">
                             <app-epg-list-item
-                                [timeshiftUntil]="timeshiftLimit"
-                                [timeNow]="timeNow()"
                                 [item]="program"
+                                [isLive]="isProgramPlaying(program)"
+                                [showArchiveBadge]="
+                                    canPlayArchivedProgram(program)
+                                "
                             />
                         </div>
                         <div

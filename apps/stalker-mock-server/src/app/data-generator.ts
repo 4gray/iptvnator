@@ -135,15 +135,6 @@ function logoUrl(seed: string): string {
     return `https://picsum.photos/seed/logo-${seed}/100/100`;
 }
 
-function isoNow(offsetMinutes: number): string {
-    const d = new Date(Date.now() + offsetMinutes * 60 * 1000);
-    return d.toISOString();
-}
-
-function unixNow(offsetMinutes: number): number {
-    return Math.floor((Date.now() + offsetMinutes * 60 * 1000) / 1000);
-}
-
 // ---------------------------------------------------------------------------
 // Generator
 // ---------------------------------------------------------------------------
@@ -390,29 +381,44 @@ export function generateSeasons(
 // EPG generator
 // ---------------------------------------------------------------------------
 
-const EPG_PROGRAM_TYPES = ['News', 'Movie', 'Documentary', 'Entertainment', 'Sports', 'Kids', 'Series'];
+const EPG_PROGRAM_TYPES = [
+    'News',
+    'Movie',
+    'Documentary',
+    'Entertainment',
+    'Sports',
+    'Kids',
+    'Series',
+];
 
 export function generateEpg(channelName: string): RawEpgProgram[] {
     const programs: RawEpgProgram[] = [];
-    // Generate 12 programs: 6 past, current, 5 future (30-min slots)
-    const SLOT_MINUTES = 30;
-    const startOffset = -6 * SLOT_MINUTES; // start 3 hours ago
+    const SLOT_MINUTES = 120;
+    const SLOTS_PER_DAY = (24 * 60) / SLOT_MINUTES;
+    const TOTAL_DAYS = 7;
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
 
-    for (let i = 0; i < 12; i++) {
-        const startMin = startOffset + i * SLOT_MINUTES;
-        const stopMin = startMin + SLOT_MINUTES;
+    for (let i = 0; i < SLOTS_PER_DAY * TOTAL_DAYS; i++) {
+        const startDate = new Date(
+            dayStart.getTime() + i * SLOT_MINUTES * 60 * 1000
+        );
+        const stopDate = new Date(
+            startDate.getTime() + SLOT_MINUTES * 60 * 1000
+        );
         const category = EPG_PROGRAM_TYPES[i % EPG_PROGRAM_TYPES.length];
         programs.push({
             id: String(i + 1),
             name: `${channelName}: ${faker.company.catchPhrase()}`,
-            start: isoNow(startMin),
-            stop: isoNow(stopMin),
-            start_timestamp: unixNow(startMin),
-            stop_timestamp: unixNow(stopMin),
+            start: startDate.toISOString(),
+            stop: stopDate.toISOString(),
+            start_timestamp: Math.floor(startDate.getTime() / 1000),
+            stop_timestamp: Math.floor(stopDate.getTime() / 1000),
             descr: faker.lorem.sentence(),
             category,
         });
     }
+
     return programs;
 }
 

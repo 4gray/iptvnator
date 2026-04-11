@@ -14,7 +14,7 @@
     <mat-icon>chevron_left</mat-icon>
   </button>
   <div class="today-date">
-    {{ today() | momentDate: 'MMMM Do, dddd' : 'YYYYMMDD' }}
+    {{ selectedDayDate() | date: 'MMMM d, EEEE' : undefined : currentLocale() }}
   </div>
   <button
     [matTooltip]="'EPG.NEXT_DAY' | translate"
@@ -88,8 +88,14 @@
               <div class="result-info">
                 <span class="result-title">{{ program.title }}</span>
                 <span class="result-meta">
-                  <span class="result-time">{{ formatProgramTime(program) }}</span>
-                  <span class="result-date">{{ formatProgramDate(program) }}</span>
+                  <span class="result-time">
+                    {{ (program.startTimestamp ? program.startTimestamp * 1000 : program.start) | date: 'HH:mm' }}
+                    -
+                    {{ (program.stopTimestamp ? program.stopTimestamp * 1000 : program.stop) | date: 'HH:mm' }}
+                  </span>
+                  <span class="result-date">
+                    {{ (program.startTimestamp ? program.startTimestamp * 1000 : program.start) | date: 'MMM d' : undefined : currentLocale() }}
+                  </span>
                 </span>
               </div>
               <mat-icon class="result-arrow">arrow_forward</mat-icon>

@@ -40,6 +40,7 @@ export class EpgViewComponent {
 
     showDetails(item: EpgItem) {
         this.dialog.open(EpgItemDescriptionComponent, {
+            width: '600px',
             data: {
                 title: item.title ?? 'No title',
                 desc: item.description ?? 'No description',

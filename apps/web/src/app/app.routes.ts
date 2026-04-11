@@ -67,6 +67,7 @@ export const routes: Routes = [
                 data: {
                     mode: 'favorites',
                     portalType: 'm3u',
+                    defaultScope: 'playlist',
                 },
             },
             {
@@ -79,6 +80,7 @@ export const routes: Routes = [
                 data: {
                     mode: 'recent',
                     portalType: 'm3u',
+                    defaultScope: 'playlist',
                 },
             },
             {

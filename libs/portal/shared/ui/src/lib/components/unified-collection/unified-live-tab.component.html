@@ -112,6 +112,9 @@
                         <app-epg-list
                             [controlledChannel]="currentM3uChannel()"
                             [controlledPrograms]="currentM3uPrograms()"
+                            [archivePlaybackAvailable]="
+                                currentM3uArchivePlaybackAvailable()
+                            "
                         />
                     } @else {
                         <app-epg-view [epgItems]="currentPortalEpgItems()" />

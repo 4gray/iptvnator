@@ -18,6 +18,7 @@ import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from 'components';
+import { isM3uCatchupPlaybackSupported } from 'm3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     COMPONENT_OVERLAY_REF,
@@ -28,7 +29,9 @@ import {
     ChannelActions,
     PlaylistActions,
     selectActive,
+    selectActivePlaybackUrl,
     selectChannels,
+    selectChannelsLoading,
     selectCurrentEpgProgram,
 } from 'm3u-state';
 import {
@@ -59,6 +62,7 @@ import {
     SidebarComponent,
     VjsPlayerComponent,
 } from '@iptvnator/ui/playback';
+import { ChannelListLoadingStateComponent } from 'components';
 import { DataService, PlaylistsService, SettingsStore } from 'services';
 import {
     Channel,
@@ -85,6 +89,7 @@ const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
         ArtPlayerComponent,
         AsyncPipe,
         AudioPlayerComponent,
+        ChannelListLoadingStateComponent,
         CommonModule,
         EpgListComponent,
         HtmlVideoPlayerComponent,
@@ -114,8 +119,32 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     /** Active selected channel */
     readonly activeChannel = this.store.selectSignal(selectActive);
+    readonly activePlaybackUrl = this.store.selectSignal(
+        selectActivePlaybackUrl
+    );
     readonly activePlaylistId = this.playlistContext.resolvedPlaylistId;
     readonly channels = this.store.selectSignal(selectChannels);
+    readonly channelsLoading = this.store.selectSignal(selectChannelsLoading);
+    readonly archivePlaybackAvailable = computed(() =>
+        isM3uCatchupPlaybackSupported(this.activeChannel())
+    );
+    readonly playbackChannel = computed<Channel | null>(() => {
+        const activeChannel = this.activeChannel();
+        if (!activeChannel) {
+            return null;
+        }
+
+        const playbackUrl = this.activePlaybackUrl();
+        if (!playbackUrl) {
+            return activeChannel;
+        }
+
+        return {
+            ...activeChannel,
+            url: playbackUrl,
+            epgParams: '',
+        } as Channel;
+    });
     readonly sidebarStorageKey = computed(() =>
         this.activeView() === 'groups'
             ? M3U_GROUPS_SIDEBAR_STORAGE_KEY

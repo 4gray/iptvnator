@@ -4,6 +4,11 @@
     "projectType": "application",
     "prefix": "app",
     "sourceRoot": "apps/remote-control-web/src",
+    "cli": {
+        "cache": {
+            "enabled": false
+        }
+    },
     "tags": [],
     "targets": {
         "build": {

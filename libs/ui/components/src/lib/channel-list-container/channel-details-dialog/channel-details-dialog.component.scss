@@ -1,0 +1,390 @@
+:host {
+    display: block;
+    color: var(--app-body-color, var(--mat-sys-on-surface));
+}
+
+// ─── Hero header ────────────────────────────────────────────────────────────
+.channel-dialog__hero {
+    margin: 0;
+    padding: 20px 20px 18px;
+    display: grid;
+    gap: 18px;
+    background:
+        var(--app-accent-gradient),
+        var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    border-bottom: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+}
+
+.channel-dialog__hero-copy {
+    display: grid;
+    gap: 10px;
+}
+
+.channel-dialog__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.channel-dialog__eyebrow-mark {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--mat-sys-primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 14%, transparent);
+}
+
+.channel-dialog__headline-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.channel-dialog__headline-text {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.channel-dialog__logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: contain;
+    background: var(--mat-sys-surface-container);
+    border: 1px solid var(--app-separator);
+    flex-shrink: 0;
+}
+
+.channel-dialog__title {
+    margin: 0;
+    font-size: 1.3rem;
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    color: var(--app-heading-color, var(--mat-sys-on-surface));
+}
+
+.channel-dialog__subtitle {
+    margin: 4px 0 0;
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    font-size: 0.88rem;
+}
+
+// ─── Status pills ───────────────────────────────────────────────────────────
+.channel-dialog__status-cluster {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.channel-dialog__status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--app-separator);
+    background: var(--mat-sys-surface-container);
+    color: var(--app-body-color, var(--mat-sys-on-surface));
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.channel-dialog__status-pill--active {
+    border-color: color-mix(in srgb, #34d399 30%, transparent);
+    background: color-mix(in srgb, #34d399 12%, transparent);
+    color: #2db36f;
+}
+
+.channel-dialog__status-pill--radio {
+    border-color: color-mix(in srgb, var(--mat-sys-tertiary) 30%, transparent);
+    background: color-mix(in srgb, var(--mat-sys-tertiary) 12%, transparent);
+    color: var(--mat-sys-tertiary);
+}
+
+.channel-dialog__status-pill--playback {
+    border-color: color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+    background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+    color: var(--mat-sys-primary);
+}
+
+// ─── Hero stat cards ────────────────────────────────────────────────────────
+.channel-dialog__hero-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.channel-stat {
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--app-widget-border, transparent);
+    background: var(--app-widget-bg, var(--mat-sys-surface-container));
+    box-shadow: var(--app-widget-shadow, none);
+    outline: 1px solid rgba(255, 255, 255, 0.04);
+    outline-offset: -1px;
+}
+
+.channel-stat__icon {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+    color: var(--mat-sys-primary);
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.channel-stat__label {
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.channel-stat__value {
+    font-size: 1.1rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &--mono {
+        font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+        font-size: 0.92rem;
+    }
+
+    &--empty {
+        color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+        font-style: italic;
+        font-weight: 500;
+        font-size: 0.88rem;
+    }
+}
+
+// ─── Content area ───────────────────────────────────────────────────────────
+.channel-dialog__content {
+    margin: 0;
+    padding: 20px;
+    background: var(--app-widget-bg, var(--mat-sys-surface));
+}
+
+.channel-dialog__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+// ─── URL block ──────────────────────────────────────────────────────────────
+.channel-dialog__url-block {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 10px 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--app-separator);
+    background: var(--mat-sys-surface-container);
+
+    code {
+        flex: 1;
+        min-width: 0;
+        font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+        font-size: 0.82rem;
+        line-height: 1.5;
+        color: var(--app-body-color, var(--mat-sys-on-surface));
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+}
+
+.channel-dialog__copy-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    --mdc-icon-button-state-layer-size: 32px;
+    --mdc-icon-button-icon-size: 18px;
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+}
+
+// ─── Detail panels ──────────────────────────────────────────────────────────
+.channel-panel {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid var(--app-widget-border, transparent);
+    background: var(--app-widget-bg, var(--mat-sys-surface-container-low));
+    box-shadow: var(--app-widget-shadow, none);
+    outline: 1px solid rgba(255, 255, 255, 0.04);
+    outline-offset: -1px;
+    align-content: start;
+}
+
+.channel-panel__header {
+    display: grid;
+    gap: 4px;
+}
+
+.channel-panel__header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--app-heading-color, var(--mat-sys-on-surface));
+}
+
+.channel-panel__eyebrow {
+    margin: 0;
+    color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+// ─── Detail rows ────────────────────────────────────────────────────────────
+.channel-detail-list {
+    display: grid;
+    gap: 0;
+    margin: 0;
+}
+
+.channel-detail-row {
+    display: grid;
+    grid-template-columns: minmax(100px, 130px) minmax(0, 1fr);
+    gap: 12px;
+    align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--app-separator);
+}
+
+.channel-detail-row:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.channel-detail-row dt {
+    margin: 0;
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.channel-detail-row dd {
+    margin: 0;
+    color: var(--app-body-color, var(--mat-sys-on-surface));
+    font-size: 0.88rem;
+    font-weight: 500;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.channel-detail-row__value--mono {
+    font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+    font-size: 0.82rem;
+}
+
+.channel-detail-row__value--empty {
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    font-style: italic;
+}
+
+// ─── Chip sections (sub-group headers) ──────────────────────────────────────
+.channel-chip-section {
+    display: grid;
+    gap: 10px;
+    padding-top: 4px;
+}
+
+.channel-chip-section__label {
+    margin: 0;
+    color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding-top: 4px;
+    border-top: 1px solid var(--app-separator);
+}
+
+// ─── Footer actions ─────────────────────────────────────────────────────────
+.channel-dialog__actions {
+    padding: 0 20px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+    background: var(--app-widget-bg, var(--mat-sys-surface));
+}
+
+.channel-dialog__close {
+    min-width: 100px;
+    border-radius: 999px;
+}
+
+// ─── Responsive breakpoints ─────────────────────────────────────────────────
+@media (max-width: 720px) {
+    .channel-dialog__hero,
+    .channel-dialog__content,
+    .channel-dialog__actions {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .channel-dialog__headline-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .channel-dialog__status-cluster {
+        justify-content: flex-start;
+    }
+
+    .channel-dialog__hero-stats,
+    .channel-dialog__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .channel-detail-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+}
+
+@media (max-width: 480px) {
+    .channel-dialog__hero-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .channel-dialog__grid {
+        grid-template-columns: 1fr;
+    }
+}

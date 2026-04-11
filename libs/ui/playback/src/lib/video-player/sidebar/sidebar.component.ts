@@ -25,6 +25,7 @@ import { ChannelListContainerComponent } from 'components';
 })
 export class SidebarComponent {
     readonly channels = input<Channel[]>([]);
+    readonly channelsLoading = input(false);
     readonly showPlaylistHeader = input(true);
     readonly activeView = input<string>('all');
     readonly sidebarWidth = input<number | null>(null);
@@ -48,6 +49,10 @@ export class SidebarComponent {
     });
 
     readonly subtitle = computed(() => {
+        if (this.channelsLoading()) {
+            return this.translate.instant('CHANNELS.LOADING');
+        }
+
         const count = this.channels()?.length ?? 0;
         return `${count} ${this.translate.instant('HOME.PLAYLISTS.CHANNELS')}`;
     });

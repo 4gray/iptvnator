@@ -31,8 +31,13 @@ export const playlistReducers = [
         };
     }),
     on(PlaylistActions.updatePlaylist, (state, action): PlaylistState => {
+        const isActivePlaylist = state.playlists.selectedId === action.playlistId;
         return {
             ...state,
+            channels: isActivePlaylist
+                ? (action.playlist.playlist.items as Channel[])
+                : state.channels,
+            channelsLoading: isActivePlaylist ? false : state.channelsLoading,
             playlists: playlistsAdapter.updateOne(
                 {
                     id: action.playlistId,
@@ -162,6 +167,7 @@ export const playlistReducers = [
             if (action.isTemporary) {
                 return {
                     ...state,
+                    channelsLoading: false,
                     channels: action.playlist.playlist.items as Channel[],
                 };
             } else {

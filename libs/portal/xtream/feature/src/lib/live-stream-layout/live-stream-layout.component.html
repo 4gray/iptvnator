@@ -107,6 +107,9 @@
                     <app-epg-list
                         [controlledPrograms]="epgPrograms"
                         [controlledArchiveDays]="controlledArchiveDays()"
+                        [archivePlaybackAvailable]="
+                            archivePlaybackAvailable()
+                        "
                         (programActivated)="onProgramActivated($event)"
                     />
                 } @else if (!isElectron && epgItems().length > 0) {

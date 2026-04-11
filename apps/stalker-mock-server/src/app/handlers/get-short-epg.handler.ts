@@ -24,9 +24,15 @@ export function handleGetShortEpg(req: Request, res: Response): void {
         data.epg.set(channelId, programs);
     }
 
+    const now = Math.floor(Date.now() / 1000);
+    const currentIndex = programs.findIndex(
+        (program) => program.stop_timestamp > now
+    );
+    const startIndex = currentIndex >= 0 ? currentIndex : 0;
+
     res.json({
         js: {
-            data: programs.slice(0, size),
+            data: programs.slice(startIndex, startIndex + size),
         },
     });
 }

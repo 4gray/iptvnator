@@ -23,15 +23,13 @@
     @include mat.form-field-density(-5);
 }
 
-::ng-deep {
-    .search-bar div {
-        border-radius: 20px;
-    }
+:host ::ng-deep .search-bar div {
+    border-radius: 20px;
+}
 
-    div[matformfieldlineripple],
-    .mat-mdc-form-field-subscript-wrapper {
-        display: none;
-    }
+:host ::ng-deep .search-bar div[matformfieldlineripple],
+:host ::ng-deep .search-bar .mat-mdc-form-field-subscript-wrapper {
+    display: none;
 }
 
 // ─── List ──────────────────────────────────────────────────────────────────────
@@ -79,4 +77,3 @@
         max-width: 260px;
     }
 }
-

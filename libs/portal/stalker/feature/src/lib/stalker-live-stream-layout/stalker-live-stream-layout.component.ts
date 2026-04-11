@@ -6,13 +6,11 @@ import {
     effect,
     ElementRef,
     inject,
-    NgZone,
     OnDestroy,
     signal,
     viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatButton } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -21,22 +19,21 @@ import {
     ResizableDirective,
 } from 'components';
 import { PlaylistsService } from 'services';
-import { EpgItem, EpgProgram } from 'shared-interfaces';
-import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
+import { Channel, EpgItem, EpgProgram } from 'shared-interfaces';
+import { EpgListComponent } from '@iptvnator/ui/epg';
+import { WebPlayerViewComponent } from 'shared-portals';
 import {
     PORTAL_PLAYER,
     createLogger,
     getAdjacentChannelItem,
     getChannelItemByNumber,
 } from '@iptvnator/portal/shared/util';
-import {
-    PortalEmptyStateComponent,
-} from '@iptvnator/portal/shared/ui';
+import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
     StalkerFavoriteItem,
     StalkerItvChannel,
-    normalizeStalkerEntityId,
     StalkerStore,
+    normalizeStalkerEntityId,
 } from '@iptvnator/portal/stalker/data-access';
 
 @Component({
@@ -45,8 +42,7 @@ import {
     styleUrls: ['./stalker-live-stream-layout.component.scss'],
     imports: [
         ChannelListItemComponent,
-        EpgViewComponent,
-        MatButton,
+        EpgListComponent,
         MatProgressSpinnerModule,
         PortalEmptyStateComponent,
         ResizableDirective,
@@ -96,18 +92,58 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     streamUrl = '';
 
     /** EPG */
-    readonly epgItems = signal<EpgItem[]>([]);
-    readonly isLoadingEpg = signal(false);
-    readonly hasMoreEpg = signal(false);
-    private epgPageSize = 10;
-    private epgChannelId: number | string | null = null;
+    readonly fallbackEpgPrograms = signal<EpgProgram[]>([]);
+    readonly isLoadingFallbackEpg = signal(false);
+    readonly activeEpgPrograms = computed(() => {
+        const bulkPrograms = this.stalkerStore.selectedItvEpgPrograms();
+        return bulkPrograms.length > 0
+            ? bulkPrograms
+            : this.fallbackEpgPrograms();
+    });
+    readonly currentProgram = computed(() =>
+        this.findCurrentProgram(this.activeEpgPrograms())
+    );
+    readonly controlledChannel = computed<Channel | null>(() => {
+        const selectedType = this.stalkerStore.selectedContentType();
+        const selectedItem = this.stalkerStore.selectedItem();
+        if (selectedType !== 'itv' || !selectedItem?.id) {
+            return null;
+        }
+
+        const channelId = normalizeStalkerEntityId(selectedItem.id);
+        const channelName = selectedItem.o_name || selectedItem.name || '';
+
+        return {
+            id: channelId,
+            name: channelName,
+            url: this.streamUrl || String(selectedItem.cmd ?? ''),
+            group: { title: '' },
+            tvg: {
+                id: channelId,
+                name: channelName,
+                url: '',
+                logo: selectedItem.logo ?? '',
+                rec: '',
+            },
+            http: {
+                referrer: '',
+                'user-agent': '',
+                origin: '',
+            },
+            radio: 'false',
+            epgParams: '',
+        };
+    });
+    readonly isLoadingEpg = computed(
+        () =>
+            this.stalkerStore.isLoadingBulkItvEpg() ||
+            this.isLoadingFallbackEpg()
+    );
 
     /** Channel list EPG preview */
     readonly epgPreviewPrograms = new Map<string | number, EpgProgram>();
     readonly currentProgramsProgress = new Map<string | number, number>();
-    private readonly requestedEpgChannels = new Set<string | number>();
     private readonly cdr = inject(ChangeDetectorRef);
-    private readonly ngZone = inject(NgZone);
 
     /** Favorites */
     readonly favorites = new Map<string | number, boolean>();
@@ -117,6 +153,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private scrollListener: (() => void) | null = null;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
+    private epgLoadRequestId = 0;
+    private lastPlaylistId: string | null | undefined = undefined;
 
     constructor() {
         // Load favorites for current playlist
@@ -140,9 +178,12 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.stalkerStore.setItvChannels([]);
             this.stalkerStore.setPage(0);
             this.clearEpgPreviewMaps();
+            this.epgLoadRequestId += 1;
+            this.fallbackEpgPrograms.set([]);
+            this.isLoadingFallbackEpg.set(false);
         });
 
-        // Reset loading state when channels load + check viewport fill + load EPG previews
+        // Reset loading state when channels load and keep preview data in sync with bulk EPG.
         effect(() => {
             const channels = this.visibleChannels();
             if (channels.length > 0) {
@@ -150,8 +191,22 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 if (!this.searchTerm()) {
                     setTimeout(() => this.checkIfNeedsMoreContent(), 100);
                 }
-                this.loadEpgPreviewsForChannels(channels);
             }
+
+            this.syncBulkEpgPreviews(channels);
+        });
+
+        effect(() => {
+            const playlistId = this.stalkerStore.currentPlaylist()?._id ?? null;
+            if (playlistId === this.lastPlaylistId) {
+                return;
+            }
+
+            this.lastPlaylistId = playlistId;
+            this.epgLoadRequestId += 1;
+            this.fallbackEpgPrograms.set([]);
+            this.isLoadingFallbackEpg.set(false);
+            this.stalkerStore.clearBulkItvEpgCache();
         });
 
         // Setup scroll listener when container becomes available
@@ -170,7 +225,6 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             const selectedItem = this.stalkerStore.selectedItem();
             const selectedType = this.stalkerStore.selectedContentType();
             const channels = this.visibleChannels();
-            const epgItems = this.epgItems();
 
             if (selectedType !== 'itv' || !selectedItem?.id) {
                 window.electron.updateRemoteControlStatus({
@@ -184,7 +238,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             const currentIndex = channels.findIndex(
                 (item) => Number(item.id) === Number(selectedItem.id)
             );
-            const currentProgram = epgItems?.[0];
+            const currentProgram = this.currentProgram();
 
             window.electron.updateRemoteControlStatus({
                 portal: 'stalker',
@@ -193,7 +247,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
                 epgTitle: currentProgram?.title,
                 epgStart: currentProgram?.start,
-                epgEnd: currentProgram?.end,
+                epgEnd: currentProgram?.stop,
                 supportsVolume: false,
             });
         });
@@ -237,8 +291,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
         try {
             const playback = await this.stalkerStore.resolveItvPlayback(item);
-
-            this.loadEpgForChannel(item.id);
+            void this.loadEpgForChannel(item);
 
             if (this.usesEmbeddedPlayer()) {
                 this.streamUrl = playback.streamUrl;
@@ -279,104 +332,129 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.stalkerStore.setPage(nextPage);
     }
 
-    async loadMoreEpg() {
-        if (!this.epgChannelId || this.isLoadingEpg()) return;
-        this.epgPageSize += 10;
-        this.isLoadingEpg.set(true);
+    private async loadEpgForChannel(item: StalkerItvChannel) {
+        const requestId = ++this.epgLoadRequestId;
+        const normalizedChannelId = normalizeStalkerEntityId(item.id);
+        const playlistId = this.stalkerStore.currentPlaylist()?._id ?? null;
+        const shouldEnsureBulk =
+            !this.stalkerStore.bulkItvEpgLoaded() ||
+            this.stalkerStore.bulkItvEpgPlaylistId() !== playlistId ||
+            this.stalkerStore.bulkItvEpgPeriodHours() !== 168;
+
+        this.fallbackEpgPrograms.set([]);
+        this.isLoadingFallbackEpg.set(false);
+
         try {
-            const items = await this.stalkerStore.fetchChannelEpg(
-                this.epgChannelId,
-                this.epgPageSize
-            );
-            this.epgItems.set(items);
-            this.hasMoreEpg.set(items.length >= this.epgPageSize);
-        } catch {
-            this.hasMoreEpg.set(false);
-        } finally {
-            this.isLoadingEpg.set(false);
-        }
-    }
-
-    private async loadEpgForChannel(channelId: number | string) {
-        this.epgChannelId = channelId;
-        this.epgPageSize = 10;
-        this.isLoadingEpg.set(true);
-        this.epgItems.set([]);
-        this.hasMoreEpg.set(false);
-        try {
-            const items = await this.stalkerStore.fetchChannelEpg(
-                channelId,
-                this.epgPageSize
-            );
-            this.epgItems.set(items);
-            this.hasMoreEpg.set(items.length >= this.epgPageSize);
-        } catch {
-            this.epgItems.set([]);
-        } finally {
-            this.isLoadingEpg.set(false);
-        }
-    }
-
-    private async loadEpgPreviewsForChannels(channels: StalkerItvChannel[]) {
-        const newChannels = channels.filter(
-            (ch) =>
-                ch.id &&
-                !this.requestedEpgChannels.has(normalizeStalkerEntityId(ch.id))
-        );
-        if (newChannels.length === 0) return;
-
-        // Mark all as requested immediately to avoid duplicates
-        for (const ch of newChannels) {
-            this.requestedEpgChannels.add(normalizeStalkerEntityId(ch.id));
-        }
-
-        // Process in batches of 3 with a small delay between batches
-        const batchSize = 3;
-        for (let i = 0; i < newChannels.length; i += batchSize) {
-            const batch = newChannels.slice(i, i + batchSize);
-            await Promise.all(
-                batch.map((ch) => this.loadSingleEpgPreview(ch.id))
-            );
-            // Re-enter Angular zone to trigger change detection for OnPush
-            this.ngZone.run(() => this.cdr.markForCheck());
-            // Small delay between batches to avoid overwhelming the portal
-            if (i + batchSize < newChannels.length) {
-                await new Promise((r) => setTimeout(r, 150));
-            }
-        }
-    }
-
-    private async loadSingleEpgPreview(channelId: number | string) {
-        try {
-            const items = await this.stalkerStore.fetchChannelEpg(channelId, 1);
-            if (items.length > 0) {
-                const program = items[0];
-                const id = normalizeStalkerEntityId(channelId);
-                this.epgPreviewPrograms.set(
-                    id,
-                    this.toPreviewProgram(program, id)
-                );
-
-                const now = Date.now() / 1000;
-                const start = parseInt(program.start_timestamp, 10);
-                const end = parseInt(program.stop_timestamp, 10);
-
-                if (start && end && now >= start && now <= end) {
-                    const progress = ((now - start) / (end - start)) * 100;
-                    this.currentProgramsProgress.set(id, progress);
-                } else {
-                    this.currentProgramsProgress.delete(id);
+            if (shouldEnsureBulk) {
+                await this.stalkerStore.ensureBulkItvEpg(168);
+                if (
+                    !this.isCurrentEpgRequest(
+                        requestId,
+                        normalizedChannelId
+                    )
+                ) {
+                    return;
                 }
             }
-        } catch {
-            // Silently skip — channel just won't show EPG preview
+
+            if (this.stalkerStore.selectedItvEpgPrograms().length > 0) {
+                return;
+            }
+
+            this.isLoadingFallbackEpg.set(true);
+            const fallbackItems = await this.stalkerStore.fetchChannelEpg(
+                item.id
+            );
+            if (
+                !this.isCurrentEpgRequest(requestId, normalizedChannelId)
+            ) {
+                return;
+            }
+
+            this.fallbackEpgPrograms.set(
+                fallbackItems.map((epgItem) =>
+                    this.toProgram(epgItem, normalizedChannelId)
+                )
+            );
+        } catch (error) {
+            this.logger.warn('Failed to load Stalker live EPG', error);
+            if (
+                this.isCurrentEpgRequest(requestId, normalizedChannelId)
+            ) {
+                this.fallbackEpgPrograms.set([]);
+            }
+        } finally {
+            if (
+                this.isCurrentEpgRequest(requestId, normalizedChannelId)
+            ) {
+                this.isLoadingFallbackEpg.set(false);
+            }
         }
     }
 
     private clearEpgPreviewMaps() {
         this.epgPreviewPrograms.clear();
         this.currentProgramsProgress.clear();
-        this.requestedEpgChannels.clear();
+    }
+
+    private syncBulkEpgPreviews(channels: StalkerItvChannel[]): void {
+        this.clearEpgPreviewMaps();
+
+        const bulkProgramsByChannel = this.stalkerStore.bulkItvEpgByChannel();
+        if (
+            channels.length === 0 ||
+            Object.keys(bulkProgramsByChannel).length === 0
+        ) {
+            this.cdr.markForCheck();
+            return;
+        }
+
+        for (const channel of channels) {
+            const channelId = normalizeStalkerEntityId(channel.id);
+            const currentProgram = this.findCurrentProgram(
+                bulkProgramsByChannel[channelId] ?? []
+            );
+
+            if (!currentProgram) {
+                continue;
+            }
+
+            this.epgPreviewPrograms.set(channelId, currentProgram);
+            this.updateProgramProgress(channelId, currentProgram);
+        }
+
+        this.cdr.markForCheck();
+    }
+
+    private updateProgramProgress(
+        channelId: string | number,
+        program: EpgProgram
+    ): void {
+        const startMs = this.getProgramTimestampMs(
+            program.start,
+            program.startTimestamp
+        );
+        const stopMs = this.getProgramTimestampMs(
+            program.stop,
+            program.stopTimestamp
+        );
+        const nowMs = Date.now();
+
+        if (
+            Number.isFinite(startMs) &&
+            Number.isFinite(stopMs) &&
+            nowMs >= startMs &&
+            nowMs <= stopMs &&
+            stopMs > startMs
+        ) {
+            this.currentProgramsProgress.set(
+                channelId,
+                ((nowMs - startMs) / (stopMs - startMs)) * 100
+            );
+            return;
+        }
+
+        this.currentProgramsProgress.delete(channelId);
     }
 
     private setupScrollListener() {
@@ -419,7 +497,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         }
     }
 
-    private toPreviewProgram(
+    private toProgram(
         item: EpgItem,
         channelId: string | number
     ): EpgProgram {
@@ -430,7 +508,66 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             title: item.title,
             desc: item.description || null,
             category: null,
+            startTimestamp: this.toTimestamp(item.start_timestamp, item.start),
+            stopTimestamp: this.toTimestamp(
+                item.stop_timestamp,
+                item.stop || item.end
+            ),
         };
+    }
+
+    private toTimestamp(
+        rawTimestamp: string | number | null | undefined,
+        rawDate: string
+    ): number | null {
+        const timestamp = Number.parseInt(String(rawTimestamp ?? ''), 10);
+        if (Number.isFinite(timestamp) && timestamp > 0) {
+            return timestamp;
+        }
+
+        const parsedDate = Date.parse(rawDate);
+        return Number.isFinite(parsedDate)
+            ? Math.floor(parsedDate / 1000)
+            : null;
+    }
+
+    private findCurrentProgram(programs: EpgProgram[]): EpgProgram | null {
+        const now = Date.now();
+        return (
+            programs.find((program) => {
+                const start = this.getProgramTimestampMs(
+                    program.start,
+                    program.startTimestamp
+                );
+                const stop = this.getProgramTimestampMs(
+                    program.stop,
+                    program.stopTimestamp
+                );
+                return start !== null && stop !== null && now >= start && now < stop;
+            }) ?? null
+        );
+    }
+
+    private getProgramTimestampMs(
+        rawDate: string,
+        rawTimestamp?: number | null
+    ): number | null {
+        if (Number.isFinite(rawTimestamp) && Number(rawTimestamp) > 0) {
+            return Number(rawTimestamp) * 1000;
+        }
+
+        const parsedDate = Date.parse(rawDate);
+        return Number.isFinite(parsedDate) ? parsedDate : null;
+    }
+
+    private isCurrentEpgRequest(
+        requestId: number,
+        normalizedChannelId: string
+    ): boolean {
+        return (
+            requestId === this.epgLoadRequestId &&
+            this.selectedChannelId() === normalizedChannelId
+        );
     }
 
     private handleRemoteChannelChange(direction: 'up' | 'down'): void {

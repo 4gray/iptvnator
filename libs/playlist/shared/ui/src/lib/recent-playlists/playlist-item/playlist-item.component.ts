@@ -9,12 +9,15 @@ import {
     input,
     output,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
-import { TranslatePipe } from '@ngx-translate/core';
+import { normalizeDateLocale } from '@iptvnator/pipes';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
 import { PortalStatus, PortalStatusService } from 'services';
 import { PlaylistMeta } from 'shared-interfaces';
 
@@ -53,8 +56,19 @@ export class PlaylistItemComponent implements OnInit {
 
     portalStatus: PortalStatus = 'unavailable';
     private readonly portalStatusService = inject(PortalStatusService);
+    private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
 
     readonly isElectron = !!window.electron;
+    readonly currentLocale = computed(() => {
+        this.languageTick();
+        return normalizeDateLocale(
+            this.translate.currentLang || this.translate.defaultLang
+        );
+    });
 
     async ngOnInit() {
         await this.checkPortalStatus();

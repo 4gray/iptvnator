@@ -66,6 +66,7 @@ class StubGlobalFavoritesListComponent {
 class StubEpgListComponent {
     readonly controlledChannel = input<Channel | null>(null);
     readonly controlledPrograms = input<EpgProgram[] | null>(null);
+    readonly archivePlaybackAvailable = input<boolean | null>(null);
 }
 
 @Component({

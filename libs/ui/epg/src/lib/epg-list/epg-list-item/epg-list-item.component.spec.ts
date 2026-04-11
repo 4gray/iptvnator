@@ -3,67 +3,35 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MomentDatePipe } from '@iptvnator/pipes';
-import { TranslateModule } from '@ngx-translate/core';
-import moment from 'moment';
-import { MockModule, MockPipe } from 'ng-mocks';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { MockModule } from 'ng-mocks';
 import { EpgProgram } from 'shared-interfaces';
 import { EpgItemDescriptionComponent } from '../epg-item-description/epg-item-description.component';
 import { EpgListItemComponent } from './epg-list-item.component';
 
-const EPG_PROGRAM_ITEM = {
-    start: moment(Date.now()).format('YYYYMMDD'),
-    stop: moment(Date.now()).format('YYYYMMDD'),
+const EPG_PROGRAM_ITEM: EpgProgram = {
+    start: '2026-04-05T11:30:00.000Z',
+    stop: '2026-04-05T12:30:00.000Z',
     channel: '12345',
-    title: [{ lang: 'en', value: 'NOW on PBS' }],
-    desc: [
-        {
-            lang: 'en',
-            value: "Jordan's Queen Rania has made job creation a priority to help curb the staggering unemployment rates among youths in the Middle East.",
-        },
-    ],
-    date: ['20080711'],
-    category: [
-        { lang: 'en', value: 'Newsmagazine' },
-        { lang: 'en', value: 'Interview' },
-    ],
-    episodeNum: [
-        { system: 'dd_progid', value: 'EP01006886.0028' },
-        { system: 'onscreen', value: '427' },
-    ],
-    previouslyShown: [{ start: '20080711000000' }],
-    subtitles: [{ type: 'teletext' }],
-    rating: [
-        {
-            system: 'VCHIP',
-            value: 'TV-G',
-        },
-    ],
-    credits: [
-        {
-            role: 'actor',
-            name: 'Peter Bergman',
-        },
-    ],
-    icon: [
+    title: 'NOW on PBS',
+    desc: "Jordan's Queen Rania has made job creation a priority to help curb the staggering unemployment rates among youths in the Middle East.",
+    category: 'Newsmagazine',
+    episodeNum: '427',
+    rating: 'TV-G',
+    iconUrl:
         'http://imageswoapi.whatsonindia.com/WhatsOnTV/images/ProgramImages/xlarge/38B4DE4E9A7132257749051B6C8B4F699DB264F4V.jpg',
-    ],
-    audio: [],
-    _attributes: {
-        start: moment(Date.now()).format('YYYYMMDD'),
-        stop: moment(Date.now()).format('YYYYMMDD'),
-    },
 };
 
 describe('EpgListItemComponent', () => {
     let component: EpgListItemComponent;
     let fixture: ComponentFixture<EpgListItemComponent>;
     let dialog: MatDialog;
+    let translate: TranslateService;
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
-            declarations: [EpgListItemComponent, MockPipe(MomentDatePipe)],
             imports: [
+                EpgListItemComponent,
                 MockModule(MatDialogModule),
                 MockModule(MatListModule),
                 MockModule(MatIconModule),
@@ -76,6 +44,20 @@ describe('EpgListItemComponent', () => {
     beforeEach(() => {
         fixture = TestBed.createComponent(EpgListItemComponent);
         dialog = TestBed.inject(MatDialog);
+        translate = TestBed.inject(TranslateService);
+        translate.setTranslation(
+            'en',
+            {
+                EPG: {
+                    TIMESHIFT_AVAILABLE: 'Archive playback is available',
+                },
+                XTREAM: {
+                    PLAY: 'Play',
+                },
+            },
+            true
+        );
+        translate.use('en');
         component = fixture.componentInstance;
         component.item = EPG_PROGRAM_ITEM;
         fixture.detectChanges();
@@ -93,5 +75,22 @@ describe('EpgListItemComponent', () => {
             data: {},
             width: '800px',
         });
+    });
+
+    it('renders an archive playback chip with replay icon and label', () => {
+        fixture = TestBed.createComponent(EpgListItemComponent);
+        component = fixture.componentInstance;
+        component.item = EPG_PROGRAM_ITEM;
+        component.showArchiveBadge = true;
+        fixture.detectChanges();
+
+        const chip = fixture.nativeElement.querySelector('.archive-playback');
+        const icon = fixture.nativeElement.querySelector(
+            '.archive-playback__icon'
+        );
+
+        expect(chip).not.toBeNull();
+        expect(chip.textContent).toContain('Play');
+        expect(icon.textContent.trim()).toBe('replay');
     });
 });

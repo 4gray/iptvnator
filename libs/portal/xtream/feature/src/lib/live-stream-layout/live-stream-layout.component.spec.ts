@@ -5,7 +5,10 @@ import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { MockPipe } from 'ng-mocks';
 import { TranslatePipe } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { PORTAL_PLAYER, ResizableDirective } from '@iptvnator/portal/shared/util';
+import {
+    PORTAL_PLAYER,
+    ResizableDirective,
+} from '@iptvnator/portal/shared/util';
 import {
     FavoritesService,
     XtreamStore,
@@ -16,6 +19,8 @@ import { EpgViewComponent, WebPlayerViewComponent } from 'shared-portals';
 import { EpgItem, EpgProgram } from 'shared-interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
+
+const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
 @Component({
     selector: 'app-portal-channels-list',
@@ -54,6 +59,7 @@ class StubEpgViewComponent {
 class StubEpgListComponent {
     readonly controlledPrograms = input<EpgProgram[] | null>(null);
     readonly controlledArchiveDays = input<number | null>(null);
+    readonly archivePlaybackAvailable = input<boolean | null>(null);
     readonly programActivated = output<EpgProgramActivationEvent>();
 }
 
@@ -110,9 +116,9 @@ describe('LiveStreamLayoutComponent', () => {
         getFavorites: jest.fn().mockReturnValue(of([])),
     };
     const xtreamUrlService = {
-        resolveCatchupUrl: jest.fn().mockResolvedValue(
-            'https://example.com/timeshift.ts'
-        ),
+        resolveCatchupUrl: jest
+            .fn()
+            .mockResolvedValue('https://example.com/timeshift.ts'),
     };
     const portalPlayer = {
         isEmbeddedPlayer: jest.fn().mockReturnValue(true),
@@ -123,6 +129,7 @@ describe('LiveStreamLayoutComponent', () => {
     beforeEach(async () => {
         jest.useFakeTimers();
         jest.setSystemTime(fixedNow);
+        localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
 
         window.electron = {
             updateRemoteControlStatus: jest.fn(),
@@ -206,6 +213,7 @@ describe('LiveStreamLayoutComponent', () => {
     afterEach(() => {
         fixture.destroy();
         jest.useRealTimers();
+        localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         window.electron = originalElectron;
     });
 
@@ -225,9 +233,7 @@ describe('LiveStreamLayoutComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-list')
         ).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector('app-epg-view')
-        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
     it('uses currentEpgItem instead of assuming the first schedule item is current', () => {

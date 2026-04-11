@@ -6,6 +6,7 @@
     cdkDragPreviewContainer="parent"
     [class.active]="selected()"
     (click)="clicked.emit()"
+    (contextmenu)="onContextMenu($event)"
     data-test-id="channel-item"
 >
     @if (isDraggable()) {
@@ -34,7 +35,10 @@
                     </div>
                     <div class="epg-timeline">
                         <span class="epg-time">{{
-                            formatTime(program.start, program.startTimestamp)
+                            (program.startTimestamp
+                                ? program.startTimestamp * 1000
+                                : program.start
+                            ) | date: 'HH:mm'
                         }}</span>
                         <div class="epg-progress-track">
                             <div
@@ -45,7 +49,10 @@
                             ></div>
                         </div>
                         <span class="epg-time">{{
-                            formatTime(program.stop, program.stopTimestamp)
+                            (program.stopTimestamp
+                                ? program.stopTimestamp * 1000
+                                : program.stop
+                            ) | date: 'HH:mm'
                         }}</span>
                     </div>
                 } @else if (!isRadio()) {

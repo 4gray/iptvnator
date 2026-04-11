@@ -49,6 +49,9 @@ interface PlaylistState {
     // Active channel being played
     active: Channel | undefined;
 
+    // Whether the current route is still resolving channel data
+    channelsLoading: boolean;
+
     // All channels from current playlist
     channels: Channel[];
 
@@ -85,6 +88,7 @@ interface PlaylistState {
 ```typescript
 // Channel selectors
 selectActive          // Current playing channel
+selectChannelsLoading // Channel list loading flag
 selectChannels        // All channels array
 selectFavorites       // Favorite channel URLs
 
@@ -164,6 +168,18 @@ channel-list-container/
                     Store Dispatch
               ChannelActions.setActiveChannel
 ```
+
+### Loading States
+
+- `M3uWorkspaceRouteSession` owns route-driven channel loading for the player/sidebar routes: `all` and `groups`.
+- The route session sets `channelsLoading` before `getPlaylist()` resolves and clears it when `ChannelActions.setChannels` lands.
+- `ChannelListContainerComponent` now renders a dedicated skeleton state while `channelsLoading` is true.
+- `ChannelListContainerComponent` no longer clears `channels` on destroy; route/session code is the single owner of shared list lifecycle during navigation.
+- The dedicated `/workspace/playlists/:id/favorites` and `/workspace/playlists/:id/recent` collection routes do not drive the shared sidebar channel list; they default to the `playlist` scope so rail links always open the current playlist view, not the last persisted global scope.
+- Empty playlists and empty search results are no longer conflated:
+  - loading: skeletons
+  - empty source: no channels in the playlist after loading completes
+  - empty search: no matches within an already loaded playlist
 
 ### EnrichedChannel Pattern
 
@@ -252,6 +268,34 @@ class EpgService {
 - Multi-EPG modal view
 - Channel info overlay
 - External player support (MPV, VLC) in Electron
+- M3U archive/catch-up playback for supported replay schemes
+
+### Archive / Catch-Up Playback
+
+- The shared EPG UI only shows the archive replay badge when the host confirms
+  that the selected M3U channel has a playable replay scheme. Archive days
+  alone are not enough.
+- M3U catch-up support is resolved in `m3u-utils` from channel metadata and
+  the archived program start time.
+- Supported replay precedence:
+  1. `catchup.source` if it is an HTTP(S) URL. IPTVNator rewrites or appends
+     standard `utc` and `lutc` query params on that URL.
+  2. Legacy same-stream shift playback when `catchup.type === 'shift'`. In
+     that case IPTVNator rewrites or appends `utc` and `lutc` on `channel.url`.
+  3. Legacy same-stream shift fallback when no explicit catch-up mode is
+     declared, archive-day metadata exists (`tvg.rec`, `timeshift`, or
+     `catchup.days`), and `channel.url` itself is an HTTP(S) stream URL. This
+     covers providers that only advertise archive retention such as
+     `tvg-rec="7"` but still expect standard `utc` and `lutc` query params on
+     the live URL.
+- `tvg.rec`, `timeshift`, and `catchup.days` still define the archive window
+  shown in the EPG, but replay remains unavailable when the provider declares a
+  different explicit catch-up scheme that IPTVNator does not understand or when
+  the stream URL itself is not an HTTP(S) replay target.
+- Active replay is stored separately from the selected channel in
+  `playlistState.activePlaybackUrl`. Inline and external players use
+  `activePlaybackUrl ?? activeChannel.url`, and returning to live playback
+  clears the override.
 
 ## Interfaces
 
@@ -272,11 +316,24 @@ interface Channel {
     epgParams?: string;
     timeshift?: string;
     catchup?: { type?: string; source?: string; days?: string };
+    radio: string;
     http: {
         referrer: string;
         'user-agent': string;
         origin: string;
     };
+}
+```
+
+### Playlist State Additions
+
+```typescript
+interface PlaylistState {
+    active: Channel | undefined;
+    activePlaybackUrl: string | null;
+    currentEpgProgram: EpgProgram | undefined;
+    epgAvailable: boolean;
+    channels: Channel[];
 }
 ```
 

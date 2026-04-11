@@ -4,12 +4,18 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    inject,
     input,
     output,
+    signal,
+    viewChild,
 } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Channel, EpgProgram } from 'shared-interfaces';
+import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 
 /** Enriched channel with pre-computed EPG and progress data */
@@ -26,11 +32,18 @@ export interface EnrichedChannel extends Channel {
     imports: [
         ChannelListItemComponent,
         MatIconModule,
+        MatMenuModule,
         ScrollingModule,
         TranslatePipe,
     ],
 })
 export class AllChannelsViewComponent {
+    private readonly dialog = inject(MatDialog);
+
+    readonly contextMenuTrigger = viewChild.required<MatMenuTrigger>(
+        'contextMenuTrigger'
+    );
+
     /** All channels (will be filtered by search) */
     readonly channels = input.required<Channel[]>();
     readonly searchTerm = input('');
@@ -61,6 +74,12 @@ export class AllChannelsViewComponent {
         channel: Channel;
         event: MouseEvent;
     }>();
+
+    readonly contextMenuChannel = signal<Channel | null>(null);
+    readonly contextMenuPosition = signal({
+        x: '0px',
+        y: '0px',
+    });
 
     /**
      * Computed signal for filtered and enriched channels.
@@ -135,5 +154,36 @@ export class AllChannelsViewComponent {
 
     onFavoriteToggle(channel: Channel, event: MouseEvent): void {
         this.favoriteToggled.emit({ channel, event });
+    }
+
+    onChannelContextMenu(channel: Channel, event: MouseEvent): void {
+        this.contextMenuChannel.set(channel);
+        this.contextMenuPosition.set({
+            x: `${event.clientX}px`,
+            y: `${event.clientY}px`,
+        });
+
+        const trigger = this.contextMenuTrigger();
+        if (trigger.menuOpen) {
+            trigger.closeMenu();
+        }
+
+        queueMicrotask(() => {
+            this.contextMenuTrigger().openMenu();
+        });
+    }
+
+    openChannelDetails(): void {
+        const channel = this.contextMenuChannel();
+        if (!channel) {
+            return;
+        }
+
+        this.contextMenuTrigger().closeMenu();
+        this.dialog.open(ChannelDetailsDialogComponent, {
+            data: channel,
+            maxWidth: '720px',
+            width: 'calc(100vw - 32px)',
+        });
     }
 }

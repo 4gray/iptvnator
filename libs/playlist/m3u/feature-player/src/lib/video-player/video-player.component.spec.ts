@@ -10,7 +10,9 @@ import { BehaviorSubject, of } from 'rxjs';
 import {
     ChannelActions,
     selectActive,
+    selectActivePlaybackUrl,
     selectChannels,
+    selectChannelsLoading,
     selectCurrentEpgProgram,
 } from 'm3u-state';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
@@ -34,7 +36,9 @@ describe('VideoPlayerComponent', () => {
 
     const playlistId = signal('playlist-1');
     const activeChannel = signal<Channel | null>(null);
+    const activePlaybackUrl = signal<string | null>(null);
     const channels = signal<Channel[]>([]);
+    const channelsLoading = signal(false);
     const currentEpgProgram = signal(null);
 
     const channels$ = new BehaviorSubject<Channel[]>([]);
@@ -66,8 +70,12 @@ describe('VideoPlayerComponent', () => {
             switch (selector) {
                 case selectActive:
                     return activeChannel;
+                case selectActivePlaybackUrl:
+                    return activePlaybackUrl;
                 case selectChannels:
                     return channels;
+                case selectChannelsLoading:
+                    return channelsLoading;
                 case selectCurrentEpgProgram:
                     return currentEpgProgram;
                 default:
@@ -143,6 +151,8 @@ describe('VideoPlayerComponent', () => {
         localStorage.removeItem('m3u-sidebar-width');
         player.set(VideoPlayer.VideoJs);
         showCaptions.set(false);
+        activePlaybackUrl.set(null);
+        channelsLoading.set(false);
         currentEpgProgram.set(null);
         currentEpgProgram$.next(null);
         overlayMock.create.mockClear();
@@ -284,6 +294,25 @@ describe('VideoPlayerComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-list')
         ).not.toBeNull();
+    });
+
+    it('uses the active playback override url when archive playback is active', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        activePlaybackUrl.set(
+            'http://localhost/archive.m3u8?utc=123&lutc=456'
+        );
+
+        fixture.detectChanges();
+
+        expect(component.playbackChannel()?.url).toBe(
+            'http://localhost/archive.m3u8?utc=123&lutc=456'
+        );
+
+        activePlaybackUrl.set(null);
+        fixture.detectChanges();
+
+        expect(component.playbackChannel()?.url).toBe(sampleChannel.url);
     });
 
     it('updates the outer sidebar width while grouped view requests a larger total width', () => {

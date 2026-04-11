@@ -1,5 +1,5 @@
 import { DragDropModule } from '@angular/cdk/drag-drop';
-import { NgStyle } from '@angular/common';
+import { DatePipe, NgStyle } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -23,6 +23,7 @@ import { EpgProgram } from 'shared-interfaces';
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './channel-list-item.component.html',
     imports: [
+        DatePipe,
         DragDropModule,
         MatIcon,
         MatIconButton,
@@ -41,6 +42,7 @@ export class ChannelListItemComponent {
     readonly showFavoriteButton = input(false);
     readonly showAuxActionButton = input(false);
     readonly showProgramInfoButton = input(true);
+    readonly showDetailsContextMenu = input(false);
     readonly isFavorite = input(false);
     readonly selected = input(false);
     readonly showEpg = input(true);
@@ -54,35 +56,12 @@ export class ChannelListItemComponent {
     readonly clicked = output<void>();
     readonly favoriteToggled = output<MouseEvent>();
     readonly auxActionClicked = output<MouseEvent>();
+    readonly contextMenuRequested = output<MouseEvent>();
 
     constructor() {
         effect(() => {
             this.logo();
             this.logoFailed.set(false);
-        });
-    }
-
-    /**
-     * Formats time for display (HH:mm)
-     */
-    formatTime(
-        dateString: string | number,
-        timestampSeconds?: number | null
-    ): string {
-        const unixTimestamp = Number(timestampSeconds);
-        const date =
-            Number.isFinite(unixTimestamp) && unixTimestamp > 0
-                ? new Date(unixTimestamp * 1000)
-                : new Date(dateString);
-
-        if (Number.isNaN(date.getTime())) {
-            return '';
-        }
-
-        return date.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
         });
     }
 
@@ -106,6 +85,16 @@ export class ChannelListItemComponent {
     onAuxActionClick(event: MouseEvent): void {
         event.stopPropagation();
         this.auxActionClicked.emit(event);
+    }
+
+    onContextMenu(event: MouseEvent): void {
+        if (!this.showDetailsContextMenu()) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        this.contextMenuRequested.emit(event);
     }
 
     showLogoFallback(): boolean {

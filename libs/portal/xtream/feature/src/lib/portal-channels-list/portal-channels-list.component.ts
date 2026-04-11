@@ -26,12 +26,14 @@ import {
     XtreamItem,
 } from 'shared-interfaces';
 import { ChannelListItemComponent } from 'components';
+import {
+    PortalChannelSortMode,
+    sortPortalChannelItems,
+} from '@iptvnator/portal/shared/util';
 import { EpgQueueService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamCredentials } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-
-type LiveChannelSortMode = 'server' | 'name-asc' | 'name-desc';
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -61,7 +63,7 @@ interface XtreamCategoryLike {
 })
 export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     readonly playClicked = output<XtreamChannelListItem>();
-    readonly sortMode = input<LiveChannelSortMode>('server');
+    readonly sortMode = input<PortalChannelSortMode>('server');
     readonly channelsOverride = input<XtreamChannelListItem[] | null>(null);
     readonly searchTermInput = input('');
 
@@ -78,27 +80,16 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return override;
         }
 
-        return this.xtreamStore.selectItemsFromSelectedCategory() as
-            XtreamChannelListItem[];
+        return this.xtreamStore.selectItemsFromSelectedCategory() as XtreamChannelListItem[];
     });
     readonly sortedChannels = computed(() => {
         const mode = this.sortMode();
         const channels = this.channels();
-        if (mode === 'server') {
-            return channels;
-        }
-
-        const collator = new Intl.Collator(undefined, {
-            numeric: true,
-            sensitivity: 'base',
-        });
-
-        return [...channels].sort((a, b) => {
-            const titleA = a.title ?? a.name ?? '';
-            const titleB = b.title ?? b.name ?? '';
-            const result = collator.compare(titleA, titleB);
-            return mode === 'name-asc' ? result : -result;
-        });
+        return sortPortalChannelItems(
+            channels,
+            mode,
+            (item) => item.title ?? item.name
+        );
     });
     readonly filteredChannels = computed(() => {
         const term = this.searchTermInput().trim().toLowerCase();
@@ -163,14 +154,12 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
         // Subscribe to EPG results from the queue service
         this.subscriptions.add(
-            this.epgQueueService.epgResult$.subscribe(
-                ({ streamId, items }) => {
-                    const previewProgram = this.pickPreviewProgram(items);
-                    if (previewProgram) {
-                        this.applyProgram(streamId, previewProgram);
-                    }
+            this.epgQueueService.epgResult$.subscribe(({ streamId, items }) => {
+                const previewProgram = this.pickPreviewProgram(items);
+                if (previewProgram) {
+                    this.applyProgram(streamId, previewProgram);
                 }
-            )
+            })
         );
     }
 
@@ -201,9 +190,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             password: playlist.password,
         };
 
-        const visibleIds = new Set<number>(
-            channels.map((ch) => ch.xtream_id)
-        );
+        const visibleIds = new Set<number>(channels.map((ch) => ch.xtream_id));
         const uncachedIds: number[] = [];
 
         // Apply cached results immediately
@@ -230,10 +217,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    private updateProgramProgress(
-        streamId: number,
-        program: EpgItem
-    ) {
+    private updateProgramProgress(streamId: number, program: EpgItem) {
         const now = Date.now();
         const start = this.getProgramTimestampMs(
             program.start,
