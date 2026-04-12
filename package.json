@@ -73,7 +73,7 @@
         "axios": "1.12.2",
         "better-sqlite3": "^12.5.0",
         "date-fns": "4.1.0",
-        "drizzle-orm": "0.44.6",
+        "drizzle-orm": "0.45.2",
         "electron-conf": "1.3.0",
         "electron-dl": "4.0.0",
         "fix-path": "5.0.0",
