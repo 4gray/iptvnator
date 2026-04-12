@@ -68,27 +68,30 @@ interface XtreamSelectionItem {
     readonly category_id?: string | number;
     readonly episodes?: unknown;
     readonly id?: string | number;
-    readonly info?: {
-        readonly actors?: string;
-        readonly backdrop_path?: string[];
-        readonly cast?: string;
-        readonly country?: string;
-        readonly cover?: string;
-        readonly description?: string;
-        readonly director?: string;
-        readonly duration?: string;
-        readonly episode_run_time?: number | string;
-        readonly genre?: string;
-        readonly movie_image?: string;
-        readonly name?: string;
-        readonly plot?: string;
-        readonly rating?: number | string;
-        readonly rating_imdb?: string;
-        readonly rating_kinopoisk?: string;
-        readonly releaseDate?: string;
-        readonly releasedate?: string;
-        readonly youtube_trailer?: string;
-    };
+    readonly info?:
+        | {
+              readonly actors?: string;
+              readonly backdrop_path?: string[];
+              readonly cast?: string;
+              readonly country?: string;
+              readonly cover?: string;
+              readonly description?: string;
+              readonly director?: string;
+              readonly duration?: string;
+              readonly episode_run_time?: number | string;
+              readonly genre?: string;
+              readonly movie_image?: string;
+              readonly name?: string;
+              readonly plot?: string;
+              readonly rating?: number | string;
+              readonly rating_imdb?: string;
+              readonly rating_kinopoisk?: string;
+              readonly releaseDate?: string;
+              readonly releasedate?: string;
+              readonly youtube_trailer?: string;
+          }
+        | []
+        | null;
     readonly last_modified?: string;
     readonly movie_data?: {
         readonly name?: string;

@@ -127,6 +127,9 @@ export const playlistReducers = [
                         ...(p.recentlyViewed != null
                             ? { recentlyViewed: p.recentlyViewed }
                             : {}),
+                        ...(p.hiddenGroupTitles != null
+                            ? { hiddenGroupTitles: p.hiddenGroupTitles }
+                            : {}),
                         ...(p.updateDate !== undefined
                             ? { updateDate: p.updateDate }
                             : {}),

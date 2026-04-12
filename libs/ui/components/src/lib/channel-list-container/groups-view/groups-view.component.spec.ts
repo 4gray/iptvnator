@@ -2,8 +2,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
+import { of } from 'rxjs';
 import { Channel } from 'shared-interfaces';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
+import { GroupManagementDialogComponent } from './group-management-dialog/group-management-dialog.component';
 import { GroupsViewComponent } from './groups-view.component';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
@@ -129,6 +131,7 @@ describe('GroupsViewComponent', () => {
             activeChannelUrl: string | undefined;
             favoriteIds: Set<string>;
             groupedChannels: Record<string, Channel[]>;
+            hiddenGroupTitles: string[];
             progressTick: number;
             searchTerm: string;
             sidebarWidth: number | null;
@@ -145,6 +148,7 @@ describe('GroupsViewComponent', () => {
             activeChannelUrl: string | undefined;
             favoriteIds: Set<string>;
             groupedChannels: Record<string, Channel[]>;
+            hiddenGroupTitles: string[];
             progressTick: number;
             searchTerm: string;
             sidebarWidth: number | null;
@@ -172,6 +176,10 @@ describe('GroupsViewComponent', () => {
         fixture.componentRef.setInput(
             'favoriteIds',
             overrides.favoriteIds ?? new Set<string>()
+        );
+        fixture.componentRef.setInput(
+            'hiddenGroupTitles',
+            overrides.hiddenGroupTitles ?? []
         );
         fixture.componentRef.setInput(
             'sidebarWidth',
@@ -347,6 +355,90 @@ describe('GroupsViewComponent', () => {
         ).toEqual(['World Update']);
     });
 
+    it('filters hidden groups from the rail and selected pane', () => {
+        setInputs({
+            activeChannelUrl: worldUpdate.url,
+            hiddenGroupTitles: ['News', 'Sports'],
+        });
+
+        expect(component.filteredGroups().map((group) => group.key)).toEqual([
+            'Movies',
+            'Series',
+        ]);
+        expect(component.selectedGroupKey()).toBe('Movies');
+        expect(
+            component.selectedGroupChannels().map((channel) => channel.name)
+        ).toEqual(['Movie Classic']);
+    });
+
+    it('opens the manage-groups dialog with all groups and emits updated hidden titles on save', () => {
+        const hiddenGroupTitlesChanged = jest.fn();
+        component.hiddenGroupTitlesChanged.subscribe(hiddenGroupTitlesChanged);
+        dialog.open.mockReturnValue({
+            afterClosed: () => of(['News', 'Sports']),
+        });
+
+        component.openGroupManagement();
+
+        expect(dialog.open).toHaveBeenCalledWith(
+            GroupManagementDialogComponent,
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    hiddenGroupTitles: [],
+                    groups: expect.arrayContaining([
+                        { key: 'Movies', count: 1 },
+                        { key: 'News', count: 2 },
+                        { key: 'Series', count: 1 },
+                        { key: 'Sports', count: 2 },
+                    ]),
+                }),
+                maxHeight: '90vh',
+                width: '500px',
+            })
+        );
+        expect(hiddenGroupTitlesChanged).toHaveBeenCalledWith([
+            'News',
+            'Sports',
+        ]);
+    });
+
+    it('toggles the inline group search from the header action and filters the visible groups', () => {
+        const searchButton = fixture.nativeElement.querySelector(
+            '.groups-nav-action--search'
+        ) as HTMLButtonElement;
+
+        searchButton.click();
+        fixture.detectChanges();
+
+        const searchInput = fixture.nativeElement.querySelector(
+            '.groups-nav-search input'
+        ) as HTMLInputElement | null;
+
+        expect(searchInput).not.toBeNull();
+
+        searchInput!.value = 'spo';
+        searchInput!.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+
+        expect(component.filteredGroups().map((group) => group.key)).toEqual([
+            'Sports',
+        ]);
+        expect(component.selectedGroupKey()).toBe('Sports');
+
+        searchButton.click();
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('.groups-nav-search input')
+        ).toBeNull();
+        expect(component.filteredGroups().map((group) => group.key)).toEqual([
+            'Movies',
+            'News',
+            'Series',
+            'Sports',
+        ]);
+    });
+
     it('emits channel and favorite events from the selected group pane', () => {
         const channelSelected = jest.fn();
         const favoriteToggled = jest.fn();
@@ -432,15 +524,23 @@ describe('GroupsViewComponent', () => {
         expect(committed).toHaveBeenCalledWith(512);
     });
 
-    it('renders the no-results state for searches without matches', () => {
+    it('keeps the layout visible for searches without matches', () => {
         setInputs({ searchTerm: 'zzz' });
 
-        const emptyState = fixture.nativeElement.querySelector(
-            '.groups-view-empty-state'
+        const layout = fixture.nativeElement.querySelector(
+            '.groups-view-layout'
         ) as HTMLElement | null;
+        const emptyState = fixture.nativeElement.querySelector(
+            '.groups-content-empty-state'
+        ) as HTMLElement | null;
+        const manageButton = fixture.nativeElement.querySelector(
+            '.groups-nav-action--manage'
+        ) as HTMLButtonElement | null;
 
+        expect(layout).not.toBeNull();
         expect(emptyState).not.toBeNull();
         expect(emptyState?.textContent).toContain('CHANNELS.NO_SEARCH_RESULTS');
+        expect(manageButton).not.toBeNull();
     });
 
     it('renders the empty-category state when no grouped channels exist', () => {
@@ -454,5 +554,25 @@ describe('GroupsViewComponent', () => {
         expect(emptyState?.textContent).toContain(
             'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE'
         );
+    });
+
+    it('keeps the manage action visible when all groups are hidden', () => {
+        setInputs({
+            hiddenGroupTitles: ['Movies', 'News', 'Series', 'Sports'],
+        });
+
+        const layout = fixture.nativeElement.querySelector(
+            '.groups-view-layout'
+        ) as HTMLElement | null;
+        const emptyState = fixture.nativeElement.querySelector(
+            '.groups-content-empty-state'
+        ) as HTMLElement | null;
+        const manageButton = fixture.nativeElement.querySelector(
+            '.groups-nav-action--manage'
+        ) as HTMLButtonElement | null;
+
+        expect(layout).not.toBeNull();
+        expect(emptyState?.textContent).toContain('CHANNELS.NO_VISIBLE_GROUPS');
+        expect(manageButton).not.toBeNull();
     });
 });

@@ -64,6 +64,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly currentPlaylistId = signal('');
     readonly xtreamDownloadContext =
         signal<SeasonContainerXtreamDownloadContext | null>(null);
+    private readonly detailsInitDone = signal(false);
     private lastSaveTime = 0;
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
@@ -98,6 +99,17 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
                       }
                     : null
             );
+        });
+
+        effect(() => {
+            const playlistId = this.xtreamStore.currentPlaylist()?.id;
+            const { categoryId, serialId } = this.route.snapshot.params;
+            if (!playlistId || this.detailsInitDone()) {
+                return;
+            }
+
+            this.initializeSerialDetails(playlistId, categoryId, serialId);
+            this.detailsInitDone.set(true);
         });
 
         effect(() => {
@@ -157,19 +169,14 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     }
 
     ngOnInit(): void {
+        const currentPlaylist = this.xtreamStore.currentPlaylist();
+        if (!currentPlaylist?.id) {
+            return;
+        }
+
         const { categoryId, serialId } = this.route.snapshot.params;
-        this.xtreamStore.fetchSerialDetailsWithMetadata({
-            serialId,
-            categoryId,
-        });
-        this.xtreamStore.checkFavoriteStatus(
-            serialId,
-            this.xtreamStore.currentPlaylist().id
-        );
-        void this.loadSeriesPlaybackPositions(
-            this.xtreamStore.currentPlaylist().id,
-            Number(serialId)
-        );
+        this.initializeSerialDetails(currentPlaylist.id, categoryId, serialId);
+        this.detailsInitDone.set(true);
     }
 
     ngOnDestroy(): void {
@@ -322,5 +329,19 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         const updated = new Map(this.episodePlaybackPositions());
         updated.delete(contentXtreamId);
         this.episodePlaybackPositions.set(updated);
+    }
+
+    private initializeSerialDetails(
+        playlistId: string,
+        categoryId: string | number,
+        serialId: string
+    ): void {
+        this.xtreamStore.fetchSerialDetailsWithMetadata({
+            serialId,
+            categoryId: Number(categoryId),
+        });
+        const serialXtreamId = Number(serialId);
+        this.xtreamStore.checkFavoriteStatus(serialXtreamId, playlistId);
+        void this.loadSeriesPlaybackPositions(playlistId, serialXtreamId);
     }
 }

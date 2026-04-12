@@ -5,7 +5,11 @@
         "ALL_CHANNELS": "Alle Sender",
         "FAVORITES": "Favoriten",
         "GROUPS": "Gruppen",
+        "MANAGE_GROUPS": "Gruppen verwalten",
+        "MANAGE_GROUPS_HINT": "Verwenden Sie \"Gruppen verwalten\", um Gruppen wieder einzublenden.",
         "NO_FAVORITES": "Keine Favoriten",
+        "NO_VISIBLE_GROUPS": "Keine sichtbaren Gruppen",
+        "SEARCH_GROUPS": "Gruppen suchen",
         "REMOVE_FAVORITE": "Aus Favoritenliste entfernen",
         "SEARCH_CHANNEL": "Nach Sender suchen",
         "UNGROUPED": "Ohne Gruppe",
@@ -17,7 +21,16 @@
         "SORT_BY": "Sortieren nach",
         "SORT_BY_DATE": "Nach Datum sortieren (Neueste zuerst)",
         "SORT_BY_RATING": "Nach Bewertung sortieren",
-        "SORT_BY_NAME": "Nach Name sortieren (A-Z)"
+        "SORT_BY_NAME": "Nach Name sortieren (A-Z)",
+        "GROUP_MANAGEMENT": {
+            "TITLE": "Gruppen verwalten",
+            "SELECTED": "Ausgewählt",
+            "SELECT_ALL": "Alle auswählen",
+            "DESELECT_ALL": "Alle abwählen",
+            "SEARCH_PLACEHOLDER": "Gruppen suchen...",
+            "NO_RESULTS": "Keine passenden Gruppen gefunden",
+            "SAVE": "Speichern"
+        }
     },
     "EPG": {
         "TITLE": "Elektronischer Programmführer",
@@ -351,6 +364,14 @@
         "MARK_WATCHED": "Als angesehen markieren",
         "MARK_UNWATCHED": "Als nicht angesehen markieren",
         "EPISODES_WATCHED": "{{count}} von {{total}} Folgen angesehen",
+        "DETAIL_FALLBACK": {
+            "STATUS": "Portal-Metadaten fehlen",
+            "NOTE": "Dieses Portal hat keine erweiterten Metadaten für diesen Titel geliefert.",
+            "STREAM_ID": "Stream-ID",
+            "CATEGORY": "Kategorie",
+            "CONTAINER": "Format",
+            "SOURCE_TITLE": "Quellentitel"
+        },
         "YEAR": "Jahr",
         "YOUTUBE_TRAILER": "YouTube-Trailer",
         "DESCRIPTION": "Beschreibung",

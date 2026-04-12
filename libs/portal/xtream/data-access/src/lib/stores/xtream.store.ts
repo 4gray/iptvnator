@@ -74,6 +74,15 @@ export const XtreamStore = signalStore(
         const xtreamApiService = inject(XtreamApiService);
         const dataSource = inject(XTREAM_DATA_SOURCE);
         const logger = createLogger('XtreamStore');
+        const findVodCatalogItem = (vodId: string | number) =>
+            store.vodStreams().find((item) => {
+                const candidateId =
+                    item.xtream_id ??
+                    item.stream_id ??
+                    (item as { id?: string | number }).id;
+
+                return Number(candidateId) === Number(vodId);
+            });
         const searchContent = (
             store as {
                 searchContent: (
@@ -163,10 +172,16 @@ export const XtreamStore = signalStore(
                         params.vodId
                     )
                     .then((vodDetails: XtreamVodDetails) => {
+                        const catalogItem = findVodCatalogItem(params.vodId);
+
                         store.setSelectedCategory(params.categoryId);
                         store.setSelectedItem({
+                            ...catalogItem,
                             ...vodDetails,
                             stream_id: params.vodId,
+                            xtream_id:
+                                catalogItem?.xtream_id ??
+                                Number(params.vodId),
                         });
                     })
                     .catch((error: unknown) => {

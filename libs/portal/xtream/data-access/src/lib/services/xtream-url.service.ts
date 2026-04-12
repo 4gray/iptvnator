@@ -78,9 +78,11 @@ export class XtreamUrlService {
         vodItem: XtreamVodDetails
     ): string {
         const vod = vodItem as XtreamVodStreamLike;
-        const streamId =
-            vod.movie_data.stream_id ?? vod.stream_id;
-        const extension = vodItem.movie_data.container_extension;
+        const streamId = vod.movie_data?.stream_id ?? vod.stream_id;
+        const extension = vodItem.movie_data?.container_extension;
+        if (!streamId || !extension) {
+            return '';
+        }
         return `${credentials.serverUrl}/movie/${credentials.username}/${credentials.password}/${streamId}.${extension}`;
     }
 

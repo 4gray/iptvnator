@@ -13,6 +13,8 @@ export interface ScenarioConfig {
     expiryDate: string;
     /** Optional deterministic EPG fixture profile for scenario-specific tests. */
     epgFixture?: 'timezone-focus';
+    /** Optional deterministic VOD detail profile for metadata fallback tests. */
+    vodDetailsFixture?: 'empty-metadata';
 }
 
 /**
@@ -89,6 +91,19 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         accountStatus: 'Active',
         expiryDate: '2099-12-31',
         epgFixture: 'timezone-focus',
+    },
+    'emptyvod:emptyvod': {
+        name: 'empty-vod-metadata',
+        description:
+            'Xtream VOD fixture with list data intact but empty get_vod_info metadata responses',
+        seed: 7007,
+        categoryCount: { live: 2, vod: 2, series: 2 },
+        itemsPerCategory: 5,
+        seasonsPerSeries: 2,
+        episodesPerSeason: 4,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        vodDetailsFixture: 'empty-metadata',
     },
     'expired:expired': {
         name: 'expired',

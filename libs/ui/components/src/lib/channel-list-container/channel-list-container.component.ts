@@ -172,6 +172,17 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Route-aware playlist ID for recent-item mutations */
     private readonly resolvedPlaylistId = this.playlistContext.resolvedPlaylistId;
+    private readonly activePlaylist = this.playlistContext.activePlaylist;
+
+    readonly hiddenGroupTitles = computed(() => {
+        const playlist = this.activePlaylist();
+
+        if (!playlist || playlist.serverUrl || playlist.macAddress) {
+            return [];
+        }
+
+        return playlist.hiddenGroupTitles ?? [];
+    });
 
     /** Displayed channels - filters out unfavorited channels in global favorites view */
     readonly displayedChannels = computed(() => {
@@ -329,6 +340,23 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         event.event.stopPropagation();
         this.store.dispatch(
             FavoritesActions.updateFavorites({ channel: event.channel })
+        );
+    }
+
+    onHiddenGroupTitlesChanged(hiddenGroupTitles: string[]): void {
+        const playlist = this.activePlaylist();
+
+        if (!playlist || playlist.serverUrl || playlist.macAddress) {
+            return;
+        }
+
+        this.store.dispatch(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    _id: playlist._id,
+                    hiddenGroupTitles,
+                } as PlaylistMeta,
+            })
         );
     }
 

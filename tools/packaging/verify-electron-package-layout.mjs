@@ -14,6 +14,19 @@ if (!platform) {
 
 const workspaceRoot = process.cwd();
 const executablesRoot = path.join(workspaceRoot, 'dist', 'executables');
+const packageJsonPath = path.join(workspaceRoot, 'package.json');
+const electronBuilderConfigPath = path.join(workspaceRoot, 'electron-builder.json');
+const flatpakMetainfoPath = path.join(
+    workspaceRoot,
+    'apps',
+    'electron-backend',
+    'linux',
+    'com.fourgray.iptvnator.metainfo.xml'
+);
+const packageMetadata = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+const electronBuilderConfig = JSON.parse(
+    fs.readFileSync(electronBuilderConfigPath, 'utf8')
+);
 const workerRelativeDir = path.join(
     'dist',
     'apps',
@@ -32,6 +45,7 @@ const nativeModuleRelativeDirs = [
         'node_modules'
     ),
 ];
+const linuxExecutableName = getLinuxExecutableName();
 
 function directoryExists(directoryPath) {
     return fs.existsSync(directoryPath) && fs.statSync(directoryPath).isDirectory();
@@ -102,6 +116,62 @@ function getResourceDirs() {
     }
 }
 
+function sanitizeExecutableName(value) {
+    return value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '');
+}
+
+function getLinuxExecutableName() {
+    const configuredExecutableName =
+        electronBuilderConfig.linux?.executableName ??
+        electronBuilderConfig.executableName;
+
+    if (configuredExecutableName) {
+        return sanitizeExecutableName(configuredExecutableName);
+    }
+
+    return packageMetadata.name.toLowerCase();
+}
+
+function verifyLinuxLauncher(resourceDir, errors) {
+    const appDir = path.dirname(resourceDir);
+    const launcherPath = path.join(appDir, linuxExecutableName);
+    const launcherBinaryPath = `${launcherPath}.bin`;
+
+    if (!fileExists(launcherBinaryPath)) {
+        errors.push(
+            `Missing Linux launcher binary in ${appDir}: ${path.basename(launcherBinaryPath)}`
+        );
+        return;
+    }
+
+    if (!fileExists(launcherPath)) {
+        errors.push(
+            `Missing Linux launcher wrapper in ${appDir}: ${path.basename(launcherPath)}`
+        );
+        return;
+    }
+
+    const launcherScript = fs.readFileSync(launcherPath, 'utf8');
+    const requiredMarkers = [
+        'SCRIPT_PATH="${BASH_SOURCE[0]}"',
+        'readlink -f "$SCRIPT_PATH"',
+        `exec "$SCRIPT_DIR/${linuxExecutableName}.bin"`,
+    ];
+    const missingMarkers = requiredMarkers.filter(
+        (marker) => !launcherScript.includes(marker)
+    );
+
+    if (missingMarkers.length > 0) {
+        errors.push(
+            [
+                `Linux launcher wrapper is missing symlink-safe logic in ${launcherPath}.`,
+                'Missing markers:',
+                ...missingMarkers.map((marker) => `- ${marker}`),
+            ].join('\n')
+        );
+    }
+}
+
 function verifyResourceDir(resourceDir) {
     const missingWorkers = workerFiles.filter(
         (workerFile) =>
@@ -131,6 +201,13 @@ function verifyResourceDir(resourceDir) {
                 ...nativeModuleDirs.map((nativeDir) => `- ${nativeDir}`),
             ].join('\n')
         );
+    }
+
+    if (platform === 'linux') {
+        if (!fileExists(flatpakMetainfoPath)) {
+            errors.push(`Missing Flatpak metainfo file: ${flatpakMetainfoPath}`);
+        }
+        verifyLinuxLauncher(resourceDir, errors);
     }
 
     return {

@@ -84,6 +84,10 @@ export function getVodDetails(username: string, password: string, vodId: number)
         const data = getPortalData(username, password);
         const stream = data.vodStreams.find(v => v.stream_id === vodId);
         if (!stream) return null;
+        if (data.scenario.vodDetailsFixture === 'empty-metadata') {
+            vodDetailsCache.set(vodId, { info: [] });
+            return vodDetailsCache.get(vodId) ?? null;
+        }
         vodDetailsCache.set(vodId, generateVodDetails(stream));
     }
     return vodDetailsCache.get(vodId) ?? null;

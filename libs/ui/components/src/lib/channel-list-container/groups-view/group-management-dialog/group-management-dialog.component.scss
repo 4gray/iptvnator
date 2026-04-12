@@ -1,0 +1,150 @@
+.mat-mdc-dialog-content {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+    overflow: hidden !important;
+    min-width: 480px;
+    max-width: 600px;
+    max-height: 85vh !important;
+}
+
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.selection-info {
+    font-size: 0.8125rem;
+    color: var(--mat-sys-on-surface-variant);
+
+    strong {
+        color: var(--mat-sys-primary);
+    }
+}
+
+.bulk-actions {
+    display: flex;
+    gap: 8px;
+
+    button {
+        font-size: 12px;
+    }
+}
+
+.search-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    min-height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
+    background: var(--app-search-bg, var(--mat-sys-surface-container));
+    cursor: text;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+
+    &:focus-within {
+        border-color: var(--mat-sys-primary);
+        box-shadow: 0 0 0 3px
+            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+    }
+}
+
+.search-inline__icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    color: var(--mat-sys-on-surface-variant);
+    flex-shrink: 0;
+}
+
+.search-inline input {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--mat-sys-on-surface);
+    font: inherit;
+    font-size: 0.84rem;
+
+    &::placeholder {
+        color: var(--mat-sys-on-surface-variant);
+        opacity: 0.6;
+    }
+
+    &::-webkit-search-cancel-button {
+        display: none;
+    }
+}
+
+.search-inline__clear {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    padding: 0;
+    line-height: 24px;
+    flex-shrink: 0;
+
+    mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+    }
+}
+
+.groups-list {
+    flex: 1;
+    min-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 8px;
+}
+
+.group-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 0 10px;
+    cursor: pointer;
+    transition: background-color 0.12s ease;
+
+    &:hover {
+        background-color: var(--mat-sys-surface-container);
+    }
+
+    &:not(:last-child) {
+        border-bottom: 1px solid var(--mat-sys-surface-container);
+    }
+
+    mat-checkbox {
+        --mdc-checkbox-state-layer-size: 28px;
+    }
+}
+
+.group-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+}
+
+.item-count {
+    font-size: 0.8rem;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.empty-message {
+    padding: 24px;
+    text-align: center;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.8125rem;
+}

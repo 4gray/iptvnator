@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.fourgray.iptvnator</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>IPTVnator</name>
+  <developer_name>4gray</developer_name>
+  <update_contact>fourgray@proton.me</update_contact>
+  <summary>Open-source IPTV player for M3U, Xtream Codes, and Stalker portals</summary>
+  <launchable type="desktop-id">com.fourgray.iptvnator.desktop</launchable>
+
+  <description>
+    <p>IPTVnator is a cross-platform IPTV player for user-supplied playlists and portal connections.</p>
+    <p>It supports M3U and M3U8 playlists, Xtream Codes API, and Stalker portals with EPG, catch-up, favorites, and external player integration.</p>
+    <p>The app does not include channels, playlists, or media catalogs. Any IPTV sources, logos, metadata, and programme information come from services the user configures.</p>
+  </description>
+
+  <categories>
+    <category>AudioVideo</category>
+    <category>Player</category>
+    <category>Video</category>
+  </categories>
+
+  <keywords>
+    <keyword>IPTV</keyword>
+    <keyword>M3U</keyword>
+    <keyword>M3U8</keyword>
+    <keyword>EPG</keyword>
+    <keyword>Xtream</keyword>
+    <keyword>Stalker</keyword>
+  </keywords>
+
+  <url type="homepage">https://4gray.github.io/iptvnator/</url>
+  <url type="bugtracker">https://github.com/4gray/iptvnator/issues</url>
+  <url type="vcs-browser">https://github.com/4gray/iptvnator</url>
+  <url type="help">https://4gray.github.io/iptvnator/blog/</url>
+  <url type="donation">https://github.com/sponsors/4gray</url>
+
+  <content_rating type="oars-1.0"/>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Browse channels and watch live IPTV streams</caption>
+      <image type="source">https://4gray.github.io/iptvnator/appstream/player.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Manage playlists and switch between sources</caption>
+      <image type="source">https://4gray.github.io/iptvnator/appstream/playlists.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>View programme schedules in the integrated EPG</caption>
+      <image type="source">https://4gray.github.io/iptvnator/appstream/epg.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Adjust playback, interface, and provider settings</caption>
+      <image type="source">https://4gray.github.io/iptvnator/appstream/settings.png</image>
+    </screenshot>
+  </screenshots>
+
+  <provides>
+    <binary>iptvnator</binary>
+  </provides>
+</component>

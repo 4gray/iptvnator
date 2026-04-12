@@ -70,7 +70,21 @@
         "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
         "icon": "apps/web/src/assets/icons"
     },
-    "afterPack": "electron-builder-sandbox-fix",
+    "flatpak": {
+        "branch": "stable",
+        "runtime": "org.freedesktop.Platform",
+        "runtimeVersion": "24.08",
+        "sdk": "org.freedesktop.Sdk",
+        "base": "org.electronjs.Electron2.BaseApp",
+        "baseVersion": "24.08",
+        "files": [
+            [
+                "apps/electron-backend/linux/com.fourgray.iptvnator.metainfo.xml",
+                "/share/metainfo/com.fourgray.iptvnator.metainfo.xml"
+            ]
+        ]
+    },
+    "afterPack": "./tools/packaging/linux-after-pack.cjs",
     "snap": {
         "confinement": "strict",
         "grade": "stable",

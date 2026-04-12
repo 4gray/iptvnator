@@ -272,6 +272,10 @@
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload or select other playlist",
         "ALL_CHANNELS": "All channels",
         "GROUPS": "Groups",
+        "MANAGE_GROUPS": "Manage groups",
+        "MANAGE_GROUPS_HINT": "Use manage groups to show groups again.",
+        "NO_VISIBLE_GROUPS": "No visible groups",
+        "SEARCH_GROUPS": "Search groups",
         "UNGROUPED": "Ungrouped",
         "UNNAMED_CHANNEL": "Unnamed Channel",
         "FAVORITES": "Favorites",
@@ -325,6 +329,15 @@
             "NOT_AVAILABLE": "Not available",
             "DAYS_ONE": "1 day",
             "DAYS_OTHER": "{{count}} days"
+        },
+        "GROUP_MANAGEMENT": {
+            "TITLE": "Manage groups",
+            "SELECTED": "Selected",
+            "SELECT_ALL": "Select all",
+            "DESELECT_ALL": "Deselect all",
+            "SEARCH_PLACEHOLDER": "Search groups...",
+            "NO_RESULTS": "No matching groups found",
+            "SAVE": "Save"
         }
     },
     "TOP_MENU": {
@@ -442,6 +455,14 @@
         "MARK_WATCHED": "Mark as Watched",
         "MARK_UNWATCHED": "Mark as Unwatched",
         "EPISODES_WATCHED": "{{count}} of {{total}} episodes watched",
+        "DETAIL_FALLBACK": {
+            "STATUS": "Portal metadata unavailable",
+            "NOTE": "Extended metadata was not provided by this portal.",
+            "STREAM_ID": "Stream ID",
+            "CATEGORY": "Category",
+            "CONTAINER": "Format",
+            "SOURCE_TITLE": "Source title"
+        },
         "ACCOUNT_INFO": {
             "TITLE": "Account Information",
             "USER_INFO": "User Information",

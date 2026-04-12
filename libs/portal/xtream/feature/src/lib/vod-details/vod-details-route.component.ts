@@ -28,12 +28,22 @@ import {
     PlaybackPositionData,
     PlayerContentInfo,
     ResolvedPortalPlayback,
+    XtreamCategory,
     XtreamVodDetails,
+    XtreamVodStream,
+    getXtreamVodInfo,
 } from 'shared-interfaces';
+import {
+    buildXtreamVodFallbackViewModel,
+    hasUsableXtreamVodMetadata,
+} from './vod-details-fallback.util';
 
 @Component({
     templateUrl: './vod-details-route.component.html',
-    styleUrls: ['../../../../../../ui/components/src/lib/styles/detail-view.scss'],
+    styleUrls: [
+        '../../../../../../ui/components/src/lib/styles/detail-view.scss',
+        './vod-details-route.component.scss',
+    ],
     imports: [
         ContentHeroComponent,
         MatIcon,
@@ -67,6 +77,87 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         () =>
             this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null
     );
+    readonly selectedVodId = computed(() =>
+        Number(this.route.snapshot.params.vodId)
+    );
+    readonly selectedCategory = computed<Partial<XtreamCategory> | null>(() => {
+        const categoryId = this.route.snapshot.params.categoryId;
+        if (!categoryId) {
+            return null;
+        }
+
+        return (
+            this.xtreamStore
+                .vodCategories()
+                .find(
+                    (category) =>
+                        String(
+                            (category as XtreamCategory & { id?: string | number })
+                                .category_id ??
+                                (category as XtreamCategory & { id?: string | number })
+                                    .id
+                        ) === String(categoryId)
+                ) ?? null
+        );
+    });
+    readonly selectedCatalogItem = computed<
+        (Partial<XtreamVodStream> & {
+            id?: string | number;
+            poster_url?: string;
+            title?: string;
+            xtream_id?: string | number;
+        }) | null
+    >(() => {
+        const vodId = this.selectedVodId();
+        if (!Number.isFinite(vodId) || vodId <= 0) {
+            return null;
+        }
+
+        return (
+            this.xtreamStore
+                .vodStreams()
+                .find(
+                    (item) =>
+                        Number(
+                            (
+                                item as XtreamVodStream & {
+                                    id?: string | number;
+                                    xtream_id?: string | number;
+                                }
+                            ).xtream_id ??
+                                (
+                                    item as XtreamVodStream & {
+                                        id?: string | number;
+                                    }
+                                ).stream_id ??
+                                (
+                                    item as XtreamVodStream & {
+                                        id?: string | number;
+                                    }
+                                ).id
+                        ) === vodId
+                ) ?? null
+        );
+    });
+    readonly selectedVodInfo = computed(() => {
+        const item = this.selectedItem();
+        return item && hasUsableXtreamVodMetadata(item)
+            ? getXtreamVodInfo(item)
+            : null;
+    });
+    readonly fallbackView = computed(() => {
+        const item = this.selectedItem();
+        if (!item || this.selectedVodInfo()) {
+            return null;
+        }
+
+        return buildXtreamVodFallbackViewModel({
+            vodDetails: item,
+            catalogItem: this.selectedCatalogItem(),
+            category: this.selectedCategory(),
+            vodId: this.selectedVodId(),
+        });
+    });
     readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
     readonly detailsError = this.xtreamStore.detailsError;
     private lastSaveTime = 0;
@@ -216,6 +307,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     playVod(vodItem: XtreamVodDetails): void {
+        const info = getXtreamVodInfo(vodItem);
         this.addToRecentlyViewed();
         const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
         const routeVodId = this.route.snapshot.params.vodId;
@@ -235,8 +327,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         };
         const playback: ResolvedPortalPlayback = {
             streamUrl,
-            title: vodItem.info.name ?? vodItem.movie_data?.name,
-            thumbnail: vodItem.info.movie_image,
+            title: info?.name ?? vodItem.movie_data?.name,
+            thumbnail: info?.movie_image,
             contentInfo,
         };
 
@@ -244,6 +336,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     resumeVod(vodItem: XtreamVodDetails): void {
+        const info = getXtreamVodInfo(vodItem);
         this.addToRecentlyViewed();
         const vodId = Number(this.route.snapshot.params.vodId);
         const position = this.vodPlaybackPosition();
@@ -256,8 +349,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         };
         const playback: ResolvedPortalPlayback = {
             streamUrl,
-            title: vodItem.info.name ?? vodItem.movie_data?.name,
-            thumbnail: vodItem.info.movie_image,
+            title: info?.name ?? vodItem.movie_data?.name,
+            thumbnail: info?.movie_image,
             startTime: position?.positionSeconds,
             contentInfo,
         };
@@ -346,6 +439,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     async downloadVod(vodItem: XtreamVodDetails): Promise<void> {
+        const info = getXtreamVodInfo(vodItem);
         const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
         const routeVodId = this.route.snapshot.params.vodId;
         const id = routeVodId
@@ -361,9 +455,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             playlistId: playlist.id,
             xtreamId: id,
             contentType: 'vod',
-            title: vodItem.info?.name ?? vodItem.movie_data?.name ?? 'Unknown',
+            title: info?.name ?? vodItem.movie_data?.name ?? 'Unknown',
             url: streamUrl,
-            posterUrl: vodItem.info?.movie_image,
+            posterUrl: info?.movie_image,
             headers: {
                 userAgent: playlist.userAgent,
                 referer: playlist.referrer,

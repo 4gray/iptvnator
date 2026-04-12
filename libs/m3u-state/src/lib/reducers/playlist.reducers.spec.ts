@@ -8,7 +8,7 @@ import { Channel, Playlist, PlaylistMeta } from 'shared-interfaces';
 const reducer = createReducer(initialState, ...playlistReducers);
 
 describe('playlistReducers', () => {
-    it('persists updateDate when playlist meta is updated', () => {
+    it('persists updateDate and hiddenGroupTitles when playlist meta is updated', () => {
         const existingPlaylist: PlaylistMeta = {
             _id: 'playlist-1',
             title: 'Xtream Playlist',
@@ -32,6 +32,7 @@ describe('playlistReducers', () => {
             PlaylistActions.updatePlaylistMeta({
                 playlist: {
                     ...existingPlaylist,
+                    hiddenGroupTitles: ['Movies', 'News'],
                     updateDate: 1712145600000,
                 },
             })
@@ -40,6 +41,9 @@ describe('playlistReducers', () => {
         expect(nextState.playlists.entities['playlist-1']?.updateDate).toBe(
             1712145600000
         );
+        expect(
+            nextState.playlists.entities['playlist-1']?.hiddenGroupTitles
+        ).toEqual(['Movies', 'News']);
     });
 
     it('updates the active playlist channel cache and clears loading on playlist refresh', () => {
@@ -92,5 +96,38 @@ describe('playlistReducers', () => {
 
         expect(nextState.channels).toEqual([refreshedChannel]);
         expect(nextState.channelsLoading).toBe(false);
+    });
+
+    it('keeps hiddenGroupTitles on playlist refresh when the refreshed payload omits them', () => {
+        const existingPlaylist: PlaylistMeta = {
+            _id: 'playlist-1',
+            count: 1,
+            hiddenGroupTitles: ['Radio-de'],
+            importDate: '2026-03-28T00:00:00.000Z',
+            title: 'Playlist One',
+        } as PlaylistMeta;
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addOne(existingPlaylist, {
+                ...initialState.playlists,
+                selectedId: 'playlist-1',
+            }),
+        };
+
+        const nextState = reducer(
+            state,
+            PlaylistActions.updatePlaylist({
+                playlist: {
+                    playlist: {
+                        items: [],
+                    },
+                } as Playlist,
+                playlistId: 'playlist-1',
+            })
+        );
+
+        expect(
+            nextState.playlists.entities['playlist-1']?.hiddenGroupTitles
+        ).toEqual(['Radio-de']);
     });
 });

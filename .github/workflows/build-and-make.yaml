@@ -49,7 +49,7 @@ jobs:
               if: matrix.os == 'linux'
               run: |
                   sudo apt-get update
-                  sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder
+                  sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder appstream
 
                   # Configure Flatpak
                   # 1. Add the Flathub repository (source of runtimes)
@@ -67,6 +67,27 @@ jobs:
 
             - name: Build backend
               run: pnpm run build:backend
+
+            - name: Validate AppStream metadata
+              if: matrix.os == 'linux'
+              run: appstreamcli validate --pedantic --no-net apps/electron-backend/linux/com.fourgray.iptvnator.metainfo.xml
+
+            - name: Build website
+              if: matrix.os == 'linux'
+              run: pnpm nx build website --skip-nx-cache
+
+            - name: Verify AppStream website assets
+              if: matrix.os == 'linux'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  for screenshot in player playlists epg settings; do
+                      if ! find dist/apps/website -path "*/appstream/${screenshot}.png" -print -quit | grep -q .; then
+                          echo "::error::Missing AppStream website asset for ${screenshot}.png"
+                          exit 1
+                      fi
+                  done
 
             - name: Override macOS arch in electron-builder.json
               if: matrix.os == 'macos'
@@ -227,6 +248,32 @@ jobs:
                   PACKAGE_OS: ${{ matrix.os }}
                   PACKAGE_ARCH: ${{ matrix.arch || '' }}
               run: pnpm run verify:package-layout -- "$PACKAGE_OS" "$PACKAGE_ARCH"
+
+            - name: Smoke test packaged Flatpak launcher
+              if: matrix.os == 'linux'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  FLATPAK_BUNDLE="$(find dist/executables -maxdepth 1 -name '*.flatpak' | head -n 1)"
+                  if [ -z "${FLATPAK_BUNDLE}" ]; then
+                      echo "::error::Flatpak bundle not found in dist/executables"
+                      exit 1
+                  fi
+
+                  flatpak install --user --noninteractive -y "${FLATPAK_BUNDLE}"
+                  flatpak run --command=sh com.fourgray.iptvnator -c '
+                      set -euo pipefail
+
+                      test -f /app/share/metainfo/com.fourgray.iptvnator.metainfo.xml
+                      test -L /app/bin/iptvnator
+
+                      LAUNCHER_PATH="$(readlink -f /app/bin/iptvnator)"
+                      test -f "${LAUNCHER_PATH}"
+                      test -f "${LAUNCHER_PATH}.bin"
+                      grep -q '\''readlink -f "$SCRIPT_PATH"'\'' "${LAUNCHER_PATH}"
+                      grep -q '\''exec "$SCRIPT_DIR/iptvnator.bin"'\'' "${LAUNCHER_PATH}"
+                  '
 
             - name: Upload artifacts (macOS)
               if: matrix.os == 'macos'

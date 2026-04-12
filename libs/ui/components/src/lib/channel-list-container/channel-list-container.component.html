@@ -42,9 +42,13 @@
                 [shouldShowEpg]="shouldShowEpg()"
                 [activeChannelUrl]="activeChannelUrl()"
                 [favoriteIds]="favoriteIds()"
+                [hiddenGroupTitles]="hiddenGroupTitles()"
                 [sidebarWidth]="sidebarWidth()"
                 (channelSelected)="onChannelSelected($event)"
                 (favoriteToggled)="onFavoriteToggled($event)"
+                (hiddenGroupTitlesChanged)="
+                    onHiddenGroupTitlesChanged($event)
+                "
                 (sidebarWidthRequested)="onSidebarWidthRequested($event)"
                 (sidebarWidthRequestEnded)="onSidebarWidthRequestEnded($event)"
             />

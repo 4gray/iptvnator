@@ -1,4 +1,4 @@
-import { XtreamVodDetails } from './xtream-vod-details.interface';
+import { XtreamVodDetails, getXtreamVodInfo } from './xtream-vod-details.interface';
 import { StalkerVodDetails } from './stalker-vod-details.interface';
 import {
     NormalizedVodMeta,
@@ -12,7 +12,7 @@ import {
  * Handles the various field name variations in Xtream API responses.
  */
 export function normalizeXtreamVod(item: XtreamVodDetails): NormalizedVodMeta {
-    const info = item?.info;
+    const info = getXtreamVodInfo(item);
     const movieData = item?.movie_data;
 
     return {

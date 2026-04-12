@@ -1,57 +1,55 @@
 @let item = selectedItem();
-@if (item && item.info) {
+@if (selectedVodInfo(); as info) {
     <app-content-hero
-        [title]="item.info?.name || item?.movie_data?.name"
-        [description]="item.info.description || item.info.plot"
-        [posterUrl]="item.info.movie_image"
-        [backdropUrl]="item.info?.backdrop_path?.[0]"
+        [title]="info.name || item?.movie_data?.name"
+        [description]="info.description || info.plot"
+        [posterUrl]="info.movie_image || info.cover_big"
+        [backdropUrl]="info.backdrop_path?.[0]"
         (backClicked)="goBack()"
     >
         <ng-container hero-tags>
-            @if (item.info?.releasedate) {
+            @if (info.releasedate) {
                 <span class="details__tag">{{
-                    item.info.releasedate | slice: 0 : 4
+                    info.releasedate | slice: 0 : 4
                 }}</span>
             }
-            @if (item.info?.genre) {
-                <span class="details__tag">{{ item.info.genre }}</span>
+            @if (info.genre) {
+                <span class="details__tag">{{ info.genre }}</span>
             }
-            @if (item.info?.duration) {
-                <span class="details__tag">{{ item.info.duration }}</span>
+            @if (info.duration) {
+                <span class="details__tag">{{ info.duration }}</span>
             }
-            @if (item.info?.rating_imdb) {
+            @if (info.rating_imdb) {
                 <span class="details__tag details__tag--rating">
-                    ⭐ {{ item.info.rating_imdb }}
+                    ⭐ {{ info.rating_imdb }}
                 </span>
             }
-            @if (item.info?.country) {
-                <span class="details__tag">{{ item.info.country }}</span>
+            @if (info.country) {
+                <span class="details__tag">{{ info.country }}</span>
             }
         </ng-container>
 
         <ng-container hero-meta>
-            @if (item.info?.actors || item.info?.cast) {
+            @if (info.actors || info.cast) {
                 <div class="details__meta-item">
                     <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
-                    <span class="value">{{
-                        item.info.actors || item.info.cast
-                    }}</span>
+                    <span class="value">{{ info.actors || info.cast }}</span>
                 </div>
             }
-            @if (item.info?.director) {
+            @if (info.director) {
                 <div class="details__meta-item">
                     <span class="label">{{
                         'XTREAM.DIRECTOR' | translate
                     }}</span>
-                    <span class="value">{{ item.info.director }}</span>
+                    <span class="value">{{ info.director }}</span>
                 </div>
             }
-            @if (item.info?.rating_kinopoisk) {
+            @if (info.rating_kinopoisk) {
                 <div class="details__meta-item">
                     <span class="label">{{
                         'XTREAM.KINOPOISK_RATING' | translate
                     }}</span>
-                    <span class="value">{{ item.info.rating_kinopoisk }}</span>
+                    <span class="value">{{ info.rating_kinopoisk }}</span>
                 </div>
             }
         </ng-container>
@@ -159,14 +157,14 @@
             />
         }
 
-        @if (item.info?.youtube_trailer) {
+        @if (info.youtube_trailer) {
             <div class="youtube-trailer">
                 <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
                 <div class="trailer-wrapper">
                     <iframe
                         [src]="
                             'https://www.youtube.com/embed/' +
-                                item.info.youtube_trailer | safe
+                                info.youtube_trailer | safe
                         "
                         title="YouTube video player"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -176,6 +174,56 @@
                 </div>
             </div>
         }
+    </app-content-hero>
+} @else if (fallbackView(); as fallback) {
+    <app-content-hero
+        [title]="fallback.title"
+        [posterUrl]="fallback.posterUrl"
+        (backClicked)="goBack()"
+    >
+        <ng-container hero-tags>
+            <span
+                class="details__tag details__tag--status"
+                data-testid="xtream-vod-fallback-status"
+            >
+                {{ 'XTREAM.DETAIL_FALLBACK.STATUS' | translate }}
+            </span>
+            @if (fallback.year) {
+                <span class="details__tag">{{ fallback.year }}</span>
+            }
+            @if (fallback.rating) {
+                <span class="details__tag details__tag--rating">
+                    ⭐ {{ fallback.rating }}
+                </span>
+            }
+            @if (fallback.added) {
+                <span class="details__tag">{{ fallback.added }}</span>
+            }
+            @if (fallback.format) {
+                <span class="details__tag">{{ fallback.format }}</span>
+            }
+        </ng-container>
+
+        <ng-container hero-meta>
+            <div
+                class="details__fallback-note"
+                data-testid="xtream-vod-fallback"
+            >
+                {{ 'XTREAM.DETAIL_FALLBACK.NOTE' | translate }}
+            </div>
+
+            @for (fact of fallback.facts; track fact.labelKey) {
+                <div class="details__meta-item details__meta-item--fallback">
+                    <span class="label">{{ fact.labelKey | translate }}</span>
+                    <span
+                        class="value"
+                        [class.value--mono]="fact.monospace"
+                    >
+                        {{ fact.value }}
+                    </span>
+                </div>
+            }
+        </ng-container>
     </app-content-hero>
 } @else if (detailsError()) {
     <app-content-hero

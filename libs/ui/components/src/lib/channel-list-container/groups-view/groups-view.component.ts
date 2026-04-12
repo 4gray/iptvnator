@@ -31,8 +31,18 @@ import { EnrichedChannel } from '../all-channels-view/all-channels-view.componen
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 import { ResizableDirective } from '../../resizable/resizable.directive';
+import {
+    GroupManagementDialogComponent,
+    GroupManagementDialogGroup,
+} from './group-management-dialog/group-management-dialog.component';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
+
+interface GroupView {
+    readonly channels: Channel[];
+    readonly count: number;
+    readonly key: string;
+}
 
 interface FilteredGroupView {
     readonly channels: Channel[];
@@ -64,6 +74,8 @@ export class GroupsViewComponent {
 
     readonly contextMenuTrigger =
         viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly groupSearchInput =
+        viewChild<ElementRef<HTMLInputElement>>('groupSearchInput');
 
     /** Grouped channels object */
     readonly groupedChannels = input.required<{ [key: string]: Channel[] }>();
@@ -83,6 +95,7 @@ export class GroupsViewComponent {
 
     /** Set of favorite channel URLs */
     readonly favoriteIds = input<Set<string>>(new Set());
+    readonly hiddenGroupTitles = input<string[]>([]);
 
     /** Current outer sidebar width */
     readonly sidebarWidth = input<number | null>(null);
@@ -101,13 +114,21 @@ export class GroupsViewComponent {
 
     /** Emits when the groups rail resize ends */
     readonly sidebarWidthRequestEnded = output<number>();
+    readonly hiddenGroupTitlesChanged = output<string[]>();
 
+    readonly isGroupSearchOpen = signal(false);
+    readonly localGroupSearchTerm = signal('');
     readonly selectedGroupKey = signal<string | null>(null);
     readonly groupChannelSortMode = signal<PortalChannelSortMode>(
         restorePortalChannelSortMode(GROUP_CHANNEL_SORT_STORAGE_KEY)
     );
     readonly groupChannelSortLabel = computed(() =>
         getPortalChannelSortModeLabel(this.groupChannelSortMode())
+    );
+    readonly hasSearchQuery = computed(
+        () =>
+            this.searchTerm().trim().length > 0 ||
+            this.localGroupSearchTerm().trim().length > 0
     );
     readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 48));
     readonly contextMenuChannel = signal<Channel | null>(null);
@@ -200,28 +221,47 @@ export class GroupsViewComponent {
                 });
             });
         });
+
+        effect(() => {
+            if (!this.isGroupSearchOpen()) {
+                return;
+            }
+
+            queueMicrotask(() => {
+                this.groupSearchInput()?.nativeElement.focus();
+            });
+        });
     }
 
-    readonly sortedGroups = computed(() => {
+    readonly allGroups = computed<GroupView[]>(() => {
         const grouped = this.groupedChannels();
         const groups = Object.entries(grouped).map(([key, channels]) => ({
+            channels,
+            count: channels.length,
             key,
-            value: channels,
         }));
 
         return groups.sort(this.groupsComparator);
     });
 
-    readonly filteredGroups = computed<FilteredGroupView[]>(() => {
+    readonly visibleGroups = computed(() => {
+        const hiddenGroupTitles = new Set(this.hiddenGroupTitles());
+
+        return this.allGroups().filter(
+            (group) =>
+                !hiddenGroupTitles.has(group.key) && group.channels.length > 0
+        );
+    });
+
+    readonly workspaceFilteredGroups = computed<FilteredGroupView[]>(() => {
         const term = this.searchTerm().trim().toLowerCase();
-        const groups = this.sortedGroups();
+        const groups = this.visibleGroups();
 
         if (!term) {
             return groups
-                .filter((group) => group.value.length > 0)
                 .map((group) => ({
-                    channels: group.value,
-                    count: group.value.length,
+                    channels: group.channels,
+                    count: group.count,
                     key: group.key,
                     titleMatches: false,
                 }));
@@ -230,8 +270,8 @@ export class GroupsViewComponent {
         return groups.reduce<FilteredGroupView[]>((acc, group) => {
             const titleMatches = group.key.toLowerCase().includes(term);
             const channels = titleMatches
-                ? group.value
-                : group.value.filter((channel) =>
+                ? group.channels
+                : group.channels.filter((channel) =>
                       `${channel.name ?? ''}`.toLowerCase().includes(term)
                   );
 
@@ -248,6 +288,19 @@ export class GroupsViewComponent {
             return acc;
         }, []);
     });
+
+    readonly filteredGroups = computed<FilteredGroupView[]>(() => {
+        const term = this.localGroupSearchTerm().trim().toLowerCase();
+        const groups = this.workspaceFilteredGroups();
+
+        if (!term) {
+            return groups;
+        }
+
+        return groups.filter((group) => group.key.toLowerCase().includes(term));
+    });
+
+    readonly hasAnyGroups = computed(() => this.allGroups().length > 0);
 
     readonly selectedGroup = computed(() => {
         const selectedGroupKey = this.selectedGroupKey();
@@ -301,6 +354,49 @@ export class GroupsViewComponent {
 
     selectGroup(groupKey: string): void {
         this.selectedGroupKey.set(groupKey);
+    }
+
+    closeGroupSearch(): void {
+        this.localGroupSearchTerm.set('');
+        this.isGroupSearchOpen.set(false);
+    }
+
+    toggleGroupSearch(): void {
+        if (this.isGroupSearchOpen()) {
+            this.closeGroupSearch();
+            return;
+        }
+
+        this.isGroupSearchOpen.set(true);
+    }
+
+    updateGroupSearchTerm(value: string): void {
+        this.localGroupSearchTerm.set(value);
+    }
+
+    openGroupManagement(): void {
+        const groups = this.allGroups().map<GroupManagementDialogGroup>(
+            ({ key, count }) => ({
+                key,
+                count,
+            })
+        );
+        const dialogRef = this.dialog.open(GroupManagementDialogComponent, {
+            data: {
+                groups,
+                hiddenGroupTitles: this.hiddenGroupTitles(),
+            },
+            width: '500px',
+            maxHeight: '90vh',
+        });
+
+        dialogRef.afterClosed().subscribe((hiddenGroupTitles) => {
+            if (hiddenGroupTitles === undefined) {
+                return;
+            }
+
+            this.hiddenGroupTitlesChanged.emit(hiddenGroupTitles);
+        });
     }
 
     setGroupChannelSortMode(mode: PortalChannelSortMode): void {
@@ -372,8 +468,8 @@ export class GroupsViewComponent {
      * Comparator for sorting groups - numeric groups first, then alphabetical
      */
     readonly groupsComparator = (
-        a: KeyValue<string, Channel[]> | { key: string; value: Channel[] },
-        b: KeyValue<string, Channel[]> | { key: string; value: Channel[] }
+        a: KeyValue<string, Channel[]> | { key: string },
+        b: KeyValue<string, Channel[]> | { key: string }
     ): number => {
         const numA = parseInt(a.key.replace(/\D/g, ''), 10);
         const numB = parseInt(b.key.replace(/\D/g, ''), 10);

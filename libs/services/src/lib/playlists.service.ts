@@ -490,6 +490,12 @@ export class PlaylistsService {
                     ...(updatedPlaylist.recentlyViewed != null
                         ? { recentlyViewed: updatedPlaylist.recentlyViewed }
                         : {}),
+                    ...(updatedPlaylist.hiddenGroupTitles != null
+                        ? {
+                              hiddenGroupTitles:
+                                  updatedPlaylist.hiddenGroupTitles,
+                          }
+                        : {}),
                     ...(updatedPlaylist.updateDate !== undefined
                         ? { updateDate: updatedPlaylist.updateDate }
                         : {}),

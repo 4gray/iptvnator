@@ -1,0 +1,85 @@
+<h2 mat-dialog-title>{{ 'CHANNELS.GROUP_MANAGEMENT.TITLE' | translate }}</h2>
+
+<mat-dialog-content>
+    <div class="header-actions">
+        <div class="selection-info">
+            {{ 'CHANNELS.GROUP_MANAGEMENT.SELECTED' | translate }}:
+            <strong>{{ selectedCount() }}</strong> / {{ totalCount() }}
+        </div>
+        <div class="bulk-actions">
+            <button
+                mat-stroked-button
+                (click)="selectAll()"
+                [disabled]="allSelected()"
+            >
+                <mat-icon>check_box</mat-icon>
+                {{ 'CHANNELS.GROUP_MANAGEMENT.SELECT_ALL' | translate }}
+            </button>
+            <button
+                mat-stroked-button
+                (click)="deselectAll()"
+                [disabled]="selectedCount() === 0"
+            >
+                <mat-icon>check_box_outline_blank</mat-icon>
+                {{ 'CHANNELS.GROUP_MANAGEMENT.DESELECT_ALL' | translate }}
+            </button>
+        </div>
+    </div>
+
+    <label class="search-inline">
+        <mat-icon class="search-inline__icon">search</mat-icon>
+        <input
+            type="search"
+            spellcheck="false"
+            [value]="searchTerm()"
+            (input)="searchTerm.set($any($event.target).value)"
+            [placeholder]="
+                'CHANNELS.GROUP_MANAGEMENT.SEARCH_PLACEHOLDER' | translate
+            "
+        />
+        @if (searchTerm()) {
+            <button
+                type="button"
+                mat-icon-button
+                class="search-inline__clear"
+                (click)="clearSearch()"
+            >
+                <mat-icon>close</mat-icon>
+            </button>
+        }
+    </label>
+
+    <div class="groups-list">
+        @for (group of filteredGroups(); track group.key) {
+            <div class="group-item" (click)="toggleGroup(group)">
+                <mat-checkbox
+                    [checked]="group.selected"
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleGroup(group)"
+                >
+                </mat-checkbox>
+                <span class="group-name">
+                    @if (group.key) {
+                        {{ group.key | titlecase }}
+                    } @else {
+                        {{ 'CHANNELS.UNGROUPED' | translate }}
+                    }
+                </span>
+                <span class="item-count">({{ group.count }})</span>
+            </div>
+        } @empty {
+            <div class="empty-message">
+                {{ 'CHANNELS.GROUP_MANAGEMENT.NO_RESULTS' | translate }}
+            </div>
+        }
+    </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-button (click)="cancel()">
+        {{ 'CLOSE' | translate }}
+    </button>
+    <button mat-flat-button color="primary" (click)="save()">
+        {{ 'CHANNELS.GROUP_MANAGEMENT.SAVE' | translate }}
+    </button>
+</mat-dialog-actions>

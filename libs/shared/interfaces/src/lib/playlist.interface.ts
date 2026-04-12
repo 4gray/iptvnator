@@ -65,4 +65,6 @@ export interface Playlist {
         tariffPlanName?: string;
         status?: number;
     };
+    /** Hidden M3U group titles for the groups view */
+    hiddenGroupTitles?: string[];
 }

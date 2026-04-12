@@ -21,6 +21,7 @@ export type PlaylistMeta = Pick<
     | 'username'
     | 'password'
     | 'macAddress'
+    | 'hiddenGroupTitles'
     | 'portalUrl'
     | 'recentlyViewed'
     | 'isFullStalkerPortal'

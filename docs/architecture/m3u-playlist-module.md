@@ -9,6 +9,7 @@ The M3U playlist module provides:
 - EPG (Electronic Program Guide) integration
 - Favorites management with drag-and-drop reordering
 - Channel grouping and search
+- Per-playlist group visibility management in the groups view
 - Video playback with multiple player backends
 
 ## Module Structure
@@ -72,6 +73,10 @@ interface PlaylistState {
     };
 }
 ```
+
+`PlaylistMeta` is the persisted playlist-facing subset of the playlist entity.
+For M3U playlists it now also carries `hiddenGroupTitles?: string[]`, which is
+used by the groups view to remember which group titles the user has hidden.
 
 ### Actions
 
@@ -180,6 +185,26 @@ channel-list-container/
   - loading: skeletons
   - empty source: no channels in the playlist after loading completes
   - empty search: no matches within an already loaded playlist
+
+### Group Visibility Management
+
+- `GroupsViewComponent` owns the M3U-only "Manage groups" action and dialog in
+  `libs/ui/components/src/lib/channel-list-container/groups-view/`.
+- The groups rail header also owns an inline search toggle that filters the
+  currently visible groups without mutating the workspace-level route search
+  term used by the broader channel views.
+- The dialog operates on the full grouped dataset, while the left rail and
+  channel pane render only groups whose titles are not listed in
+  `hiddenGroupTitles`.
+- `ChannelListContainerComponent` reads `hiddenGroupTitles` from the active M3U
+  playlist metadata and passes it into the groups view. Saving dialog changes
+  dispatches `PlaylistActions.updatePlaylistMeta`.
+- `PlaylistsService.updatePlaylistMeta()` persists `hiddenGroupTitles` into the
+  stored playlist payload, and M3U refresh/update flows preserve the existing
+  value when refreshed playlist data omits the field.
+- The groups route keeps the manage action reachable even when every group is
+  hidden by separating "playlist has no groups" from "no visible/search-matching
+  groups" empty states.
 
 ### EnrichedChannel Pattern
 

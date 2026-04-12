@@ -1,5 +1,5 @@
 import { firstValueFrom, of } from 'rxjs';
-import { DbStores, Playlist } from 'shared-interfaces';
+import { DbStores, Playlist, PlaylistMeta } from 'shared-interfaces';
 import { PlaylistsService } from './playlists.service';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
@@ -167,5 +167,85 @@ describe('PlaylistsService', () => {
         expect(
             localStorage.getItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)
         ).toBe('1');
+    });
+
+    it('persists hiddenGroupTitles in playlist meta updates', async () => {
+        const existingPlaylist: Playlist = {
+            _id: 'playlist-1',
+            title: 'Playlist One',
+            count: 2,
+            importDate: new Date('2026-04-11T00:00:00.000Z').toISOString(),
+            lastUsage: new Date('2026-04-11T00:00:00.000Z').toISOString(),
+            autoRefresh: false,
+            hiddenGroupTitles: ['News'],
+        } as Playlist;
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(() => of(existingPlaylist)),
+            update: jest.fn((_storeName: string, playlist: Playlist) =>
+                of(playlist)
+            ),
+        };
+        (window as Window & { electron?: unknown }).electron = undefined;
+
+        const service = createService(dbService);
+
+        await firstValueFrom(
+            service.updatePlaylistMeta({
+                _id: 'playlist-1',
+                hiddenGroupTitles: ['Movies', 'Sports'],
+            } as PlaylistMeta)
+        );
+
+        expect(dbService.update).toHaveBeenCalledWith(
+            DbStores.Playlists,
+            expect.objectContaining({
+                _id: 'playlist-1',
+                hiddenGroupTitles: ['Movies', 'Sports'],
+            })
+        );
+    });
+
+    it('keeps hiddenGroupTitles when refreshing a playlist payload', async () => {
+        const existingPlaylist: Playlist = {
+            _id: 'playlist-2',
+            title: 'Playlist Two',
+            count: 1,
+            importDate: new Date('2026-04-11T00:00:00.000Z').toISOString(),
+            lastUsage: new Date('2026-04-11T00:00:00.000Z').toISOString(),
+            autoRefresh: false,
+            hiddenGroupTitles: ['Radio-de'],
+            playlist: {
+                items: [{ id: 'channel-1' }],
+            },
+        } as Playlist;
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(() => of(existingPlaylist)),
+            update: jest.fn((_storeName: string, playlist: Playlist) =>
+                of(playlist)
+            ),
+        };
+        (window as Window & { electron?: unknown }).electron = undefined;
+
+        const service = createService(dbService);
+
+        await firstValueFrom(
+            service.updatePlaylist('playlist-2', {
+                _id: 'playlist-2',
+                playlist: {
+                    items: [],
+                },
+            } as Playlist)
+        );
+
+        expect(dbService.update).toHaveBeenCalledWith(
+            DbStores.Playlists,
+            expect.objectContaining({
+                _id: 'playlist-2',
+                hiddenGroupTitles: ['Radio-de'],
+                count: 0,
+            })
+        );
     });
 });

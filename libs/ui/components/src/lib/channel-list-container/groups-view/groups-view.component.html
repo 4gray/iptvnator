@@ -1,4 +1,4 @@
-@if (filteredGroups().length === 0) {
+@if (!hasAnyGroups()) {
     <div class="groups-view-empty-state">
         <mat-icon class="empty-state-icon">{{
             searchTerm() ? 'search_off' : 'folder_off'
@@ -35,37 +35,115 @@
         >
             <div class="groups-nav-shell">
                 <header class="groups-nav-header">
-                    <h2 class="groups-nav-title">
-                        {{ 'CHANNELS.GROUPS' | translate }}
-                    </h2>
+                    <div class="groups-nav-header__content">
+                        <h2 class="groups-nav-title">
+                            {{ 'CHANNELS.GROUPS' | translate }}
+                        </h2>
+                        <div class="groups-nav-actions">
+                            <button
+                                type="button"
+                                mat-icon-button
+                                class="groups-nav-action groups-nav-action--search"
+                                [matTooltip]="'CHANNELS.SEARCH_GROUPS' | translate"
+                                [attr.aria-pressed]="
+                                    isGroupSearchOpen() ? 'true' : 'false'
+                                "
+                                [attr.aria-label]="
+                                    'CHANNELS.SEARCH_GROUPS' | translate
+                                "
+                                (click)="toggleGroupSearch()"
+                            >
+                                <mat-icon>search</mat-icon>
+                            </button>
+                            <button
+                                type="button"
+                                mat-icon-button
+                                class="groups-nav-action groups-nav-action--manage"
+                                [matTooltip]="'CHANNELS.MANAGE_GROUPS' | translate"
+                                [attr.aria-label]="
+                                    'CHANNELS.MANAGE_GROUPS' | translate
+                                "
+                                (click)="openGroupManagement()"
+                            >
+                                <mat-icon>tune</mat-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (isGroupSearchOpen()) {
+                        <label class="groups-nav-search">
+                            <mat-icon class="groups-nav-search__icon">
+                                search
+                            </mat-icon>
+                            <input
+                                #groupSearchInput
+                                type="search"
+                                spellcheck="false"
+                                [value]="localGroupSearchTerm()"
+                                [placeholder]="
+                                    'CHANNELS.SEARCH_GROUPS' | translate
+                                "
+                                (input)="
+                                    updateGroupSearchTerm(
+                                        $any($event.target).value
+                                    )
+                                "
+                                (keydown.escape)="closeGroupSearch()"
+                            />
+                            <button
+                                type="button"
+                                mat-icon-button
+                                class="groups-nav-search__close"
+                                [attr.aria-label]="'CLOSE' | translate"
+                                (click)="closeGroupSearch()"
+                            >
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </label>
+                    }
                 </header>
 
                 <div class="groups-nav-list nav-list">
-                    @for (
-                        group of filteredGroups();
-                        track trackByGroupKey($index, group)
-                    ) {
-                        <button
-                            type="button"
-                            class="nav-item group-nav-item"
-                            [attr.data-group-key]="group.key"
-                            [class.selected]="selectedGroupKey() === group.key"
-                            [attr.aria-current]="
-                                selectedGroupKey() === group.key ? 'true' : null
-                            "
-                            (click)="selectGroup(group.key)"
-                        >
-                            <span class="nav-item-label">
-                                @if (group.key) {
-                                    {{ group.key | titlecase }}
-                                } @else {
-                                    {{ 'CHANNELS.UNGROUPED' | translate }}
-                                }
-                            </span>
-                            <span class="nav-item-meta">
-                                {{ group.count }}
-                            </span>
-                        </button>
+                    @if (filteredGroups().length > 0) {
+                        @for (
+                            group of filteredGroups();
+                            track trackByGroupKey($index, group)
+                        ) {
+                            <button
+                                type="button"
+                                class="nav-item group-nav-item"
+                                [attr.data-group-key]="group.key"
+                                [class.selected]="
+                                    selectedGroupKey() === group.key
+                                "
+                                [attr.aria-current]="
+                                    selectedGroupKey() === group.key
+                                        ? 'true'
+                                        : null
+                                "
+                                (click)="selectGroup(group.key)"
+                            >
+                                <span class="nav-item-label">
+                                    @if (group.key) {
+                                        {{ group.key | titlecase }}
+                                    } @else {
+                                        {{ 'CHANNELS.UNGROUPED' | translate }}
+                                    }
+                                </span>
+                                <span class="nav-item-meta">
+                                    {{ group.count }}
+                                </span>
+                            </button>
+                        }
+                    } @else {
+                        <div class="groups-nav-empty">
+                            {{
+                                (hasSearchQuery()
+                                    ? 'CHANNELS.NO_SEARCH_RESULTS'
+                                    : 'CHANNELS.NO_VISIBLE_GROUPS'
+                                ) | translate
+                            }}
+                        </div>
                     }
                 </div>
             </div>
@@ -163,6 +241,38 @@
                         (favoriteToggled)="onFavoriteToggle(channel, $event)"
                     />
                 </cdk-virtual-scroll-viewport>
+            } @else {
+                <header class="sidebar-header groups-content-header">
+                    <div class="category-meta">
+                        <h2 class="category-title">
+                            {{ 'CHANNELS.GROUPS' | translate }}
+                        </h2>
+                    </div>
+                </header>
+
+                <div class="groups-content-empty-state">
+                    <mat-icon class="empty-state-icon">
+                        {{
+                            hasSearchQuery() ? 'search_off' : 'visibility_off'
+                        }}
+                    </mat-icon>
+                    <div class="empty-state-title">
+                        {{
+                            (hasSearchQuery()
+                                ? 'CHANNELS.NO_SEARCH_RESULTS'
+                                : 'CHANNELS.NO_VISIBLE_GROUPS'
+                            ) | translate
+                        }}
+                    </div>
+                    <div class="empty-state-hint">
+                        {{
+                            (hasSearchQuery()
+                                ? 'CHANNELS.TRY_DIFFERENT_SEARCH'
+                                : 'CHANNELS.MANAGE_GROUPS_HINT'
+                            ) | translate
+                        }}
+                    </div>
+                </div>
             }
         </section>
     </div>
