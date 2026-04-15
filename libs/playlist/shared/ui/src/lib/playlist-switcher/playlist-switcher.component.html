@@ -31,10 +31,27 @@
     yPosition="below"
 >
     <div class="menu-header">
-        <mat-icon>playlist_play</mat-icon>
-        <span>{{ 'HOME.PLAYLISTS.MY_PLAYLISTS' | translate }}</span>
+        <mat-icon class="menu-header-icon">playlist_play</mat-icon>
+        <span class="menu-header-title">{{
+            'HOME.PLAYLISTS.MY_PLAYLISTS' | translate
+        }}</span>
+        @if (hasSearchToggle()) {
+            <button
+                mat-icon-button
+                type="button"
+                class="search-toggle-btn"
+                [class.is-active]="searchExpanded()"
+                (click)="toggleSearchField($event)"
+                [attr.aria-label]="
+                    'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate
+                "
+            >
+                <mat-icon>search</mat-icon>
+            </button>
+        }
     </div>
 
+    @if (showSearchField()) {
     <div class="search-container" (click)="$event.stopPropagation()">
         <mat-icon class="search-icon">search</mat-icon>
         <input
@@ -55,33 +72,42 @@
             </button>
         }
     </div>
+    }
 
-    <div class="type-filters" (click)="$event.stopPropagation()">
-        <button
-            type="button"
-            class="type-filter-chip"
-            [class.selected]="isTypeFilterSelected('m3u')"
-            (click)="togglePlaylistTypeFilter('m3u', $event)"
-        >
-            M3U
-        </button>
-        <button
-            type="button"
-            class="type-filter-chip"
-            [class.selected]="isTypeFilterSelected('stalker')"
-            (click)="togglePlaylistTypeFilter('stalker', $event)"
-        >
-            Stalker
-        </button>
-        <button
-            type="button"
-            class="type-filter-chip"
-            [class.selected]="isTypeFilterSelected('xtream')"
-            (click)="togglePlaylistTypeFilter('xtream', $event)"
-        >
-            Xtream
-        </button>
-    </div>
+    @if (showTypeFilters()) {
+        <div class="type-filters" (click)="$event.stopPropagation()">
+            @if (hasType('m3u')) {
+                <button
+                    type="button"
+                    class="type-filter-chip"
+                    [class.selected]="isTypeFilterSelected('m3u')"
+                    (click)="togglePlaylistTypeFilter('m3u', $event)"
+                >
+                    M3U
+                </button>
+            }
+            @if (hasType('stalker')) {
+                <button
+                    type="button"
+                    class="type-filter-chip"
+                    [class.selected]="isTypeFilterSelected('stalker')"
+                    (click)="togglePlaylistTypeFilter('stalker', $event)"
+                >
+                    Stalker
+                </button>
+            }
+            @if (hasType('xtream')) {
+                <button
+                    type="button"
+                    class="type-filter-chip"
+                    [class.selected]="isTypeFilterSelected('xtream')"
+                    (click)="togglePlaylistTypeFilter('xtream', $event)"
+                >
+                    Xtream
+                </button>
+            }
+        </div>
+    }
 
     <div class="menu-content">
         @for (playlist of filteredPlaylists(); track playlist._id) {
@@ -122,9 +148,9 @@
                         {{ playlist.title || playlist.filename }}
                     </span>
                     <span class="playlist-meta">
-                        {{ getPlaylistTypeLabel(playlist) }}
+                        {{ getPlaylistMetaLabel(playlist) }}
                         @if (playlist.updateDate) {
-                            <span class="separator">|</span>
+                            <span class="separator">·</span>
                             {{
                                 playlist.updateDate
                                     | date
@@ -135,6 +161,18 @@
                         }
                     </span>
                 </div>
+
+                <button
+                    type="button"
+                    class="item-action-trigger"
+                    mat-icon-button
+                    [matMenuTriggerFor]="itemMenu"
+                    [matMenuTriggerData]="{ playlist: playlist }"
+                    (click)="$event.stopPropagation()"
+                    aria-label="Playlist actions"
+                >
+                    <mat-icon>more_vert</mat-icon>
+                </button>
             </div>
         } @empty {
             <div class="empty-state">
@@ -144,17 +182,16 @@
         }
     </div>
 
-    @if (showPlaylistInfo() || showAccountInfo()) {
-        <mat-divider />
+    @if (showAddPlaylist() || showAccountInfo()) {
         <div class="context-actions-section">
-            @if (showPlaylistInfo()) {
+            @if (showAddPlaylist()) {
                 <button
                     class="context-action-item"
-                    (click)="requestPlaylistInfo()"
+                    (click)="requestAddPlaylist()"
                 >
-                    <mat-icon>playlist_play</mat-icon>
+                    <mat-icon>add</mat-icon>
                     <span>{{
-                        'WORKSPACE.SHELL.PLAYLIST_INFO' | translate
+                        'WORKSPACE.SHELL.ADD_PLAYLIST' | translate
                     }}</span>
                 </button>
             }
@@ -171,4 +208,30 @@
             }
         </div>
     }
+</mat-menu>
+
+<mat-menu #itemMenu="matMenu" class="playlist-item-action-menu">
+    <ng-template matMenuContent let-playlist="playlist">
+        <button mat-menu-item (click)="openPlaylistInfoFor(playlist, $event)">
+            <mat-icon>info</mat-icon>
+            <span>{{ 'WORKSPACE.SHELL.PLAYLIST_INFO' | translate }}</span>
+        </button>
+        @if (canRefreshPlaylist(playlist)) {
+            <button mat-menu-item (click)="refreshPlaylistFor(playlist, $event)">
+                <mat-icon>sync</mat-icon>
+                <span>{{
+                    'WORKSPACE.SHELL.REFRESH_PLAYLIST' | translate
+                }}</span>
+            </button>
+        }
+        <mat-divider />
+        <button
+            mat-menu-item
+            class="danger"
+            (click)="removePlaylistFor(playlist, $event)"
+        >
+            <mat-icon>delete</mat-icon>
+            <span>{{ 'HOME.PLAYLISTS.REMOVE_DIALOG.TITLE' | translate }}</span>
+        </button>
+    </ng-template>
 </mat-menu>

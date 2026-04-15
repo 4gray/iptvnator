@@ -77,6 +77,17 @@
         "sdk": "org.freedesktop.Sdk",
         "base": "org.electronjs.Electron2.BaseApp",
         "baseVersion": "24.08",
+        "finishArgs": [
+            "--socket=wayland",
+            "--socket=x11",
+            "--share=ipc",
+            "--device=dri",
+            "--socket=pulseaudio",
+            "--filesystem=home",
+            "--share=network",
+            "--talk-name=org.freedesktop.Notifications",
+            "--talk-name=org.freedesktop.Flatpak"
+        ],
         "files": [
             [
                 "apps/electron-backend/linux/com.fourgray.iptvnator.metainfo.xml",
@@ -86,9 +97,11 @@
     },
     "afterPack": "./tools/packaging/linux-after-pack.cjs",
     "snap": {
+        "base": "core22",
         "confinement": "strict",
         "grade": "stable",
         "summary": "IPTV application for M3U playlists, Xtream Codes API, and Stalker portals",
+        "executableArgs": ["--ozone-platform=x11"],
         "environment": {
             "DISABLE_WAYLAND": "1"
         }

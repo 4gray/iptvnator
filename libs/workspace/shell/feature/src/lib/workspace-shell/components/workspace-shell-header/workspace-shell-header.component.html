@@ -5,8 +5,10 @@
         [subtitle]="playlistSubtitle()"
         [showPlaylistInfo]="canOpenPlaylistInfo()"
         [showAccountInfo]="canOpenAccountInfo()"
+        [showAddPlaylist]="true"
         (playlistInfoRequested)="onPlaylistInfoRequested()"
         (accountInfoRequested)="onAccountInfoRequested()"
+        (addPlaylistRequested)="onAddPlaylistRequested()"
     />
 
     <label class="search-field">
@@ -34,7 +36,6 @@
         <button
             type="button"
             class="command-trigger"
-            mat-icon-button
             (click)="onCommandPaletteRequested()"
             [matTooltip]="
                 'WORKSPACE.SHELL.COMMAND_PALETTE_SHORTCUT' | translate
@@ -43,7 +44,7 @@
                 'WORKSPACE.SHELL.OPEN_COMMAND_PALETTE' | translate
             "
         >
-            <mat-icon>keyboard_command_key</mat-icon>
+            {{ commandShortcutLabel }}
         </button>
     </label>
 

@@ -67,9 +67,9 @@ Keep SQL-heavy logic here so the worker entry remains a thin dispatcher:
 3. `DatabaseWorkerClient` lazily starts one long-lived `worker_threads` worker
    and correlates requests with a generated `requestId`.
 4. The worker executes SQLite work and sends back either:
-   1. `ready`
-   2. `event`
-   3. `response`
+    1. `ready`
+    2. `event`
+    3. `response`
 5. The main process resolves the IPC request and forwards worker events back to
    the originating renderer process.
 
@@ -166,9 +166,9 @@ events.
 5. `dbDeletePlaylist(playlistId, operationId?)`
 6. `dbDeleteAllPlaylists(operationId?)`
 7. `dbCancelOperation(operationId)`
-3. legacy compatibility:
-   1. `onDbSaveContentProgress(callback)`
-   2. `removeDbSaveContentProgress()`
+8. legacy compatibility:
+    1. `onDbSaveContentProgress(callback)`
+    2. `removeDbSaveContentProgress()`
 
 `DatabaseService.saveXtreamContent(...)` now generates an `operationId`,
 subscribes to `onDbOperationEvent`, filters by that `operationId`, and only
@@ -333,6 +333,10 @@ The script checks:
 1. `epg-parser.worker.js`
 2. `database.worker.js`
 3. `better-sqlite3` in one approved unpacked node_modules location
+4. Snap packaging compatibility settings for `better-sqlite3`:
+    - `snap.base = core22`
+    - Snap launch args keep the X11 fallback
+    - Snap and the other non-Flatpak Linux artifacts build on Ubuntu 22.04, while Flatpak builds on a separate Ubuntu 24.04 CI runner
 
 ### Development rebuild rule
 

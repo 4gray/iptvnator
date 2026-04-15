@@ -25,6 +25,11 @@ import { WorkspaceHeaderAction } from '@iptvnator/portal/shared/util';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceShellHeaderComponent {
+    readonly isMac =
+        typeof navigator !== 'undefined' &&
+        /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
+    readonly commandShortcutLabel = this.isMac ? '⌘K' : 'Ctrl+K';
+
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
     readonly canOpenPlaylistInfo = input(false);

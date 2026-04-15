@@ -28,7 +28,11 @@ jobs:
                       arch: arm64
                     # Linux and Windows
                     - os: linux
-                      runner: ubuntu-latest
+                      runner: ubuntu-22.04
+                      linux_profile: standard
+                    - os: linux
+                      runner: ubuntu-24.04
+                      linux_profile: flatpak
                     - os: windows
                       runner: windows-latest
 
@@ -58,6 +62,25 @@ jobs:
                   # 2. Install the standard Freedesktop Platform and SDK (required by electron-builder)
                   # We install version 24.08 as a safe default, electron-builder might pick what it needs
                   flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+
+            - name: Select Linux packaging targets for CI profile
+              if: matrix.os == 'linux'
+              run: |
+                  node -e "
+                    const fs = require('fs');
+                    const path = 'electron-builder.json';
+                    const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+                    const targets = Array.isArray(config.linux?.target) ? config.linux.target : [];
+                    const profile = '${{ matrix.linux_profile }}';
+
+                    if (profile === 'standard') {
+                      config.linux.target = targets.filter((entry) => String(entry.target).toLowerCase() !== 'flatpak');
+                    } else if (profile === 'flatpak') {
+                      config.linux.target = targets.filter((entry) => String(entry.target).toLowerCase() === 'flatpak');
+                    }
+
+                    fs.writeFileSync(path, JSON.stringify(config, null, 4) + '\n');
+                  "
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
@@ -250,7 +273,7 @@ jobs:
               run: pnpm run verify:package-layout -- "$PACKAGE_OS" "$PACKAGE_ARCH"
 
             - name: Smoke test packaged Flatpak launcher
-              if: matrix.os == 'linux'
+              if: matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
               shell: bash
               run: |
                   set -euo pipefail
@@ -286,7 +309,7 @@ jobs:
                   retention-days: 7
 
             - name: Upload artifacts (Linux)
-              if: matrix.os == 'linux'
+              if: matrix.os == 'linux' && matrix.linux_profile == 'standard'
               uses: actions/upload-artifact@v4
               with:
                   name: linux-artifacts
@@ -297,6 +320,14 @@ jobs:
                       dist/executables/**/*.AppImage
                       dist/executables/**/*.tar.gz
                       dist/executables/**/*.pacman
+                  retention-days: 7
+
+            - name: Upload artifacts (Flatpak)
+              if: matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: linux-flatpak-artifacts
+                  path: |
                       dist/executables/**/*.flatpak
                   retention-days: 7
 
@@ -353,7 +384,7 @@ jobs:
                       artifacts/linux-artifacts/*.snap
                       artifacts/linux-artifacts/*.tar.gz
                       artifacts/linux-artifacts/*.pacman
-                      artifacts/linux-artifacts/*.flatpak
+                      artifacts/linux-flatpak-artifacts/*.flatpak
                       artifacts/windows-artifacts/*-setup.exe
                       artifacts/windows-artifacts/*.msi
                       artifacts/windows-artifacts/*.zip

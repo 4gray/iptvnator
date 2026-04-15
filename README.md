@@ -167,6 +167,20 @@ Alternatively, you can launch IPTVnator from the terminal with the flag:
 iptvnator --no-sandbox
 ```
 
+### GNU/Linux: Wayland startup failure
+
+If IPTVnator exits on GNU/Linux with errors about failing to connect to
+Wayland or initialize the Ozone platform, force X11/XWayland instead:
+
+```bash
+iptvnator --ozone-platform=x11
+```
+
+This workaround is mainly for older or problematic Linux graphics stacks. The
+Snap package already includes this X11 override by default. For AppImage,
+direct binaries, and other Linux package formats, pass the flag manually when
+needed.
+
 ## How to Build and Develop
 
 Requirements:

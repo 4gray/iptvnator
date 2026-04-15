@@ -6,6 +6,7 @@ This document records the current contract for embedded playback in portal detai
 
 - Embedded web players are `videojs`, `html5`, and `artplayer`.
 - External players are `mpv` and `vlc`.
+- Flatpak launches external players on the host via `flatpak-spawn --host`.
 - Live playback stays inline in dedicated live layouts.
 - VOD and series detail playback now also stays inline on canonical detail surfaces.
 - Material dialog playback remains only as a fallback for older non-detail callers.
@@ -55,6 +56,19 @@ When a detail view starts playback:
 4. If the player is external, hand the same payload to `PlayerService` for MPV/VLC playback.
 
 The detail host owns inline state. `PlayerService` is no longer the primary owner of UI playback state for canonical VOD/series detail screens.
+
+## Flatpak External Players
+
+Flatpak cannot execute host-installed `mpv` or `vlc` binaries directly from the sandbox.
+
+Current contract:
+
+- Flatpak launches external players through `flatpak-spawn --host`.
+- AppImage, deb/rpm, snap, macOS, and Windows keep the existing direct process spawn flow.
+- VLC keeps the current external-session flow in Flatpak, including the RC port used for progress polling.
+- MPV is intentionally reduced in Flatpak: the app does not reuse an existing MPV instance there and does not open the Unix socket bridge used for non-Flatpak progress polling.
+
+This keeps non-Flatpak behavior unchanged while allowing Flatpak builds to open host-installed external players.
 
 ## Typed Playback Payload
 

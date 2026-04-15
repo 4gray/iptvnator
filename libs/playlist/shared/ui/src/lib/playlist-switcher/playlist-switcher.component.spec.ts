@@ -6,10 +6,17 @@ import {
     flushMicrotasks,
     tick,
 } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Store } from '@ngrx/store';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
-import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
-import { PortalStatusService } from 'services';
+import {
+    PlaylistContextFacade,
+    PlaylistRefreshActionService,
+} from '@iptvnator/playlist/shared/util';
+import { DialogService } from 'components';
+import { DatabaseService, PortalStatusService } from 'services';
 import { PlaylistMeta } from 'shared-interfaces';
 import { PlaylistSwitcherComponent } from './playlist-switcher.component';
 
@@ -47,6 +54,26 @@ describe('PlaylistSwitcherComponent', () => {
     let portalStatusService: {
         checkPortalStatus: jest.Mock;
         getStatusClass: jest.Mock;
+    };
+    let refreshActionService: {
+        canRefresh: jest.Mock;
+        refresh: jest.Mock;
+    };
+    let dialog: {
+        open: jest.Mock;
+    };
+    let dialogService: {
+        openConfirmDialog: jest.Mock;
+    };
+    let databaseService: {
+        createOperationId: jest.Mock;
+        deletePlaylist: jest.Mock;
+    };
+    let snackBar: {
+        open: jest.Mock;
+    };
+    let store: {
+        dispatch: jest.Mock;
     };
 
     const m3uPlaylist = createPlaylist({
@@ -89,6 +116,30 @@ describe('PlaylistSwitcherComponent', () => {
                     provide: PortalStatusService,
                     useValue: portalStatusService,
                 },
+                {
+                    provide: PlaylistRefreshActionService,
+                    useValue: refreshActionService,
+                },
+                {
+                    provide: MatDialog,
+                    useValue: dialog,
+                },
+                {
+                    provide: DialogService,
+                    useValue: dialogService,
+                },
+                {
+                    provide: DatabaseService,
+                    useValue: databaseService,
+                },
+                {
+                    provide: MatSnackBar,
+                    useValue: snackBar,
+                },
+                {
+                    provide: Store,
+                    useValue: store,
+                },
             ],
         }).compileComponents();
 
@@ -122,6 +173,31 @@ describe('PlaylistSwitcherComponent', () => {
                 .mockResolvedValueOnce('active')
                 .mockResolvedValueOnce('inactive'),
             getStatusClass: jest.fn((status: string) => `status-${status}`),
+        };
+        refreshActionService = {
+            canRefresh: jest.fn(
+                (playlist: PlaylistMeta) =>
+                    Boolean(
+                        playlist.serverUrl || playlist.url || playlist.filePath
+                    )
+            ),
+            refresh: jest.fn(),
+        };
+        dialog = {
+            open: jest.fn(),
+        };
+        dialogService = {
+            openConfirmDialog: jest.fn(),
+        };
+        databaseService = {
+            createOperationId: jest.fn(),
+            deletePlaylist: jest.fn(),
+        };
+        snackBar = {
+            open: jest.fn(),
+        };
+        store = {
+            dispatch: jest.fn(),
         };
     });
 
@@ -235,7 +311,7 @@ describe('PlaylistSwitcherComponent', () => {
             document.documentElement.style.getPropertyValue(
                 '--playlist-switcher-overlay-width'
             )
-        ).toBe('320px');
+        ).toBe('400px');
         expect(portalStatusService.checkPortalStatus).toHaveBeenCalledTimes(1);
         expect(portalStatusService.checkPortalStatus).toHaveBeenCalledWith(
             xtreamPlaylist.serverUrl,

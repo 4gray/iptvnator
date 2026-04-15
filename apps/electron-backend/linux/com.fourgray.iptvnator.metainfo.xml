@@ -32,11 +32,15 @@
 
   <url type="homepage">https://4gray.github.io/iptvnator/</url>
   <url type="bugtracker">https://github.com/4gray/iptvnator/issues</url>
-  <url type="vcs-browser">https://github.com/4gray/iptvnator</url>
   <url type="help">https://4gray.github.io/iptvnator/blog/</url>
   <url type="donation">https://github.com/sponsors/4gray</url>
 
   <content_rating type="oars-1.0"/>
+
+  <releases>
+    <release version="0.20.0" type="development" date="2026-02-21"/>
+    <release version="0.19.0" type="stable" date="2026-02-11"/>
+  </releases>
 
   <screenshots>
     <screenshot type="default">

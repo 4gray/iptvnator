@@ -23,6 +23,7 @@
 .search-field {
     flex: 1;
     min-width: 160px;
+    max-width: 560px;
     height: 36px;
     border-radius: 10px;
     border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
@@ -73,7 +74,8 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        flex-shrink: 0;
+        flex-shrink: 1;
+        min-width: 48px;
     }
 
     .search-chip--scope {
@@ -115,23 +117,47 @@
     }
 
     .command-trigger {
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        margin-right: -4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 22px;
+        min-width: 36px;
+        padding: 0 6px;
+        margin-right: -2px;
         color: var(--mat-sys-on-surface-variant);
-        border-radius: 8px;
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-surface-container-high) 76%,
+            transparent
+        );
+        border: 1px solid
+            color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
+        border-radius: 5px;
+        font-family: inherit;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        line-height: 1;
+        cursor: pointer;
         flex-shrink: 0;
+        transition:
+            color 0.15s ease,
+            background 0.15s ease,
+            border-color 0.15s ease;
 
         &:hover {
-            background: var(--mat-sys-surface-container-high);
+            background: var(--mat-sys-surface-container-highest);
             color: var(--mat-sys-on-surface);
+            border-color: color-mix(
+                in srgb,
+                var(--mat-sys-outline-variant) 100%,
+                transparent
+            );
         }
 
-        mat-icon {
-            font-size: 16px;
-            width: 16px;
-            height: 16px;
+        &:focus-visible {
+            outline: 2px solid var(--mat-sys-primary);
+            outline-offset: 1px;
         }
     }
 }
@@ -139,7 +165,7 @@
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     app-region: no-drag;
 
     button,

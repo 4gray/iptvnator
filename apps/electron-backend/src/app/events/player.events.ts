@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import {
     CLOSE_EXTERNAL_PLAYER_SESSION,
     EXTERNAL_PLAYER_SESSION_UPDATE,
+    ExternalPlayerName,
     ExternalPlayerSession,
 } from 'shared-interfaces';
 import App from '../app';
@@ -39,6 +40,138 @@ function sendExternalPlayerSessionUpdate(session: ExternalPlayerSession) {
 const externalPlayerSessions = new ExternalPlayerSessionRegistry(
     sendExternalPlayerSessionUpdate
 );
+
+type PathExists = (path: string) => boolean;
+
+type ExternalPlayerLaunchMode = 'direct' | 'flatpak-host';
+
+interface PlayerPathOptions {
+    platform?: NodeJS.Platform;
+    isFlatpak?: boolean;
+    pathExists?: PathExists;
+}
+
+interface ExternalPlayerLaunchContext {
+    mode: ExternalPlayerLaunchMode;
+    playerPath: string;
+    command: string;
+    argsPrefix: string[];
+}
+
+interface ExternalPlayerSpawnSpec {
+    mode: ExternalPlayerLaunchMode;
+    playerPath: string;
+    command: string;
+    args: string[];
+}
+
+export function isRunningInFlatpak(
+    pathExists: PathExists = existsSync,
+    platform: NodeJS.Platform = process.platform
+): boolean {
+    return platform === 'linux' && pathExists('/.flatpak-info');
+}
+
+function normalizeCustomPlayerPath(value: string | undefined): string | null {
+    const trimmedValue = value?.trim();
+    return trimmedValue ? trimmedValue : null;
+}
+
+function getDefaultPlayerPath(
+    player: ExternalPlayerName,
+    options: PlayerPathOptions = {}
+): string {
+    const {
+        platform = process.platform,
+        isFlatpak = isRunningInFlatpak(),
+        pathExists = existsSync,
+    } = options;
+
+    if (platform === 'linux' && isFlatpak) {
+        return player;
+    }
+
+    if (player === 'mpv') {
+        return getDefaultMpvPath({ platform, isFlatpak, pathExists });
+    }
+
+    return getDefaultVlcPath({ platform, isFlatpak, pathExists });
+}
+
+export function resolveExternalPlayerLaunchContext(
+    player: ExternalPlayerName,
+    customPlayerPath?: string,
+    options: PlayerPathOptions = {}
+): ExternalPlayerLaunchContext {
+    const {
+        platform = process.platform,
+        isFlatpak = isRunningInFlatpak(),
+        pathExists = existsSync,
+    } = options;
+    const playerPath =
+        normalizeCustomPlayerPath(customPlayerPath) ??
+        getDefaultPlayerPath(player, {
+            platform,
+            isFlatpak,
+            pathExists,
+        });
+
+    if (platform === 'linux' && isFlatpak) {
+        return {
+            mode: 'flatpak-host',
+            playerPath,
+            command: 'flatpak-spawn',
+            argsPrefix: ['--host', '--watch-bus', playerPath],
+        };
+    }
+
+    return {
+        mode: 'direct',
+        playerPath,
+        command: playerPath,
+        argsPrefix: [],
+    };
+}
+
+export function buildExternalPlayerSpawnSpec(
+    launchContext: ExternalPlayerLaunchContext,
+    playerArgs: string[]
+): ExternalPlayerSpawnSpec {
+    return {
+        mode: launchContext.mode,
+        playerPath: launchContext.playerPath,
+        command: launchContext.command,
+        args: [...launchContext.argsPrefix, ...playerArgs],
+    };
+}
+
+export function shouldReuseMpvInstance(
+    requestedReuseInstance: boolean,
+    isFlatpak: boolean = isRunningInFlatpak()
+): boolean {
+    return !isFlatpak && requestedReuseInstance;
+}
+
+export function shouldUseMpvSocketBridge(
+    isFlatpak: boolean = isRunningInFlatpak()
+): boolean {
+    return !isFlatpak;
+}
+
+function buildPlayerStartError(
+    player: 'MPV' | 'VLC',
+    error: Error,
+    launchContext: ExternalPlayerLaunchContext
+): Error {
+    const guidance =
+        launchContext.mode === 'flatpak-host'
+            ? `Make sure ${player} is installed on the host system and reachable via Flatpak host spawning at '${launchContext.playerPath}'.`
+            : `Make sure ${player} is installed and the path '${launchContext.playerPath}' is correct.`;
+
+    return new Error(
+        `Failed to start ${player} player: ${error.message}. ${guidance}`
+    );
+}
 
 // Helper function to send error notifications to the renderer
 function sendPlayerErrorNotification(player: 'MPV' | 'VLC', error: string) {
@@ -383,8 +516,18 @@ ipcMain.handle(
         });
 
         try {
-            const mpvPath = getMpvPath();
-            const reuseInstance = store.get(MPV_REUSE_INSTANCE, false);
+            const isFlatpak = isRunningInFlatpak();
+            const mpvLaunchContext = resolveExternalPlayerLaunchContext(
+                'mpv',
+                getMpvPath({ isFlatpak }),
+                { isFlatpak }
+            );
+            const requestedReuseInstance = store.get(MPV_REUSE_INSTANCE, false);
+            const reuseInstance = shouldReuseMpvInstance(
+                requestedReuseInstance,
+                isFlatpak
+            );
+            const useMpvSocketBridge = shouldUseMpvSocketBridge(isFlatpak);
             const fallbackHeaders = getStalkerPlaybackContextHeaders(url) ?? {};
             const mergedHeaders = isStalkerDirectStreamProfile(fallbackHeaders)
                 ? fallbackHeaders
@@ -413,7 +556,9 @@ ipcMain.handle(
             );
 
             console.log('[MPV] Opening player', {
-                path: mpvPath,
+                path: mpvLaunchContext.playerPath,
+                launchMode: mpvLaunchContext.mode,
+                requestedReuseInstance,
                 reuseInstance,
                 stream: maskUrlForLogs(url),
                 hasUserAgent: Boolean(effectiveUserAgent),
@@ -520,19 +665,20 @@ ipcMain.handle(
             // Create new MPV process
             console.log('Creating new MPV instance');
 
-            // Generate unique socket path
-            const socketPath =
-                process.platform === 'win32'
-                    ? `\\\\.\\pipe\\mpv-${Date.now()}`
-                    : `/tmp/mpvsocket-${Date.now()}`;
+            let socketPath: string | null = null;
+            const args: string[] = [];
 
-            const args = [
-                `--input-ipc-server=${socketPath}`,
-                '--idle=yes',
-                // IPTV URLs often look like generic web pages to ytdl_hook and can fail with 403.
-                // Force MPV to open them directly instead of probing via yt-dlp/youtube-dl.
-                '--ytdl=no',
-            ];
+            if (useMpvSocketBridge) {
+                socketPath =
+                    process.platform === 'win32'
+                        ? `\\\\.\\pipe\\mpv-${Date.now()}`
+                        : `/tmp/mpvsocket-${Date.now()}`;
+                args.push(`--input-ipc-server=${socketPath}`, '--idle=yes');
+            }
+
+            // IPTV URLs often look like generic web pages to ytdl_hook and can fail with 403.
+            // Force MPV to open them directly instead of probing via yt-dlp/youtube-dl.
+            args.push('--ytdl=no');
 
             // Add user agent if provided
             if (effectiveUserAgent) {
@@ -563,7 +709,11 @@ ipcMain.handle(
 
             // Wrap spawn in a promise to catch startup errors
             await new Promise<void>((resolve, reject) => {
-                const proc = spawn(mpvPath, args, {
+                const spawnSpec = buildExternalPlayerSpawnSpec(
+                    mpvLaunchContext,
+                    args
+                );
+                const proc = spawn(spawnSpec.command, spawnSpec.args, {
                     shell: false,
                     detached: !reuseInstance,
                     // Only pipe stdio when reusing instance; use 'ignore' for detached to allow clean shutdown
@@ -644,11 +794,7 @@ ipcMain.handle(
                         session.id,
                         `Failed to start MPV player: ${err.message}`
                     );
-                    reject(
-                        new Error(
-                            `Failed to start MPV player: ${err.message}. Make sure MPV is installed and the path '${mpvPath}' is correct.`
-                        )
-                    );
+                    reject(buildPlayerStartError('MPV', err, mpvLaunchContext));
                 });
 
                 proc.on('exit', (code) => {
@@ -677,7 +823,7 @@ ipcMain.handle(
                 });
 
                 // Store the process reference if reuse is enabled
-                if (reuseInstance) {
+                if (reuseInstance && socketPath) {
                     mpvProcess = proc;
                     mpvSocketPath = socketPath;
                     console.log(
@@ -696,7 +842,7 @@ ipcMain.handle(
                 });
 
                 // Start polling if content info is provided
-                if (contentInfo) {
+                if (useMpvSocketBridge && contentInfo && socketPath) {
                     startPositionPolling(socketPath, contentInfo, session.id);
                 }
 
@@ -765,7 +911,12 @@ ipcMain.handle(
         });
 
         try {
-            const vlcPath = getVlcPath();
+            const isFlatpak = isRunningInFlatpak();
+            const vlcLaunchContext = resolveExternalPlayerLaunchContext(
+                'vlc',
+                getVlcPath({ isFlatpak }),
+                { isFlatpak }
+            );
             const fallbackHeaders = getStalkerPlaybackContextHeaders(url) ?? {};
             const mergedHeaders = isStalkerDirectStreamProfile(fallbackHeaders)
                 ? fallbackHeaders
@@ -788,7 +939,8 @@ ipcMain.handle(
                 mergedHeaders['User-Agent'] ??
                 mergedHeaders['user-agent'] ??
                 undefined;
-            console.log('Opening VLC player with path:', vlcPath);
+            console.log('Opening VLC player with path:', vlcLaunchContext.playerPath);
+            console.log('VLC launch mode:', vlcLaunchContext.mode);
             console.log('URL:', url);
             // console.log('User-Agent:', userAgent);
             // console.log('Referer:', referer);
@@ -854,8 +1006,12 @@ ipcMain.handle(
 
             // Wrap spawn in a promise to catch startup errors
             await new Promise<void>((resolve, reject) => {
-                const spawnVlc = (spawnArgs: string[], isRetry = false) => {
-                    const proc = spawn(vlcPath, spawnArgs, {
+                const spawnVlc = (playerArgs: string[], isRetry = false) => {
+                    const spawnSpec = buildExternalPlayerSpawnSpec(
+                        vlcLaunchContext,
+                        playerArgs
+                    );
+                    const proc = spawn(spawnSpec.command, spawnSpec.args, {
                         shell: false,
                         detached: true,
                         stdio: 'ignore', // Use 'ignore' for detached to allow clean shutdown
@@ -897,7 +1053,7 @@ ipcMain.handle(
                         if (!isRetry && rcPort > 0) {
                             console.log('Retrying VLC without RC interface...');
                             // Retry without RC args
-                            const retryArgs = spawnArgs.filter(
+                            const retryArgs = playerArgs.filter(
                                 (arg) =>
                                     !arg.includes('--extraintf') &&
                                     !arg.includes('--rc-host') &&
@@ -910,8 +1066,10 @@ ipcMain.handle(
                                 `Failed to start VLC player: ${err.message}`
                             );
                             reject(
-                                new Error(
-                                    `Failed to start VLC player: ${err.message}. Make sure VLC is installed and the path '${vlcPath}' is correct.`
+                                buildPlayerStartError(
+                                    'VLC',
+                                    err,
+                                    vlcLaunchContext
                                 )
                             );
                         }
@@ -925,7 +1083,7 @@ ipcMain.handle(
                                 'VLC exited with error, retrying without RC interface...'
                             );
                             stopVlcPositionPolling();
-                            const retryArgs = spawnArgs.filter(
+                            const retryArgs = playerArgs.filter(
                                 (arg) =>
                                     !arg.includes('--extraintf') &&
                                     !arg.includes('--rc-host') &&
@@ -985,26 +1143,32 @@ ipcMain.handle(
     }
 );
 
-function getMpvPath() {
-    const customMpvPath = store.get(MPV_PLAYER_PATH);
-    if (customMpvPath) {
-        return customMpvPath;
-    } else {
-        return getDefaultMpvPath();
-    }
+function getMpvPath(options: PlayerPathOptions = {}) {
+    return (
+        normalizeCustomPlayerPath(store.get(MPV_PLAYER_PATH)) ??
+        getDefaultMpvPath(options)
+    );
 }
 
-function getVlcPath() {
-    const customVlcPath = store.get(VLC_PLAYER_PATH);
-    if (customVlcPath) {
-        return customVlcPath;
-    } else {
-        return getDefaultVlcPath();
-    }
+function getVlcPath(options: PlayerPathOptions = {}) {
+    return (
+        normalizeCustomPlayerPath(store.get(VLC_PLAYER_PATH)) ??
+        getDefaultVlcPath(options)
+    );
 }
 
-function getDefaultMpvPath() {
-    if (process.platform === 'win32') {
+function getDefaultMpvPath(options: PlayerPathOptions = {}) {
+    const {
+        platform = process.platform,
+        isFlatpak = isRunningInFlatpak(),
+        pathExists = existsSync,
+    } = options;
+
+    if (platform === 'linux' && isFlatpak) {
+        return 'mpv';
+    }
+
+    if (platform === 'win32') {
         // Check multiple common Windows paths
         const windowsPaths = [
             path.join('C:', 'Program Files', 'mpv', 'mpv.exe'),
@@ -1013,13 +1177,13 @@ function getDefaultMpvPath() {
 
         // Check if any of the paths exist
         for (const mpvPath of windowsPaths) {
-            if (existsSync(mpvPath)) {
+            if (pathExists(mpvPath)) {
                 return mpvPath;
             }
         }
         // Default to just 'mpv' if it's in PATH
         return 'mpv';
-    } else if (process.platform === 'linux') {
+    } else if (platform === 'linux') {
         // Check multiple common Linux paths
         const linuxPaths = [
             '/usr/bin/mpv',
@@ -1028,12 +1192,12 @@ function getDefaultMpvPath() {
         ];
 
         for (const mpvPath of linuxPaths) {
-            if (existsSync(mpvPath)) {
+            if (pathExists(mpvPath)) {
                 return mpvPath;
             }
         }
         return 'mpv';
-    } else if (process.platform === 'darwin') {
+    } else if (platform === 'darwin') {
         // Check multiple common macOS paths
         const macosPaths = [
             '/Applications/mpv.app/Contents/MacOS/mpv',
@@ -1042,7 +1206,7 @@ function getDefaultMpvPath() {
         ];
 
         for (const mpvPath of macosPaths) {
-            if (existsSync(mpvPath)) {
+            if (pathExists(mpvPath)) {
                 return mpvPath;
             }
         }
@@ -1053,8 +1217,18 @@ function getDefaultMpvPath() {
     return 'mpv';
 }
 
-function getDefaultVlcPath() {
-    if (process.platform === 'win32') {
+function getDefaultVlcPath(options: PlayerPathOptions = {}) {
+    const {
+        platform = process.platform,
+        isFlatpak = isRunningInFlatpak(),
+        pathExists = existsSync,
+    } = options;
+
+    if (platform === 'linux' && isFlatpak) {
+        return 'vlc';
+    }
+
+    if (platform === 'win32') {
         // Check multiple common Windows paths (64-bit and 32-bit)
         const windowsPaths = [
             path.join('C:', 'Program Files', 'VideoLAN', 'VLC', 'vlc.exe'),
@@ -1068,12 +1242,12 @@ function getDefaultVlcPath() {
         ];
 
         for (const vlcPath of windowsPaths) {
-            if (existsSync(vlcPath)) {
+            if (pathExists(vlcPath)) {
                 return vlcPath;
             }
         }
         return 'vlc';
-    } else if (process.platform === 'linux') {
+    } else if (platform === 'linux') {
         // Check multiple common Linux paths
         const linuxPaths = [
             '/usr/bin/vlc',
@@ -1082,12 +1256,12 @@ function getDefaultVlcPath() {
         ];
 
         for (const vlcPath of linuxPaths) {
-            if (existsSync(vlcPath)) {
+            if (pathExists(vlcPath)) {
                 return vlcPath;
             }
         }
         return 'vlc';
-    } else if (process.platform === 'darwin') {
+    } else if (platform === 'darwin') {
         // Check multiple common macOS paths
         const macosPaths = [
             '/Applications/VLC.app/Contents/MacOS/VLC',
@@ -1095,7 +1269,7 @@ function getDefaultVlcPath() {
         ];
 
         for (const vlcPath of macosPaths) {
-            if (existsSync(vlcPath)) {
+            if (pathExists(vlcPath)) {
                 return vlcPath;
             }
         }
