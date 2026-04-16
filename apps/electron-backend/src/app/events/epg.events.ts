@@ -410,6 +410,15 @@ export default class EpgEvents {
         };
     }
 
+    private static isValidEpgProgram(program: EpgProgram): boolean {
+        return Boolean(
+            program.start &&
+                program.stop &&
+                !Number.isNaN(new Date(program.start).getTime()) &&
+                !Number.isNaN(new Date(program.stop).getTime())
+        );
+    }
+
     /**
      * Get programs for a specific channel from database
      */
@@ -433,12 +442,39 @@ export default class EpgEvents {
                 .limit(500);
 
             if (results.length > 0) {
-                return results.map(this.transformDbRowToEpgProgram);
+                return results
+                    .map(this.transformDbRowToEpgProgram)
+                    .filter(this.isValidEpgProgram);
+            }
+
+            // Some playlists provide the right tvg-id with different casing than
+            // the XMLTV feed. Resolve the canonical channel row before giving up.
+            let channel = await db
+                .select()
+                .from(schema.epgChannels)
+                .where(
+                    sql`${schema.epgChannels.id} = ${trimmedChannelId} COLLATE NOCASE`
+                )
+                .limit(1);
+
+            if (channel.length > 0) {
+                results = await db
+                    .select()
+                    .from(schema.epgPrograms)
+                    .where(eq(schema.epgPrograms.channelId, channel[0].id))
+                    .orderBy(schema.epgPrograms.start)
+                    .limit(500);
+
+                if (results.length > 0) {
+                    return results
+                        .map(this.transformDbRowToEpgProgram)
+                        .filter(this.isValidEpgProgram);
+                }
             }
 
             // Try exact display name match before giving up. Using wildcard LIKE
             // here can scan the whole table on the Electron main process.
-            let channel = await db
+            channel = await db
                 .select()
                 .from(schema.epgChannels)
                 .where(eq(schema.epgChannels.displayName, trimmedChannelId))
@@ -462,7 +498,9 @@ export default class EpgEvents {
                     .orderBy(schema.epgPrograms.start)
                     .limit(500);
 
-                return results.map(this.transformDbRowToEpgProgram);
+                return results
+                    .map(this.transformDbRowToEpgProgram)
+                    .filter(this.isValidEpgProgram);
             }
 
             return [];

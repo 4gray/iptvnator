@@ -32,6 +32,12 @@ export interface SearchState {
     isSearching: boolean;
 }
 
+type SearchContentParams = {
+    term: string;
+    types: string[];
+    excludeHidden?: boolean;
+};
+
 /**
  * Initial search filters
  */
@@ -76,10 +82,23 @@ export function withSearch() {
                  * Search content within the current playlist
                  */
                 async searchContent(
-                    searchTerm: string,
-                    types: string[],
-                    excludeHidden?: boolean
+                    searchTermOrParams: string | SearchContentParams,
+                    typesArg?: string[],
+                    excludeHiddenArg?: boolean
                 ): Promise<XtreamContentItem[]> {
+                    const searchTerm =
+                        typeof searchTermOrParams === 'string'
+                            ? searchTermOrParams
+                            : searchTermOrParams.term;
+                    const types =
+                        typeof searchTermOrParams === 'string'
+                            ? (typesArg ?? [])
+                            : searchTermOrParams.types;
+                    const excludeHidden =
+                        typeof searchTermOrParams === 'string'
+                            ? excludeHiddenArg
+                            : searchTermOrParams.excludeHidden;
+
                     // Access parent store's playlistId (from withPortal)
                     const storeAny = store as ParentSearchStoreLike;
                     const playlistId = storeAny.playlistId?.();

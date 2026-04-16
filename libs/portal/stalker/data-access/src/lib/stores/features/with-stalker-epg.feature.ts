@@ -8,20 +8,11 @@ import {
 } from '@ngrx/signals';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { DataService } from 'services';
-import {
-    EpgItem,
-    EpgProgram,
-    Playlist,
-    STALKER_REQUEST,
-    StalkerPortalActions,
-} from 'shared-interfaces';
+import { EpgItem, EpgProgram, StalkerPortalActions } from 'shared-interfaces';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
 import { StalkerSessionService } from '../../stalker-session.service';
-
-interface EpgStoreContext {
-    currentPlaylist(): Playlist | undefined;
-    selectedItvId(): string | undefined;
-}
+import { StalkerEpgFeatureStoreContract } from '../stalker-store.contracts';
+import { executeStalkerRequest } from '../utils';
 
 interface StalkerEpgEntry {
     id?: string | number;
@@ -49,9 +40,7 @@ interface StalkerEpgResponse {
     js?:
         | StalkerEpgEntry[]
         | {
-              data?:
-                  | StalkerEpgEntry[]
-                  | Record<string, StalkerBulkEpgValue>;
+              data?: StalkerEpgEntry[] | Record<string, StalkerBulkEpgValue>;
           }
         | Record<string, StalkerBulkEpgValue>;
 }
@@ -83,11 +72,12 @@ export function withStalkerEpg() {
     return signalStoreFeature(
         withState<StalkerEpgState>(initialEpgState),
         withComputed((store) => {
-            const storeContext = store as unknown as EpgStoreContext;
+            const storeContext = store as typeof store &
+                StalkerEpgFeatureStoreContract;
 
             return {
                 selectedItvEpgPrograms: computed(() => {
-                    const selectedId = storeContext.selectedItvId?.();
+                    const selectedId = storeContext.selectedItvId();
                     if (!selectedId) {
                         return [];
                     }
@@ -106,26 +96,25 @@ export function withStalkerEpg() {
                 dataService = inject(DataService),
                 stalkerSession = inject(StalkerSessionService)
             ) => {
-                const storeContext = store as unknown as EpgStoreContext;
+                const storeContext = store as typeof store &
+                    StalkerEpgFeatureStoreContract;
+                const requestDeps = {
+                    dataService,
+                    stalkerSession,
+                };
 
                 const requestEpg = async (
-                    playlist: Playlist,
+                    playlist: NonNullable<
+                        ReturnType<
+                            StalkerEpgFeatureStoreContract['currentPlaylist']
+                        >
+                    >,
                     queryParams: Record<string, string>
                 ): Promise<StalkerEpgResponse> => {
-                    if (playlist.isFullStalkerPortal) {
-                        return stalkerSession.makeAuthenticatedRequest(
-                            playlist,
-                            queryParams
-                        );
-                    }
-
-                    return dataService.sendIpcEvent<StalkerEpgResponse>(
-                        STALKER_REQUEST,
-                        {
-                            url: playlist.portalUrl,
-                            macAddress: playlist.macAddress,
-                            params: queryParams,
-                        }
+                    return executeStalkerRequest<StalkerEpgResponse>(
+                        requestDeps,
+                        playlist,
+                        queryParams
                     );
                 };
 
@@ -212,7 +201,7 @@ export function withStalkerEpg() {
                                 period: String(periodHours),
                             });
                             const selectedChannelId =
-                                storeContext.selectedItvId?.() ?? null;
+                                storeContext.selectedItvId() ?? null;
                             const bulkPrograms = extractBulkEpgByChannel(
                                 response,
                                 selectedChannelId
@@ -242,7 +231,9 @@ export function withStalkerEpg() {
     );
 }
 
-function extractShortEpgEntries(response: StalkerEpgResponse): StalkerEpgEntry[] {
+function extractShortEpgEntries(
+    response: StalkerEpgResponse
+): StalkerEpgEntry[] {
     if (Array.isArray(response?.js)) {
         return response.js;
     }
@@ -272,11 +263,9 @@ function extractBulkEpgByChannel(
 
     const groupArrayEntries = (entries: StalkerEpgEntry[]) => {
         for (const entry of entries) {
-            const entryChannelId =
-                entry.ch_id ?? selectedChannelId ?? null;
-            const normalizedChannelId = normalizeOptionalEntityId(
-                entryChannelId
-            );
+            const entryChannelId = entry.ch_id ?? selectedChannelId ?? null;
+            const normalizedChannelId =
+                normalizeOptionalEntityId(entryChannelId);
             if (!normalizedChannelId) {
                 continue;
             }
@@ -290,9 +279,7 @@ function extractBulkEpgByChannel(
         groupArrayEntries(raw);
     } else {
         const rawData =
-            raw && typeof raw === 'object' && 'data' in raw
-                ? raw.data
-                : raw;
+            raw && typeof raw === 'object' && 'data' in raw ? raw.data : raw;
 
         if (Array.isArray(rawData)) {
             groupArrayEntries(rawData);
@@ -386,8 +373,7 @@ function toEpgItem(
         end: stop,
         stop,
         channel_id: String(item.ch_id ?? fallbackChannelId),
-        start_timestamp:
-            startTimestamp !== null ? String(startTimestamp) : '',
+        start_timestamp: startTimestamp !== null ? String(startTimestamp) : '',
         stop_timestamp: stopTimestamp !== null ? String(stopTimestamp) : '',
     };
 }
@@ -452,9 +438,7 @@ function getProgramTimestampSeconds(
         : normalized.replace(' ', 'T');
     const parsedDate = Date.parse(candidate);
 
-    return Number.isFinite(parsedDate)
-        ? Math.floor(parsedDate / 1000)
-        : null;
+    return Number.isFinite(parsedDate) ? Math.floor(parsedDate / 1000) : null;
 }
 
 function getProgramTimestampMs(

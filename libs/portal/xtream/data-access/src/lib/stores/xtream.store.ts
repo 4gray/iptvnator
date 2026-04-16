@@ -62,11 +62,6 @@ export const XtreamStore = signalStore(
         globalRecentItems: computed(() => {
             return store.recentItems();
         }),
-
-        /**
-         * Alias for importCount for backward compatibility
-         */
-        getImportCount: computed(() => store.importCount()),
     })),
 
     // Cross-feature methods & orchestration
@@ -83,19 +78,6 @@ export const XtreamStore = signalStore(
 
                 return Number(candidateId) === Number(vodId);
             });
-        const searchContent = (
-            store as {
-                searchContent: (
-                    term: string,
-                    types: string[],
-                    excludeHidden?: boolean
-                ) => Promise<unknown>;
-            }
-        ).searchContent as (
-            term: string,
-            types: string[],
-            excludeHidden?: boolean
-        ) => Promise<unknown>;
 
         return {
             /**
@@ -180,8 +162,7 @@ export const XtreamStore = signalStore(
                             ...vodDetails,
                             stream_id: params.vodId,
                             xtream_id:
-                                catalogItem?.xtream_id ??
-                                Number(params.vodId),
+                                catalogItem?.xtream_id ?? Number(params.vodId),
                         });
                     })
                     .catch((error: unknown) => {
@@ -237,23 +218,6 @@ export const XtreamStore = signalStore(
                     .finally(() => {
                         store.setIsLoadingDetails(false);
                     });
-            },
-
-            /**
-             * Search content wrapper for rxMethod compatibility
-             * Can be called with object { term, types, excludeHidden } or direct params
-             */
-            searchContent(params: {
-                term: string;
-                types: string[];
-                excludeHidden?: boolean;
-            }): void {
-                // Call the underlying search method from withSearch
-                void searchContent(
-                    params.term,
-                    params.types,
-                    params.excludeHidden
-                );
             },
         };
     })

@@ -48,11 +48,11 @@ Primary route tree lives in `/Users/4gray/Code/iptvnator/libs/portal/stalker/fea
 ## Main UI Components
 
 - `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-main-container.component.ts`
-  - Category + content layout for `vod` and `series`
+    - Category + content layout for `vod` and `series`
 - `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
-  - ITV live playback, channel navigation, EPG panel integration
+    - ITV live playback, channel navigation, EPG panel integration
 - `/Users/4gray/Code/iptvnator/libs/ui/components/src/lib/stalker-series-view/stalker-series-view.component.ts`
-  - Season/episode UI for all Stalker series modes
+    - Season/episode UI for all Stalker series modes
 - `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-favorites/stalker-favorites.component.ts`
 - `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/recently-viewed/recently-viewed.component.ts`
 - `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
@@ -75,19 +75,44 @@ Important store responsibilities:
 - Playback link creation (`create_link` flow)
 - Favorites and recently viewed persistence helpers
 
+Internal structure to preserve:
+
+- `stalker.store.ts` stays as the thin facade that composes feature slices.
+- Cross-slice contracts live in `stores/stalker-store.contracts.ts` so
+  feature dependencies are declared instead of repeated `unknown` casts.
+- Request execution is centralized in `stores/utils/stalker-request.utils.ts`
+  for both authenticated full-portal calls and simple IPC-backed requests.
+- Playback link resolution and Stalker collection persistence live in
+  dedicated `stores/utils/` helpers so player/favorites/recent slices stay
+  focused on orchestration.
+- Category/content resources stay internal to the store slices. Feature
+  consumers should read `getCategoryResource()` and `getPaginatedContent()`,
+  which now always return arrays, and pair them with
+  `isCategoryResourceFailed()` / `isPaginatedContentFailed()` for explicit
+  error handling.
+
+Failure-handling rule:
+
+- Failed category or content requests must degrade into empty/error UI state,
+  not `undefined` collections or renderer exceptions. The workspace Stalker
+  context panel and live layout rely on this guarantee.
+
 ## VOD/Series Modes
 
 Stalker has multiple real-world data shapes. The current implementation supports all three:
 
 1. Regular Series (`/series`):
+
 - Seasons come from API resource (`serialSeasonsResource`).
 - Episodes are derived from season payload.
 
 2. VOD with Embedded `series[]`:
+
 - Item is opened under VOD, but already contains episodes.
 - `StalkerSeriesViewComponent` creates a pseudo-season and renders episodes directly.
 
 3. VOD with `is_series=1` (Ministra plugin behavior):
+
 - Treated as series flow from VOD context.
 - Seasons are fetched lazily.
 - Episodes are fetched on season select.

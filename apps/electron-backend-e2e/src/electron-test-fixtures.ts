@@ -752,7 +752,7 @@ export async function selectSourceTypeFilter(
     page: Page,
     typeLabel: 'All' | 'M3U' | 'Xtream' | 'Stalker'
 ): Promise<void> {
-    await selectSourcesFilterOption(page, typeLabel);
+    await selectSourcesTypeFilterOption(page, typeLabel);
 }
 
 export async function selectSourceSort(
@@ -764,7 +764,21 @@ export async function selectSourceSort(
         | 'Name (Z-A)'
         | 'Custom order'
 ): Promise<void> {
-    await selectSourcesFilterOption(page, sortLabel);
+    const sortTrigger = page.locator('app-workspace-sources .sort-trigger');
+
+    await expect(sortTrigger).toBeVisible();
+    await sortTrigger.click();
+
+    const option = page
+        .locator('.cdk-overlay-pane [role="menuitem"]')
+        .filter({
+            hasText: flexibleTextPattern(sortLabel),
+        })
+        .first();
+
+    await expect(option).toBeVisible();
+    await option.click();
+    await expect(option).toBeHidden();
 }
 
 export async function dragSourceBefore(
@@ -1354,7 +1368,7 @@ async function confirmDialog(page: Page, buttonLabel = 'Yes'): Promise<void> {
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
 }
 
-async function selectSourcesFilterOption(
+async function selectSourcesTypeFilterOption(
     page: Page,
     label: string
 ): Promise<void> {

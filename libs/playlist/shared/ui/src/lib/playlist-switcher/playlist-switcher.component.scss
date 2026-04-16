@@ -1,7 +1,14 @@
+:host {
+    display: block;
+    width: 100%;
+}
+
 .playlist-switcher-trigger {
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
     padding: 4px 8px 4px 4px;
     border-radius: 10px;
     cursor: pointer;
@@ -67,7 +74,6 @@
 .playlist-info {
     flex: 1;
     min-width: 0;
-    max-width: 240px;
 
     .name {
         font-size: 0.95em;
@@ -533,12 +539,8 @@
 }
 
 @media only screen and (max-width: 480px) {
-    .playlist-info {
-        max-width: 140px;
-
-        .name {
-            font-size: 0.9em;
-        }
+    .playlist-info .name {
+        font-size: 0.9em;
     }
 
     .playlist-icon-container {

@@ -18,6 +18,15 @@
     top: 0;
     z-index: 2;
     padding: 20px 20px 8px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.sources-header__text {
+    min-width: 0;
+    flex: 1;
 }
 
 .sources-title {
@@ -31,6 +40,25 @@
     margin: 4px 0 0;
     font-size: 0.875rem;
     color: var(--mat-sys-on-surface-variant, rgba(255, 255, 255, 0.6));
+}
+
+.sort-trigger {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    .sort-trigger__label {
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .sort-trigger__caret {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        margin-left: -2px;
+    }
 }
 
 .sources-content {

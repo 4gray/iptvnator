@@ -1,11 +1,11 @@
-import { Playlist } from 'shared-interfaces';
+import { PlaylistMeta } from 'shared-interfaces';
 
 export const STALKER_MAG_USER_AGENT =
     'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250';
 export const STALKER_STREAM_USER_AGENT = 'KSPlayer';
 
 export function getStalkerPortalOrigin(
-    playlist: Playlist | undefined | null
+    playlist: PlaylistMeta | undefined | null
 ): string | undefined {
     const portalUrl = playlist?.portalUrl;
     if (!portalUrl) {
@@ -20,7 +20,7 @@ export function getStalkerPortalOrigin(
 }
 
 export function isCrossOriginStalkerStream(
-    playlist: Playlist | undefined | null,
+    playlist: PlaylistMeta | undefined | null,
     streamUrl?: string
 ): boolean {
     const portalOrigin = getStalkerPortalOrigin(playlist);
@@ -36,7 +36,7 @@ export function isCrossOriginStalkerStream(
 }
 
 export function buildStalkerExternalPlaybackHeaders(
-    playlist: Playlist | undefined | null,
+    playlist: PlaylistMeta | undefined | null,
     token?: string | null,
     streamUrl?: string
 ): Record<string, string> {

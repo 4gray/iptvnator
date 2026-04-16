@@ -8,22 +8,27 @@ import {
     withState,
 } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
-import { DataService } from 'services';
-import {
-    Playlist,
-    STALKER_REQUEST,
-    StalkerPortalActions,
-} from 'shared-interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { DataService } from 'services';
 import {
     StalkerCategoryItem,
     StalkerContentItem,
     StalkerItvChannel,
     StalkerVodSource,
 } from '../../models';
-import { StalkerSessionService } from '../../stalker-session.service';
 import { StalkerContentTypes } from '../../stalker-content-types';
-import { toStalkerContentItem, toStalkerItvChannel } from '../utils';
+import { StalkerSessionService } from '../../stalker-session.service';
+import {
+    ResourceState,
+    StalkerCategorySliceContract,
+    StalkerContentFeatureStoreContract,
+    StalkerContentType,
+} from '../stalker-store.contracts';
+import {
+    executeStalkerRequest,
+    toStalkerContentItem,
+    toStalkerItvChannel,
+} from '../utils';
 
 /**
  * Content/categories/channels feature state.
@@ -35,6 +40,9 @@ export interface StalkerContentState {
     itvCategories: StalkerCategoryItem[];
     hasMoreChannels: boolean;
     itvChannels: StalkerItvChannel[];
+    paginatedContent: StalkerContentItem[];
+    categoryError: unknown;
+    contentError: unknown;
 }
 
 const initialContentState: StalkerContentState = {
@@ -44,13 +52,10 @@ const initialContentState: StalkerContentState = {
     itvCategories: [],
     hasMoreChannels: false,
     itvChannels: [],
+    paginatedContent: [],
+    categoryError: null,
+    contentError: null,
 };
-
-interface ResourceState<T> {
-    value(): T;
-    isLoading(): boolean;
-    error(): unknown;
-}
 
 interface StalkerCategoryResponseItem {
     id?: string | number;
@@ -68,19 +73,87 @@ interface StalkerOrderedListResponse {
     };
 }
 
-interface StalkerContentStoreContext {
-    selectedContentType(): 'vod' | 'series' | 'itv';
-    currentPlaylist(): Playlist | undefined;
-    selectedCategoryId(): string | null | undefined;
-    searchPhrase(): string;
-    page(): number;
-    limit(): number;
-    getContentResource: ResourceState<StalkerContentItem[] | undefined>;
-    getCategoryResource: ResourceState<StalkerCategoryItem[]>;
+interface StalkerContentResourceStoreContract extends StalkerContentFeatureStoreContract {
+    categoryResource: ResourceState<StalkerCategoryItem[]>;
+    getContentResource: ResourceState<StalkerContentItem[]>;
+}
+
+function getCategoriesByType(
+    store: StalkerCategorySliceContract,
+    contentType: StalkerContentType
+): StalkerCategoryItem[] {
+    switch (contentType) {
+        case 'vod':
+            return store.vodCategories();
+        case 'series':
+            return store.seriesCategories();
+        case 'itv':
+            return store.itvCategories();
+    }
+}
+
+function buildCategoryPatch(
+    contentType: StalkerContentType,
+    categories: StalkerCategoryItem[]
+): Partial<StalkerContentState> {
+    switch (contentType) {
+        case 'vod':
+            return { vodCategories: categories };
+        case 'series':
+            return { seriesCategories: categories };
+        case 'itv':
+            return { itvCategories: categories };
+    }
+}
+
+function prependAllCategory(
+    categories: StalkerCategoryItem[],
+    translateService: TranslateService
+): StalkerCategoryItem[] {
+    const allIndex = categories.findIndex(
+        (category) => category.category_name.trim().toLowerCase() === 'all'
+    );
+
+    if (allIndex > 0) {
+        categories.unshift(categories.splice(allIndex, 1)[0]);
+        return categories;
+    }
+
+    if (
+        allIndex === -1 &&
+        categories.length > 0 &&
+        !categories.some((category) => String(category.category_id) === '*')
+    ) {
+        categories.unshift({
+            category_name: translateService.instant('PORTALS.ALL_CATEGORIES'),
+            category_id: '*',
+        });
+    }
+
+    return categories;
+}
+
+function buildEmptyContentPatch(
+    contentType: StalkerContentType,
+    error: unknown
+): Partial<StalkerContentState> {
+    const patch: Partial<StalkerContentState> = {
+        totalCount: 0,
+        paginatedContent: [],
+        contentError: error,
+    };
+
+    if (contentType === 'itv') {
+        patch.hasMoreChannels = false;
+        patch.itvChannels = [];
+    }
+
+    return patch;
 }
 
 export function withStalkerContent() {
     const logger = createLogger('withStalkerContent');
+
     return signalStoreFeature(
         withState<StalkerContentState>(initialContentState),
         withProps(
@@ -90,331 +163,354 @@ export function withStalkerContent() {
                 stalkerSession = inject(StalkerSessionService),
                 translateService = inject(TranslateService)
             ) => {
-                const storeContext =
-                    store as unknown as StalkerContentStoreContext;
+                const storeContext = store as typeof store &
+                    StalkerContentResourceStoreContract;
+                const requestDeps = {
+                    dataService,
+                    stalkerSession,
+                };
 
                 return {
-                    getCategoryResource: resource({
-                    params: () => ({
-                        contentType: storeContext.selectedContentType(),
-                        action: StalkerPortalActions.GetCategories,
-                        currentPlaylist: storeContext.currentPlaylist(),
-                    }),
-                    loader: async ({
-                        params,
-                    }): Promise<StalkerCategoryItem[]> => {
-                        if (!params.currentPlaylist) return [];
-
-                        switch (params.contentType) {
-                            case 'itv':
-                                if (store.itvCategories().length > 0) {
-                                    return store.itvCategories();
-                                }
-                                break;
-                            case 'vod':
-                                if (store.vodCategories().length > 0) {
-                                    return store.vodCategories();
-                                }
-                                break;
-                            case 'series':
-                                if (store.seriesCategories().length > 0) {
-                                    return store.seriesCategories();
-                                }
-                                break;
-                        }
-
-                        const { portalUrl, macAddress } =
-                            params.currentPlaylist;
-
-                        // Use makeAuthenticatedRequest for automatic retry on auth failure
-                        const playlist = params.currentPlaylist as Playlist;
-                        const queryParams = {
-                            action: StalkerContentTypes[params.contentType]
-                                .getCategoryAction,
-                            type: params.contentType,
-                        };
-
-                        let response: StalkerCategoryResponse;
-                        if (playlist.isFullStalkerPortal) {
-                            // Full stalker portal - use authenticated request with retry
-                            response = await stalkerSession.makeAuthenticatedRequest<StalkerCategoryResponse>(
-                                    playlist,
-                                    queryParams
-                                );
-                        } else {
-                            // Simple stalker portal - no auth needed
-                            response = await dataService.sendIpcEvent<StalkerCategoryResponse>(
-                                STALKER_REQUEST,
-                                {
-                                    url: portalUrl,
-                                    macAddress,
-                                    params: queryParams,
-                                }
-                            );
-                        }
-
-                        // Guard: ensure response has expected structure
-                        if (!response?.js || !Array.isArray(response.js)) {
-                            logger.warn(
-                                'Invalid categories response',
-                                response
-                            );
-                            return [];
-                        }
-
-                        const categories = response.js
-                            .map(
-                                (item): StalkerCategoryItem => ({
-                                    category_name: item.title,
-                                    category_id: String(item.id),
-                                })
-                            )
-                            .sort((a, b) =>
-                                a.category_name.localeCompare(b.category_name)
-                            );
-
-                        // If the portal provides its own "All" category entry,
-                        // promote it to position 0. Otherwise add a synthetic one.
-                        const allIdx = categories.findIndex(
-                            (c) =>
-                                c.category_name.trim().toLowerCase() === 'all'
-                        );
-                        if (allIdx > 0) {
-                            // Move the existing 'All' entry to the front
-                            categories.unshift(categories.splice(allIdx, 1)[0]);
-                        } else if (
-                            allIdx === -1 &&
-                            categories.length > 0 &&
-                            !categories.some(
-                                (category) =>
-                                    String(category.category_id) === '*'
-                            )
-                        ) {
-                            // No 'All' entry found — prepend synthetic one
-                            categories.unshift({
-                                category_name: translateService.instant(
-                                    'PORTALS.ALL_CATEGORIES'
-                                ),
-                                category_id: '*',
-                            });
-                        }
-                        patchState(store, {
-                            [`${params.contentType}Categories`]: categories,
-                        });
-                        return categories;
-                    },
-                    }),
-                    getContentResource: resource({
-                    params: () => ({
-                        contentType: storeContext.selectedContentType(),
-                        category: storeContext.selectedCategoryId(),
-                        action: StalkerPortalActions.GetOrderedList,
-                        search: storeContext.searchPhrase(),
-                        pageIndex: storeContext.page() + 1,
-                        availableCategoryCount: (() => {
-                            const contentType = storeContext.selectedContentType();
-                            const categories =
-                                contentType === 'vod'
-                                    ? store.vodCategories()
-                                    : contentType === 'series'
-                                      ? store.seriesCategories()
-                                      : store.itvCategories();
-                            return categories.filter(
-                                (category) =>
-                                    String(category.category_id) !== '*'
-                            ).length;
-                        })(),
-                    }),
-                    loader: async ({
-                        params,
-                    }): Promise<StalkerContentItem[] | undefined> => {
-                        if (
-                            !params.category ||
-                            params.category === null ||
-                            params.category === ''
-                        ) {
-                            patchState(store, { totalCount: 0 });
-                            return Promise.resolve(undefined);
-                        }
-                        if (
-                            params.category === '*' &&
-                            (params.contentType === 'vod' ||
-                                params.contentType === 'series') &&
-                            params.availableCategoryCount === 0
-                        ) {
-                            patchState(store, { totalCount: 0 });
-                            return Promise.resolve(undefined);
-                        }
-
-                        const currentPlaylist = storeContext.currentPlaylist;
-
-                        // Guard: ensure currentPlaylist is available (may not be during deep link init)
-                        if (
-                            !currentPlaylist() ||
-                            !currentPlaylist().portalUrl
-                        ) {
-                            patchState(store, { totalCount: 0 });
-                            return Promise.resolve(undefined);
-                        }
-                        // VOD uses 'genre' param, series uses 'category' param, itv uses both
-                        // Based on stalker-to-m3u implementation
-                        // Use "*" for categories without an ID (e.g. "All") to fetch all items
-                        const categoryParam = params.category || '*';
-                        const queryParams: Record<string, string | number> = {
-                            action: StalkerContentTypes[params.contentType]
-                                .getContentAction,
-                            type: params.contentType,
-                            sortby: 'added',
-                            ...(params.search !== ''
-                                ? { search: params.search }
-                                : {}),
-                            p: params.pageIndex,
-                        };
-
-                        // Add the correct category/genre param based on content type
-                        // Based on working app traces: VOD uses genre=0 and category={id}
-                        if (params.contentType === 'vod') {
-                            queryParams['genre'] = '0';
-                            queryParams['category'] = categoryParam;
-                        } else if (params.contentType === 'series') {
-                            queryParams['category'] = categoryParam;
-                        } else {
-                            // itv - use both for compatibility
-                            queryParams['category'] = categoryParam;
-                            queryParams['genre'] = categoryParam;
-                        }
-
-                        // Use makeAuthenticatedRequest for automatic retry on auth failure
-                        const playlist = currentPlaylist() as Playlist;
-                        let response: StalkerOrderedListResponse;
-                        if (playlist.isFullStalkerPortal) {
-                            // Full stalker portal - use authenticated request with retry
-                            response = await stalkerSession.makeAuthenticatedRequest<StalkerOrderedListResponse>(
-                                    playlist,
-                                    queryParams
-                                );
-                        } else {
-                            // Simple stalker portal - no auth needed
-                            response = await dataService.sendIpcEvent<StalkerOrderedListResponse>(
-                                STALKER_REQUEST,
-                                {
-                                    url: playlist.portalUrl,
-                                    macAddress: playlist.macAddress,
-                                    params: queryParams,
-                                }
-                            );
-                        }
-
-                        // Guard: ensure response has expected structure
-                        if (!response?.js?.data) {
-                            logger.warn('Invalid response structure', response);
-                            return [];
-                        }
-
-                        patchState(store, {
-                            totalCount: response.js.total_items ?? 0,
-                        });
-
-                        const portalUrl = currentPlaylist().portalUrl;
-                        const newItems = response.js.data.map(
-                            (item: StalkerVodSource) =>
-                                toStalkerContentItem(item, portalUrl)
-                        );
-
-                        if (storeContext.selectedContentType() === 'itv') {
-                            const channels = newItems.map(toStalkerItvChannel);
-                            // Check if we're loading the first page or loading more
-                            if (params.pageIndex === 1) {
-                                patchState(store, { itvChannels: channels });
-                            } else {
-                                patchState(store, {
-                                    itvChannels: [
-                                        ...store.itvChannels(),
-                                        ...channels,
-                                    ],
-                                });
+                    categoryResource: resource({
+                        params: () => ({
+                            contentType: storeContext.selectedContentType(),
+                            currentPlaylist: storeContext.currentPlaylist(),
+                        }),
+                        loader: async ({
+                            params,
+                        }): Promise<StalkerCategoryItem[]> => {
+                            if (!params.currentPlaylist) {
+                                patchState(store, { categoryError: null });
+                                return [];
                             }
 
-                            // Update hasMoreItems based on total count and current items
-                            const totalLoaded = store.itvChannels().length;
-                            patchState(store, {
-                                hasMoreChannels:
-                                    totalLoaded <
-                                    (response.js.total_items ?? 0),
-                            });
-                        }
+                            const cachedCategories = getCategoriesByType(
+                                store,
+                                params.contentType
+                            );
+                            if (cachedCategories.length > 0) {
+                                patchState(store, { categoryError: null });
+                                return cachedCategories;
+                            }
 
-                        return newItems;
-                    },
+                            try {
+                                const response =
+                                    await executeStalkerRequest<StalkerCategoryResponse>(
+                                        requestDeps,
+                                        params.currentPlaylist,
+                                        {
+                                            action: StalkerContentTypes[
+                                                params.contentType
+                                            ].getCategoryAction,
+                                            type: params.contentType,
+                                        }
+                                    );
+
+                                if (!Array.isArray(response?.js)) {
+                                    const invalidResponseError = new Error(
+                                        'Invalid categories response'
+                                    );
+                                    logger.warn(
+                                        'Invalid categories response',
+                                        response
+                                    );
+                                    patchState(store, {
+                                        ...buildCategoryPatch(
+                                            params.contentType,
+                                            []
+                                        ),
+                                        categoryError: invalidResponseError,
+                                    });
+                                    return [];
+                                }
+
+                                const categories = prependAllCategory(
+                                    response.js
+                                        .map(
+                                            (item): StalkerCategoryItem => ({
+                                                category_name: item.title ?? '',
+                                                category_id: String(item.id),
+                                            })
+                                        )
+                                        .sort((left, right) =>
+                                            left.category_name.localeCompare(
+                                                right.category_name
+                                            )
+                                        ),
+                                    translateService
+                                );
+
+                                patchState(store, {
+                                    ...buildCategoryPatch(
+                                        params.contentType,
+                                        categories
+                                    ),
+                                    categoryError: null,
+                                });
+
+                                return categories;
+                            } catch (error) {
+                                logger.warn('Error loading categories', {
+                                    contentType: params.contentType,
+                                    error,
+                                });
+                                patchState(store, {
+                                    ...buildCategoryPatch(
+                                        params.contentType,
+                                        []
+                                    ),
+                                    categoryError: error,
+                                });
+                                return [];
+                            }
+                        },
+                    }),
+                    getContentResource: resource({
+                        params: () => ({
+                            contentType: storeContext.selectedContentType(),
+                            category: storeContext.selectedCategoryId(),
+                            search: storeContext.searchPhrase(),
+                            pageIndex: storeContext.page() + 1,
+                            currentPlaylist: storeContext.currentPlaylist(),
+                            availableCategoryCount: getCategoriesByType(
+                                store,
+                                storeContext.selectedContentType()
+                            ).filter(
+                                (category) =>
+                                    String(category.category_id) !== '*'
+                            ).length,
+                        }),
+                        loader: async ({
+                            params,
+                        }): Promise<StalkerContentItem[]> => {
+                            if (!params.category || params.category === '') {
+                                patchState(
+                                    store,
+                                    buildEmptyContentPatch(
+                                        params.contentType,
+                                        null
+                                    )
+                                );
+                                return [];
+                            }
+
+                            if (
+                                params.category === '*' &&
+                                (params.contentType === 'vod' ||
+                                    params.contentType === 'series') &&
+                                params.availableCategoryCount === 0
+                            ) {
+                                patchState(
+                                    store,
+                                    buildEmptyContentPatch(
+                                        params.contentType,
+                                        null
+                                    )
+                                );
+                                return [];
+                            }
+
+                            const playlist = params.currentPlaylist;
+                            if (!playlist?.portalUrl) {
+                                patchState(
+                                    store,
+                                    buildEmptyContentPatch(
+                                        params.contentType,
+                                        null
+                                    )
+                                );
+                                return [];
+                            }
+
+                            const categoryParam = params.category || '*';
+                            const queryParams: Record<string, string | number> =
+                                {
+                                    action: StalkerContentTypes[
+                                        params.contentType
+                                    ].getContentAction,
+                                    type: params.contentType,
+                                    sortby: 'added',
+                                    ...(params.search !== ''
+                                        ? { search: params.search }
+                                        : {}),
+                                    p: params.pageIndex,
+                                };
+
+                            if (params.contentType === 'vod') {
+                                queryParams['genre'] = '0';
+                                queryParams['category'] = categoryParam;
+                            } else if (params.contentType === 'series') {
+                                queryParams['category'] = categoryParam;
+                            } else {
+                                queryParams['category'] = categoryParam;
+                                queryParams['genre'] = categoryParam;
+                            }
+
+                            try {
+                                const response =
+                                    await executeStalkerRequest<StalkerOrderedListResponse>(
+                                        requestDeps,
+                                        playlist,
+                                        queryParams
+                                    );
+
+                                if (!Array.isArray(response?.js?.data)) {
+                                    const invalidResponseError = new Error(
+                                        'Invalid response structure'
+                                    );
+                                    logger.warn(
+                                        'Invalid response structure',
+                                        response
+                                    );
+                                    patchState(store, {
+                                        ...buildEmptyContentPatch(
+                                            params.contentType,
+                                            invalidResponseError
+                                        ),
+                                    });
+                                    return [];
+                                }
+
+                                const newItems = response.js.data.map((item) =>
+                                    toStalkerContentItem(
+                                        item,
+                                        playlist.portalUrl ?? ''
+                                    )
+                                );
+
+                                if (params.contentType === 'itv') {
+                                    const channels =
+                                        newItems.map(toStalkerItvChannel);
+                                    const nextChannels =
+                                        params.pageIndex === 1
+                                            ? channels
+                                            : [
+                                                  ...store.itvChannels(),
+                                                  ...channels,
+                                              ];
+
+                                    patchState(store, {
+                                        totalCount:
+                                            response.js.total_items ?? 0,
+                                        paginatedContent: newItems,
+                                        contentError: null,
+                                        itvChannels: nextChannels,
+                                        hasMoreChannels:
+                                            nextChannels.length <
+                                            (response.js.total_items ?? 0),
+                                    });
+                                } else {
+                                    patchState(store, {
+                                        totalCount:
+                                            response.js.total_items ?? 0,
+                                        paginatedContent: newItems,
+                                        contentError: null,
+                                        hasMoreChannels: false,
+                                    });
+                                }
+
+                                return newItems;
+                            } catch (error) {
+                                logger.warn('Error loading content', {
+                                    contentType: params.contentType,
+                                    category: params.category,
+                                    error,
+                                });
+                                patchState(
+                                    store,
+                                    buildEmptyContentPatch(
+                                        params.contentType,
+                                        error
+                                    )
+                                );
+                                return [];
+                            }
+                        },
                     }),
                 };
             }
         ),
         withComputed((store) => {
-            const storeContext = store as unknown as StalkerContentStoreContext;
+            const storeContext = store as typeof store &
+                StalkerContentResourceStoreContract;
+
             return {
-                getTotalPages: computed(() => {
-                    return Math.ceil(store.totalCount() / storeContext.limit());
+                getTotalPages: computed(() =>
+                    Math.ceil(store.totalCount() / storeContext.limit())
+                ),
+                getSelectedCategory: computed(() => {
+                    const categoryId = storeContext.selectedCategoryId();
+                    if (!categoryId) {
+                        return {
+                            id: 0,
+                            category_name: 'All Items',
+                            type: storeContext.selectedContentType(),
+                        };
+                    }
+
+                    const contentType = storeContext.selectedContentType();
+                    const categories = getCategoriesByType(store, contentType);
+
+                    return (
+                        categories.find(
+                            (category) =>
+                                String(category.category_id) ===
+                                String(categoryId)
+                        ) || {
+                            category_id: categoryId,
+                            category_name: '',
+                            type: contentType,
+                        }
+                    );
                 }),
                 getSelectedCategoryName: computed(() => {
-                    const type = storeContext.selectedContentType();
-                    const selectedCategoryId = storeContext.selectedCategoryId();
-                    if (!selectedCategoryId) return '';
-                    let categories: StalkerCategoryItem[] = [];
-                    if (type === 'vod') {
-                        categories = store.vodCategories();
-                    } else if (type === 'series') {
-                        categories = store.seriesCategories();
-                    } else if (type === 'itv') {
-                        categories = store.itvCategories();
+                    const selectedCategoryId =
+                        storeContext.selectedCategoryId();
+                    if (!selectedCategoryId) {
+                        return '';
                     }
-                    const category = categories.find(
-                        (cat) =>
-                            String(cat.category_id) ===
+
+                    const category = getCategoriesByType(
+                        store,
+                        storeContext.selectedContentType()
+                    ).find(
+                        (item) =>
+                            String(item.category_id) ===
                             String(selectedCategoryId)
                     );
-                    return category ? category.category_name : '';
+
+                    return category?.category_name ?? '';
                 }),
-                /** category content */
-                getPaginatedContent: computed(() =>
-                    storeContext.getContentResource.value()
-                ),
+                getPaginatedContent: computed(() => store.paginatedContent()),
                 isPaginatedContentLoading: computed(() =>
                     storeContext.getContentResource.isLoading()
                 ),
-                isPaginatedContentFailed: computed(() =>
-                    storeContext.getContentResource.error()
-                ),
-                /** category resource */
+                isPaginatedContentFailed: computed(() => store.contentError()),
                 getCategoryResource: computed(() =>
-                    storeContext.getCategoryResource.value()
+                    getCategoriesByType(
+                        store,
+                        storeContext.selectedContentType()
+                    )
                 ),
                 isCategoryResourceLoading: computed(() =>
-                    storeContext.getCategoryResource.isLoading()
+                    storeContext.categoryResource.isLoading()
                 ),
-                isCategoryResourceFailed: computed(() =>
-                    storeContext.getCategoryResource.error()
-                ),
+                isCategoryResourceFailed: computed(() => store.categoryError()),
             };
         }),
         withMethods((store) => ({
             setCategories(
-                type: 'vod' | 'series' | 'itv',
+                type: StalkerContentType,
                 categories: StalkerCategoryItem[]
             ) {
-                if (type === 'vod') {
-                    patchState(store, { vodCategories: categories });
-                } else if (type === 'series') {
-                    patchState(store, { seriesCategories: categories });
-                } else if (type === 'itv') {
-                    patchState(store, { itvCategories: categories });
-                }
+                patchState(store, buildCategoryPatch(type, categories));
             },
             resetCategories() {
                 patchState(store, {
                     vodCategories: [],
                     seriesCategories: [],
                     itvCategories: [],
+                    categoryError: null,
                 });
             },
             setItvChannels(channels: StalkerItvChannel[]) {

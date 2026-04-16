@@ -1,5 +1,4 @@
 import { computed, Component, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { Store } from '@ngrx/store';
@@ -9,7 +8,6 @@ import {
     selectAllPlaylistsMeta,
 } from 'm3u-state';
 import { TranslatePipe } from '@ngx-translate/core';
-import { SortBy, SortOrder, SortService } from 'services';
 
 type PlaylistFilterId = 'all' | 'm3u' | 'xtream' | 'stalker';
 
@@ -18,13 +16,6 @@ interface PlaylistFilterOption {
     icon: string;
     label?: string;
     translationKey?: string;
-}
-
-interface SortOption {
-    by: SortBy;
-    order: SortOrder;
-    icon: string;
-    translationKey: string;
 }
 
 const ALL_FILTERS = ['m3u', 'xtream', 'stalker'];
@@ -37,16 +28,11 @@ const ALL_FILTERS = ['m3u', 'xtream', 'stalker'];
 })
 export class WorkspaceSourcesFiltersPanelComponent {
     private readonly store = inject(Store);
-    private readonly sortService = inject(SortService);
 
     private readonly activeTypeFilters = this.store.selectSignal(
         selectActiveTypeFilters
     );
     private readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
-
-    readonly currentSortOptions = toSignal(this.sortService.getSortOptions(), {
-        requireSync: true,
-    });
 
     readonly typeOptions: PlaylistFilterOption[] = [
         {
@@ -68,39 +54,6 @@ export class WorkspaceSourcesFiltersPanelComponent {
             id: 'stalker',
             icon: 'router',
             translationKey: 'HOME.PLAYLIST_TYPES.STALKER',
-        },
-    ];
-
-    readonly sortOptions: SortOption[] = [
-        {
-            by: SortBy.DATE_ADDED,
-            order: SortOrder.DESC,
-            icon: 'schedule',
-            translationKey: 'HOME.SORT_OPTIONS.NEWEST',
-        },
-        {
-            by: SortBy.DATE_ADDED,
-            order: SortOrder.ASC,
-            icon: 'history',
-            translationKey: 'HOME.SORT_OPTIONS.OLDEST',
-        },
-        {
-            by: SortBy.NAME,
-            order: SortOrder.ASC,
-            icon: 'sort_by_alpha',
-            translationKey: 'HOME.SORT_OPTIONS.NAME_ASC',
-        },
-        {
-            by: SortBy.NAME,
-            order: SortOrder.DESC,
-            icon: 'sort_by_alpha',
-            translationKey: 'HOME.SORT_OPTIONS.NAME_DESC',
-        },
-        {
-            by: SortBy.CUSTOM,
-            order: SortOrder.ASC,
-            icon: 'drag_indicator',
-            translationKey: 'HOME.SORT_OPTIONS.CUSTOM_ORDER',
         },
     ];
 
@@ -143,17 +96,5 @@ export class WorkspaceSourcesFiltersPanelComponent {
             return counts.all;
         }
         return counts[filterId];
-    }
-
-    isSortActive(option: SortOption): boolean {
-        const current = this.currentSortOptions();
-        return current.by === option.by && current.order === option.order;
-    }
-
-    setSortOption(option: SortOption): void {
-        this.sortService.setSortOptions({
-            by: option.by,
-            order: option.order,
-        });
     }
 }

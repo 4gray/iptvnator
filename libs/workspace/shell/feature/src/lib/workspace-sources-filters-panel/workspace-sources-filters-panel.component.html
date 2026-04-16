@@ -14,11 +14,11 @@
                 {{ 'WORKSPACE.SOURCES.TYPE' | translate }}
             </h3>
             @for (option of typeOptions; track option.id) {
-                <a
-                    href="#type-{{ option.id }}"
+                <button
+                    type="button"
                     class="nav-item category-item option-row"
                     [class.selected]="isTypeActive(option.id)"
-                    (click)="$event.preventDefault(); selectType(option.id)"
+                    (click)="selectType(option.id)"
                 >
                     <mat-icon>{{ option.icon }}</mat-icon>
                     <span class="nav-item-label option-label">
@@ -31,28 +31,7 @@
                     <div class="nav-item-meta option-meta">
                         {{ getTypeCount(option.id) }}
                     </div>
-                </a>
-            }
-        </div>
-    </section>
-
-    <section class="panel-section">
-        <div class="nav-list option-list">
-            <h3 class="panel-section-title">
-                {{ 'HOME.SORT_BY' | translate }}
-            </h3>
-            @for (option of sortOptions; track option.translationKey) {
-                <a
-                    href="#sort-{{ option.translationKey }}"
-                    class="nav-item category-item option-row"
-                    [class.selected]="isSortActive(option)"
-                    (click)="$event.preventDefault(); setSortOption(option)"
-                >
-                    <mat-icon>{{ option.icon }}</mat-icon>
-                    <span class="nav-item-label option-label">{{
-                        option.translationKey | translate
-                    }}</span>
-                </a>
+                </button>
             }
         </div>
     </section>

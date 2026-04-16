@@ -37,6 +37,7 @@ import {
     selectChannels,
     selectFavorites,
 } from './selectors';
+import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
 import { buildExternalPlayerPayload } from './external-player-payload.util';
 
 @Injectable({ providedIn: 'any' })
@@ -152,7 +153,7 @@ export class PlaylistEffects {
                 const { channel } = action;
 
                 // Use modern EPG service to get channel programs
-                const channelId = channel.tvg?.id || channel.name;
+                const channelId = resolveChannelEpgLookupKey(channel);
                 if (channelId) {
                     this.epgService.getChannelPrograms(channelId);
                 }

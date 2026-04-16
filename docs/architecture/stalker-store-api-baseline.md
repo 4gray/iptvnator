@@ -21,7 +21,7 @@ Direct signal properties currently exposed by `signalStore`:
 - `limit: number`
 - `page: number`
 - `searchPhrase: string`
-- `currentPlaylist: PlaylistMeta`
+- `currentPlaylist: PlaylistMeta | undefined`
 - `totalCount: number`
 - `selectedItem: StalkerVodSource | null | undefined`
 - `vodCategories: StalkerCategoryItem[]`
@@ -36,7 +36,7 @@ Direct signal properties currently exposed by `signalStore`:
 ## Public Computed Selectors
 
 - `getTotalPages: number`
-- `getPaginatedContent: StalkerContentItem[] | undefined`
+- `getPaginatedContent: StalkerContentItem[]`
 - `isPaginatedContentLoading: boolean`
 - `isPaginatedContentFailed: unknown`
 - `getSerialSeasonsResource: StalkerSeason[]`
@@ -52,13 +52,15 @@ Direct signal properties currently exposed by `signalStore`:
 
 These are currently reachable on the store object and used internally by computed selectors:
 
-- `getCategoryResource` (resource)
+- `getCategoryResource` (computed selector with stable array output)
+- `categoryResource` (internal resource)
 - `getContentResource` (resource)
 - `serialSeasonsResource` (resource)
 - `vodSeriesSeasonsResource` (resource)
 - `makeStalkerRequest(...)`
 
 During refactor:
+
 - Keep compatibility for external callers that may read these directly.
 - If moved/renamed internally, provide facade aliases.
 
@@ -80,6 +82,7 @@ During refactor:
 - `setSearchPhrase(phrase: string): void`
 - `fetchVodSeriesEpisodes(videoId: string, seasonId: string): Promise<StalkerVodSeriesEpisode[]>`
 - `getSelectedCategory(): { id: string | number; name: string; type: 'vod' | 'itv' | 'series' }`
+  Backed by `withComputed` for compatibility, not by `withMethods`.
 - `fetchLinkToPlay(portalUrl: string, macAddress: string, cmd: string, series?: number): Promise<string>`
 - `getExpireDate(): Promise<string>`
 - `addToFavorites(item: any, onDone?: () => void): void`
@@ -117,10 +120,14 @@ Consumer directories sampled:
 
 - Selection IDs (`selectedVodId`, `selectedSerialId`, `selectedItvId`) are synchronized in `setSelectedItem`.
 - `setSelectedCategory(...)` resets `page` to `0`.
+- `getPaginatedContent()` and `getCategoryResource()` always return arrays,
+  even when the underlying request fails.
+- Request failures must surface through `isPaginatedContentFailed()` and
+  `isCategoryResourceFailed()` rather than resource reads that throw.
 - `createLinkToPlayVod(...)` continues to:
-  - support episode playback metadata
-  - append recently viewed
-  - preserve external player payload shape
+    - support episode playback metadata
+    - append recently viewed
+    - preserve external player payload shape
 - Full-portal auth path continues through `StalkerSessionService`.
 - Non-auth/simple path continues through `DataService.sendIpcEvent(STALKER_REQUEST, ...)`.
 - Resource-driven loading signals preserve existing names.

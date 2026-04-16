@@ -4,6 +4,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, forkJoin, from, Observable, of } from 'rxjs';
 import { catchError, map, tap, timeout } from 'rxjs/operators';
 import { EpgProgram } from 'shared-interfaces';
+import { normalizeEpgPrograms } from './epg-program-normalization.util';
 
 interface CachedProgram {
     program: EpgProgram | null;
@@ -69,13 +70,7 @@ export class EpgService {
         from(window.electron.getChannelPrograms(channelId))
             .pipe(
                 timeout(3000),
-                map((programs: EpgProgram[]) =>
-                    programs.map((program) => ({
-                        ...program,
-                        start: new Date(program.start).toISOString(),
-                        stop: new Date(program.stop).toISOString(),
-                    }))
-                ),
+                map((programs: EpgProgram[]) => normalizeEpgPrograms(programs)),
                 catchError((err) => {
                     console.error('EPG get programs error:', err);
                     this.showErrorSnackbar();
@@ -123,8 +118,9 @@ export class EpgService {
 
         // Fetch from backend
         return from(window.electron.getChannelPrograms(channelId)).pipe(
+            map((programs: EpgProgram[]) => normalizeEpgPrograms(programs)),
             map((programs: EpgProgram[]) => {
-                if (!programs || programs.length === 0) {
+                if (!programs.length) {
                     this.programCache.set(channelId, {
                         program: null,
                         timestamp: now,
@@ -132,16 +128,7 @@ export class EpgService {
                     return null;
                 }
 
-                // Normalize date formats to ISO strings for consistency
-                const transformedPrograms = programs.map((program) => ({
-                    ...program,
-                    start: new Date(program.start).toISOString(),
-                    stop: new Date(program.stop).toISOString(),
-                }));
-
-                // Find current program from transformed programs
-                const currentProgram =
-                    this.findCurrentProgram(transformedPrograms);
+                const currentProgram = this.findCurrentProgram(programs);
 
                 // Cache the result
                 this.programCache.set(channelId, {

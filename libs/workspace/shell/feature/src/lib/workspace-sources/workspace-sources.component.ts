@@ -1,16 +1,33 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { RecentPlaylistsComponent } from '@iptvnator/playlist/shared/ui';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { selectActiveTypeFilters, selectAllPlaylistsMeta } from 'm3u-state';
 import { map, startWith } from 'rxjs';
+import { SortBy, SortOrder, SortService } from 'services';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
+
+interface SortOption {
+    by: SortBy;
+    order: SortOrder;
+    icon: string;
+    translationKey: string;
+}
 
 @Component({
     selector: 'app-workspace-sources',
-    imports: [RecentPlaylistsComponent],
+    imports: [
+        MatButtonModule,
+        MatIconModule,
+        MatMenuModule,
+        RecentPlaylistsComponent,
+        TranslatePipe,
+    ],
     templateUrl: './workspace-sources.component.html',
     styleUrl: './workspace-sources.component.scss',
 })
@@ -19,6 +36,7 @@ export class WorkspaceSourcesComponent {
     private readonly store = inject(Store);
     private readonly workspaceActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly translate = inject(TranslateService);
+    private readonly sortService = inject(SortService);
 
     private readonly activeTypeFilters = this.store.selectSignal(
         selectActiveTypeFilters
@@ -29,6 +47,44 @@ export class WorkspaceSourcesComponent {
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
+    );
+
+    readonly sortOptions: SortOption[] = [
+        {
+            by: SortBy.DATE_ADDED,
+            order: SortOrder.DESC,
+            icon: 'schedule',
+            translationKey: 'HOME.SORT_OPTIONS.NEWEST',
+        },
+        {
+            by: SortBy.DATE_ADDED,
+            order: SortOrder.ASC,
+            icon: 'history',
+            translationKey: 'HOME.SORT_OPTIONS.OLDEST',
+        },
+        {
+            by: SortBy.NAME,
+            order: SortOrder.ASC,
+            icon: 'sort_by_alpha',
+            translationKey: 'HOME.SORT_OPTIONS.NAME_ASC',
+        },
+        {
+            by: SortBy.NAME,
+            order: SortOrder.DESC,
+            icon: 'sort_by_alpha',
+            translationKey: 'HOME.SORT_OPTIONS.NAME_DESC',
+        },
+        {
+            by: SortBy.CUSTOM,
+            order: SortOrder.ASC,
+            icon: 'drag_indicator',
+            translationKey: 'HOME.SORT_OPTIONS.CUSTOM_ORDER',
+        },
+    ];
+
+    private readonly currentSortOptions = toSignal(
+        this.sortService.getSortOptions(),
+        { requireSync: true }
     );
 
     readonly searchQuery = toSignal(
@@ -97,8 +153,32 @@ export class WorkspaceSourcesComponent {
         });
     });
 
+    readonly activeSortLabel = computed(() => {
+        this.languageTick();
+        const current = this.currentSortOptions();
+        const match = this.sortOptions.find(
+            (option) =>
+                option.by === current.by && option.order === current.order
+        );
+        return this.translateText(
+            match?.translationKey ?? 'HOME.SORT_OPTIONS.NEWEST'
+        );
+    });
+
     onAddPlaylist(): void {
         this.workspaceActions.openAddPlaylistDialog();
+    }
+
+    isSortActive(option: SortOption): boolean {
+        const current = this.currentSortOptions();
+        return current.by === option.by && current.order === option.order;
+    }
+
+    setSortOption(option: SortOption): void {
+        this.sortService.setSortOptions({
+            by: option.by,
+            order: option.order,
+        });
     }
 
     private translateText(

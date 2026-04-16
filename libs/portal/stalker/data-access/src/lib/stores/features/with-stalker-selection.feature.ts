@@ -1,18 +1,11 @@
-import { computed } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { StalkerCategoryItem, StalkerVodSource } from '../../models';
+import { StalkerVodSource } from '../../models';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
-
-interface SelectionStoreContext {
-    vodCategories(): StalkerCategoryItem[];
-    seriesCategories(): StalkerCategoryItem[];
-    itvCategories(): StalkerCategoryItem[];
-}
 
 /**
  * Selection/pagination/search feature state.
@@ -101,49 +94,6 @@ export function withStalkerSelection() {
                     selectedItem: undefined,
                 });
             },
-            /** getters */
-            getSelectedCategory: computed(() => {
-                const storeContext = store as unknown as SelectionStoreContext;
-                const categoryId = store.selectedCategoryId();
-                if (!categoryId) {
-                    return {
-                        id: 0,
-                        category_name: 'All Items',
-                        type: store.selectedContentType(),
-                    };
-                }
-
-                // Get categories based on content type
-                const contentType = store.selectedContentType();
-                let categories: StalkerCategoryItem[] = [];
-                const readCategories = (
-                    getterName:
-                        | 'vodCategories'
-                        | 'seriesCategories'
-                        | 'itvCategories'
-                ) =>
-                    typeof storeContext[getterName] === 'function'
-                        ? storeContext[getterName]()
-                        : [];
-                if (contentType === 'vod') {
-                    categories = readCategories('vodCategories');
-                } else if (contentType === 'series') {
-                    categories = readCategories('seriesCategories');
-                } else if (contentType === 'itv') {
-                    categories = readCategories('itvCategories');
-                }
-
-                return (
-                    categories.find(
-                        (category) =>
-                            String(category.category_id) === String(categoryId)
-                    ) || {
-                        category_id: categoryId,
-                        category_name: '',
-                        type: contentType,
-                    }
-                );
-            }),
         }))
     );
 }
